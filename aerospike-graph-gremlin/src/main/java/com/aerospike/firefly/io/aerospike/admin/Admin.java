@@ -25,7 +25,7 @@ public class Admin {
     public static final Index index = new Index();
 
     public static class Index<I> {
-        public <A> I getIndexList(final FireflyGraph firefly) {
+        public I getIndexList(final FireflyGraph firefly) {
             try {
                 // Manually force an update.
                 firefly.fireflyIndexMetadata.updateMetadata();
@@ -61,7 +61,7 @@ public class Admin {
             return (I) validVertexPropertyIndexes;
         }
 
-        public <A> I getIndexCardinality(final FireflyGraph firefly) {
+        public I getIndexCardinality(final FireflyGraph firefly) {
             try {
                 // Manually force an update.
                 firefly.fireflyIndexMetadata.updateMetadata();
@@ -101,7 +101,7 @@ public class Admin {
             return (I) cardinalityMap;
         }
 
-        public <A> I createVertexPropertyIndex(final FireflyGraph firefly, final String key) {
+        public I createVertexPropertyIndex(final FireflyGraph firefly, final String key) {
             final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
             final List<String> existingIndexes = getExistingIndexes(firefly);
             String formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
@@ -125,7 +125,7 @@ public class Admin {
             return (I) ("Vertex index creation of property key '" + key + "' in progress.");
         }
 
-        public <A> I dropVertexPropertyIndex(final FireflyGraph firefly, final String key) {
+        public I dropVertexPropertyIndex(final FireflyGraph firefly, final String key) {
             final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
             firefly.getBaseGraph().dropIndexBackground(set,
                     String.format("%s_%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key, STRING));
@@ -140,7 +140,7 @@ public class Admin {
                     stream().map(Map.Entry::getKey).collect(Collectors.toList());
         }
 
-        public <A> I createVertexLabelIndex(final FireflyGraph firefly) {
+        public I createVertexLabelIndex(final FireflyGraph firefly) {
             final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
             final List<String> existingIndexes = getExistingIndexes(firefly);
             firefly.getBaseGraph().createIndexBackground(existingIndexes,
@@ -153,13 +153,13 @@ public class Admin {
             return (I) "Vertex label index creation in progress.";
         }
 
-        public <A> I dropVertexLabelIndex(final FireflyGraph firefly) {
+        public I dropVertexLabelIndex(final FireflyGraph firefly) {
             final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
             firefly.getBaseGraph().dropIndexBackground(set, firefly.getBaseGraph().V_LABEL_INDEX_NAME);
             return (I) "Vertex label index dropped.";
         }
 
-        public <A> I getStatusVertexLabelIndex(final FireflyGraph firefly) {
+        public I getStatusVertexLabelIndex(final FireflyGraph firefly) {
             try {
                 return (I) getIndexStatus(firefly, firefly.getBaseGraph().V_LABEL_INDEX_NAME);
             } catch (final IllegalStateException e) {
@@ -167,7 +167,7 @@ public class Admin {
             }
         }
 
-        public static <A> Map<String, Long> getIndexStatus(final FireflyGraph firefly, final String indexName) {
+        public static Map<String, Long> getIndexStatus(final FireflyGraph firefly, final String indexName) {
             final String infoQueryFormat = "sindex/%s/%s"; // "sindex/<namespace>/<index name>
             int lowestLoadPct = 100;
             int totalEntries = 0;
@@ -206,7 +206,7 @@ public class Admin {
             throw new IllegalStateException("Index not found: " + indexName + ".");
         }
 
-        public <A> I getStatusVertexPropertyIndex(final FireflyGraph firefly, final String key) {
+        public I getStatusVertexPropertyIndex(final FireflyGraph firefly, final String key) {
             final String formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
             final String stringIndexName = formattedIndex + "_" + STRING;
             final String numericIndexName = formattedIndex + "_" + NUMERIC;

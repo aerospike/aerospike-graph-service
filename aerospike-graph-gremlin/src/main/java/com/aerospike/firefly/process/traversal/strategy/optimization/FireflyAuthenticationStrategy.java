@@ -22,9 +22,6 @@ import static com.aerospike.firefly.security.JWTAuthorizer.RESERVED_CALL_STRING;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
-    boolean hasMutateStep = false;
-    boolean hasAdminStep = false;
-    JWTAuthenticator.JWTAuthenticatedUser jwtUser = null;
 
     /**
      * Default constructor for FireflyAuthenticationStrategy.
@@ -39,8 +36,8 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
-        hasMutateStep = false;
-        hasAdminStep = false;
+        boolean hasMutateStep = false;
+        boolean hasAdminStep = false;
 
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
         if (!graph.getBaseGraph().AUTHENTICATION_ENABLED) {
@@ -66,6 +63,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
         }
 
         Step adminStep = null;
+        JWTAuthenticator.JWTAuthenticatedUser jwtUser = null;
         for (final Step step : traversal.getSteps()) {
             if (step instanceof CallStep) {
                 final CallStep callStep = (CallStep) step;

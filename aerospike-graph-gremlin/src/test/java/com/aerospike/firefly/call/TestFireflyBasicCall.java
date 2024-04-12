@@ -36,7 +36,8 @@ public class TestFireflyBasicCall {
                     "aerospike.graph.admin.index.drop",
                     "aerospike.graph.admin.index.list",
                     "aerospike.graph.admin.index.status",
-                    "aerospike.graph.admin.index.cardinality"
+                    "aerospike.graph.admin.index.cardinality",
+                    "aerospike.graph.admin.reserved.info"
             ), new HashSet<>(normalOutput));
 
             // The verbose output is a list of strings that looks like, note the innards of the list is straight up string:
@@ -80,6 +81,10 @@ public class TestFireflyBasicCall {
                         break;
                     case "{\"name\":\"aerospike.graph.admin.index.list\"":
                     case "{\"name\":\"aerospike.graph.admin.index.cardinality\"":
+                        Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
+                        Assert.assertEquals(infoPieces.get(2), "\"params\":{}}");
+                        break;
+                    case "{\"name\":\"aerospike.graph.admin.reserved.info\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{}}");
                         break;

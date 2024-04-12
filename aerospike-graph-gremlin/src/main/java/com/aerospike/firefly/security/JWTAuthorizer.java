@@ -16,7 +16,7 @@ public class JWTAuthorizer implements Authorizer {
 
     @Override
     public Bytecode authorize(final AuthenticatedUser user, final Bytecode bytecode, final Map<String, String> aliases) throws AuthorizationException {
-        bytecode.addStep(GraphTraversal.Symbols.call, "aerospike.graph.admin.info");
+        bytecode.addStep(GraphTraversal.Symbols.call, "aerospike.graph.admin.reserved.info");
         bytecode.addStep(GraphTraversal.Symbols.with, "user", user);
         return bytecode;
     }

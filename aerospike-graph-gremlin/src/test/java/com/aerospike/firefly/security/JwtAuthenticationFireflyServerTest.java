@@ -23,11 +23,6 @@ public class JwtAuthenticationFireflyServerTest {
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
             .sign(Algorithm.HMAC256("lyndon_secret"));
-    final String foo = JWT.create()
-            .withClaim("role", "ADMIN")
-            .withSubject("kenny")
-            .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
     final String validWrite = JWT.create()
             .withClaim("role", "WRITE")
             .withSubject("lyndon_username")

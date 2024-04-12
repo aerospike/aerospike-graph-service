@@ -57,7 +57,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 } catch (NoSuchFieldException | IllegalAccessException ignore) {
                 }
 
-                if ("aerospike.graph.admin.info".equals(serviceName)) {
+                if ("aerospike.graph.admin.reserved.info".equals(serviceName)) {
                     throw new RuntimeException("Error, authentication is disabled but credentials were provided.");
                 }
             }
@@ -77,7 +77,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 } catch (NoSuchFieldException | IllegalAccessException ignore) {
                 }
 
-                if ("aerospike.graph.admin.info".equals(serviceName)) {
+                if ("aerospike.graph.admin.reserved.info".equals(serviceName)) {
                     try {
                         final Field parametersField = CallStep.class.getDeclaredField("parameters");
                         parametersField.setAccessible(true);

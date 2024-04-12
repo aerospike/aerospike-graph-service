@@ -30,7 +30,7 @@ public class AdministrativeInfoService extends AdminServiceRegistry {
 
     @Override
     protected String getAdminNamespace() {
-        return null;
+        return "reserved";
     }
 
     @Override

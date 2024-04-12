@@ -18,7 +18,7 @@ import java.util.Set;
  */
 public class FireflyUserContextStep extends AbstractStep {
     private final Logger LOG = LoggerFactory.getLogger(FireflyUserContextStep.class);
-    private UserContext userContext;
+    private final UserContext userContext;
 
     public FireflyUserContextStep(final Traversal.Admin traversal, final UserContext userContext, final Set<String> labels) {
         super(traversal);

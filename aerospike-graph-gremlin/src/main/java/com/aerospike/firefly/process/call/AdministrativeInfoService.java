@@ -40,21 +40,25 @@ public class AdministrativeInfoService extends AdminServiceRegistry {
 
     @Override
     protected String usage(final Map params) {
+        // This should never happen.
         throw new UnsupportedOperationException("This service should never be executed.");
     }
 
     @Override
     protected boolean sanitize(final Map params) {
+        // This should never happen.
         throw new UnsupportedOperationException("This service should never be executed.");
     }
 
     @Override
     protected Object execute(final Map params) {
+        // This should never happen.
         throw new UnsupportedOperationException("This service should never be executed.");
     }
 
     @Override
     protected void auditLog(final Map params) {
+        // This should never happen.
         throw new UnsupportedOperationException("This service should never be executed.");
     }
 

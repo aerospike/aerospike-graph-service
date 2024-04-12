@@ -605,11 +605,6 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
-    public boolean userIsValid(UserContext userContext) {
-        //@todo
-        return true;
-    }
-
     public static class GraphMetadata {
         public final Record metadataRecord;
 

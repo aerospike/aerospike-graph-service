@@ -144,7 +144,7 @@ public class WarmupUtil {
             System.out.println("Warmup complete.");
         } catch (final Exception e) {
             if (e.getMessage().contains("Failure to initialize security context")) {
-                // Silently fail, can't warm up when were secure.
+                // Silently fail; can't warm up when were secure.
                 return;
             }
             final String message = String.format("Failed to perform warmup routine: %s", e.getMessage());

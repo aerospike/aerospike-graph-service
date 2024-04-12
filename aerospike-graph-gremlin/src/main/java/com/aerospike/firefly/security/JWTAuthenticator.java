@@ -114,7 +114,7 @@ public class JWTAuthenticator implements Authenticator {
         final DecodedJWT jwt;
         try {
             jwt = verifier.verify(credentials.get(PROPERTY_PASSWORD));
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new AuthenticationException(String.format("Failure to validate credentials: %s", e.getMessage()));
         }
 
@@ -150,11 +150,7 @@ public class JWTAuthenticator implements Authenticator {
         @Override
         public boolean valid(final FireflyGraph fireflyGraph) {
             final Instant expiry = decodedJWT.getExpiresAtAsInstant();
-            if (expiry != null && expiry.isBefore(Instant.now())) {
-                return false;
-            }
-
-            return fireflyGraph.getBaseGraph().userIsValid(this);
+            return expiry == null || expiry.isAfter(Instant.now());
         }
     }
 

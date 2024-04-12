@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry.RESERVED_USER_CONTEXT;
+import static com.aerospike.firefly.security.JWTAuthorizer.RESERVED_CALL_STRING;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -57,7 +58,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 } catch (NoSuchFieldException | IllegalAccessException ignore) {
                 }
 
-                if ("aerospike.graph.admin.reserved.info".equals(serviceName)) {
+                if (RESERVED_CALL_STRING.equals(serviceName)) {
                     throw new RuntimeException("Error, authentication is disabled but credentials were provided.");
                 }
             }
@@ -77,7 +78,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 } catch (NoSuchFieldException | IllegalAccessException ignore) {
                 }
 
-                if ("aerospike.graph.admin.reserved.info".equals(serviceName)) {
+                if (RESERVED_CALL_STRING.equals(serviceName)) {
                     try {
                         final Field parametersField = CallStep.class.getDeclaredField("parameters");
                         parametersField.setAccessible(true);

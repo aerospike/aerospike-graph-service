@@ -3,7 +3,7 @@ package com.aerospike.firefly.security;
 import com.aerospike.firefly.structure.FireflyGraph;
 
 public interface UserContext {
-    enum ROLE{
+    enum ROLE {
         ADMIN,
         WRITE,
         READ

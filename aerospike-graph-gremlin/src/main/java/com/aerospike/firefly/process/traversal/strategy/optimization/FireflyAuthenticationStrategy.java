@@ -90,7 +90,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
 
                         jwtUser = (JWTAuthenticator.JWTAuthenticatedUser) params.get("user").get(0);
                         adminStep = step;
-                    } catch (IllegalAccessException | NoSuchFieldException e) {
+                    } catch (final IllegalAccessException | NoSuchFieldException e) {
                         throw new RuntimeException(e);
                     }
 

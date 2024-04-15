@@ -30,6 +30,7 @@ import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
+import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.structure.util.FireflyTtlHandler;
 import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
@@ -105,6 +106,7 @@ import static com.aerospike.firefly.structure.FireflyEdge.LABEL_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.createFilterableSupernodeOperation;
 import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_PROPERTY_KEY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
@@ -589,6 +591,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                               final Object inVertexId, final Object outVertexId, final boolean inVSupernode,
                               final boolean outVSupernode) {
         FireflyGraph.LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertexId, label, inVertexId, properties);
+        final FireflyId id = getIdFactory().createId(edgeId, FireflyEdge.class);
+        final FireflyId inId = FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET);
+        final FireflyId outId = FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET);
 
         final Map<String, Object> propertyMap = new TreeMap<>();
         final Map<String, Object> typeHints = new TreeMap<>();
@@ -618,20 +623,24 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         // Add label to Edge data.
         edgeData.add(LABEL_POSITION, Value.get(label));
         // Add IN and OUT to Edge data.
-        edgeData.add(IN_V_POSITION, Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHashString()));
-        edgeData.add(OUT_V_POSITION, Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHashString()));
+        edgeData.add(IN_V_POSITION, Value.get(inId.getKeyHashString()));
+        edgeData.add(OUT_V_POSITION, Value.get(outId.getKeyHashString()));
 
         // Write to supernodes bin if vertex cache overflowed.
         if (inVSupernode) {
             final Operation writeInVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_IN_BIN,
-                    Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHashString()));
+                    Value.get(edgeId), Value.get(inId.getKeyHashString()));
             operations.add(writeInVSupernode);
         }
         if (outVSupernode) {
             final Operation writeOutVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_OUT_BIN,
-                    Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHashString()));
+                    Value.get(edgeId), Value.get(outId.getKeyHashString()));
             operations.add(writeOutVSupernode);
         }
+
+        // Write to filterable supernode bin if necessary.
+        operations.addAll(createFilterableSupernodeOperation(this, (FireflyPhatEdgeId) id, outVSupernode,
+                inVSupernode, outId, inId, label, propertyMap));
 
         // Add properties and type hints to Edge data.
         edgeData.add(PROPERTIES_POSITION, Value.get(propertyMap));
@@ -644,7 +653,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
-        final Key key = getKey(db, db.EDGE_AERO_SET, getIdFactory().createId(edgeId, FireflyEdge.class));
+        final Key key = getKey(db, db.EDGE_AERO_SET, id);
         try {
             db.operate(writePolicy, key, operations.toArray(new Operation[0]));
         } catch (final EdgeRecordSizeExceededException ersee) {

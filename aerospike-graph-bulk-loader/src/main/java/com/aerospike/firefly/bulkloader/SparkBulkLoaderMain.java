@@ -157,7 +157,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             String writeLocation = null;
             if (edgeIdWriteDisabled) {
                 // Persisting Edge IDs is disabled. Do Nothing.
-                LOGGER.warn("{} mode detected. System will not write persistent Edge IDs to temp storage.", READ_ONLY);
+                LOGGER.debug("{} mode detected. System will not write persistent Edge IDs to temp storage.", READ_ONLY);
             } else {
                 // Check that the temp directory to write to is set.
                 try {

@@ -27,6 +27,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -212,7 +213,7 @@ public class SampleStrategyTest {
 
             final FireflyVertex supernode = (FireflyVertex) g.V().has("indexed", "value1").next();
 
-            final List<FireflyId> supernodeEdgeIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), EDGE_ID);
+            final List<FireflyId> supernodeEdgeIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), EDGE_ID, Collections.emptyList());
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeEdgeIds.size());
             Assert.assertFalse(supernodeEdgeIds.stream().anyMatch(Objects::isNull));
 
@@ -220,7 +221,7 @@ public class SampleStrategyTest {
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeEdges.size());
             Assert.assertFalse(supernodeEdges.stream().anyMatch(Objects::isNull));
 
-            final List<FireflyId> supernodeVertexIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), VERTEX_ID);
+            final List<FireflyId> supernodeVertexIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), VERTEX_ID, Collections.emptyList());
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeVertexIds.size());
             Assert.assertFalse(supernodeVertexIds.stream().anyMatch(Objects::isNull));
 
@@ -229,7 +230,7 @@ public class SampleStrategyTest {
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeVertices.size());
             Assert.assertFalse(supernodeVertices.stream().anyMatch(Objects::isNull));
 
-            final List<FireflyId> allEdgeIds = supernode.getEdgeIdsFromVertex(Direction.OUT, Set.of());
+            final List<FireflyId> allEdgeIds = supernode.getEdgeIdsFromVertex(Direction.OUT, Set.of(), Collections.emptyList());
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, allEdgeIds.size());
             Assert.assertFalse(allEdgeIds.stream().anyMatch(Objects::isNull));
 
@@ -419,11 +420,10 @@ public class SampleStrategyTest {
             Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
         } else if (!sampleFirst) {
             if (!isVertex) {
-                Assert.assertEquals(5, steps.size());
-                // Graph step, has step, limit step, has step, cache step.
-                Assert.assertTrue(steps.get(2) instanceof HasStep);
-                Assert.assertTrue(steps.get(3) instanceof SampleGlobalStep);
-                Assert.assertTrue(steps.get(4) instanceof FireflyCacheGCStep);
+                Assert.assertEquals(4, steps.size());
+                // Graph step, limit step, has step, cache step.
+                Assert.assertTrue(steps.get(2) instanceof SampleGlobalStep);
+                Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
             } else {
                 Assert.assertEquals(4, steps.size());
                 // Graph step, composite id step, limit step, has step, cache step.
@@ -461,11 +461,10 @@ public class SampleStrategyTest {
             Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
         } else if (!limitFirst) {
             if (!isVertex) {
-                Assert.assertEquals(5, steps.size());
-                // Graph step, has step, limit step, has step, cache step.
-                Assert.assertTrue(steps.get(2) instanceof HasStep);
-                Assert.assertTrue(steps.get(3) instanceof RangeGlobalStep);
-                Assert.assertTrue(steps.get(4) instanceof FireflyCacheGCStep);
+                Assert.assertEquals(4, steps.size());
+                // Graph step, limit step, has step, cache step.
+                Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
+                Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
             } else {
                 Assert.assertEquals(4, steps.size());
                 // Graph step, composite id step, limit step, has step, cache step.

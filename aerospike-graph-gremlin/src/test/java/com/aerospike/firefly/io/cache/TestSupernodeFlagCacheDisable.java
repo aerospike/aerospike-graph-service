@@ -23,9 +23,6 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
         // Create vertex.
         FireflyVertex v = (FireflyVertex) g.addV("test").next();
 
-        // Validate ~supernode flag does not exist on vertex as it is virtual
-        Assert.assertFalse(v.property("~supernode").isPresent());
-
         // Validate vertex supernode flag is not set.
         final Key key = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v.id);
         Record r = graph.getBaseGraph().getClient().get(null, key);
@@ -35,9 +32,6 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
         // Set supernode flag and grab vertex.
         v = (FireflyVertex) g.V(v.id()).property("~supernode", true).next();
 
-        // Validate ~supernode flag does not exist on vertex as it is virtual
-        Assert.assertFalse(v.property("~supernode").isPresent());
-
         // Validate cache overflowed flag is set.
         Assert.assertTrue(v.isEdgeCacheOverflowed());
         r = graph.getBaseGraph().getClient().get(null, key);
@@ -45,9 +39,6 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
 
         // Grab vertex through id.
         v = (FireflyVertex) g.V(v.id()).next();
-
-        // Validate ~supernode flag does not exist on vertex as it is virtual
-        Assert.assertFalse(v.property("~supernode").isPresent());
 
         // Validate cache overflowed flag is set.
         Assert.assertTrue(v.isEdgeCacheOverflowed());
@@ -62,9 +53,6 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
         // Create vertex.
         FireflyVertex v = (FireflyVertex) g.addV("test").property("~supernode", true).next();
 
-        // Validate ~supernode flag does not exist on vertex as it is virtual
-        Assert.assertFalse(v.property("~supernode").isPresent());
-
         // Validate vertex supernode flag is set.
         final Key key = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v.id);
         Record r = graph.getBaseGraph().getClient().get(null, key);
@@ -73,13 +61,9 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
 
         v = (FireflyVertex) g.V().hasLabel("test").next();
 
-        // Validate ~supernode flag does not exist on vertex as it is virtual
-        Assert.assertFalse(v.property("~supernode").isPresent());
-
         // Validate vertex supernode flag is set.
         r = graph.getBaseGraph().getClient().get(null, key);
         Assert.assertTrue(v.isEdgeCacheOverflowed());
         Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
-        Assert.assertFalse(v.property("~supernode").isPresent());
     }
 }

@@ -6,9 +6,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.concurrent.CompletionException;
@@ -23,13 +21,8 @@ public class JwtAuthenticationDockerTest {
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
             .sign(Algorithm.HMAC256("lyndon_secret"));
-    final String foo = JWT.create()
-            .withClaim("role", "ADMIN")
-            .withSubject("kenny")
-            .withIssuer("aerospike")
-            .sign(Algorithm.HMAC256("lyndon_secret"));
     final String validWrite = JWT.create()
-            .withClaim("role", "WRITE")
+            .withClaim("role", "READ_WRITE")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
             .sign(Algorithm.HMAC256("lyndon_secret"));
@@ -70,6 +63,11 @@ public class JwtAuthenticationDockerTest {
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
             .sign(Algorithm.HMAC256("invalid_secret"));
+    final String invalidRole2 = JWT.create()
+            .withClaim("role", "WRITE21")
+            .withSubject("lyndon_username")
+            .withIssuer("aerospike")
+            .sign(Algorithm.HMAC256("lyndon_secret"));
 
     private static GraphTraversalSource getGraphTraversalSource(final String username, final String jwt) {
         final Cluster cluster = Cluster.build()
@@ -139,6 +137,14 @@ public class JwtAuthenticationDockerTest {
     @Test
     public void testServerAuthNullRole() {
         final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", nullRole);
+        Assert.assertThrows(
+                "User does not have read access.",
+                RuntimeException.class, () -> g.V().toList());
+    }
+
+    @Test
+    public void testServerAuthInvalidRole2() {
+        final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", invalidRole2);
         Assert.assertThrows(
                 "User does not have read access.",
                 RuntimeException.class, () -> g.V().toList());

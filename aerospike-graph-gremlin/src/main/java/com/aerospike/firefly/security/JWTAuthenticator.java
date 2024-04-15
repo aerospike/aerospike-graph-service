@@ -144,7 +144,12 @@ public class JWTAuthenticator implements Authenticator {
         @Override
         public ROLE getRole() {
             // remove '"' from each side
-            return ROLE.valueOf(decodedJWT.getClaims().get("role").toString().replaceAll("\"", ""));
+            try {
+                return ROLE.valueOf(decodedJWT.getClaims().get("role").toString().replaceAll("\"", ""));
+            } catch (final IllegalArgumentException e) {
+                // This is used to bubble up appropriate exceptions.
+                return null;
+            }
         }
 
         @Override

@@ -119,18 +119,24 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
         final JWTAuthenticator.JWTAuthenticatedUser userContext = (JWTAuthenticator.JWTAuthenticatedUser) params.remove(RESERVED_USER_CONTEXT);
         if (userContext == null) {
             // This should never happen.
-            throw new IllegalArgumentException("User context is invalid.");
+            throw AuthenticationException.invalidUserContext();
+        }
+
+        final UserContext.ROLE role = userContext.getRole();
+        if (role == null) {
+            // This can happen.
+            throw AuthenticationException.invalidRole();
         }
         final UserContext.ROLE requiredRole = getRequiredRole();
         if (requiredRole.equals(UserContext.ROLE.ADMIN)) {
-            return userContext.getRole().equals(UserContext.ROLE.ADMIN);
-        } else if (requiredRole.equals(UserContext.ROLE.WRITE)) {
-            return userContext.getRole().equals(UserContext.ROLE.ADMIN) ||
-                    userContext.getRole().equals(UserContext.ROLE.WRITE);
+            return role.equals(UserContext.ROLE.ADMIN);
+        } else if (requiredRole.equals(UserContext.ROLE.READ_WRITE)) {
+            return role.equals(UserContext.ROLE.ADMIN) ||
+                    role.equals(UserContext.ROLE.READ_WRITE);
         } else {
-            return userContext.getRole().equals(UserContext.ROLE.ADMIN) ||
-                    userContext.getRole().equals(UserContext.ROLE.WRITE) ||
-                    userContext.getRole().equals(UserContext.ROLE.READ);
+            return role.equals(UserContext.ROLE.ADMIN) ||
+                    role.equals(UserContext.ROLE.READ_WRITE) ||
+                    role.equals(UserContext.ROLE.READ);
         }
     }
 

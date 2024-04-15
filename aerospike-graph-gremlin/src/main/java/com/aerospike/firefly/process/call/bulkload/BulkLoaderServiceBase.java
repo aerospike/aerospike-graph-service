@@ -41,7 +41,7 @@ public abstract class BulkLoaderServiceBase<I, R> extends AdminServiceRegistry<I
     }
 
     protected UserContext.ROLE getRequiredRole() {
-        return UserContext.ROLE.WRITE;
+        return UserContext.ROLE.READ_WRITE;
     }
 
     public static void routeBulkLoadServices(final Router router) {

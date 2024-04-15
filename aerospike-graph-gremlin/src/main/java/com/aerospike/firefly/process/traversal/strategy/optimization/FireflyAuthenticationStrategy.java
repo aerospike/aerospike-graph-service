@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.io.aerospike.admin.AuthenticationException;
 import com.aerospike.firefly.security.JWTAuthenticator;
 import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -53,11 +54,11 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                     final Field serviceNameField = CallStep.class.getDeclaredField("serviceName");
                     serviceNameField.setAccessible(true);
                     serviceName = (String) serviceNameField.get(callStep);
-                } catch (NoSuchFieldException | IllegalAccessException ignore) {
+                } catch (final NoSuchFieldException | IllegalAccessException ignore) {
                 }
 
                 if (RESERVED_CALL_STRING.equals(serviceName)) {
-                    throw new RuntimeException("Error, authentication is disabled but credentials were provided.");
+                    throw AuthenticationException.credentialsProvidedAuthenticationDisabled();
                 }
             }
             return;
@@ -76,7 +77,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 final Field serviceNameField = CallStep.class.getDeclaredField("serviceName");
                 serviceNameField.setAccessible(true);
                 serviceName = (String) serviceNameField.get(callStep);
-            } catch (NoSuchFieldException | IllegalAccessException ignore) {
+            } catch (final NoSuchFieldException | IllegalAccessException ignore) {
             }
 
             if (!RESERVED_CALL_STRING.equals(serviceName)) {
@@ -92,7 +93,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 if (!params.containsKey("user")
                         || params.get("user").size() != 1 ||
                         !(params.get("user").get(0) instanceof JWTAuthenticator.JWTAuthenticatedUser)) {
-                    throw new RuntimeException("User not found in parameters.");
+                    throw AuthenticationException.userNotFoundInParameters();
                 }
 
                 jwtUser = (JWTAuthenticator.JWTAuthenticatedUser) params.get("user").get(0);
@@ -111,24 +112,27 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
         }
 
         if (jwtUser == null) {
-            throw new RuntimeException("User not found in parameters.");
+            throw AuthenticationException.userNotFoundInParameters();
         } else {
             final UserContext.ROLE role = jwtUser.getRole();
+            if (role == null) {
+                throw AuthenticationException.userDoesNotHaveValidRole();
+            }
             if (hasMutateStep) {
-                if (!role.equals(UserContext.ROLE.WRITE) && !role.equals(UserContext.ROLE.ADMIN)) {
-                    throw new RuntimeException("User does not have write access.");
+                if (!role.equals(UserContext.ROLE.READ_WRITE) && !role.equals(UserContext.ROLE.ADMIN)) {
+                    throw AuthenticationException.userDoesNotHaveWriteAccess();
                 }
             }
             if (hasAdminStep) {
                 if (!role.equals(UserContext.ROLE.ADMIN)) {
-                    throw new RuntimeException("User does not have admin access.");
+                    throw AuthenticationException.userDoesNotHaveAdminAccess();
                 }
             }
             if (!hasMutateStep && !hasAdminStep) {
                 if (!role.equals(UserContext.ROLE.READ) &&
-                        !role.equals(UserContext.ROLE.WRITE) &&
+                        !role.equals(UserContext.ROLE.READ_WRITE) &&
                         !role.equals(UserContext.ROLE.ADMIN)) {
-                    throw new RuntimeException("User does not have read access.");
+                    throw AuthenticationException.userDoesNotHaveReadAccess();
                 }
             }
         }

@@ -24,7 +24,7 @@ public class JwtAuthenticationFireflyServerTest {
             .withIssuer("aerospike")
             .sign(Algorithm.HMAC256("lyndon_secret"));
     final String validWrite = JWT.create()
-            .withClaim("role", "WRITE")
+            .withClaim("role", "READ_WRITE")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
             .sign(Algorithm.HMAC256("lyndon_secret"));
@@ -65,6 +65,11 @@ public class JwtAuthenticationFireflyServerTest {
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
             .sign(Algorithm.HMAC256("invalid_secret"));
+    final String invalidRole2 = JWT.create()
+            .withClaim("role", "WRITE21")
+            .withSubject("lyndon_username")
+            .withIssuer("aerospike")
+            .sign(Algorithm.HMAC256("lyndon_secret"));
 
     @BeforeClass
     public static void setup() {
@@ -139,6 +144,14 @@ public class JwtAuthenticationFireflyServerTest {
         Assert.assertThrows(
                 "Failure to validate credentials: The Claim 'iss' is not present in the JWT.",
                 CompletionException.class, () -> g.V().toList());
+    }
+
+    @Test
+    public void testServerAuthInvalidRole2() {
+        final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", invalidRole2);
+        Assert.assertThrows(
+                "User does not have read access.",
+                RuntimeException.class, () -> g.V().toList());
     }
 
     @Test

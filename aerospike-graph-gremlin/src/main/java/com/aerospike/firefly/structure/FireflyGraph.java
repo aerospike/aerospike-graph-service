@@ -259,13 +259,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final boolean preheat = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf);
         try {
             // Prevent warmup from disabling the logger for Aerospike Client.
-            if (!ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf)) {
-                if (clientLogging) {
-                    Log.setCallback(new AerospikeLogger());
-                    Log.setLevel(Log.Level.valueOf(logLevel));
-                }
-                LoggerUtil.setLogLevel(Level.toLevel(logLevel));
+            if (clientLogging && !ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf)) {
+                Log.setCallback(new AerospikeLogger());
+                Log.setLevel(Log.Level.valueOf(logLevel));
             }
+            LoggerUtil.setLogLevel(Level.toLevel(logLevel));
         } catch (final Exception e) {
             LOG.warn("Failed to set log level {}", e.getMessage());
         }

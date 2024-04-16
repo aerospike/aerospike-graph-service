@@ -125,7 +125,7 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
         final UserContext.ROLE role = userContext.getRole();
         if (role == null) {
             // This can happen.
-            throw AuthenticationException.invalidRole();
+            throw AuthenticationException.userDoesNotHaveValidRole();
         }
         final UserContext.ROLE requiredRole = getRequiredRole();
         if (requiredRole.equals(UserContext.ROLE.ADMIN)) {

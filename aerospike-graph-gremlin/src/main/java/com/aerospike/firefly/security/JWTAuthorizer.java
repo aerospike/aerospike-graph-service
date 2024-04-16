@@ -16,14 +16,14 @@ public class JWTAuthorizer implements Authorizer {
     }
 
     @Override
-    public Bytecode authorize(final AuthenticatedUser user, final Bytecode bytecode, final Map<String, String> aliases) throws AuthorizationException {
+    public Bytecode authorize(final AuthenticatedUser user, final Bytecode bytecode, final Map<String, String> aliases) {
         bytecode.addStep(GraphTraversal.Symbols.call, RESERVED_CALL_STRING);
         bytecode.addStep(GraphTraversal.Symbols.with, "user", user);
         return bytecode;
     }
 
     @Override
-    public void authorize(final AuthenticatedUser user, final RequestMessage msg) throws AuthorizationException {
-        throw new RuntimeException("cannot authorize script");
+    public void authorize(final AuthenticatedUser user, final RequestMessage msg) {
+        throw new RuntimeException("Cannot authorize script.");
     }
 }

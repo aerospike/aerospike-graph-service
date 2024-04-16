@@ -5,8 +5,8 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.auth0.jwt.impl.JWTParser;
-import com.auth0.jwt.interfaces.*;
+import com.auth0.jwt.interfaces.DecodedJWT;
+import com.auth0.jwt.interfaces.JWTVerifier;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.server.auth.AuthenticatedUser;
@@ -25,13 +25,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.apache.tinkerpop.gremlin.groovy.jsr223.dsl.credential.CredentialGraphTokens.PROPERTY_PASSWORD;
 import static org.apache.tinkerpop.gremlin.groovy.jsr223.dsl.credential.CredentialGraphTokens.PROPERTY_USERNAME;
 
 public class JWTAuthenticator implements Authenticator {
-    private static final Logger LOG = LoggerFactory.getLogger(FireflyServer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JWTAuthenticator.class);
     // Other algorithms require inputs that aren't just secret. We could support them later but for now doing minimum.
     public static final Set<String> SUPPORTED_ALGORITHMS = Set.of("HMAC256", "HMAC384", "HMAC512");
 

@@ -55,6 +55,10 @@ public class WarmupUtil {
                 System.out.println(message);
                 throw new AerospikeException(message);
             }
+            // Allow warmup to be disabled.
+            if (!ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_ENABLED, conf)) {
+                return;
+            }
             try {
                 if (graph == null) {
                     final Configuration warmupConfig = ConfigurationUtils.cloneConfiguration(conf);
@@ -63,6 +67,7 @@ public class WarmupUtil {
                     warmupConfig.setProperty(ConfigurationHelper.Keys.WARMUP_MODE.toLowerCase(), "true");
                     warmupConfig.setProperty(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG.toLowerCase(), "false");
                     warmupConfig.setProperty(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG.toLowerCase(), "false");
+                    warmupConfig.setProperty(ConfigurationHelper.Keys.TTL_ENABLED_FLAG.toLowerCase(), "false");
                     warmupConfig.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "OFF");
                     graph = FireflyGraph.open(warmupConfig);
                 }

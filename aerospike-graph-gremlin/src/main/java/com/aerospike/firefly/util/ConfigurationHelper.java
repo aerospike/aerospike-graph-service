@@ -116,6 +116,7 @@ public final class ConfigurationHelper {
         // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "aerospike.graph.auto.preheat.enabled";
         public static final String WARMUP_MODE = "aerospike.graph.warmup.mode.enabled";
+        public static final String WARMUP_ENABLED = "aerospike.graph.warmup.enabled";
         public static final String FAULT_TEST = "aerospike.graph.warmup.mode.fault.test.enabled";
         public static final String ENABLE_CUSTOM_PROFILE = "aerospike.graph.strategy.profile.custom.enabled";
         public static final String ASCLIENT_LOG_ENABLED = "aerospike.client.logging.enabled";
@@ -316,6 +317,7 @@ public final class ConfigurationHelper {
         put(Keys.LOG_LEVEL, "INFO");
         put(Keys.TLS, "false");
         put(Keys.AUTO_PRE_HEAT, "false");
+        put(Keys.WARMUP_ENABLED, "true");
         put(Keys.WARMUP_MODE, "false");
         put(Keys.ENABLE_CUSTOM_PROFILE, "true");
         put(Keys.FAULT_TEST, "false");

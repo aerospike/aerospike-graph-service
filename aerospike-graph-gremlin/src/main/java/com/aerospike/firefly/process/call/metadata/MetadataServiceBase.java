@@ -1,12 +1,7 @@
 package com.aerospike.firefly.process.call.metadata;
 
 import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
-import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
-import com.aerospike.firefly.process.call.sindex.SindexServiceCardinality;
-import com.aerospike.firefly.process.call.sindex.SindexServiceCreate;
-import com.aerospike.firefly.process.call.sindex.SindexServiceDrop;
-import com.aerospike.firefly.process.call.sindex.SindexServiceList;
-import com.aerospike.firefly.process.call.sindex.SindexServiceStatus;
+import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 import io.vertx.ext.web.Router;
 
@@ -54,5 +49,9 @@ public abstract class MetadataServiceBase<I, R> extends AdminServiceRegistry<I, 
                 services.forEach(service -> router.route(service.getPath()).handler(service.getHandler()));
             }
         }
+    }
+
+    protected UserContext.ROLE getRequiredRole() {
+        return UserContext.ROLE.READ;
     }
 }

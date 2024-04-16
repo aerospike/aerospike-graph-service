@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.call.bulkload;
 
 import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
+import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 import io.vertx.ext.web.Router;
 
@@ -37,6 +38,10 @@ public abstract class BulkLoaderServiceBase<I, R> extends AdminServiceRegistry<I
                 services.forEach(s -> s.graph = graph);
             }
         }
+    }
+
+    protected UserContext.ROLE getRequiredRole() {
+        return UserContext.ROLE.READ_WRITE;
     }
 
     public static void routeBulkLoadServices(final Router router) {

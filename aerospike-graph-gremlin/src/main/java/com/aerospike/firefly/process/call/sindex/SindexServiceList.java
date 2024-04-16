@@ -41,7 +41,7 @@ public class SindexServiceList<I, R> extends SindexServiceBase<I, R> {
 
     @Override
     protected R execute(final Map params) {
-        return (R) Admin.index.getIndexList(graph, new EmptyAdminContext());
+        return (R) Admin.index.getIndexList(graph);
     }
 
     @Override

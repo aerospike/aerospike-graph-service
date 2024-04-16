@@ -234,7 +234,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
             final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
-           final List<String> plugins = Arrays.asList(pluginConfigString.split(","));
+            final List<String> plugins = Arrays.asList(pluginConfigString.split(","));
             for (final String plugin : plugins) {
                 PluginUtil.loadPlugin(plugin, conf, this);
             }
@@ -287,7 +287,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 final Map<String, Object> configurationMap = new HashMap<>();
                 while (keys.hasNext()) {
                     final String key = keys.next();
-                    configurationMap.put(key, conf.getProperty(key));
+                    if (!key.contains("password") && !key.contains("secret") && !key.contains("token")) {
+                        configurationMap.put(key, conf.getProperty(key));
+                    } else {
+                        configurationMap.put(key, "********");
+                    }
                 }
                 LOG.info("Aerospike Graph Service configuration: {}.", configurationMap);
             }

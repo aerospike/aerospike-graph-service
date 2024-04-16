@@ -1,8 +1,11 @@
 package com.aerospike.firefly.io.aerospike.admin;
 
+import com.aerospike.firefly.process.call.AdministrativeInfoService;
 import com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceBase;
 import com.aerospike.firefly.process.call.metadata.MetadataServiceBase;
 import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
+import com.aerospike.firefly.security.JWTAuthenticator;
+import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import io.vertx.core.Handler;
@@ -23,17 +26,10 @@ import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
     protected FireflyGraph graph;
     protected static final Logger LOGGER = LoggerFactory.getLogger(AdminServiceRegistry.class);
+    public static final String RESERVED_USER_CONTEXT = "aerospike.graph.admin.reserved.user.context";
 
     public AdminServiceRegistry(final FireflyGraph graph) {
         this.graph = graph;
-    }
-
-    // Dummy for now.
-    public class EmptyAdminContext<V> implements AdminContext {
-        @Override
-        public V getContext() {
-            return null;
-        }
     }
 
     @Override
@@ -88,11 +84,13 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
     protected abstract boolean sanitize(final Map params);
     protected abstract R execute(final Map params);
     protected abstract void auditLog(final Map params);
+    protected abstract UserContext.ROLE getRequiredRole();
 
     public static void registerAdminServices(final FireflyGraph firefly) {
         SindexServiceBase.registerSindexServices(firefly);
         MetadataServiceBase.registerMetadataServices(firefly);
         BulkLoaderServiceBase.registerBulkLoadServices(firefly);
+        AdministrativeInfoService.registerAdministrativeService(firefly);
     }
 
     public static void appendHandlers(final Router router) {
@@ -103,9 +101,8 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
 
     @Override
     public CloseableIterator<R> execute(final ServiceCallContext ctx, final Map params) {
-        // TODO: Implement this with RBAC.
         if (!validateAdminContext(ctx, params)) {
-            throw new IllegalArgumentException("Invalid admin context.");
+            throw new IllegalArgumentException("Insufficient permissions for '" + getName() + "'.");
         }
         if (!sanitize(params)) {
             throw new IllegalArgumentException(usage(params));
@@ -115,7 +112,32 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
     }
 
     private boolean validateAdminContext(final ServiceCallContext ctx, final Map params) {
-        return true;
+        if (!graph.getBaseGraph().AUTHENTICATION_ENABLED) {
+            return true;
+        }
+
+        final JWTAuthenticator.JWTAuthenticatedUser userContext = (JWTAuthenticator.JWTAuthenticatedUser) params.remove(RESERVED_USER_CONTEXT);
+        if (userContext == null) {
+            // This should never happen.
+            throw AuthenticationException.invalidUserContext();
+        }
+
+        final UserContext.ROLE role = userContext.getRole();
+        if (role == null) {
+            // This can happen.
+            throw AuthenticationException.userDoesNotHaveValidRole();
+        }
+        final UserContext.ROLE requiredRole = getRequiredRole();
+        if (requiredRole.equals(UserContext.ROLE.ADMIN)) {
+            return role.equals(UserContext.ROLE.ADMIN);
+        } else if (requiredRole.equals(UserContext.ROLE.READ_WRITE)) {
+            return role.equals(UserContext.ROLE.ADMIN) ||
+                    role.equals(UserContext.ROLE.READ_WRITE);
+        } else {
+            return role.equals(UserContext.ROLE.ADMIN) ||
+                    role.equals(UserContext.ROLE.READ_WRITE) ||
+                    role.equals(UserContext.ROLE.READ);
+        }
     }
 
     private static final int SUCCESS_CODE = 200;

@@ -60,9 +60,9 @@ public class SindexServiceCreate<I, R> extends SindexServiceBase<I, R> {
     protected R execute(final Map params) {
         if (params.get(ELEMENT_TYPE).equals("vertex")) {
             if (params.get(PROPERTY_KEY).equals("~label")) {
-                return (R) Admin.index.createVertexLabelIndex(graph, new EmptyAdminContext());
+                return (R) Admin.index.createVertexLabelIndex(graph);
             } else {
-                return (R) Admin.index.createVertexPropertyIndex(graph, (String) params.get(PROPERTY_KEY), new EmptyAdminContext());
+                return (R) Admin.index.createVertexPropertyIndex(graph, (String) params.get(PROPERTY_KEY));
             }
         } else {
             // Should be caught by sanitize().

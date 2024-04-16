@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.call.sindex;
 
 import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
+import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 import io.vertx.ext.web.Router;
 
@@ -45,6 +46,10 @@ public abstract class SindexServiceBase<I, R> extends AdminServiceRegistry<I, R>
 
     public SindexServiceBase(final FireflyGraph graph) {
         super(graph);
+    }
+
+    protected UserContext.ROLE getRequiredRole() {
+        return UserContext.ROLE.ADMIN;
     }
 
     @Override

@@ -14,10 +14,6 @@ public class AuthenticationException extends RuntimeException {
         return new AuthenticationException("User context is invalid.");
     }
 
-    public static AuthenticationException invalidRole() {
-        return new AuthenticationException("User does not have a valid role.");
-    }
-
     public static AuthenticationException credentialsProvidedAuthenticationDisabled() {
         return new AuthenticationException("Error, authentication is disabled but credentials were provided.");
     }

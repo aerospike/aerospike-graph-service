@@ -123,7 +123,6 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 
 @Graph.OptIn(Graph.OptIn.SUITE_STRUCTURE_STANDARD)
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_STANDARD)
-@Graph.OptIn("com.aerospike.firefly.structure.CustomStructureStandardSuite")
 @Graph.OptIn("com.aerospike.firefly.structure.process.CustomGraphProcessStandardTest")
 
 // Tests that require lambda support.

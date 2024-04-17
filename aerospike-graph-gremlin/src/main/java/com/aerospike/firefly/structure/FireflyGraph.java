@@ -258,7 +258,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final boolean clientLogging = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, conf);
         final boolean preheat = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf);
         try {
-            if (clientLogging) {
+            // Prevent warmup from disabling the logger for Aerospike Client.
+            if (clientLogging && !ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf)) {
                 Log.setCallback(new AerospikeLogger());
                 Log.setLevel(Log.Level.valueOf(logLevel));
             }
@@ -276,7 +277,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 LOG.info("Java Runtime: {} MB max memory.", javaRuntime.maxMemory() / (1024 * 1024));
                 LOG.info("Java Runtime: {} MB total memory.", javaRuntime.totalMemory() / (1024 * 1024));
                 LOG.info("Java Runtime: {} MB free memory.", javaRuntime.freeMemory() / (1024 * 1024));
-                LOG.info("JVM Vendor: {}.", System.getProperty("java.vm.vendor"));
+                LOG.info("JVM Vendor: {}", System.getProperty("java.vm.vendor"));
                 LOG.info("JVM Specification Vendor: {}.", System.getProperty("java.vm.specification.vendor"));
                 LOG.info("Java Specification Version: {}.", System.getProperty("java.specification.version"));
                 LOG.info("JVM Runtime: {}.", System.getProperty("java.runtime.name"));

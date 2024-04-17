@@ -1,8 +1,9 @@
 package com.aerospike.firefly.io.aerospike;
 
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.maven.artifact.versioning.ComparableVersion;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.aerospike.firefly.structure.FireflyGraph.DATAMODELVERSION;
 import static com.aerospike.firefly.structure.FireflyGraph.GETDATAMODELNAME;
@@ -11,6 +12,7 @@ import static com.aerospike.firefly.structure.FireflyGraph.GETDATAMODELNAME;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class DataModelVersioning {
+    static private final Logger LOG = LoggerFactory.getLogger(DataModelVersioning.class);
 
     /**
      * Given a particular dataModel class, take a look at the on-disk data and see if we need to execute upgrade tasks.
@@ -41,7 +43,8 @@ public class DataModelVersioning {
             // Throw just to be safe.
             throw new RuntimeException(driveVersion == null ? "currentVer is null." : "currentModel is null.");
         } else {
-            final int driveVersionMajor = Integer.parseInt(driveGraph.getDataModelVersion().toString().split("\\.")[0]);
+            final String[] splitDriveVersion = driveVersion.toString().split("\\.");
+            final int driveVersionMajor = Integer.parseInt(splitDriveVersion[0]);
             final int classVersionMajor = Integer.parseInt(classVersion.toString().split("\\.")[0]);
 
             // If the data models match then we need to check the versions.
@@ -49,7 +52,13 @@ public class DataModelVersioning {
                 // If the on disk data model is > software data model we can't upgrade. This is illegal, send them to jail.
                 throw new RuntimeException(String.format("The on-disk data model major version '%s' does not match the " +
                         "data model '%s' being used.", driveVersion, classVersion));
+            }
 
+            // Disable supernode adjacency pushdown filters if existing data model is on 2.0.0
+            final int driveMinorVersion = Integer.parseInt(splitDriveVersion[1]);
+            if (driveVersionMajor == 2 && driveMinorVersion == 0) {
+                LOG.warn("Supernode pushdown filters are disabled due to existing data model being on v2.0.x");
+                db.isSupernodePushdownEnabled = false;
             }
 
             // Major versions match, upgrade not required.

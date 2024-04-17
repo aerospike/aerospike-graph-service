@@ -217,6 +217,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final int PAGINATION_PAGE_SIZE;
     public final int PAGINATION_PAGE_MAX_WAIT;
     public final boolean AUTHENTICATION_ENABLED;
+    public boolean isSupernodePushdownEnabled = true;
 
     public final String QUERY_IMPL;
     public Policy getPolicy() {

@@ -2,6 +2,7 @@ package com.aerospike.firefly.util;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.github.dockerjava.api.model.Container;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.Image;
@@ -154,11 +155,17 @@ public class DockerUtil {
     }
 
     public synchronized void stopAllDockerImages() {
-        for (final DockerInfo dockerInfo : dockerImageTagToContainerId.values()) {
+        for (final Container container : dockerClient.listContainersCmd().exec()) {
             try {
-                dockerClient.killContainerCmd(dockerInfo.containerId);
-            } catch (Exception e) {
-                LOG.error("Failed to kill docker container: " + dockerInfo.containerId, e);
+                for (int i = 0; i < container.getNames().length; i++) {
+                    final String name = container.getNames()[i];
+                    if (name != null && name.startsWith("/test-graph-")) {
+                        dockerClient.killContainerCmd(container.getId()).exec();
+                        dockerClient.removeContainerCmd(container.getId()).withForce(true).exec();
+                    }
+                }
+            } catch (final Exception e) {
+                LOG.error("Failed to kill docker container: " + container.getId(), e);
             }
         }
     }

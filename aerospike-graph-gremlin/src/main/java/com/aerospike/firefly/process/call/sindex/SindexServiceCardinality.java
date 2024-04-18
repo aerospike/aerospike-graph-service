@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.call.sindex;
 
 import com.aerospike.firefly.io.aerospike.admin.Admin;
+import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.util.Collections;
@@ -47,5 +48,9 @@ public class SindexServiceCardinality<I, R> extends SindexServiceBase<I, R> {
     @Override
     protected void auditLog(final Map params) {
         LOGGER.info(getName() + " Get index cardinality.");
+    }
+
+    protected UserContext.ROLE getRequiredRole() {
+        return UserContext.ROLE.READ;
     }
 }

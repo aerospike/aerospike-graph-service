@@ -57,7 +57,8 @@ public class DataModelVersioning {
             // Disable supernode adjacency pushdown filters if existing data model is on 2.0.0
             final int driveMinorVersion = Integer.parseInt(splitDriveVersion[1]);
             if (driveVersionMajor == 2 && driveMinorVersion == 0) {
-                LOG.warn("Supernode pushdown filters are disabled due to existing data model being on v2.0.x");
+                LOG.warn("Aerospike Graph Service detected existing data model on version 2.0.x during startup. " +
+                        "Supernode edge filtering optimizations will run in compatibility mode.");
                 db.isSupernodePushdownEnabled = false;
             }
 

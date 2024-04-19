@@ -2,6 +2,7 @@ package com.aerospike.firefly.process.traversal.step;
 
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
+import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -95,6 +96,7 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
                 outputVertexIds.put(input, new ArrayList<>());
             } else {
                 final FireflyVertex vertex = inputVertices.get(input);
+                TraversalUtil.supernodeTraversalWarning(this.traversal, vertex);
                 final List<FireflyId> vertexIds = vertex.getVertexIdsFromVertex(direction, edgeLabels);
                 totalVertexIds += vertexIds.size();
                 outputVertexIds.put(input, vertexIds);

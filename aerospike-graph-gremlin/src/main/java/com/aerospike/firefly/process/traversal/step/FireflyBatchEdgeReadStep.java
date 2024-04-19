@@ -2,6 +2,7 @@ package com.aerospike.firefly.process.traversal.step;
 
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
+import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -82,6 +83,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
             // Latch the size of the current id list.
             final int previousSize = fireflyIdList.size();
 
+            TraversalUtil.supernodeTraversalWarning(this.traversal, vertex);
             vertex.getEdgeIdsFromVertex(direction, edgeLabels, fireflyIdList, aerospikeHasContainers);
             for (int i = previousSize; i < fireflyIdList.size(); i++) {
                 final FireflyId id = fireflyIdList.get(i);

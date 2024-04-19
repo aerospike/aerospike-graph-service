@@ -37,7 +37,7 @@ public class JWTAuthenticator implements Authenticator {
     private static final byte NUL = 0;
     // Do not store secret and issuer for security reasons, just store the verifier.
     private JWTVerifier verifier;
-    public static JWTAuthenticator INSTANCE = new JWTAuthenticator();
+    private static JWTAuthenticator INSTANCE = null;
 
     public JWTAuthenticator() {
     }
@@ -45,6 +45,15 @@ public class JWTAuthenticator implements Authenticator {
     @Override
     public boolean requireAuthentication() {
         return true;
+    }
+
+    public static JWTAuthenticator getInstance() {
+        if (INSTANCE == null) {
+            // Should never happen.
+            // Full name b/c of the ambiguity with the other AuthenticationException.
+            throw com.aerospike.firefly.io.aerospike.admin.AuthenticationException.authNotInitialized();
+        }
+        return INSTANCE;
     }
 
     @Override

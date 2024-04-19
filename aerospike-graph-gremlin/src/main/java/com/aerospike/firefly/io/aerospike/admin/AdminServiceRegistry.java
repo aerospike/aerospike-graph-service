@@ -151,7 +151,7 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
             if (graph == null) {
                 throw new IllegalStateException("Graph has not completed initialization.");
             }
-            AuthenticatedUser authenticatedUser = null;
+
             if (graph.getBaseGraph().AUTHENTICATION_ENABLED) {
                 final MultiMap map = routerContext.request().headers();
                 if (!map.contains("Authorization")) {
@@ -165,26 +165,19 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
                 }
                 final String token = authToken.substring("Bearer ".length());
                 try {
-                    final JWTAuthenticator authenticator = JWTAuthenticator.INSTANCE;
+                    final JWTAuthenticator authenticator = JWTAuthenticator.getInstance();
                     if (authenticator == null) {
                         // Should never happen.
                         throw new IllegalStateException("Authentication is not enabled or has not completed initialization.");
                     }
-                    authenticatedUser = authenticator.authenticate(token);
 
-                    // Full name b/c we use other AuthenticationException in this file.
-                } catch (final org.apache.tinkerpop.gremlin.server.auth.AuthenticationException e) {
-                    routerContext.fail(UNAUTHORIZED_CODE, e);
-                    return;
-                }
-            }
+                    final AuthenticatedUser authenticatedUser = authenticator.authenticate(token);
+                    if (authenticatedUser == null) {
+                        // Should never happen.
+                        routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("Failed to authenticate user."));
+                        return;
+                    }
 
-            if (graph.getBaseGraph().AUTHENTICATION_ENABLED) {
-                if (authenticatedUser == null) {
-                    // Should never happen.
-                    routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("Failed to authenticate user."));
-                    return;
-                } else {
                     final JWTAuthenticator.JWTAuthenticatedUser jwtUser = (JWTAuthenticator.JWTAuthenticatedUser) authenticatedUser;
                     final UserContext.ROLE role = jwtUser.getRole();
                     final UserContext.ROLE requiredRole = getRequiredRole();
@@ -204,6 +197,9 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
                             return;
                         }
                     }
+                } catch (final org.apache.tinkerpop.gremlin.server.auth.AuthenticationException e) { // Full name b/c we use other AuthenticationException in this file.
+                    routerContext.fail(UNAUTHORIZED_CODE, e);
+                    return;
                 }
             }
 
@@ -214,15 +210,13 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
                 return;
             }
 
-            final R result;
             try {
-                result = execute(params);
-            } catch (Exception e) {
+                final R result = execute(params);
+                routerContext.response().setStatusCode(SUCCESS_CODE).putHeader("content-type", "text/html")
+                        .end(String.valueOf(result));
+            } catch (final Exception e) {
                 routerContext.fail(ERROR_CODE, e);
-                return;
             }
-            routerContext.response().setStatusCode(SUCCESS_CODE).putHeader("content-type", "text/html")
-                    .end(String.valueOf(result));
         };
     }
 

@@ -53,11 +53,11 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
             java_options_max_heap = f"{key}={value}"
         elif key.startswith("aerospike.graph-service.heap.min"):
             java_options_min_heap = f"{key}={value}"
-        elif line.startswith("aerospike.graph-service.auth.jwt.secret"):
+        elif key.startswith("aerospike.graph-service.auth.jwt.secret"):
             auth_jwt_secret = f"{key}={value}"
-        elif line.startswith("aerospike.graph-service.auth.jwt.issuer"):
+        elif key.startswith("aerospike.graph-service.auth.jwt.issuer"):
             auth_jwt_issuer = f"{key}={value}"
-        elif line.startswith("aerospike.graph-service.auth.jwt.algorithm"):
+        elif key.startswith("aerospike.graph-service.auth.jwt.algorithm"):
             auth_jwt_algorithm = f"{key}={value}"
         elif key.startswith("aerospike.graph-service"):
             valid_yaml.append(f"{key}={value}")

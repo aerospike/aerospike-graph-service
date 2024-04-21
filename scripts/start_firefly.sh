@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-docker run -v /tmp/generate:/tmp/generate -p8182:8182 -e aerospike.client.namespace="test" -e aerospike.client.host="172.17.0.1:3000" -e aerospike.graph.index.vertex.label.enabled=true ${1:-"aerospike/aerospike-graph-service"}
+docker run -v /tmp/generate:/tmp/generate -p8182:8182 -e aerospike.client.namespace="test" -e aerospike.client.host="127.0.0.1:3000" -e aerospike.graph.index.vertex.label.enabled=true ${1:-"aerospike/aerospike-graph-service"}

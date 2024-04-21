@@ -120,7 +120,7 @@ public class DockerUtil {
                 .withName(dockerImageTag)
                 .withExposedPorts(tcp8182)
                 .withHostConfig(new HostConfig().withPortBindings(portBindings))
-                .withEnv("aerospike.client.host=172.17.0.1:3000")
+                .withEnv("aerospike.client.host=127.0.0.1:3000")
                 .exec().getId();
 
         // Start the container.

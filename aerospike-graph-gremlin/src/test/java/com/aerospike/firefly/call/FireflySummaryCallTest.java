@@ -1,6 +1,7 @@
 package com.aerospike.firefly.call;
 
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableSingleIterator;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.GraphHelper;
@@ -11,7 +12,9 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +28,33 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
     @Override
     protected boolean clearData() {
         return true;
+    }
+
+    @Test
+    public void testMetadataVersion() {
+        final GraphTraversalSource g = graph.traversal();
+        final Map<String, String> version = (Map<String, String>) g.call("aerospike.graph.admin.metadata.version").next();
+        Assert.assertNotNull(version);
+        Assert.assertTrue(version.containsKey("Aerospike Graph Service Version"));
+        Assert.assertEquals(version.get("Aerospike Graph Service Version"), FireflyGraph.FIREFLY_VERSION);
+        Assert.assertTrue(version.containsKey("Aerospike version"));
+    }
+
+    @Test
+    public void testMetadataConfig() {
+        final Iterator<String> keys = graph.configuration().getKeys();
+        final Map<String, Object> configurationMap = new HashMap<>();
+        while (keys.hasNext()) {
+            final String key = keys.next();
+            if (!key.contains("password") && !key.contains("secret") && !key.contains("token")) {
+                configurationMap.put(key, graph.configuration().getProperty(key));
+            } else {
+                configurationMap.put(key, "********");
+            }
+        }
+        final GraphTraversalSource g = graph.traversal();
+        final Map<String, String> config = (Map<String, String>) g.call("aerospike.graph.admin.metadata.config").next();
+        Assert.assertEquals(configurationMap, config);
     }
 
     @Test

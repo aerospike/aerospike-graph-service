@@ -65,6 +65,7 @@ public final class ConfigurationHelper {
         public static final String CLUSTER_NAME = "aerospike.client.cluster.name";
 
         public static final String LOG_LEVEL = "aerospike.graph.log.level";
+        public static final String SUPERNODE_TRAVERSAL_LOG_WARNING = "aerospike.graph.log.supernode.warning";
         public static final String FIREFLY_DATA_MODEL = "aerospike.graph.data.model";
         public static final String V_LABEL_INDEX_ENABLED_FLAG = "aerospike.graph.index.vertex.label.enabled";
         public static final String E_LABEL_INDEX_ENABLED_FLAG = "aerospike.graph.index.edge.label.enabled";
@@ -315,6 +316,7 @@ public final class ConfigurationHelper {
         put(Keys.PHAT_EDGE_SIZE, "10");
         put(Keys.MOVEMENT_BARRIER_SIZE, "1000");
         put(Keys.LOG_LEVEL, "INFO");
+        put(Keys.SUPERNODE_TRAVERSAL_LOG_WARNING, "true");
         put(Keys.TLS, "false");
         put(Keys.AUTO_PRE_HEAT, "false");
         put(Keys.WARMUP_ENABLED, "true");
@@ -333,7 +335,7 @@ public final class ConfigurationHelper {
         put(Keys.CONNECT_TIMEOUT, "0");
         put(Keys.TIMEOUT_DELAY, "0");
         put(Keys.PROMETHEUS_RENAME, "true");
-        put(Keys.DEBUG_MODE_FLAG, "false");
+        put(Keys.DEBUG_MODE_FLAG, "true");
         put(Keys.TTL_ENABLED_FLAG, "false");
         put(Keys.TTL_PURGE_INTERVAL_SECONDS, "300"); // 5 minute default
         put(Keys.TTL_UPDATE_ANYTIME_FLAG, "false");

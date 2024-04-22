@@ -96,7 +96,7 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
                 outputVertexIds.put(input, new ArrayList<>());
             } else {
                 final FireflyVertex vertex = inputVertices.get(input);
-                TraversalUtil.supernodeTraversalWarning(this.traversal, vertex);
+                TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
                 final List<FireflyId> vertexIds = vertex.getVertexIdsFromVertex(direction, edgeLabels);
                 totalVertexIds += vertexIds.size();
                 outputVertexIds.put(input, vertexIds);

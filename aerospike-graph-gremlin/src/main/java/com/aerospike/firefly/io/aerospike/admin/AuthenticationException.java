@@ -10,6 +10,10 @@ public class AuthenticationException extends RuntimeException {
         return this;
     }
 
+    public static AuthenticationException authNotInitialized() {
+        return new AuthenticationException("Authentication is not initialized.");
+    }
+
     public static AuthenticationException invalidUserContext() {
         return new AuthenticationException("User context is invalid.");
     }

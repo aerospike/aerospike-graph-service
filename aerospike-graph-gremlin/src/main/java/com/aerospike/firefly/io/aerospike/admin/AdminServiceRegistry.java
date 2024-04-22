@@ -9,9 +9,11 @@ import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
+import org.apache.tinkerpop.gremlin.server.auth.AuthenticatedUser;
 import org.apache.tinkerpop.gremlin.structure.service.Service;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
@@ -142,21 +144,79 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
 
     private static final int SUCCESS_CODE = 200;
     private static final int ERROR_CODE = 400;
+    private static final int UNAUTHORIZED_CODE = 401;
 
     public Handler<RoutingContext> getHandler() {
         return routerContext -> {
             if (graph == null) {
                 throw new IllegalStateException("Graph has not completed initialization.");
             }
+
+            if (graph.getBaseGraph().AUTHENTICATION_ENABLED) {
+                final MultiMap map = routerContext.request().headers();
+                if (!map.contains("Authorization")) {
+                    routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("Authorization header is missing."));
+                    return;
+                }
+                final String authToken = map.get("Authorization");
+                if (!authToken.startsWith("Bearer ")) {
+                    routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("Authorization header is missing 'Bearer ' prefix."));
+                    return;
+                }
+                final String token = authToken.substring("Bearer ".length());
+                try {
+                    final JWTAuthenticator authenticator = JWTAuthenticator.getInstance();
+                    if (authenticator == null) {
+                        // Should never happen.
+                        throw new IllegalStateException("Authentication is not enabled or has not completed initialization.");
+                    }
+
+                    final AuthenticatedUser authenticatedUser = authenticator.authenticate(token);
+                    if (authenticatedUser == null) {
+                        // Should never happen.
+                        routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("Failed to authenticate user."));
+                        return;
+                    }
+
+                    final JWTAuthenticator.JWTAuthenticatedUser jwtUser = (JWTAuthenticator.JWTAuthenticatedUser) authenticatedUser;
+                    final UserContext.ROLE role = jwtUser.getRole();
+                    final UserContext.ROLE requiredRole = getRequiredRole();
+                    if (requiredRole.equals(UserContext.ROLE.READ)) {
+                        if (!role.equals(UserContext.ROLE.READ) && !role.equals(UserContext.ROLE.ADMIN) && !role.equals(UserContext.ROLE.READ_WRITE)) {
+                            routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("Insufficient permissions to perform operation."));
+                            return;
+                        }
+                    } else if (requiredRole.equals(UserContext.ROLE.READ_WRITE)) {
+                        if (!role.equals(UserContext.ROLE.ADMIN) && !role.equals(UserContext.ROLE.READ_WRITE)) {
+                            routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("Insufficient permissions to perform operation."));
+                            return;
+                        }
+                    } else if (requiredRole.equals(UserContext.ROLE.ADMIN)) {
+                        if (!role.equals(UserContext.ROLE.ADMIN)) {
+                            routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("Insufficient permissions to perform operation."));
+                            return;
+                        }
+                    }
+                } catch (final org.apache.tinkerpop.gremlin.server.auth.AuthenticationException e) { // Full name b/c we use other AuthenticationException in this file.
+                    routerContext.fail(UNAUTHORIZED_CODE, e);
+                    return;
+                }
+            }
+
             final Map<String, String> params = routerContext.queryParams().entries().stream()
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
             if (!sanitize(params)) {
                 routerContext.fail(ERROR_CODE, new IllegalArgumentException(usage(params)));
                 return;
             }
-            final R result = execute(params);
-            routerContext.response().setStatusCode(SUCCESS_CODE).putHeader("content-type", "text/html")
-                    .end(String.valueOf(result));
+
+            try {
+                final R result = execute(params);
+                routerContext.response().setStatusCode(SUCCESS_CODE).putHeader("content-type", "text/html")
+                        .end(String.valueOf(result));
+            } catch (final Exception e) {
+                routerContext.fail(ERROR_CODE, e);
+            }
         };
     }
 

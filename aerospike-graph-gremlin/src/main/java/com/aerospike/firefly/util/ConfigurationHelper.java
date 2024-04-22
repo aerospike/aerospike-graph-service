@@ -116,6 +116,7 @@ public final class ConfigurationHelper {
         // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "aerospike.graph.auto.preheat.enabled";
         public static final String WARMUP_MODE = "aerospike.graph.warmup.mode.enabled";
+        public static final String WARMUP_ENABLED = "aerospike.graph.warmup.enabled";
         public static final String FAULT_TEST = "aerospike.graph.warmup.mode.fault.test.enabled";
         public static final String ENABLE_CUSTOM_PROFILE = "aerospike.graph.strategy.profile.custom.enabled";
         public static final String ASCLIENT_LOG_ENABLED = "aerospike.client.logging.enabled";
@@ -137,6 +138,11 @@ public final class ConfigurationHelper {
         public static final String QUERY_IMPL = "aerospike.graph.query.impl";
         public static final String QUERY_PAGED = "paged";
         public static final String QUERY_LEGACY = "legacy";
+        public static final String JWT_SECRET = "aerospike.graph-service.auth.jwt.secret";
+        public static final String JWT_ISSUER = "aerospike.graph-service.auth.jwt.issuer";
+        public static final String JWT_ALGORITHM = "aerospike.graph-service.auth.jwt.algorithm";
+        public static final String AUTHENTICATION_ENABLED = "aerospike.graph-service.auth.enabled";
+
         public static class Pair {
             public final int numeric;
             public final String english;
@@ -311,6 +317,7 @@ public final class ConfigurationHelper {
         put(Keys.LOG_LEVEL, "INFO");
         put(Keys.TLS, "false");
         put(Keys.AUTO_PRE_HEAT, "false");
+        put(Keys.WARMUP_ENABLED, "true");
         put(Keys.WARMUP_MODE, "false");
         put(Keys.ENABLE_CUSTOM_PROFILE, "true");
         put(Keys.FAULT_TEST, "false");
@@ -336,6 +343,8 @@ public final class ConfigurationHelper {
         put(Keys.CLUSTER_NAME, "");
         put(Keys.VALIDATE_CLUSTER_NAME, "true");
         put(Keys.QUERY_IMPL, Keys.QUERY_PAGED);
+        put(Keys.JWT_ALGORITHM, "HMAC256");
+        put(Keys.AUTHENTICATION_ENABLED, "false");
     }};
 
     static {

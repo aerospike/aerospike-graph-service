@@ -12,7 +12,6 @@ import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.cdt.MapWriteFlags;
-import com.aerospike.client.cdt.MapWriteMode;
 import com.aerospike.client.command.Command;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
@@ -201,8 +200,10 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         }
 
         // Write to filterable supernode bin if necessary.
-        operations.addAll(createFilterableSupernodeOperation(graph, (FireflyPhatEdgeId) edgeId, !outVertexCacheWrite,
-                !inVertexCacheWrite, outVertex.id, inVertex.id, label, propertyMap));
+        if (graph.getBaseGraph().isSupernodePushdownEnabled) {
+            operations.addAll(createFilterableSupernodeOperations(graph, (FireflyPhatEdgeId) edgeId, !outVertexCacheWrite,
+                    !inVertexCacheWrite, outVertex.id, inVertex.id, label, propertyMap));
+        }
 
         // Add properties and type hints to Edge data.
         edgeData.add(PROPERTIES_POSITION, Value.get(propertyMap));
@@ -234,10 +235,10 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         }
     }
 
-    public static List<Operation> createFilterableSupernodeOperation(final FireflyGraph graph, final FireflyPhatEdgeId edgeId,
-                                                                final boolean isOutSupernode, final boolean isInSupernode,
-                                                                final FireflyId outVId, final FireflyId inVId,
-                                                                final String label, final Map<String, Object> propertyMap) {
+    public static List<Operation> createFilterableSupernodeOperations(final FireflyGraph graph, final FireflyPhatEdgeId edgeId,
+                                                                      final boolean isOutSupernode, final boolean isInSupernode,
+                                                                      final FireflyId outVId, final FireflyId inVId,
+                                                                      final String label, final Map<String, Object> propertyMap) {
         if (!isOutSupernode && !isInSupernode) {
             // No supernodes so we don't have to do anything
             return Collections.emptyList();
@@ -268,23 +269,43 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         }
         // Properties
         for (final Map.Entry<String, Object> property : propertyMap.entrySet()) {
-            final Class<?> propertyValueClass = property.getValue().getClass();
-            if (String.class.isAssignableFrom(propertyValueClass) ||
-                    Long.class.isAssignableFrom(propertyValueClass) ||
-                    Integer.class.isAssignableFrom(propertyValueClass)) {
-                if (isOutSupernode) {
-                    final Operation propertyOperation = MapOperation.put(policy, binName, edgeStorageIndex, Value.get(property.getValue()),
-                            CTX.mapKeyCreate(outVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(property.getKey()), MapOrder.KEY_ORDERED));
-                    operations.add(propertyOperation);
-                }
-                if (isInSupernode) {
-                    final Operation propertyOperation = MapOperation.put(policy, binName, edgeStorageIndex, Value.get(property.getValue()),
-                            CTX.mapKeyCreate(inVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(property.getKey()), MapOrder.KEY_ORDERED));
-                    operations.add(propertyOperation);
-                }
-            }
+            appendFilterableSupernodePropertyOperation(graph, edgeId, isOutSupernode, isInSupernode, outVId, inVId,
+                    property.getKey(), property.getValue(), operations);
         }
         return operations;
+    }
+
+    public static void appendFilterableSupernodePropertyOperation(final FireflyGraph graph, final FireflyPhatEdgeId edgeId,
+                                                                  final boolean isOutSupernode, final boolean isInSupernode,
+                                                                  final FireflyId outVId, final FireflyId inVId,
+                                                                  final String propertyKey, final Object propertyValue,
+                                                                  final List<Operation> operations) {
+        if (!isOutSupernode && !isInSupernode) {
+            // No supernodes so we don't have to do anything
+            return;
+        }
+
+        final String binName = graph.getBaseGraph().SUPERNODE_EDGE_PROPERTIES_BIN;
+        final Value edgeStorageIndex = Value.get(edgeId.getPackingIndex());
+        final Value outVIdValue = Value.get(outVId.getKeyHashString());
+        final Value inVIdValue = Value.get(inVId.getKeyHashString());
+        final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
+
+        final Class<?> propertyValueClass = propertyValue.getClass();
+        if (String.class.isAssignableFrom(propertyValueClass) ||
+                Long.class.isAssignableFrom(propertyValueClass) ||
+                Integer.class.isAssignableFrom(propertyValueClass)) {
+            if (isOutSupernode) {
+                final Operation propertyOperation = MapOperation.put(policy, binName, edgeStorageIndex, Value.get(propertyValue),
+                        CTX.mapKeyCreate(outVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(propertyKey), MapOrder.KEY_ORDERED));
+                operations.add(propertyOperation);
+            }
+            if (isInSupernode) {
+                final Operation propertyOperation = MapOperation.put(policy, binName, edgeStorageIndex, Value.get(propertyValue),
+                        CTX.mapKeyCreate(inVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(propertyKey), MapOrder.KEY_ORDERED));
+                operations.add(propertyOperation);
+            }
+        }
     }
 
     /**
@@ -326,11 +347,16 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
     public static void removeEdgeById(final FireflyGraph graph, final FireflyId edgeId) {
         final AerospikeConnection db = graph.getBaseGraph();
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
+        final List<Operation> operations = new ArrayList<>();
 
         final Operation removeEdgeData = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(edgeId.getUserId()), MapReturnType.VALUE);
+        operations.add(removeEdgeData);
         final Operation removeSupernodesIn = MapOperation.removeByKey(db.SUPERNODES_IN_BIN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
+        operations.add(removeSupernodesIn);
         final Operation removeSupernodesOut = MapOperation.removeByKey(db.SUPERNODES_OUT_BIN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
+        operations.add(removeSupernodesOut);
         final Operation removeTtl = MapOperation.removeByKey(db.TTL_BIN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
+        operations.add(removeTtl);
 
         // Logic for deleting the entire phat edge record if it no longer contains individual edges.
         final Expression removeEmptyPhatEdgeExp = Exp.build(
@@ -345,17 +371,22 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         // If all bins in a record contain null, the record is implicitly deleted.
         final int deletePhatEdgeWriteFlags = ExpWriteFlags.EVAL_NO_FAIL | ExpWriteFlags.ALLOW_DELETE;
         final Operation removeSupernodesInBin = ExpOperation.write(db.SUPERNODES_IN_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+        operations.add(removeSupernodesInBin);
         final Operation removeSupernodesOutBin = ExpOperation.write(db.SUPERNODES_OUT_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+        operations.add(removeSupernodesOutBin);
         final Operation removeTtlBin = ExpOperation.write(db.TTL_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
-        final Operation removeSupernodePropertiesBin = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+        operations.add(removeTtlBin);
+        if (db.isSupernodePushdownEnabled) {
+            final Operation removeSupernodePropertiesBin = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+            operations.add(removeSupernodePropertiesBin);
+        }
 
         // This operation must be last since the expression checks the map in the edge data bin.
         final Operation removeEdgeDataBin = ExpOperation.write(db.EDGE_DATA_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+        operations.add(removeEdgeDataBin);
 
         try {
-            final Record record = db.operate(null, key, removeEdgeData, removeSupernodesIn,
-                    removeSupernodesOut, removeTtl, removeSupernodesInBin, removeSupernodesOutBin, removeTtlBin,
-                    removeSupernodePropertiesBin, removeEdgeDataBin);
+            final Record record = db.operate(null, key, operations.toArray(new Operation[0]));
 
             // Result returned is always [List<?>, null] since we have operations [removeEdgeData, removeEdgeDataBin]
             final Command.OpResults results = (Command.OpResults) record.getValue(db.EDGE_DATA_BIN);
@@ -608,6 +639,10 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
                 final Operation typeHintOp = MapOperation.put(policy, db.EDGE_DATA_BIN, Value.get(propertyKey),
                         Value.get(typeHint), CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
                 operations.add(typeHintOp);
+            }
+            if (graph.getBaseGraph().isSupernodePushdownEnabled) {
+                appendFilterableSupernodePropertyOperation(graph, (FireflyPhatEdgeId) edge.id, edge.isOutSupernode,
+                        edge.isInSupernode, edge.outVid, edge.inVid, propertyKey, value, operations);
             }
         }
 

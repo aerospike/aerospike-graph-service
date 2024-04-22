@@ -106,7 +106,7 @@ import static com.aerospike.firefly.structure.FireflyEdge.LABEL_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_POSITION;
-import static com.aerospike.firefly.structure.FireflyEdge.createFilterableSupernodeOperation;
+import static com.aerospike.firefly.structure.FireflyEdge.createFilterableSupernodeOperations;
 import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_PROPERTY_KEY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
@@ -157,7 +157,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static final String PRODUCT_NAME = "Aerospike Graph";
     private static final Logger LOG = LoggerFactory.getLogger(PRODUCT_NAME);
 
-    public static String FIREFLY_VERSION = "2.0.0-SNAPSHOT";
+    public static String FIREFLY_VERSION = "2.1.0-SNAPSHOT";
     public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final Timer fireflyIndexMetadataTask = new Timer(true);
@@ -234,7 +234,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
             final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
-           final List<String> plugins = Arrays.asList(pluginConfigString.split(","));
+            final List<String> plugins = Arrays.asList(pluginConfigString.split(","));
             for (final String plugin : plugins) {
                 PluginUtil.loadPlugin(plugin, conf, this);
             }
@@ -258,7 +258,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final boolean clientLogging = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, conf);
         final boolean preheat = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf);
         try {
-            if (clientLogging) {
+            // Prevent warmup from disabling the logger for Aerospike Client.
+            if (clientLogging && !ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf)) {
                 Log.setCallback(new AerospikeLogger());
                 Log.setLevel(Log.Level.valueOf(logLevel));
             }
@@ -276,7 +277,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 LOG.info("Java Runtime: {} MB max memory.", javaRuntime.maxMemory() / (1024 * 1024));
                 LOG.info("Java Runtime: {} MB total memory.", javaRuntime.totalMemory() / (1024 * 1024));
                 LOG.info("Java Runtime: {} MB free memory.", javaRuntime.freeMemory() / (1024 * 1024));
-                LOG.info("JVM Vendor: {}.", System.getProperty("java.vm.vendor"));
+                LOG.info("JVM Vendor: {}", System.getProperty("java.vm.vendor"));
                 LOG.info("JVM Specification Vendor: {}.", System.getProperty("java.vm.specification.vendor"));
                 LOG.info("Java Specification Version: {}.", System.getProperty("java.specification.version"));
                 LOG.info("JVM Runtime: {}.", System.getProperty("java.runtime.name"));
@@ -287,7 +288,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 final Map<String, Object> configurationMap = new HashMap<>();
                 while (keys.hasNext()) {
                     final String key = keys.next();
-                    configurationMap.put(key, conf.getProperty(key));
+                    if (!key.contains("password") && !key.contains("secret") && !key.contains("token")) {
+                        configurationMap.put(key, conf.getProperty(key));
+                    } else {
+                        configurationMap.put(key, "********");
+                    }
                 }
                 LOG.info("Aerospike Graph Service configuration: {}.", configurationMap);
             }
@@ -639,8 +644,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
 
         // Write to filterable supernode bin if necessary.
-        operations.addAll(createFilterableSupernodeOperation(this, (FireflyPhatEdgeId) id, outVSupernode,
-                inVSupernode, outId, inId, label, propertyMap));
+        if (this.db.isSupernodePushdownEnabled) {
+            operations.addAll(createFilterableSupernodeOperations(this, (FireflyPhatEdgeId) id, outVSupernode,
+                    inVSupernode, outId, inId, label, propertyMap));
+        }
 
         // Add properties and type hints to Edge data.
         edgeData.add(PROPERTIES_POSITION, Value.get(propertyMap));

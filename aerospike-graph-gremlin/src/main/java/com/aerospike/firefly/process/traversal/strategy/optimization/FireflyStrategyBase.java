@@ -40,4 +40,7 @@ public abstract class FireflyStrategyBase extends AbstractTraversalStrategy<Trav
         // Check if the strategy is enabled.
         return value;
     }
+
+    public void reset() {
+    }
 }

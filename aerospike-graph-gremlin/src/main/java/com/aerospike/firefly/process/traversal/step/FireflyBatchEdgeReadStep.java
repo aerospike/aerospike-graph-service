@@ -83,7 +83,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
             // Latch the size of the current id list.
             final int previousSize = fireflyIdList.size();
 
-            TraversalUtil.supernodeTraversalWarning(this.traversal, vertex);
+            TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
             vertex.getEdgeIdsFromVertex(direction, edgeLabels, fireflyIdList, aerospikeHasContainers);
             for (int i = previousSize; i < fireflyIdList.size(); i++) {
                 final FireflyId id = fireflyIdList.get(i);

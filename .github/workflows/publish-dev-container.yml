@@ -6,11 +6,6 @@ on:
   pull_request:
     branches: [2.x-dev]
 
-env:
-  GITHUB_REPOSITORY_NAME: citrusleaf
-  GITHUB_IMAGE_NAME: firefly
-  GITHUB_REGISTRY_URL: ghcr.io
-
 jobs:
   publish-github:
     name: Publish Firefly Docker Image - GitHub
@@ -36,8 +31,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         run: |
-          # Login to ghcr.io.
-          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username ${{ secrets.QE_REGISTRY_USERNAME }} --password-stdin
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login ${{ secrets.QE_DOCKER_REGISTRY }} --username ${{ secrets.QE_REGISTRY_USERNAME }} --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2

@@ -35,8 +35,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         final GraphTraversalSource g = graph.traversal();
         final Map<String, String> version = (Map<String, String>) g.call("aerospike.graph.admin.metadata.version").next();
         Assert.assertNotNull(version);
-        Assert.assertTrue(version.containsKey("Aerospike Graph Service Version"));
-        Assert.assertEquals(version.get("Aerospike Graph Service Version"), FireflyGraph.FIREFLY_VERSION);
+        Assert.assertEquals(version.get("Aerospike Graph Service version"), FireflyGraph.FIREFLY_VERSION);
         Assert.assertTrue(version.containsKey("Aerospike version"));
     }
 

@@ -2,6 +2,7 @@ package com.aerospike.firefly.process.traversal.step;
 
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
+import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -15,17 +16,12 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import java.util.stream.LongStream;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -88,6 +84,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
                 final int previousSize = fireflyIdList.size();
 
                 // All the work for supernode scan/index/cache handling is done in the getVertexIdsFromVertex function.
+                TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
                 FireflyBatchReadHelper.addElementsToSet(
                         fireflyIdList, uniqueIdSet, fireflyVertexMap, vertex.getVertexIdsFromVertex(direction, edgeLabels));
 

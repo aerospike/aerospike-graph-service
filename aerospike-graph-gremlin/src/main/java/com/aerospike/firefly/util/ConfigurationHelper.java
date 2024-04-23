@@ -335,7 +335,7 @@ public final class ConfigurationHelper {
         put(Keys.CONNECT_TIMEOUT, "0");
         put(Keys.TIMEOUT_DELAY, "0");
         put(Keys.PROMETHEUS_RENAME, "true");
-        put(Keys.DEBUG_MODE_FLAG, "true");
+        put(Keys.DEBUG_MODE_FLAG, "false");
         put(Keys.TTL_ENABLED_FLAG, "false");
         put(Keys.TTL_PURGE_INTERVAL_SECONDS, "300"); // 5 minute default
         put(Keys.TTL_UPDATE_ANYTIME_FLAG, "false");

@@ -42,10 +42,10 @@ jobs:
           VERSION=$(git rev-parse --short "$GITHUB_SHA")
   
           # Get registry URL and convert to lower case.
-          OUTPUT_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev-$VERSION
+          OUTPUT_IMAGE=${{ secrets.QE_DOCKER_REGISTRY }}/firefly:dev-$VERSION
           OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
           
-          DOCKER_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev
+          DOCKER_IMAGE=${{ secrets.QE_DOCKER_REGISTRY }}/firefly:dev
           DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
           
           echo "Building and tagging docker image for linux/amd64 $DOCKER_IMAGE $OUTPUT_IMAGE"

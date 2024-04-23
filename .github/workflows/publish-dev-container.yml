@@ -5,7 +5,8 @@ on:
     branches: [2.x-dev]
   pull_request:
     branches: [2.x-dev]
-
+env:
+  QE_DOCKER_REGISTRY: secure.docker.qe.aerospike.com
 jobs:
   publish-github:
     name: Publish Firefly Docker Image - GitHub
@@ -15,23 +16,23 @@ jobs:
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: false
-          swap-storage: true
+      #- name: Free Disk Space (Ubuntu)
+      #  uses: jlumbroso/free-disk-space@main
+      #  with:
+      #    tool-cache: false
+      #    android: true
+      #    dotnet: true
+      #    haskell: true
+      #    large-packages: true
+      #    docker-images: false
+      #    swap-storage: true
 
       - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Login to GitHub Container Registry
         run: |
-          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login ${{ secrets.QE_DOCKER_REGISTRY }} --username ${{ secrets.QE_REGISTRY_USERNAME }} --password-stdin
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username ${{ secrets.QE_REGISTRY_USERNAME }} --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -42,10 +43,10 @@ jobs:
           VERSION=$(git rev-parse --short "$GITHUB_SHA")
   
           # Get registry URL and convert to lower case.
-          OUTPUT_IMAGE=${{ secrets.QE_DOCKER_REGISTRY }}/firefly:dev-$VERSION
+          OUTPUT_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev-$VERSION
           OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
           
-          DOCKER_IMAGE=${{ secrets.QE_DOCKER_REGISTRY }}/firefly:dev
+          DOCKER_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev
           DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
           
           echo "Building and tagging docker image for linux/amd64 $DOCKER_IMAGE $OUTPUT_IMAGE"

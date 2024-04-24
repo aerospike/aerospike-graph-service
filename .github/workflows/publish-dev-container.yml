@@ -5,9 +5,8 @@ on:
     branches: [2.x-dev]
 
 env:
-  GITHUB_REPOSITORY_NAME: citrusleaf
-  GITHUB_IMAGE_NAME: firefly
-  GITHUB_REGISTRY_URL: ghcr.io
+  QE_DOCKER_REGISTRY: secure.docker.qe.aerospike.com
+  QE_DOCKER_USERNAME: firefly
 
 jobs:
   publish-github:
@@ -34,8 +33,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         run: |
-          # Login to ghcr.io.
-          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $GITHUB_REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -46,10 +44,10 @@ jobs:
           VERSION=$(git rev-parse --short "$GITHUB_SHA")
   
           # Get registry URL and convert to lower case.
-          OUTPUT_IMAGE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME:dev-$VERSION
+          OUTPUT_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev-$VERSION
           OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
           
-          DOCKER_IMAGE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME:dev
+          DOCKER_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev
           DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
           
           echo "Building and tagging docker image for linux/amd64 $DOCKER_IMAGE $OUTPUT_IMAGE"

@@ -721,6 +721,23 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         removeVertexPropertyForModel(key, vertexPropertyId);
     }
 
+    @Override
+    public <V> VertexProperty<V> property(final String key) {
+        if (this.removed) return VertexProperty.empty();
+        if (FireflyHelper.inComputerMode(this.graph)) {
+            final List<VertexProperty> list = (List) this.graph.graphComputerView.getProperty(this, key);
+            if (list.size() == 0)
+                return VertexProperty.<V>empty();
+            else if (list.size() == 1)
+                return list.get(0);
+            else
+                throw Vertex.Exceptions.multiplePropertiesExistForProvidedKey(key);
+        } else {
+            return (VertexProperty<V>) super.property(key);
+        }
+    }
+
+
     /**
      * Create a new vertex property. If the cardinality is {@link VertexProperty.Cardinality#single}, then set the key
      * to the value. If the cardinality is {@link VertexProperty.Cardinality#list}, then add a new value to the key.
@@ -741,7 +758,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                                           final V value,
                                           final Object... keyValues) {
         if (FireflyHelper.inComputerMode(this.graph)) {
-            throw new RuntimeException(UNIMPLEMENTED);
+                final VertexProperty<V> vertexProperty = (VertexProperty<V>) this.graph.graphComputerView.addProperty(this, key, value);
+                ElementHelper.attachProperties(vertexProperty, keyValues);
+                return vertexProperty;
         }
 
         if (this.removed)

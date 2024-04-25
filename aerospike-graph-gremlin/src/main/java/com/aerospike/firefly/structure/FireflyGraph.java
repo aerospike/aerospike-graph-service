@@ -28,6 +28,8 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
+import com.aerospike.firefly.process.computer.FireflyGraphComputer;
+import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
@@ -37,7 +39,6 @@ import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.jsr223.FireflyGremlinPlugin;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
-import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -55,6 +56,7 @@ import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.PluginUtil;
 import com.aerospike.firefly.util.WarmupUtil;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.http.MethodNotSupportedException;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
@@ -73,6 +75,7 @@ import org.apache.tinkerpop.gremlin.structure.service.ServiceRegistry;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,6 +127,10 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 @Graph.OptIn(Graph.OptIn.SUITE_STRUCTURE_STANDARD)
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_STANDARD)
 @Graph.OptIn("com.aerospike.firefly.structure.process.CustomGraphProcessStandardTest")
+@Graph.OptIn(Graph.OptIn.SUITE_PROCESS_COMPUTER)
+
+// GraphComputer OptOuts
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.GraphComputerTest", method = "*", reason = "No reason at all", computers = {"com.aerospike.firefly.process.computer.FireflyGraphComputer"})
 
 // Tests that require lambda support.
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.SerializationTest$GraphSONV1Test", method = "shouldSerializePath", reason = "Test requires Lambda support which is disabled for security.", computers = {"ALL"})
@@ -168,7 +175,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private final FireflyGraphVariables variables;
     protected final AerospikeConnection db;
     private final FireflyIdFactory idFactory;
-    protected FireflyGraphComputerView graphComputerView = null;
+    public FireflyGraphComputerView graphComputerView = null;
     public final IdManager<Long> vertexIdManager;
     public final IdManager<byte[]> edgeIdManager;
     public final IdManager<Long> vertexPropertyIdManager;
@@ -891,13 +898,21 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     @Override
-    public <C extends GraphComputer> C compute(Class<C> graphComputerClass) throws IllegalArgumentException {
-        throw new UnsupportedOperationException(UNIMPLEMENTED);
+    public <C extends GraphComputer> C compute(final Class<C> graphComputerClass) throws IllegalArgumentException {
+       if(!FireflyGraphComputer.class.isAssignableFrom(graphComputerClass))
+           throw new IllegalArgumentException(graphComputerClass.getSimpleName() + " is not assignable from " + FireflyGraphComputer.class.getSimpleName());
+       else {
+        try {
+            return graphComputerClass.getConstructor(Graph.class).newInstance(this);
+        } catch(Exception e) {
+            throw new IllegalArgumentException(e.getMessage(),e);
+        }
+       }
     }
 
     @Override
     public GraphComputer compute() throws IllegalArgumentException {
-        throw new UnsupportedOperationException(UNIMPLEMENTED);
+        return new FireflyGraphComputer(this);
     }
 
     /**
@@ -918,7 +933,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public Iterator<Vertex> vertices(final Object... vertexIdsOrVertices) {
-        return vertices(List.of(), vertexIdsOrVertices);
+        if(FireflyHelper.inComputerMode(this))  // TODO: for edges
+            return IteratorUtils.filter(vertices(List.of(), vertexIdsOrVertices), t -> this.graphComputerView.legalVertex(t));
+        else
+            return vertices(List.of(), vertexIdsOrVertices);
     }
 
     public Iterator<Vertex> vertices(final List<HasContainer> filters, final Object... vertexIdsOrVertices) {

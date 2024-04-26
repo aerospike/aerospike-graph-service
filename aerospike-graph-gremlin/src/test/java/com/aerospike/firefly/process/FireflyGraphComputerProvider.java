@@ -23,13 +23,11 @@ public class FireflyGraphComputerProvider extends FireflyGraphProvider {
 
     @Override
     public GraphTraversalSource traversal(final Graph graph) {
-        return graph.traversal().withComputer();
-
-          /*      .withStrategies(VertexProgramStrategy.create(new MapConfiguration(new HashMap<String, Object>() {{
+        return graph.traversal().withStrategies(VertexProgramStrategy.create(new MapConfiguration(new HashMap<String, Object>() {{
             put(VertexProgramStrategy.WORKERS, RANDOM.nextInt(Runtime.getRuntime().availableProcessors()) + 1);
-            put(VertexProgramStrategy.GRAPH_COMPUTER, RANDOM.nextBoolean()
+            put(VertexProgramStrategy.GRAPH_COMPUTER, RANDOM.nextBoolean() ?
                     GraphComputer.class.getCanonicalName() :
                     FireflyGraphComputer.class.getCanonicalName());
-        }})));*/
+        }})));
     }
 }

@@ -2,32 +2,18 @@ package com.aerospike.firefly.process.computer;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.computer.VertexComputeKey;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertiesStep;
-import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.Property;
-import org.apache.tinkerpop.gremlin.structure.T;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.empty.EmptyGraph;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerVertexProperty;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -37,7 +23,7 @@ public class FireflyGraphComputerView {
 
     private final FireflyGraph graph;
     protected final Map<String, VertexComputeKey> computeKeys;
-    private Map<Element, Map<String, List<VertexProperty<?>>>> computeProperties;
+    private final Map<Element, Map<String, List<VertexProperty<?>>>> computeProperties;
     private final Set<Object> legalVertices = new HashSet<>();
     private final Map<Object, Set<Object>> legalEdges = new HashMap<>();
     private final GraphFilter graphFilter;
@@ -70,19 +56,18 @@ public class FireflyGraphComputerView {
         }
     }
 
-    public <V> Property<V> addProperty(final FireflyVertex vertex2, final String key, final V value) {
+    public <V> Property<V> addProperty(final FireflyVertex vertex, final String key, final V value) {
         ElementHelper.validateProperty(key, value);
         if (isComputeKey(key)) {
-            final DetachedVertexProperty<V> property = new DetachedVertexProperty<>(10, key, value,Map.of(),vertex2) {
+            final DetachedVertexProperty<V> property = new DetachedVertexProperty<>(123, key, value, Map.of(), vertex) {
                 @Override
                 public void remove() {
-                    removeProperty(vertex2, key, this);
+                    removeProperty(vertex, key, this);
                 }
             };
-            this.addValue(vertex2, key, property);
+            this.addValue(vertex, key, property);
             return property;
         } else {
-
             throw GraphComputer.Exceptions.providedKeyIsNotAnElementComputeKey(key);
         }
     }
@@ -93,10 +78,18 @@ public class FireflyGraphComputerView {
         return vertexProperty.isEmpty() ? (List) getPropertiesMap(vertex).getOrDefault(key, Collections.emptyList()) : vertexProperty;
     }
 
+    public <V> List<VertexProperty<V>> getComputeProperties(final FireflyVertex vertex, final String... computeKeys) {
+        final List<VertexProperty<V>> list = new ArrayList<>();
+        for (final List<VertexProperty<?>> properties : this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).values()) {
+            properties.stream().filter(p -> ElementHelper.keyExists(p.key(), computeKeys)).forEach(p -> list.add((VertexProperty<V>) p));
+        }
+        return list;
+    }
 
-    public List<Property> getProperties(final FireflyVertex vertex) {
-        final List<Property> list = new ArrayList<>();
-        for (final List<VertexProperty> properties : getPropertiesMap(vertex).values()) {
+
+    public List<Property<?>> getProperties(final FireflyVertex vertex) {
+        final List<Property<?>> list = new ArrayList<>();
+        for (final List<VertexProperty<?>> properties : getPropertiesMap(vertex).values()) {
             list.addAll(properties);
         }
         for (final List<VertexProperty<?>> properties : this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).values()) {
@@ -105,15 +98,15 @@ public class FireflyGraphComputerView {
         return list;
     }
 
-    private Map<String, List<VertexProperty>> getPropertiesMap(final FireflyVertex vertex) {
-        Map<String, List<VertexProperty>> propertiesMap = FireflyHelper.getProperties(vertex);
+    private Map<String, List<VertexProperty<?>>> getPropertiesMap(final FireflyVertex vertex) {
+        Map<String, List<VertexProperty<?>>> propertiesMap = FireflyHelper.getProperties(vertex);
         if (retainVertexProperties != null) {
             propertiesMap.keySet().retainAll(retainVertexProperties);
         }
         return propertiesMap;
     }
 
-    public void removeProperty(final FireflyVertex vertex, final String key, final VertexProperty property) {
+    public void removeProperty(final DetachedVertex vertex, final String key, final VertexProperty<?> property) {
         if (isComputeKey(key)) {
             this.removeValue(vertex, key, property);
         } else {
@@ -151,18 +144,46 @@ public class FireflyGraphComputerView {
             else
                 return EmptyGraph.instance();
         } else if (GraphComputer.Persist.VERTEX_PROPERTIES == persist) {
-           if (GraphComputer.ResultGraph.ORIGINAL == resultGraph) {
+            if (GraphComputer.ResultGraph.ORIGINAL == resultGraph) {
                 this.addPropertiesToOriginalGraph();
                 return this.graph;
             } else {
-               throw new UnsupportedOperationException("Persisting properties to new graph currently not supported");
-           }
+                throw new UnsupportedOperationException("Persisting properties to new graph currently not supported");
+                /*final FireflyGraph newGraph = FireflyGraph.open(this.graph.configuration());
+                this.graph.vertices().forEachRemaining(vertex -> {
+                    final Vertex newVertex = newGraph.addVertex(T.id, vertex.id(), T.label, vertex.label());
+                    vertex.properties().forEachRemaining(vertexProperty -> {
+                        final VertexProperty<?> newVertexProperty = newVertex.property(VertexProperty.Cardinality.list, vertexProperty.key(), vertexProperty.value(), T.id, vertexProperty.id());
+                        vertexProperty.properties().forEachRemaining(property -> {
+                            newVertexProperty.property(property.key(), property.value());
+                        });
+                    });
+                });
+                return newGraph;*/
+            }
         } else {  // Persist.EDGES
             if (GraphComputer.ResultGraph.ORIGINAL == resultGraph) {
                 this.addPropertiesToOriginalGraph();
                 return this.graph;
             } else {
                 throw new UnsupportedOperationException("Persisting edges to new graph currently not supported");
+                /*final FireflyGraph newGraph = FireflyGraph.open(this.graph.configuration());
+                this.graph.vertices().forEachRemaining(vertex -> {
+                    final Vertex newVertex = newGraph.addVertex(T.id, vertex.id(), T.label, vertex.label());
+                    vertex.properties().forEachRemaining(vertexProperty -> {
+                        final VertexProperty<?> newVertexProperty = newVertex.property(VertexProperty.Cardinality.list, vertexProperty.key(), vertexProperty.value(), T.id, vertexProperty.id());
+                        vertexProperty.properties().forEachRemaining(property -> {
+                            newVertexProperty.property(property.key(), property.value());
+                        });
+                    });
+                });
+                this.graph.edges().forEachRemaining(edge -> {
+                    final Vertex outVertex = newGraph.vertices(edge.outVertex().id()).next();
+                    final Vertex inVertex = newGraph.vertices(edge.inVertex().id()).next();
+                    final Edge newEdge = outVertex.addEdge(edge.label(), inVertex, T.id, edge.id());
+                    edge.properties().forEachRemaining(property -> newEdge.property(property.key(), property.value()));
+                });
+                return newGraph;*/
             }
         }
     }
@@ -188,7 +209,7 @@ public class FireflyGraphComputerView {
         return this.computeKeys.containsKey(key);
     }
 
-    private void addValue(final Vertex vertex, final String key, final VertexProperty property) {
+    private void addValue(final Vertex vertex, final String key, final VertexProperty<?> property) {
         final Map<String, List<VertexProperty<?>>> elementProperties = this.computeProperties.computeIfAbsent(vertex, k -> new HashMap<>());
         elementProperties.compute(key, (k, v) -> {
             if (null == v) v = new ArrayList<>();
@@ -197,7 +218,7 @@ public class FireflyGraphComputerView {
         });
     }
 
-    private void removeValue(final Vertex vertex, final String key, final VertexProperty property) {
+    private void removeValue(final Vertex vertex, final String key, final VertexProperty<?> property) {
         this.computeProperties.<List<Map<String, VertexProperty<?>>>>getOrDefault(vertex, Collections.emptyMap()).get(key).remove(property);
     }
 

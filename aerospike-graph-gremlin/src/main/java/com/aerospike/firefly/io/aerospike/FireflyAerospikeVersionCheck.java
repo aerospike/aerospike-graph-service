@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Info;
 import com.aerospike.client.cluster.Node;
 import org.slf4j.Logger;
@@ -41,33 +42,33 @@ public class FireflyAerospikeVersionCheck {
         int max = version.length();
 
         while (i < max) {
-            if (! Character.isDigit(version.charAt(i))) {
+            if (!Character.isDigit(version.charAt(i))) {
                 break;
             }
             i++;
         }
 
-        major = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
+        major = (i > begin) ? Integer.parseInt(version.substring(begin, i)) : 0;
         begin = ++i;
 
         while (i < max) {
-            if (! Character.isDigit(version.charAt(i))) {
+            if (!Character.isDigit(version.charAt(i))) {
                 break;
             }
             i++;
         }
 
-        minor = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
+        minor = (i > begin) ? Integer.parseInt(version.substring(begin, i)) : 0;
         begin = ++i;
 
         while (i < max) {
-            if (! Character.isDigit(version.charAt(i))) {
+            if (!Character.isDigit(version.charAt(i))) {
                 break;
             }
             i++;
         }
 
-        revision = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
+        revision = (i > begin) ? Integer.parseInt(version.substring(begin, i)) : 0;
         begin = i;
         final String extensionString = version.substring(begin + 1);
         if (extensionString.contains("-")) {
@@ -85,8 +86,20 @@ public class FireflyAerospikeVersionCheck {
     }
 
     public static void validateVersion(final AerospikeClient client) {
-        for (final Node node: client.getNodes()) {
-            final String response = Info.request(null, node, "build");
+        for (final Node node : client.getNodes()) {
+            String response = null;
+            while (response == null) {
+                try {
+                    response = Info.request(null, node, "build");
+                } catch (final AerospikeException e) {
+                    LOG.error(e.getMessage());
+                    try {
+                        Thread.sleep(1000);
+                    } catch(final Exception e2) {
+
+                    }
+                }
+            }
             final FireflyAerospikeVersionCheck version = new FireflyAerospikeVersionCheck(response);
             if (!validateVersion(version)) {
                 throw new RuntimeException(String.format("Aerospike version %d.%d.%d.%d is not supported. Minimum version is %s.%s.%s.%s." +

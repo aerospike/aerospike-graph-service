@@ -1,76 +1,43 @@
 package com.aerospike.firefly.structure;
 
 import ch.qos.logback.classic.Level;
-import com.aerospike.client.AerospikeException;
-import com.aerospike.client.Bin;
-import com.aerospike.client.Key;
-import com.aerospike.client.Log;
-import com.aerospike.client.Operation;
-import com.aerospike.client.ResultCode;
-import com.aerospike.client.Value;
-import com.aerospike.client.cdt.CTX;
-import com.aerospike.client.cdt.ListOperation;
-import com.aerospike.client.cdt.ListOrder;
-import com.aerospike.client.cdt.ListPolicy;
-import com.aerospike.client.cdt.ListWriteFlags;
-import com.aerospike.client.cdt.MapOperation;
-import com.aerospike.client.cdt.MapOrder;
-import com.aerospike.client.cdt.MapPolicy;
-import com.aerospike.client.cdt.MapWriteFlags;
+import com.aerospike.client.*;
+import com.aerospike.client.cdt.*;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.AerospikeLogger;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeLogger;
 import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
-import com.aerospike.firefly.process.computer.FireflyGraphComputer;
-import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
-import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
-import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
-import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
-import com.aerospike.firefly.structure.util.FireflyTtlHandler;
-import com.aerospike.firefly.util.GraphFactory;
-import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
-import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.jsr223.FireflyGremlinPlugin;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
+import com.aerospike.firefly.process.computer.FireflyGraphComputer;
+import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
-import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
-import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
-import com.aerospike.firefly.structure.id.FireflyIdPoly;
-import com.aerospike.firefly.structure.id.IdManager;
-import com.aerospike.firefly.structure.id.RecyclingBufferedNumericIdManager;
+import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
+import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
+import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
+import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
+import com.aerospike.firefly.runtime.tasks.FireflyMetadataTask;
+import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
+import com.aerospike.firefly.structure.id.*;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
-import com.aerospike.firefly.util.FireflyHelper;
-import com.aerospike.firefly.runtime.tasks.FireflyMetadataTask;
-import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
-import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.LoggerUtil;
-import com.aerospike.firefly.util.PluginUtil;
-import com.aerospike.firefly.util.WarmupUtil;
+import com.aerospike.firefly.structure.util.FireflyTtlHandler;
+import com.aerospike.firefly.util.*;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.http.MethodNotSupportedException;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.server.Settings;
-import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.T;
-import org.apache.tinkerpop.gremlin.structure.Transaction;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.service.ServiceRegistry;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -80,44 +47,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Objects;
-import java.util.Random;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.TreeMap;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.structure.FireflyEdge.EDGE_DATA_SIZE;
-import static com.aerospike.firefly.structure.FireflyEdge.IN_V_POSITION;
-import static com.aerospike.firefly.structure.FireflyEdge.LABEL_POSITION;
-import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_POSITION;
-import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
-import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_POSITION;
-import static com.aerospike.firefly.structure.FireflyEdge.createFilterableSupernodeOperations;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
+import static com.aerospike.firefly.structure.FireflyEdge.*;
+import static com.aerospike.firefly.structure.FireflyGraphSummaryVertex.GRAPH_SUMMARY_VERTEX;
 import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_PROPERTY_KEY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
-import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
-import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
-import static com.aerospike.firefly.structure.FireflyGraphSummaryVertex.GRAPH_SUMMARY_VERTEX;
-import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
-import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
-import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -130,7 +72,9 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_COMPUTER)
 
 // GraphComputer OptOuts
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.GraphComputerTest", method = "*", reason = "No reason at all", computers = {"com.aerospike.firefly.process.computer.FireflyGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.GraphComputerTest", method = "*", reason = "REMOVE -- currently here for faster testing", computers = {"com.aerospike.firefly.process.computer.FireflyGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ConnectedComponentTest$Traversals", method = "*", reason = "Firefly does not support persisting edges to new graph", computers = {"com.aerospike.firefly.process.computer.FireflyGraphComputer"})
+
 
 // Tests that require lambda support.
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.SerializationTest$GraphSONV1Test", method = "shouldSerializePath", reason = "Test requires Lambda support which is disabled for security.", computers = {"ALL"})
@@ -797,8 +741,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 } else if (allowNullProperties) {
                     properties.put((String) keyValues[i], keyValues[i + 1]);
                 }
-                // Since this the first insertion, a null value with allowNullProperties is irrelevant, because there is no
-                // properties to remove, so just ignore.
+            // Since this the first insertion, a null value with allowNullProperties is irrelevant, because there is no
+            // properties to remove, so just ignore.
         }
 
         // Write vertex property to Aerospike.
@@ -914,15 +858,16 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public <C extends GraphComputer> C compute(final Class<C> graphComputerClass) throws IllegalArgumentException {
-       if(!FireflyGraphComputer.class.isAssignableFrom(graphComputerClass))
-           throw new IllegalArgumentException(graphComputerClass.getSimpleName() + " is not assignable from " + FireflyGraphComputer.class.getSimpleName());
-       else {
-        try {
-            return graphComputerClass.getConstructor(Graph.class).newInstance(this);
-        } catch(Exception e) {
-            throw new IllegalArgumentException(e.getMessage(),e);
+        if (!FireflyGraphComputer.class.isAssignableFrom(graphComputerClass))
+            throw new IllegalArgumentException(graphComputerClass.getSimpleName() + " is not assignable from " + FireflyGraphComputer.class.getSimpleName());
+        else {
+            try {
+                Class<C> clazz = graphComputerClass.equals(GraphComputer.class) ? (Class<C>) FireflyGraphComputer.class : graphComputerClass;
+                return clazz.getConstructor(FireflyGraph.class).newInstance(this);
+            } catch (Exception e) {
+                throw new IllegalArgumentException(e.getMessage(), e);
+            }
         }
-       }
     }
 
     @Override
@@ -948,10 +893,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public Iterator<Vertex> vertices(final Object... vertexIdsOrVertices) {
-        if(FireflyHelper.inComputerMode(this))  // TODO: for edges
-            return IteratorUtils.filter(vertices(List.of(), vertexIdsOrVertices), t -> this.graphComputerView.legalVertex(t));
-        else
-            return vertices(List.of(), vertexIdsOrVertices);
+        final Iterator<Vertex> iterator = vertices(List.of(), vertexIdsOrVertices);
+        // TODO: GRAPH COMPUTER INTERCEPTION
+        return FireflyHelper.inComputerMode(this) ?
+                IteratorUtils.filter(iterator, vertex -> this.graphComputerView.legalVertex(vertex)) :
+                iterator;
     }
 
     public Iterator<Vertex> vertices(final List<HasContainer> filters, final Object... vertexIdsOrVertices) {
@@ -979,7 +925,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public Iterator<Edge> edges(final Object... edgeIds) {
-        return edges(List.of(), edgeIds);
+        final Iterator<Edge> iterator = edges(List.of(), edgeIds);
+        // TODO: GRAPH COMPUTER INTERCEPTION
+        return FireflyHelper.inComputerMode(this) ?
+                IteratorUtils.filter(iterator, edge -> this.graphComputerView.legalEdge(edge.outVertex(), edge)) :
+                iterator;
     }
 
     private Iterator<Edge> edges(final List<HasContainer> filters, final Object... edgeIds) {

@@ -3,11 +3,7 @@ package com.aerospike.firefly.process.computer;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
-import org.apache.tinkerpop.gremlin.process.computer.ComputerResult;
-import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
-import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
-import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
-import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.*;
 import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
@@ -18,14 +14,10 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -36,7 +28,7 @@ import java.util.concurrent.ThreadFactory;
  */
 public class FireflyGraphComputer implements GraphComputer {
 
-
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyGraphComputer.class);
     private ResultGraph resultGraph = null;
     private Persist persist = null;
 
@@ -107,7 +99,7 @@ public class FireflyGraphComputer implements GraphComputer {
 
     @Override
     public Future<ComputerResult> submit() {
-        System.out.println("SUBMITTING FireflyGraphComputerJob in FireflyGraphComputer.submit()"); // TODO: REMOVE
+        LOG.warn("Submitting graph computer job: {}", this.vertexProgram.toString());
         // a graph computer can only be executed once
         if (this.executed)
             throw Exceptions.computerHasAlreadyBeenSubmittedAVertexProgram();
@@ -255,9 +247,10 @@ public class FireflyGraphComputer implements GraphComputer {
     public Features features() {
         return new Features() {
             @Override
-             public boolean supportsResultGraphPersistCombination(final ResultGraph resultGraph, final Persist persist) {
+            public boolean supportsResultGraphPersistCombination(final ResultGraph resultGraph, final Persist persist) {
                 return persist == Persist.NOTHING || resultGraph == ResultGraph.ORIGINAL;// true;// persist == Persist.NOTHING;// persist != Persist.EDGES && persist != Persist.VERTEX_PROPERTIES && resultGraph != ResultGraph.NEW;
             }
+
             @Override
             public int getMaxWorkers() {
                 return Runtime.getRuntime().availableProcessors();

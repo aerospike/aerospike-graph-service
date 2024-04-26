@@ -53,8 +53,8 @@ public final class FireflyHelper {
         return graph.graphComputerView = new FireflyGraphComputerView(graph, graphFilter, computeKeys);
     }
 
-    public static Map<String, List<VertexProperty>> getProperties(final FireflyVertex vertex) {
-        Map<String,List<VertexProperty>> props = new HashMap<>();
+    public static Map<String, List<VertexProperty<?>>> getProperties(final FireflyVertex vertex) {
+        Map<String,List<VertexProperty<?>>> props = new HashMap<>();
         vertex.properties().forEachRemaining(prop -> {
              props.put(prop.key(),List.of(prop));
          });

@@ -6,28 +6,26 @@ import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.util.MapReducePool;
 import org.apache.tinkerpop.gremlin.process.computer.util.VertexProgramPool;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.util.function.TriConsumer;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.CompletionService;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
 public class FireflyWorkerPool implements AutoCloseable {
-
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyWorkerPool.class);
     private static final BasicThreadFactory THREAD_FACTORY_WORKER = new BasicThreadFactory.Builder().namingPattern("firefly-worker-%d").build();
 
+    private static final String SUMMARY_SERVICE = "aerospike.graph.admin.metadata.summary";
+    private static final String SUMMARY_VERTEX_COUNT = "Total vertex count";
 
     private final int numberOfWorkers;
     private final ExecutorService workerPool;
@@ -46,9 +44,14 @@ public class FireflyWorkerPool implements AutoCloseable {
             this.workerMemoryPool.add(new FireflyWorkerMemory(memory));
             this.workerVertices.add(new ArrayList<>());
         }
-        long batchSize = 5; // ((long) graph.traversal().<Map<String,Object>>call("summary").next().get("Total vertex count")) / this.numberOfWorkers;
-        //if(true)
-        //throw new IllegalStateException("the number of workers is " + this.numberOfWorkers + " and the batch size is " + batchSize);
+
+        long vertexCount = graph.getVertexCount(List.of());
+        if (0 == vertexCount) {
+            LOG.warn("{} unable to provide vertex count: {}", "FireflyGraph.getVertexCount()", vertexCount);
+            vertexCount = IteratorUtils.count(graph.vertices());
+        }
+        long batchSize = (long) Math.ceil((double) vertexCount / (double) numberOfWorkers);
+        LOG.warn("{} graph computer workers each to compute approximately {} vertices out of a total of {} vertices", numberOfWorkers, batchSize, vertexCount);
         if (0 == batchSize)
             batchSize = 1;
         int counter = 0;

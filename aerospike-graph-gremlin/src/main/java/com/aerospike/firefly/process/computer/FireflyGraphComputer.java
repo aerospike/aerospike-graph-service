@@ -46,6 +46,7 @@ public class FireflyGraphComputer implements GraphComputer {
 
     public FireflyGraphComputer(final FireflyGraph graph) {
         this.graph = graph;
+
     }
 
     @Override
@@ -99,7 +100,7 @@ public class FireflyGraphComputer implements GraphComputer {
 
     @Override
     public Future<ComputerResult> submit() {
-        LOG.warn("Submitting graph computer job: {}", this.vertexProgram.toString());
+        LOG.warn("{} graph computer workers executing {}", this.workers, this.vertexProgram.toString());
         // a graph computer can only be executed once
         if (this.executed)
             throw Exceptions.computerHasAlreadyBeenSubmittedAVertexProgram();

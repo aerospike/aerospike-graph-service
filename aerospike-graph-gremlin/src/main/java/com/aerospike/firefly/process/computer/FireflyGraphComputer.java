@@ -13,6 +13,7 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -235,7 +236,7 @@ public class FireflyGraphComputer implements GraphComputer {
         return StringFactory.graphComputerString(this);
     }
 
-    public static class SynchronizedIterator<V> implements Iterator<V> {
+    public static class SynchronizedIterator<V> implements CloseableIterator<V> {
 
         private final Iterator<V> iterator;
 
@@ -244,11 +245,22 @@ public class FireflyGraphComputer implements GraphComputer {
         }
 
         public boolean hasNext() throws UnsupportedOperationException {
-            throw new UnsupportedOperationException("Only use next() and check if the returned element is null");
+            throw new UnsupportedOperationException("Use next() and check if the returned element is null");
         }
 
         public synchronized V next() {
-            return this.iterator.hasNext() ? this.iterator.next() : null;
+            if (this.iterator.hasNext())
+                return this.iterator.next();
+            else {
+                this.close();
+                return null;
+            }
+        }
+
+        @Override
+        public void close() {
+            if (this.iterator instanceof CloseableIterator)
+                ((CloseableIterator<V>) this.iterator).close();
         }
 
     }

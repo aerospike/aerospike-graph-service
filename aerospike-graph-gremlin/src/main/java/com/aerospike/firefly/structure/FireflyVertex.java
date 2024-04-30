@@ -55,7 +55,6 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1002,7 +1001,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             // TODO: GRAPH COMPUTER INTERCEPTION
             final FireflyGraphComputerView view = FireflyHelper.getGraphComputerView(this.graph);
             final List<VertexProperty<V>> computeProperties = view.getComputeProperties(this, propertyKeys);
-            return (computeProperties.isEmpty()) ? iterator : IteratorUtils.concat(iterator, computeProperties.iterator());
+            return (computeProperties.isEmpty()) ? iterator : FireflyCloseableIteratorUtils.concat(iterator, computeProperties.iterator());
         }
     }
 

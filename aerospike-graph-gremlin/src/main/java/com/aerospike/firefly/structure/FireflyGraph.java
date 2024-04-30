@@ -42,7 +42,6 @@ import org.apache.tinkerpop.gremlin.structure.service.ServiceRegistry;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -881,7 +880,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final Iterator<Vertex> iterator = vertices(List.of(), vertexIdsOrVertices);
         // TODO: GRAPH COMPUTER INTERCEPTION
         return FireflyHelper.inComputerMode(this) ?
-                IteratorUtils.filter(iterator, vertex -> this.graphComputerView.legalVertex(vertex)) :
+                FireflyCloseableIteratorUtils.filter(iterator, vertex -> this.graphComputerView.legalVertex(vertex)) :
                 iterator;
     }
 
@@ -913,7 +912,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final Iterator<Edge> iterator = edges(List.of(), edgeIds);
         // TODO: GRAPH COMPUTER INTERCEPTION
         return FireflyHelper.inComputerMode(this) ?
-                IteratorUtils.filter(iterator, edge -> this.graphComputerView.legalEdge(edge.outVertex(), edge)) :
+                FireflyCloseableIteratorUtils.filter(iterator, edge -> this.graphComputerView.legalEdge(edge.outVertex(), edge)) :
                 iterator;
     }
 

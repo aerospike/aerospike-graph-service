@@ -141,14 +141,18 @@ public class FireflyGraphComputer implements GraphComputer {
                         workers.setVertexProgram(this.vertexProgram);
                         workers.executeVertexProgram((vertices, vertexProgram, workerMemory) -> {
                             vertexProgram.workerIterationStart(workerMemory.asImmutable());
-                            while (vertices.hasNext()) {
-                                final Vertex vertex = vertices.next();
-                                if (Thread.interrupted()) throw new TraversalInterruptedException();
-                                vertexProgram.execute(
-
-                                        ComputerGraph.vertexProgram(vertex, vertexProgram),
-                                        new FireflyMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner()),
-                                        workerMemory);
+                            try {
+                                while (true) {
+                                    final Vertex vertex = vertices.next();
+                                    if (null == vertex)
+                                        break;
+                                    if (Thread.interrupted()) throw new TraversalInterruptedException();
+                                    vertexProgram.execute(
+                                            ComputerGraph.vertexProgram(vertex, vertexProgram),
+                                            new FireflyMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner()),
+                                            workerMemory);
+                                }
+                            } catch (NoSuchElementException ignored) {
                             }
                             vertexProgram.workerIterationEnd(workerMemory.asImmutable());
                             workerMemory.complete();
@@ -231,7 +235,7 @@ public class FireflyGraphComputer implements GraphComputer {
         return StringFactory.graphComputerString(this);
     }
 
-    private static class SynchronizedIterator<V> {
+    public static class SynchronizedIterator<V> implements Iterator<V> {
 
         private final Iterator<V> iterator;
 
@@ -239,9 +243,14 @@ public class FireflyGraphComputer implements GraphComputer {
             this.iterator = iterator;
         }
 
+        public boolean hasNext() throws UnsupportedOperationException {
+            throw new UnsupportedOperationException("Only use next() and check if the returned element is null");
+        }
+
         public synchronized V next() {
             return this.iterator.hasNext() ? this.iterator.next() : null;
         }
+
     }
 
     @Override

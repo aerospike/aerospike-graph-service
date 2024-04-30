@@ -1,6 +1,6 @@
 import os, sys
 
-def main(input_properties_file, default_yaml_file, output_yaml_file, output_properties_file, output_java_options_file):
+def main(input_properties_file, default_yaml_file, output_yaml_file, output_properties_file, output_java_options_file, unified_config_file):
     valid_properties = []
     valid_yaml = []
     invalid = []
@@ -11,6 +11,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
     auth_jwt_algorithm = None
 
     keys = []
+    unified_config = []
     try:
         # May not be provided so try catch this block.
         with open(input_properties_file) as c:
@@ -19,7 +20,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
             for line in lines:
                 if line == "":
                     continue
-
+                unified_config.append(line)
                 if not "=" in line:
                     invalid.append(line)
                 keys.append(line.split("=")[0])
@@ -49,6 +50,10 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
     for key, value in os.environ.items():
         if key in keys:
             keys_in_both_properties_and_environment.append(key)
+
+        if key.startswith("aerospike"):
+            unified_config.append(f"{key}={value}")
+
         if key.startswith("aerospike.graph-service.heap.max"):
             java_options_max_heap = f"{key}={value}"
         elif key.startswith("aerospike.graph-service.heap.min"):
@@ -67,10 +72,19 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
         raise Exception("Error configuring Aerospike Graph Service.\n\tInvalid properties found: " + str(invalid) + ". Properties must start with 'aerospike' and " + \
                     "be in the format 'aerospike.key=value'")
 
+    persist_unified_config(unified_config_file, unified_config)
     generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, output_properties_file, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm)
     generate_properties(valid_properties, output_properties_file, auth_jwt_secret, auth_jwt_issuer)
     generate_java_options(output_java_options_file, java_options_max_heap, java_options_min_heap)
 
+def persist_unified_config(unified_config_file, unified_config):
+    print("persisting " + str(unified_config) + " to " + unified_config_file)
+    with open(unified_config_file, "w") as unified_config_file:
+        for line in unified_config:
+            if any(x in ['token', 'secret', 'password'] for x in line.split("=")[0]):
+                unified_config_file.write(line.split("=")[0] + "=********\n")
+            else:
+                unified_config_file.write(line + "\n")
 
 def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, output_properties_file, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm):
     rewritten_lines = []
@@ -223,8 +237,9 @@ if __name__ == "__main__":
     output_yaml_file = sys.argv[3]
     output_properties_file = sys.argv[4]
     output_java_options_file = sys.argv[5]
+    unified_config_file = sys.argv[6]
     try:
-        main(input_properties_file, default_yaml_file, output_yaml_file, output_properties_file, output_java_options_file)
+        main(input_properties_file, default_yaml_file, output_yaml_file, output_properties_file, output_java_options_file, unified_config_file)
         sys.exit(0)
     except Exception as e:
         print(e)

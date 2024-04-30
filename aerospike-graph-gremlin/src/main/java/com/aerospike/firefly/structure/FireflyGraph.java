@@ -177,10 +177,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final FireflyIndexMetadata fireflyIndexMetadata;
     public final FireflyGraphSummaryUpdater fireflySummaryUpdater;
     private final ServiceRegistry serviceRegistry = new ServiceRegistry();
-    public static final String DOCKER_SETTINGS_FILE_LOCATION_CUSTOM = "/opt/conf/aerospike-graph-service.yaml";
-    public static final String DOCKER_SETTINGS_FILE_LOCATION_DEFAULT = "/opt/aerospike-graph/custom/aerospike-graph-service.yaml";
-
-    // Note, this should be overwritten by the settings file contents, but for testing we need a default.
+    private static final String GREMLIN_SERVER_YAML_PATH = "GREMLIN_SERVER_YAML_PATH";
+    private static final String UNIFIED_CONFIG_PROPERTIES_PATH = "UNIFIED_CONFIG_PROPERTIES_PATH";
     private final Settings gremlinServerSettings;
 
     static {
@@ -336,24 +334,33 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     private static Settings GREMLIN_SERVER_SETTINGS = null;
 
+    public static synchronized String getGremlinServerYamlFile() {
+        final String gremlinServerYamlPath = System.getenv(GREMLIN_SERVER_YAML_PATH);
+        if ((gremlinServerYamlPath == null || gremlinServerYamlPath.isEmpty()) ||
+                !(new File(gremlinServerYamlPath).exists())) {
+            throw new RuntimeException("Failed to load docker settings file, " +
+                    "must be running docker image to read the gremlin-server yaml.");
+        }
+        return gremlinServerYamlPath;
+    }
+
+    public static synchronized String getUnifiedConfigFile() {
+        final String unifiedConfigPath = System.getenv(UNIFIED_CONFIG_PROPERTIES_PATH);
+        if ((unifiedConfigPath == null || unifiedConfigPath.isEmpty()) ||
+                !(new File(unifiedConfigPath).exists())) {
+            throw new RuntimeException("Failed to load docker settings file, " +
+                    "must be running docker image to read the gremlin-server yaml.");
+        }
+        return unifiedConfigPath;
+    }
+
     public static synchronized Settings getGremlinServerSettings() {
         if (GREMLIN_SERVER_SETTINGS == null) {
-            // We want to load the docker file if it exists, however in our testing it won't, so we can just default the values.
-            if (new File(DOCKER_SETTINGS_FILE_LOCATION_CUSTOM).exists()) {
-                LOG.info("Loading configuration from docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION_CUSTOM + "'.");
-                try {
-                    GREMLIN_SERVER_SETTINGS = Settings.read(DOCKER_SETTINGS_FILE_LOCATION_CUSTOM);
-                } catch (final Exception e) {
-                    LOG.error("Failed to load docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION_CUSTOM + "'.", e);
-                }
-            } else if (new File(DOCKER_SETTINGS_FILE_LOCATION_DEFAULT).exists()) {
-                LOG.info("Loading configuration from docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION_DEFAULT + "'.");
-                try {
-                    GREMLIN_SERVER_SETTINGS = Settings.read(DOCKER_SETTINGS_FILE_LOCATION_DEFAULT);
-                } catch (final Exception e) {
-                    LOG.error("Failed to load docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION_DEFAULT + "'.", e);
-                }
-            } else {
+            try {
+                final String yamlLocation = getGremlinServerYamlFile();
+                GREMLIN_SERVER_SETTINGS = Settings.read(yamlLocation);
+            } catch (final Exception e) {
+                LOG.error("Failed to load gremlin-server settings file.", e);
                 GREMLIN_SERVER_SETTINGS = new Settings();
             }
         }

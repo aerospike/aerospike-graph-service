@@ -51,9 +51,15 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
                 configurationMap.put(key, "********");
             }
         }
+        // Unified and gremlin server configs are not available unless running in docker.
+        final Map<String, Object> expectedConfig = new HashMap<>();
+        expectedConfig.put("Graph Properties", configurationMap);
+        expectedConfig.put("Gremlin Server Configuration", "Not available");
+        expectedConfig.put("Unified Configuration", "Not available");
+
         final GraphTraversalSource g = graph.traversal();
         final Map<String, String> config = (Map<String, String>) g.call("aerospike.graph.admin.metadata.config").next();
-        Assert.assertEquals(configurationMap, config);
+        Assert.assertEquals(expectedConfig, config);
     }
 
     @Test

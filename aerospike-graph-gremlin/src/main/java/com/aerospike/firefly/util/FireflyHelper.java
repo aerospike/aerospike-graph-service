@@ -45,6 +45,10 @@ public final class FireflyHelper {
     private FireflyHelper() {
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// FIREFLY GRAPH COMPUTER //////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     public static boolean inComputerMode(final FireflyGraph graph) {
         return graph.graphComputerView != null;
     }
@@ -53,20 +57,14 @@ public final class FireflyHelper {
         return graph.graphComputerView = new FireflyGraphComputerView(graph, graphFilter, computeKeys);
     }
 
-    public static Map<String, List<VertexProperty<?>>> getProperties(final FireflyVertex vertex) {
-        Map<String,List<VertexProperty<?>>> props = new HashMap<>();
-        vertex.properties().forEachRemaining(prop -> {
-             props.put(prop.key(),List.of(prop));
-         });
-        return props;
-    }
-
     public static void dropGraphComputerView(final FireflyGraph graph) { graph.graphComputerView= null;
     }
 
     public static FireflyGraphComputerView getGraphComputerView(final FireflyGraph graph) {
         return  graph.graphComputerView;
     }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static <V> V validateGraphVariableValue(V v) {
         Set<Class<? extends Serializable>> supported = SupportedValueTypes.keySet();

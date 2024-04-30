@@ -7,21 +7,14 @@ import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.util.MapReducePool;
 import org.apache.tinkerpop.gremlin.process.computer.util.VertexProgramPool;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.apache.tinkerpop.gremlin.util.function.TriConsumer;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Queue;
-import java.util.concurrent.CompletionService;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 
 /**
@@ -30,9 +23,6 @@ import java.util.function.Consumer;
 public class FireflyWorkerPool implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyWorkerPool.class);
     private static final BasicThreadFactory THREAD_FACTORY_WORKER = new BasicThreadFactory.Builder().namingPattern("firefly-worker-%d").build();
-
-    private static final String SUMMARY_SERVICE = "aerospike.graph.admin.metadata.summary";
-    private static final String SUMMARY_VERTEX_COUNT = "Total vertex count";
 
     private final int numberOfWorkers;
     private final ExecutorService workerPool;
@@ -62,7 +52,7 @@ public class FireflyWorkerPool implements AutoCloseable {
     }
 
     public void executeVertexProgram(final TriConsumer<Iterator<Vertex>, VertexProgram, FireflyWorkerMemory> worker) throws InterruptedException {
-        final Iterator<Vertex> verticesIterator =  new FireflyGraphComputer.SynchronizedIterator<>(this.graph.vertices());
+        final CloseableIterator<Vertex> verticesIterator = new FireflyGraphComputer.SynchronizedIterator<>(this.graph.vertices());
         for (int i = 0; i < this.numberOfWorkers; i++) {
             this.completionService.submit(() -> {
                 final VertexProgram vp = this.vertexProgramPool.take();
@@ -82,6 +72,7 @@ public class FireflyWorkerPool implements AutoCloseable {
                 throw new IllegalStateException(e.getMessage(), e);
             }
         }
+        verticesIterator.close();
     }
 
     public void executeMapReduce(final Consumer<MapReduce> worker) throws InterruptedException {

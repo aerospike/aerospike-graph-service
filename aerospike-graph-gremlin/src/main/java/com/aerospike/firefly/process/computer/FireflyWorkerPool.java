@@ -6,15 +6,22 @@ import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.util.MapReducePool;
 import org.apache.tinkerpop.gremlin.process.computer.util.VertexProgramPool;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.util.function.TriConsumer;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 /**
@@ -34,40 +41,15 @@ public class FireflyWorkerPool implements AutoCloseable {
     private VertexProgramPool vertexProgramPool;
     private MapReducePool mapReducePool;
     private final Queue<FireflyWorkerMemory> workerMemoryPool = new ConcurrentLinkedQueue<>();
-    private final List<List<Vertex>> workerVertices = new ArrayList<>();
+    private final FireflyGraph graph;
 
     public FireflyWorkerPool(final FireflyGraph graph, final FireflyMemory memory, final int numberOfWorkers) {
+        this.graph = graph;
         this.numberOfWorkers = numberOfWorkers;
         this.workerPool = Executors.newFixedThreadPool(numberOfWorkers, THREAD_FACTORY_WORKER);
         this.completionService = new ExecutorCompletionService<>(this.workerPool);
         for (int i = 0; i < this.numberOfWorkers; i++) {
             this.workerMemoryPool.add(new FireflyWorkerMemory(memory));
-            this.workerVertices.add(new ArrayList<>());
-        }
-
-        long vertexCount = graph.getVertexCount(List.of());
-        if (0 == vertexCount) {
-            LOG.warn("{} unable to provide vertex count: {}", "FireflyGraph.getVertexCount()", vertexCount);
-            vertexCount = IteratorUtils.count(graph.vertices());
-        }
-        long batchSize = (long) Math.ceil((double) vertexCount / (double) numberOfWorkers);
-        LOG.warn("{} graph computer workers each to compute approximately {} vertices out of a total of {} vertices", numberOfWorkers, batchSize, vertexCount);
-        if (0 == batchSize)
-            batchSize = 1;
-        int counter = 0;
-        int index = 0;
-
-        List<Vertex> currentWorkerVertices = this.workerVertices.get(index);
-        final Iterator<Vertex> iterator = graph.vertices();
-        while (iterator.hasNext()) {
-            final Vertex vertex = iterator.next();
-            if (counter++ < batchSize || index == this.workerVertices.size() - 1) {
-                currentWorkerVertices.add(vertex);
-            } else {
-                currentWorkerVertices = this.workerVertices.get(++index);
-                currentWorkerVertices.add(vertex);
-                counter = 1;
-            }
         }
     }
 
@@ -80,13 +62,12 @@ public class FireflyWorkerPool implements AutoCloseable {
     }
 
     public void executeVertexProgram(final TriConsumer<Iterator<Vertex>, VertexProgram, FireflyWorkerMemory> worker) throws InterruptedException {
+        final Iterator<Vertex> verticesIterator =  new FireflyGraphComputer.SynchronizedIterator<>(this.graph.vertices());
         for (int i = 0; i < this.numberOfWorkers; i++) {
-            final int index = i;
             this.completionService.submit(() -> {
                 final VertexProgram vp = this.vertexProgramPool.take();
                 final FireflyWorkerMemory workerMemory = this.workerMemoryPool.poll();
-                final List<Vertex> vertices = this.workerVertices.get(index);
-                worker.accept(vertices.iterator(), vp, workerMemory);
+                worker.accept(verticesIterator, vp, workerMemory);
                 this.vertexProgramPool.offer(vp);
                 this.workerMemoryPool.offer(workerMemory);
                 return null;

@@ -1,4 +1,4 @@
-package com.aerospike.firefly.process.computer;
+package com.aerospike.firefly.process.computer.local;
 
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
-public class FireflyMemory implements Memory.Admin {
+public class LocalMemory implements Memory.Admin {
 
 
     public final Map<String, MemoryComputeKey> memoryKeys = new HashMap<>();
@@ -30,7 +30,7 @@ public class FireflyMemory implements Memory.Admin {
     private final AtomicLong runtime = new AtomicLong(0l);
     private boolean inExecute = false;
 
-    public FireflyMemory(final VertexProgram<?> vertexProgram, final Set<MapReduce> mapReducers) {
+    public LocalMemory(final VertexProgram<?> vertexProgram, final Set<MapReduce> mapReducers) {
         // ConcurrentHashMap makes us use Optional since you cant store null in them as values (or keys)
         this.currentMap = new ConcurrentHashMap<>();
         this.previousMap = new ConcurrentHashMap<>();

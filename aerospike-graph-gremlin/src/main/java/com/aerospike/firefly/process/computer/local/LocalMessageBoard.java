@@ -1,4 +1,4 @@
-package com.aerospike.firefly.process.computer;
+package com.aerospike.firefly.process.computer.local;
 
 import org.apache.tinkerpop.gremlin.process.computer.MessageScope;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
-public class FireflyMessageBoard<M> {
+public class LocalMessageBoard<M> {
 
     public Map<MessageScope, Map<Vertex, Queue<M>>> sendMessages = new ConcurrentHashMap<>();
     public Map<MessageScope, Map<Vertex, Queue<M>>> receiveMessages = new ConcurrentHashMap<>();

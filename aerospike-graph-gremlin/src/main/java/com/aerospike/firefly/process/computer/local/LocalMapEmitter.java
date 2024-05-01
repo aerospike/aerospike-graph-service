@@ -1,4 +1,4 @@
-package com.aerospike.firefly.process.computer;
+package com.aerospike.firefly.process.computer.local;
 
 import org.apache.tinkerpop.gremlin.process.computer.KeyValue;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
@@ -16,13 +16,13 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
-public class FireflyMapEmitter<K, V> implements MapReduce.MapEmitter<K, V> {
+public class LocalMapEmitter<K, V> implements MapReduce.MapEmitter<K, V> {
 
     public Map<K, Queue<V>> reduceMap;
     public Queue<KeyValue<K, V>> mapQueue;
     private final boolean doReduce;
 
-    public FireflyMapEmitter(final boolean doReduce) {
+    public LocalMapEmitter(final boolean doReduce) {
         this.doReduce = doReduce;
         if (this.doReduce)
             this.reduceMap = new ConcurrentHashMap<>();

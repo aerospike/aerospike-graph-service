@@ -1,9 +1,13 @@
-package com.aerospike.firefly.process.computer;
+package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
-import org.apache.tinkerpop.gremlin.process.computer.*;
+import org.apache.tinkerpop.gremlin.process.computer.ComputerResult;
+import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
+import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
+import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
+import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
@@ -18,7 +22,14 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -27,25 +38,25 @@ import java.util.concurrent.ThreadFactory;
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
-public class FireflyGraphComputer implements GraphComputer {
+public class LocalGraphComputer implements GraphComputer {
 
-    private static final Logger LOG = LoggerFactory.getLogger(FireflyGraphComputer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LocalGraphComputer.class);
     private ResultGraph resultGraph = null;
     private Persist persist = null;
 
     private VertexProgram<?> vertexProgram;
     private final FireflyGraph graph;
-    private FireflyMemory memory;
-    private final FireflyMessageBoard messageBoard = new FireflyMessageBoard();
+    private LocalMemory memory;
+    private final LocalMessageBoard messageBoard = new LocalMessageBoard();
     private boolean executed = false;
     private final Set<MapReduce> mapReducers = new HashSet<>();
     private int workers = Runtime.getRuntime().availableProcessors();
     private final GraphFilter graphFilter = new GraphFilter();
 
-    private final ThreadFactory threadFactoryBoss = new BasicThreadFactory.Builder().namingPattern(FireflyGraphComputer.class.getSimpleName() + "-boss").build();
+    private final ThreadFactory threadFactoryBoss = new BasicThreadFactory.Builder().namingPattern(LocalGraphComputer.class.getSimpleName() + "-boss").build();
     private final ExecutorService computerService = Executors.newSingleThreadExecutor(threadFactoryBoss);
 
-    public FireflyGraphComputer(final FireflyGraph graph) {
+    public LocalGraphComputer(final FireflyGraph graph) {
         this.graph = graph;
 
     }
@@ -101,7 +112,7 @@ public class FireflyGraphComputer implements GraphComputer {
 
     @Override
     public Future<ComputerResult> submit() {
-        LOG.warn("{} graph computer workers executing {}", this.workers, this.vertexProgram.toString());
+        LOG.warn("{} graph computer workers executing {}", this.workers, null == this.vertexProgram ? "job" : this.vertexProgram.toString());
         // a graph computer can only be executed once
         if (this.executed)
             throw Exceptions.computerHasAlreadyBeenSubmittedAVertexProgram();
@@ -125,11 +136,11 @@ public class FireflyGraphComputer implements GraphComputer {
             throw GraphComputer.Exceptions.computerRequiresMoreWorkersThanSupported(this.workers, this.features().getMaxWorkers());
 
         // initialize the memory
-        this.memory = new FireflyMemory(this.vertexProgram, this.mapReducers);
+        this.memory = new LocalMemory(this.vertexProgram, this.mapReducers);
         final Future<ComputerResult> result = computerService.submit(() -> {
             final long time = System.currentTimeMillis();
-            final FireflyGraphComputerView view = FireflyHelper.createGraphComputerView(this.graph, this.graphFilter, null != this.vertexProgram ? this.vertexProgram.getVertexComputeKeys() : Collections.emptySet());
-            final FireflyWorkerPool workers = new FireflyWorkerPool(this.graph, this.memory, this.workers);
+            final LocalGraphComputerView view = FireflyHelper.createGraphComputerView(this.graph, this.graphFilter, null != this.vertexProgram ? this.vertexProgram.getVertexComputeKeys() : Collections.emptySet());
+            final LocalWorkerPool workers = new LocalWorkerPool(this.graph, this.memory, this.workers);
 
 
             try {
@@ -150,7 +161,7 @@ public class FireflyGraphComputer implements GraphComputer {
                                     if (Thread.interrupted()) throw new TraversalInterruptedException();
                                     vertexProgram.execute(
                                             ComputerGraph.vertexProgram(vertex, vertexProgram),
-                                            new FireflyMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner()),
+                                            new LocalMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner()),
                                             workerMemory);
                                 }
                             } catch (NoSuchElementException ignored) {
@@ -172,7 +183,7 @@ public class FireflyGraphComputer implements GraphComputer {
 
                 // execute mapreduce jobs
                 for (final MapReduce mapReduce : mapReducers) {
-                    final FireflyMapEmitter<?, ?> mapEmitter = new FireflyMapEmitter<>(mapReduce.doStage(MapReduce.Stage.REDUCE));
+                    final LocalMapEmitter<?, ?> mapEmitter = new LocalMapEmitter<>(mapReduce.doStage(MapReduce.Stage.REDUCE));
                     final SynchronizedIterator<Vertex> vertices = new SynchronizedIterator<>(this.graph.vertices());
                     workers.setMapReduce(mapReduce);
                     workers.executeMapReduce(workerMapReduce -> {
@@ -191,7 +202,7 @@ public class FireflyGraphComputer implements GraphComputer {
 
                     // no need to run combiners as this is single machine
                     if (mapReduce.doStage(MapReduce.Stage.REDUCE)) {
-                        final FireflyReduceEmitter<?, ?> reduceEmitter = new FireflyReduceEmitter<>();
+                        final LocalReduceEmitter<?, ?> reduceEmitter = new LocalReduceEmitter<>();
                         final SynchronizedIterator<Map.Entry<?, Queue<?>>> keyValues = new SynchronizedIterator((Iterator) mapEmitter.reduceMap.entrySet().iterator());
                         workers.executeMapReduce(workerMapReduce -> {
                             workerMapReduce.workerStart(MapReduce.Stage.REDUCE);

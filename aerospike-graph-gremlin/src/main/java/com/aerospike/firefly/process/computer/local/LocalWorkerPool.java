@@ -1,4 +1,4 @@
-package com.aerospike.firefly.process.computer;
+package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
@@ -20,8 +20,8 @@ import java.util.function.Consumer;
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
-public class FireflyWorkerPool implements AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(FireflyWorkerPool.class);
+public class LocalWorkerPool implements AutoCloseable {
+    private static final Logger LOG = LoggerFactory.getLogger(LocalWorkerPool.class);
     private static final BasicThreadFactory THREAD_FACTORY_WORKER = new BasicThreadFactory.Builder().namingPattern("firefly-worker-%d").build();
 
     private final int numberOfWorkers;
@@ -30,16 +30,16 @@ public class FireflyWorkerPool implements AutoCloseable {
 
     private VertexProgramPool vertexProgramPool;
     private MapReducePool mapReducePool;
-    private final Queue<FireflyWorkerMemory> workerMemoryPool = new ConcurrentLinkedQueue<>();
+    private final Queue<LocalWorkerMemory> workerMemoryPool = new ConcurrentLinkedQueue<>();
     private final FireflyGraph graph;
 
-    public FireflyWorkerPool(final FireflyGraph graph, final FireflyMemory memory, final int numberOfWorkers) {
+    public LocalWorkerPool(final FireflyGraph graph, final LocalMemory memory, final int numberOfWorkers) {
         this.graph = graph;
         this.numberOfWorkers = numberOfWorkers;
         this.workerPool = Executors.newFixedThreadPool(numberOfWorkers, THREAD_FACTORY_WORKER);
         this.completionService = new ExecutorCompletionService<>(this.workerPool);
         for (int i = 0; i < this.numberOfWorkers; i++) {
-            this.workerMemoryPool.add(new FireflyWorkerMemory(memory));
+            this.workerMemoryPool.add(new LocalWorkerMemory(memory));
         }
     }
 
@@ -51,12 +51,12 @@ public class FireflyWorkerPool implements AutoCloseable {
         this.mapReducePool = new MapReducePool(mapReduce, this.numberOfWorkers);
     }
 
-    public void executeVertexProgram(final TriConsumer<Iterator<Vertex>, VertexProgram, FireflyWorkerMemory> worker) throws InterruptedException {
-        final CloseableIterator<Vertex> verticesIterator = new FireflyGraphComputer.SynchronizedIterator<>(this.graph.vertices());
+    public void executeVertexProgram(final TriConsumer<Iterator<Vertex>, VertexProgram, LocalWorkerMemory> worker) throws InterruptedException {
+        final CloseableIterator<Vertex> verticesIterator = new LocalGraphComputer.SynchronizedIterator<>(this.graph.vertices());
         for (int i = 0; i < this.numberOfWorkers; i++) {
             this.completionService.submit(() -> {
                 final VertexProgram vp = this.vertexProgramPool.take();
-                final FireflyWorkerMemory workerMemory = this.workerMemoryPool.poll();
+                final LocalWorkerMemory workerMemory = this.workerMemoryPool.poll();
                 worker.accept(verticesIterator, vp, workerMemory);
                 this.vertexProgramPool.offer(vp);
                 this.workerMemoryPool.offer(workerMemory);

@@ -139,8 +139,8 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  start-runner-test-firefly-computer-process-1:
-    name: Start Runner Computer Process 1
+  start-runner-test-local-computer-process-1:
+    name: Start Runner Local Computer Process 1
     runs-on: ubuntu-latest
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
@@ -633,11 +633,11 @@ jobs:
           bash -x scripts/start_aerospike.sh
           sudo echo "127.0.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphSindexProcessStandardTest -Dtest=FireflyGraphSupernodeProcessStandardTest --no-transfer-progress
-  test-firefly-computer-process-1:
-    name: Test Firefly Computer Process Tests 1
+  test-local-computer-process-1:
+    name: Test Local Computer Process Tests 1
     timeout-minutes: 120
-    needs: start-runner-test-firefly-computer-process-1
-    runs-on: ${{ needs.start-runner-test-firefly-computer-process-1.outputs.label }}
+    needs: start-runner-test-local-computer-process-1
+    runs-on: ${{ needs.start-runner-test-local-computer-process-1.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v5
@@ -663,7 +663,7 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           sudo echo "127.0.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphProcessComputerTest --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=LocalGraphProcessComputerTest --no-transfer-progress
   test-firefly-movielens:
     name: Test Movielens
     timeout-minutes: 120
@@ -1146,11 +1146,11 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-test-firefly-process-2.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-test-firefly-process-2.outputs.ec2-instance-id }}
-  stop-runner-test-firefly-computer-process-1:
-    name: Stop Computer Process Runner 1
+  stop-runner-test-local-computer-process-1:
+    name: Stop Local Computer Process Runner 1
     needs:
-      - test-firefly-computer-process-1
-      - start-runner-test-firefly-computer-process-1
+      - test-local-computer-process-1
+      - start-runner-test-local-computer-process-1
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -1165,8 +1165,8 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-test-firefly-computer-process-1.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-test-firefly-computer-process-1.outputs.ec2-instance-id }}
+          label: ${{ needs.start-runner-test-local-computer-process-1.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-test-local-computer-process-1.outputs.ec2-instance-id }}
   stop-runner-test-firefly-structure:
     name: Stop Structure Runner
     needs:

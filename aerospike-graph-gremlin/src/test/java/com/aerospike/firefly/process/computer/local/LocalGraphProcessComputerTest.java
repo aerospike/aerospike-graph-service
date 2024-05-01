@@ -1,4 +1,4 @@
-package com.aerospike.firefly.process;
+package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.GraphProviderClass;
@@ -10,7 +10,7 @@ import org.junit.runner.RunWith;
  */
 
 @RunWith(ProcessComputerSuite.class)
-@GraphProviderClass(provider = FireflyGraphComputerProvider.class, graph = FireflyGraph.class)
-public class FireflyGraphProcessComputerTest {
+@GraphProviderClass(provider = LocalGraphComputerProvider.class, graph = FireflyGraph.class)
+public class LocalGraphProcessComputerTest {
 }
 

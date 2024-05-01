@@ -36,7 +36,7 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.OperationReturnHandler;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
-import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
+import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
 import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
@@ -999,7 +999,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             return iterator;
         else {
             // TODO: GRAPH COMPUTER INTERCEPTION
-            final FireflyGraphComputerView view = FireflyHelper.getGraphComputerView(this.graph);
+            final LocalGraphComputerView view = FireflyHelper.getGraphComputerView(this.graph);
             final List<VertexProperty<V>> computeProperties = view.getComputeProperties(this, propertyKeys);
             return (computeProperties.isEmpty()) ? iterator : FireflyCloseableIteratorUtils.concat(iterator, computeProperties.iterator());
         }

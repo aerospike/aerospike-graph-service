@@ -16,8 +16,8 @@ import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.jsr223.FireflyGremlinPlugin;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
-import com.aerospike.firefly.process.computer.FireflyGraphComputer;
-import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
+import com.aerospike.firefly.process.computer.local.LocalGraphComputer;
+import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
@@ -71,8 +71,8 @@ import static com.aerospike.firefly.util.Tokens.*;
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_COMPUTER)
 
 // GraphComputer OptOuts
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.GraphComputerTest", method = "*", reason = "REMOVE -- currently here for faster testing", computers = {"com.aerospike.firefly.process.computer.FireflyGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ConnectedComponentTest$Traversals", method = "*", reason = "Firefly does not support persisting edges to new graph", computers = {"com.aerospike.firefly.process.computer.FireflyGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.GraphComputerTest", method = "*", reason = "REMOVE -- currently here for faster testing", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ConnectedComponentTest$Traversals", method = "*", reason = "Firefly does not support persisting edges to new graph", computers = {"com.aerospike.firefly.process.computer.local.FireflyGraphComputer"})
 
 
 // Tests that require lambda support.
@@ -118,7 +118,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private final FireflyGraphVariables variables;
     protected final AerospikeConnection db;
     private final FireflyIdFactory idFactory;
-    public FireflyGraphComputerView graphComputerView = null;
+    public LocalGraphComputerView graphComputerView = null;
     public final IdManager<Long> vertexIdManager;
     public final IdManager<byte[]> edgeIdManager;
     public final IdManager<Long> vertexPropertyIdManager;
@@ -842,11 +842,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public <C extends GraphComputer> C compute(final Class<C> graphComputerClass) throws IllegalArgumentException {
-        if (!FireflyGraphComputer.class.isAssignableFrom(graphComputerClass))
-            throw new IllegalArgumentException(graphComputerClass.getSimpleName() + " is not assignable from " + FireflyGraphComputer.class.getSimpleName());
+        if (!LocalGraphComputer.class.isAssignableFrom(graphComputerClass))
+            throw new IllegalArgumentException(graphComputerClass.getSimpleName() + " is not assignable from " + LocalGraphComputer.class.getSimpleName());
         else {
             try {
-                Class<C> clazz = graphComputerClass.equals(GraphComputer.class) ? (Class<C>) FireflyGraphComputer.class : graphComputerClass;
+                Class<C> clazz = graphComputerClass.equals(GraphComputer.class) ? (Class<C>) LocalGraphComputer.class : graphComputerClass;
                 return clazz.getConstructor(FireflyGraph.class).newInstance(this);
             } catch (Exception e) {
                 throw new IllegalArgumentException(e.getMessage(), e);
@@ -856,7 +856,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public GraphComputer compute() throws IllegalArgumentException {
-        return new FireflyGraphComputer(this);
+        return new LocalGraphComputer(this);
     }
 
     /**

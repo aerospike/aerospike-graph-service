@@ -1,4 +1,4 @@
-package com.aerospike.firefly.process.computer;
+package com.aerospike.firefly.process.computer.local;
 
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.MemoryComputeKey;
@@ -11,13 +11,13 @@ import java.util.function.BinaryOperator;
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
-public class FireflyWorkerMemory implements Memory.Admin {
+public class LocalWorkerMemory implements Memory.Admin {
 
-    private final FireflyMemory mainMemory;
+    private final LocalMemory mainMemory;
     private final Map<String, Object> workerMemory = new HashMap<>();
     private final Map<String, BinaryOperator<Object>> reducers = new HashMap<>();
 
-    public FireflyWorkerMemory(final FireflyMemory mainMemory) {
+    public LocalWorkerMemory(final LocalMemory mainMemory) {
         this.mainMemory = mainMemory;
         for (final MemoryComputeKey key : this.mainMemory.memoryKeys.values()) {
             this.reducers.put(key.getKey(), key.clone().getReducer());

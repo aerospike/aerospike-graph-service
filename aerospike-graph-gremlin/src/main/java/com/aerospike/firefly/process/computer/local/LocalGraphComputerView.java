@@ -1,4 +1,4 @@
-package com.aerospike.firefly.process.computer;
+package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -6,6 +6,7 @@ import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.computer.VertexComputeKey;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalUtil;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -30,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
-public class FireflyGraphComputerView {
+public class LocalGraphComputerView {
 
     private final FireflyGraph graph;
     protected final Map<String, VertexComputeKey> computeKeys;
@@ -38,7 +39,7 @@ public class FireflyGraphComputerView {
     private final GraphFilter graphFilter;
     //private final Set<String> retainVertexProperties;
 
-    public FireflyGraphComputerView(final FireflyGraph graph, final GraphFilter graphFilter, final Set<VertexComputeKey> computeKeys) {
+    public LocalGraphComputerView(final FireflyGraph graph, final GraphFilter graphFilter, final Set<VertexComputeKey> computeKeys) {
         this.graph = graph;
         this.computeKeys = new HashMap<>();
         computeKeys.forEach(key -> this.computeKeys.put(key.getKey(), key));
@@ -113,7 +114,8 @@ public class FireflyGraphComputerView {
     }
 
     public boolean legalVertex(final Vertex vertex) {
-        return this.graphFilter.legalVertex(vertex);
+        return  !this.graphFilter.hasVertexFilter() || TraversalUtil.test(vertex, this.graphFilter.getVertexFilter().clone());
+        //return this.graphFilter.legalVertex(vertex);
     }
 
 

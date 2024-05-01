@@ -6,7 +6,7 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
-import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
+import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
@@ -17,7 +17,6 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,11 +25,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -53,14 +50,14 @@ public final class FireflyHelper {
         return graph.graphComputerView != null;
     }
 
-    public static FireflyGraphComputerView createGraphComputerView(final FireflyGraph graph, final GraphFilter graphFilter, final Set<VertexComputeKey> computeKeys) {
-        return graph.graphComputerView = new FireflyGraphComputerView(graph, graphFilter, computeKeys);
+    public static LocalGraphComputerView createGraphComputerView(final FireflyGraph graph, final GraphFilter graphFilter, final Set<VertexComputeKey> computeKeys) {
+        return graph.graphComputerView = new LocalGraphComputerView(graph, graphFilter, computeKeys);
     }
 
     public static void dropGraphComputerView(final FireflyGraph graph) { graph.graphComputerView= null;
     }
 
-    public static FireflyGraphComputerView getGraphComputerView(final FireflyGraph graph) {
+    public static LocalGraphComputerView getGraphComputerView(final FireflyGraph graph) {
         return  graph.graphComputerView;
     }
 

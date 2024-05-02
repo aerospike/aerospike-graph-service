@@ -644,10 +644,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
 
         // Write to filterable supernode bin if necessary.
-        if (this.db.isSupernodePushdownEnabled) {
-            operations.addAll(createFilterableSupernodeOperations(this, (FireflyPhatEdgeId) id, outVSupernode,
-                    inVSupernode, outId, inId, label, propertyMap));
-        }
+        operations.addAll(createFilterableSupernodeOperations(this, (FireflyPhatEdgeId) id, outVSupernode,
+                inVSupernode, outId, inId, label, propertyMap));
 
         // Add properties and type hints to Edge data.
         edgeData.add(PROPERTIES_POSITION, Value.get(propertyMap));
@@ -669,19 +667,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             throw new FireflyLoadingException(ae);
         }
         fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
-    }
-
-    /**
-     * Function to remove edge record via id without reading the edge back.
-     * NOTE: This function does not remove the edge from adjacent vertices. This must be done separately.
-     *
-     * @param edgeId Id of edge to remove.
-     */
-    public void removeEdgeById(final FireflyId edgeId) {
-        // Remove edge.
-        FireflyGraph.LOG.debug("Removing edge {}.", edgeId);
-
-        FireflyEdge.removeEdgeById(this, edgeId);
     }
 
     /**

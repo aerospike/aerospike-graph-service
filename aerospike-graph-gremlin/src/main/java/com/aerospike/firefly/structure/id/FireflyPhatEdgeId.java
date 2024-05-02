@@ -13,7 +13,7 @@ public class FireflyPhatEdgeId extends FireflyIdPoly {
     private final long capacity;
     private Long storageId = null;
     private Long packingId = null;
-    private Byte packingIndex = null;
+    private Long uniqueId = null;
     private Integer hashcode = null;
 
     public FireflyPhatEdgeId(final ByteBuffer id, final long capacity, final String edgeSetName) {
@@ -24,7 +24,6 @@ public class FireflyPhatEdgeId extends FireflyIdPoly {
     public Long getPackingId() {
         if (this.packingId == null) {
             // Edge byte array is [<recycledId>, <uniqueId>]
-            // and the recycled id is used for the edge record.
             final byte[] bytes = Arrays.copyOfRange(((ByteBuffer)this.id).array(), 0, 8);
             final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
             buffer.put(bytes);
@@ -42,12 +41,16 @@ public class FireflyPhatEdgeId extends FireflyIdPoly {
         return this.storageId;
     }
 
-    public Byte getPackingIndex() {
-        if (this.packingIndex == null) {
-            this.packingIndex = (byte) (getPackingId() % capacity);
+    public Long getUniqueId() {
+        if (this.uniqueId == null) {
+            // Edge byte array is [<recycledId>, <uniqueId>]
+            final byte[] bytes = Arrays.copyOfRange(((ByteBuffer)this.id).array(), 8, 16);
+            final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+            buffer.put(bytes);
+            buffer.flip();
+            this.uniqueId = buffer.getLong();
         }
-        // This can be cast to a byte since capacity defaults to 10 and is capped at 100.
-        return packingIndex;
+        return this.uniqueId;
     }
 
     /**

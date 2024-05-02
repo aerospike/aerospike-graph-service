@@ -1,4 +1,4 @@
-package com.aerospike.firefly.process.computer;
+package com.aerospike.firefly.process.computer.local;
 
 import org.apache.tinkerpop.gremlin.process.computer.MessageCombiner;
 import org.apache.tinkerpop.gremlin.process.computer.MessageScope;
@@ -10,7 +10,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.tinkergraph.process.computer.TinkerMessenger;
 import org.apache.tinkerpop.gremlin.util.iterator.MultiIterator;
 
 import java.util.Iterator;
@@ -26,13 +25,13 @@ import java.util.stream.StreamSupport;
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
-public class FireflyMessenger<M> implements Messenger<M> {
+public class LocalMessenger<M> implements Messenger<M> {
 
     private final Vertex vertex;
-    private final FireflyMessageBoard<M> messageBoard;
+    private final LocalMessageBoard<M> messageBoard;
     private final MessageCombiner<M> combiner;
 
-    public FireflyMessenger(final Vertex vertex, final FireflyMessageBoard<M> messageBoard, final Optional<MessageCombiner<M>> combiner) {
+    public LocalMessenger(final Vertex vertex, final LocalMessageBoard<M> messageBoard, final Optional<MessageCombiner<M>> combiner) {
         this.vertex = vertex;
         this.messageBoard = messageBoard;
         this.combiner = combiner.isPresent() ? combiner.get() : null;
@@ -45,8 +44,8 @@ public class FireflyMessenger<M> implements Messenger<M> {
 //        for (final MessageScope messageScope : this.messageBoard.previousMessageScopes) {
             if (messageScope instanceof MessageScope.Local) {
                 final MessageScope.Local<M> localMessageScope = (MessageScope.Local<M>) messageScope;
-                final Traversal.Admin<Vertex, Edge> incidentTraversal = FireflyMessenger.setVertexStart(localMessageScope.getIncidentTraversal().get().asAdmin(), this.vertex);
-                final Direction direction = FireflyMessenger.getDirection(incidentTraversal);
+                final Traversal.Admin<Vertex, Edge> incidentTraversal = LocalMessenger.setVertexStart(localMessageScope.getIncidentTraversal().get().asAdmin(), this.vertex);
+                final Direction direction = LocalMessenger.getDirection(incidentTraversal);
                 final Edge[] edge = new Edge[1]; // simulates storage side-effects available in Gremlin, but not Java streams
                 multiIterator.addIterator(StreamSupport.stream(Spliterators.spliteratorUnknownSize(VertexProgramHelper.reverse(incidentTraversal.asAdmin()), Spliterator.IMMUTABLE | Spliterator.SIZED), false)
                         .map((Edge e) -> {

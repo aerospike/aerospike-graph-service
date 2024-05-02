@@ -1,6 +1,5 @@
-package com.aerospike.firefly.process;
+package com.aerospike.firefly.process.computer.local;
 
-import com.aerospike.firefly.process.computer.FireflyGraphComputer;
 import com.aerospike.firefly.structure.FireflyGraphProvider;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.GraphProvider;
@@ -16,8 +15,8 @@ import java.util.Random;
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
-@GraphProvider.Descriptor(computer = FireflyGraphComputer.class)
-public class FireflyGraphComputerProvider extends FireflyGraphProvider {
+@GraphProvider.Descriptor(computer = LocalGraphComputer.class)
+public class LocalGraphComputerProvider extends FireflyGraphProvider {
 
     private static final Random RANDOM = TestHelper.RANDOM;
 
@@ -27,7 +26,7 @@ public class FireflyGraphComputerProvider extends FireflyGraphProvider {
             put(VertexProgramStrategy.WORKERS, RANDOM.nextInt(Runtime.getRuntime().availableProcessors()) + 1);
             put(VertexProgramStrategy.GRAPH_COMPUTER, RANDOM.nextBoolean() ?
                     GraphComputer.class.getCanonicalName() :
-                    FireflyGraphComputer.class.getCanonicalName());
+                    LocalGraphComputer.class.getCanonicalName());
         }})));
     }
 }

@@ -1,8 +1,10 @@
 package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
+import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
@@ -15,11 +17,8 @@ import org.slf4j.LoggerFactory;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
-import java.util.concurrent.CompletionService;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -56,24 +55,67 @@ public class LocalWorkerPool implements AutoCloseable {
         this.mapReducePool = new MapReducePool(mapReduce, this.numberOfWorkers);
     }
 
+    public PageFetcher.Page getPage(final BlockingQueue<PageFetcher.Page> pageQueue, final int index) {
+        synchronized (LocalWorkerPool.class) {
+            try {
+                LOG.warn("GRABBING page on worker {}", index);
+                final PageFetcher.Page page = pageQueue.take();
+                LOG.warn("GRABBED page on worker {}", index);
+
+                if (page instanceof PageFetcher.ErrorPage) {
+                    // ERROR
+                    final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
+                    LOG.warn("ERROR: " + errorPage.errorMessage, errorPage.exception);
+                    return null;
+                }
+                if (page instanceof PageFetcher.PoisonPill) {
+                    LOG.warn("POISON PILL - DO NOTHING");
+                    return null;
+                }
+            } catch (InterruptedException e) {
+
+            }
+            return page;
+        }
+    }
+
     public void executeVertexProgram(final TriFunction<Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Long> worker) throws InterruptedException {
-        final Iterator<Iterator<FireflyVertex>> verticesIterator = new LocalGraphComputer.SynchronizedIterator<>(GraphQuery.create(graph).scanVertexIdPages(List.of()));
+        //final CloseableIterator<Iterator<FireflyVertex>> verticesIterator =  new LocalGraphComputer.SynchronizedIterator<>(GraphQuery.create(graph).scanVertexIdPages(List.of()));
+        final BlockingQueue<PageFetcher.Page> pageQueue = GraphQuery.create(graph).scanVertexIdPages(List.of());
+        AtomicBoolean shutdown = new AtomicBoolean(false);
         for (int i = 0; i < this.numberOfWorkers; i++) {
             final int index = i;
             this.completionService.submit(() -> {
+                long count;
                 final VertexProgram vp = this.vertexProgramPool.take();
                 final LocalWorkerMemory workerMemory = this.workerMemoryPool.poll();
-                while (true) {
-                    final Iterator<FireflyVertex> itty = verticesIterator.next();
-                    if (itty == null)
-                        break;
-                    LOG.warn("Worker {} retrieved new vertex page workload", index);
-                    long count = worker.apply(itty, vp, workerMemory);
-                    LOG.warn("Worker {} processed {} vertices", index, count);
+                try {
+                    while (true) {
+                        final PageFetcher.Page page = getPage(pageQueue, index);
+
+                        if (page instanceof PageFetcher.ErrorPage) {
+                            // ERROR
+                            final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
+                            LOG.warn("ERROR: " + errorPage.errorMessage, errorPage.exception);
+                            return null;
+                        }
+                        if (page instanceof PageFetcher.PoisonPill) {
+                            LOG.warn("POISON PILL - DO NOTHING");
+                            return null;
+                        }
+
+                        final Iterator<FireflyVertex> itty = FireflyCloseableIteratorUtils.map(page.keyRecords, graph::vertexFromRecord);
+                        LOG.warn("Worker {} retrieved new vertex page workload", index);
+                        count = worker.apply(itty, vp, workerMemory);
+                        LOG.warn("Worker {} processed {} vertices", index, count);
+                        this.vertexProgramPool.offer(vp);
+                        this.workerMemoryPool.offer(workerMemory);
+                    }
+
+                } catch (InterruptedException e) {
+                    // NO MORE DATA ? I THINK
+                    return null;
                 }
-                this.vertexProgramPool.offer(vp);
-                this.workerMemoryPool.offer(workerMemory);
-                return null;
             });
         }
         for (int i = 0; i < this.numberOfWorkers; i++) {
@@ -85,7 +127,6 @@ public class LocalWorkerPool implements AutoCloseable {
                 throw new IllegalStateException(e.getMessage(), e);
             }
         }
-        //verticesIterator.close();
     }
 
     public void executeMapReduce(final Consumer<MapReduce> worker) throws InterruptedException {

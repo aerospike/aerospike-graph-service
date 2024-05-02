@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 
 public class PagedGraphQuery implements GraphQuery {
     private static final Logger LOG = LoggerFactory.getLogger(PagedGraphQuery.class);
@@ -67,14 +68,22 @@ public class PagedGraphQuery implements GraphQuery {
                 db.PAGINATION_PAGE_SIZE,
                 mapKey,
                 transform);
-        return pageFetcher.startQuery();
+        return pageFetcher.startQueryPages();
     }
 
     @Override
-    public <E> Iterator<Iterator<E>> scanSetPages(final String mapKey, final String setName, final String binName, final P<?> predicate,
-                                   final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
-                                   final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
-                                   final String... binNames) {
+    public <E> Iterator<Iterator<E>> scanSetPages(String mapKey, String setName, String binName, P<?> predicate,
+                                           FireflyGraph.TransformKeyRecord<E> transform, List<HasContainer> hasContainers,
+                                           Class<? extends FireflyElement> clazz, boolean sendKey, boolean includeBinData,
+                                           String... binNames){
+        return null;
+    }
+
+    @Override
+    public <E> BlockingQueue<PageFetcher.Page> scanSetPagesBlocking(final String mapKey, final String setName, final String binName, final P<?> predicate,
+                                                            final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
+                                                            final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
+                                                            final String... binNames) {
         final ScanPolicy policy = new ScanPolicy();
         policy.sendKey = sendKey;
         policy.includeBinData = includeBinData;
@@ -105,7 +114,7 @@ public class PagedGraphQuery implements GraphQuery {
                 db.PAGINATION_PAGE_SIZE,
                 mapKey,
                 transform);
-        return pageFetcher.startQueryPages();
+        return pageFetcher.startQueryPagesDirect();
     }
 
 

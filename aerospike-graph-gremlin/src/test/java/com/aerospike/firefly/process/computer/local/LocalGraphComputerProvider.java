@@ -1,7 +1,6 @@
 package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.structure.FireflyGraphProvider;
-import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.GraphProvider;
 import org.apache.tinkerpop.gremlin.TestHelper;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
@@ -9,7 +8,6 @@ import org.apache.tinkerpop.gremlin.process.computer.traversal.strategy.decorati
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
-import java.util.HashMap;
 import java.util.Random;
 
 /**
@@ -22,11 +20,14 @@ public class LocalGraphComputerProvider extends FireflyGraphProvider {
 
     @Override
     public GraphTraversalSource traversal(final Graph graph) {
-        return graph.traversal().withStrategies(VertexProgramStrategy.create(new MapConfiguration(new HashMap<>() {{
-            put(VertexProgramStrategy.WORKERS, RANDOM.nextInt(Runtime.getRuntime().availableProcessors()) + 1);
-            put(VertexProgramStrategy.GRAPH_COMPUTER, RANDOM.nextBoolean() ?
-                    GraphComputer.class.getCanonicalName() :
-                    LocalGraphComputer.class.getCanonicalName());
-        }})));
+        //int workers = RANDOM.nextInt(Runtime.getRuntime().availableProcessors()) + 1;
+        int workers = RANDOM.nextInt(3) + 1;
+
+        return graph.traversal().withStrategies(
+                VertexProgramStrategy.build()
+                        .workers(workers)                          // number of parallel threads
+                        .graphComputer(RANDOM.nextBoolean() ?      // verifying semantics of api
+                                GraphComputer.class :
+                                LocalGraphComputer.class).create());
     }
 }

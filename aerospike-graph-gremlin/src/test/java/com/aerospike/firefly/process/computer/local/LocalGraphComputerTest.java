@@ -3,6 +3,7 @@ package com.aerospike.firefly.process.computer.local;
 import com.aerospike.firefly.io.aerospike.query.paged.PagedGraphQuery;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.commons.collections4.IteratorUtils;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.strategy.decoration.VertexProgramStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -31,13 +32,13 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
 
     @Test
     public void testVertexPage() {
-        for (int i = 0; i < 10_000; i++) {
+        for (int i = 0; i < 10_00; i++) {
             graph.addVertex();
-            if (i % 1000 == 0)
+            if (i % 100 == 0)
                 LOG.warn("Loaded {} vertices", i);
         }
-        assertEquals(10_000L, graph.getVertexCount(List.of()));
-        assertEquals(10_000L, graph.traversal().withComputer().V().count().next().longValue());
+        assertEquals(10_00L, graph.getVertexCount(List.of()));
+        assertEquals(10_00L, graph.traversal().withComputer().withStrategies(VertexProgramStrategy.build().workers(16).create()).V().count().next().longValue());
     }
 
     @Test

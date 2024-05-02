@@ -153,21 +153,25 @@ public class LocalGraphComputer implements GraphComputer {
                         workers.setVertexProgram(this.vertexProgram);
                         workers.executeVertexProgram((vertices, vertexProgram, workerMemory) -> {
                             vertexProgram.workerIterationStart(workerMemory.asImmutable());
+                            long counter = 0;
                             try {
                                 while (true) {
                                     final Vertex vertex = vertices.next();
                                     if (null == vertex)
                                         break;
+                                    counter++;
                                     if (Thread.interrupted()) throw new TraversalInterruptedException();
                                     vertexProgram.execute(
                                             ComputerGraph.vertexProgram(vertex, vertexProgram),
                                             new LocalMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner()),
                                             workerMemory);
                                 }
+
                             } catch (NoSuchElementException ignored) {
                             }
                             vertexProgram.workerIterationEnd(workerMemory.asImmutable());
                             workerMemory.complete();
+                            return counter;
                         });
                         this.messageBoard.completeIteration();
                         this.memory.completeSubRound();

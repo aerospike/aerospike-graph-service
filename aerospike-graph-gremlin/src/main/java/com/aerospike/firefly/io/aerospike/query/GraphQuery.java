@@ -45,6 +45,32 @@ public interface GraphQuery {
         return scanElementIds(FireflyVertex.class, List.of());
     }
 
+    default Iterator<Iterator<FireflyVertex>> scanVertexIdPages(List<HasContainer> hasContainers) {
+        final P<?> predicate;
+        final String binName;
+        final String mapKey;
+        final FireflyGraph graph = getGraph();
+        final AerospikeConnection db = graph.getBaseGraph();
+        if (!hasContainers.isEmpty()) {
+            final HasContainer container = hasContainers.remove(0);
+            predicate = container.getPredicate();
+            if ("~label".equals(container.getKey())) {
+                binName = graph.getBaseGraph().LABEL_BIN;
+                mapKey = null;
+            } else {
+                binName = graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
+                mapKey = container.getKey();
+            }
+        } else {
+            predicate = null;
+            binName = null;
+            mapKey = null;
+        }
+
+        return scanSetPages(mapKey, db.VERTEX_AERO_SET, binName, predicate, graph::vertexFromRecord,
+                hasContainers, FireflyVertex.class, true, true);
+    }
+
     default Iterator<FireflyId> scanEdgeIds() {
         return scanElementIds(FireflyEdge.class, List.of());
     }
@@ -101,6 +127,10 @@ public interface GraphQuery {
                             FireflyGraph.TransformKeyRecord<E> transform, List<HasContainer> hasContainers,
                             Class<? extends FireflyElement> clazz, boolean sendKey, boolean includeBinData,
                             String... binNames);
+    <E> Iterator<Iterator<E>> scanSetPages(String mapKey, String setName, String binName, P<?> predicate,
+                                           FireflyGraph.TransformKeyRecord<E> transform, List<HasContainer> hasContainers,
+                                           Class<? extends FireflyElement> clazz, boolean sendKey, boolean includeBinData,
+                                           String... binNames);
 
     default <E> Iterator<E> querySIndex(FireflyIndexMetadata.IndexInfo indexInfo,
                                         P<?> predicate,

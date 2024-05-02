@@ -1,20 +1,25 @@
 package com.aerospike.firefly.process.computer.local;
 
+import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.util.MapReducePool;
 import org.apache.tinkerpop.gremlin.process.computer.util.VertexProgramPool;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
-import org.apache.tinkerpop.gremlin.util.function.TriConsumer;
+import org.apache.tinkerpop.gremlin.util.function.TriFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.Queue;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 /**
@@ -51,13 +56,21 @@ public class LocalWorkerPool implements AutoCloseable {
         this.mapReducePool = new MapReducePool(mapReduce, this.numberOfWorkers);
     }
 
-    public void executeVertexProgram(final TriConsumer<Iterator<Vertex>, VertexProgram, LocalWorkerMemory> worker) throws InterruptedException {
-        final CloseableIterator<Vertex> verticesIterator = new LocalGraphComputer.SynchronizedIterator<>(this.graph.vertices());
+    public void executeVertexProgram(final TriFunction<Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Long> worker) throws InterruptedException {
+        final Iterator<Iterator<FireflyVertex>> verticesIterator = new LocalGraphComputer.SynchronizedIterator<>(GraphQuery.create(graph).scanVertexIdPages(List.of()));
         for (int i = 0; i < this.numberOfWorkers; i++) {
+            final int index = i;
             this.completionService.submit(() -> {
                 final VertexProgram vp = this.vertexProgramPool.take();
                 final LocalWorkerMemory workerMemory = this.workerMemoryPool.poll();
-                worker.accept(verticesIterator, vp, workerMemory);
+                while (true) {
+                    final Iterator<FireflyVertex> itty = verticesIterator.next();
+                    if (itty == null)
+                        break;
+                    LOG.warn("Worker {} retrieved new vertex page workload", index);
+                    long count = worker.apply(itty, vp, workerMemory);
+                    LOG.warn("Worker {} processed {} vertices", index, count);
+                }
                 this.vertexProgramPool.offer(vp);
                 this.workerMemoryPool.offer(workerMemory);
                 return null;
@@ -72,7 +85,7 @@ public class LocalWorkerPool implements AutoCloseable {
                 throw new IllegalStateException(e.getMessage(), e);
             }
         }
-        verticesIterator.close();
+        //verticesIterator.close();
     }
 
     public void executeMapReduce(final Consumer<MapReduce> worker) throws InterruptedException {

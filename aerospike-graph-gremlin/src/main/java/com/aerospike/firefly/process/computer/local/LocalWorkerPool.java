@@ -55,9 +55,12 @@ public class LocalWorkerPool implements AutoCloseable {
         this.mapReducePool = new MapReducePool(mapReduce, this.numberOfWorkers);
     }
 
-    public PageFetcher.Page getPage(final BlockingQueue<PageFetcher.Page> pageQueue, final int index) {
+    public PageFetcher.Page getPage(final BlockingQueue<PageFetcher.Page> pageQueue, final int index, final AtomicBoolean shutdown) {
         synchronized (LocalWorkerPool.class) {
             try {
+                if (shutdown.get()) {
+                    return null;
+                }
                 LOG.warn("GRABBING page on worker {}", index);
                 final PageFetcher.Page page = pageQueue.take();
                 LOG.warn("GRABBED page on worker {}", index);
@@ -66,16 +69,20 @@ public class LocalWorkerPool implements AutoCloseable {
                     // ERROR
                     final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
                     LOG.warn("ERROR: " + errorPage.errorMessage, errorPage.exception);
+                    shutdown.set(true);
                     return null;
                 }
                 if (page instanceof PageFetcher.PoisonPill) {
                     LOG.warn("POISON PILL - DO NOTHING");
+                    shutdown.set(true);
                     return null;
                 }
+                return page;
             } catch (InterruptedException e) {
-
+                LOG.warn("INTERRUPTED - " + e.getMessage());
+                shutdown.set(true);
+                return null;
             }
-            return page;
         }
     }
 
@@ -89,32 +96,19 @@ public class LocalWorkerPool implements AutoCloseable {
                 long count;
                 final VertexProgram vp = this.vertexProgramPool.take();
                 final LocalWorkerMemory workerMemory = this.workerMemoryPool.poll();
-                try {
-                    while (true) {
-                        final PageFetcher.Page page = getPage(pageQueue, index);
-
-                        if (page instanceof PageFetcher.ErrorPage) {
-                            // ERROR
-                            final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
-                            LOG.warn("ERROR: " + errorPage.errorMessage, errorPage.exception);
-                            return null;
-                        }
-                        if (page instanceof PageFetcher.PoisonPill) {
-                            LOG.warn("POISON PILL - DO NOTHING");
-                            return null;
-                        }
-
-                        final Iterator<FireflyVertex> itty = FireflyCloseableIteratorUtils.map(page.keyRecords, graph::vertexFromRecord);
-                        LOG.warn("Worker {} retrieved new vertex page workload", index);
-                        count = worker.apply(itty, vp, workerMemory);
-                        LOG.warn("Worker {} processed {} vertices", index, count);
-                        this.vertexProgramPool.offer(vp);
-                        this.workerMemoryPool.offer(workerMemory);
+                while (true) {
+                    final PageFetcher.Page page = getPage(pageQueue, index, shutdown);
+                    if (shutdown.get() || page == null) {
+                        LOG.warn("Worker {} shutdown {} page {}", index, shutdown.get(), page == null);
+                        return null;
                     }
 
-                } catch (InterruptedException e) {
-                    // NO MORE DATA ? I THINK
-                    return null;
+                    final Iterator<FireflyVertex> itty = FireflyCloseableIteratorUtils.map(page.keyRecords, graph::vertexFromRecord);
+                    LOG.warn("Worker {} retrieved new vertex page workload", index);
+                    count = worker.apply(itty, vp, workerMemory);
+                    LOG.warn("Worker {} processed {} vertices", index, count);
+                    this.vertexProgramPool.offer(vp);
+                    this.workerMemoryPool.offer(workerMemory);
                 }
             });
         }

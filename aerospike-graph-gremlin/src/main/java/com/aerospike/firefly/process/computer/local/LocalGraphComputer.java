@@ -3,11 +3,7 @@ package com.aerospike.firefly.process.computer.local;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
-import org.apache.tinkerpop.gremlin.process.computer.ComputerResult;
-import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
-import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
-import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
-import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.*;
 import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
@@ -22,14 +18,7 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -152,22 +141,16 @@ public class LocalGraphComputer implements GraphComputer {
                         this.memory.completeSubRound();
                         workers.setVertexProgram(this.vertexProgram);
                         workers.executeVertexProgram((vertices, vertexProgram, workerMemory) -> {
-                            vertexProgram.workerIterationStart(workerMemory.asImmutable());
                             long counter = 0;
-                            try {
-                                while (true) {
-                                    final Vertex vertex = vertices.next();
-                                    if (null == vertex)
-                                        break;
-                                    counter++;
-                                    if (Thread.interrupted()) throw new TraversalInterruptedException();
-                                    vertexProgram.execute(
-                                            ComputerGraph.vertexProgram(vertex, vertexProgram),
-                                            new LocalMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner()),
-                                            workerMemory);
-                                }
-
-                            } catch (NoSuchElementException ignored) {
+                            vertexProgram.workerIterationStart(workerMemory.asImmutable());
+                            while (vertices.hasNext()) {
+                                final Vertex vertex = vertices.next();
+                                counter++;
+                                if (Thread.interrupted()) throw new TraversalInterruptedException();
+                                vertexProgram.execute(
+                                        ComputerGraph.vertexProgram(vertex, vertexProgram),
+                                        new LocalMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner()),
+                                        workerMemory);
                             }
                             vertexProgram.workerIterationEnd(workerMemory.asImmutable());
                             workerMemory.complete();
@@ -247,7 +230,6 @@ public class LocalGraphComputer implements GraphComputer {
 
     @Override
     public String toString() {
-
         return StringFactory.graphComputerString(this);
     }
 

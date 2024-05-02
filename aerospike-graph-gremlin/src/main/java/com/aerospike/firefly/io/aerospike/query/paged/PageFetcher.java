@@ -4,8 +4,11 @@ import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
+import com.aerospike.firefly.process.computer.local.LocalGraphComputer;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,17 +105,44 @@ public abstract class PageFetcher<E> {
         return new PageFetcher.PageIteratorIterator();
     }
 
+    public BlockingQueue<Page> startQueryPagesDirect() {
+        // Start loop.
+        readLoopExecutorService.submit(() -> {
+            while (true) {
+                try {
+                    if (readLoopExecutorService.isShutdown()) {
+                        try {
+                            pageQueue.put(new PoisonPill());
+                        } catch (final InterruptedException e) {
+                            LOG.error("Error adding poison pill.", e);
+                            Thread.currentThread().interrupt();
+                        }
+                        return;
+                    }
+                    if (filter.isDone()) {
+                        readLoopExecutorService.shutdown();
+                        continue;
+                    }
+                    readPage();
+                } catch (final Throwable e) {
+                    signalError("Unexpected error while reading " + e.getMessage(), e);
+                }
+            }
+        });
+        return this.pageQueue;
+    }
 
-    static class PoisonPill extends Page {
+
+    public static class PoisonPill extends Page {
 
         public PoisonPill() {
             super(CloseableIterator.EmptyCloseableIterator.instance());
         }
     }
 
-    static class ErrorPage extends Page {
-        private final String errorMessage;
-        private final Throwable exception;
+    public static class ErrorPage extends Page {
+        public final String errorMessage;
+        public final Throwable exception;
 
         public ErrorPage(final String errorMessage, final Throwable exception) {
             super(CloseableIterator.EmptyCloseableIterator.instance());
@@ -126,7 +156,7 @@ public abstract class PageFetcher<E> {
         }
     }
 
-    static class Page {
+    public static class Page {
         public CloseableIterator<KeyRecord> keyRecords;
 
         public Page(final CloseableIterator<KeyRecord> keyRecords) {
@@ -323,10 +353,33 @@ public abstract class PageFetcher<E> {
             return true;
         }
 
+       // @Override
+        public boolean hasNext2() {
+            if (isEmpty) {
+                return false;
+            }
+
+            if (isClosed) {
+                return false;
+            }
+
+            while (!currentIterator.hasNext()) {
+                removePage();
+                if (!NO_ERROR.equals(error)) {
+                    return true;
+                }
+                if (isEmpty) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         @Override
         public Iterator<E> next() {
-            if (!hasNext()) {
-                throw new NoSuchElementException();
+            if (!hasNext2()) {
+                throw FastNoSuchElementException.instance();
             } else {
                 if (INDEX_DROPPED.equals(error)) {
                     try {

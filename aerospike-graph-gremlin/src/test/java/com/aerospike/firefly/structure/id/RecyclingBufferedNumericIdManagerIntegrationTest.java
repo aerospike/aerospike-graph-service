@@ -192,21 +192,19 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
         final GraphTraversalSource g = graph.traversal();
         final Vertex v1 = g.addV("v1").next();
         final Vertex v2 = g.addV("v2").next();
-        final Edge e1 = g.addE("e1").from(v1).to(v2).next();
-        final Edge e2 = g.addE("e2").from(v1).to(v2).next();
-        final FireflyId edgeId1 = graph.getIdFactory().createId(e1.id(), FireflyEdge.class);
-        final FireflyId edgeId2 = graph.getIdFactory().createId(e2.id(), FireflyEdge.class);
+        final FireflyEdge e1 = (FireflyEdge) g.addE("e1").from(v1).to(v2).next();
+        final FireflyEdge e2 = (FireflyEdge) g.addE("e2").from(v1).to(v2).next();
 
         final RecyclingBufferedNumericIdManager edgeIdManager = (RecyclingBufferedNumericIdManager) graph.edgeIdManager;
         Assert.assertEquals(0, edgeIdManager.availableRecycledIds());
         // Test removal within phat edge (record persists after removal of edge)
-        FireflyEdge.removeEdgeById(graph, edgeId1);
-        FireflyEdge.removeEdgeById(graph, edgeId1);
+        e1.removeEdge();
+        e1.removeEdge();
         Assert.assertEquals(1, edgeIdManager.availableRecycledIds());
         Assert.assertFalse(g.E(e1.id()).hasNext());
         // Test removal of last edge in phat edge (record deleted after removal of edge)
-        FireflyEdge.removeEdgeById(graph, edgeId2);
-        FireflyEdge.removeEdgeById(graph, edgeId2);
+        e2.removeEdge();
+        e2.removeEdge();
         Assert.assertEquals(2, edgeIdManager.availableRecycledIds());
         Assert.assertFalse(g.E(e2.id()).hasNext());
     }

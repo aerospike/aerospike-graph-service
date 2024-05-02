@@ -1641,6 +1641,9 @@ public class AerospikeConnection implements AutoCloseable {
                 case ResultCode.KEY_NOT_FOUND_ERROR:
                     LOG.debug(ELEMENT_NOT_FOUND, ae);
                     throw new ElementNotFoundException(ae);
+                case ResultCode.GENERATION_ERROR:
+                    LOG.debug("GENERATION_ERROR error on key {}", key);
+                    throw ae;
                 default:
                     LOG.error(ae.getMessage());
                     throw ae;

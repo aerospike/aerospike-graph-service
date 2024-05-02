@@ -28,6 +28,7 @@ import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
 import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
@@ -573,7 +574,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         typeHints.remove(key);
     }
 
-    public FireflyEdge(final FireflyId id,
+    public FireflyEdge(final FireflyPhatEdgeId id,
                        final String label,
                        final FireflyGraph graph,
                        final FireflyId outVid,
@@ -860,7 +861,13 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
                                           final FireflyId outVertex, final FireflyId inVertex,
                                           final Map<String, Object> properties, final Map<String, Object> typeHints,
                                           final boolean isOutSupernode, final boolean isInSupernode, final int generation) {
-            return new FireflyEdge(fid, label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, generation);
+            final FireflyPhatEdgeId edgeId;
+            if (fid instanceof FireflyIdComposite) {
+                edgeId = ((FireflyIdComposite) fid).getEdgeId();
+            } else {
+                edgeId = (FireflyPhatEdgeId) fid;
+            }
+            return new FireflyEdge(edgeId, label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, generation);
         }
 
         private static FireflyEdge create(final FireflyId edgeId, final FireflyRecord fireflyRecord,

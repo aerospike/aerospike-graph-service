@@ -169,12 +169,7 @@ public class FireflyRecord {
 
         final Record[] records;
         if (requiredProperties == null) {
-            ;
             records = db.getClient().get(batchReadPolicy, keyList.toArray(Key[]::new));
-            System.out.println("records: " + records.length);
-            for (int i = 0; i < records.length; i++) {
-                System.out.println("record: " + records[i]);
-            }
         } else {
             final List<Operation> operations = new ArrayList<>();
             final List<Value> properties = requiredProperties.stream().map(Value::get).collect(Collectors.toList());

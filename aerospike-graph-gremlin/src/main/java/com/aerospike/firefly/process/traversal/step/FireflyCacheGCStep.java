@@ -17,11 +17,13 @@ import java.util.Set;
 public class FireflyCacheGCStep extends AbstractStep {
     private final Logger LOG = LoggerFactory.getLogger(FireflyCacheGCStep.class);
     private FireflyCache cache;
+    private FireflyCache noPropsCache;
 
-    public FireflyCacheGCStep(final Traversal.Admin traversal, final FireflyCache cache, final Set<String> labels) {
+    public FireflyCacheGCStep(final Traversal.Admin traversal, final FireflyCache cache, final FireflyCache noPropsCache, final Set<String> labels) {
         super(traversal);
         this.cache = cache;
         this.labels = labels;
+        this.noPropsCache = noPropsCache;
     }
 
     @Override
@@ -32,6 +34,13 @@ public class FireflyCacheGCStep extends AbstractStep {
             LOG.trace("Cache misses: " + cache.getMissCount());
             cache.invalidateAll();
             cache = null;
+        }
+        if (noPropsCache != null) {
+            LOG.debug("Removing cache " + noPropsCache);
+            LOG.trace("Cache hits: " + noPropsCache.getHitCount());
+            LOG.trace("Cache misses: " + noPropsCache.getMissCount());
+            noPropsCache.invalidateAll();
+            noPropsCache = null;
         }
         if (this.starts.hasNext()) {
             return this.starts.next();

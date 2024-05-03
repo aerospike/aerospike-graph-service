@@ -1218,6 +1218,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      */
     public static List<FireflyVertex> readVertices(final FireflyGraph graph,
                                                    final List<HasContainer> hasContainers,
+                                                   final List<String> requiredProperties,
                                                    final List<FireflyId> vertexIds) {
         LOG.debug("Reading vertices {}.", vertexIds);
 
@@ -1229,7 +1230,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 db,
                 GraphQueryHelper.hasContainerListToExpression(db, hasContainers, FireflyVertex.class),
                 db.VERTEX_AERO_SET,
-                vertexIds);
+                vertexIds,
+                requiredProperties);
         if (vertexRecords == null) {
             return new ArrayList<>();
         }

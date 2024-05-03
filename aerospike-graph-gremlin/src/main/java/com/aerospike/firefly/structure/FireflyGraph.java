@@ -533,7 +533,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
      * @return Vertex.
      */
     public FireflyVertex readVertex(final FireflyId idValue) {
-        final List<FireflyVertex> vertices = readVertices(List.of(), List.of(idValue));
+        final List<FireflyVertex> vertices = readVertices(List.of(), List.of(idValue), null);
         if (vertices.isEmpty()) {
             return null;
         } else {
@@ -541,8 +541,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
     }
 
-    public List<FireflyVertex> readVertices(final List<HasContainer> hasContainers, final List<FireflyId> idValues) {
-        return FireflyVertex.readVertices(this, hasContainers, idValues);
+    public List<FireflyVertex> readVertices(final List<HasContainer> hasContainers, final List<FireflyId> idValues, final List<String> requiredProperties) {
+        return FireflyVertex.readVertices(this, hasContainers, requiredProperties, idValues);
     }
 
     /**
@@ -675,9 +675,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
      * @param edgeIds Edge ids.
      * @return Edge.
      */
-    public List<FireflyEdge> readEdges(final List<HasContainer> hasContainers, final List<FireflyId> edgeIds) {
+    public List<FireflyEdge> readEdges(final List<HasContainer> hasContainers, final List<FireflyId> edgeIds, final List<String> requiredProperties) {
         if (!hasContainers.isEmpty()) {
             throw new RuntimeException("Pushdown is not currently supported for Edges.");
+        }
+        if (requiredProperties != null && !requiredProperties.isEmpty()) {
+            // Should never happen.
+            throw new RuntimeException("Required properties are not currently supported for Edges.");
         }
         return FireflyEdge.readEdges(this, edgeIds);
     }
@@ -916,12 +920,16 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }).collect(Collectors.toList());
     }
 
-    @Override
-    public Iterator<Vertex> vertices(final Object... vertexIdsOrVertices) {
-        return vertices(List.of(), vertexIdsOrVertices);
+    public Iterator<Vertex> vertices(final List<String> requiredProperties, final Object... vertexIdsOrVertices) {
+        return vertices(List.of(), requiredProperties, vertexIdsOrVertices);
     }
 
-    public Iterator<Vertex> vertices(final List<HasContainer> filters, final Object... vertexIdsOrVertices) {
+    @Override
+    public Iterator<Vertex> vertices(final Object... vertexIdsOrVertices) {
+        return vertices(List.of(), null, vertexIdsOrVertices);
+    }
+
+    public Iterator<Vertex> vertices(final List<HasContainer> filters, final List<String> requiredProperties, final Object... vertexIdsOrVertices) {
         if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String) {
             if (vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
                 return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
@@ -941,7 +949,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
-        return new FireflyBatchElementIterator<>(this, idList.isEmpty() ? GraphQuery.create(this).scanVertexIds() : idList.iterator(), filters, this::readVertices);
+        return new FireflyBatchElementIterator<>(this, idList.isEmpty() ? GraphQuery.create(this).scanVertexIds() : idList.iterator(), filters, this::readVertices, requiredProperties);
     }
 
     @Override
@@ -963,7 +971,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
 
         if (idList.isEmpty()) {
-            return new FireflyBatchElementIterator<>(this, GraphQuery.create(this).scanEdgeIds(), filters, this::readEdges);
+            return new FireflyBatchElementIterator<>(this, GraphQuery.create(this).scanEdgeIds(), filters, this::readEdges, null);
         } else {
             return FireflyEdge.readEdges(this, idList).stream().map(fireflyEdge -> (Edge) fireflyEdge).iterator();
         }

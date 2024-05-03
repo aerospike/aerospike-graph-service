@@ -183,6 +183,7 @@ public class FireflyRecord {
             final FireflyCache cache = db.emptyPropsTransactionCache.get();
             final List<Operation> operations = new ArrayList<>();
             db.vertexNonPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
+            db.vertexPropertyBins.forEach(bin -> operations.add(MapOperation.getByKeyList(bin, List.of(), MapReturnType.UNORDERED_MAP)));
             records = (cache != null) ? cache.read(keyList.toArray(Key[]::new), batchReadPolicy, operations.toArray(Operation[]::new)) :
                     db.getClient().get(batchReadPolicy, keyList.toArray(Key[]::new), operations.toArray(Operation[]::new));
         }

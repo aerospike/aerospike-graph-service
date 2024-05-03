@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.tinkerpop.gremlin.process.computer.*;
@@ -42,12 +43,19 @@ public class LocalGraphComputer implements GraphComputer {
     private int workers = Runtime.getRuntime().availableProcessors();
     private final GraphFilter graphFilter = new GraphFilter();
 
+    private final int previousPartitionSize;
+
     private final ThreadFactory threadFactoryBoss = new BasicThreadFactory.Builder().namingPattern(LocalGraphComputer.class.getSimpleName() + "-boss").build();
     private final ExecutorService computerService = Executors.newSingleThreadExecutor(threadFactoryBoss);
 
     public LocalGraphComputer(final FireflyGraph graph) {
         this.graph = graph;
+        this.previousPartitionSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, this.graph.configuration());
+    }
 
+    public GraphComputer partitionSize(final int partitionSize) {
+        this.graph.configuration().setProperty(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, partitionSize);
+        return this;
     }
 
     @Override
@@ -225,6 +233,7 @@ public class LocalGraphComputer implements GraphComputer {
             }
         });
         this.computerService.shutdown();
+        this.graph.configuration().setProperty(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, this.previousPartitionSize);
         return result;
     }
 

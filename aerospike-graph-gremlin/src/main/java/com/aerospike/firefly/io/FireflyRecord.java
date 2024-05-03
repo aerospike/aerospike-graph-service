@@ -176,20 +176,13 @@ public class FireflyRecord {
             // No cache for partial property reads.
             final List<Operation> operations = new ArrayList<>();
             final List<Value> properties = requiredProperties.stream().map(Value::get).collect(Collectors.toList());
-            db.vertexNonPropertyBins.forEach(bin -> {
-                operations.add(Operation.get(bin));
-            });
-            db.vertexPropertyBins.forEach(bin -> {
-                operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP));
-            });
+            db.vertexNonPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
+            db.vertexPropertyBins.forEach(bin -> operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP)));
             records = db.getClient().get(batchReadPolicy, keyList.toArray(Key[]::new), operations.toArray(Operation[]::new));
         } else {
             final FireflyCache cache = db.emptyPropsTransactionCache.get();
             final List<Operation> operations = new ArrayList<>();
-            final List<Value> properties = requiredProperties.stream().map(Value::get).collect(Collectors.toList());
-            db.vertexNonPropertyBins.forEach(bin -> {
-                operations.add(Operation.get(bin));
-            });
+            db.vertexNonPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
             records = (cache != null) ? cache.read(keyList.toArray(Key[]::new), batchReadPolicy, operations.toArray(Operation[]::new)) :
                     db.getClient().get(batchReadPolicy, keyList.toArray(Key[]::new), operations.toArray(Operation[]::new));
         }

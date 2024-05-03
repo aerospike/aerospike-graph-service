@@ -1,24 +1,22 @@
 package com.aerospike.firefly.process.computer.local;
 
-import com.aerospike.firefly.io.aerospike.query.GraphQuery;
-import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
+import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.util.MapReducePool;
 import org.apache.tinkerpop.gremlin.process.computer.util.VertexProgramPool;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.apache.tinkerpop.gremlin.util.function.TriFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
-import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -55,62 +53,31 @@ public class LocalWorkerPool implements AutoCloseable {
         this.mapReducePool = new MapReducePool(mapReduce, this.numberOfWorkers);
     }
 
-    public PageFetcher.Page getPage(final BlockingQueue<PageFetcher.Page> pageQueue, final int index, final AtomicBoolean shutdown) {
-        synchronized (LocalWorkerPool.class) {
-            try {
-                if (shutdown.get()) {
-                    return null;
-                }
-                LOG.warn("GRABBING page on worker {}", index);
-                final PageFetcher.Page page = pageQueue.take();
-                LOG.warn("GRABBED page on worker {}", index);
-
-                if (page instanceof PageFetcher.ErrorPage) {
-                    // ERROR
-                    final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
-                    LOG.warn("ERROR: " + errorPage.errorMessage, errorPage.exception);
-                    shutdown.set(true);
-                    return null;
-                }
-                if (page instanceof PageFetcher.PoisonPill) {
-                    LOG.warn("POISON PILL - DO NOTHING");
-                    shutdown.set(true);
-                    return null;
-                }
-                return page;
-            } catch (InterruptedException e) {
-                LOG.warn("INTERRUPTED - " + e.getMessage());
-                shutdown.set(true);
-                return null;
-            }
-        }
-    }
-
     public void executeVertexProgram(final TriFunction<Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Long> worker) throws InterruptedException {
-        //final CloseableIterator<Iterator<FireflyVertex>> verticesIterator =  new LocalGraphComputer.SynchronizedIterator<>(GraphQuery.create(graph).scanVertexIdPages(List.of()));
-        final BlockingQueue<PageFetcher.Page> pageQueue = GraphQuery.create(graph).scanVertexIdPages(List.of());
-        AtomicBoolean shutdown = new AtomicBoolean(false);
-        for (int i = 0; i < this.numberOfWorkers; i++) {
-            final int index = i;
-            this.completionService.submit(() -> {
-                long count;
-                final VertexProgram vp = this.vertexProgramPool.take();
-                final LocalWorkerMemory workerMemory = this.workerMemoryPool.poll();
-                while (true) {
-                    final PageFetcher.Page page = getPage(pageQueue, index, shutdown);
-                    if (shutdown.get() || page == null) {
-                        LOG.warn("Worker {} shutdown {} page {}", index, shutdown.get(), page == null);
-                        return null;
+        long vertexCount = 5000; // TODO: a fast way to compute graph size
+        int partitionSize = Math.max(128, (int) Math.round((double) vertexCount / (double) numberOfWorkers));
+        try (final PartitionIterator partitions = PartitionIterator.build(this.graph).partitionSize(partitionSize).create()) {
+            for (int i = 0; i < this.numberOfWorkers; i++) {
+                final int index = i;
+                this.completionService.submit(() -> {
+                    long count;
+                    final VertexProgram vp = this.vertexProgramPool.take();
+                    final LocalWorkerMemory workerMemory = this.workerMemoryPool.poll();
+                    while (true) {
+                        Optional<CloseableIterator<FireflyVertex>> option = partitions.next();
+                        if (option.isPresent()) {
+                            LOG.warn("Worker {} retrieved new vertex page workload", index);
+                            count = worker.apply(option.get(), vp, workerMemory);
+                            LOG.warn("Worker {} processed {} vertices", index, count);
+                        } else {
+                            break;
+                        }
                     }
-
-                    final Iterator<FireflyVertex> itty = FireflyCloseableIteratorUtils.map(page.keyRecords, graph::vertexFromRecord);
-                    LOG.warn("Worker {} retrieved new vertex page workload", index);
-                    count = worker.apply(itty, vp, workerMemory);
-                    LOG.warn("Worker {} processed {} vertices", index, count);
                     this.vertexProgramPool.offer(vp);
                     this.workerMemoryPool.offer(workerMemory);
-                }
-            });
+                    return null;
+                });
+            }
         }
         for (int i = 0; i < this.numberOfWorkers; i++) {
             try {

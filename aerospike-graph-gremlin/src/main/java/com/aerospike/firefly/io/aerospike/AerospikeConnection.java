@@ -1271,6 +1271,10 @@ public class AerospikeConnection implements AutoCloseable {
         if (cache != null) {
             cache.invalidate(key);
         }
+        final FireflyCache noPropsCache = emptyPropsTransactionCache.get();
+        if (noPropsCache != null) {
+            noPropsCache.invalidate(key);
+        }
         return client.delete(null, key);
     }
 
@@ -1664,8 +1668,12 @@ public class AerospikeConnection implements AutoCloseable {
         policy.maxRetries = AEROSPIKE_WRITE_MAX_RETRY;
 
         final FireflyCache cache = transactionCache.get();
+        final FireflyCache noPropsCache = emptyPropsTransactionCache.get();
         if (cache != null) {
             cache.invalidate(key);
+        }
+        if (noPropsCache != null) {
+            noPropsCache.invalidate(key);
         }
 
         try {

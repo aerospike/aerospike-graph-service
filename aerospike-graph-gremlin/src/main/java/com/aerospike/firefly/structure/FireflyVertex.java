@@ -308,9 +308,14 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final Operation getVertexPropertyTypeHints = Operation.get(this.db.TYPE_HINTS_BIN);
 
         final FireflyCache cache = this.db.transactionCache.get();
+        final FireflyCache noPropsCache = this.db.emptyPropsTransactionCache.get();
         if (cache != null) {
             cache.invalidate(opKey);
         }
+        if (noPropsCache != null) {
+            noPropsCache.invalidate(opKey);
+        }
+
         final Record result = this.db.operate(null, opKey, removeProperty, removePropertyTypeHint,
                 removeVertexPropertyValue, removeVertexPropertyId, removeVertexPropertyTypeHint,
                 getVertexPropertyValues, getVertexPropertyValuesTypeHints, getVertexPropertyIds,

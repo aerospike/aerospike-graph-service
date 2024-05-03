@@ -360,6 +360,16 @@ public class TestFireflyTtl {
         Assert.assertFalse(g.E(e.id()).hasNext());
     }
 
+    @Test
+    public void testRemoveEdgeWithNoTtl() {
+        // This test is just to ensure that the Edge removal operations don't crash if they operate on a non-existing bin
+        GraphTraversalSource g = this.graph.traversal();
+        Vertex v1 = g.addV("v1").next();
+        Vertex v2 = g.addV("v2").next();
+        g.addE("e1").from(v1).to(v2).iterate();
+        g.addE("e2").from(v1).to(v2).iterate();
+    }
+
     private static void assertTtlAccuracy(final FireflyGraph graph) throws InterruptedException {
         final GraphTraversalSource g = graph.traversal();
         final Vertex v1 = g.addV("v1").property("~ttl", 3).next();

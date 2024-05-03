@@ -10,12 +10,15 @@ import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -252,9 +255,17 @@ public class GraphQueryHelper {
                 throw new RuntimeException(String.format("%s not a supported predicate", predicate));
             }
         } else {
-            return MapExp.getByValue(MapReturnType.EXISTS, Exp.val((String) value),
-                    Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
-                    CTX.mapKey(Value.get(propertyKey)));
+            // If the accessor is an ID use a special expression that leverages the label key instead.
+            if (T.id.getAccessor().equals(propertyKey)) {
+                final FireflyPhatEdgeId edgeId = (FireflyPhatEdgeId) db.getIdFactory().createId(value, FireflyEdge.class);
+                return MapExp.getByKey(MapReturnType.EXISTS, Exp.Type.BOOL, Exp.val(edgeId.getUniqueId()),
+                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
+                        CTX.mapKey(Value.get(EDGE_SUPERNODE_LABEL_KEY)));
+            } else {
+                return MapExp.getByValue(MapReturnType.EXISTS, Exp.val((String) value),
+                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
+                        CTX.mapKey(Value.get(propertyKey)));
+            }
         }
     }
 

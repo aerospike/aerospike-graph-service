@@ -18,7 +18,7 @@ public class FireflyIdComposite extends FireflyId {
        to increase performance. */
     private final byte[] id;
     private FireflyId adjacentId;
-    private final FireflyId edgeId;
+    private FireflyId edgeId;
 
     public FireflyIdComposite(final AerospikeConnection db, final FireflyId edgeId, final FireflyId adjacentId) {
         this.adjacentId = adjacentId;
@@ -34,13 +34,10 @@ public class FireflyIdComposite extends FireflyId {
             throw new RuntimeException("Invalid id length of " + id.length + " for composite id. Length should be 36.");
         }
         this.id = id;
-        final byte[] individualEdgeId = new byte[16];
-        System.arraycopy(id, 0, individualEdgeId, 0, 16);
-        this.edgeId = new FireflyPhatEdgeId(ByteBuffer.wrap(individualEdgeId), db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
         this.adjacentId = null;
+        this.edgeId = null;
         this.db = db;
     }
-
 
     /**
      * Slice the id at offset from our composite 2-hash array
@@ -59,8 +56,13 @@ public class FireflyIdComposite extends FireflyId {
      *
      * @return edge id
      */
-    public FireflyId getEdgeId() {
-        return this.edgeId;
+    public FireflyPhatEdgeId getEdgeId() {
+        if (edgeId == null) {
+            final byte[] individualEdgeId = new byte[16];
+            System.arraycopy(id, 0, individualEdgeId, 0, 16);
+            edgeId = new FireflyPhatEdgeId(ByteBuffer.wrap(individualEdgeId), db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
+        }
+        return (FireflyPhatEdgeId) edgeId;
     }
 
     /**

@@ -12,9 +12,15 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NoSuchElementException;
+
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.appendRemoveFilterableSupernodePropertyOperation;
+import static com.aerospike.firefly.structure.FireflyEdge.isPropertyValuePushdownable;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -48,15 +54,25 @@ public class FireflyEdgeProperty<V> extends FireflyProperty<V> {
         final AerospikeConnection db = graph.getBaseGraph();
         final Key key = getKey(db, db.EDGE_AERO_SET, edge.id);
         final Value edgeIdMapKey = Value.get(edge.id.getUserId());
+        final List<Operation> operations = new ArrayList<>();
 
         final Operation removeProperty = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(key()),
                 MapReturnType.NONE, CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
+        operations.add(removeProperty);
         final Operation removeTypeHint = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(key()),
                 MapReturnType.NONE, CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
+        operations.add(removeTypeHint);
+        try {
+            if (isPropertyValuePushdownable(this.value())) {
+                appendRemoveFilterableSupernodePropertyOperation(this.edge, this.key(), operations);
+            }
+        } catch (final NoSuchElementException e) {
+            // Do nothing since a property with no value is the same as a value type that can't be pushed down.
+        }
 
         try {
             edge.removePropertyFromCache(key());
-            db.operate(null, key, removeProperty, removeTypeHint);
+            db.operate(null, key, operations.toArray(new Operation[0]));
         } catch (final AerospikeException ae) {
             if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Edge has been removed from the Phat Edge since in this case the key is

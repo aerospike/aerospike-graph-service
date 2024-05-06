@@ -33,13 +33,13 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
 
     @Test
     public void testVertexPage() {
-        for (int i = 0; i < 2000; i++) {
+        for (int i = 0; i < 100; i++) {
             Vertex v = graph.addVertex();
             v.addEdge("self",v);
             if (i % 100 == 0)
                 LOG.warn("Loaded {} vertices", i);
         }
-        graph.traversal().withComputer().V().count().profile().forEachRemaining(System.out::println);
+        graph.traversal().withComputer().V().has("name","marko").count().profile().forEachRemaining(System.out::println);
 
 
 

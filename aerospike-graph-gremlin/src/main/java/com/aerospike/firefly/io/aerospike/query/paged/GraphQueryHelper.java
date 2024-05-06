@@ -128,7 +128,11 @@ public class GraphQueryHelper {
                 throw new RuntimeException(String.format("%s not a supported predicate", predicate));
             }
         } else {
-            return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.STRING, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val((String) value));
+            if (value instanceof String) // TODO: support List of values
+                return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.STRING, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val((String) value));
+            else {
+                return Exp.nil();
+            }
         }
     }
 
@@ -167,7 +171,7 @@ public class GraphQueryHelper {
             return Exp.build(Exp.and(labelExp, propertiesExp));
         } else if (labelExp != null) {
             return Exp.build(labelExp);
-        } else if (propertiesExp != null ){
+        } else if (propertiesExp != null) {
             return Exp.build(propertiesExp);
         } else {
             return null;

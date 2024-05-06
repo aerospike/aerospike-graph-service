@@ -1,14 +1,23 @@
 package com.aerospike.firefly.process.computer.local;
 
+import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphFilterStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
-import org.apache.tinkerpop.gremlin.process.computer.*;
+import org.apache.tinkerpop.gremlin.process.computer.ComputerResult;
+import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
+import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
+import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
+import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.strategy.optimization.GraphFilterStrategy;
 import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -19,7 +28,13 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -47,6 +62,13 @@ public class LocalGraphComputer implements GraphComputer {
 
     private final ThreadFactory threadFactoryBoss = new BasicThreadFactory.Builder().namingPattern(LocalGraphComputer.class.getSimpleName() + "-boss").build();
     private final ExecutorService computerService = Executors.newSingleThreadExecutor(threadFactoryBoss);
+
+    static {
+        TraversalStrategies.GlobalCache.registerStrategies(LocalGraphComputer.class,
+                TraversalStrategies.GlobalCache.getStrategies(GraphComputer.class).clone()
+                        .removeStrategies(new Class[]{GraphFilterStrategy.class})
+                        .addStrategies(FireflyGraphFilterStrategy.instance()));
+    }
 
     public LocalGraphComputer(final FireflyGraph graph) {
         this.graph = graph;
@@ -110,6 +132,8 @@ public class LocalGraphComputer implements GraphComputer {
     @Override
     public Future<ComputerResult> submit() {
         LOG.warn("{} graph computer workers executing {}", this.workers, null == this.vertexProgram ? "job" : this.vertexProgram.toString());
+        LOG.warn("Using graph computer strategies: {}", TraversalStrategies.GlobalCache.getStrategies(LocalGraphComputer.class).toList().toString());
+        LOG.warn("Using graph filters:\n\tvertices: {}\n\tedges: {}", this.graphFilter.getVertexFilter(), this.graphFilter.getEdgeFilter());
         // a graph computer can only be executed once
         if (this.executed)
             throw Exceptions.computerHasAlreadyBeenSubmittedAVertexProgram();
@@ -139,7 +163,6 @@ public class LocalGraphComputer implements GraphComputer {
             final LocalGraphComputerView view = FireflyHelper.createGraphComputerView(this.graph, this.graphFilter, null != this.vertexProgram ? this.vertexProgram.getVertexComputeKeys() : Collections.emptySet());
             final LocalWorkerPool workers = new LocalWorkerPool(this.graph, this.memory, this.workers);
 
-
             try {
                 if (null != this.vertexProgram) {
                     // execute the vertex program
@@ -163,7 +186,7 @@ public class LocalGraphComputer implements GraphComputer {
                             vertexProgram.workerIterationEnd(workerMemory.asImmutable());
                             workerMemory.complete();
                             return counter;
-                        });
+                        }, this.graphFilter);
                         this.messageBoard.completeIteration();
                         this.memory.completeSubRound();
                         if (this.vertexProgram.terminate(this.memory)) {
@@ -179,17 +202,30 @@ public class LocalGraphComputer implements GraphComputer {
                 // execute mapreduce jobs
                 for (final MapReduce mapReduce : mapReducers) {
                     final LocalMapEmitter<?, ?> mapEmitter = new LocalMapEmitter<>(mapReduce.doStage(MapReduce.Stage.REDUCE));
-                    final SynchronizedIterator<Vertex> vertices = new SynchronizedIterator<>(this.graph.vertices());
                     workers.setMapReduce(mapReduce);
                     workers.executeMapReduce(workerMapReduce -> {
                         workerMapReduce.workerStart(MapReduce.Stage.MAP);
-                        while (true) {
-                            if (Thread.interrupted()) throw new TraversalInterruptedException();
-                            final Vertex vertex = vertices.next();
-                            if (null == vertex) break;
-                            workerMapReduce.map(ComputerGraph.mapReduce(vertex), mapEmitter);
+                        try (final PartitionIterator partitions = PartitionIterator.build(this.graph)
+                                .filters(graphFilter)
+                                //.partitionSize(partitionSize)
+                                .create()) { // TODO: partitionSize()
+                            while (partitions.hasNext()) {
+                                Optional<CloseableIterator<FireflyVertex>> optional = partitions.next();
+                                if (optional.isEmpty())
+                                    break;
+                                else {
+                                    try (CloseableIterator<FireflyVertex> itty = optional.get()) {
+                                        while (itty.hasNext()) {
+                                            if (Thread.interrupted()) throw new TraversalInterruptedException();
+                                            final Vertex vertex = itty.next();
+                                            workerMapReduce.map(ComputerGraph.mapReduce(vertex), mapEmitter);
+                                        }
+                                    }
+                                }
+
+                            }
+                            workerMapReduce.workerEnd(MapReduce.Stage.MAP);
                         }
-                        workerMapReduce.workerEnd(MapReduce.Stage.MAP);
                     });
 
                     // sort results if a map output sort is defined

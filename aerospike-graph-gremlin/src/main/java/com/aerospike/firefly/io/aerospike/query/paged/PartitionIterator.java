@@ -5,7 +5,10 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -39,6 +43,18 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
         public Builder filters(final HasContainer... filters) {
             Collections.addAll(this.filters, filters);
             return this;
+        }
+
+        public Builder filters(final List<HasContainer> filters) {
+            if (null != filters)
+                this.filters.addAll(filters);
+            return this;
+        }
+
+        public Builder filters(final GraphFilter filter) {
+            return this.filters(Optional.ofNullable(filter.getVertexFilter()).map(t -> t.getSteps().stream()
+                    .flatMap(s -> ((HasStep<Vertex>) s).getHasContainers().stream())
+                    .collect(Collectors.toList())).orElse(null));
         }
 
         public Builder partitionSize(final int pageSize) {

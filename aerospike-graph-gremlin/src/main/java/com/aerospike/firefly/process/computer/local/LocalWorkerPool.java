@@ -4,6 +4,7 @@ import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
+import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.util.MapReducePool;
@@ -16,7 +17,11 @@ import org.slf4j.LoggerFactory;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 /**
@@ -53,15 +58,18 @@ public class LocalWorkerPool implements AutoCloseable {
         this.mapReducePool = new MapReducePool(mapReduce, this.numberOfWorkers);
     }
 
-    public void executeVertexProgram(final TriFunction<Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Long> worker) throws InterruptedException {
+    public void executeVertexProgram(final TriFunction<Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Long> worker, final GraphFilter graphFilter) throws InterruptedException {
         long vertexCount = 5000; // TODO: a fast way to compute graph size
         int partitionSize = Math.max(128, (int) Math.round((double) vertexCount / (double) numberOfWorkers));
-        try (final PartitionIterator partitions = PartitionIterator.build(this.graph).partitionSize(partitionSize).create()) {
+        try (final PartitionIterator partitions = PartitionIterator.build(this.graph)
+                .filters(graphFilter)
+                .partitionSize(partitionSize)
+                .create()) {
             for (int i = 0; i < this.numberOfWorkers; i++) {
                 final int index = i;
                 this.completionService.submit(() -> {
                     long count;
-                    final VertexProgram vp = this.vertexProgramPool.take();
+                    final VertexProgram<?> vp = this.vertexProgramPool.take();
                     final LocalWorkerMemory workerMemory = this.workerMemoryPool.poll();
                     while (true) {
                         Optional<CloseableIterator<FireflyVertex>> option = partitions.next();

@@ -88,6 +88,9 @@ public final class FireflyGraphFilterStrategy extends AbstractTraversalStrategy<
         return hasTraversal.getSteps().isEmpty() ? null : hasTraversal;
     }
 
+    /*
+     * Using reflection on GraphFilterStrategy to access protected getEdgeFilter()
+     */
     private static Traversal.Admin<Vertex, Edge> getEdgeFilter(final Traversal.Admin<?, ?> traversal) {
         try {
             return (Traversal.Admin<Vertex, Edge>) Stream.concat(Arrays.stream(GraphFilterStrategy.class.getDeclaredMethods()), Arrays.stream(GraphFilterStrategy.class.getMethods()))

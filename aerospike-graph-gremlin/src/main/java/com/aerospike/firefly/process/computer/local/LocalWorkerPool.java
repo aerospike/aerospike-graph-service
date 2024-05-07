@@ -68,15 +68,19 @@ public class LocalWorkerPool implements AutoCloseable {
             for (int i = 0; i < this.numberOfWorkers; i++) {
                 final int index = i;
                 this.completionService.submit(() -> {
-                    long count;
+                    long count = 0;
                     final VertexProgram<?> vp = this.vertexProgramPool.take();
                     final LocalWorkerMemory workerMemory = this.workerMemoryPool.poll();
                     while (true) {
                         Optional<CloseableIterator<FireflyVertex>> option = partitions.next();
                         if (option.isPresent()) {
-                            LOG.warn("Worker {} retrieved new vertex page workload", index);
-                            count = worker.apply(option.get(), vp, workerMemory);
-                            LOG.warn("Worker {} processed {} vertices", index, count);
+                            try {
+                                LOG.warn("Worker {} retrieved new vertex page workload", index);
+                                count = worker.apply(option.get(), vp, workerMemory);
+                                LOG.warn("Worker {} processed {} vertices", index, count);
+                            } catch (final Exception e) {
+                                LOG.error("Worker {} failed on {} vertex of partition", index, count);
+                            }
                         } else {
                             break;
                         }

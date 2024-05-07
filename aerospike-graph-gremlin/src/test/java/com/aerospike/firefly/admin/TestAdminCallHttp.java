@@ -116,6 +116,36 @@ public class TestAdminCallHttp {
         }
     }
 
+    public String adminMetadataConfig() {
+        try {
+            final URL url = new URL("http://localhost:9090/admin/metadata/config");
+            final HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            // Read input stream into String.
+            final byte[] bytes = con.getInputStream().readAllBytes();
+            final String response = new String(bytes);
+            return response;
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public String adminMetadataVersion() {
+        try {
+            final URL url = new URL("http://localhost:9090/admin/metadata/version");
+            final HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            // Read input stream into String.
+            final byte[] bytes = con.getInputStream().readAllBytes();
+            final String response = new String(bytes);
+            return response;
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Test
     public void testList() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -287,6 +317,33 @@ public class TestAdminCallHttp {
             final GraphTraversalSource g = fireflyGraph.traversal();
             final String usage = adminMetadataUsage();
             Assert.assertTrue(usage.contains("raw"));
+        }
+    }
+
+    @Test
+    public void testConfig() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty("aerospike.client.password", "Foo");
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final String configString = adminMetadataConfig();
+            Assert.assertTrue(configString.startsWith("{"));
+            Assert.assertTrue(configString.endsWith("}"));
+            Assert.assertTrue(configString.contains("aerospike.client.password=****"));
+            Assert.assertTrue(configString.contains("aerospike.graph.data.model=packed"));
+            System.out.println(configString);
+        }
+    }
+
+    @Test
+    public void testVersion() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final String version = adminMetadataVersion();
+            Assert.assertTrue(version.startsWith("{"));
+            Assert.assertTrue(version.endsWith("}"));
+            Assert.assertTrue(version.contains("Aerospike version="));
+            Assert.assertTrue(version.contains("Aerospike Graph Service version=" + FireflyGraph.FIREFLY_VERSION));
+            System.out.println(version);
         }
     }
 }

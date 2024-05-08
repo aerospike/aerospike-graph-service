@@ -64,7 +64,7 @@ public class JwtServiceIssueToken<I, R> extends JwtServiceBase<I, R> {
         final JWTAuthenticator jwtAuthenticator = JWTAuthenticator.getInstance();
         if (jwtAuthenticator == null) {
             throw new IllegalStateException("Cannot issue JWT token because " +
-                    "3` JWT authentication is not enabled on this Aerospike Graph instance.");
+                    "JWT authentication is not enabled on this Aerospike Graph instance.");
         }
         return (R) jwtAuthenticator.createToken(username, role);
     }

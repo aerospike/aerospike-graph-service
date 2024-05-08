@@ -38,6 +38,8 @@ public class JWTAuthenticator implements Authenticator {
     // Do not store secret and issuer for security reasons, just store the verifier.
     private JWTVerifier verifier;
     private static JWTAuthenticator INSTANCE = null;
+    private String issuer = null;
+    private Algorithm algo = null;
 
     public JWTAuthenticator() {
     }
@@ -45,6 +47,18 @@ public class JWTAuthenticator implements Authenticator {
     @Override
     public boolean requireAuthentication() {
         return true;
+    }
+
+    public String createToken(final String username, final String role) {
+        if (algo == null || issuer == null) {
+            // Should never happen since we got an instance.
+            throw new IllegalStateException("Cannot issue JWT token, JWTAuthenticator is not initialized..");
+        }
+        return JWT.create()
+                .withSubject(username)
+                .withClaim("role", role)
+                .withIssuer(issuer)
+                .sign(algo);
     }
 
     public static JWTAuthenticator getInstance() {
@@ -76,7 +90,6 @@ public class JWTAuthenticator implements Authenticator {
         if (!missingKeys.isEmpty()) {
             throw new IllegalStateException(String.format("Configuration missing the following key(s) %s", missingKeys));
         }
-        Algorithm algo = null;
         if (config.containsKey(ConfigurationHelper.Keys.JWT_ALGORITHM)) {
             final String algorithm = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.JWT_ALGORITHM, configuration);
             if (algorithm == null) {
@@ -102,9 +115,9 @@ public class JWTAuthenticator implements Authenticator {
                             ConfigurationHelper.Keys.JWT_ALGORITHM + " '%s' is not supported, supported algorithms are %s.", algorithm, SUPPORTED_ALGORITHMS));
             }
         }
+        issuer = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.JWT_ISSUER, configuration);
         verifier = JWT.require(algo).
-                withIssuer(
-                        ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.JWT_ISSUER, configuration))
+                withIssuer(issuer)
                 .build();
         INSTANCE = this;
     }

@@ -360,7 +360,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 final String yamlLocation = getGremlinServerYamlFile();
                 GREMLIN_SERVER_SETTINGS = Settings.read(yamlLocation);
             } catch (final Exception e) {
-                LOG.error("Failed to load gremlin-server settings file.", e);
+                if (System.getenv("FIREFLY_TESTING") == null ||
+                        !System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
+                    LOG.error("Failed to load gremlin-server settings file.", e);
+                }
                 GREMLIN_SERVER_SETTINGS = new Settings();
             }
         }

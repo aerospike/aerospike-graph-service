@@ -31,7 +31,9 @@ public abstract class MetadataServiceBase<I, R> extends AdminServiceRegistry<I, 
                     new MetadataServiceUsage<>(graph),
                     new MetadataServiceSummary<>(graph),
                     new MetadataServiceConfig<>(graph),
-                    new MetadataServiceVersion<>(graph)
+                    new MetadataServiceVersion<>(graph),
+                    new MetadataServiceUsageDeprecated<>(graph),
+                    new MetadataServiceSummaryDeprecated<>(graph)
             ).forEach(graph.getServiceRegistry()::registerService);
 
             // HTTP routing comes up before firefly. Need to latch firefly into the services.

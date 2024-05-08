@@ -3,6 +3,7 @@ package com.aerospike.firefly.process.call.rbac;
 import com.aerospike.firefly.security.JWTAuthenticator;
 import com.aerospike.firefly.structure.FireflyGraph;
 
+import java.util.HashMap;
 import java.util.Map;
 
 public class JwtServiceIssueToken<I, R> extends JwtServiceBase<I, R> {
@@ -25,6 +26,14 @@ public class JwtServiceIssueToken<I, R> extends JwtServiceBase<I, R> {
                         "\tExample of correct usage:\n" +
                         "\t\tg.call(\"%s\").with(\"username\", \"lyndon\").with(\"role\", \"ADMIN\").next();\n",
                 getName(), params, getName());
+    }
+
+    @Override
+    public Map<String, String> describeParams() {
+        final Map<String, String> parameters = new HashMap<>();
+        parameters.put("username", "The username to issue the token for.");
+        parameters.put("role", "The role to issue the token for. Acceptable values are 'READ', 'READ_WRITE', 'ADMIN'.");
+        return parameters;
     }
 
     @Override

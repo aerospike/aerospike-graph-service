@@ -42,7 +42,8 @@ public class TestFireflyBasicCall {
                     "aerospike.graph.admin.index.cardinality",
                     "aerospike.graph.admin.reserved.info",
                     "aerospike.graph.admin.metadata.version",
-                    "aerospike.graph.admin.metadata.config"
+                    "aerospike.graph.admin.metadata.config",
+                    "aerospike.graph.admin.rbac-jwt.issue-token"
             ), new HashSet<>(normalOutput));
 
             // The verbose output is a list of strings that looks like, note the innards of the list is straight up string:
@@ -93,6 +94,9 @@ public class TestFireflyBasicCall {
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{\"property_key\":\"The property key to get the index status of. '~label' can be used to get the status of an index on labels.\"");
                         Assert.assertEquals(infoPieces.get(3), "\"element_type\":\"The type of element to get the index status of. Only 'vertex' is currently supported.\"}}");
+                        break;
+                    case "{\"name\":\"aerospike.graph.admin.rbac-jwt.issue-token\"":
+                        Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         break;
                     default:
                         Assert.fail("Error, expected first piece of " + outputString +

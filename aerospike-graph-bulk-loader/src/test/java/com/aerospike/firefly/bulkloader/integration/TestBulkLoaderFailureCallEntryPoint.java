@@ -67,7 +67,7 @@ public class TestBulkLoaderFailureCallEntryPoint {
             final String output = (String) fireflyGraph.traversal().call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/duplicate-vertex-id.properties").next();
             Assert.assertNotEquals(BULK_LOAD_SUCCESS, output);
             Assert.assertEquals(formatErrorCount(fireflyGraph), output);
-            final Map<String, Long> errorCounts = (Map<String, Long>) fireflyGraph.traversal().call("get-bulk-load-errors").next();
+            final Map<String, Long> errorCounts = (Map<String, Long>) fireflyGraph.traversal().call("get-bulk-load-error-count").next();
             Assert.assertEquals(3, (long) errorCounts.get("duplicate-vertex-id-count"));
             Assert.assertEquals(0, (long) errorCounts.get("bad-edge-count"));
             Assert.assertEquals(0, (long) errorCounts.get("bad-entry-count"));

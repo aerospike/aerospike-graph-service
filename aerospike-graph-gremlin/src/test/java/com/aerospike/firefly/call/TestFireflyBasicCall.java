@@ -24,14 +24,17 @@ public class TestFireflyBasicCall {
             final List<Object> normalOutput = g.call("--list").toList();
             final List<Object> verboseOutput = g.call("--list").with("verbose").toList();
 
-            // The output is a list of strings that looks like:
-            // [summary, bulk-load]
             Assert.assertEquals(Set.of(
                     "aerospike.graph.admin.metadata.summary",
+                    "summary",
                     "aerospike.graphloader.admin.bulk-load.errors",
+                    "get-bulk-load-errors",
                     "aerospike.graphloader.admin.bulk-load.error-count",
+                    "get-bulk-load-error-count",
                     "aerospike.graphloader.admin.bulk-load.load",
+                    "bulk-load",
                     "aerospike.graph.admin.metadata.usage",
+                    "usage-stats",
                     "aerospike.graph.admin.index.create",
                     "aerospike.graph.admin.index.drop",
                     "aerospike.graph.admin.index.list",
@@ -50,15 +53,19 @@ public class TestFireflyBasicCall {
 
                 switch (infoPieces.get(0)) {
                     case "{\"name\":\"aerospike.graph.admin.metadata.summary\"":
+                    case "{\"name\":\"summary\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{\"pretty\":\"Pretty print the output.\"}}");
                         break;
                     case "{\"name\":\"aerospike.graphloader.admin.bulk-load.load\"":
+                    case "{\"name\":\"bulk-load\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{\"See bulk loading documentation\":\"https://aerospike.com/docs/graph/data-loading/standalone#configuration-options\"}}");
                         break;
                     case "{\"name\":\"aerospike.graphloader.admin.bulk-load.errors\"":
+                    case "{\"name\":\"get-bulk-load-errors\"":
                     case "{\"name\":\"aerospike.graphloader.admin.bulk-load.error-count\"":
+                    case "{\"name\":\"get-bulk-load-error-count\"":
                     case "{\"name\":\"aerospike.graph.admin.metadata.version\"":
                     case "{\"name\":\"aerospike.graph.admin.metadata.config\"":
                     case "{\"name\":\"aerospike.graph.admin.reserved.info\"":
@@ -68,6 +75,7 @@ public class TestFireflyBasicCall {
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{}}");
                         break;
                     case "{\"name\":\"aerospike.graph.admin.metadata.usage\"":
+                    case "{\"name\":\"usage-stats\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{\"since\":\"Return usage stats since a certain date in format 'yyyy-MM-dd'.\"}}");
                         break;

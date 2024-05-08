@@ -113,6 +113,56 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
     }
 
     @Test
+    public void testSummaryDeprecatedWorks() throws InterruptedException {
+        final GraphTraversalSource g = graph.traversal();
+        Thread.sleep(5000);
+        g.V().drop().iterate();
+        Thread.sleep(5000);
+        final Map<Object, Object> summaryCallEmpty = (Map<Object, Object>) g.call("summary").next();
+        final Map<Object, Object> expectedEmpty = Map.of(
+                "Vertex count by label", Map.of(),
+                "Edge count by label", Map.of(),
+                "Edge properties by label", Map.of(),
+                "Vertex properties by label", Map.of(),
+                "Total vertex count", 0L,
+                "Total edge count", 0L);
+        Assert.assertEquals(expectedEmpty, summaryCallEmpty);
+        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
+        Thread.sleep(3000);
+        final long vertexCount = g.V().count().next();
+        final long edgeCount = g.E().count().next();
+        final Map<Object, Object> vertexLabels = g.V().group().by(__.label()).by(__.count()).next();
+        final Map<Object, Object> edgeLabels = g.E().group().by(__.label()).by(__.count()).next();
+        final Map<Object, Object> vertexProperties = g.V().group().by(__.label()).by(__.properties().key().dedup().fold()).next();
+        final Map<Object, Object> edgeProperties = g.E().group().by(__.label()).by(__.properties().key().dedup().fold()).next();
+        for (final Object key : edgeLabels.keySet()) {
+            if (!edgeProperties.containsKey(key)) {
+                edgeProperties.put(key, List.of());
+            }
+        }
+        for (final Object key : vertexProperties.keySet()) {
+            if (!vertexProperties.containsKey(key)) {
+                vertexProperties.put(key, List.of());
+            }
+        }
+        for (final Object key : vertexProperties.keySet()) {
+            vertexProperties.put(key, new HashSet((List<Object>) vertexProperties.get(key)));
+        }
+        for (final Object key : edgeProperties.keySet()) {
+            edgeProperties.put(key, new HashSet((List<Object>) edgeProperties.get(key)));
+        }
+        final Map<Object, Object> expectedGrateful = Map.of(
+                "Vertex count by label", vertexLabels,
+                "Edge count by label", edgeLabels,
+                "Edge properties by label", edgeProperties,
+                "Vertex properties by label", vertexProperties,
+                "Total vertex count", vertexCount,
+                "Total edge count", edgeCount);
+        final Map<Object, Object> summaryCallGrateful = (Map<Object, Object>) g.call("summary").next();
+        Assert.assertEquals(expectedGrateful, summaryCallGrateful);
+    }
+
+    @Test
     public void testSummaryOverflow() throws InterruptedException {
         graph.traversal().V().drop().iterate();
         Thread.sleep(5000);

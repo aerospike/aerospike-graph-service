@@ -41,8 +41,6 @@ import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
-import com.aerospike.firefly.security.JWTAuthenticator;
-import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -86,6 +84,7 @@ import static com.aerospike.firefly.runtime.exceptions.ElementNotFoundException.
 import static com.aerospike.firefly.runtime.exceptions.RecordTooBigException.RECORD_TOO_BIG;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
+import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
 import static com.aerospike.firefly.util.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
 import static com.aerospike.firefly.util.ConfigurationHelper.getOrDefaultString;
 
@@ -177,7 +176,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean SUMMARY_TICKER_ENABLED_FLAG;
     public final boolean SUMMARY_ENABLED_FLAG;
     public final boolean TTL_ENABLED_FLAG;
-    public final boolean TTL_UPDATE_ANYTIME_FLAG;
     public final String TTL_BIN;
     public final String EDGE_DATA_BIN;
     public final String TTL_VERTEX_INDEX_NAME;
@@ -358,7 +356,6 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf);
         ENABLE_BATCHED_REPEAT_STEP_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf);
         TTL_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf);
-        TTL_UPDATE_ANYTIME_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TTL_UPDATE_ANYTIME_FLAG, conf);
         PAGINATION_PAGE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf);
         PAGINATION_PAGE_MAX_WAIT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, conf);
         PAGINATION_PAGE_QUEUE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, conf);
@@ -1421,6 +1418,21 @@ public class AerospikeConnection implements AutoCloseable {
         final Record record = this.operate(null, key,
                 Operation.add(ctr),
                 Operation.get(COUNTER_BIN));
+        return record.getLong(COUNTER_BIN);
+    }
+
+    /**
+     * Get the time of the last TTL purge was run, and set it to the given time.
+     *
+     * @param time time to set the last TTL purge ran
+     * @return value of when the previous TTL purge was run
+     */
+    public long getAndSetTtlTime(final long time) {
+        final Key key = new Key(namespace, GRAPH_METADATA_SET, TTL_TIME_KEY);
+        final Bin timeBin = new Bin(COUNTER_BIN, time);
+        final Record record = this.operate(null, key,
+                Operation.get(COUNTER_BIN),
+                Operation.put(timeBin));
         return record.getLong(COUNTER_BIN);
     }
 

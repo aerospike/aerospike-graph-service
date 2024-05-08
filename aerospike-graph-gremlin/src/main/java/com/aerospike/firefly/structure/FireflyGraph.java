@@ -969,10 +969,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
     }
 
-    public void scheduleElementForTtlNow(final FireflyElement element, final long timeToLiveSeconds) {
-        this.ttlHandler.scheduleExpiryNow(element, timeToLiveSeconds);
-    }
-
     public interface TransformKeyRecord<E> {
         E transform(final KeyRecord keyRecord);
     }

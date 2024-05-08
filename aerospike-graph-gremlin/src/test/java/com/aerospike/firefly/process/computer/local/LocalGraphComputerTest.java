@@ -17,9 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -59,6 +57,9 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
         }
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @Test
     public void testGraphFilterConstruction() {
@@ -73,9 +74,19 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
                 List.of(g.V(), NONE, __.bothE().limit(0)),
                 List.of(g.V().out(), NONE, __.outE()),
                 List.of(g.V().out("knows"), NONE, __.outE("knows")),
-                List.of(g.V().hasLabel("person").inE("knows").hasLabel("person"), NONE, __.bothE("knows")), // TODO: reason person vertex filter
+                List.of(g.V().hasLabel("person").inE("knows").outV().hasLabel("person"), NONE, __.inE("knows")), // TODO: reason person vertex filter
+                List.of(g.V().hasLabel("person").in("knows").hasLabel("person"), NONE, __.inE("knows")),
                 List.of(g.V().hasLabel("person"), __.hasLabel("person"), __.bothE().limit(0)),
-                List.of(g.V().has("name", "marko"), __.has("name", "marko"), __.bothE().limit(0))
+                List.of(g.V().has("name", "marko"), __.has("name", "marko"), __.bothE().limit(0)),
+                List.of(g.V().has("name", "marko").has("age", 32), __.has("name", "marko").has("age", 32), __.bothE().limit(0)),
+                List.of(g.V().has("name", "marko").has("age", 32).out("knows", "likes"), NONE, __.outE("knows", "likes")),
+                List.of(g.V().hasLabel("person").out("knows").hasLabel("person"), NONE, __.outE("knows")),// TODO: reason person vertex filter
+                List.of(g.V().outE("knows").inV(), NONE, __.outE("knows")),
+                List.of(g.V().outE("knows").inV().out("knows"), NONE, __.outE("knows")),
+                List.of(g.V().outE("knows").inV().out("knows").out("knows"), NONE, __.outE("knows")),
+                List.of(g.V().outE("knows").inV().out("knows").in("knows"), NONE, __.bothE("knows")),
+                List.of(g.V().outE("knows").inV().out("knows").in("likes"), NONE, __.union(__.inE("likes"), __.outE("knows"))),
+                List.of(g.V().outE("knows").inV().in("knows").in("likes"), NONE, __.union(__.inE("likes"), __.bothE("knows")))
         ).forEach(params -> {
             LOG.warn("Testing {} with\n\tvertex filter:{}\n\tedge filter: {}", params.get(0), params.get(1), params.get(2));
             verifyGraphFilter(

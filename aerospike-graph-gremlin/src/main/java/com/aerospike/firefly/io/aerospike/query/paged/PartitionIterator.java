@@ -84,10 +84,6 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     private PartitionIterator(final Builder builder) {
         this.graph = builder.graph;
         this.pageQueue = GraphQuery.create(graph).scanVertexIdPages(builder.filters);
-        LOG.warn("PARTITION ITERATOR CONFIGURATION\n\tPartition page size: {}\n\tPartition queue size: {}\n\tPartition max wait: {}\n",
-                ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, this.graph.configuration()),
-                ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, this.graph.configuration()),
-                ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, this.graph.configuration()));
     }
 
     public boolean hasNext() {

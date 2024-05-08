@@ -2,7 +2,10 @@ package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyGraphProvider;
+import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.commons.configuration2.BaseConfiguration;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.GraphProvider;
 import org.apache.tinkerpop.gremlin.TestHelper;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
@@ -29,7 +32,10 @@ public class LocalGraphComputerProvider extends FireflyGraphProvider {
     @Override
     public Graph openTestGraph(final Configuration config) {
         if (null == TEST_GRAPH) {
-            TEST_GRAPH = (FireflyGraph) GraphFactory.open(config);
+            BaseConfiguration copy = new BaseConfiguration();
+            copy.copy(config);
+            copy.setProperty(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG,true);
+            TEST_GRAPH = (FireflyGraph) GraphFactory.open(copy);
         }
         return TEST_GRAPH;
     }

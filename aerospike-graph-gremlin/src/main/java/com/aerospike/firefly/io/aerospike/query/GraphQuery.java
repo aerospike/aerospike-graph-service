@@ -47,7 +47,7 @@ public interface GraphQuery {
         return scanElementIds(FireflyVertex.class, List.of());
     }
 
-    default BlockingQueue<PageFetcher.Page> scanVertexIdPages(List<HasContainer> hasContainers) {
+    default BlockingQueue<PageFetcher.Page> scanVertexIdPages(final List<HasContainer> hasContainers) {
         final P<?> predicate;
         final String binName;
         final String mapKey;

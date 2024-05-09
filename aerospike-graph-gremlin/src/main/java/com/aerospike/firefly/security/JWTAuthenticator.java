@@ -52,7 +52,7 @@ public class JWTAuthenticator implements Authenticator {
     public String createToken(final String username, final String role) {
         if (algo == null || issuer == null) {
             // Should never happen since we got an instance.
-            throw new IllegalStateException("Cannot issue JWT token, JWTAuthenticator is not initialized..");
+            throw new IllegalStateException("Cannot issue JWT token; JWTAuthenticator is not initialized.");
         }
         return JWT.create()
                 .withSubject(username)

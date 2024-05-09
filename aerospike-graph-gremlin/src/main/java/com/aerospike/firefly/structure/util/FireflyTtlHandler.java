@@ -93,7 +93,7 @@ public class FireflyTtlHandler implements Closeable {
         } else {
             LOG.warn("The latest TTL purge had " + normalPurgeCount[0] + " expired Vertices and " + normalPurgeCount[1] +
                     " expired Edges which took longer than the configured time of " + graph.getBaseGraph().TTL_PURGE_INTERVAL_SECONDS +
-                    " to remove. Upcoming expiring elements' removal may be delayed.");
+                    " seconds to remove. Upcoming expiring elements' removal may be delayed.");
         }
         this.scheduler.schedule(this::startPurge, getMillisToNextRun(), TimeUnit.MILLISECONDS);
     }
@@ -124,7 +124,7 @@ public class FireflyTtlHandler implements Closeable {
                 }
             }
         } catch (final AerospikeException e) {
-            LOG.error("Unexpected error occurred when running SIndex to grab TTL expired Vertices.", e);
+            LOG.error("Unexpected error occurred when running index to grab TTL expired Vertices.", e);
         }
         LOG.debug("TTL purge removed " + removalCount + " expired Vertices.");
         return removalCount;
@@ -137,19 +137,21 @@ public class FireflyTtlHandler implements Closeable {
             final Iterator<KeyRecord> edgesToDelete = GraphQuery.create(graph).querySIndex(db.EDGE_AERO_SET,
                     db.TTL_EDGE_INDEX_NAME, Filter.range(db.TTL_BIN, IndexCollectionType.MAPVALUES, startTime, endTime),
                     INDEX_POLICY);
+            long currentEdgeDeleteTime = System.currentTimeMillis();
             while (edgesToDelete.hasNext()) {
                 final Record edgeRecord = edgesToDelete.next().record;
                 final Map<?, Long> edgeTtls = (Map<?, Long>) edgeRecord.getMap(db.TTL_BIN);
                 for (final Map.Entry<?, Long> edgeTtl : edgeTtls.entrySet()) {
                     final long expiryTime = edgeTtl.getValue();
                     // Need this check since phat edge TTL bin map can contain entries outside of index range
-                    if (expiryTime <= this.thisRunTime.get()) {
+                    if (expiryTime <= currentEdgeDeleteTime) {
                         final FireflyId edgeId = new FireflyPhatEdgeId((ByteBuffer) edgeTtl.getKey(),
                                 db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
                         final FireflyEdge edge = FireflyEdge.FireflyEdgeFactory.create(edgeId, edgeRecord, graph);
                         if (edge != null) {
                             try {
                                 edge.remove();
+                                currentEdgeDeleteTime = System.currentTimeMillis();
                                 removalCount++;
                             } catch (final AerospikeException e) {
                                 LOG.error("Unexpected error occurred when removing TTL Edge ID {}: {}", edge.id(), e);
@@ -159,7 +161,7 @@ public class FireflyTtlHandler implements Closeable {
                 }
             }
         } catch (final AerospikeException e) {
-            LOG.error("Unexpected error occurred when running SIndex to grab TTL expired Edges.", e);
+            LOG.error("Unexpected error occurred when running index to grab TTL expired Edges.", e);
         }
         LOG.debug("TTL purge removed " + removalCount + " expired Edges.");
         return removalCount;

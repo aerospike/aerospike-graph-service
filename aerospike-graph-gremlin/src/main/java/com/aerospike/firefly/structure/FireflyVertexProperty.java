@@ -53,7 +53,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     protected final String key;
     protected final V value;
     protected final FireflyGraph graph;
-    protected final FireflyVertex vertex;
+    protected FireflyVertex vertex;
     public Map<String, Object> properties;
     public Map<String, Object> typeHints;
 
@@ -103,10 +103,9 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         try {
             LOG.debug("Removing vertex property {}", id);
             if (vertex == null) {
-                graph.readVertex(vertexId).removeVertexProperty(label, id);
-            } else {
-                vertex.removeVertexProperty(label, id);
+                vertex = graph.readVertex(vertexId);
             }
+            vertex.removeVertexProperty(label, id);
         } catch (final AerospikeException ae) {
             // Removing a property that is already removed SHOULD NOT yield an error.
             if (ae.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR) {
@@ -197,7 +196,10 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
 
     @Override
     public Vertex element() {
-        return graph.readVertex(vertexId);
+        if (vertex == null) {
+            vertex = graph.readVertex(vertexId);
+        }
+        return vertex;
     }
 
     @Override

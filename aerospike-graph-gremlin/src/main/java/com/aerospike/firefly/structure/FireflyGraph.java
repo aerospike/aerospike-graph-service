@@ -28,6 +28,7 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
+import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
@@ -541,8 +542,16 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
     }
 
-    public List<FireflyVertex> readVertices(final List<HasContainer> hasContainers, final List<FireflyId> idValues, final List<String> requiredProperties) {
-        return FireflyVertex.readVertices(this, hasContainers, requiredProperties, idValues);
+    public List<FireflyVertex> readVertices(final List<HasContainer> hasContainers,
+                                            final List<FireflyId> idValues,
+                                            final List<String> requiredProperties) {
+        final ReadInfo readInfo = ReadInfo.create().
+                set(db.VERTEX_AERO_SET).
+                ids(idValues).
+                reqProps(requiredProperties).
+                exp(hasContainers, db, FireflyVertex.class).
+                build();
+        return FireflyVertex.readVertices(this, readInfo);
     }
 
     /**

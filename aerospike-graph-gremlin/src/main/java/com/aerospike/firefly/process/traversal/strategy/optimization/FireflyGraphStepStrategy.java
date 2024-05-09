@@ -6,8 +6,10 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PathStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertiesStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.TreeStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.TreeSideEffectStep;
@@ -20,6 +22,7 @@ import java.util.List;
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  * @author Grant Haywood <a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyGraphStepStrategy extends FireflyStrategyBase {
     /**
@@ -34,6 +37,7 @@ public class FireflyGraphStepStrategy extends FireflyStrategyBase {
         if (TraversalHelper.onGraphComputer(traversal))
             return;
 
+        boolean propertyRemovalValid = !(steps.contains(TreeStep.class) || steps.contains(TreeSideEffectStep.class) || steps.contains(PathStep.class));
         for (final GraphStep originalGraphStep : TraversalHelper.getStepsOfClass(GraphStep.class, traversal)) {
             int labelCount = 0;
             labelCount += originalGraphStep.getLabels().size();
@@ -51,12 +55,21 @@ public class FireflyGraphStepStrategy extends FireflyStrategyBase {
                 }
                 currentStep = currentStep.getNextStep();
             }
-            if (currentStep instanceof VertexStep &&
-                    !(steps.contains(TreeStep.class) || steps.contains(TreeSideEffectStep.class) || steps.contains(PathStep.class))) {
-                // Cannot apply if there are labels between.
-                if (labelCount == 0) {
+            if (propertyRemovalValid && labelCount == 0) {
+                if (currentStep instanceof VertexStep || currentStep instanceof IdStep) {
                     final List<String> properties = new ArrayList<>();
                     fireflyGraphStep.getHasContainers().forEach(hasContainer -> properties.add(hasContainer.getKey()));
+                    fireflyGraphStep.addProperties(properties);
+                } else if (currentStep instanceof PropertiesStep) {
+                    final PropertiesStep<?> propertiesStep = (PropertiesStep<?>) currentStep;
+                    final List<String> properties = new ArrayList<>();
+                    fireflyGraphStep.getHasContainers().forEach(hasContainer -> properties.add(hasContainer.getKey()));
+                    final String[] propertyKeys = propertiesStep.getPropertyKeys();
+                    for (final String propertyKey : propertyKeys) {
+                        if (!properties.contains(propertyKey)) {
+                            properties.add(propertyKey);
+                        }
+                    }
                     fireflyGraphStep.addProperties(properties);
                 }
             }

@@ -35,6 +35,7 @@ import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.OperationReturnHandler;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
+import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
@@ -674,7 +675,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         LOG.trace("Getting vertices from vertex {}.", id);
         final List<Vertex> vertices = new ArrayList<>();
         final List<FireflyId> adjacentVertices = getVertexIdsFromVertex(direction, edgeLabels);
-        final List<FireflyRecord> records = FireflyRecord.batchRead(db, db.VERTEX_AERO_SET, adjacentVertices);
+        final List<FireflyRecord> records = FireflyRecord.batchRead(db, ReadInfo.create().set(db.VERTEX_AERO_SET).ids(adjacentVertices).build());
         if (records != null) {
             records.forEach(record -> {
                 if (record != null) {
@@ -1211,32 +1212,15 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         }
     }
 
-
-    /**
-     * Read and construct a list of FireflyVertex using the list of FireflyId.
-     * This function is static because it is used by the LinkedGraph
-     * to write a new FireflyVertex.
-     *
-     * @param graph     FireflyGraph to use.
-     * @param vertexIds FireflyIds to use.
-     * @return FireflyVertex.
-     */
     public static List<FireflyVertex> readVertices(final FireflyGraph graph,
-                                                   final List<HasContainer> hasContainers,
-                                                   final List<String> requiredProperties,
-                                                   final List<FireflyId> vertexIds) {
-        LOG.debug("Reading vertices {}.", vertexIds);
+                                                   final ReadInfo readInfo) {
+        LOG.debug("Reading vertices {}.", readInfo.ids);
 
         // Get database connection.
         final AerospikeConnection db = graph.getBaseGraph();
 
         // Batch read vertex records.
-        final List<FireflyRecord> vertexRecords = FireflyRecord.batchRead(
-                db,
-                GraphQueryHelper.hasContainerListToExpression(db, hasContainers, FireflyVertex.class),
-                db.VERTEX_AERO_SET,
-                vertexIds,
-                requiredProperties);
+        final List<FireflyRecord> vertexRecords = FireflyRecord.batchRead(db, readInfo);
         if (vertexRecords == null) {
             return new ArrayList<>();
         }

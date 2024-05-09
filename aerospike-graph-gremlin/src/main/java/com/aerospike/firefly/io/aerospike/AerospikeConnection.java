@@ -1658,7 +1658,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param operations  Operations for operate.
      * @return Record resulting from operate.
      */
-    public Record operate(final WritePolicy writePolicy, final Key key, Operation... operations) {
+    public Record operate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
         final WritePolicy policy;
         if (writePolicy == null) {
             policy = new WritePolicy();

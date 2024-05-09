@@ -10,6 +10,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.SampleGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GroupStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PathStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertiesStep;
@@ -139,6 +140,14 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
                             }
                         }
                         labels = propertiesStep.getLabels();
+                    }
+                    break;
+                } else if (steps.get(index) instanceof IdStep) {
+                    if (traversal.isRoot() && propertyRemovalValid) {
+                        // Grab any labels.
+                        propertyKeys = new ArrayList<>();
+                        final IdStep<?> idStep = (IdStep<?>) steps.get(index);
+                        labels = idStep.getLabels();
                     }
                     break;
                 } else if (steps.get(index) instanceof HasStep) {

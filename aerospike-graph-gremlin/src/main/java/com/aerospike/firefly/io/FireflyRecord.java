@@ -13,6 +13,7 @@ import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.structure.id.FireflyId;
 
 import java.io.Serializable;
@@ -125,15 +126,15 @@ public class FireflyRecord {
         return new FireflyRecord(db, key, record);
     }
 
-    public static List<FireflyRecord> batchRead(final AerospikeConnection db, final Expression expression, final String set, final List<FireflyId> ids, final List<String> requiredProperties) {
+    public static List<FireflyRecord> batchRead(final AerospikeConnection db, final ReadInfo readInfo) {
         // Check if empty and return empty if it is.
-        if (ids.size() == 0) {
+        if (readInfo.ids.isEmpty()) {
             return new ArrayList<>();
         }
 
         // Batch reading in Aerospike is capped based on settings in the server.
         final Map<FireflyId, FireflyRecord> idToRecord = new HashMap<>();
-        final Set<FireflyId> uniqueIds = new HashSet<>(ids);
+        final Set<FireflyId> uniqueIds = new HashSet<>(readInfo.ids);
 
         // Batch reading in Aerospike is capped based on settings in the server.
         for (int i = 0; i < uniqueIds.size(); i += db.AEROSPIKE_BATCH_READ_SIZE) {
@@ -141,41 +142,35 @@ public class FireflyRecord {
             final List<FireflyId> subList = uniqueIds.stream().skip(i).limit(db.AEROSPIKE_BATCH_READ_SIZE).collect(Collectors.toList());
 
             // Execute batch read. subList ids are read from the database.
-            executeBatchRead(db, expression, set, idToRecord, subList, requiredProperties);
+            executeBatchRead(db, readInfo, idToRecord, subList);
         }
 
         // Return the records in the same order as the ids, removing any null items.
-        return ids.stream().filter(idToRecord::containsKey).map(idToRecord::get).collect(Collectors.toList());
-    }
-
-    public static List<FireflyRecord> batchRead(final AerospikeConnection db, final String set, final List<FireflyId> ids) {
-        return batchRead(db, null, set, ids, null);
+        return readInfo.ids.stream().filter(idToRecord::containsKey).map(idToRecord::get).collect(Collectors.toList());
     }
 
     private static void executeBatchRead(final AerospikeConnection db,
-                                         final Expression expression,
-                                         final String set,
+                                         final ReadInfo readInfo,
                                          final Map<FireflyId, FireflyRecord> idToRecord,
-                                         final List<FireflyId> idsToRead,
-                                         final List<String> requiredProperties) {
+                                         final List<FireflyId> idsToRead) {
         // Read all records from the database.
         // Before reading id list must be converted to array of keys.
-        final List<Key> keyList = idsToRead.stream().map(id -> getKey(db, set, id)).collect(Collectors.toList());
+        final List<Key> keyList = idsToRead.stream().map(id -> getKey(db, readInfo.set, id)).collect(Collectors.toList());
 
         // Default batch read used by read.
         final BatchPolicy batchReadPolicy = new BatchPolicy();
         batchReadPolicy.sendKey = false;
-        batchReadPolicy.filterExp = expression;
+        batchReadPolicy.filterExp = readInfo.expression;
 
         final Record[] records;
-        if (requiredProperties == null) {
+        if (readInfo.requiredProperties == null) {
             final FireflyCache cache = db.transactionCache.get();
             records = (cache != null) ? cache.read(keyList.toArray(Key[]::new), batchReadPolicy) :
                     db.getClient().get(batchReadPolicy, keyList.toArray(Key[]::new));
-        } else if (!requiredProperties.isEmpty()){
+        } else if (!readInfo.requiredProperties.isEmpty()){
             // No cache for partial property reads.
             final List<Operation> operations = new ArrayList<>();
-            final List<Value> properties = requiredProperties.stream().map(Value::get).collect(Collectors.toList());
+            final List<Value> properties = readInfo.requiredProperties.stream().map(Value::get).collect(Collectors.toList());
             db.vertexNonPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
             db.vertexPropertyBins.forEach(bin -> operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP)));
             records = db.getClient().get(batchReadPolicy, keyList.toArray(Key[]::new), operations.toArray(Operation[]::new));
@@ -191,7 +186,7 @@ public class FireflyRecord {
             if (records[i] != null) {
                 // Add id/record pair to the map.
                 final FireflyId id = idsToRead.get(i);
-                final FireflyRecord fireflyRecord = new FireflyRecord(db, getKey(db, set, id), records[i]);
+                final FireflyRecord fireflyRecord = new FireflyRecord(db, getKey(db, readInfo.set, id), records[i]);
                 idToRecord.put(id, fireflyRecord);
             }
         }

@@ -1110,40 +1110,11 @@ public class AerospikeConnection implements AutoCloseable {
     public Record[] read(final Key[] keys) {
         final BatchPolicy batchPolicy = new BatchPolicy();
         batchPolicy.sendKey = false;
-        return read(keys, batchPolicy, null);
-    }
-
-    /**
-     * Perform a batch Aerospike read for a group of keys
-     *
-     * @param keys        Array of Key to return records for
-     * @param batchPolicy BatchPolicy to use
-     * @return Array of Record
-     */
-    public Record[] read(final Key[] keys, final BatchPolicy batchPolicy, final List<String> requiredProperties) {
         readMetric.addAndGet(keys.length);
+        final FireflyCache cache = transactionCache.get();
         final Record[] results;
         try { //@todo policy causes key mismatch error
-            if (requiredProperties == null) {
-                // Can cache full property reads.
-                final FireflyCache cache = transactionCache.get();
-                results = (cache != null) ? cache.read(keys, batchPolicy) : client.get(batchPolicy, keys);
-            } else if (!requiredProperties.isEmpty()) {
-                // Cannot cache partial property reads.
-                final List<Operation> operations = new ArrayList<>();
-                final List<Value> properties = requiredProperties.stream().map(Value::get).collect(Collectors.toList());
-                vertexNonPropertyBins.forEach(bin -> {
-                    operations.add(Operation.get(bin));
-                });
-                vertexPropertyBins.forEach(bin -> {
-                    operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP));
-                });
-                results = getClient().get(batchPolicy, keys, operations.toArray(Operation[]::new));
-            } else {
-                // Can cache no property reads.
-                final FireflyCache cache = emptyPropsTransactionCache.get();
-                results = (cache != null) ? cache.read(keys, batchPolicy) : client.get(batchPolicy, keys);
-            }
+            results = (cache != null) ? cache.read(keys, batchPolicy) : client.get(batchPolicy, keys);
         } catch (final AerospikeException e) {
             LOG.error("Error: AerospikeException in read {}", e.getMessage());
             throw e;

@@ -164,13 +164,20 @@ public class TestAdminCallHttp {
             g.call("aerospike.graph.admin.index.create").
                     with("property_key", "nameC").
                     with("element_type", "vertex").next();
+            g.call("aerospike.graph.admin.index.create").
+                    with("property_key", "~label").
+                    with("element_type", "vertex").next();
             Map<String, Long> nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                     with("property_key", "nameB").
                     with("element_type", "vertex").next();
             Map<String, Long> nameCStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                     with("property_key", "nameC").
                     with("element_type", "vertex").next();
-            while (nameBStatus.get("percent_complete") < 100 || nameCStatus.get("percent_complete") < 100) {
+            Map<String, Long> labelStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                    with("property_key", "~label").
+                    with("element_type", "vertex").next();
+            while (nameBStatus.get("percent_complete") < 100 || nameCStatus.get("percent_complete") < 100 ||
+                    labelStatus.get("percent_complete") < 100) {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
@@ -182,10 +189,13 @@ public class TestAdminCallHttp {
                 nameCStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                         with("property_key", "nameC").
                         with("element_type", "vertex").next();
+                labelStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                        with("property_key", "~label").
+                        with("element_type", "vertex").next();
             }
             final String indexListAfterCreate = adminIndexList();
             final Set<String> indexes = convertStringListToSet(indexListAfterCreate);
-            Assert.assertEquals(Set.of("nameB", "nameC"), indexes);
+            Assert.assertEquals(Set.of("nameB", "nameC", "vertex.~label"), indexes);
         }
     }
 

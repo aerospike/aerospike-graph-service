@@ -177,7 +177,6 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         }
 
         // Handle TTL.
-        boolean scheduleTtlImmediately = false;
         long ttlValueLong = 0;
         if (propertyMap.containsKey(TTL_PROPERTY_KEY)) {
             if (!db.TTL_ENABLED_FLAG) {
@@ -191,9 +190,6 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
                 final Operation writeTtl = MapOperation.put(edgeMapPolicy, db.TTL_BIN, Value.get(edgeId.getUserId()),
                         Value.get(expirationTime));
                 operations.add(writeTtl);
-                if (ttlValueLong < db.TTL_PURGE_INTERVAL_SECONDS) {
-                    scheduleTtlImmediately = true;
-                }
             } else {
                 throw new IllegalArgumentException(
                         String.format("Property value [%s] for key %s is of type %s and must be numeric", ttlValue,
@@ -223,9 +219,6 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
                     .collect(Collectors.toSet()));
             final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id,
                     propertyMap, typeHints, !outVertexCacheWrite, !inVertexCacheWrite, record.generation);
-            if (scheduleTtlImmediately) {
-                graph.scheduleElementForTtlNow(edge, ttlValueLong);
-            }
             return edge;
         } catch (final RecordTooBigException e) {
             final EdgeRecordSizeExceededException sizeExceededException =
@@ -809,9 +802,6 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
             db.operate(writePolicy, key, writeTtl);
-            if (durationSeconds < db.TTL_PURGE_INTERVAL_SECONDS) {
-                this.graph.scheduleElementForTtlNow(this, durationSeconds);
-            }
         } catch (final RecordTooBigException e) {
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingProperty((AerospikeException) e.getCause(), db, key, this.id, TTL_PROPERTY_KEY);
@@ -825,29 +815,6 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             } else {
                 throw ae;
             }
-        }
-    }
-
-    @Override
-    public long getTtlMillis() {
-        final Key key = getKey(this.db, this.db.EDGE_AERO_SET, this.id);
-        final Operation getTtlBin = Operation.get(this.db.TTL_BIN);
-        try {
-            final Record result = this.db.operate(null, key, getTtlBin);
-            final Map<Object, Long> ttlMap = (Map<Object, Long>) result.getMap(this.db.TTL_BIN);
-            final Long expiryTime = ttlMap.get(this.id.getUserId());
-            if (expiryTime == null) {
-                // Edge was already deleted but phat Edge record still exists.
-                throw new ElementNotFoundException();
-            }
-            return expiryTime - System.currentTimeMillis();
-        } catch (final AerospikeException e) {
-            if (e.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR) {
-                // Edge was already deleted.
-                throw new ElementNotFoundException(e);
-            }
-            LOG.error("Unexpected error when checking TTL for Edge " + this.id(), e);
-            throw e;
         }
     }
 

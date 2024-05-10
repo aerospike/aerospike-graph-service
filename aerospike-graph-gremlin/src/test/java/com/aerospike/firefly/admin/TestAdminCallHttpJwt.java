@@ -128,7 +128,6 @@ public class TestAdminCallHttpJwt {
         });
     }
 
-
     public String adminIndexListHeaders(final String userCredentials) {
         try {
             final URL url = new URL("http://localhost:9090/admin/index/list");

@@ -61,6 +61,19 @@ public class JWTAuthenticator implements Authenticator {
                 .sign(algo);
     }
 
+    public String createToken(final String username, final String role, final Number expiry) {
+        if (algo == null || issuer == null) {
+            // Should never happen since we got an instance.
+            throw new IllegalStateException("Cannot issue JWT token; JWTAuthenticator is not initialized.");
+        }
+        return JWT.create()
+                .withSubject(username)
+                .withClaim("role", role)
+                .withIssuer(issuer)
+                .withExpiresAt(Instant.now().plusSeconds(expiry.longValue()))
+                .sign(algo);
+    }
+
     public static JWTAuthenticator getInstance() {
         if (INSTANCE == null) {
             // Should never happen.
@@ -190,7 +203,7 @@ public class JWTAuthenticator implements Authenticator {
         }
 
         @Override
-        public boolean valid(final FireflyGraph fireflyGraph) {
+        public boolean valid() {
             final Instant expiry = decodedJWT.getExpiresAtAsInstant();
             return expiry == null || expiry.isAfter(Instant.now());
         }

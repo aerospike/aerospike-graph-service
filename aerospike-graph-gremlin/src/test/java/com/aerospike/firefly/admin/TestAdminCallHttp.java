@@ -2,6 +2,12 @@ package com.aerospike.firefly.admin;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;
@@ -155,7 +161,7 @@ public class TestAdminCallHttp {
             final List<String> indexesAfterDrop = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             Assert.assertTrue(indexesAfterDrop.isEmpty());
             final String indexList = adminIndexList();
-            Assert.assertEquals("[]", indexList);
+            Assert.assertEquals("[ ]", indexList);
 
 
             g.call("aerospike.graph.admin.index.create").
@@ -195,7 +201,7 @@ public class TestAdminCallHttp {
             }
             final String indexListAfterCreate = adminIndexList();
             final Set<String> indexes = convertStringListToSet(indexListAfterCreate);
-            Assert.assertEquals(Set.of("nameB", "nameC", "vertex.~label"), indexes);
+            Assert.assertEquals(Set.of("\"nameB\"", "\"nameC\"", "\"vertex.~label\""), indexes);
         }
     }
 
@@ -306,7 +312,7 @@ public class TestAdminCallHttp {
             for (final String s : cardinalityArray) {
                 cardinalitySet.add(s.trim());
             }
-            Assert.assertEquals(Set.of("nameA=1", "nameB=1"), cardinalitySet);
+            Assert.assertEquals(Set.of("\"nameA\" : 1", "\"nameB\" : 1"), cardinalitySet);
         }
     }
 
@@ -338,9 +344,24 @@ public class TestAdminCallHttp {
             final String configString = adminMetadataConfig();
             Assert.assertTrue(configString.startsWith("{"));
             Assert.assertTrue(configString.endsWith("}"));
-            Assert.assertTrue(configString.contains("aerospike.client.password=****"));
-            Assert.assertTrue(configString.contains("aerospike.graph.data.model=packed"));
-            System.out.println(configString);
+            final ObjectReader reader = new ObjectMapper().reader();
+            final JsonNode tree = reader.readTree(configString);
+            // Check has Aerospike version and Aerospike Graph Service version
+            Assert.assertTrue(tree.has("Gremlin Server Configuration"));
+            Assert.assertTrue(tree.has("Unified Configuration"));
+            Assert.assertTrue(tree.has("Graph Properties"));
+            // Check value of graph service version
+            final JsonNode configNode = tree.get("Graph Properties");
+            Assert.assertTrue(configNode.has("aerospike.client.password"));
+            Assert.assertTrue(configNode.has("aerospike.graph.data.model"));
+            final String pw = configNode.get("aerospike.client.password").asText();
+            Assert.assertEquals(pw, "********");
+            final String dm = configNode.get("aerospike.graph.data.model").asText();
+            Assert.assertEquals(dm, "packed");
+        } catch (JsonMappingException e) {
+            throw new RuntimeException(e);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -351,9 +372,18 @@ public class TestAdminCallHttp {
             final String version = adminMetadataVersion();
             Assert.assertTrue(version.startsWith("{"));
             Assert.assertTrue(version.endsWith("}"));
-            Assert.assertTrue(version.contains("Aerospike version="));
-            Assert.assertTrue(version.contains("Aerospike Graph Service version=" + FireflyGraph.FIREFLY_VERSION));
-            System.out.println(version);
+            final ObjectReader reader = new ObjectMapper().reader();
+            final JsonNode tree = reader.readTree(version);
+            // Check has Aerospike version and Aerospike Graph Service version
+            Assert.assertTrue(tree.has("Aerospike version"));
+            Assert.assertTrue(tree.has("Aerospike Graph Service version"));
+            // Check value of graph service version
+            final String graphServiceVersion = tree.get("Aerospike Graph Service version").asText();
+            Assert.assertEquals(FireflyGraph.FIREFLY_VERSION, graphServiceVersion);
+        } catch (JsonMappingException e) {
+            throw new RuntimeException(e);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
         }
     }
 }

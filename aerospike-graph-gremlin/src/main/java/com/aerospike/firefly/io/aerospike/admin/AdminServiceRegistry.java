@@ -9,6 +9,8 @@ import com.aerospike.firefly.security.JWTAuthenticator;
 import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.ext.web.Router;
@@ -215,8 +217,9 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
 
             try {
                 final R result = execute(params);
-                routerContext.response().setStatusCode(SUCCESS_CODE).putHeader("content-type", "text/html")
-                        .end(String.valueOf(result));
+                final ObjectWriter objectWriter = new ObjectMapper().writer().withDefaultPrettyPrinter();
+                routerContext.response().setStatusCode(SUCCESS_CODE).putHeader("content-type", "application/json")
+                        .end(objectWriter.writeValueAsString(result));
             } catch (final Exception e) {
                 routerContext.fail(ERROR_CODE, e);
             }

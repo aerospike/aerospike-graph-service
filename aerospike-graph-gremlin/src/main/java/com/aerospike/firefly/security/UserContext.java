@@ -10,5 +10,5 @@ public interface UserContext {
         READ
     }
     ROLE getRole() throws AuthenticationException;
-    boolean valid(FireflyGraph graph);
+    boolean valid();
 }

@@ -14,6 +14,10 @@ public class AuthenticationException extends RuntimeException {
         return new AuthenticationException("Authentication is not initialized.");
     }
 
+    public static AuthenticationException tokenExpired() {
+        return new AuthenticationException("Token has expired.");
+    }
+
     public static AuthenticationException invalidUserContext() {
         return new AuthenticationException("User context is invalid.");
     }

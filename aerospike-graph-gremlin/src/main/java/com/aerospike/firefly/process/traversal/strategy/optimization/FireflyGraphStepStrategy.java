@@ -62,15 +62,17 @@ public class FireflyGraphStepStrategy extends FireflyStrategyBase {
                     fireflyGraphStep.addProperties(properties);
                 } else if (currentStep instanceof PropertiesStep) {
                     final PropertiesStep<?> propertiesStep = (PropertiesStep<?>) currentStep;
-                    final List<String> properties = new ArrayList<>();
-                    fireflyGraphStep.getHasContainers().forEach(hasContainer -> properties.add(hasContainer.getKey()));
-                    final String[] propertyKeys = propertiesStep.getPropertyKeys();
-                    for (final String propertyKey : propertyKeys) {
-                        if (!properties.contains(propertyKey)) {
-                            properties.add(propertyKey);
+                    if (propertiesStep.getPropertyKeys().length != 0) {
+                        final List<String> properties = new ArrayList<>();
+                        fireflyGraphStep.getHasContainers().forEach(hasContainer -> properties.add(hasContainer.getKey()));
+                        final String[] propertyKeys = propertiesStep.getPropertyKeys();
+                        for (final String propertyKey : propertyKeys) {
+                            if (!properties.contains(propertyKey)) {
+                                properties.add(propertyKey);
+                            }
                         }
+                        fireflyGraphStep.addProperties(properties);
                     }
-                    fireflyGraphStep.addProperties(properties);
                 }
             }
         }

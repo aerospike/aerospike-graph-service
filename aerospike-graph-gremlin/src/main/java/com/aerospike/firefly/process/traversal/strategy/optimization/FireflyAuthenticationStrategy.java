@@ -114,6 +114,9 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
         if (jwtUser == null) {
             throw AuthenticationException.userNotFoundInParameters();
         } else {
+            if (!jwtUser.valid()) {
+                throw AuthenticationException.tokenExpired();
+            }
             final UserContext.ROLE role = jwtUser.getRole();
             if (role == null) {
                 throw AuthenticationException.userDoesNotHaveValidRole();

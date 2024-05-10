@@ -24,7 +24,9 @@ public class JwtServiceIssueToken<I, R> extends JwtServiceBase<I, R> {
                         "\tAcceptable values of role are: 'READ', 'READ_WRITE', 'ADMIN'.\n" +
                         "\tProvided arguments: '%s'.\n" +
                         "\tExample of correct usage:\n" +
-                        "\t\tg.call(\"%s\").with(\"username\", \"lyndon\").with(\"role\", \"ADMIN\").next();\n",
+                        "\t\tg.call(\"%s\").with(\"username\", \"lyndon\").with(\"role\", \"ADMIN\").next();\n" +
+                        "\tor to set a token that expires in 1 day:\n" +
+                        "\t\tg.call(\"%s\").with(\"username\", \"lyndon\").with(\"role\", \"ADMIN\").with(\"expiry\", 24 * 60 * 60).next();",
                 getName(), params, getName());
     }
 
@@ -33,13 +35,16 @@ public class JwtServiceIssueToken<I, R> extends JwtServiceBase<I, R> {
         final Map<String, String> parameters = new HashMap<>();
         parameters.put("username", "The username to issue the token for.");
         parameters.put("role", "The role to issue the token for. Acceptable values are 'READ', 'READ_WRITE', 'ADMIN'.");
+        parameters.put("expiry", "The expiry time for the token in seconds from current time. Optional parameter.");
         return parameters;
     }
 
     @Override
     protected boolean sanitize(final Map params) {
         if (!params.containsKey("username") ||
-                !params.containsKey("role")) {
+                !params.containsKey("role") ||
+                !params.get("username").getClass().equals(String.class) ||
+                !params.get("role").getClass().equals(String.class)) {
             return false;
         }
 
@@ -51,6 +56,11 @@ public class JwtServiceIssueToken<I, R> extends JwtServiceBase<I, R> {
         final String role = (String) params.get("role");
         if (role == null || role.isEmpty() ||
                 !(role.equals("READ") || role.equals("READ_WRITE") || role.equals("ADMIN"))) {
+            return false;
+        }
+
+        if (params.get("expiry") != null &&
+                !Number.class.isAssignableFrom(params.get("expiry").getClass())) {
             return false;
         }
 
@@ -66,7 +76,9 @@ public class JwtServiceIssueToken<I, R> extends JwtServiceBase<I, R> {
             throw new IllegalStateException("Cannot issue JWT token because " +
                     "JWT authentication is not enabled on this Aerospike Graph instance.");
         }
-        return (R) jwtAuthenticator.createToken(username, role);
+        return params.get("expiry") != null ?
+                (R) JWTAuthenticator.getInstance().createToken(username, role, (Number) params.get("expiry")) :
+                (R) jwtAuthenticator.createToken(username, role);
     }
 
     @Override

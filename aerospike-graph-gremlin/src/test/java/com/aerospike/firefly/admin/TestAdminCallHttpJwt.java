@@ -94,6 +94,39 @@ public class TestAdminCallHttpJwt {
         g4.V().count().next();
     }
 
+    @Test
+    public void testExpiry() throws InterruptedException {
+        final Cluster cluster = Cluster.build()
+                .addContactPoint("localhost")
+                .port(8182)
+                .credentials("lyndon_username", validAdmin)
+                .create();
+        final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
+        final GraphTraversalSource g = traversal().withRemote(connection);
+        final String adminToken = (String) g.call("aerospike.graph.admin.rbac-jwt.issue-token").with("username", "lyndon_admin").with("role", "ADMIN").with("expiry", 10).next();
+        final Cluster cluster2 = Cluster.build()
+                .addContactPoint("localhost")
+                .port(8182)
+                .credentials("lyndon_admin", adminToken)
+                .create();
+        final DriverRemoteConnection connection2 = DriverRemoteConnection.using(cluster2);
+        final GraphTraversalSource g2 = traversal().withRemote(connection2);
+        g2.V().count().next();
+        Thread.sleep(11000);
+        Assert.assertThrows(Exception.class, () -> {
+            g2.V().count().next();
+        });
+        final Cluster cluster3 = Cluster.build()
+                .addContactPoint("localhost")
+                .port(8182)
+                .credentials("lyndon_admin", adminToken)
+                .create();
+        final DriverRemoteConnection connection3 = DriverRemoteConnection.using(cluster3);
+        final GraphTraversalSource g3 = traversal().withRemote(connection3);
+        Assert.assertThrows(Exception.class, () -> {
+            g3.V().count().next();
+        });
+    }
 
     public String adminIndexListHeaders(final String userCredentials) {
         try {

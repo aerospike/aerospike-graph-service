@@ -453,8 +453,8 @@ public class AerospikeConnection implements AutoCloseable {
         vertexNonPropertyBins.add(EDGE_CACHE_DISABLED_BIN); // 6
         vertexNonPropertyBins.add(IN_EDGES_BIN); // 7
         vertexNonPropertyBins.add(OUT_EDGES_BIN); // 8
-        vertexPropertyBins.add(PROPERTIES_BIN); // 9
-        vertexPropertyBins.add(TYPE_HINTS_BIN); // 10
+        vertexNonPropertyBins.add(PROPERTIES_BIN); // 9 --> These are not included in vertex property bins since they are not property key mapped.
+        vertexNonPropertyBins.add(TYPE_HINTS_BIN); // 10 --> These are not included in vertex property bins since they are not property key mapped.
         vertexNonPropertyBins.add(ID_TYPE_BIN); // 12
         vertexNonPropertyBins.add(USER_KEY_BIN); // 13
         vertexNonPropertyBins.add(LABEL_BIN); // 14

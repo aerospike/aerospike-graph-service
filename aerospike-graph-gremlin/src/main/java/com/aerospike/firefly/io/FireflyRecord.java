@@ -167,7 +167,7 @@ public class FireflyRecord {
             final FireflyCache cache = db.transactionCache.get();
             records = (cache != null) ? cache.read(keyList.toArray(Key[]::new), batchReadPolicy) :
                     db.getClient().get(batchReadPolicy, keyList.toArray(Key[]::new));
-        } else if (!readInfo.requiredProperties.isEmpty()){
+        } else if (!readInfo.requiredProperties.isEmpty()) {
             // No cache for partial property reads.
             final List<Operation> operations = new ArrayList<>();
             final List<Value> properties = readInfo.requiredProperties.stream().map(Value::get).collect(Collectors.toList());

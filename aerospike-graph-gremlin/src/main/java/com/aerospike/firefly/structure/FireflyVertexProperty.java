@@ -105,6 +105,10 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
             if (vertex == null) {
                 vertex = graph.readVertex(vertexId);
             }
+            if (vertex == null) {
+                throw new IllegalStateException("Failed to remove VertexProperty with id " + id.getUserId() +
+                        " from vertex with id " + vertexId.getUserId() + " because the vertex does not exist.");
+            }
             vertex.removeVertexProperty(label, id);
         } catch (final AerospikeException ae) {
             // Removing a property that is already removed SHOULD NOT yield an error.

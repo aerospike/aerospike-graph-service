@@ -82,7 +82,6 @@ public final class ConfigurationHelper {
         public static final String PLUGIN = "aerospike.graph.plugin";
         public static final String TTL_ENABLED_FLAG = "aerospike.graph.ttl.enabled";
         public static final String TTL_PURGE_INTERVAL_SECONDS = "aerospike.graph.ttl.purge.interval";
-        public static final String TTL_UPDATE_ANYTIME_FLAG = "aerospike.graph.ttl.update.anytime.enabled";
 
         // Semi internal semi external configs
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
@@ -337,8 +336,7 @@ public final class ConfigurationHelper {
         put(Keys.PROMETHEUS_RENAME, "true");
         put(Keys.DEBUG_MODE_FLAG, "false");
         put(Keys.TTL_ENABLED_FLAG, "false");
-        put(Keys.TTL_PURGE_INTERVAL_SECONDS, "300"); // 5 minute default
-        put(Keys.TTL_UPDATE_ANYTIME_FLAG, "false");
+        put(Keys.TTL_PURGE_INTERVAL_SECONDS, "2");
         put(Keys.USAGE_STATS_UPDATE_INTERVAL, "3600000"); // 1 hour default
         put(Keys.AUTH_MODE, "internal");
         put(Keys.CLIENT_SERVICES_ALTERNATE, "false");

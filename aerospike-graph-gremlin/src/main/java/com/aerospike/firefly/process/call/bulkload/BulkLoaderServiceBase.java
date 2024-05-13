@@ -30,7 +30,10 @@ public abstract class BulkLoaderServiceBase<I, R> extends AdminServiceRegistry<I
             Set.of(
                     new BulkLoaderServiceLoad<>(graph),
                     new BulkLoaderServiceErrors<>(graph),
-                    new BulkLoaderServiceCountErrors<>(graph)
+                    new BulkLoaderServiceCountErrors<>(graph),
+                    new BulkLoaderServiceLoadDeprecated<>(graph),
+                    new BulkLoaderServiceErrorsDeprecated<>(graph),
+                    new BulkLoaderServiceCountErrorsDeprecated<>(graph)
             ).forEach(graph.getServiceRegistry()::registerService);
 
             // HTTP routing comes up before firefly. Need to latch firefly into the services.

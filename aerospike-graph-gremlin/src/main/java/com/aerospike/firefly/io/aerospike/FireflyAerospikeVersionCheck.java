@@ -97,6 +97,18 @@ public class FireflyAerospikeVersionCheck {
         }
     }
 
+    public static String getVersionString(final AerospikeClient client) {
+        final StringBuilder versionString = new StringBuilder();
+        for (final Node node: client.getNodes()) {
+            final String response = Info.request(null, node, "build");
+            if (!versionString.toString().isEmpty()) {
+                versionString.append(",");
+            }
+            versionString.append(node.getAddress().getHostName()).append(":").append(response);
+        }
+        return versionString.toString();
+    }
+
     public static boolean validateVersion(final FireflyAerospikeVersionCheck version) {
         return version.major > MAJOR_MINIMUM ||
                 (version.major == MAJOR_MINIMUM && (version.minor > MINOR_MINIMUM ||

@@ -2,11 +2,10 @@ package com.aerospike.firefly.admin;
 
 import com.aerospike.firefly.runtime.FireflyServer;
 import com.aerospike.firefly.security.UserContext;
-import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
-import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.driver.Cluster;
+import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -17,13 +16,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Base64;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
-import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
 public class TestAdminCallHttpJwt {
 
@@ -51,10 +46,117 @@ public class TestAdminCallHttpJwt {
         void check(final String userCredentials);
     }
 
+    @Test
+    public void testJwtGenerateCallStep() {
+        final Cluster cluster = Cluster.build()
+                .addContactPoint("localhost")
+                .port(8182)
+                .credentials("lyndon_username", validAdmin)
+                .create();
+        final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
+        final GraphTraversalSource g = traversal().withRemote(connection);
+        final String adminToken = (String) g.call("aerospike.graph.admin.rbac-jwt.issue-token").with("username", "lyndon_admin").with("role", "ADMIN").next();
+        final Cluster cluster2 = Cluster.build()
+                .addContactPoint("localhost")
+                .port(8182)
+                .credentials("lyndon_admin", adminToken)
+                .create();
+        final DriverRemoteConnection connection2 = DriverRemoteConnection.using(cluster2);
+        final GraphTraversalSource g2 = traversal().withRemote(connection2);
+        String readWriteToken = (String) g2.call("aerospike.graph.admin.rbac-jwt.issue-token").with("username", "lyndon_readwrite").with("role", "READ_WRITE").next();
+        Cluster cluster3 = Cluster.build()
+                .addContactPoint("localhost")
+                .port(8182)
+                .credentials("lyndon_readwrite", readWriteToken)
+                .create();
+        final DriverRemoteConnection connection3 = DriverRemoteConnection.using(cluster3);
+        final GraphTraversalSource g3 = traversal().withRemote(connection3);
+        Assert.assertThrows(Exception.class, () -> {
+            g3.call("aerospike.graph.admin.rbac-jwt.issue-token").with("username", "lyndon_read").with("role", "READ").next();
+        });
+        g3.addV().iterate();
+        g3.V().drop().iterate();
+
+        final String readToken = (String) g.call("aerospike.graph.admin.rbac-jwt.issue-token").with("username", "lyndon_read").with("role", "READ").next();
+        final Cluster cluster4 = Cluster.build()
+                .addContactPoint("localhost")
+                .port(8182)
+                .credentials("lyndon_read", readToken)
+                .create();
+        final DriverRemoteConnection connection4 = DriverRemoteConnection.using(cluster4);
+        final GraphTraversalSource g4 = traversal().withRemote(connection4);
+        Assert.assertThrows(Exception.class, () -> {
+            g4.addV().iterate();
+        });
+        Assert.assertThrows(Exception.class, () -> {
+            g4.V().drop().iterate();
+        });
+        g4.V().count().next();
+    }
+
+    @Test
+    public void testExpiry() throws InterruptedException {
+        final Cluster cluster = Cluster.build()
+                .addContactPoint("localhost")
+                .port(8182)
+                .credentials("lyndon_username", validAdmin)
+                .create();
+        final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
+        final GraphTraversalSource g = traversal().withRemote(connection);
+        final String adminToken = (String) g.call("aerospike.graph.admin.rbac-jwt.issue-token").with("username", "lyndon_admin").with("role", "ADMIN").with("expiry", 10).next();
+        final Cluster cluster2 = Cluster.build()
+                .addContactPoint("localhost")
+                .port(8182)
+                .credentials("lyndon_admin", adminToken)
+                .create();
+        final DriverRemoteConnection connection2 = DriverRemoteConnection.using(cluster2);
+        final GraphTraversalSource g2 = traversal().withRemote(connection2);
+        g2.V().count().next();
+        Thread.sleep(11000);
+        Assert.assertThrows(Exception.class, () -> {
+            g2.V().count().next();
+        });
+        final Cluster cluster3 = Cluster.build()
+                .addContactPoint("localhost")
+                .port(8182)
+                .credentials("lyndon_admin", adminToken)
+                .create();
+        final DriverRemoteConnection connection3 = DriverRemoteConnection.using(cluster3);
+        final GraphTraversalSource g3 = traversal().withRemote(connection3);
+        Assert.assertThrows(Exception.class, () -> {
+            g3.V().count().next();
+        });
+    }
 
     public String adminIndexListHeaders(final String userCredentials) {
         try {
             final URL url = new URL("http://localhost:9090/admin/index/list");
+            final HttpURLConnection con = (HttpURLConnection) url.openConnection();
+
+            // Send request to the server and read reply
+            final String token = "Bearer " + new String(Base64.getEncoder().encode(userCredentials.getBytes()));
+
+            // Send request to the server and read reply
+            con.setRequestMethod("GET");
+            con.setRequestProperty("Authorization", token);
+
+            // Read input stream into String.
+            final byte[] bytes = con.getInputStream().readAllBytes();
+            final String response = new String(bytes);
+            return response;
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    public String adminRbacJwtIssueToken(final String userCredentials) {
+        try {
+            final String query = String.format("username=%s&role=%s",
+                    URLEncoder.encode("username", "UTF-8"),
+                    URLEncoder.encode("ADMIN", "UTF-8"));
+
+            final URL url = new URL("http://localhost:9090/admin/rbac-jwt/issue-token?" + query);
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
             // Send request to the server and read reply
@@ -197,7 +299,6 @@ public class TestAdminCallHttpJwt {
 
     public String adminMetadataUsage(final String userCredentials) {
         try {
-            // call("aerospike.graph.admin.metadata.usage")
             final URL url = new URL("http://localhost:9090/admin/metadata/usage");
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
@@ -246,6 +347,11 @@ public class TestAdminCallHttpJwt {
             }
             check.check(validAdmin);
         }
+    }
+
+    @Test
+    public void testRbacJwtIssueToken() {
+        checkPermissions(UserContext.ROLE.ADMIN, this::adminRbacJwtIssueToken);
     }
 
     @Test

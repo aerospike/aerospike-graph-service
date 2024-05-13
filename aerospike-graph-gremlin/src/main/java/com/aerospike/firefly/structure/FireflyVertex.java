@@ -706,9 +706,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final Bin ttlBin = new Bin(this.db.TTL_BIN, expirationTime);
         final Operation writeTtl = Operation.put(ttlBin);
         this.db.operate(writePolicy, key, writeTtl);
-        if (durationSeconds < db.TTL_PURGE_INTERVAL_SECONDS) {
-            this.graph.scheduleElementForTtlNow(this, durationSeconds);
-        }
     }
 
     /**
@@ -978,24 +975,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     }
 
     @Override
-    public long getTtlMillis() {
-        final Key key = getKey(this.db, this.db.VERTEX_AERO_SET, this.id);
-        final Operation getTtlBin = Operation.get(this.db.TTL_BIN);
-        try {
-            final Record result = this.db.operate(null, key, getTtlBin);
-            final long expiryTime = result.getLong(this.db.TTL_BIN);
-            return expiryTime - System.currentTimeMillis();
-        } catch (final AerospikeException e) {
-            if (e.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR) {
-                // Vertex was already deleted.
-                throw new ElementNotFoundException(e);
-            }
-            LOG.error("Unexpected error when checking TTL for Vertex " + this.id(), e);
-            throw e;
-        }
-    }
-
-    @Override
     public String toString() {
         return StringFactory.vertexString(this);
     }
@@ -1079,7 +1058,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         }
 
         final List<Operation> operations = new ArrayList<>();
-        boolean scheduleTtlImmediately = false;
         long ttlValueLong = 0;
         if (vertexTypeHint == FireflyVertex.VERTEX_TYPE_HINT) {
             final PropertyValueIdMaps propertyValueIdMaps = getPropertyValueIdMaps(graph, validProperties);
@@ -1096,9 +1074,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                     final Bin ttlBin = new Bin(db.TTL_BIN, expirationTime);
                     final Operation writeTtlBin = Operation.put(ttlBin);
                     operations.add(writeTtlBin);
-                    if (ttlValueLong < db.TTL_PURGE_INTERVAL_SECONDS) {
-                        scheduleTtlImmediately = true;
-                    }
                 } else {
                     throw new IllegalArgumentException(
                             String.format("Property value [%s] for key %s is of type %s and must be numeric", ttlValue,
@@ -1196,9 +1171,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                     new TreeMap<>(), (Map<String, FireflyId>) vertexPropertyIds, vertexPropertyValueMap,
                     vertexPropertyTypeHintMap, vpProperties, vpPropertiesTypeHints,
                     isEdgeCacheOverflowed, db);
-            if (scheduleTtlImmediately) {
-                graph.scheduleElementForTtlNow(vertex, ttlValueLong);
-            }
             return vertex;
         } else {
             // Should never happen.

@@ -14,7 +14,10 @@ python3 scripts/configure_aerospike_graph.py "/opt/aerospike-graph/aerospike-gra
     "$CONF_DIR/flattened-default-gremlin-server.yaml" \
     "$OUTPUT_SERVER_YAML" \
     "$CONF_DIR/aerospike-graph.properties" \
-    "$CONF_DIR/java_options.txt"
+    "$CONF_DIR/java_options.txt" \
+    "$CONF_DIR/unified-config.properties"
+
+export UNIFIED_CONFIG_PROPERTIES_PATH="$CONF_DIR/unified-config.properties"
 
 # Exit if the python script failed.
 if [ $? != 0 ];
@@ -59,12 +62,13 @@ stop_gremlin_server() {
     # If they are using this they are on their own linking yaml->properties, but
     # can still set the min heap and max heap via environment variables and it will work.
     echo "==== Bootstrapping Aerospike Graph Service with custom gremlin-server.yaml. ===="
-    cat /opt/aerospike-graph/custom/aerospike-graph-service.yaml
+    export GREMLIN_SERVER_YAML_PATH=/opt/aerospike-graph/custom/aerospike-graph-service.yaml
     gremlin-server.sh /opt/aerospike-graph/custom/aerospike-graph-service.yaml
 
   # Else if they passed only a properties file
   else
     echo "==== Bootstrapping Aerospike Graph Service with generated gremlin-server.yaml. ===="
+    export GREMLIN_SERVER_YAML_PATH=$OUTPUT_SERVER_YAML
     gremlin-server.sh $OUTPUT_SERVER_YAML
   fi
 ) <&0 &

@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -158,6 +159,8 @@ public class FireflyIdFactory {
             }
         } else if (byte[].class.isAssignableFrom(id.getClass())) {
             return new FireflyIdComposite(db, (byte[]) id);
+        } else if (id instanceof LazyIdTransform) {
+            return ((LazyIdTransform) id).transform();
         }
         throw new IllegalArgumentException("Invalid id type: " + id.getClass() + ". Id type must be one of " + TYPE_TO_HINT.keySet());
     }
@@ -254,6 +257,33 @@ public class FireflyIdFactory {
             labelEdgeIds.put(label, fireflyIds);
         }
         return labelEdgeIds;
+    }
+
+    public void convertMapToLazyIdsInPlace(final Map<String, ?> fireflyObjectIds,
+                                           final FireflyGraph graph,
+                                           final Class<? extends FireflyElement> type) {
+        // Code below complains without the supression and cast to <String, Object>.
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> fireflyObjectIdsMap = (Map) fireflyObjectIds;
+        fireflyObjectIdsMap.forEach((key, value) -> {
+            if (value instanceof List<?>) {
+                final List<Object> list = (List<Object>) value;
+                fireflyObjectIdsMap.replace(key,
+                        list.stream().map(id -> {
+                            if (id instanceof FireflyId) {
+                                return new LazyIdTransform((FireflyId) id, graph);
+                            } else {
+                                return new LazyIdTransform(id, graph, type);
+                            }
+                        }).collect(Collectors.toList()));
+            } else {
+                if (value instanceof FireflyId) {
+                    fireflyObjectIdsMap.replace(key, new LazyIdTransform((FireflyId) value, graph));
+                } else {
+                    fireflyObjectIdsMap.replace(key, new LazyIdTransform(value, graph, type));
+                }
+            }
+        });
     }
 
     public Map<String, Object> convertMapToStorage(final Map<String, FireflyId> fireflyObjectIds) {

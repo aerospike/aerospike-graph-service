@@ -42,6 +42,7 @@ import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
 import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
+import com.aerospike.firefly.structure.id.LazyIdTransform;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromIndexedVertex;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
@@ -67,6 +68,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -90,12 +92,12 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     public static final int VERTEX_TYPE_HINT = 1;
     private static final Logger LOG = LoggerFactory.getLogger(FireflyVertex.class);
-    protected final Map<String, List<LazyIdCalculator>> inEdgeIds;
-    protected final Map<String, List<LazyIdCalculator>> outEdgeIds;
+    protected final Map<String, List<LazyIdTransform>> inEdgeIds;
+    protected final Map<String, List<LazyIdTransform>> outEdgeIds;
     protected final AerospikeConnection db;
     protected FireflyGraph graph;
     public static final String SUPERNODE_PROPERTY_KEY = "~supernode";
-    protected Map<String, LazyIdCalculator> vertexPropertyIds;
+    protected Map<String, LazyIdTransform> vertexPropertyIds;
     protected Map<String, Object> vertexPropertyValues;
     protected Map<String, Object> vertexPropertyValuesTypeHints;
     protected Map<Object, Map<String, Object>> vertexPropertyIdToProperties;
@@ -105,9 +107,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     public FireflyVertex(final FireflyId fid,
                          final String label,
                          final FireflyGraph graph,
-                         final Map<String, List<LazyIdCalculator>> inEdgeIds,
-                         final Map<String, List<LazyIdCalculator>> outEdgeIds,
-                         final Map<String, LazyIdCalculator> vertexPropertyIds,
+                         final Map<String, List<LazyIdTransform>> inEdgeIds,
+                         final Map<String, List<LazyIdTransform>> outEdgeIds,
+                         final Map<String, LazyIdTransform> vertexPropertyIds,
                          final Map<String, Object> vertexPropertyValues,
                          final Map<String, Object> vertexPropertyValuesTypeHints,
                          final Map<Object, Map<String, Object>> vertexPropertyIdToProperties,
@@ -125,34 +127,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         this.vertexPropertyIdToTypeHints = vertexPropertyIdToTypeHints == null ? new TreeMap<>() : vertexPropertyIdToTypeHints;
         this.isEdgeCacheOverflowed = isEdgeCacheOverflowed;
         this.db = db;
-    }
-
-    public static class LazyIdCalculator implements IdTransform {
-        FireflyId id = null;
-        Object idO = null;
-        FireflyGraph graph1 = null;
-
-
-        public LazyIdCalculator(final FireflyId id, final FireflyGraph graph) {
-            this.id = id;
-            this.graph1 = graph;
-        }
-        public LazyIdCalculator(final Object idO, final FireflyGraph graph) {
-            this.idO = idO;
-            this.graph1 = graph;
-        }
-
-        @Override
-        public FireflyId transform() {
-            if (id == null) {
-                id = graph1.getIdFactory().createId(idO, FireflyVertex.class);
-            }
-            return id;
-        }
-    }
-
-    interface IdTransform {
-        FireflyId transform();
     }
 
     /**
@@ -223,7 +197,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 (VertexProperty<V>) new FireflyVertexProperty<>(graph, vertexPropertyId, this, key, vertexProperty, vpProperties, vpTypeHints));
     }
 
-    private void updateVertexPropertyJVMCache(final Map<String, FireflyId> vertexPropertyIds,
+    private void updateVertexPropertyJVMCache(final Map<String, LazyIdTransform> vertexPropertyIds,
                                               final Map<String, Object> vertexPropertyValues,
                                               final Map<String, Object> vertexPropertyValuesTypeHints,
                                               final Map<Object, Map<String, Object>> vertexPropertyIdToProperties,
@@ -291,9 +265,10 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             final Map<String, Object> vertexPropertyIds = (Map<String, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_ID_BIN, 1)).orElse(new TreeMap<>());
             final Map<Object, Map<String, Object>> vertexPropertyIdToProperties = (Map<Object, Map<String, Object>>) Optional.ofNullable(getValueAtIndex(result, this.db.PROPERTIES_BIN, 1)).orElse(new TreeMap<>());
             final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints = (Map<Object, Map<String, Object>>) Optional.ofNullable(getValueAtIndex(result, this.db.TYPE_HINTS_BIN, 1)).orElse(new TreeMap<>());
-            final Map<String, FireflyId> vertexPropertyFireflyIds = this.graph.getIdFactory().convertMapObjectToFireflyIdMap(vertexPropertyIds, FireflyVertexProperty.class);
+            this.graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, FireflyVertexProperty.class);
+            final Map<String, LazyIdTransform> vertexPropertyFireflyIds =(Map) vertexPropertyIds;
 
-            // Update this FireflyVertex in JVM cache
+                    // Update this FireflyVertex in JVM cache
             updateVertexPropertyJVMCache(vertexPropertyFireflyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyIdToProperties, vertexPropertyIdToTypeHints);
             graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(label, Set.of(vertexProperty.key()));
         } catch (final RecordTooBigException e) {
@@ -354,8 +329,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 (Map<Object, Map<String, Object>>) getValueAtIndex(result, this.db.PROPERTIES_BIN, 1);
         final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints =
                 (Map<Object, Map<String, Object>>) getValueAtIndex(result, this.db.TYPE_HINTS_BIN, 1);
-        final Map<String, FireflyId> vertexPropertyFireflyIds =
-                this.graph.getIdFactory().convertMapObjectToFireflyIdMap(vertexPropertyIds, FireflyVertexProperty.class);
+        this.graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, FireflyVertexProperty.class);;
+        final Map<String, LazyIdTransform> vertexPropertyFireflyIds = (Map) vertexPropertyIds;
+
 
         // Update this FireflyVertex in JVM cache
         updateVertexPropertyJVMCache(vertexPropertyFireflyIds, vertexPropertyValues,
@@ -374,7 +350,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final String cacheBinName = direction == Direction.IN ? db.IN_EDGES_BIN : db.OUT_EDGES_BIN;
 
         // Update the JVM cache of this.
-        final Map<String, List<FireflyId>> edgeCache = direction == Direction.IN ? this.inEdgeIds : this.outEdgeIds;
+        final Map<String, List<LazyIdTransform>> edgeCache = direction == Direction.IN ? this.inEdgeIds : this.outEdgeIds;
 
         // If the edge is not in the JVM cache it also means it wasn't read from DB, so no need to operate on DB to
         // remove what isn't there.
@@ -385,7 +361,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             }
             return;
         }
-        final List<FireflyId> edgeIdsOfLabel = edgeCache.get(edgeLabel);
+        final List<FireflyId> edgeIdsOfLabel = edgeCache.get(edgeLabel).stream().map(LazyIdTransform::transform).collect(Collectors.toList());
         if (!edgeIdsOfLabel.contains(edgeId)) {
             if (!this.isEdgeCacheOverflowed) {
                 LOG.error("Could not find edge id {} in vertex {}. Vertex edge cache under label {} did not contain edge id {}.",
@@ -467,12 +443,12 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             if (!this.inEdgeIds.containsKey(edgeLabel)) {
                 this.inEdgeIds.put(edgeLabel, new ArrayList<>());
             }
-            this.inEdgeIds.get(edgeLabel).add(edgeId);
+            this.inEdgeIds.get(edgeLabel).add(new LazyIdTransform(edgeId, graph));
         } else {
             if (!this.outEdgeIds.containsKey(edgeLabel)) {
                 this.outEdgeIds.put(edgeLabel, new ArrayList<>());
             }
-            this.outEdgeIds.get(edgeLabel).add(edgeId);
+            this.outEdgeIds.get(edgeLabel).add(new LazyIdTransform(edgeId, graph));
         }
 
         // Get bin name for edge direction.
@@ -672,7 +648,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 if (!labels.isEmpty() && !labels.contains(key)) {
                     continue;
                 }
-                cachedIds.addAll(outEdgeIds.get(key));
+                cachedIds.addAll(outEdgeIds.get(key).stream().map(LazyIdTransform::transform).collect(Collectors.toList()));
             }
         }
         if (direction == Direction.IN || direction == Direction.BOTH) {
@@ -680,7 +656,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 if (!labels.isEmpty() && !labels.contains(key)) {
                     continue;
                 }
-                cachedIds.addAll(inEdgeIds.get(key));
+                cachedIds.addAll(inEdgeIds.get(key).stream().map(LazyIdTransform::transform).collect(Collectors.toList()));
             }
         }
         return cachedIds;
@@ -955,9 +931,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     }
 
     private long getCachedEdgeCount(final Direction direction) {
-        final Map<String, List<FireflyId>> edgeCache = direction == Direction.IN ? this.inEdgeIds : this.outEdgeIds;
+        final Map<String, List<LazyIdTransform>> edgeCache = direction == Direction.IN ? this.inEdgeIds : this.outEdgeIds;
         long size = 0;
-        for (final List<FireflyId> ids : edgeCache.values()) {
+        for (final List<LazyIdTransform> ids : edgeCache.values()) {
             size += ids.size();
         }
         return size;
@@ -1056,7 +1032,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
         // Get database connection.
         final AerospikeConnection db = graph.getBaseGraph();
-        final Map<String, ?> vertexPropertyIds;
+        final Map<String, FireflyId> vertexPropertyIds;
         final Map<String, ?> vertexPropertyIdsWritable;
         final Map<String, Object> vertexPropertyValueMap;
 
@@ -1195,8 +1171,10 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
             db.operate(policy, key, operations.toArray(new Operation[0]));
             graph.fireflySummaryUpdater.addVertexWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
+            graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, FireflyVertexProperty.class);
+            final Map<String, LazyIdTransform> lazyIdTransformMap = (Map) vertexPropertyIds;
             final FireflyVertex vertex = FireflyVertexFactory.create(vertexId, label, graph, new TreeMap<>(),
-                    new TreeMap<>(), (Map<String, FireflyId>) vertexPropertyIds, vertexPropertyValueMap,
+                    new TreeMap<>(), lazyIdTransformMap, vertexPropertyValueMap,
                     vertexPropertyTypeHintMap, vpProperties, vpPropertiesTypeHints,
                     isEdgeCacheOverflowed, db);
             return vertex;
@@ -1270,11 +1248,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
         // Get inEdgeIds and outEdgeIds.
         final Map<String, List<Object>> inEdgeIds = (Map) record.getMap(db.IN_EDGES_BIN);
-        graph.getIdFactory().convertMapToLazyIdsInPlace(inEdgeIds, graph);
+        graph.getIdFactory().convertMapToLazyIdsInPlace(inEdgeIds, graph, FireflyVertex.class);
         final Map<String, List<Object>> outEdgeIds = (Map) record.getMap(db.OUT_EDGES_BIN);
-        graph.getIdFactory().convertMapToLazyIdsInPlace(outEdgeIds, graph);
-        final Map<String, List<LazyIdCalculator>> fireflyInEdgeIds = (Map) inEdgeIds;
-        final Map<String, List<LazyIdCalculator>> fireflyOutEdgeIds = (Map) outEdgeIds;
+        graph.getIdFactory().convertMapToLazyIdsInPlace(outEdgeIds, graph, FireflyVertex.class);
+        final Map<String, List<LazyIdTransform>> fireflyInEdgeIds = (Map) inEdgeIds;
+        final Map<String, List<LazyIdTransform>> fireflyOutEdgeIds = (Map) outEdgeIds;
         final Map<Object, Map<String, Object>> vertexPropertyProperties = (Map) record.getMap(db.PROPERTIES_BIN);
         final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints = (Map) record.getMap(db.TYPE_HINTS_BIN);
 
@@ -1287,8 +1265,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                     (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
             final Map<String, Object> vertexPropertyIds =
                     (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
-            final Map<String, FireflyId> fireflyVertexPropertyIds =
-                    graph.getIdFactory().convertMapObjectToFireflyIdMap(vertexPropertyIds, FireflyVertexProperty.class);
+            graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, FireflyVertexProperty.class);
+            final Map<String, LazyIdTransform> fireflyVertexPropertyIds = (Map) vertexPropertyIds;
             return FireflyVertexFactory.create(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds,
                     fireflyVertexPropertyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyProperties,
                     vertexPropertyPropertiesTypeHints,
@@ -1323,9 +1301,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         public static FireflyVertex create(final FireflyId fid,
                                            final String label,
                                            final FireflyGraph graph,
-                                           final Map<String, List<FireflyId>> inEdgeIds,
-                                           final Map<String, List<FireflyId>> outEdgeIds,
-                                           final Map<String, FireflyId> vertexPropertyIds,
+                                           final Map<String, List<LazyIdTransform>> inEdgeIds,
+                                           final Map<String, List<LazyIdTransform>> outEdgeIds,
+                                           final Map<String, LazyIdTransform> vertexPropertyIds,
                                            final Map<String, Object> vertexPropertyValues,
                                            final Map<String, Object> vertexPropertyValuesTypeHints,
                                            final Map<Object, Map<String, Object>> vertexPropertyProperties,

@@ -10,11 +10,12 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.VerificationException;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.*;
@@ -98,17 +99,18 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
     }
 
     @Test
-    public void testVertexPage() {
-        for (int i = 0; i < 100; i++) {
-            Vertex v = graph.addVertex();
-            v.addEdge("self", v);
-            if (i % 100 == 0)
-                LOG.warn("Loaded {} vertices", i);
-        }
-        graph.traversal().withComputer().V().has("name", "marko").out().count().profile().forEachRemaining(System.out::println);
-
-
-        //assertEquals(10_00L, graph.getVertexCount(List.of()));
-        //assertEquals(10_00L, graph.traversal().withComputer().withStrategies(VertexProgramStrategy.build().workers(16).create()).V().count().next().longValue());
+    public void testVerificationHandling() {
+        Arrays.asList(
+                graph.traversal().withComputer().V().pageRank(),
+                graph.traversal().withComputer().V().shortestPath(),
+                graph.traversal().withComputer().V().out().peerPressure().valueMap()).forEach(t -> {
+            try {
+                LOG.warn("Verifying graph algorithm error handling:\n\t" + t.toString());
+                t.next();
+                assertFalse("Should have thrown verification exception message", true);
+            } catch (final VerificationException e) {
+                assertTrue(true);
+            }
+        });
     }
 }

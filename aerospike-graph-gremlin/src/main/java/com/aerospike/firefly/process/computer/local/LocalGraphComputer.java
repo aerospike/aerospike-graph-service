@@ -2,6 +2,7 @@ package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphFilterStrategy;
+import com.aerospike.firefly.process.traversal.strategy.verification.FireflyComputerVerificationStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -55,7 +56,7 @@ public class LocalGraphComputer implements GraphComputer {
         TraversalStrategies.GlobalCache.registerStrategies(LocalGraphComputer.class,
                 TraversalStrategies.GlobalCache.getStrategies(GraphComputer.class).clone()
                         .removeStrategies(new Class[]{GraphFilterStrategy.class})
-                        .addStrategies(FireflyGraphFilterStrategy.instance()));
+                        .addStrategies(FireflyGraphFilterStrategy.instance(), FireflyComputerVerificationStrategy.instance()));
     }
 
     public LocalGraphComputer(final FireflyGraph graph) {
@@ -147,12 +148,11 @@ public class LocalGraphComputer implements GraphComputer {
         // get the result graph and persist state to use for the computation
         this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
         this.persist = GraphComputerHelper.getPersistState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.persist));
-        if (!this.features().supportsResultGraphPersistCombination(this.resultGraph, this.persist))
-            throw GraphComputer.Exceptions.resultGraphPersistCombinationNotSupported(this.resultGraph, this.persist);
+        //if (!this.features().supportsResultGraphPersistCombination(this.resultGraph, this.persist))
+        // throw GraphComputer.Exceptions.resultGraphPersistCombinationNotSupported(this.resultGraph, this.persist);
         // ensure requested workers are not larger than supported workers
         if (this.workers > this.features().getMaxWorkers())
             throw GraphComputer.Exceptions.computerRequiresMoreWorkersThanSupported(this.workers, this.features().getMaxWorkers());
-
         // initialize the memory
         this.memory = new LocalMemory(this.vertexProgram, this.mapReducers);
         try {
@@ -160,6 +160,7 @@ public class LocalGraphComputer implements GraphComputer {
                 final long time = System.currentTimeMillis();
                 // create logical view over graph maintaining graph computer global state data
                 final LocalGraphComputerView view = FireflyHelper.createGraphComputerView(this.graph, this.graphFilter, null != this.vertexProgram ? this.vertexProgram.getVertexComputeKeys() : Collections.emptySet());
+
                 // create thread pool of workers (single machine)
                 final LocalWorkerPool workers = new LocalWorkerPool(this.graph, this.memory, this.workers);
 

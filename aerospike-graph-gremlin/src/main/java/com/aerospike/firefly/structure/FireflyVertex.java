@@ -90,12 +90,12 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     public static final int VERTEX_TYPE_HINT = 1;
     private static final Logger LOG = LoggerFactory.getLogger(FireflyVertex.class);
-    protected final Map<String, List<FireflyId>> inEdgeIds;
-    protected final Map<String, List<FireflyId>> outEdgeIds;
+    protected final Map<String, List<LazyIdCalculator>> inEdgeIds;
+    protected final Map<String, List<LazyIdCalculator>> outEdgeIds;
     protected final AerospikeConnection db;
     protected FireflyGraph graph;
     public static final String SUPERNODE_PROPERTY_KEY = "~supernode";
-    protected Map<String, FireflyId> vertexPropertyIds;
+    protected Map<String, LazyIdCalculator> vertexPropertyIds;
     protected Map<String, Object> vertexPropertyValues;
     protected Map<String, Object> vertexPropertyValuesTypeHints;
     protected Map<Object, Map<String, Object>> vertexPropertyIdToProperties;
@@ -105,9 +105,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     public FireflyVertex(final FireflyId fid,
                          final String label,
                          final FireflyGraph graph,
-                         final Map<String, List<FireflyId>> inEdgeIds,
-                         final Map<String, List<FireflyId>> outEdgeIds,
-                         final Map<String, FireflyId> vertexPropertyIds,
+                         final Map<String, List<LazyIdCalculator>> inEdgeIds,
+                         final Map<String, List<LazyIdCalculator>> outEdgeIds,
+                         final Map<String, LazyIdCalculator> vertexPropertyIds,
                          final Map<String, Object> vertexPropertyValues,
                          final Map<String, Object> vertexPropertyValuesTypeHints,
                          final Map<Object, Map<String, Object>> vertexPropertyIdToProperties,
@@ -125,6 +125,34 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         this.vertexPropertyIdToTypeHints = vertexPropertyIdToTypeHints == null ? new TreeMap<>() : vertexPropertyIdToTypeHints;
         this.isEdgeCacheOverflowed = isEdgeCacheOverflowed;
         this.db = db;
+    }
+
+    public static class LazyIdCalculator implements IdTransform {
+        FireflyId id = null;
+        Object idO = null;
+        FireflyGraph graph1 = null;
+
+
+        public LazyIdCalculator(final FireflyId id, final FireflyGraph graph) {
+            this.id = id;
+            this.graph1 = graph;
+        }
+        public LazyIdCalculator(final Object idO, final FireflyGraph graph) {
+            this.idO = idO;
+            this.graph1 = graph;
+        }
+
+        @Override
+        public FireflyId transform() {
+            if (id == null) {
+                id = graph1.getIdFactory().createId(idO, FireflyVertex.class);
+            }
+            return id;
+        }
+    }
+
+    interface IdTransform {
+        FireflyId transform();
     }
 
     /**
@@ -186,7 +214,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Vertex property ids are cached - loop through entries and get the properties for the entry.
         final Object vertexProperty = this.db.convertValuetoTypeUsingHint(vertexPropertyValues.get(key),
                 vertexPropertyValuesTypeHints.get(key));
-        final FireflyId vertexPropertyId = vertexPropertyIds.get(key);
+        final FireflyId vertexPropertyId = vertexPropertyIds.get(key).transform();
         final Map<String, Object> vpProperties = vertexPropertyIdToProperties.containsKey(vertexPropertyId.getStorageId()) ?
                 vertexPropertyIdToProperties.get(vertexPropertyId.getStorageId()) : new TreeMap<>();
         final Map<String, Object> vpTypeHints = vertexPropertyIdToTypeHints.containsKey(vertexPropertyId.getStorageId()) ?
@@ -1241,16 +1269,14 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final boolean edgeCacheOverflowed = record.getBoolean(db.EDGE_CACHE_DISABLED_BIN);
 
         // Get inEdgeIds and outEdgeIds.
-        final Map<String, List<Object>> inEdgeIds = new HashMap<>((Map<String, List<Object>>) record.getMap(db.IN_EDGES_BIN));
-        final Map<String, List<Object>> outEdgeIds = new HashMap<>((Map<String, List<Object>>) record.getMap(db.OUT_EDGES_BIN));
-        final Map<String, List<FireflyId>> fireflyInEdgeIds =
-                graph.getIdFactory().convertMapListObjectToFireflyIdMap(inEdgeIds);
-        final Map<String, List<FireflyId>> fireflyOutEdgeIds =
-                graph.getIdFactory().convertMapListObjectToFireflyIdMap(outEdgeIds);
-        final Map<Object, Map<String, Object>> vertexPropertyProperties =
-                new HashMap<>((Map<Object, Map<String, Object>>) record.getMap(db.PROPERTIES_BIN));
-        final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints =
-                new HashMap<>((Map<Object, Map<String, Object>>) record.getMap(db.TYPE_HINTS_BIN));
+        final Map<String, List<Object>> inEdgeIds = (Map) record.getMap(db.IN_EDGES_BIN);
+        graph.getIdFactory().convertMapToLazyIdsInPlace(inEdgeIds, graph);
+        final Map<String, List<Object>> outEdgeIds = (Map) record.getMap(db.OUT_EDGES_BIN);
+        graph.getIdFactory().convertMapToLazyIdsInPlace(outEdgeIds, graph);
+        final Map<String, List<LazyIdCalculator>> fireflyInEdgeIds = (Map) inEdgeIds;
+        final Map<String, List<LazyIdCalculator>> fireflyOutEdgeIds = (Map) outEdgeIds;
+        final Map<Object, Map<String, Object>> vertexPropertyProperties = (Map) record.getMap(db.PROPERTIES_BIN);
+        final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints = (Map) record.getMap(db.TYPE_HINTS_BIN);
 
 
         // Create vertex based on type hint.

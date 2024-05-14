@@ -29,7 +29,11 @@ public abstract class MetadataServiceBase<I, R> extends AdminServiceRegistry<I, 
         synchronized (MetadataServiceBase.class) {
             Set.of(
                     new MetadataServiceUsage<>(graph),
-                    new MetadataServiceSummary<>(graph)
+                    new MetadataServiceSummary<>(graph),
+                    new MetadataServiceConfig<>(graph),
+                    new MetadataServiceVersion<>(graph),
+                    new MetadataServiceUsageDeprecated<>(graph),
+                    new MetadataServiceSummaryDeprecated<>(graph)
             ).forEach(graph.getServiceRegistry()::registerService);
 
             // HTTP routing comes up before firefly. Need to latch firefly into the services.
@@ -45,7 +49,10 @@ public abstract class MetadataServiceBase<I, R> extends AdminServiceRegistry<I, 
             if (services == null) {
                 services = Set.of(
                         new MetadataServiceUsage<>(null),
-                        new MetadataServiceSummary<>(null));
+                        new MetadataServiceSummary<>(null),
+                        new MetadataServiceConfig<>(null),
+                        new MetadataServiceVersion<>(null)
+                );
                 services.forEach(service -> router.route(service.getPath()).handler(service.getHandler()));
             }
         }

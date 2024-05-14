@@ -79,6 +79,42 @@ public class FireflyUsageStatsCallTest {
     }
 
     @Test
+    public void testUsageDeprecated() {
+        // 5 seconds to update
+        CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
+        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
+
+            // Wait 11 seconds so we can update.
+            Thread.sleep(11000);
+
+            // Get test vcpu count.
+            final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
+
+            // Call usage stats api to get usage stats.
+            final List<Object> usageStatsList = graph.traversal().call("usage-stats").toList();
+            Assert.assertEquals(1, usageStatsList.size());
+            final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
+            final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");
+
+            // Raw should be list of map.
+            Assert.assertTrue(usageStats.get("raw") instanceof List);
+            Assert.assertEquals(1, ((List<?>) usageStats.get("raw")).size());
+
+            // Vcpu count of raw should be same of test vcpu count.
+            Assert.assertEquals(testVcpuCount, rawUsageStats.get(0).get("vcpus"));
+
+            // Max mem of raw should be same of max mem of test.
+            Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
+
+            // Compare expected and vcpu-yrs.
+            Assert.assertTrue((Double) usageStats.get("total-vcpu") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS * HOURS_TO_YEARS));
+        } catch (final InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
     public void testSinceParameterNull() {
         // 5 seconds to update
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");

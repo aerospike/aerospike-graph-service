@@ -2,6 +2,12 @@ package com.aerospike.firefly.admin;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;
@@ -116,6 +122,36 @@ public class TestAdminCallHttp {
         }
     }
 
+    public String adminMetadataConfig() {
+        try {
+            final URL url = new URL("http://localhost:9090/admin/metadata/config");
+            final HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            // Read input stream into String.
+            final byte[] bytes = con.getInputStream().readAllBytes();
+            final String response = new String(bytes);
+            return response;
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public String adminMetadataVersion() {
+        try {
+            final URL url = new URL("http://localhost:9090/admin/metadata/version");
+            final HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            // Read input stream into String.
+            final byte[] bytes = con.getInputStream().readAllBytes();
+            final String response = new String(bytes);
+            return response;
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Test
     public void testList() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -125,7 +161,7 @@ public class TestAdminCallHttp {
             final List<String> indexesAfterDrop = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             Assert.assertTrue(indexesAfterDrop.isEmpty());
             final String indexList = adminIndexList();
-            Assert.assertEquals("[]", indexList);
+            Assert.assertEquals("[ ]", indexList);
 
 
             g.call("aerospike.graph.admin.index.create").
@@ -133,6 +169,9 @@ public class TestAdminCallHttp {
                     with("element_type", "vertex").next();
             g.call("aerospike.graph.admin.index.create").
                     with("property_key", "nameC").
+                    with("element_type", "vertex").next();
+            g.call("aerospike.graph.admin.index.create").
+                    with("property_key", "~label").
                     with("element_type", "vertex").next();
             Map<String, Long> nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                     with("property_key", "nameB").
@@ -140,7 +179,11 @@ public class TestAdminCallHttp {
             Map<String, Long> nameCStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                     with("property_key", "nameC").
                     with("element_type", "vertex").next();
-            while (nameBStatus.get("percent_complete") < 100 || nameCStatus.get("percent_complete") < 100) {
+            Map<String, Long> labelStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                    with("property_key", "~label").
+                    with("element_type", "vertex").next();
+            while (nameBStatus.get("percent_complete") < 100 || nameCStatus.get("percent_complete") < 100 ||
+                    labelStatus.get("percent_complete") < 100) {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
@@ -152,10 +195,13 @@ public class TestAdminCallHttp {
                 nameCStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                         with("property_key", "nameC").
                         with("element_type", "vertex").next();
+                labelStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                        with("property_key", "~label").
+                        with("element_type", "vertex").next();
             }
             final String indexListAfterCreate = adminIndexList();
             final Set<String> indexes = convertStringListToSet(indexListAfterCreate);
-            Assert.assertEquals(Set.of("nameB", "nameC"), indexes);
+            Assert.assertEquals(Set.of("\"nameB\"", "\"nameC\"", "\"vertex.~label\""), indexes);
         }
     }
 
@@ -266,7 +312,7 @@ public class TestAdminCallHttp {
             for (final String s : cardinalityArray) {
                 cardinalitySet.add(s.trim());
             }
-            Assert.assertEquals(Set.of("nameA=1", "nameB=1"), cardinalitySet);
+            Assert.assertEquals(Set.of("\"nameA\" : 1", "\"nameB\" : 1"), cardinalitySet);
         }
     }
 
@@ -287,6 +333,57 @@ public class TestAdminCallHttp {
             final GraphTraversalSource g = fireflyGraph.traversal();
             final String usage = adminMetadataUsage();
             Assert.assertTrue(usage.contains("raw"));
+        }
+    }
+
+    @Test
+    public void testConfig() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty("aerospike.client.password", "Foo");
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final String configString = adminMetadataConfig();
+            Assert.assertTrue(configString.startsWith("{"));
+            Assert.assertTrue(configString.endsWith("}"));
+            final ObjectReader reader = new ObjectMapper().reader();
+            final JsonNode tree = reader.readTree(configString);
+            // Check has Aerospike version and Aerospike Graph Service version
+            Assert.assertTrue(tree.has("Gremlin Server Configuration"));
+            Assert.assertTrue(tree.has("Unified Configuration"));
+            Assert.assertTrue(tree.has("Graph Properties"));
+            // Check value of graph service version
+            final JsonNode configNode = tree.get("Graph Properties");
+            Assert.assertTrue(configNode.has("aerospike.client.password"));
+            Assert.assertTrue(configNode.has("aerospike.graph.data.model"));
+            final String pw = configNode.get("aerospike.client.password").asText();
+            Assert.assertEquals(pw, "********");
+            final String dm = configNode.get("aerospike.graph.data.model").asText();
+            Assert.assertEquals(dm, "packed");
+        } catch (JsonMappingException e) {
+            throw new RuntimeException(e);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    public void testVersion() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final String version = adminMetadataVersion();
+            Assert.assertTrue(version.startsWith("{"));
+            Assert.assertTrue(version.endsWith("}"));
+            final ObjectReader reader = new ObjectMapper().reader();
+            final JsonNode tree = reader.readTree(version);
+            // Check has Aerospike version and Aerospike Graph Service version
+            Assert.assertTrue(tree.has("Aerospike version"));
+            Assert.assertTrue(tree.has("Aerospike Graph Service version"));
+            // Check value of graph service version
+            final String graphServiceVersion = tree.get("Aerospike Graph Service version").asText();
+            Assert.assertEquals(FireflyGraph.FIREFLY_VERSION, graphServiceVersion);
+        } catch (JsonMappingException e) {
+            throw new RuntimeException(e);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
         }
     }
 }

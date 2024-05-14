@@ -76,7 +76,7 @@ public final class FireflyHelper {
     private static List<Edge> getEdgeList(final FireflyGraph graph, final FireflyVertex vertex, final Direction direction, final Set<String> labels) {
         // TODO: This returns a raw list and could blow up on a supernode.
         // This is kind of silly, but we a new ArrayList<> is required to remove the FireflyEdge type and allow it to be cast to Edge.
-        return new ArrayList<>(graph.readEdges(List.of(), vertex.getEdgeIdsFromVertex(direction, labels, Collections.emptyList())));
+        return new ArrayList<>(graph.readEdges(List.of(), vertex.getEdgeIdsFromVertex(direction, labels, Collections.emptyList()), null));
     }
 
     public static Iterator<Edge> getEdges(FireflyGraph graph, FireflyVertex vertex, Direction direction, String[] edgeLabels) {

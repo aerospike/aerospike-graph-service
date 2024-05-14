@@ -151,7 +151,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             graph.writeVertex(next, "aVertexLabel", new ArrayList<>());
         });
         final AtomicLong ctr = new AtomicLong(0);
-        new FireflyBatchElementIterator<>(graph, usedIds.iterator(), List.of(), graph::readVertices).forEachRemaining(v -> {
+        new FireflyBatchElementIterator<>(graph, usedIds.iterator(), List.of(), graph::readVertices, null).forEachRemaining(v -> {
             ctr.addAndGet(1);
             assertEquals("aVertexLabel", v.label());
         });

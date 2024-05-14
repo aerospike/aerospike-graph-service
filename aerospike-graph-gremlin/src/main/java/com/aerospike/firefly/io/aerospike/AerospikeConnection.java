@@ -168,6 +168,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final String BL_FILE_BIN;
     public final boolean GLOBAL_EDGE_CACHE_ENABLED_FLAG;
     public final ThreadLocal<FireflyCache> transactionCache = new ThreadLocal<>();
+    public final ThreadLocal<FireflyCache> emptyPropsTransactionCache = new ThreadLocal<>();
     public final ThreadLocal<ScanHitCounter> scanHitCounterThreadLocal = new ThreadLocal<>();
     public final int AEROSPIKE_BATCH_READ_SIZE;
     public final long FIREFLY_READ_THROUGH_CACHE_WEIGHT;
@@ -217,6 +218,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final int PAGINATION_PAGE_MAX_WAIT;
     public final boolean AUTHENTICATION_ENABLED;
     public boolean isSupernodePushdownEnabled = true;
+    public final List<String> vertexNonPropertyBins = new ArrayList<>();
+    public final List<String> vertexPropertyBins = new ArrayList<>();
 
     public final String QUERY_IMPL;
     public Policy getPolicy() {
@@ -440,6 +443,19 @@ public class AerospikeConnection implements AutoCloseable {
 
         cacheTasks = new ArrayList<>();
         idFactory = FireflyIdFactory.create(this);
+
+        vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_BIN); // 2
+        vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN); // 3
+        vertexNonPropertyBins.add(RELATIONAL_VERTEX_TYPE_HINT_BIN); // 4
+        vertexNonPropertyBins.add(EDGE_CACHE_DISABLED_BIN); // 6
+        vertexNonPropertyBins.add(IN_EDGES_BIN); // 7
+        vertexNonPropertyBins.add(OUT_EDGES_BIN); // 8
+        vertexNonPropertyBins.add(PROPERTIES_BIN); // 9 --> These are not included in vertex property bins since they are not property key mapped.
+        vertexNonPropertyBins.add(TYPE_HINTS_BIN); // 10 --> These are not included in vertex property bins since they are not property key mapped.
+        vertexNonPropertyBins.add(ID_TYPE_BIN); // 12
+        vertexNonPropertyBins.add(USER_KEY_BIN); // 13
+        vertexNonPropertyBins.add(LABEL_BIN); // 14
+        vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_ID_BIN);// 17
 
         // Set Edge cache size
         final long onRecordIdMaxLimit = getRecordIdLimitFromAerospike(.9);
@@ -1091,17 +1107,6 @@ public class AerospikeConnection implements AutoCloseable {
     public Record[] read(final Key[] keys) {
         final BatchPolicy batchPolicy = new BatchPolicy();
         batchPolicy.sendKey = false;
-        return read(keys, batchPolicy);
-    }
-
-    /**
-     * Perform a batch Aerospike read for a group of keys
-     *
-     * @param keys        Array of Key to return records for
-     * @param batchPolicy BatchPolicy to use
-     * @return Array of Record
-     */
-    public Record[] read(final Key[] keys, final BatchPolicy batchPolicy) {
         readMetric.addAndGet(keys.length);
         final FireflyCache cache = transactionCache.get();
         final Record[] results;
@@ -1163,10 +1168,14 @@ public class AerospikeConnection implements AutoCloseable {
             writePolicy.generation = generation;
         }
         final FireflyCache cache = transactionCache.get();
+        final FireflyCache noPropsCache = emptyPropsTransactionCache.get();
         if (cache != null) {
             cache.write(writePolicy, key, newBins);
         } else {
             checkedPut(writePolicy, key, newBins);
+        }
+        if (noPropsCache != null) {
+            noPropsCache.remove(key);
         }
     }
 
@@ -1229,6 +1238,10 @@ public class AerospikeConnection implements AutoCloseable {
         final FireflyCache cache = transactionCache.get();
         if (cache != null) {
             cache.invalidate(key);
+        }
+        final FireflyCache noPropsCache = emptyPropsTransactionCache.get();
+        if (noPropsCache != null) {
+            noPropsCache.invalidate(key);
         }
         return client.delete(null, key);
     }
@@ -1628,7 +1641,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param operations  Operations for operate.
      * @return Record resulting from operate.
      */
-    public Record operate(final WritePolicy writePolicy, final Key key, Operation... operations) {
+    public Record operate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
         final WritePolicy policy;
         if (writePolicy == null) {
             policy = new WritePolicy();
@@ -1638,8 +1651,12 @@ public class AerospikeConnection implements AutoCloseable {
         policy.maxRetries = AEROSPIKE_WRITE_MAX_RETRY;
 
         final FireflyCache cache = transactionCache.get();
+        final FireflyCache noPropsCache = emptyPropsTransactionCache.get();
         if (cache != null) {
             cache.invalidate(key);
+        }
+        if (noPropsCache != null) {
+            noPropsCache.invalidate(key);
         }
 
         try {

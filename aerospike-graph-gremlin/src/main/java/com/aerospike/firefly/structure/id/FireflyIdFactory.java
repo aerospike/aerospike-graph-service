@@ -297,15 +297,4 @@ public class FireflyIdFactory {
         }
         return labelEdgeIds;
     }
-
-    public Map<String, FireflyId> convertMapObjectToFireflyIdMap(final Map<String, Object> fireflyObjectIds, final Class<? extends FireflyElement> type) {
-        if (fireflyObjectIds == null) {
-            return new TreeMap<>();
-        }
-        final Map<String, FireflyId> edgeIdMap = new TreeMap<>();
-        for (final String label : fireflyObjectIds.keySet()) {
-            edgeIdMap.put(label, createId(fireflyObjectIds.get(label), type));
-        }
-        return edgeIdMap;
-    }
 }

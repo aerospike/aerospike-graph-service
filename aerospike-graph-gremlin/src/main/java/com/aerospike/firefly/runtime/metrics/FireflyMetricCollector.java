@@ -5,6 +5,7 @@ import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import io.prometheus.client.Collector;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -18,7 +19,6 @@ public class FireflyMetricCollector extends Collector {
 
     @Override
     public List<MetricFamilySamples> collect() {
-        FireflyUsageStats.readMetadata();
         return List.of(
                 new MetricFamilySamples("usage", Type.INFO, "Aerospike Graph Service Usage (vcpu-hours)",
                         List.of(new MetricFamilySamples.Sample(

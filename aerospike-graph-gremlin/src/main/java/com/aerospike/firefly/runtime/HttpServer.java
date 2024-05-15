@@ -47,6 +47,7 @@ public class HttpServer {
     private static FireflyGraph graph;
     private static final AtomicBoolean started = new AtomicBoolean(false);
     private static final Vertx vertx = Vertx.vertx();
+    private static AtomicBoolean INITIALIZED = new AtomicBoolean(false);
 
     private HttpServer(final int port, final String prometheusPath, final String healthcheckpath) {
         this.port = port;
@@ -60,15 +61,14 @@ public class HttpServer {
 
     public static void registerGraphMetrics(final AerospikeConnection db) {
         PROMETHEUS_RENAME_ENABLED = db.PROMETHEUS_RENAME_ENABLED;
-        try {
-            CollectorRegistry.defaultRegistry.register(new FireflyMetricCollector(db));
-        } catch (final IllegalArgumentException e) {
-            // This happens if this is called multiple times because the collector is already registered, which is fine.
-            // This will be the case in testing when graph is opened multiple times.
-            if (!e.getMessage().contains("cluster_name_info is already in use by another Collector of type FireflyMetricCollector")) {
-                throw e;
+        synchronized (HttpServer.class) {
+            // Only register once.
+            if (INITIALIZED.get()) {
+                return;
             }
+            INITIALIZED.set(true);
         }
+        CollectorRegistry.defaultRegistry.register(new FireflyMetricCollector(db));
     }
 
     public static void registerHealthcheck(final FireflyGraph graph) {

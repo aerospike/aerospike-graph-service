@@ -68,29 +68,17 @@ public class MetadataServiceUsage<I, R> extends MetadataServiceBase<I, R> {
 
         final List<Map<String, Object>> usageStats = FireflyUsageStats.readMetadata();
         final Map<String, Object> results = new HashMap<>();
+        final Double vcpuHours = FireflyUsageStats.getTotalVcpuHours(usageStats, epochOffsetMilliseconds) / HOURS_TO_YEARS;
         results.put("raw", usageStats);
-        double totalVcpuHrs = 0.0;
-        for (Map<String, Object> usageStat : usageStats) {
-            Long start = (Long) usageStat.get("epoch-ms-start");
-            Long end = (Long) usageStat.get("epoch-ms-final");
-            final Long vcpus = (Long) usageStat.get("vcpus");
-
-            // Only use if offset is provided.
-            if (epochOffsetMilliseconds != null) {
-                if (start < epochOffsetMilliseconds) {
-                    start = epochOffsetMilliseconds;
-                }
-                if (end < epochOffsetMilliseconds) {
-                    end = epochOffsetMilliseconds;
-                }
-            }
-
-            // Total vcpu hours is sum of number of hours * number of vcpus.
-            totalVcpuHrs += ((double) (end - start) / (double) MILLISECONDS_TO_HOURS) * vcpus;
+        results.put("total-vcpu-hours", vcpuHours);
+        if (epochOffsetMilliseconds != null) {
+            // Get time between now and epochOffsetMilliseconds.
+            final Long now = System.currentTimeMillis();
+            final Long diff = now - epochOffsetMilliseconds;
+            final Long diffHours = diff / MILLISECONDS_TO_HOURS;
+            final Double vcpuHoursPerYear = vcpuHours / diffHours;
+            results.put("estimated-annual-total-vcpus", vcpuHoursPerYear);
         }
-
-        // total-vcpu is a measure of vcpu-years.
-        results.put("total-vcpu", totalVcpuHrs / HOURS_TO_YEARS);
         return (R) results;
     }
 

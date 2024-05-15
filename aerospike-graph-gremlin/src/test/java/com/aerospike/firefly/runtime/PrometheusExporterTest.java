@@ -2,6 +2,7 @@ package com.aerospike.firefly.runtime;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -13,6 +14,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
@@ -69,6 +73,49 @@ public class PrometheusExporterTest {
         try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             HttpServer.create(9090, "/metrics", "/healthcheck").start();
             Assert.assertTrue(queryPrometheus().contains("aerospike_graph_service_jvm_memory_pool_bytes_used"));
+        }
+    }
+
+    @Test
+    public void testUsagePrometheus() {
+        // Basic unit test to check that the prometheus server spins up and we can GET data from it. Prometheus is
+        // not simple to parse ,so we are only checking existence.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty("aerospike.graph.usage.update.interval", 500);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            HttpServer.create(9090, "/metrics", "/healthcheck").start();
+
+            String prometheus = queryPrometheus();
+            String[] lines = prometheus.split("#");
+            List<String> usageLines = Arrays.stream(lines).
+                    filter(l -> l.contains("usage")).
+                    map(String::trim).
+                    filter(l -> l.startsWith("TYPE")).
+                    collect(Collectors.toList());
+            Assert.assertEquals(1, usageLines.size());
+            String line = usageLines.get(0);
+            String[] pieces = line.split(" ");
+            String value = pieces[pieces.length - 1];
+            final Double usage1 = Double.parseDouble(value);
+
+            Thread.sleep(5000);
+
+            prometheus = queryPrometheus();
+            lines = prometheus.split("#");
+            usageLines = Arrays.stream(lines).
+                    filter(l -> l.contains("usage")).
+                    map(String::trim).
+                    filter(l -> l.startsWith("TYPE")).
+                    collect(Collectors.toList());
+            Assert.assertEquals(1, usageLines.size());
+            line = usageLines.get(0);
+            pieces = line.split(" ");
+            value = pieces[pieces.length - 1];
+            final Double usage2 = Double.parseDouble(value);
+
+            Assert.assertTrue(usage2 > usage1);
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 }

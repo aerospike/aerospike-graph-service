@@ -182,10 +182,6 @@ public class HttpServer {
                         return samples.hasMoreElements();
                     }
 
-                    private List<String> listRename(final List<String> input) {
-                        return input.stream().map(this::rename).collect(Collectors.toList());
-                    }
-
                     private String rename(final String input) {
                         return "aerospike_graph_service_" +
                                 input.replace("org_apache_tinkerpop_gremlin_server_", "");

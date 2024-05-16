@@ -56,6 +56,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+import org.apache.tinkerpop.gremlin.structure.util.empty.EmptyProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -726,7 +727,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     @Override
     public <V> VertexProperty<V> property(final String key) {
-        if (this.removed) return VertexProperty.empty();
+        if (this.removed )
+            return VertexProperty.empty();
         if (FireflyHelper.inComputerMode(this.graph)) {
             final List<VertexProperty> list = (List) this.graph.graphComputerView.getProperty(this, key);
             if (list.size() == 0)
@@ -736,6 +738,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             else
                 throw Vertex.Exceptions.multiplePropertiesExistForProvidedKey(key);
         } else {
+            if(super.property(key) instanceof EmptyProperty)
+                return VertexProperty.empty();
             return (VertexProperty<V>) super.property(key);
         }
     }
@@ -937,7 +941,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             }
             return keyRecord;
         }
-    };
+    }
+
+    ;
 
     public long getEdgeCount(final Direction direction) {
         if (direction == Direction.BOTH) {

@@ -129,10 +129,6 @@ public interface GraphQuery {
                             FireflyGraph.TransformKeyRecord<E> transform, List<HasContainer> hasContainers,
                             Class<? extends FireflyElement> clazz, boolean sendKey, boolean includeBinData,
                             String... binNames);
-    <E> Iterator<Iterator<E>> scanSetPages(String mapKey, String setName, String binName, P<?> predicate,
-                                           FireflyGraph.TransformKeyRecord<E> transform, List<HasContainer> hasContainers,
-                                           Class<? extends FireflyElement> clazz, boolean sendKey, boolean includeBinData,
-                                           String... binNames);
     <E> BlockingQueue<PageFetcher.Page> scanSetPagesBlocking(String mapKey, String setName, String binName, P<?> predicate,
                                                           FireflyGraph.TransformKeyRecord<E> transform, List<HasContainer> hasContainers,
                                                           Class<? extends FireflyElement> clazz, boolean sendKey, boolean includeBinData,

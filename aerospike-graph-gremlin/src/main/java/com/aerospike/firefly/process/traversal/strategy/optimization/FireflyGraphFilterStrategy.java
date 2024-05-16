@@ -34,7 +34,6 @@ import java.util.stream.Stream;
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
-
 public final class FireflyGraphFilterStrategy extends AbstractTraversalStrategy<TraversalStrategy.OptimizationStrategy> implements TraversalStrategy.OptimizationStrategy {
     private static final FireflyGraphFilterStrategy INSTANCE = new FireflyGraphFilterStrategy();
     GraphFilterStrategy graphFilterStrategy;

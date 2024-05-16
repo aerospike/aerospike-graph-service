@@ -124,11 +124,6 @@ public class LegacyGraphQuery implements GraphQuery {
         return (Iterator<E>) IteratorUtils.map(scanAllRecordsInSet(setName,mapKey,policy,sendKey,binNames), it -> transform.transform(it));
     }
 
-    @Override
-    public <E> Iterator<Iterator<E>> scanSetPages(final String mapKey, final String setName, final String binName, final P<?> predicate, final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData, final String... binNames) {
-        throw new RuntimeException("The graph computer does not support legacy reading.");
-    }
-
 
     @Override
     public <E> Iterator<E> querySIndex(final FireflyIndexMetadata.IndexInfo indexInfo,

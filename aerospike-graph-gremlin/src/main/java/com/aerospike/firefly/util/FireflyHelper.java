@@ -54,7 +54,8 @@ public final class FireflyHelper {
         return graph.graphComputerView = new LocalGraphComputerView(graph, graphFilter, computeKeys);
     }
 
-    public static void dropGraphComputerView(final FireflyGraph graph) { graph.graphComputerView= null;
+    public static void dropGraphComputerView(final FireflyGraph graph) {
+        graph.graphComputerView= null;
     }
 
     public static LocalGraphComputerView getGraphComputerView(final FireflyGraph graph) {

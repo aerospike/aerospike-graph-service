@@ -72,14 +72,6 @@ public class PagedGraphQuery implements GraphQuery {
     }
 
     @Override
-    public <E> Iterator<Iterator<E>> scanSetPages(String mapKey, String setName, String binName, P<?> predicate,
-                                           FireflyGraph.TransformKeyRecord<E> transform, List<HasContainer> hasContainers,
-                                           Class<? extends FireflyElement> clazz, boolean sendKey, boolean includeBinData,
-                                           String... binNames){
-        return null;
-    }
-
-    @Override
     public <E> BlockingQueue<PageFetcher.Page> scanSetPagesBlocking(final String mapKey, final String setName, final String binName, final P<?> predicate,
                                                             final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
                                                             final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,

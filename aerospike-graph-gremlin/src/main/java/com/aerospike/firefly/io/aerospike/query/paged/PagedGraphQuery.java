@@ -68,7 +68,7 @@ public class PagedGraphQuery implements GraphQuery {
                 db.PAGINATION_PAGE_SIZE,
                 mapKey,
                 transform);
-        return pageFetcher.startQueryPages();
+        return pageFetcher.startQuery();
     }
 
     @Override

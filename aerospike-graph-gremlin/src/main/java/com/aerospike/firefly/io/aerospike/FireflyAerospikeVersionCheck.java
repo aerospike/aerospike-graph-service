@@ -87,19 +87,7 @@ public class FireflyAerospikeVersionCheck {
 
     public static void validateVersion(final AerospikeClient client) {
         for (final Node node : client.getNodes()) {
-            String response = null;
-            while (response == null) {
-                try {
-                    response = Info.request(null, node, "build");
-                } catch (final AerospikeException e) {
-                    LOG.error(e.getMessage());
-                    try {
-                        Thread.sleep(1000);
-                    } catch(final Exception e2) {
-
-                    }
-                }
-            }
+            final String response = Info.request(null, node, "build");
             final FireflyAerospikeVersionCheck version = new FireflyAerospikeVersionCheck(response);
             if (!validateVersion(version)) {
                 throw new RuntimeException(String.format("Aerospike version %d.%d.%d.%d is not supported. Minimum version is %s.%s.%s.%s." +

@@ -18,7 +18,7 @@ import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
  * Utility class to load the graph with specified dataset.
  */
 public class BenchmarkTestUtils {
-    private static final String LOCALHOST = "172.17.0.1";
+    private static final String LOCALHOST = "127.0.0.1";
     private static final String internaldataset = "/opt/internal dataset/internal dataset.graphml";
     private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTestUtils.class);
     private static final String DEFAULT_DATASET_SIZE = "1g";

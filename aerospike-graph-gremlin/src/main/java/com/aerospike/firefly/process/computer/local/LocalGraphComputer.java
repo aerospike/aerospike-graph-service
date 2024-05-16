@@ -148,7 +148,7 @@ public class LocalGraphComputer implements GraphComputer {
         // get the result graph and persist state to use for the computation
         this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
         this.persist = GraphComputerHelper.getPersistState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.persist));
-        //if (!this.features().supportsResultGraphPersistCombination(this.resultGraph, this.persist))
+        // if (!this.features().supportsResultGraphPersistCombination(this.resultGraph, this.persist))
         // throw GraphComputer.Exceptions.resultGraphPersistCombinationNotSupported(this.resultGraph, this.persist);
         // ensure requested workers are not larger than supported workers
         if (this.workers > this.features().getMaxWorkers())
@@ -275,10 +275,10 @@ public class LocalGraphComputer implements GraphComputer {
                     final Graph resultGraph = view.processResultGraphPersist(this.resultGraph, this.persist);
                     FireflyHelper.dropGraphComputerView(this.graph); // drop the view from the original source graph
                     return new DefaultComputerResult(resultGraph, this.memory.asImmutable());
-                } catch (InterruptedException ie) {
+                } catch (final InterruptedException ie) {
                     workers.closeNow();
                     throw new TraversalInterruptedException();
-                } catch (Exception ex) {
+                } catch (final Exception ex) {
                     workers.closeNow();
                     throw new RuntimeException(ex);
                 } finally {

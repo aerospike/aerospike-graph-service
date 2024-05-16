@@ -943,8 +943,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         }
     }
 
-    ;
-
     public long getEdgeCount(final Direction direction) {
         if (direction == Direction.BOTH) {
             LOG.warn("getEdgeCount invoked with direction BOTH - the return value will be correct, but this method " +

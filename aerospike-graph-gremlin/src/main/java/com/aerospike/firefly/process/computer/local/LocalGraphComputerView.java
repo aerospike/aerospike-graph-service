@@ -137,8 +137,6 @@ public class LocalGraphComputerView {
         }
     }
 
-    //////////////////////
-
     public Graph processResultGraphPersist(final GraphComputer.ResultGraph resultGraph,
                                            final GraphComputer.Persist persist) {
         if (GraphComputer.Persist.NOTHING == persist) {
@@ -205,8 +203,6 @@ public class LocalGraphComputerView {
         });
         this.computeProperties.clear();
     }
-
-    //////////////////////
 
     private boolean isComputeKey(final String key) {
         return this.computeKeys.containsKey(key);

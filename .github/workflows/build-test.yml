@@ -499,15 +499,15 @@ jobs:
           mvn -pl aerospike-graph-bulk-loader test --no-transfer-progress
       - name: Test small memory Maven
         run: |
-          sudo echo "127.0.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
       - name: Test TLS Maven
         run: |
-          sudo echo "127.0.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn -pl aerospike-graph-gremlin -Djavax.net.ssl.trustStore=$(realpath aerospike-graph-gremlin/src/test/resources/tls/trust-store.jks) -Djavax.net.ssl.keyStore=$(realpath aerospike-graph-gremlin/src/test/resources/tls/client.jks) -Djavax.net.ssl.trustStorePassword=abc123 -Djavax.net.ssl.keyStorePassword=abc123 -Dtest=TestTLSIntegration -Dintegration.test.properties=packed test --no-transfer-progress
       - name: Test Client Provider Maven
         run: |
-          sudo echo "127.0.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentClientProviderInstantiationTest -Dtest=TestAerospikeClientProviderConfiguration -DfailIfNoTests=false --no-transfer-progress
   test-firefly:
     name: Test Firefly
@@ -538,7 +538,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "127.0.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
   test-firefly-structure:
     name: Test Packed Structure Tests
@@ -569,7 +569,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "127.0.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=Firefly*StructureStandardTest --no-transfer-progress
   test-firefly-process-1:
     name: Test Firefly Process Tests 1
@@ -600,7 +600,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "127.0.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphProcessStandardTest -Dtest=FireflyGraphUncachedProcessStandardTest --no-transfer-progress
   test-firefly-process-2:
     name: Test Firefly Process Tests 2
@@ -631,7 +631,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "127.0.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphSindexProcessStandardTest -Dtest=FireflyGraphSupernodeProcessStandardTest --no-transfer-progress
   test-local-computer-process-1:
     name: Test Local Computer Process Tests 1
@@ -662,7 +662,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "127.0.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=LocalGraphProcessComputerTest --no-transfer-progress
   test-firefly-movielens:
     name: Test Movielens
@@ -688,7 +688,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "127.0.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=TestMovielens1M -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-aerospike-version-minimum:
     name: Test Aerospike Version Minimum

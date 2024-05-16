@@ -272,6 +272,8 @@ public class FireflyIdFactory {
                         list.stream().map(id -> {
                             if (id instanceof FireflyId) {
                                 return new LazyIdTransform((FireflyId) id, graph);
+                            } else if (id instanceof LazyIdTransform) {
+                                return id;
                             } else {
                                 return new LazyIdTransform(id, graph, type);
                             }
@@ -279,7 +281,7 @@ public class FireflyIdFactory {
             } else {
                 if (value instanceof FireflyId) {
                     fireflyObjectIdsMap.replace(key, new LazyIdTransform((FireflyId) value, graph));
-                } else {
+                } else if (!(value instanceof LazyIdTransform)) {
                     fireflyObjectIdsMap.replace(key, new LazyIdTransform(value, graph, type));
                 }
             }

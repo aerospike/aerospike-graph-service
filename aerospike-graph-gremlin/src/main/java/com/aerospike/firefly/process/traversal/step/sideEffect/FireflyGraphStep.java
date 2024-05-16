@@ -39,11 +39,16 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraphStep.class);
     private final List<HasContainer> hasContainers = new ArrayList<>();
     private final List<Iterator> iterators = new ArrayList<>();
+    private List<String> properties = null;
 
     public FireflyGraphStep(final GraphStep<S, E> originalGraphStep) {
         super(originalGraphStep.getTraversal(), originalGraphStep.getReturnClass(), originalGraphStep.isStartStep(), originalGraphStep.getIds());
         originalGraphStep.getLabels().forEach(this::addLabel);
         this.setIteratorSupplier(() -> (Vertex.class.isAssignableFrom(this.returnClass) ? (Iterator<E>) this.vertices() : (Iterator<E>) this.edges()));
+    }
+
+    public void addProperties(final List<String> properties) {
+        this.properties = new ArrayList<>(properties);
     }
 
     /**
@@ -82,12 +87,12 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                 new FireflyGraph.GetElements<Vertex>() {
                     @Override
                     public Iterator<Vertex> getFiltered(final List<HasContainer> hasContainers, final Object... ids) {
-                        return graph.vertices(hasContainers, ids);
+                        return graph.vertices(hasContainers, properties, ids);
                     }
 
                     @Override
                     public Iterator<Vertex> getUnfiltered(final Object... ids) {
-                        return graph.vertices(ids);
+                        return graph.vertices(properties, ids);
                     }
                 },
                 graph::vertexFromRecord);

@@ -41,6 +41,7 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
     private final long sampleSize;
     private final long limitSize;
     private final int barrierSize;
+    private final List<String> requiredProperties;
 
     public FireflyCompositeIdLimitSampleStep(final Traversal.Admin traversal,
                                              final Direction direction,
@@ -49,7 +50,8 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
                                              final List<HasContainer> hasContainers,
                                              final long sampleSize,
                                              final long limitSize,
-                                             final int barrierSize) {
+                                             final int barrierSize,
+                                             final List<String> requiredProperties) {
         super(traversal, barrierSize);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
@@ -69,6 +71,7 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
             fireflyHasContainers = List.of();
             aerospikeHasContainers = List.of();
         }
+        this.requiredProperties = requiredProperties;
     }
 
     @Override
@@ -151,7 +154,7 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
         // Read the sampled vertices.
         final Map<FireflyId, FireflyVertex> vertexMap = new HashMap<>();
         FireflyBatchReadHelper.populateElementMap(
-                new HashSet<>(sampledVertexIds), vertexMap, aerospikeHasContainers, graph::readVertices);
+                new HashSet<>(sampledVertexIds), vertexMap, aerospikeHasContainers, graph::readVertices, requiredProperties);
 
         // Create list of random indices to sample and order them in ascending order so we can iterate through them.
         final List<Long> randomIndicesList = new ArrayList<>(randomIndices);

@@ -217,7 +217,7 @@ public class SampleStrategyTest {
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeEdgeIds.size());
             Assert.assertFalse(supernodeEdgeIds.stream().anyMatch(Objects::isNull));
 
-            final List<FireflyEdge> supernodeEdges = graph.readEdges(List.of(), supernodeEdgeIds);
+            final List<FireflyEdge> supernodeEdges = graph.readEdges(List.of(), supernodeEdgeIds, null);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeEdges.size());
             Assert.assertFalse(supernodeEdges.stream().anyMatch(Objects::isNull));
 
@@ -226,7 +226,7 @@ public class SampleStrategyTest {
             Assert.assertFalse(supernodeVertexIds.stream().anyMatch(Objects::isNull));
 
             supernodeVertexIds.sort(Comparator.comparing(FireflyId::toString));
-            final List<FireflyVertex> supernodeVertices = graph.readVertices(List.of(), supernodeVertexIds);
+            final List<FireflyVertex> supernodeVertices = graph.readVertices(List.of(), supernodeVertexIds, null);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeVertices.size());
             Assert.assertFalse(supernodeVertices.stream().anyMatch(Objects::isNull));
 
@@ -234,7 +234,7 @@ public class SampleStrategyTest {
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, allEdgeIds.size());
             Assert.assertFalse(allEdgeIds.stream().anyMatch(Objects::isNull));
 
-            final List<FireflyEdge> allEdges = graph.readEdges(List.of(), allEdgeIds);
+            final List<FireflyEdge> allEdges = graph.readEdges(List.of(), allEdgeIds, null);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, allEdges.size());
             Assert.assertFalse(allEdges.stream().anyMatch(Objects::isNull));
 
@@ -243,7 +243,7 @@ public class SampleStrategyTest {
             Assert.assertFalse(allVertexIds.stream().anyMatch(Objects::isNull));
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, new HashSet<>(allVertexIds).size());
 
-            final List<FireflyVertex> allVertices = graph.readVertices(List.of(), allVertexIds);
+            final List<FireflyVertex> allVertices = graph.readVertices(List.of(), allVertexIds, null);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, allVertices.size());
             Assert.assertFalse(allVertices.stream().anyMatch(Objects::isNull));
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, new HashSet<>(allVertices).size());

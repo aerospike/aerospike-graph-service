@@ -141,7 +141,7 @@ public class GraphQueryHelper {
         if (!FireflyVertex.class.isAssignableFrom(clazz)) {
             throw new IllegalArgumentException("Cannot push predicates down to: " + clazz);
         }
-        if (hasContainers.size() == 0) {
+        if (hasContainers.isEmpty()) {
             return null;
         }
         final Exp[] exps = hasContainers.stream().map(h ->

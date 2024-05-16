@@ -34,13 +34,15 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
     public final List<HasContainer> fireflyHasContainers;
     public final List<HasContainer> aerospikeHasContainers;
     private final int barrierSize;
+    private final List<String> requiredProperties;
 
     public FireflyCompositeIdStep(final Traversal.Admin traversal,
                                   final Direction direction,
                                   final String[] edgeLabels,
                                   final Set<String> labels,
                                   final List<HasContainer> hasContainers,
-                                  final int barrierSize) {
+                                  final int barrierSize,
+                                  final List<String> requiredProperties) {
         super(traversal, barrierSize);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
@@ -58,6 +60,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             fireflyHasContainers = List.of();
             aerospikeHasContainers = List.of();
         }
+        this.requiredProperties = requiredProperties;
     }
 
     @Override
@@ -97,13 +100,13 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
                         fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                     // Drain data to output.
                     FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
-                            fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices);
+                            fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties);
                 }
             }
 
             // Drain data to output.
             FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
-                    fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices);
+                    fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties);
 
         set.addAll(output);
         output.clear(); // Force garbage collection.

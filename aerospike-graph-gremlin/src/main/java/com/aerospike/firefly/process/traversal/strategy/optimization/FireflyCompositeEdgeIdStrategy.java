@@ -10,9 +10,14 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.SampleGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GroupStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.PathStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertiesStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.TreeStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupSideEffectStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.TreeSideEffectStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -21,6 +26,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -96,6 +102,8 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
                 continue;
             }
 
+            boolean propertyRemovalValid = !(super.steps.contains(PathStep.class) || super.steps.contains(TreeStep.class) || super.steps.contains(TreeSideEffectStep.class));
+
             // Replace vertex step with composite id step.
             traversal.removeStep(vertexStep);
 
@@ -107,7 +115,7 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
             Set<String> labels = vertexStep.getLabels();
             int sampleSize = -1;
             long limitSize = -1;
-
+            List<String> propertyKeys = null;
             while (labels.isEmpty()) {
                 if (index >= steps.size()) {
                     break;
@@ -117,10 +125,48 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
                     final NoOpBarrierStep<?> noOpBarrierStep = (NoOpBarrierStep<?>) steps.get(index);
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
+                } else if (steps.get(index) instanceof PropertiesStep){
+                    if (traversal.isRoot() && propertyRemovalValid) {
+                        // Grab any labels and remove the properties step.
+                        final PropertiesStep<?> propertiesStep = (PropertiesStep<?>) steps.get(index);
+                        final String[] propertyKeyArray = propertiesStep.getPropertyKeys();
+                        if (propertyKeyArray == null || propertyKeyArray.length == 0) {
+                            break;
+                        }
+                        propertyKeys = new ArrayList<>();
+                        for (final String propertyKey : propertyKeyArray) {
+                            if (!propertyKeys.contains(propertyKey)) {
+                                propertyKeys.add(propertyKey);
+                            }
+                        }
+                        labels = propertiesStep.getLabels();
+                    }
+                    break;
+                } else if (steps.get(index) instanceof IdStep) {
+                    if (traversal.isRoot() && propertyRemovalValid) {
+                        // Grab any labels.
+                        propertyKeys = new ArrayList<>();
+                        final IdStep<?> idStep = (IdStep<?>) steps.get(index);
+                        labels = idStep.getLabels();
+                    }
+                    break;
                 } else if (steps.get(index) instanceof HasStep) {
                     // Grab has containers and push them down.
                     final HasStep<?> hasStep = (HasStep<?>) steps.get(index);
                     hasContainers = hasStep.getHasContainers();
+
+                    if (steps.size() > (index + 1) && steps.get(index + 1) instanceof VertexStep) {
+                        if (traversal.isRoot() && propertyRemovalValid) {
+                            propertyKeys = new ArrayList<>();
+                            final List<String> properties = hasContainers.stream().
+                                    map(HasContainer::getKey).collect(Collectors.toList());
+                            for (final String propertyKey : properties) {
+                                if (!propertyKeys.contains(propertyKey)) {
+                                    propertyKeys.add(propertyKey);
+                                }
+                            }
+                        }
+                    }
 
                     // No support for pushdown of primary key check at this time.
                     // This isn't really a useful pushdown anyway.
@@ -207,7 +253,8 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
                         hasContainers,
                         sampleSize,
                         limitSize,
-                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE));
+                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
+                        propertyKeys));
             } else {
                 traversal.addStep(index, new FireflyCompositeIdStep(
                         traversal,
@@ -215,7 +262,8 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
                         vertexStep.getEdgeLabels(),
                         labels,
                         hasContainers,
-                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE));
+                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
+                        propertyKeys));
             }
         }
     }

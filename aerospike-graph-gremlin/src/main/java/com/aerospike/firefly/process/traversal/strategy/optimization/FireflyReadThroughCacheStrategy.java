@@ -55,9 +55,12 @@ public class FireflyReadThroughCacheStrategy extends FireflyStrategyBase {
         // Set the traversal thread-local reference.
         final FireflyCache cache = new ReadThroughRecordCache(db, uuid);
         db.transactionCache.set(cache);
+        final FireflyCache emptyPropsCache = new ReadThroughRecordCache(db, uuid);
+        db.emptyPropsTransactionCache.set(emptyPropsCache);
 
         // Tack on the step that will remove the cache when it's finished.
-        final FireflyCacheGCStep gcStep = new FireflyCacheGCStep(traversal, cache, new HashSet<>(traversal.getEndStep().getLabels()));
+        final FireflyCacheGCStep gcStep = new FireflyCacheGCStep(traversal, cache, emptyPropsCache,
+                new HashSet<>(traversal.getEndStep().getLabels()));
 
         // Profile must be last if it exists.
         if (TraversalHelper.hasStepOfClass(ProfileSideEffectStep.class, traversal)) {

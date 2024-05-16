@@ -77,7 +77,7 @@ public class FireflyUsageStatsCallMultiTest {
             }
 
             // Compare expected vcpu-yrs. We know lower bound since we know minimum time it could be but not upper.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") > 2 * testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > 2 * testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }

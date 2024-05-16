@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.HOURS_TO_YEARS;
 import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.MILLISECONDS_TO_HOURS;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL;
 import static org.junit.Assert.fail;
@@ -71,8 +70,8 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected and vcpu-yrs.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS * HOURS_TO_YEARS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -107,8 +106,8 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected and vcpu-yrs.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS * HOURS_TO_YEARS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -188,8 +187,8 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected and vcpu-yrs.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS * HOURS_TO_YEARS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -225,7 +224,7 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected and vcpu-yrs.
-            Assert.assertEquals((Double) 0.0, (Double) usageStats.get("total-vcpu"));
+            Assert.assertEquals((Double) 0.0, (Double) usageStats.get("total-vcpu-hours"));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -270,8 +269,8 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected vcpu-yrs.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS * HOURS_TO_YEARS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
         } catch (final Exception e) {
             if (graph1 != null)
                 graph1.close();

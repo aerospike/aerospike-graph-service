@@ -931,9 +931,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             }
             return keyRecord;
         }
-    }
-
-    ;
+    };
 
     public long getEdgeCount(final Direction direction) {
         if (direction == Direction.BOTH) {

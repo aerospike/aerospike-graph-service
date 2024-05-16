@@ -9,9 +9,9 @@ docker container to "-Xmx<value_in_mb>m"
 
 For example, if deploying the docker container with default memory looks like this:
 ```
-docker run -p 8182:8182 -p9090:9090 -e aerospike.client.host="127.0.0.1" aerospike/aerospike-graph-service
+docker run -p 8182:8182 -p9090:9090 -e aerospike.client.host="172.17.0.1" aerospike/aerospike-graph-service
 ```
 then, deploying the same container with 32 GB of memory for the JVM instead would look like:
 ```
-docker run -p 8182:8182 -p9090:9090 -e JAVA_OPTIONS="-Xmx32768m" -e aerospike.client.host="127.0.0.1" aerospike/aerospike-graph-service
+docker run -p 8182:8182 -p9090:9090 -e JAVA_OPTIONS="-Xmx32768m" -e aerospike.client.host="172.17.0.1" aerospike/aerospike-graph-service
 ```

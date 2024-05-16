@@ -37,8 +37,8 @@ public class TestTLSIntegration {
     public void testTLSName() {
         Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(TLS.toLowerCase(), "true");
-        config.setProperty(AEROSPIKE_HOST.toLowerCase(), "127.0.0.1");
-        config.setProperty(ConfigurationHelper.Keys.TLS_NAMES, "127.0.0.1:aerospike.test.aerospike.dev");
+        config.setProperty(AEROSPIKE_HOST.toLowerCase(), "172.17.0.1");
+        config.setProperty(ConfigurationHelper.Keys.TLS_NAMES, "172.17.0.1:aerospike.test.aerospike.dev");
         config.setProperty(AEROSPIKE_PORT.toLowerCase(), 4303);
         AerospikeConnection db = AerospikeConnection.connect(config);
         final Cluster c = db.getClient().getCluster();
@@ -50,8 +50,8 @@ public class TestTLSIntegration {
     public void testTLSNameNegative() {
         Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(TLS.toLowerCase(), "true");
-        config.setProperty(AEROSPIKE_HOST.toLowerCase(), "127.0.0.1");
-        config.setProperty(ConfigurationHelper.Keys.TLS_NAMES, "127.0.0.1:aerospike-ker.test.aerospike.dev");
+        config.setProperty(AEROSPIKE_HOST.toLowerCase(), "172.17.0.1");
+        config.setProperty(ConfigurationHelper.Keys.TLS_NAMES, "172.17.0.1:aerospike-ker.test.aerospike.dev");
         config.setProperty(AEROSPIKE_PORT.toLowerCase(), 4303);
         boolean success = false;
         try{

@@ -87,7 +87,7 @@ public class LegacyGraphQuery implements GraphQuery {
                                                                     final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
                                                                     final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
                                                                     final String... binNames) {
-        return null;
+        throw new RuntimeException("The graph computer does not support legacy reading.");
     }
 
     @Override
@@ -126,7 +126,7 @@ public class LegacyGraphQuery implements GraphQuery {
 
     @Override
     public <E> Iterator<Iterator<E>> scanSetPages(final String mapKey, final String setName, final String binName, final P<?> predicate, final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData, final String... binNames) {
-        throw new RuntimeException("Not implemented");
+        throw new RuntimeException("The graph computer does not support legacy reading.");
     }
 
 

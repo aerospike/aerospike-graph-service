@@ -13,7 +13,7 @@ In the configuration file for each Firefly node, you may specify one or more Aer
 
 ```properties
 gremlin.graph=com.aerospike.firefly.structure.FireflyGraph
-aerospike.client.host=127.0.0.1
+aerospike.client.host=172.17.0.1
 aerospike.client.port=3000
 aerospike.client.namespace=test
 aerospike.graph.data.model=packed

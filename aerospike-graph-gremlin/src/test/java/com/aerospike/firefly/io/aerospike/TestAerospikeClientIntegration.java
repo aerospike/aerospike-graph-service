@@ -600,12 +600,12 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     public void testHostsWhiteSpaceStripping() {
         final String singleHostname = " localhost  ";
         assertEquals("localhost", stripAllWhiteSpace(singleHostname));
-        final String singleIP = "  127.0.0.1 ";
-        assertEquals("127.0.0.1", stripAllWhiteSpace(singleIP));
+        final String singleIP = " 172.17.0.1 ";
+        assertEquals("172.17.0.1", stripAllWhiteSpace(singleIP));
         final String singleHostnamePort = " localhost:3000  ";
         assertEquals("localhost:3000", stripAllWhiteSpace(singleHostnamePort));
-        final String singleIPPort = "  127.0.0.1: 3000 ";
-        assertEquals("127.0.0.1:3000", stripAllWhiteSpace(singleIPPort));
+        final String singleIPPort = "  172.17.0.1: 3000 ";
+        assertEquals("172.17.0.1:3000", stripAllWhiteSpace(singleIPPort));
         final String multi = " l ocalhost , aerospike.com, github.co m";
         assertEquals("localhost,aerospike.com,github.com", stripAllWhiteSpace(multi));
         final String multiPort = " localhost: 30 00,aerospike.com: 8080,github.com:8192";

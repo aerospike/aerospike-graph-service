@@ -63,10 +63,9 @@ public class HttpServer {
         PROMETHEUS_RENAME_ENABLED = db.PROMETHEUS_RENAME_ENABLED;
         synchronized (HttpServer.class) {
             // Only register once.
-            if (INITIALIZED.get()) {
+            if (INITIALIZED.getAndSet(true)) {
                 return;
             }
-            INITIALIZED.set(true);
         }
         CollectorRegistry.defaultRegistry.register(new FireflyMetricCollector(db));
     }

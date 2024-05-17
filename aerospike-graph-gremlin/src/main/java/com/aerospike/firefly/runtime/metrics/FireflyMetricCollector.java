@@ -5,7 +5,6 @@ import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import io.prometheus.client.Collector;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)

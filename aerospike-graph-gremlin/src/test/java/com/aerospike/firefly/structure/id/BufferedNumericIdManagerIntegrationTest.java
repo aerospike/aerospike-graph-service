@@ -9,7 +9,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE;
 

@@ -1,14 +1,14 @@
 package com.aerospike.firefly.bulkloader.integration.util;
 
+import com.aerospike.client.AerospikeException;
+import com.aerospike.client.policy.WritePolicy;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-
-import com.aerospike.client.AerospikeException;
-import com.aerospike.client.policy.WritePolicy;
 
 /**
  * This class is used in conjunction with the FailingAerospikeClient class and

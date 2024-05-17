@@ -1,7 +1,7 @@
 package com.aerospike.firefly.process.call.metadata;
 
-import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
+import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.util.Map;
 

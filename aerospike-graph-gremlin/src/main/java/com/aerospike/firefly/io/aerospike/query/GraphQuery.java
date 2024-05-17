@@ -134,20 +134,19 @@ public interface GraphQuery {
                                                           Class<? extends FireflyElement> clazz, boolean sendKey, boolean includeBinData,
                                                           String... binNames);
 
-    default <E> Iterator<E> querySIndex(FireflyIndexMetadata.IndexInfo indexInfo,
-                                        P<?> predicate,
-                                        FireflyGraph.TransformKeyRecord<E> transform) {
-        return querySIndex(indexInfo, predicate, transform, Collections.emptyList(), FireflyVertex.class);
+    default <E> Iterator<E> queryVertexSIndex(FireflyIndexMetadata.IndexInfo indexInfo,
+                                              P<?> predicate,
+                                              FireflyGraph.TransformKeyRecord<E> transform) {
+        return queryVertexSIndex(indexInfo, predicate, transform, Collections.emptyList());
     }
 
-    default <E> Iterator<E> querySIndex(FireflyIndexMetadata.IndexInfo indexInfo,
-                                        P<?> predicate,
-                                        FireflyGraph.TransformKeyRecord<E> transform,
-                                        List<HasContainer> hasContainers,
-                                        Class<? extends FireflyElement> clazz) {
+    default <E> Iterator<E> queryVertexSIndex(FireflyIndexMetadata.IndexInfo indexInfo,
+                                              P<?> predicate,
+                                              FireflyGraph.TransformKeyRecord<E> transform,
+                                              List<HasContainer> hasContainers) {
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
-        queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(getGraph().getBaseGraph(), hasContainers, clazz);
+        queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(getGraph().getBaseGraph(), hasContainers, FireflyVertex.class);
 
         // Query index.
         return querySIndex(indexInfo.setName, indexInfo.indexName, GraphQueryHelper.predicateToFilter(getGraph().getBaseGraph(), predicate, indexInfo), queryPolicy, transform);

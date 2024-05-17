@@ -1,7 +1,6 @@
 package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.AerospikeClient;
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Info;
 import com.aerospike.client.cluster.Node;
 import org.slf4j.Logger;

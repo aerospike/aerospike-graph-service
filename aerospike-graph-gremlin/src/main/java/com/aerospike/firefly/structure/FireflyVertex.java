@@ -71,7 +71,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -91,7 +90,6 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyVertex extends FireflyElement implements Vertex {
-
     public static final int VERTEX_TYPE_HINT = 1;
     private static final Logger LOG = LoggerFactory.getLogger(FireflyVertex.class);
     protected final Map<String, List<LazyIdTransform>> inEdgeIds;

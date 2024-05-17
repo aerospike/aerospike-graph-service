@@ -1,15 +1,15 @@
 package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeSampleLimitReadStep;
-import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdLimitSampleStep;
-import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
+import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeSampleLimitReadStep;
 import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
+import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdLimitSampleStep;
 import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;

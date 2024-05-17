@@ -44,14 +44,14 @@ public class PagedGraphQuery implements GraphQuery {
         // Build expression using predicate.
         if (predicate != null) {
             final Exp exp = GraphQueryHelper.predicateToExpression(db, binName, mapKey, predicate);
-            if (!hasContainers.isEmpty()) {
+            if (hasContainers.isEmpty() && !db.TTL_ENABLED_FLAG) {
+                policy.filterExp = Exp.build(exp);
+            } else {
                 final Exp[] exps = GraphQueryHelper.hasContainerListToExpArray(db, hasContainers, clazz);
                 final Exp[] allExps = new Exp[exps.length + 1];
                 allExps[0] = exp;
                 System.arraycopy(exps, 0, allExps, 1, exps.length);
                 policy.filterExp = Exp.build(Exp.and(allExps));
-            } else {
-                policy.filterExp = Exp.build(exp);
             }
         }
 

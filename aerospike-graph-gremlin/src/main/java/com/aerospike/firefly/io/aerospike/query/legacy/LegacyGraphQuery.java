@@ -15,6 +15,7 @@ import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
 import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
@@ -126,14 +127,13 @@ public class LegacyGraphQuery implements GraphQuery {
 
 
     @Override
-    public <E> Iterator<E> querySIndex(final FireflyIndexMetadata.IndexInfo indexInfo,
-                                       final P<?> predicate,
-                                       final FireflyGraph.TransformKeyRecord<E> transform,
-                                       final List<HasContainer> hasContainers,
-                                       final Class<? extends FireflyElement> clazz) {
+    public <E> Iterator<E> queryVertexSIndex(final FireflyIndexMetadata.IndexInfo indexInfo,
+                                             final P<?> predicate,
+                                             final FireflyGraph.TransformKeyRecord<E> transform,
+                                             final List<HasContainer> hasContainers) {
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
-        queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, clazz);
+        queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, FireflyVertex.class);
 
         return querySIndex(indexInfo.setName, indexInfo.indexName, GraphQueryHelper.predicateToFilter(db, predicate, indexInfo), queryPolicy, transform);
 

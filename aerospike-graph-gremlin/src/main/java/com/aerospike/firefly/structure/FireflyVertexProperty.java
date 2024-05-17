@@ -36,8 +36,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.fromAddingVpProperty;
 import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.getRelevantVertexBins;
 

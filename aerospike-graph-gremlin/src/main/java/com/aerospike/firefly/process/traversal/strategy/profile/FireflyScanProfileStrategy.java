@@ -16,9 +16,10 @@ import java.util.Optional;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyScanProfileStrategy extends FireflyStrategyBase {
-    public FireflyScanProfileStrategy(){
+    public FireflyScanProfileStrategy() {
 
     }
+
     @Override
     protected String getStrategyEnabledKey() {
         return ConfigurationHelper.Keys.ENABLE_CUSTOM_PROFILE;
@@ -26,6 +27,10 @@ public class FireflyScanProfileStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
+
+        if (TraversalHelper.onGraphComputer(traversal))
+            return;
+
         final Optional<Graph> graphOptional = traversal.getGraph();
         if (graphOptional.isEmpty()) {
             return;

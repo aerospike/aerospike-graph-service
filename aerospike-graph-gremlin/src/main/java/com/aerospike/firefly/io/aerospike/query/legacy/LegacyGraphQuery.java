@@ -12,6 +12,7 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.ScanHitCounter;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
@@ -22,6 +23,7 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.DefaultAerospikeClientProvider.client;
 
@@ -77,6 +79,15 @@ public class LegacyGraphQuery implements GraphQuery {
         client.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), setName, binNames);
 
         return new FireflyCloseableIterator<>(listener.iterator());
+    }
+
+
+    @Override
+    public <E> BlockingQueue<PageFetcher.Page> scanSetPagesBlocking(final String mapKey, final String setName, final String binName, final P<?> predicate,
+                                                                    final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
+                                                                    final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
+                                                                    final String... binNames) {
+        throw new RuntimeException("The graph computer does not support legacy reading.");
     }
 
     @Override

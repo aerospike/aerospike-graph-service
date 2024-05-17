@@ -6,8 +6,11 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
+import org.apache.tinkerpop.gremlin.process.computer.VertexComputeKey;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -39,9 +42,27 @@ public final class FireflyHelper {
     private FireflyHelper() {
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// FIREFLY GRAPH COMPUTER //////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     public static boolean inComputerMode(final FireflyGraph graph) {
-        return false;
+        return graph.graphComputerView != null;
     }
+
+    public static LocalGraphComputerView createGraphComputerView(final FireflyGraph graph, final GraphFilter graphFilter, final Set<VertexComputeKey> computeKeys) {
+        return graph.graphComputerView = new LocalGraphComputerView(graph, graphFilter, computeKeys);
+    }
+
+    public static void dropGraphComputerView(final FireflyGraph graph) {
+        graph.graphComputerView= null;
+    }
+
+    public static LocalGraphComputerView getGraphComputerView(final FireflyGraph graph) {
+        return  graph.graphComputerView;
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static <V> V validateGraphVariableValue(V v) {
         Set<Class<? extends Serializable>> supported = SupportedValueTypes.keySet();

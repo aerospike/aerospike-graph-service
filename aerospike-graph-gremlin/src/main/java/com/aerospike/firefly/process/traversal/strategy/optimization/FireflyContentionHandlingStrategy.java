@@ -68,7 +68,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
             if (traversal.isRoot()) {
                 strategy.reset();
             }
-            if (strategy.isEnabled((FireflyGraph) traversal.getGraph().get())) {
+            if ((traversal.getGraph().get() instanceof FireflyGraph) && strategy.isEnabled((FireflyGraph) traversal.getGraph().get())) {
                 strategy.apply(traversal);
             }
         }

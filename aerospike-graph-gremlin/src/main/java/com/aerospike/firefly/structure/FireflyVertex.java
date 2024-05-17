@@ -30,13 +30,14 @@ import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.OperationReturnHandler;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
 import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
@@ -55,6 +56,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+import org.apache.tinkerpop.gremlin.structure.util.empty.EmptyProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,14 +75,13 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.aerospike.OperationReturnHandler.getValueAtIndex;
 import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.getUserIdString;
 import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.fromAddingToEdgeCache;
 import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.fromAddingVertexProperty;
 import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.getRelevantVertexBins;
-import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
@@ -724,6 +725,26 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         removeVertexPropertyForModel(key, vertexPropertyId);
     }
 
+    @Override
+    public <V> VertexProperty<V> property(final String key) {
+        if (this.removed )
+            return VertexProperty.empty();
+        if (FireflyHelper.inComputerMode(this.graph)) {
+            final List<VertexProperty> list = (List) this.graph.graphComputerView.getProperty(this, key);
+            if (list.size() == 0)
+                return VertexProperty.<V>empty();
+            else if (list.size() == 1)
+                return list.get(0);
+            else
+                throw Vertex.Exceptions.multiplePropertiesExistForProvidedKey(key);
+        } else {
+            if(super.property(key) instanceof EmptyProperty)
+                return VertexProperty.empty();
+            return (VertexProperty<V>) super.property(key);
+        }
+    }
+
+
     /**
      * Create a new vertex property. If the cardinality is {@link VertexProperty.Cardinality#single}, then set the key
      * to the value. If the cardinality is {@link VertexProperty.Cardinality#list}, then add a new value to the key.
@@ -744,7 +765,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                                           final V value,
                                           final Object... keyValues) {
         if (FireflyHelper.inComputerMode(this.graph)) {
-            throw new RuntimeException(UNIMPLEMENTED);
+            final VertexProperty<V> vertexProperty = (VertexProperty<V>) this.graph.graphComputerView.addProperty(this, key, value);
+            ElementHelper.attachProperties(vertexProperty, keyValues);
+            return vertexProperty;
         }
 
         if (this.removed)
@@ -862,6 +885,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     /**
      * Get the KeyRecord iterator for Edges attached to this Vertex. Public only for testing purposes.
+     *
      * @param direction
      * @param labels
      * @param outputType
@@ -917,7 +941,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             }
             return keyRecord;
         }
-    };
+    }
 
     public long getEdgeCount(final Direction direction) {
         if (direction == Direction.BOTH) {
@@ -959,7 +983,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 return Collections.emptyIterator();
             return readVertexProperty(propertyKeys[0]);
         }
-
         boolean includeSupernodeVirtualProperty = false;
         if (propertyKeys.length > 1) {
             for (final String propertyKey : propertyKeys) {
@@ -969,15 +992,22 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 }
             }
         }
-
         // Read multiple vertex properties.
         final Iterator<Map.Entry<String, VertexProperty<V>>> vertexProperties = readVertexProperties(includeSupernodeVirtualProperty);
-
         // Return an iterator over the map.
-        return (!vertexProperties.hasNext()) ? Collections.emptyIterator() :
+        Iterator<VertexProperty<V>> iterator = (!vertexProperties.hasNext()) ? Collections.emptyIterator() :
                 FireflyCloseableIteratorUtils.map(FireflyCloseableIteratorUtils.filter(vertexProperties,
                                 e -> ElementHelper.keyExists(e.getKey(), propertyKeys)),
                         Map.Entry::getValue);
+
+        if (!FireflyHelper.inComputerMode(this.graph))
+            return iterator;
+        else {
+            // TODO: GRAPH COMPUTER INTERCEPTION
+            final LocalGraphComputerView view = FireflyHelper.getGraphComputerView(this.graph);
+            final List<VertexProperty<V>> computeProperties = view.getComputeProperties(this, propertyKeys);
+            return (computeProperties.isEmpty()) ? iterator : FireflyCloseableIteratorUtils.concat(iterator, computeProperties.iterator());
+        }
     }
 
     @Override

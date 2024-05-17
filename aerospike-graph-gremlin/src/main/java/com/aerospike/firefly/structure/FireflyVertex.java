@@ -266,9 +266,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             final Map<Object, Map<String, Object>> vertexPropertyIdToProperties = (Map<Object, Map<String, Object>>) Optional.ofNullable(getValueAtIndex(result, this.db.PROPERTIES_BIN, 1)).orElse(new TreeMap<>());
             final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints = (Map<Object, Map<String, Object>>) Optional.ofNullable(getValueAtIndex(result, this.db.TYPE_HINTS_BIN, 1)).orElse(new TreeMap<>());
             this.graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, FireflyVertexProperty.class);
-            final Map<String, LazyIdTransform> vertexPropertyFireflyIds =(Map) vertexPropertyIds;
+            final Map<String, LazyIdTransform> vertexPropertyFireflyIds = (Map) vertexPropertyIds;
 
-                    // Update this FireflyVertex in JVM cache
+            // Update this FireflyVertex in JVM cache
             updateVertexPropertyJVMCache(vertexPropertyFireflyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyIdToProperties, vertexPropertyIdToTypeHints);
             graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(label, Set.of(vertexProperty.key()));
         } catch (final RecordTooBigException e) {

@@ -79,7 +79,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
 
         // Grab all Vertices for iterator.
-        final Iterator<? extends Vertex> iterator = elements(
+        final Iterator<? extends Vertex> iterator = vertices(
                 graph,
                 graph.getBaseGraph().VERTEX_AERO_SET,
                 graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
@@ -101,7 +101,11 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         return iterator;
     }
 
-    private <R extends Element> Iterator<R> elements(final FireflyGraph graph,
+    /**
+     * This private helper function is no longer used for anything but vertices, but can be lightly modified to restore
+     * its original function of being used for any scalar record element types if needed in the future.
+     */
+    private <R extends Element> Iterator<R> vertices(final FireflyGraph graph,
                                                      final String setName,
                                                      final String binName,
                                                      final Class<? extends FireflyElement> elementClass,
@@ -152,11 +156,10 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
 
             // If we have index, query it, otherwise we need to scan (or error out).
             if (propertyIndexInfo.isPresent()) {
-                iterator = GraphQuery.create(graph).querySIndex(propertyIndexInfo.get(),
+                iterator = GraphQuery.create(graph).queryVertexSIndex(propertyIndexInfo.get(),
                         topContainer.getPredicate(),
                         transformKeyRecord,
-                        aerospikeSideHasContainers,
-                        elementClass);
+                        aerospikeSideHasContainers);
             } else {
                 LOG.debug("No index found for key {} and value {}, running scan", topContainer.getKey(), topContainer.getValue());
                 iterator = GraphQuery.create(graph).scanSet(

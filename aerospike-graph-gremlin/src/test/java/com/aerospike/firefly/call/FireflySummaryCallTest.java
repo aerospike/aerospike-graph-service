@@ -2,7 +2,6 @@ package com.aerospike.firefly.call;
 
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableSingleIterator;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;

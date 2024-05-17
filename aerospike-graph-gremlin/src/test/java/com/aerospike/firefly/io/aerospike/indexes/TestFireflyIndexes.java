@@ -1,8 +1,8 @@
 package com.aerospike.firefly.io.aerospike.indexes;
 
 import com.aerospike.client.query.IndexType;
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.junit.Assert;

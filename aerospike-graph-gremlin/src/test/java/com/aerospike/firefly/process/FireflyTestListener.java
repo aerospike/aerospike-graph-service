@@ -4,9 +4,6 @@ package com.aerospike.firefly.process;
 import org.apache.tinkerpop.gremlin.GraphProvider;
 import org.slf4j.Logger;
 
-import java.time.Duration;
-import java.time.Instant;
-
 public class FireflyTestListener implements GraphProvider.TestListener {
     private final Logger LOG;
 

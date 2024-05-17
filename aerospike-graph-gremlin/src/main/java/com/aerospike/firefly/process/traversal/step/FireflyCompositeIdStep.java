@@ -77,36 +77,35 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
         final Set<FireflyId> uniqueIdSet = new HashSet<>();
         final Map<FireflyId, FireflyVertex> fireflyVertexMap = new TreeMap<>();
 
+        while (!set.isEmpty()) {
+            // Get next input traverser and get the FireflyVertex form of it.
+            final Traverser.Admin<Vertex> traverser = set.remove();
+            final FireflyVertex vertex = (FireflyVertex) traverser.get();
 
-            while (!set.isEmpty()) {
-                // Get next input traverser and get the FireflyVertex form of it.
-                final Traverser.Admin<Vertex> traverser = set.remove();
-                final FireflyVertex vertex = (FireflyVertex) traverser.get();
+            // Latch the size of the current id list.
+            final int previousSize = fireflyIdList.size();
 
-                // Latch the size of the current id list.
-                final int previousSize = fireflyIdList.size();
+            // All the work for supernode scan/index/cache handling is done in the getVertexIdsFromVertex function.
+            TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
+            FireflyBatchReadHelper.addElementsToSet(
+                    fireflyIdList, uniqueIdSet, fireflyVertexMap, vertex.getVertexIdsFromVertex(direction, edgeLabels));
 
-                // All the work for supernode scan/index/cache handling is done in the getVertexIdsFromVertex function.
-                TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
-                FireflyBatchReadHelper.addElementsToSet(
-                        fireflyIdList, uniqueIdSet, fireflyVertexMap, vertex.getVertexIdsFromVertex(direction, edgeLabels));
+            // Calculate how many ids were added by the function (size of list - previous size).
+            // Create composite id info with this value and the appropriate traverser to the info list.
+            fireflyCompositeIdStepInfos.add(new FireflyBatchReadHelper.ReadStepInfo<>(traverser, fireflyIdList.size() - previousSize));
 
-                // Calculate how many ids were added by the function (size of list - previous size).
-                // Create composite id info with this value and the appropriate traverser to the info list.
-                fireflyCompositeIdStepInfos.add(new FireflyBatchReadHelper.ReadStepInfo<>(traverser, fireflyIdList.size() - previousSize));
-
-                // If we reach or exceed batch size then execute so we don't use too much memory at any given point. Also drain if list size gets very big.
-                if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
-                        fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
-                    // Drain data to output.
-                    FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
-                            fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties);
-                }
+            // If we reach or exceed batch size then execute so we don't use too much memory at any given point. Also drain if list size gets very big.
+            if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
+                    fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+                // Drain data to output.
+                FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
+                        fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties);
             }
+        }
 
-            // Drain data to output.
-            FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
-                    fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties);
+        // Drain data to output.
+        FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
+                fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties);
 
         set.addAll(output);
         output.clear(); // Force garbage collection.

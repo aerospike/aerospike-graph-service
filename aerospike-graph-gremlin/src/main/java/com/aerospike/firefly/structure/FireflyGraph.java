@@ -246,7 +246,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         FireflyGremlinPlugin.initializeGraphMetrics(this);
 
         // Register admin services graph metrics since it will bootstrap the server.
-        AdminServiceRegistry.registerAdminServices(this);
+        if (!db.WARMUP_MODE) {
+            AdminServiceRegistry.registerAdminServices(this);
+        }
     }
 
     public static FireflyGraph open(final Configuration conf) {

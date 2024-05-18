@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -99,8 +100,12 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
             } else {
                 final FireflyVertex vertex = inputVertices.get(input);
                 TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
-                final List<FireflyId> vertexIds = vertex.getVertexIdsFromVertex(direction, edgeLabels);
-                totalVertexIds += vertexIds.size();
+                final Iterator<FireflyId> vertexIdsItty = vertex.getVertexIdsFromVertex(direction, edgeLabels);
+                final List<FireflyId> vertexIds = new ArrayList<>();
+                while (totalVertexIds < limitSize && vertexIdsItty.hasNext()) {
+                    vertexIds.add(vertexIdsItty.next());
+                    totalVertexIds++;
+                }
                 outputVertexIds.put(input, vertexIds);
             }
         }

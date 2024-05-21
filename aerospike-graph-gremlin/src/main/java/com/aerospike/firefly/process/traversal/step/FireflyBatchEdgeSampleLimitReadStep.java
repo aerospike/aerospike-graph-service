@@ -99,7 +99,7 @@ public class FireflyBatchEdgeSampleLimitReadStep extends CollectingBarrierStep<E
                 TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
                 final Iterator<FireflyId> edgeIdsItty = vertex.getEdgeIdsFromVertex(direction, edgeLabels, aerospikeHasContainers);
                 final List<FireflyId> edgeIds = new ArrayList<>();
-                while (totalEdgeIds < limitSize && edgeIdsItty.hasNext()) {
+                while ((limitSize < 0 || totalEdgeIds < limitSize) && edgeIdsItty.hasNext()) {
                     edgeIds.add(edgeIdsItty.next());
                     totalEdgeIds++;
                 }

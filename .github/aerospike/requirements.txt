@@ -1,4 +1,5 @@
 docker
+requests<=2.31.0
 python-box
 argparse
 jinja2

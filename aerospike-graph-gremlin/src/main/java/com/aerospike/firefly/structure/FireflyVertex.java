@@ -676,7 +676,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     public Iterator<Vertex> getVerticesFromVertex(final Direction direction, final Set<String> edgeLabels) {
         LOG.trace("Getting vertices from vertex {}.", id);
         final Iterator<FireflyId> adjacentVertices = getVertexIdsFromVertex(direction, edgeLabels);
-        return new FireflyBatchElementIterator<>(this.graph, adjacentVertices, Collections.emptyList(), this.graph::readVertices, Collections.emptyList());
+        return new FireflyBatchElementIterator<>(this.graph, adjacentVertices, Collections.emptyList(), this.graph::readVertices, null);
     }
 
     /**

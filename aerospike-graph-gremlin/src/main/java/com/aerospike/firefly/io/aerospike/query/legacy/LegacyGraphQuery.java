@@ -12,8 +12,10 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.ScanHitCounter;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
@@ -22,6 +24,7 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.DefaultAerospikeClientProvider.client;
 
@@ -79,6 +82,15 @@ public class LegacyGraphQuery implements GraphQuery {
         return new FireflyCloseableIterator<>(listener.iterator());
     }
 
+
+    @Override
+    public <E> BlockingQueue<PageFetcher.Page> scanSetPagesBlocking(final String mapKey, final String setName, final String binName, final P<?> predicate,
+                                                                    final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
+                                                                    final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
+                                                                    final String... binNames) {
+        throw new RuntimeException("The graph computer does not support legacy reading.");
+    }
+
     @Override
     public <E> Iterator<E> scanSet(final String mapKey,
                                    final String setName,
@@ -115,14 +127,13 @@ public class LegacyGraphQuery implements GraphQuery {
 
 
     @Override
-    public <E> Iterator<E> querySIndex(final FireflyIndexMetadata.IndexInfo indexInfo,
-                                       final P<?> predicate,
-                                       final FireflyGraph.TransformKeyRecord<E> transform,
-                                       final List<HasContainer> hasContainers,
-                                       final Class<? extends FireflyElement> clazz) {
+    public <E> Iterator<E> queryVertexSIndex(final FireflyIndexMetadata.IndexInfo indexInfo,
+                                             final P<?> predicate,
+                                             final FireflyGraph.TransformKeyRecord<E> transform,
+                                             final List<HasContainer> hasContainers) {
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
-        queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, clazz);
+        queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, FireflyVertex.class);
 
         return querySIndex(indexInfo.setName, indexInfo.indexName, GraphQueryHelper.predicateToFilter(db, predicate, indexInfo), queryPolicy, transform);
 

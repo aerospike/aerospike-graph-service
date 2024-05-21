@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.HOURS_TO_YEARS;
 import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.MILLISECONDS_TO_HOURS;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL;
 
@@ -77,7 +76,7 @@ public class FireflyUsageStatsCallMultiTest {
             }
 
             // Compare expected vcpu-yrs. We know lower bound since we know minimum time it could be but not upper.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") > 2 * testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > 2 * testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }

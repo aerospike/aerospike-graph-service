@@ -1,7 +1,7 @@
 package com.aerospike.firefly.bulkloader.util;
 
-import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
+import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

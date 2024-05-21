@@ -128,7 +128,11 @@ public class GraphQueryHelper {
                 throw new RuntimeException(String.format("%s not a supported predicate", predicate));
             }
         } else {
-            return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.STRING, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val((String) value));
+            if (value instanceof String) // TODO: support List of values
+                return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.STRING, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val((String) value));
+            else {
+                return Exp.nil();
+            }
         }
     }
 
@@ -137,13 +141,21 @@ public class GraphQueryHelper {
         if (!FireflyVertex.class.isAssignableFrom(clazz)) {
             throw new IllegalArgumentException("Cannot push predicates down to: " + clazz);
         }
-        if (hasContainers.size() == 0) {
+        if (hasContainers.isEmpty() && !db.TTL_ENABLED_FLAG) {
             return null;
         }
-        final Exp[] exps = hasContainers.stream().map(h ->
-                predicateToExpression(db, h.getKey().equals("~label") ? db.LABEL_BIN : db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
-                        h.getKey(), h.getPredicate())).toArray(Exp[]::new);
-        return exps.length == 1 ? Exp.build(exps[0]) : Exp.build(Exp.and(exps));
+        final List<Exp> exps = new ArrayList<>();
+        if (db.TTL_ENABLED_FLAG) {
+            final Exp ttlExp = getVertexTtlExp(db);
+            exps.add(ttlExp);
+        }
+        for (final HasContainer h : hasContainers) {
+            final Exp expFromPredicate = predicateToExpression(db,
+                    h.getKey().equals("~label") ? db.LABEL_BIN : db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
+                    h.getKey(), h.getPredicate());
+            exps.add(expFromPredicate);
+        }
+        return exps.size() == 1 ? Exp.build(exps.get(0)) : Exp.build(Exp.and(exps.toArray(new Exp[0])));
     }
 
     public static Exp[] hasContainerListToExpArray(final AerospikeConnection db, final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
@@ -151,10 +163,27 @@ public class GraphQueryHelper {
         if (!FireflyVertex.class.isAssignableFrom(clazz)) {
             throw new IllegalArgumentException("Cannot push predicates down to: " + clazz);
         }
-        return hasContainers.stream().map(h ->
-                predicateToExpression(db, h.getKey().equals("~label") ?
-                                db.LABEL_BIN : db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
-                        h.getKey(), h.getPredicate())).toArray(Exp[]::new);
+        final List<Exp> exps = new ArrayList<>();
+        if (db.TTL_ENABLED_FLAG) {
+            final Exp ttlExp = getVertexTtlExp(db);
+            exps.add(ttlExp);
+        }
+        for (final HasContainer h : hasContainers) {
+            final Exp expFromPredicate = predicateToExpression(db,
+                    h.getKey().equals("~label") ? db.LABEL_BIN : db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
+                    h.getKey(), h.getPredicate());
+            exps.add(expFromPredicate);
+        }
+        return exps.toArray(new Exp[0]);
+    }
+
+    private static Exp getVertexTtlExp(final AerospikeConnection db) {
+        return Exp.or(
+                    Exp.gt(Exp.intBin(db.TTL_BIN), Exp.val(System.currentTimeMillis())),
+                    Exp.not(
+                            Exp.binExists(db.TTL_BIN)
+                    )
+            );
     }
 
     public static Expression phatEdgeHasContainerListToExpression(final AerospikeConnection db,
@@ -167,7 +196,7 @@ public class GraphQueryHelper {
             return Exp.build(Exp.and(labelExp, propertiesExp));
         } else if (labelExp != null) {
             return Exp.build(labelExp);
-        } else if (propertiesExp != null ){
+        } else if (propertiesExp != null) {
             return Exp.build(propertiesExp);
         } else {
             return null;

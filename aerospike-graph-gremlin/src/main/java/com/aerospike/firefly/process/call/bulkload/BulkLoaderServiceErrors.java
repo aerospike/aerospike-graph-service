@@ -1,14 +1,9 @@
 package com.aerospike.firefly.process.call.bulkload;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
-import org.apache.tinkerpop.gremlin.structure.service.Service;
-import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.Map;
 import java.util.Set;
-
-import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
 public class BulkLoaderServiceErrors<I, R> extends BulkLoaderServiceBase<I, R> {
     private static final String KEY = "type";

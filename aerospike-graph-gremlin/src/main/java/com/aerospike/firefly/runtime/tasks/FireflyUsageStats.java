@@ -17,6 +17,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
 
+import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.MILLISECONDS_TO_HOURS;
+
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -77,6 +79,30 @@ public class FireflyUsageStats {
             }
             return instance.task.getAllUsageStats();
         }
+    }
+
+    public static double getTotalVcpuHours(final List<Map<String, Object>> usageStats, final Long epochOffsetMilliseconds) {
+        double totalVcpuHrs = 0.0;
+        for (Map<String, Object> usageStat : usageStats) {
+            Long start = (Long) usageStat.get("epoch-ms-start");
+            Long end = (Long) usageStat.get("epoch-ms-final");
+            final Long vcpus = (Long) usageStat.get("vcpus");
+
+            // Only use if offset is provided.
+            if (epochOffsetMilliseconds != null) {
+                if (start < epochOffsetMilliseconds) {
+                    start = epochOffsetMilliseconds;
+                }
+                if (end < epochOffsetMilliseconds) {
+                    end = epochOffsetMilliseconds;
+                }
+            }
+
+            // Total vcpu hours is sum of number of hours * number of vcpus.
+            totalVcpuHrs += ((double) (end - start) / (double) MILLISECONDS_TO_HOURS) * vcpus;
+        }
+
+        return totalVcpuHrs;
     }
 
     protected class FireflyUsageStatsTask extends TimerTask {

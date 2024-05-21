@@ -1,12 +1,12 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.client.util.Crypto;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
@@ -151,7 +151,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             graph.writeVertex(next, "aVertexLabel", new ArrayList<>());
         });
         final AtomicLong ctr = new AtomicLong(0);
-        new FireflyBatchElementIterator<>(graph, usedIds.iterator(), List.of(), graph::readVertices).forEachRemaining(v -> {
+        new FireflyBatchElementIterator<>(graph, usedIds.iterator(), List.of(), graph::readVertices, null).forEachRemaining(v -> {
             ctr.addAndGet(1);
             assertEquals("aVertexLabel", v.label());
         });

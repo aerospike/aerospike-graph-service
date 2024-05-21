@@ -6,6 +6,7 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.query.legacy.LegacyGraphQuery;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
 import com.aerospike.firefly.io.aerospike.query.paged.PagedGraphQuery;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
@@ -22,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 
 public interface GraphQuery {
     FireflyGraph getGraph();
@@ -43,6 +45,32 @@ public interface GraphQuery {
 
     default Iterator<FireflyId> scanVertexIds() {
         return scanElementIds(FireflyVertex.class, List.of());
+    }
+
+    default BlockingQueue<PageFetcher.Page> scanVertexIdPages(final List<HasContainer> hasContainers) {
+        final P<?> predicate;
+        final String binName;
+        final String mapKey;
+        final FireflyGraph graph = getGraph();
+        final AerospikeConnection db = graph.getBaseGraph();
+        if (!hasContainers.isEmpty()) {
+            final HasContainer container = hasContainers.remove(0);
+            predicate = container.getPredicate();
+            if ("~label".equals(container.getKey())) {
+                binName = graph.getBaseGraph().LABEL_BIN;
+                mapKey = null;
+            } else {
+                binName = graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
+                mapKey = container.getKey();
+            }
+        } else {
+            predicate = null;
+            binName = null;
+            mapKey = null;
+        }
+
+        return scanSetPagesBlocking(mapKey, db.VERTEX_AERO_SET, binName, predicate, graph::vertexFromRecord,
+                hasContainers, FireflyVertex.class, true, true);
     }
 
     default Iterator<FireflyId> scanEdgeIds() {
@@ -101,21 +129,24 @@ public interface GraphQuery {
                             FireflyGraph.TransformKeyRecord<E> transform, List<HasContainer> hasContainers,
                             Class<? extends FireflyElement> clazz, boolean sendKey, boolean includeBinData,
                             String... binNames);
+    <E> BlockingQueue<PageFetcher.Page> scanSetPagesBlocking(String mapKey, String setName, String binName, P<?> predicate,
+                                                          FireflyGraph.TransformKeyRecord<E> transform, List<HasContainer> hasContainers,
+                                                          Class<? extends FireflyElement> clazz, boolean sendKey, boolean includeBinData,
+                                                          String... binNames);
 
-    default <E> Iterator<E> querySIndex(FireflyIndexMetadata.IndexInfo indexInfo,
-                                        P<?> predicate,
-                                        FireflyGraph.TransformKeyRecord<E> transform) {
-        return querySIndex(indexInfo, predicate, transform, Collections.emptyList(), FireflyVertex.class);
+    default <E> Iterator<E> queryVertexSIndex(FireflyIndexMetadata.IndexInfo indexInfo,
+                                              P<?> predicate,
+                                              FireflyGraph.TransformKeyRecord<E> transform) {
+        return queryVertexSIndex(indexInfo, predicate, transform, Collections.emptyList());
     }
 
-    default <E> Iterator<E> querySIndex(FireflyIndexMetadata.IndexInfo indexInfo,
-                                        P<?> predicate,
-                                        FireflyGraph.TransformKeyRecord<E> transform,
-                                        List<HasContainer> hasContainers,
-                                        Class<? extends FireflyElement> clazz) {
+    default <E> Iterator<E> queryVertexSIndex(FireflyIndexMetadata.IndexInfo indexInfo,
+                                              P<?> predicate,
+                                              FireflyGraph.TransformKeyRecord<E> transform,
+                                              List<HasContainer> hasContainers) {
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
-        queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(getGraph().getBaseGraph(), hasContainers, clazz);
+        queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(getGraph().getBaseGraph(), hasContainers, FireflyVertex.class);
 
         // Query index.
         return querySIndex(indexInfo.setName, indexInfo.indexName, GraphQueryHelper.predicateToFilter(getGraph().getBaseGraph(), predicate, indexInfo), queryPolicy, transform);

@@ -2,6 +2,7 @@ package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
+import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
 import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.Policy;
@@ -114,6 +115,43 @@ public class ReadThroughRecordCache extends FireflyCache {
 
             // Execute batch read. subList ids are read from the database.
             final Record[] records = db.getClient().get(policy, subList.toArray(new Key[0]));
+            for (int j = 0; j < records.length; j++) {
+                results.put(subList.get(j), records[j]);
+
+                // Insert to cache since these are new.
+                insert(subList.get(j), records[j]);
+            }
+        }
+
+        // Update metrics.
+        hitCounter.addAndGet(allKeys.size() - missingKeys.size());
+        missCounter.addAndGet(missingKeys.size());
+
+        // Place results into cache.
+        final Record[] records = new Record[allKeys.size()];
+        for (int i = 0; i < allKeys.size(); i++) {
+            final Key key = allKeys.get(i);
+            final Record record = results.get(key);
+            records[i] = record;
+        }
+
+        return records;
+    }
+
+    @Override
+    public Record[] read(final Key[] keys, final BatchPolicy policy, final Operation[] operations) {
+        final List<Key> allKeys = List.of(keys);
+        final Map<Key, Record> results = new HashMap<>(cache.getAllPresent(new HashSet<>(allKeys)));
+        final List<Key> missingKeys = allKeys.stream().filter(key -> !results.containsKey(key)).collect(Collectors.toList());
+        final Set<Key> missingKeySet = new HashSet<>(missingKeys);
+
+        // Batch reading in Aerospike is capped based on settings in the server.
+        for (int i = 0; i < missingKeySet.size(); i += db.AEROSPIKE_BATCH_READ_SIZE) {
+            // Generate sub list using current index and batch size.
+            final List<Key> subList = missingKeySet.stream().skip(i).limit(db.AEROSPIKE_BATCH_READ_SIZE).collect(Collectors.toList());
+
+            // Execute batch read. subList ids are read from the database.
+            final Record[] records = db.getClient().get(policy, subList.toArray(new Key[0]), operations);
             for (int j = 0; j < records.length; j++) {
                 results.put(subList.get(j), records[j]);
 

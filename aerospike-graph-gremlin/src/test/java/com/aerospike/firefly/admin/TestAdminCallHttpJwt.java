@@ -30,6 +30,11 @@ public class TestAdminCallHttpJwt {
             .withIssuer("aerospike")
             .sign(Algorithm.HMAC256("lyndon_secret"));
 
+    final String noRole = JWT.create()
+            .withSubject("lyndon_username")
+            .withIssuer("aerospike")
+            .sign(Algorithm.HMAC256("lyndon_secret"));
+
     final String validWrite = JWT.create()
             .withClaim("role", "READ_WRITE")
             .withSubject("lyndon_username")
@@ -316,6 +321,24 @@ public class TestAdminCallHttpJwt {
         } catch (final Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Test
+    public void testNoRole() {
+        Assert.assertThrows(Exception.class, () -> {
+            adminIndexListHeaders(noRole);
+        });
+        final Cluster cluster = Cluster.build()
+                .addContactPoint("localhost")
+                .port(8182)
+                .credentials("lyndon_username", noRole)
+                .create();
+        final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
+        final GraphTraversalSource g = traversal().withRemote(connection);
+        Assert.assertThrows(Exception.class, () -> {
+            final String adminToken = (String) g.call("aerospike.graph.admin.rbac-jwt.issue-token").with("username", "lyndon_admin").with("role", "ADMIN").with("expiry", 10).next();
+        });
+
     }
 
     private void checkPermissions(final UserContext.ROLE requiredRole, final Check check) {

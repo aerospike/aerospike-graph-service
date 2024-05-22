@@ -338,7 +338,6 @@ public class TestAdminCallHttpJwt {
         Assert.assertThrows(Exception.class, () -> {
             final String adminToken = (String) g.call("aerospike.graph.admin.rbac-jwt.issue-token").with("username", "lyndon_admin").with("role", "ADMIN").with("expiry", 10).next();
         });
-
     }
 
     private void checkPermissions(final UserContext.ROLE requiredRole, final Check check) {

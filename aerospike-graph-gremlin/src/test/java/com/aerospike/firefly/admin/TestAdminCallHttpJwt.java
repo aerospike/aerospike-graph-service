@@ -325,7 +325,6 @@ public class TestAdminCallHttpJwt {
 
     @Test
     public void testNoRole() {
-
         try {
             adminIndexListHeaders(noRole);
             Assert.fail("Should not have been able to hit http endpoint no role");

@@ -325,9 +325,12 @@ public class TestAdminCallHttpJwt {
 
     @Test
     public void testNoRole() {
-        Assert.assertThrows(Exception.class, () -> {
+        try {
             adminIndexListHeaders(noRole);
-        });
+            Assert.fail("Should not have been able to hit http endpoint no role");
+        } catch (final Exception e) {
+            Assert.assertEquals("java.io.IOException: Server returned HTTP response code: 401 for URL: http://localhost:9090/admin/index/list", e.getMessage());
+        }
         final Cluster cluster = Cluster.build()
                 .addContactPoint("localhost")
                 .port(8182)
@@ -335,10 +338,12 @@ public class TestAdminCallHttpJwt {
                 .create();
         final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
         final GraphTraversalSource g = traversal().withRemote(connection);
-        Assert.assertThrows(Exception.class, () -> {
+        try {
             final String adminToken = (String) g.call("aerospike.graph.admin.rbac-jwt.issue-token").with("username", "lyndon_admin").with("role", "ADMIN").with("expiry", 10).next();
-        });
-
+            Assert.fail("Should not have been able to issue token with no role");
+        } catch (final Exception e) {
+            Assert.assertEquals("org.apache.tinkerpop.gremlin.driver.exception.ResponseException: User does not have a valid role.", e.getMessage());
+        }
     }
 
     private void checkPermissions(final UserContext.ROLE requiredRole, final Check check) {

@@ -15,6 +15,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSe
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -103,6 +104,7 @@ public class FireflyBatchEdgeSampleLimitReadStep extends CollectingBarrierStep<E
                     edgeIds.add(edgeIdsItty.next());
                     totalEdgeIds++;
                 }
+                CloseableIterator.closeIterator(edgeIdsItty);
                 outputEdgeIds.put(input, edgeIds);
             }
         }

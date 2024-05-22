@@ -13,6 +13,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -106,6 +107,7 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
                     vertexIds.add(vertexIdsItty.next());
                     totalVertexIds++;
                 }
+                CloseableIterator.closeIterator(vertexIdsItty);
                 outputVertexIds.put(input, vertexIds);
             }
         }

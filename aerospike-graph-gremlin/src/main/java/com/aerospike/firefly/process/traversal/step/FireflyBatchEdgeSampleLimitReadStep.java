@@ -15,6 +15,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSe
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,6 +23,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -96,8 +98,13 @@ public class FireflyBatchEdgeSampleLimitReadStep extends CollectingBarrierStep<E
             } else {
                 final FireflyVertex vertex = inputVertices.get(input);
                 TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
-                final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction, edgeLabels, aerospikeHasContainers);
-                totalEdgeIds += edgeIds.size();
+                final Iterator<FireflyId> edgeIdsItty = vertex.getEdgeIdsFromVertex(direction, edgeLabels, aerospikeHasContainers);
+                final List<FireflyId> edgeIds = new ArrayList<>();
+                while ((limitSize < 0 || totalEdgeIds < limitSize) && edgeIdsItty.hasNext()) {
+                    edgeIds.add(edgeIdsItty.next());
+                    totalEdgeIds++;
+                }
+                CloseableIterator.closeIterator(edgeIdsItty);
                 outputEdgeIds.put(input, edgeIds);
             }
         }

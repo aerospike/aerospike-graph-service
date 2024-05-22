@@ -10,6 +10,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.google.common.collect.Iterators;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -205,8 +206,8 @@ public class TestEdgeCacheIntegration {
             Assert.assertFalse(g.V(v2.id()).hasNext());
             FireflyVertex fv1 = (FireflyVertex) g.V(v1.id()).next();
             FireflyVertex fv3 = (FireflyVertex) g.V(v3.id()).next();
-            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
-            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
+            Assert.assertFalse(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
+            Assert.assertFalse(fv3.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
             Assert.assertFalse(g.E().hasNext());
             g.V().drop().iterate();
 
@@ -227,9 +228,9 @@ public class TestEdgeCacheIntegration {
             fv1 = (FireflyVertex) g.V(v1.id()).next();
             fv3 = (FireflyVertex) g.V(v3.id()).next();
             FireflyVertex fv4 = (FireflyVertex) g.V(v4.id()).next();
-            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
-            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
-            Assert.assertTrue(fv4.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
+            Assert.assertFalse(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
+            Assert.assertFalse(fv3.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
+            Assert.assertFalse(fv4.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
             Assert.assertFalse(g.E().hasNext());
             g.V().drop().iterate();
 
@@ -253,16 +254,16 @@ public class TestEdgeCacheIntegration {
             Assert.assertTrue(fv3.isEdgeCacheOverflowed());
             g.V(v2.id()).drop().iterate();
             fv1 = (FireflyVertex) g.V(v1.id()).next();
-            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
+            Assert.assertFalse(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
             fv3 = (FireflyVertex) g.V(v3.id()).next();
-            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.IN, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
-            Assert.assertEquals(4, fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET, Collections.emptyList()).size());
+            Assert.assertFalse(fv3.getEdgeIdsFromVertex(Direction.IN, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
+            Assert.assertEquals(4, Iterators.size(fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET, Collections.emptyList())));
             g.V(v4.id()).drop().iterate();
             fv3 = (FireflyVertex) g.V(v3.id()).next();
-            Assert.assertEquals(2, fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET, Collections.emptyList()).size());
+            Assert.assertEquals(2, Iterators.size(fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET, Collections.emptyList())));
             g.V(v5.id()).drop().iterate();
             fv3 = (FireflyVertex) g.V(v3.id()).next();
-            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
+            Assert.assertFalse(fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
             Assert.assertFalse(g.E().hasNext());
         }
     }

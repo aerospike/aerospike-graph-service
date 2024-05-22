@@ -632,12 +632,12 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         final Vertex lemon = g.V().hasLabel("lemon").next();
         final Vertex lime = g.V().hasLabel("lime").next();
-        List<FireflyId> i = graph.readVertex(graph.getIdFactory().createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN, Set.of(), Collections.emptyList());
-        assertFalse(i.isEmpty());
+        Iterator<FireflyId> i = graph.readVertex(graph.getIdFactory().createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN, Set.of(), Collections.emptyList());
+        assertTrue(i.hasNext());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
-        FireflyId next = i.get(0);
+        FireflyId next = i.next();
         assertTrue(x.contains(Crypto.encodeBase64(((ByteBuffer) next.getUserId()).array())));
-        next = i.get(1);
+        next = i.next();
         assertTrue(x.contains(Crypto.encodeBase64(((ByteBuffer) next.getUserId()).array())));
     }
 

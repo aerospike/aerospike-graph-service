@@ -12,6 +12,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
@@ -28,8 +29,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -213,7 +214,8 @@ public class SampleStrategyTest {
 
             final FireflyVertex supernode = (FireflyVertex) g.V().has("indexed", "value1").next();
 
-            final List<FireflyId> supernodeEdgeIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), EDGE_ID, Collections.emptyList());
+            final Iterator<FireflyId> supernodeEdgeIdsItty = supernode.getSupernodeIds(Direction.OUT, Set.of(), EDGE_ID, Collections.emptyList());
+            final List<FireflyId> supernodeEdgeIds = IteratorUtils.toList(supernodeEdgeIdsItty);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeEdgeIds.size());
             Assert.assertFalse(supernodeEdgeIds.stream().anyMatch(Objects::isNull));
 
@@ -221,16 +223,17 @@ public class SampleStrategyTest {
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeEdges.size());
             Assert.assertFalse(supernodeEdges.stream().anyMatch(Objects::isNull));
 
-            final List<FireflyId> supernodeVertexIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), VERTEX_ID, Collections.emptyList());
+            final Iterator<FireflyId> supernodeVertexIdsItty = supernode.getSupernodeIds(Direction.OUT, Set.of(), VERTEX_ID, Collections.emptyList());
+            final List<FireflyId> supernodeVertexIds = IteratorUtils.toList(supernodeVertexIdsItty);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeVertexIds.size());
             Assert.assertFalse(supernodeVertexIds.stream().anyMatch(Objects::isNull));
 
-            supernodeVertexIds.sort(Comparator.comparing(FireflyId::toString));
             final List<FireflyVertex> supernodeVertices = graph.readVertices(List.of(), supernodeVertexIds, null);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeVertices.size());
             Assert.assertFalse(supernodeVertices.stream().anyMatch(Objects::isNull));
 
-            final List<FireflyId> allEdgeIds = supernode.getEdgeIdsFromVertex(Direction.OUT, Set.of(), Collections.emptyList());
+            final Iterator<FireflyId> allEdgeIdsItty = supernode.getEdgeIdsFromVertex(Direction.OUT, Set.of(), Collections.emptyList());
+            final List<FireflyId> allEdgeIds = IteratorUtils.toList(allEdgeIdsItty);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, allEdgeIds.size());
             Assert.assertFalse(allEdgeIds.stream().anyMatch(Objects::isNull));
 
@@ -238,7 +241,8 @@ public class SampleStrategyTest {
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, allEdges.size());
             Assert.assertFalse(allEdges.stream().anyMatch(Objects::isNull));
 
-            final List<FireflyId> allVertexIds = supernode.getVertexIdsFromVertex(Direction.OUT, Set.of());
+            final Iterator<FireflyId> allVertexIdsItty = supernode.getVertexIdsFromVertex(Direction.OUT, Set.of());
+            final List<FireflyId> allVertexIds = IteratorUtils.toList(allVertexIdsItty);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, allVertexIds.size());
             Assert.assertFalse(allVertexIds.stream().anyMatch(Objects::isNull));
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, new HashSet<>(allVertexIds).size());

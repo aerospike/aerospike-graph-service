@@ -186,6 +186,11 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
                     final JWTAuthenticator.JWTAuthenticatedUser jwtUser = (JWTAuthenticator.JWTAuthenticatedUser) authenticatedUser;
                     final UserContext.ROLE role = jwtUser.getRole();
                     final UserContext.ROLE requiredRole = getRequiredRole();
+                    if (role == null) {
+                        // Should never happen.
+                        routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("User does not have a valid role."));
+                        return;
+                    }
                     if (requiredRole.equals(UserContext.ROLE.READ)) {
                         if (!role.equals(UserContext.ROLE.READ) && !role.equals(UserContext.ROLE.ADMIN) && !role.equals(UserContext.ROLE.READ_WRITE)) {
                             routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("Insufficient permissions to perform operation."));

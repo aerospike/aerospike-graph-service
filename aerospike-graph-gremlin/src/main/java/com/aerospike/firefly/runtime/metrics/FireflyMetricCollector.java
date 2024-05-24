@@ -22,7 +22,7 @@ public class FireflyMetricCollector extends Collector {
                 new MetricFamilySamples("usage", Type.INFO, "Aerospike Graph Service Usage (vcpu-hours)",
                         List.of(new MetricFamilySamples.Sample(
                                 "usage", List.of("usage"), List.of("aerospike_graph_usage"),
-                                FireflyUsageStats.getTotalVcpuHours( FireflyUsageStats.readMetadata(), null)))),
+                                FireflyUsageStats.getTotalVcpuHours(FireflyUsageStats.readMetadata(), null)))),
                 new MetricFamilySamples("cluster_name", Type.INFO, "Aerospike Cluster Name",
                         List.of(new MetricFamilySamples.Sample(
                                 "cluster_name", List.of("cluster_name"), List.of(clusterName), 0.0))));

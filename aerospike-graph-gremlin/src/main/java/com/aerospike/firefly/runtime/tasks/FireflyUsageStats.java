@@ -4,6 +4,7 @@ import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
+import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,11 +46,6 @@ public class FireflyUsageStats {
 
     public static void startUsageStats(final AerospikeConnection connection) {
         synchronized (FireflyUsageStats.class) {
-            // Don't start in warm up due to config differences.
-            if (connection.WARMUP_MODE) {
-                return;
-            }
-
             // Only create once.
             if (instance == null) {
                 instance = new FireflyUsageStats(connection);
@@ -142,8 +138,15 @@ public class FireflyUsageStats {
         public List<Map<String, Object>> getAllUsageStats() {
             final List<Map<String, Object>> usageStatsList = new ArrayList<>();
             final AerospikeClient client = connection.getClient();
-            client.scanAll(null, connection.getNamespace(), connection.USAGE_STATS_SET, (key, record)
-                    -> usageStatsList.add((Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN)));
+            try {
+                System.out.println("Namespace: " + connection.getNamespace());
+                System.out.println("Set: " + connection.USAGE_STATS_SET);
+                client.scanAll(null, connection.getNamespace(), connection.USAGE_STATS_SET, (key, record)
+                        -> usageStatsList.add((Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN)));
+                System.out.println("Scan complete");
+            } catch (final Exception ex) {
+                LOG.error("Error in FireflyUsageStats read thread:", ex);
+            }
             return usageStatsList;
         }
     }

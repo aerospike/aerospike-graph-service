@@ -21,6 +21,7 @@ import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
@@ -591,12 +592,31 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
 
     @Override
     public Vertex outVertex() {
-        return graph.readVertex(this.outVid);
+        // TODO GRAPH-1145: Restore the following and handle skipping null returns.
+        //return graph.readVertex(this.outVid);
+        return getSingleVertex(this.outVid);
     }
 
     @Override
     public Vertex inVertex() {
-        return graph.readVertex(this.inVid);
+        // TODO GRAPH-1145: Restore the following and handle skipping null returns.
+        //return graph.readVertex(this.inVid);
+        return getSingleVertex(this.inVid);
+    }
+
+    /**
+     * Get a Vertex directly via ID, bypassing the TTL pushdown filter.
+     *
+     * @param vertexId ID of Vertex to return
+     * @return  Vertex
+     */
+    private FireflyVertex getSingleVertex(final FireflyId vertexId) {
+        final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, vertexId);
+        if (fireflyRecord == null) {
+            return null;
+        }
+        final KeyRecord keyRecord = new KeyRecord(fireflyRecord.key(), fireflyRecord.record());
+        return FireflyVertex.fromRecord(graph, keyRecord);
     }
 
     @Override

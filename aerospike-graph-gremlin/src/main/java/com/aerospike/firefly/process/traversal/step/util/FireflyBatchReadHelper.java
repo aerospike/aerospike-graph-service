@@ -26,6 +26,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -144,9 +145,10 @@ public class FireflyBatchReadHelper {
     public static <E extends FireflyElement> void addElementsToSet(final List<FireflyId> fireflyIdList,
                                                                    final Set<FireflyId> uniqueIdSet,
                                                                    final Map<FireflyId, E> fireflyElementMap,
-                                                                   final List<FireflyId> elementIds) {
-        fireflyIdList.addAll(elementIds);
-        for (final FireflyId id : elementIds) {
+                                                                   final Iterator<FireflyId> elementIds) {
+        while (elementIds.hasNext()) {
+            final FireflyId id = elementIds.next();
+            fireflyIdList.add(id);
             if (!fireflyElementMap.containsKey(id)) {
                 uniqueIdSet.add(id);
             }

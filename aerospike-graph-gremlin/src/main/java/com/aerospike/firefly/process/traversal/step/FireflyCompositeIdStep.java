@@ -87,6 +87,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
 
             // All the work for supernode scan/index/cache handling is done in the getVertexIdsFromVertex function.
             TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
+            // TODO GRAPH-1139: The entire iterator is consumed here and may OOM.
             FireflyBatchReadHelper.addElementsToSet(
                     fireflyIdList, uniqueIdSet, fireflyVertexMap, vertex.getVertexIdsFromVertex(direction, edgeLabels));
 

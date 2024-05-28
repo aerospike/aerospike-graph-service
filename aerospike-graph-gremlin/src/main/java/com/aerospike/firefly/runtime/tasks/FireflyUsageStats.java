@@ -17,6 +17,8 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.MILLISECONDS_TO_HOURS;
 
@@ -49,9 +51,11 @@ public class FireflyUsageStats {
         synchronized (FireflyUsageStats.class) {
             // Only create once.
             if (instance == null) {
-                final String setIndex = AerospikeConnection.InfoOps.createSetIndex(connection.getClient(), connection.getNamespace(), connection.USAGE_STATS_SET);
-                if (!"ok".equals(setIndex)) {
-                    LOG.error("Error creating set index: {}", setIndex);
+                final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(connection.getClient(), connection.getNamespace(), connection.USAGE_STATS_SET);
+                for (String index : setIndex) {
+                    if (!"ok".equals(index)) {
+                        LOG.error("Error creating set index: {}", index);
+                    }
                 }
                 instance = new FireflyUsageStats(connection);
             } else {
@@ -147,7 +151,7 @@ public class FireflyUsageStats {
                 // Vrtx only has 2 seconds max, we shouldn't take all of it.
                 final ScanPolicy scanPolicy = new ScanPolicy();
                 scanPolicy.totalTimeout = 1000;
-                client.scanAll(null, connection.getNamespace(), connection.USAGE_STATS_SET, (key, record)
+                client.scanAll(scanPolicy, connection.getNamespace(), connection.USAGE_STATS_SET, (key, record)
                         -> usageStatsList.add((Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN)));
                 errorPrinted = false;
             } catch (final Exception ex) {

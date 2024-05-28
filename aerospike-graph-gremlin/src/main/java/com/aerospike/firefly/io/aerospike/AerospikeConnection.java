@@ -743,9 +743,13 @@ public class AerospikeConnection implements AutoCloseable {
                     .collect(Collectors.toList());
         }
 
-        public static String createSetIndex(final AerospikeClient client, final String namespace, final String set) {
+        public static List<String> createSetIndex(final AerospikeClient client, final String namespace, final String set) {
             final String command = "set-config:context=namespace;id=" + namespace + ";set=" + set + ";enable-index=true";
-            return Info.request(new InfoPolicy(), client.getNodes()[0], command);
+            final List<String> results = new ArrayList<>();
+            for (final Node node : client.getNodes()) {
+                results.add(Info.request(new InfoPolicy(), node, command));
+            }
+            return results;
         }
 
         /**

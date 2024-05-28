@@ -142,6 +142,7 @@ public final class ConfigurationHelper {
         public static final String JWT_ISSUER = "aerospike.graph-service.auth.jwt.issuer";
         public static final String JWT_ALGORITHM = "aerospike.graph-service.auth.jwt.algorithm";
         public static final String AUTHENTICATION_ENABLED = "aerospike.graph-service.auth.enabled";
+        public static final String USAGE_STATS_SET_INDEX_ENABLED = "aerospike.graph.usage.index.enabled";
 
         public static class Pair {
             public final int numeric;
@@ -345,6 +346,7 @@ public final class ConfigurationHelper {
         put(Keys.QUERY_IMPL, Keys.QUERY_PAGED);
         put(Keys.JWT_ALGORITHM, "HMAC256");
         put(Keys.AUTHENTICATION_ENABLED, "false");
+        put(Keys.USAGE_STATS_SET_INDEX_ENABLED, "true");
     }};
 
     static {

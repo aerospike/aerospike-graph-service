@@ -32,6 +32,7 @@ public class FireflyUsageStats {
 
     // Does not need to be closed because it is a daemon thread.
     private final Timer taskTimer = new Timer(true);
+    private static boolean errorPrinted = false;
 
     private FireflyUsageStats(final AerospikeConnection connection) {
         this.task = new FireflyUsageStatsTask(connection);
@@ -48,6 +49,11 @@ public class FireflyUsageStats {
         synchronized (FireflyUsageStats.class) {
             // Only create once.
             if (instance == null) {
+
+                final String setIndex = AerospikeConnection.InfoOps.createSetIndex(connection.getClient(), connection.getNamespace(), connection.USAGE_STATS_SET);
+                if (!"ok".equals(setIndex)) {
+                    LOG.error("Error creating set index: {}", setIndex);
+                }
                 instance = new FireflyUsageStats(connection);
             } else {
                 // Update connection. Multiple open and closes can invalidate previous connection.
@@ -139,13 +145,17 @@ public class FireflyUsageStats {
             final List<Map<String, Object>> usageStatsList = new ArrayList<>();
             final AerospikeClient client = connection.getClient();
             try {
-                System.out.println("Namespace: " + connection.getNamespace());
-                System.out.println("Set: " + connection.USAGE_STATS_SET);
+                // Vrtx only has 2 seconds max, we shouldn't take all of it.
+                final ScanPolicy scanPolicy = new ScanPolicy();
+                scanPolicy.totalTimeout = 1000;
                 client.scanAll(null, connection.getNamespace(), connection.USAGE_STATS_SET, (key, record)
                         -> usageStatsList.add((Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN)));
-                System.out.println("Scan complete");
+                errorPrinted = false;
             } catch (final Exception ex) {
-                LOG.error("Error in FireflyUsageStats read thread:", ex);
+                if (!errorPrinted) {
+                    LOG.error("Error getting usage stats", ex);
+                }
+                errorPrinted = true;
             }
             return usageStatsList;
         }

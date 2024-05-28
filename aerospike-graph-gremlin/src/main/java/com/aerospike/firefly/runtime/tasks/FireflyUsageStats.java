@@ -49,7 +49,6 @@ public class FireflyUsageStats {
         synchronized (FireflyUsageStats.class) {
             // Only create once.
             if (instance == null) {
-
                 final String setIndex = AerospikeConnection.InfoOps.createSetIndex(connection.getClient(), connection.getNamespace(), connection.USAGE_STATS_SET);
                 if (!"ok".equals(setIndex)) {
                     LOG.error("Error creating set index: {}", setIndex);

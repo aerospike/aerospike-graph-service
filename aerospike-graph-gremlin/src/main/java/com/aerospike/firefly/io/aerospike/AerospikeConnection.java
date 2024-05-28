@@ -288,9 +288,7 @@ public class AerospikeConnection implements AutoCloseable {
 
         final AerospikeClient aerospikeClient;
         try {
-            System.out.println("Creating aerospike client.");
             aerospikeClient = new AerospikeClient(policy, hosts);
-            System.out.println("aerospike client created.");
         } catch (final Exception e) {
             LOG.error("Error connecting to Aerospike", e);
             throw e;

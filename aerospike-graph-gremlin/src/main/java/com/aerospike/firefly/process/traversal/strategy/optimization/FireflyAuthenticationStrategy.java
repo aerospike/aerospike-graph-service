@@ -82,7 +82,6 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
 
             if (!RESERVED_CALL_STRING.equals(serviceName)) {
                 callSteps.add(callStep);
-                hasAdminStep = true;
                 continue;
             }
             try {
@@ -126,12 +125,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                     throw AuthenticationException.userDoesNotHaveWriteAccess();
                 }
             }
-            if (hasAdminStep) {
-                if (!role.equals(UserContext.ROLE.ADMIN)) {
-                    throw AuthenticationException.userDoesNotHaveAdminAccess();
-                }
-            }
-            if (!hasMutateStep && !hasAdminStep) {
+            if (!hasMutateStep) {
                 if (!role.equals(UserContext.ROLE.READ) &&
                         !role.equals(UserContext.ROLE.READ_WRITE) &&
                         !role.equals(UserContext.ROLE.ADMIN)) {

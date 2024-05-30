@@ -23,7 +23,6 @@ import static com.aerospike.firefly.security.JWTAuthorizer.RESERVED_CALL_STRING;
  */
 public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
     boolean hasMutateStep = false;
-    boolean hasAdminStep = false;
     JWTAuthenticator.JWTAuthenticatedUser jwtUser = null;
 
     /**
@@ -120,6 +119,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
             if (role == null) {
                 throw AuthenticationException.userDoesNotHaveValidRole();
             }
+            // Admin steps are call steps. These have internal auth checks.
             if (hasMutateStep) {
                 if (!role.equals(UserContext.ROLE.READ_WRITE) && !role.equals(UserContext.ROLE.ADMIN)) {
                     throw AuthenticationException.userDoesNotHaveWriteAccess();
@@ -138,7 +138,6 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
     @Override
     public void reset() {
         hasMutateStep = false;
-        hasAdminStep = false;
         jwtUser = null;
     }
 }

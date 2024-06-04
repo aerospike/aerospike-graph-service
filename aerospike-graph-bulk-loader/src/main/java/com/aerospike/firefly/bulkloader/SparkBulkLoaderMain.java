@@ -64,6 +64,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
     private static boolean FILE_SYSTEM_MUTABLE;
     private static ProgressBar PROGRESS_BAR;
     private static Timer PROGRESS_BAR_TIMER;
+    private static final int PROGRESS_BAR_INTERVAL_MS = 10000;
     private static final int DRYRUN_STACKTRACE_LIMIT = 5;
     private static final AtomicBoolean IN_PROGRESS = new AtomicBoolean(false);
 
@@ -99,7 +100,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             LOGGER.info("Command line input: {}", String.join(", ", printableArgs));
 
             // new Timer(true) creates the timer as a daemon, which means that it will not prevent the JVM from exiting.
-            PROGRESS_BAR = new ProgressBar();
+            PROGRESS_BAR = new ProgressBar(PROGRESS_BAR_INTERVAL_MS);
             PROGRESS_BAR_TIMER = new Timer(true);
 
             // Initialize Spark.
@@ -181,7 +182,6 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             PROGRESS_BAR.setSuperNodeExtractionComplete();
 
             // Vertex processing
-            PROGRESS_BAR.setVertexLoadStart();
             vertexOperations.writeVerticesToDB(vertexDataset, supernodes);
             PROGRESS_BAR.setVertexLoadComplete();
 
@@ -190,7 +190,6 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             vertexDataset.unpersist();
 
             // Edge processing
-            PROGRESS_BAR.setEdgeLoadStart();
             
             // If Edge ID persistence mode was disabled, read directly from Edge CSVs - else read written Edge IDs from disk.
             final Dataset<Row> edgeIdDataset = edgeIdWriteDisabled ? edgeDataset :
@@ -229,7 +228,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
         try {
             // Once graph is set in progress bar, it will be used to update progress bar.
             PROGRESS_BAR.setGraph(graph);
-            PROGRESS_BAR_TIMER.scheduleAtFixedRate(PROGRESS_BAR, 0, 10000);
+            PROGRESS_BAR_TIMER.scheduleAtFixedRate(PROGRESS_BAR, 0, PROGRESS_BAR_INTERVAL_MS);
         } catch (final Exception e) {
             LOGGER.warn("Failed to start progress bar", e);
         }

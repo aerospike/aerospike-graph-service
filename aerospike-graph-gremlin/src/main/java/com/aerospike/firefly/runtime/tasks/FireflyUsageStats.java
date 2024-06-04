@@ -4,6 +4,7 @@ import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
+import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,8 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.MILLISECONDS_TO_HOURS;
 
@@ -31,6 +34,7 @@ public class FireflyUsageStats {
 
     // Does not need to be closed because it is a daemon thread.
     private final Timer taskTimer = new Timer(true);
+    private static boolean errorPrinted = false;
 
     private FireflyUsageStats(final AerospikeConnection connection) {
         this.task = new FireflyUsageStatsTask(connection);
@@ -45,13 +49,14 @@ public class FireflyUsageStats {
 
     public static void startUsageStats(final AerospikeConnection connection) {
         synchronized (FireflyUsageStats.class) {
-            // Don't start in warm up due to config differences.
-            if (connection.WARMUP_MODE) {
-                return;
-            }
-
             // Only create once.
             if (instance == null) {
+                final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(connection.getClient(), connection.getNamespace(), connection.USAGE_STATS_SET);
+                for (String index : setIndex) {
+                    if (!"ok".equals(index)) {
+                        LOG.error("Error creating set index: {}", index);
+                    }
+                }
                 instance = new FireflyUsageStats(connection);
             } else {
                 // Update connection. Multiple open and closes can invalidate previous connection.
@@ -142,8 +147,19 @@ public class FireflyUsageStats {
         public List<Map<String, Object>> getAllUsageStats() {
             final List<Map<String, Object>> usageStatsList = new ArrayList<>();
             final AerospikeClient client = connection.getClient();
-            client.scanAll(null, connection.getNamespace(), connection.USAGE_STATS_SET, (key, record)
-                    -> usageStatsList.add((Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN)));
+            try {
+                // Vrtx only has 2 seconds max, we shouldn't take all of it.
+                final ScanPolicy scanPolicy = new ScanPolicy();
+                scanPolicy.totalTimeout = 1000;
+                client.scanAll(scanPolicy, connection.getNamespace(), connection.USAGE_STATS_SET, (key, record)
+                        -> usageStatsList.add((Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN)));
+                errorPrinted = false;
+            } catch (final Exception ex) {
+                if (!errorPrinted) {
+                    LOG.error("Error getting usage stats", ex);
+                }
+                errorPrinted = true;
+            }
             return usageStatsList;
         }
     }

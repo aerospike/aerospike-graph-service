@@ -217,6 +217,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final int PAGINATION_PAGE_SIZE;
     public final int PAGINATION_PAGE_MAX_WAIT;
     public final boolean AUTHENTICATION_ENABLED;
+    public final boolean USAGE_STATS_SET_INDEX_ENABLED;
     public boolean isSupernodePushdownEnabled = true;
     public final List<String> vertexNonPropertyBins = new ArrayList<>();
     public final List<String> vertexPropertyBins = new ArrayList<>();
@@ -363,6 +364,7 @@ public class AerospikeConnection implements AutoCloseable {
         PAGINATION_PAGE_MAX_WAIT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, conf);
         PAGINATION_PAGE_QUEUE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, conf);
         AUTHENTICATION_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTHENTICATION_ENABLED, conf);
+        USAGE_STATS_SET_INDEX_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.USAGE_STATS_SET_INDEX_ENABLED, conf);
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);
         BL_DUPLICATE_VERTEX_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_DUPLICATE_VERTEX_COUNT_KEY.name(), conf);
@@ -739,6 +741,15 @@ public class AerospikeConnection implements AutoCloseable {
                     .map(m -> (Map.Entry<String, String>)
                             new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET)))
                     .collect(Collectors.toList());
+        }
+
+        public static List<String> createSetIndex(final AerospikeClient client, final String namespace, final String set) {
+            final String command = "set-config:context=namespace;id=" + namespace + ";set=" + set + ";enable-index=true";
+            final List<String> results = new ArrayList<>();
+            for (final Node node : client.getNodes()) {
+                results.add(Info.request(new InfoPolicy(), node, command));
+            }
+            return results;
         }
 
         /**

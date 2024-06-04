@@ -41,6 +41,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.NULL_VALUE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.collect_set;
 import static org.apache.spark.sql.functions.count;
@@ -255,7 +256,7 @@ public class Validations {
         final List<Long> failures = vertices.mapPartitions((MapPartitionsFunction<Row, Long>) rowIterator -> {
             long count = 0L;
             long failureCount = 0L;
-            final int bufferSize = config.getOrDefaultInt(EDGE_WRITE_BUFFER);
+            final int bufferSize = config.getOrDefaultInt(VERTEX_WRITE_BUFFER);
             final List<CompletableFuture<Integer>> futures = new ArrayList<>();
             final Instant start = Instant.now();
             LOGGER.info("Starting dryRunVertexCreation; partition-id: {}", TaskContext.getPartitionId());

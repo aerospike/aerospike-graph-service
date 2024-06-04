@@ -26,7 +26,7 @@ public class TestFireflyTtl {
     public void beforeEach() {
         this.graph = FireflyGraph.open(DEFAULT_TTL_CONFIG);
         this.graph.getBaseGraph().dropDatabase(graph, false);
-        this.noTtlGraph = FireflyGraph.open(DEFAULT_TTL_CONFIG);
+        this.noTtlGraph = FireflyGraph.open(DEFAULT_CONFIG);
     }
 
     @After
@@ -292,6 +292,25 @@ public class TestFireflyTtl {
         Thread.sleep(2000);
         Assert.assertFalse(g.V().hasLabel("v1").hasNext());
         Assert.assertFalse(g.V(v2.id()).out().hasNext());
+    }
+
+    @Test
+    public void testLazyEvaluationFromEdge() throws InterruptedException {
+        this.graph.close();
+        this.graph = FireflyGraph.open(getConfig(1000));
+        GraphTraversalSource g = this.graph.traversal();
+        final Vertex v1 = g.addV("v1").property("~ttl", 1).next();
+        final Vertex v2 = g.addV("v2").next();
+        final Edge e = g.addE("e").from(v2).to(v1).next();
+        Assert.assertEquals(v1.id(), g.E(e.id()).inV().next().id());
+        Thread.sleep(2000);
+        // TODO GRAPH-1145: Currently this just tests that we don't cause null exceptions. Change this when lazy
+        //                  evaluation works for a Vertex directly grabbed from an Edge.
+        Assert.assertTrue(g.E(e.id()).inV().hasNext());
+        final Vertex v1FromEdge = g.E(e.id()).inV().next();
+        Assert.assertNotNull(v1FromEdge);
+        Assert.assertEquals(v1.id(), v1FromEdge.id());
+        Assert.assertFalse(g.V(v1FromEdge.id()).hasNext());
     }
 
     private static void assertTtlAccuracy(final FireflyGraph graph, final FireflyGraph noTtlGraph) throws InterruptedException {

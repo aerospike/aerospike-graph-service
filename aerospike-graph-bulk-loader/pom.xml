@@ -60,34 +60,28 @@
             <version>1.21</version>
             <scope>test</scope>
         </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEIVY-5847858 in spark-core_2.12@3.4.1 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-IOAIRLIFT-7164637 in spark-core_2.12@3.4.3-->
         <dependency>
-            <groupId>org.apache.ivy</groupId>
-            <artifactId>ivy</artifactId>
-            <version>2.5.2</version>
+            <groupId>io.airlift</groupId>
+            <artifactId>aircompressor</artifactId>
+            <version>0.27</version>
         </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGXERIALSNAPPY-5918282 in spark-core_2.12@3.4.1 -->
-        <dependency>
-            <groupId>org.xerial.snappy</groupId>
-            <artifactId>snappy-java</artifactId>
-            <version>1.1.10.5</version>
-        </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEZOOKEEPER-5961102 in spark-core_2.12@3.4.1 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEZOOKEEPER-5961102 in spark-core_2.12@3.4.3 -->
         <dependency>
             <groupId>org.apache.zookeeper</groupId>
             <artifactId>zookeeper</artifactId>
-            <version>3.7.2</version>
+            <version>3.8.4</version>
         </dependency>
-        <!-- Fixes ttps://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6254296 in spark-core_2.12@3.4.1 -->
+        <!-- Fixes ttps://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6254296 in spark-core_2.12@3.4.3 -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-compress</artifactId>
-            <version>1.26.0</version>
+            <version>1.26.2</version>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.12</artifactId>
-            <version>3.4.1</version>
+            <version>3.4.3</version>
             <scope>provided</scope>
             <exclusions>
                 <exclusion>
@@ -103,7 +97,7 @@
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_2.12</artifactId>
-            <version>3.4.1</version>
+            <version>3.4.3</version>
             <scope>provided</scope>
             <exclusions>
                 <exclusion>
@@ -127,7 +121,7 @@
             <version>hadoop3-2.2.15</version>
             <classifier>shaded</classifier>
         </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGCODEHAUSJETTISON-3168085 in spark-hadoop-cloud_2.12@3.4.1 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGCODEHAUSJETTISON-3168085 in spark-hadoop-cloud_2.12@3.4.3 -->
         <dependency>
             <groupId>org.codehaus.jettison</groupId>
             <artifactId>jettison</artifactId>
@@ -136,7 +130,7 @@
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-hadoop-cloud_2.12</artifactId>
-            <version>3.4.1</version>
+            <version>3.4.3</version>
         </dependency>
         <dependency>
             <groupId>commons-cli</groupId>

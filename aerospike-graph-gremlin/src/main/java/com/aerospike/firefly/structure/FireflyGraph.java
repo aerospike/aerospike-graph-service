@@ -189,6 +189,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     protected final AerospikeConnection db;
     private final FireflyIdFactory idFactory;
     public LocalGraphComputerView graphComputerView = null;
+    public final boolean bulkLoaderFlag;
     public final IdManager<Long> vertexIdManager;
     public final IdManager<byte[]> edgeIdManager;
     public final IdManager<Long> vertexPropertyIdManager;
@@ -216,6 +217,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         db.createGraphIndexes();
         this.db = db;
         this.idFactory = db.getIdFactory();
+        this.bulkLoaderFlag = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(BULK_LOADER_FLAG, conf));
 
         this.vertexPropertyIdManager = new BufferedNumericIdManager(VERTEX_PROPERTY_ID_COUNTER, db.PROPERTY_ID_BUFFER_SIZE, false);
         this.vertexIdManager = new BufferedNumericIdManager(VERTEX_ID_COUNTER, db.VERTEX_ID_BUFFER_SIZE, true);
@@ -323,7 +325,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 // works initializing.
                 final Random random = new Random();
                 try {
-                    Thread.sleep(random.nextInt(1000));
+                    Thread.sleep(random.nextInt(5000));
                 } catch (final InterruptedException ignored) {
                     // Propagate the interrupt but ignore it for the context of the sleep.
                     Thread.currentThread().interrupt();

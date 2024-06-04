@@ -13,6 +13,7 @@ import java.util.stream.IntStream;
 public class ProgressBar extends TimerTask {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProgressBar.class);
 
+    private final int intervalMillis;
     private FireflyGraph graph = null;
     private boolean preflightCheckComplete = false;
     private boolean superNodeExtractionComplete = false;
@@ -21,10 +22,11 @@ public class ProgressBar extends TimerTask {
     private boolean edgeIdWriteComplete = false;
     private boolean edgeLoadComplete = false;
     private boolean edgeValidationComplete = false;
-    private long startVertexTime = 0L;
-    private long startEdgeTime = 0L;
+    private long verticesWritten = 0L;
+    private long edgesWritten = 0L;
 
-    public ProgressBar() {
+    public ProgressBar(final int intervalMillis) {
+        this.intervalMillis = intervalMillis;
     }
 
     public void close() {
@@ -39,21 +41,9 @@ public class ProgressBar extends TimerTask {
         }
     }
 
-    public void setVertexLoadStart() {
-        synchronized (ProgressBar.class) {
-            this.startVertexTime = System.currentTimeMillis();
-        }
-    }
-
     public void setEdgeIdWriteComplete() {
         synchronized (ProgressBar.class) {
             this.edgeIdWriteComplete = true;
-        }
-    }
-
-    public void setEdgeLoadStart() {
-        synchronized (ProgressBar.class) {
-            this.startEdgeTime = System.currentTimeMillis();
         }
     }
 
@@ -103,65 +93,54 @@ public class ProgressBar extends TimerTask {
 
     private String getVertexWritingProgress(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         if (vertexLoadComplete) {
-            return "\t\tVertex writing complete\n";
-        } else if (startVertexTime != 0) {
-            long time = System.currentTimeMillis();
-            if ((time - startVertexTime) / 1000 != 0) {
-                return "\t\tVertex writing progress\n" +
-                        "\t\t\tWriting " + elementMetadata.totalVertexCount() /
-                        ((time - startVertexTime) / 1000) + " vertices per second\n";
+            return "\t\tVertex writing complete\n" +
+                    "\t\t\tTotal of " + elementMetadata.totalVertexCount() + " vertices have been successfully written\n";
+        } else if (superNodeExtractionComplete) {
+            if (verticesWritten == 0) {
+                updateAndGetDeltaVertexCount(elementMetadata);
+                return "\t\tVertex writing in progress\n";
             } else {
-                return "\t\tVertex writing progress\n";
+                final long delta = updateAndGetDeltaVertexCount(elementMetadata);
+                return "\t\tVertex writing in progress\n" +
+                        "\t\t\tWriting " + delta / (intervalMillis / 1000) + " vertices per second\n" +
+                        "\t\t\tTotal of " + verticesWritten + " vertices have been successfully written\n";
             }
         } else {
             return "\t\tVertex writing not started\n";
         }
     }
 
+    private long updateAndGetDeltaVertexCount(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
+        final long totalVertexCount = elementMetadata.totalVertexCount();
+        final long delta = totalVertexCount - verticesWritten;
+        verticesWritten = totalVertexCount;
+        return delta;
+    }
+
     private String getEdgeWritingProgress(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         if (edgeLoadComplete) {
-            return "\t\tEdge writing complete\n";
-        } else if (startEdgeTime != 0) {
-            long time = System.currentTimeMillis();
-            if ((time - startEdgeTime) / 1000 != 0) {
-                return "\t\tEdge writing progress\n" +
-                        "\t\t\tWriting " + elementMetadata.totalEdgeCount() /
-                        ((time - startEdgeTime) / 1000) + " edges per second\n";
+            return "\t\tEdge writing complete\n" +
+                    "\t\t\tTotal of " + elementMetadata.totalEdgeCount() + " edges have been successfully written\n";
+        } else if (vertexValidationComplete) {
+            if (edgesWritten == 0) {
+                updateAndGetDeltaEdgeCount(elementMetadata);
+                return "\t\tEdge writing in progress\n";
             } else {
-                return "\t\tEdge writing progress\n";
+                final long delta = updateAndGetDeltaEdgeCount(elementMetadata);
+                return "\t\tEdge writing in progress\n" +
+                        "\t\t\tWriting " + delta / (intervalMillis / 1000) + " edges per second\n" +
+                        "\t\t\tTotal of " + edgesWritten + " edges have been successfully written\n";
             }
         } else {
-            return "\t\tEdge writing progress not started\n";
+            return "\t\tEdge writing not started\n";
         }
     }
 
-    private String getTimeRemaining(final long startTime, final long currentCount, final long totalCount, final String type) {
-        final long currentTime = System.currentTimeMillis();
-        final long timeElapsed = currentTime - startTime;
-        if (currentCount == 0) {
-            return type + " writing step time remaining: unknown";
-        }
-        final long seconds = (long) (((double) timeElapsed / (double) currentCount) * (totalCount - currentCount)) / 1000;
-
-        long day = TimeUnit.SECONDS.toDays(seconds);
-        long hours = TimeUnit.SECONDS.toHours(seconds) - (day * 24);
-        long minute = TimeUnit.SECONDS.toMinutes(seconds) - (TimeUnit.SECONDS.toHours(seconds) * 60);
-        long second = TimeUnit.SECONDS.toSeconds(seconds) - (TimeUnit.SECONDS.toMinutes(seconds) * 60);
-        String timeRemaining = "";
-        if (day > 0) {
-            timeRemaining += day + " days ";
-        }
-        if (hours > 0) {
-            timeRemaining += hours + " hours ";
-        }
-        if (minute > 0) {
-            timeRemaining += minute + " minutes ";
-        }
-        if (second > 0) {
-            timeRemaining += second + " seconds";
-        }
-
-        return "Estimated time remaining for step: " + timeRemaining;
+    private long updateAndGetDeltaEdgeCount(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
+        final long totalEdgeCount = elementMetadata.totalEdgeCount();
+        final long delta = totalEdgeCount - edgesWritten;
+        edgesWritten = totalEdgeCount;
+        return delta;
     }
 
     private String getVertexValidationProgress() {
@@ -204,20 +183,6 @@ public class ProgressBar extends TimerTask {
         }
     }
 
-    private static String getProgressBar(final double percent) {
-        final String block = "█";
-        final int width = 50;
-        final int progress = (int) (width * percent);
-        String progressBlocks = IntStream.range(0, progress)
-                .mapToObj(i -> block)
-                .collect(Collectors.joining());
-        String emptyBlocks = IntStream.range(0, width - progress)
-                .mapToObj(i -> " ")
-                .collect(Collectors.joining());
-        return progressBlocks + emptyBlocks;
-
-    }
-
     private void printProgress() {
         synchronized (ProgressBar.class) {
             try {
@@ -233,8 +198,8 @@ public class ProgressBar extends TimerTask {
                         getVertexValidationProgress() +
                         getEdgeWritingProgress(elementMetadata) +
                         getEdgeValidationProgress());
-            } catch (Exception e) {
-                e.printStackTrace();
+            } catch (final Exception e) {
+                LOGGER.error("Error occurred when grabbing metadata information for progress bar: ", e);
             }
         }
     }

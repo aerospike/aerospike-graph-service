@@ -2,7 +2,7 @@ name: Publish Firefly Container for Dev
 
 on:
   push:
-    branches: [test-http]
+    branches: [2.x-dev]
 
 env:
   QE_DOCKER_REGISTRY: secure.docker.qe.aerospike.com

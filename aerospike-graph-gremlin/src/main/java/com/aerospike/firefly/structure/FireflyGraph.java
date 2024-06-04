@@ -262,11 +262,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             // Create usage statistics background task.
             FireflyUsageStats.startUsageStats(db);
 
-            // Register admin services graph metrics since it will bootstrap the server.
-            AdminServiceRegistry.registerAdminServices(this);
-
             // Start metrics.
             FireflyGremlinPlugin.initializeGraphMetrics(this);
+
+            // Register admin services graph metrics since it will bootstrap the server.
+            AdminServiceRegistry.registerAdminServices(this);
         }
     }
 

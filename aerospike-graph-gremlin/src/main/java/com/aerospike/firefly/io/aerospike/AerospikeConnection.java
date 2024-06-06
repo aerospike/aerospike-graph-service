@@ -735,6 +735,7 @@ public class AerospikeConnection implements AutoCloseable {
          */
         public static List<Map.Entry<String, String>> listExistingIndexes(final AerospikeClient client, final String namespace) {
             // Using client.getNodes()[0] is okay here since indexes exist across all nodes.
+            LOG.debug("Info.request: {}", Keys.SINDEX);
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SINDEX);
             return parseRaw(infoResponse).stream()
                     .filter(m -> m.get(Keys.NS).equals(namespace))
@@ -764,6 +765,7 @@ public class AerospikeConnection implements AutoCloseable {
         public static List<String> listUsableIndexes(final AerospikeConnection db, final String namespace) {
             final List<Set<String>> indexSets = new ArrayList<>();
             for (final Node node : db.getClient().getNodes()) {
+                LOG.debug("Info.request: {}", Keys.SINDEX);
                 final String infoResponse = Info.request(new InfoPolicy(), node, Keys.SINDEX);
                 final List<Map.Entry<String, String>> raw = parseRaw(infoResponse).stream()
                         .filter(m -> m.get(Keys.NS).equals(namespace))
@@ -804,6 +806,7 @@ public class AerospikeConnection implements AutoCloseable {
             long maxRecordSize = Long.MAX_VALUE;
 
             for (final Node node : nodes) {
+                LOG.debug("Info.request: {}", requestKey);
                 final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
                 final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
                 final Map<String, String> relevantConfigs = new HashMap<>();
@@ -847,11 +850,13 @@ public class AerospikeConnection implements AutoCloseable {
          */
         public static boolean isEnterprise(final AerospikeClient client) {
             // Using client.getNodes()[0] is okay here since if one is enterprise, the entire cluster is.
+            LOG.debug("Info.request: {}", Keys.FEATURE_KEY);
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.FEATURE_KEY);
             return (infoResponse != null && !infoResponse.isEmpty());
         }
 
         public static String getClusterName(final AerospikeClient client) {
+            LOG.debug("Info.request: get-config");
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], "get-config");
             final String[] delimitedResponse = infoResponse.split(";");
             for (final String s : delimitedResponse) {
@@ -877,6 +882,7 @@ public class AerospikeConnection implements AutoCloseable {
 
             // Need to loop all nodes here in case one of the sets only has data on a single node.
             for (final Node node : client.getNodes()) {
+                LOG.debug("Info.request: {}", Keys.SETS);
                 final String infoResponse = Info.request(new InfoPolicy(), node, Keys.SETS);
                 allSets.addAll(parseBySet(infoResponse, namespace).entrySet().stream().filter(entry -> {
                             Map<String, String> map = entry.getValue();

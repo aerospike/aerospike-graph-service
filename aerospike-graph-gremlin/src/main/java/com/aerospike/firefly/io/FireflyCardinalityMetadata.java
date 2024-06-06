@@ -75,19 +75,23 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
         // Lock while we are changing a list that we iterate over in a different thread.
         synchronized (FireflyCardinalityMetadata.class) {
             if (!vertexLabelIndexes.isEmpty()) {
-                vertexLabelCardinalityInfo = getCardinalityInfo(Info.request(new InfoPolicy(), node, vertexLabelIndex), nodes.length, null);
+                vertexLabelCardinalityInfo = getCardinalityInfo(node, vertexLabelIndex, nodes.length, null);
             } else {
                 vertexLabelCardinalityInfo = null;
             }
             if (!edgeLabelIndexes.isEmpty()) {
-                edgeLabelCardinalityInfo = getCardinalityInfo(Info.request(new InfoPolicy(), node, edgeLabelIndex), nodes.length, null);
+                edgeLabelCardinalityInfo = getCardinalityInfo(node, edgeLabelIndex, nodes.length, null);
             } else {
                 edgeLabelCardinalityInfo = null;
             }
-            vertexStringPropertyCardinalityInfo = vertexStringIndexes.stream().map(idx -> getCardinalityInfo(Info.request(new InfoPolicy(), node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName)), nodes.length, idx.key)).collect(Collectors.toList());
-            vertexNumericPropertyCardinalityInfo = vertexNumericIndexes.stream().map(idx -> getCardinalityInfo(Info.request(new InfoPolicy(), node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName)), nodes.length, idx.key)).collect(Collectors.toList());
-            edgeStringPropertyCardinalityInfo = edgeStringIndexes.stream().map(idx -> getCardinalityInfo(Info.request(new InfoPolicy(), node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName)), nodes.length, idx.key)).collect(Collectors.toList());
-            edgeNumericPropertyCardinalityInfo = edgeNumericIndexes.stream().map(idx -> getCardinalityInfo(Info.request(new InfoPolicy(), node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName)), nodes.length, idx.key)).collect(Collectors.toList());
+            vertexStringPropertyCardinalityInfo = vertexStringIndexes.stream().map(idx ->
+                getCardinalityInfo(node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName), nodes.length, idx.key)).collect(Collectors.toList());
+            vertexNumericPropertyCardinalityInfo = vertexNumericIndexes.stream().map(idx ->
+                getCardinalityInfo(node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName), nodes.length, idx.key)).collect(Collectors.toList());
+            edgeStringPropertyCardinalityInfo = edgeStringIndexes.stream().map(idx ->
+                    getCardinalityInfo(node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName), nodes.length, idx.key)).collect(Collectors.toList());
+            edgeNumericPropertyCardinalityInfo = edgeNumericIndexes.stream().map(idx ->
+                    getCardinalityInfo(node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName), nodes.length, idx.key)).collect(Collectors.toList());
         }
     }
 
@@ -164,13 +168,16 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
         }
     }
 
-    private CardinalityInfo getCardinalityInfo(final String info, final int nodeCount, final String indexName) {
+    private CardinalityInfo getCardinalityInfo(final Node node, final String infoVar, final int nodeCount,
+                                               final String indexName) {
+        LOG.debug("Info.request: {}", infoVar);
+        final String info = Info.request(new InfoPolicy(), node, infoVar);
         try {
             // Use previous failure flag to make sure we don't spam the log. If it fails, print it once, then if it starts working and failing again, print it again.
             final CardinalityInfo cardinalityInfo = new CardinalityInfo(getValue(info, ENTRIES) * nodeCount, getValue(info, ENTRIES_PER_BVAL) * nodeCount, indexName);
             previousFailure = "";
             return cardinalityInfo;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             // Invalid.
             if (!e.getMessage().equals(previousFailure)) {
                 // This happens a lot while the system gets going, it isn't really a problem, so don't spam the log.

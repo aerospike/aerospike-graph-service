@@ -4,16 +4,21 @@ import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.cluster.Node;
 import com.aerospike.client.policy.InfoPolicy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyAerospikeGraphServiceCheck {
+    final private static Logger LOGGER = LoggerFactory.getLogger(FireflyAerospikeGraphServiceCheck.class);
+
     private FireflyAerospikeGraphServiceCheck() {
     }
 
     public static void checkFeatureKey(final AerospikeClient client) {
         for (final Node node: client.getNodes()) {
+            LOGGER.debug("Info.request: feature-key");
             final String infoResponse = Info.request(new InfoPolicy(), node, "feature-key");
             validateInfoResponse(infoResponse);
         }

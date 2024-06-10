@@ -27,8 +27,6 @@ public class BufferedNumericIdManager implements IdManager<Long> {
     private final boolean allowUserSupplied;
 
     // Bulk loader mode specifics
-    private static final long BULK_LOAD_BUFFER_SIZE = 2000000;
-
     private static final Object VP_LOCK = new Object();
     private static final Object VID_LOCK = new Object();
     private static final Object EID_PACK_LOCK = new Object();
@@ -135,12 +133,12 @@ public class BufferedNumericIdManager implements IdManager<Long> {
 
     private long getBulkLoaderId(final FireflyGraph graph, final AtomicLong idTracker, final AtomicLong idTrigger) {
         if (idTracker.get() == Long.MAX_VALUE) {
-            bufferIds(graph, BULK_LOAD_BUFFER_SIZE, idTracker, idTrigger);
+            bufferIds(graph, graph.bulkLoadIdBufferSize, idTracker, idTrigger);
         }
         final long id = idTracker.getAndDecrement();
         if (id <= idTrigger.get()) {
             // The ID we got is the last reserved ID so we need to buffer more
-            bufferIds(graph, BULK_LOAD_BUFFER_SIZE, idTracker, idTrigger);
+            bufferIds(graph, graph.bulkLoadIdBufferSize, idTracker, idTrigger);
         }
         return id;
     }

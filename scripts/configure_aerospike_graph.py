@@ -43,7 +43,10 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
                     valid_properties.append(line)
                 elif not line.startswith("gremlin.graph"):
                     invalid.append(line)
-    except:
+    except Exception as e:
+        # Do not allow auth.enabled to be set in properties file.
+        if "'aerospike.graph-service.auth.enabled' is reserved" in str(e):
+            raise e
         pass
 
     keys_in_both_properties_and_environment = []

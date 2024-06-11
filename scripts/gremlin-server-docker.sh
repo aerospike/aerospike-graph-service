@@ -16,6 +16,10 @@ python3 scripts/configure_aerospike_graph.py "/opt/aerospike-graph/aerospike-gra
     "$CONF_DIR/aerospike-graph.properties" \
     "$CONF_DIR/java_options.txt" \
     "$CONF_DIR/unified-config.properties"
+if [[ $? != 0 ]]; then
+  echo "Failed to configure aerospike graph"
+  exit 1
+fi
 
 export UNIFIED_CONFIG_PROPERTIES_PATH="$CONF_DIR/unified-config.properties"
 

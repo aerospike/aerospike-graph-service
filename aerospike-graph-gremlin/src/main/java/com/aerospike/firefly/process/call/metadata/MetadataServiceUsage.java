@@ -68,7 +68,9 @@ public class MetadataServiceUsage<I, R> extends MetadataServiceBase<I, R> {
 
         final List<Map<String, Object>> usageStats = FireflyUsageStats.readMetadata();
         final Map<String, Object> results = new HashMap<>();
-        final Double vcpuHours = FireflyUsageStats.getTotalVcpuHours(usageStats, epochOffsetMilliseconds);
+        Double vcpuHours = FireflyUsageStats.getTotalVcpuHours(usageStats, epochOffsetMilliseconds);
+        // Truncate to 2 decimal places.
+        vcpuHours = Math.round(vcpuHours * 100.0) / 100.0;
         results.put("raw", usageStats);
         results.put("total-vcpu-hours", vcpuHours);
         if (epochOffsetMilliseconds != null) {
@@ -76,7 +78,9 @@ public class MetadataServiceUsage<I, R> extends MetadataServiceBase<I, R> {
             final Long now = System.currentTimeMillis();
             final Long diff = now - epochOffsetMilliseconds;
             final Long diffHours = diff / MILLISECONDS_TO_HOURS;
-            final Double vcpuHoursPerYear = vcpuHours / diffHours;
+            Double vcpuHoursPerYear = vcpuHours / diffHours;
+            // Truncate to 2 decimal places.
+            vcpuHoursPerYear = Math.round(vcpuHoursPerYear * 100.0) / 100.0;
             results.put("estimated-annual-total-vcpus", vcpuHoursPerYear);
         }
         return (R) results;

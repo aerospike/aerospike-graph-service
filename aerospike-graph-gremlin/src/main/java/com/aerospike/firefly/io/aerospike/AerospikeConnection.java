@@ -158,7 +158,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final Configuration conf;
     public final String USER_SUPPLIED_ID_CACHE_SET;
     public final List<AbstractMap.Entry<UUID, CompletableFuture<Void>>> cacheTasks;
-    public final int AEROSPIKE_WRITE_MAX_RETRY;
     public final long CARDINALITY_METADATA_UPDATE_FREQUENCY;
     public final long INDEX_METADATA_UPDATE_FREQUENCY;
     public final String SUPERNODES_IN_BIN;
@@ -184,12 +183,16 @@ public class AerospikeConnection implements AutoCloseable {
     public final int TTL_PURGE_INTERVAL_SECONDS;
     public final boolean SUPERNODE_TRAVERSAL_LOG_WARNING;
 
+    private final int AEROSPIKE_WRITE_MAX_RETRY;
+    private final int SLEEP_BETWEEN_RETRY;
+    private final int TOTAL_TIMEOUT;
+    public final int SOCKET_TIMEOUT;
+    private final int CONNECT_TIMEOUT;
+    private final int TIMEOUT_DELAY;
+
     public final long PROPERTY_ID_BUFFER_SIZE;
     public final long VERTEX_ID_BUFFER_SIZE;
     public final long EDGE_ID_BUFFER_SIZE;
-    public final int CONNECT_TIMEOUT;
-    public final int AEROSPIKE_SOCKET_TIMEOUT;
-    public final int TIMEOUT_DELAY;
     public final long USAGE_STATS_UPDATE_INTERVAL;
     public final boolean WARMUP_MODE;
     public final boolean PROMETHEUS_RENAME_ENABLED;
@@ -223,12 +226,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final List<String> vertexPropertyBins = new ArrayList<>();
 
     public final String QUERY_IMPL;
-    public Policy getPolicy() {
-        final Policy policy = new Policy();
-        policy.connectTimeout = this.CONNECT_TIMEOUT;
-        policy.timeoutDelay = this.TIMEOUT_DELAY;
-        return policy;
-    }
 
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
@@ -372,6 +369,11 @@ public class AerospikeConnection implements AutoCloseable {
         BL_BAD_ENTRY_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_BAD_ENTRY_COUNT_KEY.name(), conf);
 
         AEROSPIKE_WRITE_MAX_RETRY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_WRITE_MAX_RETRY, conf);
+        SLEEP_BETWEEN_RETRY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SLEEP_BETWEEN_RETRY, conf);
+        TOTAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.TOTAL_TIMEOUT, conf);
+        SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SOCKET_TIMEOUT, conf);
+        CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CONNECT_TIMEOUT, conf);
+        TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf);
 
         CARDINALITY_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf);
         INDEX_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf);
@@ -434,9 +436,6 @@ public class AerospikeConnection implements AutoCloseable {
         VERTEX_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, conf);
         EDGE_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, conf);
 
-        AEROSPIKE_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_SOCKET_TIMEOUT, conf);
-        CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CONNECT_TIMEOUT, conf);
-        TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf);
         USAGE_STATS_UPDATE_INTERVAL = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL, conf);
         WARMUP_MODE = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf);
         PROMETHEUS_RENAME_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.PROMETHEUS_RENAME, conf);
@@ -1179,6 +1178,11 @@ public class AerospikeConnection implements AutoCloseable {
             writePolicy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
         }
         writePolicy.maxRetries = AEROSPIKE_WRITE_MAX_RETRY;
+        writePolicy.sleepBetweenRetries = SLEEP_BETWEEN_RETRY;
+        writePolicy.totalTimeout = TOTAL_TIMEOUT;
+        writePolicy.socketTimeout = SOCKET_TIMEOUT;
+        writePolicy.connectTimeout = CONNECT_TIMEOUT;
+        writePolicy.timeoutDelay = TIMEOUT_DELAY;
         if (generation != -1) {
             // Set generation for write.
             writePolicy.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
@@ -1666,6 +1670,11 @@ public class AerospikeConnection implements AutoCloseable {
             policy = writePolicy;
         }
         policy.maxRetries = AEROSPIKE_WRITE_MAX_RETRY;
+        policy.sleepBetweenRetries = SLEEP_BETWEEN_RETRY;
+        policy.totalTimeout = TOTAL_TIMEOUT;
+        policy.socketTimeout = SOCKET_TIMEOUT;
+        policy.connectTimeout = CONNECT_TIMEOUT;
+        policy.timeoutDelay = TIMEOUT_DELAY;
 
         final FireflyCache cache = transactionCache.get();
         final FireflyCache noPropsCache = emptyPropsTransactionCache.get();

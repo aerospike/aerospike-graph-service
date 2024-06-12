@@ -2,6 +2,7 @@ package com.aerospike.firefly.jsr223;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.process.computer.local.LocalGraphComputer;
 import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
@@ -45,7 +46,8 @@ public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
                             FireflyHelper.class,
                             ConfigurationHelper.class,
                             AerospikeException.class,
-                            AerospikeConnection.class
+                            AerospikeConnection.class,
+                            LocalGraphComputer.class
                     ).create();
         } catch (Exception ex) {
             System.out.println("ERROR LOADING");

@@ -33,7 +33,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
                            final int maxQueueSize, final int maxPageSize, final String mapKey, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
         super(graph, maxQueueSize, transformKeyRecord);
         this.policy = policy;
-        this.policy.socketTimeout = graph.getBaseGraph().AEROSPIKE_SOCKET_TIMEOUT;
+        this.policy.socketTimeout = graph.getBaseGraph().SOCKET_TIMEOUT;
         this.policy.maxRecords = maxPageSize;
         this.namespace = namespace;
         this.set = setName;

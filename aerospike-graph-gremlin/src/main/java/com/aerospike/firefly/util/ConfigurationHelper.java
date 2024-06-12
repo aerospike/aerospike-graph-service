@@ -50,14 +50,14 @@ public final class ConfigurationHelper {
         // External Configs
         public static final String AEROSPIKE_HOST = "aerospike.client.host";
         public static final String AEROSPIKE_PORT = "aerospike.client.port";
-        public static final String AEROSPIKE_TIMEOUT = "aerospike.client.timeout";
-        public static final String AEROSPIKE_SOCKET_TIMEOUT = "aerospike.client.socket.timeout";
+        public static final String AEROSPIKE_TIMEOUT = "aerospike.client.clientPolicy.timeout";
+        public static final String SOCKET_TIMEOUT = "aerospike.client.writePolicy.socketTimeout";
         public static final String AEROSPIKE_USER = "aerospike.client.user";
         public static final String AEROSPIKE_PASSWORD = "aerospike.client.password";
         public static final String AEROSPIKE_NAMESPACE = "aerospike.client.namespace";
         public static final String SCAN_MAX_WAIT = "aerospike.client.scan.max.wait";
         public static final String AEROSPIKE_BATCH_READ_SIZE = "aerospike.client.batch.read.size";
-        public static final String AEROSPIKE_WRITE_MAX_RETRY = "aerospike.client.write.max.retry";
+        public static final String AEROSPIKE_WRITE_MAX_RETRY = "aaerospike.client.writePolicy.maxRetries";
         public static final String TLS = "aerospike.client.tls";
         public static final String TLS_NAMES = "aerospike.client.tls.name";
         public static final String AUTH_MODE = "aerospike.client.auth.mode";
@@ -105,6 +105,13 @@ public final class ConfigurationHelper {
         public static final String PROPERTY_ID_BUFFER_SIZE = "aerospike.graph.property.id.buffer.size";
         public static final String BULK_LOAD_ID_BUFFER_SIZE = "aerospike.graph.bulk.load.id.buffer.size";
         public static final String STORAGE_DEBUGGER_FLAG = "aerospike.graph.storage.debug";
+        public static final String MAX_ERROR_RATE = "erospike.client.clientPolicy.maxErrorRate";
+        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.client.clientPolicy.maxConnsPerNode";
+        public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.clientPolicy.minConnsPerNode";
+        public static final String CONNECT_TIMEOUT = "aerospike.client.writePolicy.connectTimeout";
+        public static final String TIMEOUT_DELAY = "aerospike.client.writePolicy.timeoutDelay";
+        public static final String TOTAL_TIMEOUT = "aerospike.client.writePolicy.totalTimeout";
+        public static final String SLEEP_BETWEEN_RETRY = "aerospike.client.writePolicy.sleepBetweenRetry";
 
         // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
         public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
@@ -129,11 +136,6 @@ public final class ConfigurationHelper {
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
-        public static final String MAX_ERROR_RATE = "aerospike.client.maxErrorRate";
-        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.client.maxConnectionsPerNode";
-        public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.minConnectionsPerNode";
-        public static final String CONNECT_TIMEOUT = "aerospike.client.connectTimeout";
-        public static final String TIMEOUT_DELAY = "aerospike.client.timeoutDelay";
         public static final String PROMETHEUS_RENAME = "aerospike.graph.prometheus.rename.enabled";
         public static final String VALIDATE_CLUSTER_NAME = "aerospike.client.validate.cluster.name";
         public static final String QUERY_IMPL = "aerospike.graph.query.impl";
@@ -300,7 +302,7 @@ public final class ConfigurationHelper {
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
         put(Keys.AEROSPIKE_TIMEOUT, "2000");
-        put(Keys.AEROSPIKE_SOCKET_TIMEOUT, "1200000");
+        put(Keys.SOCKET_TIMEOUT, "1200000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
@@ -336,6 +338,8 @@ public final class ConfigurationHelper {
         put(Keys.MIN_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
         put(Keys.CONNECT_TIMEOUT, "0");
         put(Keys.TIMEOUT_DELAY, "0");
+        put(Keys.TOTAL_TIMEOUT, "0");
+        put(Keys.SLEEP_BETWEEN_RETRY, "0");
         put(Keys.PROMETHEUS_RENAME, "true");
         put(Keys.DEBUG_MODE_FLAG, "false");
         put(Keys.TTL_ENABLED_FLAG, "false");
@@ -358,7 +362,7 @@ public final class ConfigurationHelper {
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_SIZE, 128);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_MAX_WAIT, 1000);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_TIMEOUT, 100);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_SOCKET_TIMEOUT, 100);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.SOCKET_TIMEOUT, 100);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.VERTEX_ID_BUFFER_SIZE, 1);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.EDGE_ID_BUFFER_SIZE, 1);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PROPERTY_ID_BUFFER_SIZE, 1);

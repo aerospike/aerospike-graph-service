@@ -32,6 +32,7 @@ import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.RecordExistsAction;
+import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.TlsPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.IndexCollectionType;
@@ -192,6 +193,11 @@ public class AerospikeConnection implements AutoCloseable {
     private final int READ_SOCKET_TIMEOUT;
     private final int CONNECT_TIMEOUT;
     private final int TIMEOUT_DELAY;
+
+    private final int SCAN_TOTAL_TIMEOUT;
+    private final int SCAN_SOCKET_TIMEOUT;
+    private final int SCAN_CONNECT_TIMEOUT;
+    private final int SCAN_TIMEOUT_DELAY;
 
     public final long PROPERTY_ID_BUFFER_SIZE;
     public final long VERTEX_ID_BUFFER_SIZE;
@@ -380,6 +386,11 @@ public class AerospikeConnection implements AutoCloseable {
         READ_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_SOCKET_TIMEOUT, conf);
         CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CONNECT_TIMEOUT, conf);
         TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf);
+
+        SCAN_TOTAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_TOTAL_TIMEOUT, conf);
+        SCAN_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_SOCKET_TIMEOUT, conf);
+        SCAN_CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_CONNECT_TIMEOUT, conf);
+        SCAN_TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_TIMEOUT_DELAY, conf);
 
         CARDINALITY_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf);
         INDEX_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf);
@@ -1757,6 +1768,15 @@ public class AerospikeConnection implements AutoCloseable {
         policy.socketTimeout = READ_SOCKET_TIMEOUT;
         policy.connectTimeout = CONNECT_TIMEOUT;
         policy.timeoutDelay = TIMEOUT_DELAY;
+    }
+
+    public void configureScanPolicy(final ScanPolicy policy) {
+        policy.maxRetries = AEROSPIKE_MAX_RETRIES;
+        policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
+        policy.totalTimeout = SCAN_TOTAL_TIMEOUT;
+        policy.socketTimeout = SCAN_SOCKET_TIMEOUT;
+        policy.connectTimeout = SCAN_CONNECT_TIMEOUT;
+        policy.timeoutDelay = SCAN_TIMEOUT_DELAY;
     }
 
     /**

@@ -72,7 +72,7 @@ public class LegacyGraphQuery implements GraphQuery {
                                                    final String... binNames) {
         final Monitor scanMonitor = new Monitor();
         policy.sendKey = sendKey;
-        db.configureReadPolicy(policy);
+        db.configureScanPolicy(policy);
         final UUID scanId = UUID.randomUUID();
         final ScanHitCounter shc = db.getScanHitCounter();
         if(mapKey != null) shc.associateUUID(scanId, mapKey);

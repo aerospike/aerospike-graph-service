@@ -150,7 +150,8 @@ public class FireflyUsageStats {
             try {
                 // Vrtx only has 2 seconds max, we shouldn't take all of it.
                 final ScanPolicy scanPolicy = new ScanPolicy();
-                connection.configureReadPolicy(scanPolicy);
+                connection.configureScanPolicy(scanPolicy);
+                scanPolicy.totalTimeout = 1000;
                 client.scanAll(scanPolicy, connection.getNamespace(), connection.USAGE_STATS_SET, (key, record)
                         -> usageStatsList.add((Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN)));
                 errorPrinted = false;

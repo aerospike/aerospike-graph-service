@@ -118,6 +118,12 @@ public final class ConfigurationHelper {
         public static final String TIMEOUT_DELAY = "aerospike.client.policy.timeoutDelay";
         public static final String CONNECT_TIMEOUT = "aerospike.client.policy.connectTimeout";
 
+        // TODO: Figure out what scan policy settings can be shared with normal read policy settings and therefore removed
+        public static final String SCAN_TOTAL_TIMEOUT = "aerospike.client.policy.scan.totalTimeout";
+        public static final String SCAN_SOCKET_TIMEOUT = "aerospike.client.policy.scan.socketTimeout";
+        public static final String SCAN_CONNECT_TIMEOUT = "aerospike.client.policy.scan.connectTimeout";
+        public static final String SCAN_TIMEOUT_DELAY = "aerospike.client.policy.scan.timeoutDelay";
+
         // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
         public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
         public static final String ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = "aerospike.graph.strategy.local.fast.count.embedded.enabled";
@@ -361,6 +367,10 @@ public final class ConfigurationHelper {
         put(Keys.JWT_ALGORITHM, "HMAC256");
         put(Keys.AUTHENTICATION_ENABLED, "false");
         put(Keys.USAGE_STATS_SET_INDEX_ENABLED, "true");
+        put(Keys.SCAN_TOTAL_TIMEOUT, "0");
+        put(Keys.SCAN_SOCKET_TIMEOUT, "1200000");
+        put(Keys.SCAN_CONNECT_TIMEOUT, "0");
+        put(Keys.SCAN_TIMEOUT_DELAY, "0");
     }};
 
     private static final Map<Object, String> BULK_LOAD_DEFAULTS = new HashMap<>() {{

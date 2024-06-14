@@ -49,7 +49,7 @@ public class EdgeRecordSizeExceededException extends RuntimeException {
 
     public static Map<?, Map<?, ?>> getPhatEdgeProperties(final AerospikeConnection db, final Key key) {
         final Operation getEdgeData = Operation.get(db.EDGE_DATA_BIN);
-        final Map<?, List<?>> allEdgeData = (Map<?, List<?>>) db.operate(null, key, getEdgeData).getMap(db.EDGE_DATA_BIN);
+        final Map<?, List<?>> allEdgeData = (Map<?, List<?>>) db.readOperate(null, key, getEdgeData).getMap(db.EDGE_DATA_BIN);
         final Map<Object, Map<?, ?>> edgeIdToProperties = new HashMap<>();
         for (final Map.Entry<?, List<?>> edgeData : allEdgeData.entrySet()) {
             edgeIdToProperties.put(edgeData.getKey(), (Map<?, ?>) edgeData.getValue().get(PROPERTIES_POSITION));

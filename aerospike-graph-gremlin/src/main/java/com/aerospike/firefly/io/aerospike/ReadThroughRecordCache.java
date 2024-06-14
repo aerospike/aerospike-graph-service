@@ -103,6 +103,7 @@ public class ReadThroughRecordCache extends FireflyCache {
 
     @Override
     public Record[] read(final Key[] keys, final BatchPolicy policy) {
+        db.configureReadPolicy(policy);
         final List<Key> allKeys = List.of(keys);
         final Map<Key, Record> results = new HashMap<>(cache.getAllPresent(new HashSet<>(allKeys)));
         final List<Key> missingKeys = allKeys.stream().filter(key -> !results.containsKey(key)).collect(Collectors.toList());

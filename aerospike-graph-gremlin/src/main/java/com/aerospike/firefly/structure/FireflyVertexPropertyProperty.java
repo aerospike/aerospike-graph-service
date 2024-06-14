@@ -53,7 +53,7 @@ public class FireflyVertexPropertyProperty<V> extends FireflyProperty<V> {
 
         try {
             vertexProperty.removePropertyFromCache(key());
-            db.operate(null, opKey, removeProperty, removeTypeHint);
+            db.writeOperate(null, opKey, removeProperty, removeTypeHint);
         } catch (AerospikeException ae) {
             if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Vertex Property Property has been removed from the Vertex since in this case

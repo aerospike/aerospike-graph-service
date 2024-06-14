@@ -458,7 +458,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         policy.recordExistsAction = RecordExistsAction.UPDATE;
         policy.sendKey = true;
         try {
-            this.db.operate(policy, key, Operation.add(addBin));
+            this.db.writeOperate(policy, key, Operation.add(addBin));
         } catch (final AerospikeException e) {
             // Do not retry this or fail because this list being slightly incorrect is inconsequential and will reduce
             // bulk load speed
@@ -483,7 +483,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         policy.recordExistsAction = RecordExistsAction.UPDATE;
         policy.sendKey = false;
         try {
-            this.db.operate(policy, key, Operation.put(rowBin), Operation.put(fileBin));
+            this.db.writeOperate(policy, key, Operation.put(rowBin), Operation.put(fileBin));
         } catch (final AerospikeException e) {
             // Do not retry this or fail because this list being slightly incorrect is inconsequential and will reduce
             // bulk load speed
@@ -508,7 +508,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         policy.recordExistsAction = RecordExistsAction.UPDATE;
         policy.sendKey = true;
         try {
-            this.db.operate(policy, key, Operation.add(addBin));
+            this.db.writeOperate(policy, key, Operation.add(addBin));
         } catch (final AerospikeException e) {
             // Do not retry this or fail because this list being slightly incorrect is inconsequential and will reduce
             // bulk load speed
@@ -553,7 +553,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            this.db.operate(writePolicy, key, appendEdgeId);
+            this.db.writeOperate(writePolicy, key, appendEdgeId);
         } catch (final ElementNotFoundException enfe) {
             throw new FireflyLoadingException((AerospikeException) enfe.getCause());
         } catch (final VertexRecordSizeExceededException vrsee) {
@@ -705,7 +705,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         writePolicy.sendKey = true;
         final Key key = getKey(db, db.EDGE_AERO_SET, id);
         try {
-            db.operate(writePolicy, key, operations.toArray(new Operation[0]));
+            db.writeOperate(writePolicy, key, operations.toArray(new Operation[0]));
         } catch (final EdgeRecordSizeExceededException ersee) {
             throw new FireflyLoadingException((AerospikeException) ersee.getCause(), ersee.getMessage());
         } catch (final AerospikeException ae) {

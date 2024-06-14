@@ -257,7 +257,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            final Record result = this.db.operate(writePolicy, key, operations.toArray(new Operation[0]));
+            final Record result = this.db.writeOperate(writePolicy, key, operations.toArray(new Operation[0]));
 
             final Map<String, Object> vertexPropertyValues = (Map<String, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, 1)).orElse(new TreeMap<>());
             final Map<String, Object> vertexPropertyTypeHints = wroteTypeHint ?
@@ -320,7 +320,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             noPropsCache.invalidate(opKey);
         }
 
-        final Record result = this.db.operate(null, opKey, removeProperty, removePropertyTypeHint,
+        final Record result = this.db.writeOperate(null, opKey, removeProperty, removePropertyTypeHint,
                 removeVertexPropertyValue, removeVertexPropertyId, removeVertexPropertyTypeHint,
                 getVertexPropertyValues, getVertexPropertyValuesTypeHints, getVertexPropertyIds,
                 getVertexPropertyProperties, getVertexPropertyTypeHints);
@@ -410,7 +410,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Operate on database.
         try {
             final Record results =
-                    this.db.operate(null, key, removeEdgeId, removeEmptyEdgeCacheKeys, getCacheDisabled);
+                    this.db.writeOperate(null, key, removeEdgeId, removeEmptyEdgeCacheKeys, getCacheDisabled);
 
             this.isEdgeCacheOverflowed = results.getBoolean(this.db.EDGE_CACHE_DISABLED_BIN);
         } catch (final ElementNotFoundException enfe) {
@@ -492,7 +492,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            final Record results = this.db.operate(writePolicy, key, appendToEdgeCache, updateCacheState, getCacheDisabled);
+            final Record results = this.db.writeOperate(writePolicy, key, appendToEdgeCache, updateCacheState, getCacheDisabled);
 
             this.isEdgeCacheOverflowed = (boolean) OperationReturnHandler.getValueAtIndex(results, this.db.EDGE_CACHE_DISABLED_BIN, 1);
             return true;
@@ -692,7 +692,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final Key key = getKey(this.db, this.db.VERTEX_AERO_SET, this.id);
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
-        this.db.operate(writePolicy, key,
+        this.db.writeOperate(writePolicy, key,
                 Operation.put(new Bin(this.db.EDGE_CACHE_DISABLED_BIN, Value.get(true))));
         this.isEdgeCacheOverflowed = true;
     }
@@ -704,7 +704,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         final Bin ttlBin = new Bin(this.db.TTL_BIN, expirationTime);
         final Operation writeTtl = Operation.put(ttlBin);
-        this.db.operate(writePolicy, key, writeTtl);
+        this.db.writeOperate(writePolicy, key, writeTtl);
     }
 
     /**
@@ -1193,7 +1193,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             operations.add(writeVpPropertiesTypeHints);
             operations.add(writeIdTypeHint);
 
-            db.operate(policy, key, operations.toArray(new Operation[0]));
+            db.writeOperate(policy, key, operations.toArray(new Operation[0]));
             graph.fireflySummaryUpdater.addVertexWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
             graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, FireflyVertexProperty.class);
             final Map<String, LazyIdTransform> lazyIdTransformMap = (Map) vertexPropertyIds;

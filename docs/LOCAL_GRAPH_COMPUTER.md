@@ -59,7 +59,7 @@ executes on a single node and is oriented for processing small to medium-sized s
 g = graph.traversal()
 
 // OLAP
-g = graph.travesal().withComputer(LocalGraphComputer)
+g = traversal().withRemote(DriverRemoteConnection.using("111.222.333.444", 8182, "o"))
 ```
 
 From there, the full Gremlin language is available for execution using the underlying OLAP graph processor.

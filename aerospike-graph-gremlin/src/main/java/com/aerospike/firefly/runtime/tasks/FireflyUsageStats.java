@@ -135,7 +135,7 @@ public class FireflyUsageStats {
                 // Each unique node will have a unique UUID that is their record key.
                 map.put("epoch-ms-final", Instant.now().toEpochMilli());
                 final Bin bin = new Bin(connection.USAGE_STATS_BIN, map);
-                connection.operate(null, key, Operation.put(bin));
+                connection.writeOperate(null, key, Operation.put(bin));
                 errorPrinted = false;
             } catch (final Exception ex) {
                 if (!errorPrinted)
@@ -150,9 +150,20 @@ public class FireflyUsageStats {
             try {
                 // Vrtx only has 2 seconds max, we shouldn't take all of it.
                 final ScanPolicy scanPolicy = new ScanPolicy();
+                connection.configureScanPolicy(scanPolicy);
                 scanPolicy.totalTimeout = 1000;
-                client.scanAll(scanPolicy, connection.getNamespace(), connection.USAGE_STATS_SET, (key, record)
-                        -> usageStatsList.add((Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN)));
+                client.scanAll(scanPolicy, connection.getNamespace(), connection.USAGE_STATS_SET, (key, record) -> {
+                    final Map<String, Object> map = (Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN);
+                    final Long epochDelta = (Long) map.get("epoch-ms-final") - (Long) map.get("epoch-ms-start");
+                    if (epochDelta > 60 * 60 * 1000) {
+                        map.put("epoch-delta-hrs", epochDelta / (60 * 60 * 1000));
+                    } else if (epochDelta > 60 * 1000){
+                        map.put("epoch-delta-mins", epochDelta / (60 * 1000));
+                    } else {
+                        map.put("epoch-delta-secs", epochDelta / 1000);
+                    }
+                    usageStatsList.add((Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN));
+                });
                 errorPrinted = false;
             } catch (final Exception ex) {
                 if (!errorPrinted) {

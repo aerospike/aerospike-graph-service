@@ -129,8 +129,8 @@ public class TestEdgeCacheIntegration {
             final Key v2Key = getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v2.id);
             final Operation getOutEdgeCache = Operation.get(graph.getBaseGraph().OUT_EDGES_BIN);
             final Operation getInEdgeCache = Operation.get(graph.getBaseGraph().IN_EDGES_BIN);
-            Record outResult = graph.getBaseGraph().operate(null, v1Key, getOutEdgeCache);
-            Record inResult = graph.getBaseGraph().operate(null, v2Key, getInEdgeCache);
+            Record outResult = graph.getBaseGraph().readOperate(null, v1Key, getOutEdgeCache);
+            Record inResult = graph.getBaseGraph().readOperate(null, v2Key, getInEdgeCache);
 
             Map<String, List<Object>> outMap = (Map<String, List<Object>>) outResult.getMap(graph.getBaseGraph().OUT_EDGES_BIN);
             Map<String, List<Object>> inMap = (Map<String, List<Object>>) inResult.getMap(graph.getBaseGraph().IN_EDGES_BIN);
@@ -157,8 +157,8 @@ public class TestEdgeCacheIntegration {
 
             g.V().hasLabel("v1").outE().has("toBeRemoved").drop().iterate();
 
-            outResult = graph.getBaseGraph().operate(null, v1Key, getOutEdgeCache);
-            inResult = graph.getBaseGraph().operate(null, v2Key, getInEdgeCache);
+            outResult = graph.getBaseGraph().readOperate(null, v1Key, getOutEdgeCache);
+            inResult = graph.getBaseGraph().readOperate(null, v2Key, getInEdgeCache);
 
             outMap = (Map<String, List<Object>>) outResult.getMap(graph.getBaseGraph().OUT_EDGES_BIN);
             inMap = (Map<String, List<Object>>) inResult.getMap(graph.getBaseGraph().IN_EDGES_BIN);

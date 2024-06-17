@@ -615,7 +615,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             final MapPolicy updateOnlyPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.UPDATE_ONLY | MapWriteFlags.NO_FAIL);
             final Operation createOp = MapOperation.put(createOnlyPolicy, SUMMARY_LABEL_BIN, Value.get(countInfo.label), Value.get(0));
             final Operation updateOp = MapOperation.increment(updateOnlyPolicy, SUMMARY_LABEL_BIN, Value.get(countInfo.label), Value.get(countInfo.count));
-            db.getClient().operate(writePolicy, key, createOp, updateOp);
+            db.writeOperate(writePolicy, key, createOp, updateOp);
 
             // Remove count so that if one in the loop fails and we re-add these values to the map, they aren't all
             // added erroneously.
@@ -647,7 +647,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                 final ListPolicy createListOnlyPolicy = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL);
                 final Operation createOp = ListOperation.create(SUMMARY_PROPERTY_BIN, ListOrder.UNORDERED, false, CTX.mapKey(Value.get(updateInfo.label)));
                 final Operation updateOp = ListOperation.append(createListOnlyPolicy, SUMMARY_PROPERTY_BIN, Value.get(property), CTX.mapKey(Value.get(updateInfo.label)));
-                db.getClient().operate(writePolicy, key, createOp, updateOp);
+                db.writeOperate(writePolicy, key, createOp, updateOp);
 
                 synchronized (FireflyGraphSummaryUpdater.class) {
                     if (!propertyMappings.containsKey(updateInfo.label)) {

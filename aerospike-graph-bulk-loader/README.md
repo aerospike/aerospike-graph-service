@@ -331,7 +331,7 @@ These are the flags to modify the run when bulk loading via Spark Submit. The Ca
 aerospike.client.host = 172.31.25.147,172.31.19.243,172.31.30.232
 aerospike.client.port = 3000
 aerospike.client.namespace = test
-aerospike.client.timeout = 70000
+aerospike.client.clientPolicy.timeout = 70000
 aerospike.graph.data.model = packed
 
 aerospike.graphloader.vertices = /home/ubuntu/vertices

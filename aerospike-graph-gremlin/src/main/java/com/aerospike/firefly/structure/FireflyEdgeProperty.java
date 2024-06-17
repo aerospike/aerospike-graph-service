@@ -72,7 +72,7 @@ public class FireflyEdgeProperty<V> extends FireflyProperty<V> {
 
         try {
             edge.removePropertyFromCache(key());
-            db.operate(null, key, operations.toArray(new Operation[0]));
+            db.writeOperate(null, key, operations.toArray(new Operation[0]));
         } catch (final AerospikeException ae) {
             if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Edge has been removed from the Phat Edge since in this case the key is

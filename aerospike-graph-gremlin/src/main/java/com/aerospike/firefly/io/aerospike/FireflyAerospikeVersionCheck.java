@@ -86,6 +86,7 @@ public class FireflyAerospikeVersionCheck {
 
     public static void validateVersion(final AerospikeClient client) {
         for (final Node node : client.getNodes()) {
+            LOG.debug("Info.request: build");
             final String response = Info.request(null, node, "build");
             final FireflyAerospikeVersionCheck version = new FireflyAerospikeVersionCheck(response);
             if (!validateVersion(version)) {
@@ -100,6 +101,7 @@ public class FireflyAerospikeVersionCheck {
     public static String getVersionString(final AerospikeClient client) {
         final StringBuilder versionString = new StringBuilder();
         for (final Node node: client.getNodes()) {
+            LOG.debug("Info.request: build");
             final String response = Info.request(null, node, "build");
             if (!versionString.toString().isEmpty()) {
                 versionString.append(",");

@@ -10,6 +10,8 @@ import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +23,7 @@ import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
 
 public class Admin {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Admin.class);
     public static final Index index = new Index();
 
     public static class Index<I> {
@@ -174,8 +177,9 @@ public class Admin {
             int highestLoadTime = 0;
             boolean valid = false;
             for (final Node node : firefly.getBaseGraph().getClient().getNodes()) {
-                final String infoResponse = Info.request(new InfoPolicy(), node,
-                        String.format(infoQueryFormat, firefly.getBaseGraph().getNamespace(), indexName));
+                final String infoVar = String.format(infoQueryFormat, firefly.getBaseGraph().getNamespace(), indexName);
+                LOGGER.debug("Info.request: {}", infoVar);
+                final String infoResponse = Info.request(new InfoPolicy(), node, infoVar);
                 for (String s : infoResponse.split(";")) {
                     valid = true;
                     if (s.startsWith("load_pct=")) {

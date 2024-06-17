@@ -577,4 +577,24 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(supernodeOutCount + 1, g.V("supernode").out().count().next().longValue());
         }
     }
+	
+	@Test
+    public void test500mCsvOnGcs() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            Assert.assertEquals(0, g.V().count().next().longValue());
+            Assert.assertEquals(0, g.E().count().next().longValue());
+            Assert.assertEquals("Success", g.with("evaluationTimeout", 120 * 60 * 1000)
+                    .call("aerospike.graphloader.admin.bulk-load.load")
+                    .with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties")
+                    .with("aerospike.graphloader.vertices", "gs://incremental-datasets/synthetic/500m/vertices/")
+                    .with("aerospike.graphloader.edges", "gs://incremental-datasets/synthetic/500m/edges/")
+                    .with("aerospike.graphloader.remote-user", System.getenv("GCS_PRIVATE_KEY_ID"))
+                    .with("aerospike.graphloader.remote-passkey", System.getenv("GCS_PRIVATE_KEY"))
+                    .with("aerospike.graphloader.gcs-email", System.getenv("GCS_CLIENT_EMAIL"))
+                    .next());
+        }
+    }
 }

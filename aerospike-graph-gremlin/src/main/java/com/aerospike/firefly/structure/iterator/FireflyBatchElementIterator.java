@@ -20,17 +20,19 @@ public class FireflyBatchElementIterator<E extends Element, F extends E> impleme
     private final FireflyGraph graph;
     private final ReadElements<F> readElements;
     private final List<HasContainer> hasContainers;
+    private final List<String> requiredProperties;
 
     public interface ReadElements<G> {
-        List<G> readElements(List<HasContainer> hasContainers, List<FireflyId> ids);
+        List<G> readElements(List<HasContainer> hasContainers, List<FireflyId> ids, List<String> requiredProperties);
     }
 
-    public FireflyBatchElementIterator(final FireflyGraph graph, final Iterator<FireflyId> ids, final List<HasContainer> filters, final ReadElements<F> readElements) {
+    public FireflyBatchElementIterator(final FireflyGraph graph, final Iterator<FireflyId> ids, final List<HasContainer> filters, final ReadElements<F> readElements, final List<String> requiredProperties) {
         this.idIterator = ids;
         this.graph = graph;
         this.elementIterator = null;
         this.readElements = readElements;
         this.hasContainers = filters;
+        this.requiredProperties = requiredProperties;
     }
 
     @Override
@@ -43,7 +45,7 @@ public class FireflyBatchElementIterator<E extends Element, F extends E> impleme
             while (idIterator.hasNext() && fireflyIdList.size() < graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 fireflyIdList.add(idIterator.next());
             }
-            elementIterator = readElements.readElements(hasContainers, fireflyIdList).iterator();
+            elementIterator = readElements.readElements(hasContainers, fireflyIdList, requiredProperties).iterator();
 
             // Just in case the ids we go to read have been removed we should not straight up return true.
             return elementIterator.hasNext();

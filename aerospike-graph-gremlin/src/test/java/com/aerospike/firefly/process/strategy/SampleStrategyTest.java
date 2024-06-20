@@ -1,17 +1,18 @@
 package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeSampleLimitReadStep;
-import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdLimitSampleStep;
-import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
+import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeSampleLimitReadStep;
 import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
+import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdLimitSampleStep;
 import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
@@ -27,8 +28,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Comparator;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -212,37 +214,40 @@ public class SampleStrategyTest {
 
             final FireflyVertex supernode = (FireflyVertex) g.V().has("indexed", "value1").next();
 
-            final List<FireflyId> supernodeEdgeIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), EDGE_ID);
+            final Iterator<FireflyId> supernodeEdgeIdsItty = supernode.getSupernodeIds(Direction.OUT, Set.of(), EDGE_ID, Collections.emptyList());
+            final List<FireflyId> supernodeEdgeIds = IteratorUtils.toList(supernodeEdgeIdsItty);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeEdgeIds.size());
             Assert.assertFalse(supernodeEdgeIds.stream().anyMatch(Objects::isNull));
 
-            final List<FireflyEdge> supernodeEdges = graph.readEdges(List.of(), supernodeEdgeIds);
+            final List<FireflyEdge> supernodeEdges = graph.readEdges(List.of(), supernodeEdgeIds, null);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeEdges.size());
             Assert.assertFalse(supernodeEdges.stream().anyMatch(Objects::isNull));
 
-            final List<FireflyId> supernodeVertexIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), VERTEX_ID);
+            final Iterator<FireflyId> supernodeVertexIdsItty = supernode.getSupernodeIds(Direction.OUT, Set.of(), VERTEX_ID, Collections.emptyList());
+            final List<FireflyId> supernodeVertexIds = IteratorUtils.toList(supernodeVertexIdsItty);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeVertexIds.size());
             Assert.assertFalse(supernodeVertexIds.stream().anyMatch(Objects::isNull));
 
-            supernodeVertexIds.sort(Comparator.comparing(FireflyId::toString));
-            final List<FireflyVertex> supernodeVertices = graph.readVertices(List.of(), supernodeVertexIds);
+            final List<FireflyVertex> supernodeVertices = graph.readVertices(List.of(), supernodeVertexIds, null);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeVertices.size());
             Assert.assertFalse(supernodeVertices.stream().anyMatch(Objects::isNull));
 
-            final List<FireflyId> allEdgeIds = supernode.getEdgeIdsFromVertex(Direction.OUT, Set.of());
+            final Iterator<FireflyId> allEdgeIdsItty = supernode.getEdgeIdsFromVertex(Direction.OUT, Set.of(), Collections.emptyList());
+            final List<FireflyId> allEdgeIds = IteratorUtils.toList(allEdgeIdsItty);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, allEdgeIds.size());
             Assert.assertFalse(allEdgeIds.stream().anyMatch(Objects::isNull));
 
-            final List<FireflyEdge> allEdges = graph.readEdges(List.of(), allEdgeIds);
+            final List<FireflyEdge> allEdges = graph.readEdges(List.of(), allEdgeIds, null);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, allEdges.size());
             Assert.assertFalse(allEdges.stream().anyMatch(Objects::isNull));
 
-            final List<FireflyId> allVertexIds = supernode.getVertexIdsFromVertex(Direction.OUT, Set.of());
+            final Iterator<FireflyId> allVertexIdsItty = supernode.getVertexIdsFromVertex(Direction.OUT, Set.of());
+            final List<FireflyId> allVertexIds = IteratorUtils.toList(allVertexIdsItty);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, allVertexIds.size());
             Assert.assertFalse(allVertexIds.stream().anyMatch(Objects::isNull));
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, new HashSet<>(allVertexIds).size());
 
-            final List<FireflyVertex> allVertices = graph.readVertices(List.of(), allVertexIds);
+            final List<FireflyVertex> allVertices = graph.readVertices(List.of(), allVertexIds, null);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, allVertices.size());
             Assert.assertFalse(allVertices.stream().anyMatch(Objects::isNull));
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, new HashSet<>(allVertices).size());
@@ -419,11 +424,10 @@ public class SampleStrategyTest {
             Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
         } else if (!sampleFirst) {
             if (!isVertex) {
-                Assert.assertEquals(5, steps.size());
-                // Graph step, has step, limit step, has step, cache step.
-                Assert.assertTrue(steps.get(2) instanceof HasStep);
-                Assert.assertTrue(steps.get(3) instanceof SampleGlobalStep);
-                Assert.assertTrue(steps.get(4) instanceof FireflyCacheGCStep);
+                Assert.assertEquals(4, steps.size());
+                // Graph step, limit step, has step, cache step.
+                Assert.assertTrue(steps.get(2) instanceof SampleGlobalStep);
+                Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
             } else {
                 Assert.assertEquals(4, steps.size());
                 // Graph step, composite id step, limit step, has step, cache step.
@@ -461,11 +465,10 @@ public class SampleStrategyTest {
             Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
         } else if (!limitFirst) {
             if (!isVertex) {
-                Assert.assertEquals(5, steps.size());
-                // Graph step, has step, limit step, has step, cache step.
-                Assert.assertTrue(steps.get(2) instanceof HasStep);
-                Assert.assertTrue(steps.get(3) instanceof RangeGlobalStep);
-                Assert.assertTrue(steps.get(4) instanceof FireflyCacheGCStep);
+                Assert.assertEquals(4, steps.size());
+                // Graph step, limit step, has step, cache step.
+                Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
+                Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
             } else {
                 Assert.assertEquals(4, steps.size());
                 // Graph step, composite id step, limit step, has step, cache step.

@@ -80,8 +80,8 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
         graph.close();
         config.setProperty("aerospike.graph.index.vertex.properties", indexes);
         config.setProperty("aerospike.graph.index.vertex.label.enabled", labelIndex ? "true" : "false");
-        config.setProperty("aerospike.graph.metadata.cardinality.update.frequency", "1");
-        config.setProperty("aerospike.graph.metadata.index.update.frequency", "1");
+        config.setProperty("aerospike.graph.admin.metadata.cardinality.update.frequency", "1");
+        config.setProperty("aerospike.graph.admin.metadata.index.update.frequency", "1");
         graph = FireflyGraph.open(config);
 
         // Give some time for the indexes to be created.

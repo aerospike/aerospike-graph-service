@@ -28,14 +28,14 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.LOG;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getDefaultThreadPoolSize;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public final class ConfigurationHelper {
-    private static final Logger logger = LoggerFactory.getLogger(AerospikeConnection.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
+    private static final NumericConfigValidator NUMERIC_CONFIG_VALIDATOR = new NumericConfigValidator();
 
     private ConfigurationHelper() {
     }
@@ -50,14 +50,11 @@ public final class ConfigurationHelper {
         // External Configs
         public static final String AEROSPIKE_HOST = "aerospike.client.host";
         public static final String AEROSPIKE_PORT = "aerospike.client.port";
-        public static final String AEROSPIKE_TIMEOUT = "aerospike.client.timeout";
-        public static final String AEROSPIKE_SOCKET_TIMEOUT = "aerospike.client.socket.timeout";
         public static final String AEROSPIKE_USER = "aerospike.client.user";
         public static final String AEROSPIKE_PASSWORD = "aerospike.client.password";
         public static final String AEROSPIKE_NAMESPACE = "aerospike.client.namespace";
         public static final String SCAN_MAX_WAIT = "aerospike.client.scan.max.wait";
         public static final String AEROSPIKE_BATCH_READ_SIZE = "aerospike.client.batch.read.size";
-        public static final String AEROSPIKE_WRITE_MAX_RETRY = "aerospike.client.write.max.retry";
         public static final String TLS = "aerospike.client.tls";
         public static final String TLS_NAMES = "aerospike.client.tls.name";
         public static final String AUTH_MODE = "aerospike.client.auth.mode";
@@ -65,6 +62,7 @@ public final class ConfigurationHelper {
         public static final String CLUSTER_NAME = "aerospike.client.cluster.name";
 
         public static final String LOG_LEVEL = "aerospike.graph.log.level";
+        public static final String SUPERNODE_TRAVERSAL_LOG_WARNING = "aerospike.graph.log.supernode.warning";
         public static final String FIREFLY_DATA_MODEL = "aerospike.graph.data.model";
         public static final String V_LABEL_INDEX_ENABLED_FLAG = "aerospike.graph.index.vertex.label.enabled";
         public static final String E_LABEL_INDEX_ENABLED_FLAG = "aerospike.graph.index.edge.label.enabled";
@@ -81,12 +79,18 @@ public final class ConfigurationHelper {
         public static final String PLUGIN = "aerospike.graph.plugin";
         public static final String TTL_ENABLED_FLAG = "aerospike.graph.ttl.enabled";
         public static final String TTL_PURGE_INTERVAL_SECONDS = "aerospike.graph.ttl.purge.interval";
-        public static final String TTL_UPDATE_ANYTIME_FLAG = "aerospike.graph.ttl.update.anytime.enabled";
 
+        public static final String WRITE_SOCKET_TIMEOUT = "aerospike.client.policy.write.socketTimeout";
+        public static final String READ_SOCKET_TIMEOUT = "aerospike.client.policy.read.socketTimeout";
+        public static final String WRITE_TOTAL_TIMEOUT = "aerospike.client.policy.write.totalTimeout";
+        public static final String READ_TOTAL_TIMEOUT = "aerospike.client.policy.read.totalTimeout";
+        public static final String WRITE_SLEEP_BETWEEN_RETRY = "aerospike.client.policy.write.sleepBetweenRetry";
+        public static final String READ_SLEEP_BETWEEN_RETRY = "aerospike.client.policy.read.sleepBetweenRetry";
+        
         // Semi internal semi external configs
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
-        public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.metadata.index.update.frequency";
-        public static final String CARDINALITY_METADATA_UPDATE_FREQUENCY = "aerospike.graph.metadata.cardinality.update.frequency";
+        public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.index.update.frequency";
+        public static final String CARDINALITY_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.cardinality.update.frequency";
         public static final String ENABLE_FAST_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.enabled";
         public static final String ENABLE_READ_THROUGH_CACHE = "aerospike.graph.strategy.cache.read.through.enabled";
         public static final String ENABLE_PREFETCH_STRATEGY = "aerospike.graph.strategy.prefetch.enabled";
@@ -103,7 +107,22 @@ public final class ConfigurationHelper {
         public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
         public static final String EDGE_ID_BUFFER_SIZE = "aerospike.graph.edge.id.buffer.size";
         public static final String PROPERTY_ID_BUFFER_SIZE = "aerospike.graph.property.id.buffer.size";
+        public static final String BULK_LOAD_ID_BUFFER_SIZE = "aerospike.graph.bulk.load.id.buffer.size";
         public static final String STORAGE_DEBUGGER_FLAG = "aerospike.graph.storage.debug";
+
+        public static final String MAX_ERROR_RATE = "aerospike.client.clientPolicy.maxErrorRate";
+        public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.clientPolicy.minConnsPerNode";
+        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.client.clientPolicy.maxConnsPerNode";
+        public static final String AEROSPIKE_TIMEOUT = "aerospike.client.clientPolicy.timeout";
+        public static final String AEROSPIKE_MAX_RETRIES = "aerospike.client.policy.maxRetries";
+        public static final String TIMEOUT_DELAY = "aerospike.client.policy.timeoutDelay";
+        public static final String CONNECT_TIMEOUT = "aerospike.client.policy.connectTimeout";
+
+        // TODO: Figure out what scan policy settings can be shared with normal read policy settings and therefore removed
+        public static final String SCAN_TOTAL_TIMEOUT = "aerospike.client.policy.scan.totalTimeout";
+        public static final String SCAN_SOCKET_TIMEOUT = "aerospike.client.policy.scan.socketTimeout";
+        public static final String SCAN_CONNECT_TIMEOUT = "aerospike.client.policy.scan.connectTimeout";
+        public static final String SCAN_TIMEOUT_DELAY = "aerospike.client.policy.scan.timeoutDelay";
 
         // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
         public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
@@ -116,6 +135,7 @@ public final class ConfigurationHelper {
         // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "aerospike.graph.auto.preheat.enabled";
         public static final String WARMUP_MODE = "aerospike.graph.warmup.mode.enabled";
+        public static final String WARMUP_ENABLED = "aerospike.graph.warmup.enabled";
         public static final String FAULT_TEST = "aerospike.graph.warmup.mode.fault.test.enabled";
         public static final String ENABLE_CUSTOM_PROFILE = "aerospike.graph.strategy.profile.custom.enabled";
         public static final String ASCLIENT_LOG_ENABLED = "aerospike.client.logging.enabled";
@@ -127,16 +147,17 @@ public final class ConfigurationHelper {
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
-        public static final String MAX_ERROR_RATE = "aerospike.client.maxErrorRate";
-        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.client.maxConnectionsPerNode";
-        public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.minConnectionsPerNode";
-        public static final String CONNECT_TIMEOUT = "aerospike.client.connectTimeout";
-        public static final String TIMEOUT_DELAY = "aerospike.client.timeoutDelay";
         public static final String PROMETHEUS_RENAME = "aerospike.graph.prometheus.rename.enabled";
         public static final String VALIDATE_CLUSTER_NAME = "aerospike.client.validate.cluster.name";
         public static final String QUERY_IMPL = "aerospike.graph.query.impl";
         public static final String QUERY_PAGED = "paged";
         public static final String QUERY_LEGACY = "legacy";
+        public static final String JWT_SECRET = "aerospike.graph-service.auth.jwt.secret";
+        public static final String JWT_ISSUER = "aerospike.graph-service.auth.jwt.issuer";
+        public static final String JWT_ALGORITHM = "aerospike.graph-service.auth.jwt.algorithm";
+        public static final String AUTHENTICATION_ENABLED = "aerospike.graph-service.auth.enabled";
+        public static final String USAGE_STATS_SET_INDEX_ENABLED = "aerospike.graph.usage.index.enabled";
+
         public static class Pair {
             public final int numeric;
             public final String english;
@@ -172,7 +193,8 @@ public final class ConfigurationHelper {
             USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS")),
             EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
             BL_ROW_BIN(Pair.of((byte) 21, "BL_ROW")),
-            BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE"));
+            BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE")),
+            SUPERNODE_EDGE_PROPERTIES_BIN(Pair.of((byte) 23, "SUPERNODE_P"));
 
 
             private final Pair value;
@@ -269,7 +291,7 @@ public final class ConfigurationHelper {
         put(Keys.V_LABEL_INDEX_ENABLED_FLAG, "false");
         put(Keys.E_LABEL_INDEX_ENABLED_FLAG, "false");
         put(Keys.SCAN_MAX_WAIT, "2000");
-        put(Keys.AEROSPIKE_WRITE_MAX_RETRY, "100");
+        put(Keys.AEROSPIKE_MAX_RETRIES, "2");
         put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
         put(Keys.PAGINATION_PAGE_SIZE, "2048");
         put(Keys.PAGINATION_PAGE_MAX_WAIT, "1200000"); // 20 minutes.
@@ -291,10 +313,12 @@ public final class ConfigurationHelper {
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
         put(Keys.AEROSPIKE_TIMEOUT, "2000");
-        put(Keys.AEROSPIKE_SOCKET_TIMEOUT, "1200000");
+        put(Keys.WRITE_SOCKET_TIMEOUT, "500");
+        put(Keys.READ_SOCKET_TIMEOUT, "50");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
+        put(Keys.BULK_LOAD_ID_BUFFER_SIZE, "2000000");
         put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.GLOBAL_EDGE_CACHE_ENABLED, "true");
@@ -308,8 +332,10 @@ public final class ConfigurationHelper {
         put(Keys.PHAT_EDGE_SIZE, "10");
         put(Keys.MOVEMENT_BARRIER_SIZE, "1000");
         put(Keys.LOG_LEVEL, "INFO");
+        put(Keys.SUPERNODE_TRAVERSAL_LOG_WARNING, "true");
         put(Keys.TLS, "false");
         put(Keys.AUTO_PRE_HEAT, "false");
+        put(Keys.WARMUP_ENABLED, "true");
         put(Keys.WARMUP_MODE, "false");
         put(Keys.ENABLE_CUSTOM_PROFILE, "true");
         put(Keys.FAULT_TEST, "false");
@@ -320,23 +346,71 @@ public final class ConfigurationHelper {
         put(Keys.SUMMARY_ENABLED_FLAG, "true");
         put(Keys.BULK_LOADER_FLAG, "false");
         put(Keys.MAX_ERROR_RATE, "100");
-        put(Keys.MAX_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings()) * 2));
+        put(Keys.MAX_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
         put(Keys.MIN_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
         put(Keys.CONNECT_TIMEOUT, "0");
-        put(Keys.TIMEOUT_DELAY, "0");
+        put(Keys.TIMEOUT_DELAY, "2000");
+        put(Keys.WRITE_TOTAL_TIMEOUT, "2500");
+        put(Keys.READ_TOTAL_TIMEOUT, "150");
+        put(Keys.WRITE_SLEEP_BETWEEN_RETRY, "500");
+        put(Keys.READ_SLEEP_BETWEEN_RETRY, "0");
         put(Keys.PROMETHEUS_RENAME, "true");
         put(Keys.DEBUG_MODE_FLAG, "false");
         put(Keys.TTL_ENABLED_FLAG, "false");
-        put(Keys.TTL_PURGE_INTERVAL_SECONDS, "300"); // 5 minute default
-        put(Keys.TTL_UPDATE_ANYTIME_FLAG, "false");
+        put(Keys.TTL_PURGE_INTERVAL_SECONDS, "2");
         put(Keys.USAGE_STATS_UPDATE_INTERVAL, "3600000"); // 1 hour default
         put(Keys.AUTH_MODE, "internal");
         put(Keys.CLIENT_SERVICES_ALTERNATE, "false");
         put(Keys.CLUSTER_NAME, "");
         put(Keys.VALIDATE_CLUSTER_NAME, "true");
         put(Keys.QUERY_IMPL, Keys.QUERY_PAGED);
+        put(Keys.JWT_ALGORITHM, "HMAC256");
+        put(Keys.AUTHENTICATION_ENABLED, "false");
+        put(Keys.USAGE_STATS_SET_INDEX_ENABLED, "true");
+        put(Keys.SCAN_TOTAL_TIMEOUT, "0");
+        put(Keys.SCAN_SOCKET_TIMEOUT, "1200000");
+        put(Keys.SCAN_CONNECT_TIMEOUT, "0");
+        put(Keys.SCAN_TIMEOUT_DELAY, "0");
     }};
 
+    private static final Map<Object, String> BULK_LOAD_DEFAULTS = new HashMap<>() {{
+        put(Keys.WRITE_SOCKET_TIMEOUT, "5000");
+        put(Keys.WRITE_TOTAL_TIMEOUT, "25000");
+        put(Keys.WRITE_SLEEP_BETWEEN_RETRY, "5000");
+    }};
+
+    static {
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.SCAN_MAX_WAIT, 100);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_MAX_RETRIES, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_QUEUE_SIZE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_SIZE, 128);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_MAX_WAIT, 1000);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_TIMEOUT, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.WRITE_SOCKET_TIMEOUT, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.READ_SOCKET_TIMEOUT, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.WRITE_TOTAL_TIMEOUT, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.READ_TOTAL_TIMEOUT, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.WRITE_SLEEP_BETWEEN_RETRY, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.READ_SLEEP_BETWEEN_RETRY, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.VERTEX_ID_BUFFER_SIZE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.EDGE_ID_BUFFER_SIZE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PROPERTY_ID_BUFFER_SIZE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.BULK_LOAD_ID_BUFFER_SIZE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.INDEX_METADATA_UPDATE_FREQUENCY, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.TTL_PURGE_INTERVAL_SECONDS, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_READ_SIZE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.PHAT_EDGE_SIZE, 1, 100);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MOVEMENT_BARRIER_SIZE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MAX_ERROR_RATE, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.CONNECT_TIMEOUT, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.TIMEOUT_DELAY, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.USAGE_STATS_UPDATE_INTERVAL, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MAX_CONNECTIONS_PER_NODE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MIN_CONNECTIONS_PER_NODE, 1);
+    }
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {
         // Adds a space if it is empty. Remove the space.
@@ -353,7 +427,7 @@ public final class ConfigurationHelper {
             props.keySet().forEach(it -> {
                 final String key = it.toString().toLowerCase();
                 final Object value = props.get(it.toString());
-                logger.debug("config[{}:{}]", key, value);
+                LOG.debug("config[{}:{}]", key, value);
                 configData.put(key, value);
             });
             return new MapConfiguration(configData);
@@ -396,10 +470,14 @@ public final class ConfigurationHelper {
             return (config.containsKey(Keys.DEBUG_MODE_FLAG)) ?
                     config.getString(Keys.DEBUG_MODE_FLAG) : defaultValues.get(Keys.DEBUG_MODE_FLAG);
         }
+        if (key.equalsIgnoreCase(Keys.BULK_LOADER_FLAG)) {
+            return (config.containsKey(Keys.BULK_LOADER_FLAG)) ?
+                    config.getString(Keys.BULK_LOADER_FLAG) : defaultValues.get(Keys.BULK_LOADER_FLAG);
+        }
 
         final String lowerKey = key.toLowerCase();
         final String upperKey = key.toUpperCase();
-        final boolean debugMode = Boolean.parseBoolean((String) getOrDefault(Keys.DEBUG_MODE_FLAG, config));
+        final boolean debugMode = getOrDefaultBool(Keys.DEBUG_MODE_FLAG, config);
 
         if (System.getenv().containsKey(lowerKey) || System.getenv().containsKey(upperKey)) {
             String envConfig = System.getenv(upperKey);
@@ -433,6 +511,9 @@ public final class ConfigurationHelper {
                 return Keys.Bins.valueOf(key).getValue().numeric;
             }
         }
+        if (BULK_LOAD_DEFAULTS.containsKey(key) && getOrDefaultBool(Keys.BULK_LOADER_FLAG, config)) {
+            return BULK_LOAD_DEFAULTS.get(key);
+        }
         return defaultValues.get(key);
     }
 
@@ -442,6 +523,25 @@ public final class ConfigurationHelper {
             return value.toString();
         else
             return null;
+    }
+
+    public static int getOrDefaultInt(final String key, Configuration config) {
+        final String value = (String) getOrDefault(key, config);
+        return NUMERIC_CONFIG_VALIDATOR.validate(key, value);
+    }
+
+    public static boolean getOrDefaultBool(final String key, Configuration config) {
+        final String value = (String) getOrDefault(key, config);
+        // Use our own parser here to be more strict and robust
+        if ("true".equals(value.toLowerCase().trim())) {
+            return true;
+        } else if ("false".equals(value.toLowerCase().trim())) {
+            return false;
+        } else {
+            final String errorMessage = "Value provided, \"" + value + "\", for configuration key, \"" + key + "\", is not a valid boolean.";
+            LOG.error(errorMessage);
+            throw new ConfigurationRuntimeException(errorMessage);
+        }
     }
 
     public static String getPrefix(Configuration config) {
@@ -472,7 +572,6 @@ public final class ConfigurationHelper {
         return sw.toString();
     }
 
-    public static final String UNKNOWN_KEY_MESSAGE = "The following configuration keys are unknown: ";
     public static void validateConfig(final Configuration config) {
         final Field[] keyFields = Keys.class.getFields();
         final Keys keys = new Keys();
@@ -508,5 +607,10 @@ public final class ConfigurationHelper {
         if (!invalidKeys.isEmpty()) {
             throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
         }
+    }
+
+    public static void setOnRecordIdLimit(final long limit) {
+        final int intLimit = limit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) limit;
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.ON_RECORD_ID_LIMIT, 0, intLimit);
     }
 }

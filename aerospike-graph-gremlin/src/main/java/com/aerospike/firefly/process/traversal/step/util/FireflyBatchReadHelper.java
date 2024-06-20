@@ -10,6 +10,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
+import org.apache.tinkerpop.gremlin.process.traversal.GremlinTypeErrorException;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -25,6 +26,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,16 +55,17 @@ public class FireflyBatchReadHelper {
      * @param <E> Type of element to return.
      */
     public interface ReadElements<E extends Element> {
-        List<E> read(final List<HasContainer> hasContainers, final List<FireflyId> unorderedIds);
+        List<E> read(final List<HasContainer> hasContainers, final List<FireflyId> unorderedIds, final List<String> requiredProperties);
     }
 
     public static <E extends FireflyElement, T extends Element> void populateElementMap(final Set<FireflyId> uniqueIdSet,
                                                                                         final Map<FireflyId, E> elementMap,
                                                                                         final List<HasContainer> aerospikeHasContainers,
-                                                                                        final ReadElements<E> readElements) {
+                                                                                        final ReadElements<E> readElements,
+                                                                                        final List<String> requiredProperties) {
         // Read all IDs in a batch.
         final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
-        final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds);
+        final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds, requiredProperties);
 
         // If there is a mismatch we might have had concurrent removals or expression filtering. To fix this rematch the lists.
         if (unorderedIds.size() != unorderedElements.size()) {
@@ -86,10 +89,11 @@ public class FireflyBatchReadHelper {
                                                                                        final List<HasContainer> aerospikeHasContainers,
                                                                                        final List<HasContainer> fireflyHasContainers,
                                                                                        final TraverserSet<T> output,
-                                                                                       final ReadElements<E> readElements) {
+                                                                                       final ReadElements<E> readElements,
+                                                                                       final List<String> requiredProperties) {
         // Read all IDs in a batch.
         final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
-        final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds);
+        final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds, requiredProperties);
 
         // If there is a mismatch we might have had concurrent removals or expression filtering. To fix this rematch the lists.
         if (unorderedIds.size() != unorderedElements.size()) {
@@ -112,8 +116,13 @@ public class FireflyBatchReadHelper {
                 final T element = (T) elementMap.get(fireflyIdList.get(i++));
 
                 // Check firefly has containers to ensure we apply all predicates.
-                if (element == null || !HasContainer.testAll(element, fireflyHasContainers)) {
-                    // Element was not found - this is because it was deleted concurrently or filtered via expression.
+                try {
+                    if (element == null || !HasContainer.testAll(element, fireflyHasContainers)) {
+                        // Element was not found - this is because it was deleted concurrently or filtered via expression.
+                        continue;
+                    }
+                } catch (final GremlinTypeErrorException e) {
+                    // Element was not found due to a predicate filter type mismatch.
                     continue;
                 }
                 output.add(info.traverser.split(element, notThat));
@@ -136,9 +145,10 @@ public class FireflyBatchReadHelper {
     public static <E extends FireflyElement> void addElementsToSet(final List<FireflyId> fireflyIdList,
                                                                    final Set<FireflyId> uniqueIdSet,
                                                                    final Map<FireflyId, E> fireflyElementMap,
-                                                                   final List<FireflyId> elementIds) {
-        fireflyIdList.addAll(elementIds);
-        for (final FireflyId id : elementIds) {
+                                                                   final Iterator<FireflyId> elementIds) {
+        while (elementIds.hasNext()) {
+            final FireflyId id = elementIds.next();
+            fireflyIdList.add(id);
             if (!fireflyElementMap.containsKey(id)) {
                 uniqueIdSet.add(id);
             }

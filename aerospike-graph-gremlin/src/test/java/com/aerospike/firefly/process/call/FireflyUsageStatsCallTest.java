@@ -13,8 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory.HOURS_TO_YEARS;
-import static com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory.MILLISECONDS_TO_HOURS;
+import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.MILLISECONDS_TO_HOURS;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL;
 import static org.junit.Assert.fail;
 
@@ -55,6 +54,42 @@ public class FireflyUsageStatsCallTest {
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
 
             // Call usage stats api to get usage stats.
+            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.admin.metadata.usage").toList();
+            Assert.assertEquals(1, usageStatsList.size());
+            final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
+            final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");
+
+            // Raw should be list of map.
+            Assert.assertTrue(usageStats.get("raw") instanceof List);
+            Assert.assertEquals(1, ((List<?>) usageStats.get("raw")).size());
+
+            // Vcpu count of raw should be same of test vcpu count.
+            Assert.assertEquals(testVcpuCount, rawUsageStats.get(0).get("vcpus"));
+
+            // Max mem of raw should be same of max mem of test.
+            Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
+
+            // Compare expected and vcpu-yrs.
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
+        } catch (final InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    public void testUsageDeprecated() {
+        // 5 seconds to update
+        CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
+        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
+
+            // Wait 11 seconds so we can update.
+            Thread.sleep(11000);
+
+            // Get test vcpu count.
+            final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
+
+            // Call usage stats api to get usage stats.
             final List<Object> usageStatsList = graph.traversal().call("usage-stats").toList();
             Assert.assertEquals(1, usageStatsList.size());
             final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
@@ -71,8 +106,8 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected and vcpu-yrs.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS * HOURS_TO_YEARS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -86,10 +121,16 @@ public class FireflyUsageStatsCallTest {
 
             // Call usage stats api to get usage stats.
             try {
-                graph.traversal().call("usage-stats").with("since", null).toList();
-                fail("Expected call to usage-stats with 'null' to fail");
+                graph.traversal().call("aerospike.graph.admin.metadata.usage").with("since", null).toList();
+                fail("Expected call to aerospike.graph.admin.metadata.usage with 'null' to fail");
             } catch (final IllegalArgumentException e) {
-                Assert.assertEquals("Failed to parse provided date 'null'. Expected date provided to be in format 'yyyy-MM-dd'. Provided date was null.", e.getMessage());
+                Assert.assertEquals("Illegal arguments provided to 'aerospike.graph.admin.metadata.usage'.\n" +
+                        "\tExpected either no arguments provided or 'since' with a value in format 'yyyy-MM-dd'.\n" +
+                        "\tProvided arguments: '{since=null}'.\n" +
+                        "\tExample of correct usage:\n" +
+                        "\t\tg.call(\"aerospike.graph.admin.metadata.usage\").next();\n" +
+                        "\t\t\tor\n" +
+                        "\t\tg.call(\"aerospike.graph.admin.metadata.usage\").with(\"since\", \"1993-03-30\").next();", e.getMessage());
             }
         }
     }
@@ -102,10 +143,16 @@ public class FireflyUsageStatsCallTest {
 
             // Call usage stats api to get usage stats.
             try {
-                graph.traversal().call("usage-stats").with("since", 1).toList();
-                fail("Expected call to usage-stats with 'null' to fail");
+                graph.traversal().call("aerospike.graph.admin.metadata.usage").with("since", 1).toList();
+                fail("Expected call to aerospike.graph.admin.metadata.usage with 'null' to fail");
             } catch (final IllegalArgumentException e) {
-                Assert.assertEquals("Failed to parse provided date '1'. Expected date provided to be in format 'yyyy-MM-dd'. Provided date was not a String.", e.getMessage());
+                Assert.assertEquals("Illegal arguments provided to 'aerospike.graph.admin.metadata.usage'.\n" +
+                "\tExpected either no arguments provided or 'since' with a value in format 'yyyy-MM-dd'.\n" +
+                        "\tProvided arguments: '{since=1}'.\n" +
+                        "\tExample of correct usage:\n" +
+                        "\t\tg.call(\"aerospike.graph.admin.metadata.usage\").next();\n" +
+                        "\t\t\tor\n" +
+                        "\t\tg.call(\"aerospike.graph.admin.metadata.usage\").with(\"since\", \"1993-03-30\").next();", e.getMessage());
             }
         }
     }
@@ -124,7 +171,7 @@ public class FireflyUsageStatsCallTest {
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
 
             // Call usage stats api to get usage stats.
-            final List<Object> usageStatsList = graph.traversal().call("usage-stats").with("since", previousDay).toList();
+            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.admin.metadata.usage").with("since", previousDay).toList();
             Assert.assertEquals(1, usageStatsList.size());
             final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
             final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");
@@ -140,8 +187,8 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected and vcpu-yrs.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS * HOURS_TO_YEARS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -161,7 +208,7 @@ public class FireflyUsageStatsCallTest {
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
 
             // Call usage stats api to get usage stats.
-            final List<Object> usageStatsList = graph.traversal().call("usage-stats").with("since", futureDay).toList();
+            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.admin.metadata.usage").with("since", futureDay).toList();
             Assert.assertEquals(1, usageStatsList.size());
             final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
             final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");
@@ -177,7 +224,7 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected and vcpu-yrs.
-            Assert.assertEquals((Double) 0.0, (Double) usageStats.get("total-vcpu"));
+            Assert.assertEquals((Double) 0.0, (Double) usageStats.get("total-vcpu-hours"));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -206,7 +253,7 @@ public class FireflyUsageStatsCallTest {
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
 
             // Call usage stats api to get usage stats.
-            final List<Object> usageStatsList = graph1.traversal().call("usage-stats").toList();
+            final List<Object> usageStatsList = graph1.traversal().call("aerospike.graph.admin.metadata.usage").toList();
             Assert.assertEquals(1, usageStatsList.size());
             final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
             final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");
@@ -222,8 +269,8 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected vcpu-yrs.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS * HOURS_TO_YEARS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
         } catch (final Exception e) {
             if (graph1 != null)
                 graph1.close();

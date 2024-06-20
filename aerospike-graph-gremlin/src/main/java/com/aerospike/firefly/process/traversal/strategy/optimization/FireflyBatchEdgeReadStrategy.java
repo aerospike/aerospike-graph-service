@@ -15,10 +15,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupSideEffectStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
-import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -104,7 +102,6 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
             List<HasContainer> hasContainers = null;
             Set<String> labels = vertexStep.getLabels();
 
-
             int sampleSize = -1;
             long limitSize = -1;
 
@@ -118,7 +115,16 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
                 } else if (steps.get(index) instanceof HasStep) {
-                    // Cannot pushdown hasContainers to batch edge read step.
+                    if (graph.getBaseGraph().isSupernodePushdownEnabled) {
+                        if (sampleSize != -1 || limitSize != -1) {
+                            // outE().limit/sample(<amount>).has(...)
+                            // Can't pushdown HasContainers, therefore just break here and let them be applied after.
+                            break;
+                        }
+                        hasContainers = ((HasStep) steps.get(index)).getHasContainers();
+                        labels = steps.get(index).getLabels();
+                        traversal.removeStep(steps.get(index));
+                    }
                     break;
                 } else if (steps.get(index) instanceof SampleGlobalStep) {
                     if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY) {
@@ -158,9 +164,11 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                         }
                         traversal.addStep(index, step);
 
-                        // Cannot push down HasStep after pushing down sample so need to break.
-                        break;
-                    } catch (NoSuchFieldException | IllegalAccessException ignored) {
+                        if (graph.getBaseGraph().isSupernodePushdownEnabled) {
+                            // Cannot push down HasStep after pushing down sample so need to break.
+                            break;
+                        }
+                    } catch (final NoSuchFieldException | IllegalAccessException ignored) {
                         // Failed to get sample size, just ignore it.
                     }
                 } else if (steps.get(index) instanceof RangeGlobalStep) {
@@ -183,6 +191,8 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                     limitSize = high;
 
                     // No need to add limit set since it's already there.
+                    // Cannot push down HasStep after pushing down sample so need to break.
+                    break;
                 } else {
                     // Unknown step, break.
                     break;

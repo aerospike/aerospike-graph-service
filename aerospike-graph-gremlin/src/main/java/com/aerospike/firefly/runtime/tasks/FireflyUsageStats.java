@@ -4,6 +4,7 @@ import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
+import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,10 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.MILLISECONDS_TO_HOURS;
 
 
 /**
@@ -29,6 +34,7 @@ public class FireflyUsageStats {
 
     // Does not need to be closed because it is a daemon thread.
     private final Timer taskTimer = new Timer(true);
+    private static boolean errorPrinted = false;
 
     private FireflyUsageStats(final AerospikeConnection connection) {
         this.task = new FireflyUsageStatsTask(connection);
@@ -43,13 +49,14 @@ public class FireflyUsageStats {
 
     public static void startUsageStats(final AerospikeConnection connection) {
         synchronized (FireflyUsageStats.class) {
-            // Don't start in warm up due to config differences.
-            if (connection.WARMUP_MODE) {
-                return;
-            }
-
             // Only create once.
             if (instance == null) {
+                final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(connection.getClient(), connection.getNamespace(), connection.USAGE_STATS_SET);
+                for (String index : setIndex) {
+                    if (!"ok".equals(index)) {
+                        LOG.error("Error creating set index: {}", index);
+                    }
+                }
                 instance = new FireflyUsageStats(connection);
             } else {
                 // Update connection. Multiple open and closes can invalidate previous connection.
@@ -79,6 +86,30 @@ public class FireflyUsageStats {
         }
     }
 
+    public static double getTotalVcpuHours(final List<Map<String, Object>> usageStats, final Long epochOffsetMilliseconds) {
+        double totalVcpuHrs = 0.0;
+        for (Map<String, Object> usageStat : usageStats) {
+            Long start = (Long) usageStat.get("epoch-ms-start");
+            Long end = (Long) usageStat.get("epoch-ms-final");
+            final Long vcpus = (Long) usageStat.get("vcpus");
+
+            // Only use if offset is provided.
+            if (epochOffsetMilliseconds != null) {
+                if (start < epochOffsetMilliseconds) {
+                    start = epochOffsetMilliseconds;
+                }
+                if (end < epochOffsetMilliseconds) {
+                    end = epochOffsetMilliseconds;
+                }
+            }
+
+            // Total vcpu hours is sum of number of hours * number of vcpus.
+            totalVcpuHrs += ((double) (end - start) / (double) MILLISECONDS_TO_HOURS) * vcpus;
+        }
+
+        return totalVcpuHrs;
+    }
+
     protected class FireflyUsageStatsTask extends TimerTask {
         AerospikeConnection connection;
         final UUID uuid = UUID.randomUUID();
@@ -104,7 +135,7 @@ public class FireflyUsageStats {
                 // Each unique node will have a unique UUID that is their record key.
                 map.put("epoch-ms-final", Instant.now().toEpochMilli());
                 final Bin bin = new Bin(connection.USAGE_STATS_BIN, map);
-                connection.operate(null, key, Operation.put(bin));
+                connection.writeOperate(null, key, Operation.put(bin));
                 errorPrinted = false;
             } catch (final Exception ex) {
                 if (!errorPrinted)
@@ -116,8 +147,30 @@ public class FireflyUsageStats {
         public List<Map<String, Object>> getAllUsageStats() {
             final List<Map<String, Object>> usageStatsList = new ArrayList<>();
             final AerospikeClient client = connection.getClient();
-            client.scanAll(null, connection.getNamespace(), connection.USAGE_STATS_SET, (key, record)
-                    -> usageStatsList.add((Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN)));
+            try {
+                // Vrtx only has 2 seconds max, we shouldn't take all of it.
+                final ScanPolicy scanPolicy = new ScanPolicy();
+                connection.configureScanPolicy(scanPolicy);
+                scanPolicy.totalTimeout = 1000;
+                client.scanAll(scanPolicy, connection.getNamespace(), connection.USAGE_STATS_SET, (key, record) -> {
+                    final Map<String, Object> map = (Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN);
+                    final Long epochDelta = (Long) map.get("epoch-ms-final") - (Long) map.get("epoch-ms-start");
+                    if (epochDelta > 60 * 60 * 1000) {
+                        map.put("epoch-delta-hrs", epochDelta / (60 * 60 * 1000));
+                    } else if (epochDelta > 60 * 1000){
+                        map.put("epoch-delta-mins", epochDelta / (60 * 1000));
+                    } else {
+                        map.put("epoch-delta-secs", epochDelta / 1000);
+                    }
+                    usageStatsList.add((Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN));
+                });
+                errorPrinted = false;
+            } catch (final Exception ex) {
+                if (!errorPrinted) {
+                    LOG.error("Error getting usage stats", ex);
+                }
+                errorPrinted = true;
+            }
             return usageStatsList;
         }
     }

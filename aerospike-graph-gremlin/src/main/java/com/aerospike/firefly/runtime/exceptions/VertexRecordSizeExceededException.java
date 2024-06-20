@@ -69,7 +69,7 @@ public class VertexRecordSizeExceededException extends RuntimeException {
         final Operation getOutEdges = Operation.get(db.OUT_EDGES_BIN);
         final Operation getVpCount = MapOperation.size(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
         final Operation getVpProperties = Operation.get(db.PROPERTIES_BIN);
-        return db.operate(null, key, getInEdges, getOutEdges, getVpCount, getVpProperties);
+        return db.readOperate(null, key, getInEdges, getOutEdges, getVpCount, getVpProperties);
     }
 
     private static String buildMessage(final String baseMessage, final VertexRecordMetrics metrics) {

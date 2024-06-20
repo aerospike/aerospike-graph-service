@@ -460,7 +460,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final Bin[] bins = new Bin[]{edgeDataBin};
         FireflyRecord.writeElement(db, TEST_SET.name(), vertexFid, -1, bins);
         final Key vertexAeroKey = new Key(db.getNamespace(), TEST_SET.name(), (Long) vertexFid.getUserId());
-        Record operateResultRecord = db.operate(null, vertexAeroKey,
+        Record operateResultRecord = db.writeOperate(null, vertexAeroKey,
                 ListOperation.append(edgeDirection, Value.get(additionalEdgeRawId), CTX.mapKey(Value.get(edgeLabel))),
                 Operation.get(edgeDirection)
         );
@@ -468,7 +468,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Map<String, List<Long>> labelEdgesRetrieved = (Map<String, List<Long>>) record.getMap(edgeDirection);
         assertEquals(2, labelEdgesRetrieved.get(edgeLabel).size());
 
-        Record operateResultRecord2 = db.operate(null, vertexAeroKey,
+        Record operateResultRecord2 = db.writeOperate(null, vertexAeroKey,
                 ListOperation.removeByValue(edgeDirection, Value.get(edgeRawId), ListReturnType.NONE, CTX.mapKey(Value.get(edgeLabel))),
                 Operation.get(edgeDirection)
         );
@@ -494,7 +494,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final Bin[] bins = new Bin[]{edgeDataBin};
         FireflyRecord.writeElement(db, TEST_SET.name(), vertexFid, -1, bins);
         final Key vertexAeroKey = new Key(db.getNamespace(), TEST_SET.name(), (Long) vertexFid.getUserId());
-        Record operateResultRecord = db.operate(null, vertexAeroKey,
+        Record operateResultRecord = db.writeOperate(null, vertexAeroKey,
                 ListOperation.append(edgeDirection, Value.get(additionalEdgeRawId), CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.KEY_ORDERED)),
                 Operation.get(edgeDirection)
         );
@@ -502,7 +502,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Map<String, List<Long>> labelEdgesRetrieved = (Map<String, List<Long>>) record.getMap(edgeDirection);
         assertEquals(1, labelEdgesRetrieved.get(edgeLabel).size());
 
-        Record operateResultRecord2 = db.operate(null, vertexAeroKey,
+        Record operateResultRecord2 = db.writeOperate(null, vertexAeroKey,
                 ListOperation.removeByValue(edgeDirection, Value.get(additionalEdgeRawId), ListReturnType.NONE, CTX.mapKey(Value.get(edgeLabel))),
                 Operation.get(edgeDirection)
         );

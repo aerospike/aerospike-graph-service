@@ -10,6 +10,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.google.common.collect.Iterators;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -128,8 +129,8 @@ public class TestEdgeCacheIntegration {
             final Key v2Key = getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v2.id);
             final Operation getOutEdgeCache = Operation.get(graph.getBaseGraph().OUT_EDGES_BIN);
             final Operation getInEdgeCache = Operation.get(graph.getBaseGraph().IN_EDGES_BIN);
-            Record outResult = graph.getBaseGraph().operate(null, v1Key, getOutEdgeCache);
-            Record inResult = graph.getBaseGraph().operate(null, v2Key, getInEdgeCache);
+            Record outResult = graph.getBaseGraph().readOperate(null, v1Key, getOutEdgeCache);
+            Record inResult = graph.getBaseGraph().readOperate(null, v2Key, getInEdgeCache);
 
             Map<String, List<Object>> outMap = (Map<String, List<Object>>) outResult.getMap(graph.getBaseGraph().OUT_EDGES_BIN);
             Map<String, List<Object>> inMap = (Map<String, List<Object>>) inResult.getMap(graph.getBaseGraph().IN_EDGES_BIN);
@@ -156,8 +157,8 @@ public class TestEdgeCacheIntegration {
 
             g.V().hasLabel("v1").outE().has("toBeRemoved").drop().iterate();
 
-            outResult = graph.getBaseGraph().operate(null, v1Key, getOutEdgeCache);
-            inResult = graph.getBaseGraph().operate(null, v2Key, getInEdgeCache);
+            outResult = graph.getBaseGraph().readOperate(null, v1Key, getOutEdgeCache);
+            inResult = graph.getBaseGraph().readOperate(null, v2Key, getInEdgeCache);
 
             outMap = (Map<String, List<Object>>) outResult.getMap(graph.getBaseGraph().OUT_EDGES_BIN);
             inMap = (Map<String, List<Object>>) inResult.getMap(graph.getBaseGraph().IN_EDGES_BIN);
@@ -205,8 +206,8 @@ public class TestEdgeCacheIntegration {
             Assert.assertFalse(g.V(v2.id()).hasNext());
             FireflyVertex fv1 = (FireflyVertex) g.V(v1.id()).next();
             FireflyVertex fv3 = (FireflyVertex) g.V(v3.id()).next();
-            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
-            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
+            Assert.assertFalse(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
+            Assert.assertFalse(fv3.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
             Assert.assertFalse(g.E().hasNext());
             g.V().drop().iterate();
 
@@ -227,9 +228,9 @@ public class TestEdgeCacheIntegration {
             fv1 = (FireflyVertex) g.V(v1.id()).next();
             fv3 = (FireflyVertex) g.V(v3.id()).next();
             FireflyVertex fv4 = (FireflyVertex) g.V(v4.id()).next();
-            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
-            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
-            Assert.assertTrue(fv4.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
+            Assert.assertFalse(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
+            Assert.assertFalse(fv3.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
+            Assert.assertFalse(fv4.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
             Assert.assertFalse(g.E().hasNext());
             g.V().drop().iterate();
 
@@ -253,16 +254,16 @@ public class TestEdgeCacheIntegration {
             Assert.assertTrue(fv3.isEdgeCacheOverflowed());
             g.V(v2.id()).drop().iterate();
             fv1 = (FireflyVertex) g.V(v1.id()).next();
-            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
+            Assert.assertFalse(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
             fv3 = (FireflyVertex) g.V(v3.id()).next();
-            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.IN, Collections.EMPTY_SET).isEmpty());
-            Assert.assertEquals(4, fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET).size());
+            Assert.assertFalse(fv3.getEdgeIdsFromVertex(Direction.IN, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
+            Assert.assertEquals(4, Iterators.size(fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET, Collections.emptyList())));
             g.V(v4.id()).drop().iterate();
             fv3 = (FireflyVertex) g.V(v3.id()).next();
-            Assert.assertEquals(2, fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET).size());
+            Assert.assertEquals(2, Iterators.size(fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET, Collections.emptyList())));
             g.V(v5.id()).drop().iterate();
             fv3 = (FireflyVertex) g.V(v3.id()).next();
-            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET).isEmpty());
+            Assert.assertFalse(fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET, Collections.emptyList()).hasNext());
             Assert.assertFalse(g.E().hasNext());
         }
     }

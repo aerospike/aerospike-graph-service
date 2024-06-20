@@ -6,10 +6,14 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import com.aerospike.firefly.structure.iterator.FireflyBatchEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
+import org.apache.tinkerpop.gremlin.process.computer.VertexComputeKey;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -21,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -38,9 +43,27 @@ public final class FireflyHelper {
     private FireflyHelper() {
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// FIREFLY GRAPH COMPUTER //////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     public static boolean inComputerMode(final FireflyGraph graph) {
-        return false;
+        return graph.graphComputerView != null;
     }
+
+    public static LocalGraphComputerView createGraphComputerView(final FireflyGraph graph, final GraphFilter graphFilter, final Set<VertexComputeKey> computeKeys) {
+        return graph.graphComputerView = new LocalGraphComputerView(graph, graphFilter, computeKeys);
+    }
+
+    public static void dropGraphComputerView(final FireflyGraph graph) {
+        graph.graphComputerView= null;
+    }
+
+    public static LocalGraphComputerView getGraphComputerView(final FireflyGraph graph) {
+        return  graph.graphComputerView;
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static <V> V validateGraphVariableValue(V v) {
         Set<Class<? extends Serializable>> supported = SupportedValueTypes.keySet();
@@ -72,15 +95,9 @@ public final class FireflyHelper {
         }
     }
 
-    private static List<Edge> getEdgeList(final FireflyGraph graph, final FireflyVertex vertex, final Direction direction, final Set<String> labels) {
-        // TODO: This returns a raw list and could blow up on a supernode.
-        // This is kind of silly, but we a new ArrayList<> is required to remove the FireflyEdge type and allow it to be cast to Edge.
-        return new ArrayList<>(graph.readEdges(List.of(), vertex.getEdgeIdsFromVertex(direction, labels)));
-    }
-
     public static Iterator<Edge> getEdges(FireflyGraph graph, FireflyVertex vertex, Direction direction, String[] edgeLabels) {
         final Set<String> labels = new HashSet<>(Arrays.asList(edgeLabels));
-        return getEdgeList(graph, vertex, direction, labels).iterator();
+        return new FireflyBatchEdgeIterator<>(graph, vertex.getEdgeIdsFromVertex(direction, labels, Collections.emptyList()));
     }
 
     public static long countVertices(final FireflyGraph graph, final List<HasContainer> hasContainers) {

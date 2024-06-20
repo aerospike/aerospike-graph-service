@@ -36,8 +36,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.fromAddingVpProperty;
 import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.getRelevantVertexBins;
 
@@ -53,7 +53,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     protected final String key;
     protected final V value;
     protected final FireflyGraph graph;
-    protected final FireflyVertex vertex;
+    protected FireflyVertex vertex;
     public Map<String, Object> properties;
     public Map<String, Object> typeHints;
 
@@ -103,8 +103,9 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         try {
             LOG.debug("Removing vertex property {}", id);
             if (vertex == null) {
-                graph.readVertex(vertexId).removeVertexProperty(label, id);
-            } else {
+                vertex = graph.readVertex(vertexId);
+            }
+            if (vertex != null) {
                 vertex.removeVertexProperty(label, id);
             }
         } catch (final AerospikeException ae) {
@@ -155,7 +156,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            db.operate(writePolicy, opKey, operations.toArray(new Operation[0]));
+            db.writeOperate(writePolicy, opKey, operations.toArray(new Operation[0]));
         } catch (final RecordTooBigException rtbe) {
             final VertexRecordSizeExceededException sizeExceededException =
                     fromAddingVpProperty((AerospikeException) rtbe.getCause(), db, getRelevantVertexBins(db, opKey),
@@ -197,7 +198,10 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
 
     @Override
     public Vertex element() {
-        return graph.readVertex(vertexId);
+        if (vertex == null) {
+            vertex = graph.readVertex(vertexId);
+        }
+        return vertex;
     }
 
     @Override
@@ -240,12 +244,6 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
                     p -> new FireflyVertexPropertyProperty<>(graph, this, p.getKey(),
                             (V) this.graph.getBaseGraph().convertValuetoTypeUsingHint(p.getValue(), typeHints.get(p.getKey()))));
         }
-    }
-
-    @Override
-    public long getTtlMillis() {
-        // This should never happen since this method is never invoked on a Vertex Property.
-        throw new IllegalStateException("TTL is not supported for Vertex Properties");
     }
 
     @Override

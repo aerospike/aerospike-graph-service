@@ -1,12 +1,12 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.client.util.Crypto;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
@@ -47,6 +47,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -150,7 +151,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             graph.writeVertex(next, "aVertexLabel", new ArrayList<>());
         });
         final AtomicLong ctr = new AtomicLong(0);
-        new FireflyBatchElementIterator<>(graph, usedIds.iterator(), List.of(), graph::readVertices).forEachRemaining(v -> {
+        new FireflyBatchElementIterator<>(graph, usedIds.iterator(), List.of(), graph::readVertices, null).forEachRemaining(v -> {
             ctr.addAndGet(1);
             assertEquals("aVertexLabel", v.label());
         });
@@ -631,12 +632,12 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         final Vertex lemon = g.V().hasLabel("lemon").next();
         final Vertex lime = g.V().hasLabel("lime").next();
-        List<FireflyId> i = graph.readVertex(graph.getIdFactory().createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN, Set.of());
-        assertFalse(i.isEmpty());
+        Iterator<FireflyId> i = graph.readVertex(graph.getIdFactory().createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN, Set.of(), Collections.emptyList());
+        assertTrue(i.hasNext());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
-        FireflyId next = i.get(0);
+        FireflyId next = i.next();
         assertTrue(x.contains(Crypto.encodeBase64(((ByteBuffer) next.getUserId()).array())));
-        next = i.get(1);
+        next = i.next();
         assertTrue(x.contains(Crypto.encodeBase64(((ByteBuffer) next.getUserId()).array())));
     }
 

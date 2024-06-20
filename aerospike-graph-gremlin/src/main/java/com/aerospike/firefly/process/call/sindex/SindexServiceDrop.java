@@ -21,12 +21,12 @@ public class SindexServiceDrop<I, R> extends SindexServiceBase<I, R> {
     }
 
     @Override
-    protected String adminServiceName() {
+    protected String getAdminServiceName() {
         return "drop";
     }
 
     @Override
-    protected Map<String, String> getParamDescription() {
+    public Map<String, String> describeParams() {
         // No parameters.
         final Map<String, String> parameters = new HashMap<>();
         parameters.put(ELEMENT_TYPE, "The type of element to drop the index on. Only 'vertex' is currently supported.");
@@ -41,9 +41,9 @@ public class SindexServiceDrop<I, R> extends SindexServiceBase<I, R> {
                         "\tNote, only 'vertex' is currently supported for '" + ELEMENT_TYPE + "'.\n" +
                         "\tProvided arguments: %s.\n" +
                         "\tExamples of correct usage:\n" +
-                        "\t\tg.call(\"aerospike.graph.admin.index.drop\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"~label\").next();\n" +
-                        "\t\tg.call(\"aerospike.graph.admin.index.drop\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"name\").next();",
-                getName(), params);
+                        "\t\tg.call(\"%s\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"~label\").next();\n" +
+                        "\t\tg.call(\"%s\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"name\").next();",
+                getName(), params,getName(), getName());
     }
 
     @Override
@@ -64,13 +64,13 @@ public class SindexServiceDrop<I, R> extends SindexServiceBase<I, R> {
         if (params.get(ELEMENT_TYPE).equals("vertex")) {
             try {
                 if (params.get(PROPERTY_KEY).equals("~label")) {
-                    return (R) Admin.index.dropVertexLabelIndex(firefly, new EmptyAdminContext());
+                    return (R) Admin.index.dropVertexLabelIndex(graph);
                 } else {
-                    return (R) Admin.index.dropVertexPropertyIndex(firefly, (String) params.get(PROPERTY_KEY), new EmptyAdminContext());
+                    return (R) Admin.index.dropVertexPropertyIndex(graph, (String) params.get(PROPERTY_KEY));
                 }
             } finally {
                 try {
-                    firefly.fireflyIndexMetadata.updateMetadata();
+                    graph.fireflyIndexMetadata.updateMetadata();
                 } catch (final Exception e) {
                     LOG.warn("Updating Index metadata forcibly due to dropping an index failed.", e);
                 }
@@ -79,5 +79,10 @@ public class SindexServiceDrop<I, R> extends SindexServiceBase<I, R> {
             // Should be caught by sanitize().
             throw new IllegalArgumentException("Only 'vertex' is currently supported for '" + ELEMENT_TYPE + "'.");
         }
+    }
+
+    @Override
+    protected void auditLog(final Map params) {
+        LOGGER.info(getName() + " Drop index.");
     }
 }

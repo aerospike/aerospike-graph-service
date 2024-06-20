@@ -50,10 +50,14 @@ public class WarmupUtil {
 
     public void preheat(final int passes) {
         synchronized (FireflyGraph.class) {
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.FAULT_TEST, conf))) {
+            if (ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.FAULT_TEST, conf)) {
                 final String message = "Fault Test. The '" + ConfigurationHelper.Keys.FAULT_TEST + "' configuration key has been enabled. This intentionally causes the warmup routine to fail.";
                 System.out.println(message);
                 throw new AerospikeException(message);
+            }
+            // Allow warmup to be disabled.
+            if (!ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_ENABLED, conf)) {
+                return;
             }
             try {
                 if (graph == null) {
@@ -63,6 +67,7 @@ public class WarmupUtil {
                     warmupConfig.setProperty(ConfigurationHelper.Keys.WARMUP_MODE.toLowerCase(), "true");
                     warmupConfig.setProperty(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG.toLowerCase(), "false");
                     warmupConfig.setProperty(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG.toLowerCase(), "false");
+                    warmupConfig.setProperty(ConfigurationHelper.Keys.TTL_ENABLED_FLAG.toLowerCase(), "false");
                     warmupConfig.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "OFF");
                     graph = FireflyGraph.open(warmupConfig);
                 }
@@ -143,6 +148,10 @@ public class WarmupUtil {
             g.V(FIREFLY_WARMUP_VARIABLE_NAME).next();
             System.out.println("Warmup complete.");
         } catch (final Exception e) {
+            if (e.getMessage().contains("Failure to initialize security context")) {
+                // Silently fail; can't warm up when we're secure.
+                return;
+            }
             final String message = String.format("Failed to perform warmup routine: %s", e.getMessage());
             LOG.error(message);
             System.err.println(message);

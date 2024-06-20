@@ -2,6 +2,7 @@ package com.aerospike.firefly.process.traversal.step;
 
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
+import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -12,6 +13,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -19,10 +21,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -40,6 +42,7 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
     private final long sampleSize;
     private final long limitSize;
     private final int barrierSize;
+    private final List<String> requiredProperties;
 
     public FireflyCompositeIdLimitSampleStep(final Traversal.Admin traversal,
                                              final Direction direction,
@@ -48,7 +51,8 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
                                              final List<HasContainer> hasContainers,
                                              final long sampleSize,
                                              final long limitSize,
-                                             final int barrierSize) {
+                                             final int barrierSize,
+                                             final List<String> requiredProperties) {
         super(traversal, barrierSize);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
@@ -68,6 +72,7 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
             fireflyHasContainers = List.of();
             aerospikeHasContainers = List.of();
         }
+        this.requiredProperties = requiredProperties;
     }
 
     @Override
@@ -95,8 +100,14 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
                 outputVertexIds.put(input, new ArrayList<>());
             } else {
                 final FireflyVertex vertex = inputVertices.get(input);
-                final List<FireflyId> vertexIds = vertex.getVertexIdsFromVertex(direction, edgeLabels);
-                totalVertexIds += vertexIds.size();
+                TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
+                final Iterator<FireflyId> vertexIdsItty = vertex.getVertexIdsFromVertex(direction, edgeLabels);
+                final List<FireflyId> vertexIds = new ArrayList<>();
+                while ((limitSize < 0 || totalVertexIds < limitSize) && vertexIdsItty.hasNext()) {
+                    vertexIds.add(vertexIdsItty.next());
+                    totalVertexIds++;
+                }
+                CloseableIterator.closeIterator(vertexIdsItty);
                 outputVertexIds.put(input, vertexIds);
             }
         }
@@ -149,7 +160,7 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
         // Read the sampled vertices.
         final Map<FireflyId, FireflyVertex> vertexMap = new HashMap<>();
         FireflyBatchReadHelper.populateElementMap(
-                new HashSet<>(sampledVertexIds), vertexMap, aerospikeHasContainers, graph::readVertices);
+                new HashSet<>(sampledVertexIds), vertexMap, aerospikeHasContainers, graph::readVertices, requiredProperties);
 
         // Create list of random indices to sample and order them in ascending order so we can iterate through them.
         final List<Long> randomIndicesList = new ArrayList<>(randomIndices);

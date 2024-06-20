@@ -53,7 +53,7 @@ public abstract class AbstractFireflySuite {
     public void beforeTest() {
         // Test check to see if we should run this test.
         Assume.assumeTrue(runTest());
-        LOG.info("===> Running " + testName.getMethodName() + " <===");
+        LOG.warn("===> Running " + testName.getMethodName() + " <===");
         if (clearData()) {
             this.isTestStarted = false;
             Util.cleanAndVerifyGraph(graph);
@@ -65,9 +65,9 @@ public abstract class AbstractFireflySuite {
     @After
     public void printTestTime() {
         if (isTestStarted) {
-            LOG.info("===> " + testName.getMethodName() + " - " + Duration.between(start, Instant.now()).toMillis() + " ms <===");
+            LOG.warn("===> " + testName.getMethodName() + " - " + Duration.between(start, Instant.now()).toMillis() + " ms <===");
         } else {
-            LOG.error("===> " + testName.getMethodName() + " did not start <===");
+            LOG.warn("===> " + testName.getMethodName() + " did not start <===");
         }
     }
 

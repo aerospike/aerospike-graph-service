@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.call.sindex;
 
 import com.aerospike.firefly.io.aerospike.admin.Admin;
+import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.util.Collections;
@@ -14,12 +15,12 @@ public class SindexServiceList<I, R> extends SindexServiceBase<I, R> {
     }
 
     @Override
-    protected String adminServiceName() {
+    protected String getAdminServiceName() {
         return "list";
     }
 
     @Override
-    protected Map<String, String> getParamDescription() {
+    public Map<String, String> describeParams() {
         // No parameters.
         return Collections.emptyMap();
     }
@@ -29,8 +30,8 @@ public class SindexServiceList<I, R> extends SindexServiceBase<I, R> {
         return String.format("Illegal arguments provided to %s.\n" +
                         "\tExpected no arguments provided.\n" +
                         "\tProvided arguments: %s.\n" +
-                        "\tExample of correct usage: g.call(\"aerospike.graph.admin.index.list\").next();",
-                getName(), params);
+                        "\tExample of correct usage: g.call(\"%s\").next();",
+                getName(), params, getName());
     }
 
     @Override
@@ -41,6 +42,15 @@ public class SindexServiceList<I, R> extends SindexServiceBase<I, R> {
 
     @Override
     protected R execute(final Map params) {
-        return (R) Admin.index.getIndexList(firefly, new EmptyAdminContext());
+        return (R) Admin.index.getIndexList(graph);
+    }
+
+    @Override
+    protected void auditLog(final Map params) {
+        LOGGER.info(getName() + " List indexes.");
+    }
+
+    protected UserContext.ROLE getRequiredRole() {
+        return UserContext.ROLE.READ;
     }
 }

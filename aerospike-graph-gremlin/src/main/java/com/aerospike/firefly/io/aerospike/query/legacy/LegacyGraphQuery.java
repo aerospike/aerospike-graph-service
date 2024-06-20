@@ -12,8 +12,10 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.ScanHitCounter;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
@@ -22,6 +24,7 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.DefaultAerospikeClientProvider.client;
 
@@ -49,6 +52,7 @@ public class LegacyGraphQuery implements GraphQuery {
         statement.setSetName(setName);
         statement.setIndexName(indexName);
         statement.setFilter(filter);
+        db.configureReadPolicy(policy);
 
         return IteratorUtils.
                 stream(fireflyGraph.getBaseGraph().client.query(policy, statement))
@@ -61,13 +65,14 @@ public class LegacyGraphQuery implements GraphQuery {
         return fireflyGraph;
     }
 
-    public Iterator<KeyRecord> scanAllRecordsInSet(final String setName,
+    private Iterator<KeyRecord> scanAllRecordsInSet(final String setName,
                                                    final String mapKey,
                                                    final ScanPolicy policy,
                                                    final boolean sendKey,
                                                    final String... binNames) {
         final Monitor scanMonitor = new Monitor();
         policy.sendKey = sendKey;
+        db.configureScanPolicy(policy);
         final UUID scanId = UUID.randomUUID();
         final ScanHitCounter shc = db.getScanHitCounter();
         if(mapKey != null) shc.associateUUID(scanId, mapKey);
@@ -77,6 +82,15 @@ public class LegacyGraphQuery implements GraphQuery {
         client.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), setName, binNames);
 
         return new FireflyCloseableIterator<>(listener.iterator());
+    }
+
+
+    @Override
+    public <E> BlockingQueue<PageFetcher.Page> scanSetPagesBlocking(final String mapKey, final String setName, final String binName, final P<?> predicate,
+                                                                    final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
+                                                                    final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
+                                                                    final String... binNames) {
+        throw new RuntimeException("The graph computer does not support legacy reading.");
     }
 
     @Override
@@ -115,14 +129,13 @@ public class LegacyGraphQuery implements GraphQuery {
 
 
     @Override
-    public <E> Iterator<E> querySIndex(final FireflyIndexMetadata.IndexInfo indexInfo,
-                                       final P<?> predicate,
-                                       final FireflyGraph.TransformKeyRecord<E> transform,
-                                       final List<HasContainer> hasContainers,
-                                       final Class<? extends FireflyElement> clazz) {
+    public <E> Iterator<E> queryVertexSIndex(final FireflyIndexMetadata.IndexInfo indexInfo,
+                                             final P<?> predicate,
+                                             final FireflyGraph.TransformKeyRecord<E> transform,
+                                             final List<HasContainer> hasContainers) {
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
-        queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, clazz);
+        queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, FireflyVertex.class);
 
         return querySIndex(indexInfo.setName, indexInfo.indexName, GraphQueryHelper.predicateToFilter(db, predicate, indexInfo), queryPolicy, transform);
 

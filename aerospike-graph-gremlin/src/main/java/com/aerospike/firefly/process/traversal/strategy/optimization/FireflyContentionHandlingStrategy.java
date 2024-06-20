@@ -2,10 +2,14 @@ package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.traversal.strategy.profile.FireflyScanProfileStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.LambdaRestrictionStrategy;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -23,6 +27,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
     private final FireflyStrategyBase fireflyReadThroughCacheStrategy;
     private final FireflyStrategyBase fireflyVertexEdgeLocalCountStrategy;
     private final FireflyStrategyBase fireflyScanProfileStrategy;
+    private final FireflyStrategyBase fireflyAuthenticationStrategy;
 
     /**
      * Default constructor for FireflyContentionHandlingStrategy.
@@ -37,6 +42,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         this.fireflyReadThroughCacheStrategy = new FireflyReadThroughCacheStrategy();
         this.fireflyVertexEdgeLocalCountStrategy = new FireflyVertexEdgeLocalCountStrategy();
         this.fireflyScanProfileStrategy = new FireflyScanProfileStrategy();
+        this.fireflyAuthenticationStrategy = new FireflyAuthenticationStrategy();
     }
 
     /**
@@ -59,7 +65,10 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
      */
     private void applyStrategy(final Traversal.Admin<?, ?> traversal, final FireflyStrategyBase strategy) {
         if (traversal.getGraph().isPresent()) {
-            if (strategy.isEnabled((FireflyGraph) traversal.getGraph().get())) {
+            if (traversal.isRoot()) {
+                strategy.reset();
+            }
+            if ((traversal.getGraph().get() instanceof FireflyGraph) && strategy.isEnabled((FireflyGraph) traversal.getGraph().get())) {
                 strategy.apply(traversal);
             }
         }
@@ -73,15 +82,22 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
      */
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
+        final Set<Class<? extends Step>> internalStepClasses = new HashSet<>();
+        traversal.getSteps().forEach(step -> internalStepClasses.add(step.getClass()));
+
         // Look for Lambda functions for security reasons.
         // TinkerPop conveniently has a strategy for this.
         applyTinkerPopStrategy(traversal, LambdaRestrictionStrategy.instance());
+
+        // Perform auth strategy before we mutate anything.
+        applyStrategy(traversal, fireflyAuthenticationStrategy);
 
         // Steps that override the entire step list first.
         applyStrategy(traversal, fireflyGraphDropStrategy);
         applyStrategy(traversal, fireflyGraphCountStrategy);
 
         // Steps that are generally applicable to most all traversals.
+        fireflyGraphStepStrategy.setSteps(internalStepClasses);
         applyStrategy(traversal, fireflyGraphStepStrategy);
         applyStrategy(traversal, fireflyReadThroughCacheStrategy);
 
@@ -90,6 +106,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
 
         // Steps that replace specific internal steps.
         applyStrategy(traversal, fireflyMergeStepStrategy);
+        fireflyCompositeEdgeIdStrategy.setSteps(internalStepClasses);
         applyStrategy(traversal, fireflyCompositeEdgeIdStrategy);
         applyStrategy(traversal, fireflyBatchEdgeReadStrategy);
         applyStrategy(traversal, fireflyScanProfileStrategy);

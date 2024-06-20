@@ -13,7 +13,6 @@ import org.junit.Test;
 import org.junit.contrib.java.lang.system.ExpectedSystemExit;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.DEBUG_MODE_FLAG;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.FIREFLY_DATA_MODEL;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.PHAT_EDGE_SIZE;
@@ -59,7 +58,7 @@ public class TestFireflyConfigCompatibility {
     public void testImmutablePhatEdgeSize() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         exit.expectSystemExitWithStatus(1);
-        config.setProperty(PHAT_EDGE_SIZE, "1337");
+        config.setProperty(PHAT_EDGE_SIZE, "99");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             Assert.fail("Graph should not start with immutable config change on key: " + PHAT_EDGE_SIZE);
         }

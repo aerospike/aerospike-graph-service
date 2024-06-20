@@ -1,34 +1,38 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.firefly.process.FireflyTestListener;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.AbstractGraphProvider;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyGraphProviderUncached extends AbstractGraphProvider {
-
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyGraphProviderUncached.class);
     private static final Configuration config;
 
     static {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 
         // Adjust here to test transition from caches to scans
-        config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase(), "100000");
+        config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase(), "10000");
     }
 
     @Override
@@ -70,6 +74,11 @@ public class FireflyGraphProviderUncached extends AbstractGraphProvider {
                 fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             }
         }
+    }
+
+    @Override
+    public Optional<TestListener> getTestListener() {
+        return Optional.of(new FireflyTestListener(LOG));
     }
 
     @Override

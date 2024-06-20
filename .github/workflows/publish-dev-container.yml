@@ -1,0 +1,57 @@
+name: Publish Firefly Container for Dev
+
+on:
+  push:
+    branches: [2.x-dev]
+
+env:
+  QE_DOCKER_REGISTRY: secure.docker.qe.aerospike.com
+  QE_DOCKER_USERNAME: firefly
+
+jobs:
+  publish-github:
+    name: Publish Firefly Docker Image - GitHub
+    permissions:
+      packages: write
+      contents: read
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        run: |
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Publish Container
+        run: |
+          # Strip git ref prefix (refs/tags or ref/heads).
+          VERSION=$(git rev-parse --short "$GITHUB_SHA")
+  
+          # Get registry URL and convert to lower case.
+          OUTPUT_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev-$VERSION
+          OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          DOCKER_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev
+          DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          echo "Building and tagging docker image for linux/amd64 $DOCKER_IMAGE $OUTPUT_IMAGE"
+          bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
+          bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
+          
+          echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV

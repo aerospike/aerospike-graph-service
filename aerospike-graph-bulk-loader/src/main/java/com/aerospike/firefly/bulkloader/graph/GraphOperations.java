@@ -68,7 +68,7 @@ public class GraphOperations {
                     if (cause.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR) {
                         if (allowedDetachedEdges > 0) {
                             LOGGER.warn("Failed to write edges with label " + label + " into " + direction +
-                                    " edge cache for vertex ID " + vertexId + " due to vertex record key not found.", cause);
+                                    " edge cache for vertex ID " + vertexId + " due to vertex record key not found.");
                             for (final Value edgeId: edgeIds) {
                                 final byte[] edgeIdByte = (byte[]) edgeId.getObject();
                                 invalidEdgeIds.add(edgeIdByte);

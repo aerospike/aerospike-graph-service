@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.call.sindex;
 
 import com.aerospike.firefly.io.aerospike.admin.Admin;
+import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.util.HashMap;
@@ -18,12 +19,12 @@ public class SindexServiceStatus<I, R> extends SindexServiceBase<I, R> {
     }
 
     @Override
-    protected String adminServiceName() {
+    protected String getAdminServiceName() {
         return "status";
     }
 
     @Override
-    protected Map<String, String> getParamDescription() {
+    public Map<String, String> describeParams() {
         // No parameters.
         final Map<String, String> parameters = new HashMap<>();
         parameters.put(ELEMENT_TYPE, "The type of element to get the index status of. Only 'vertex' is currently supported.");
@@ -38,9 +39,9 @@ public class SindexServiceStatus<I, R> extends SindexServiceBase<I, R> {
                         "\tNote, only 'vertex' is currently supported for '" + ELEMENT_TYPE + "'.\n" +
                         "\tProvided arguments: %s.\n" +
                         "\tExamples of correct usage:\n" +
-                        "\t\tg.call(\"aerospike.graph.admin.index.status\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"~label\").next();\n" +
-                        "\t\tg.call(\"aerospike.graph.admin.index.status\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"name\").next();",
-                getName(), params);
+                        "\t\tg.call(\"%s\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"~label\").next();\n" +
+                        "\t\tg.call(\"%s\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"name\").next();",
+                getName(), params, getName(), getName());
     }
 
     @Override
@@ -60,13 +61,22 @@ public class SindexServiceStatus<I, R> extends SindexServiceBase<I, R> {
     protected R execute(final Map params) {
         if (params.get(ELEMENT_TYPE).equals("vertex")) {
             if (params.get(PROPERTY_KEY).equals("~label")) {
-                return (R) Admin.index.getStatusVertexLabelIndex(firefly, new EmptyAdminContext());
+                return (R) Admin.index.getStatusVertexLabelIndex(graph);
             } else {
-                return (R) Admin.index.getStatusVertexPropertyIndex(firefly, (String) params.get(PROPERTY_KEY), new EmptyAdminContext());
+                return (R) Admin.index.getStatusVertexPropertyIndex(graph, (String) params.get(PROPERTY_KEY));
             }
         } else {
             // Should be caught by sanitize().
             throw new IllegalArgumentException("Only 'vertex' is currently supported for '" + ELEMENT_TYPE + "'.");
         }
+    }
+
+    @Override
+    protected void auditLog(final Map params) {
+        LOGGER.info(getName() + " Get status.");
+    }
+
+    protected UserContext.ROLE getRequiredRole() {
+        return UserContext.ROLE.READ;
     }
 }

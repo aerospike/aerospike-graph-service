@@ -11,12 +11,12 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -48,7 +48,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 @State(Scope.Benchmark)
 @Warmup(iterations = 1)
 // Takes about 30 minutes to run in GitHub actions.
-@Measurement(iterations = 1, time = 45, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 1, time = 15, timeUnit = TimeUnit.SECONDS)
 public class BenchmarkTestFlightsData {
     // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Ddocker.benchmark=1 -Dtest=BenchmarkTestFlightsData -DfailIfNoTests=false --no-transfer-progress
     private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTestFlightsData.class);
@@ -156,8 +156,8 @@ public class BenchmarkTestFlightsData {
                 .detectJvmArgs()
                 .forks(2)
                 .measurementIterations(2)
-                .measurementTime(TimeValue.seconds(30))
-                .timeout(TimeValue.minutes(1)); // Timeout
+                .measurementTime(TimeValue.seconds(2))
+                .timeout(TimeValue.seconds(60)); // Timeout
         BenchmarkTestUtils.appendJmhOptionsBuilder(optBuilder);
         Options opt = optBuilder.build();
         Collection<RunResult> runResult = new Runner(opt).run();

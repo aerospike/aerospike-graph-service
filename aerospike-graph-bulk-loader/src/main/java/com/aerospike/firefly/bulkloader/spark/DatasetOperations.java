@@ -1,7 +1,6 @@
 package com.aerospike.firefly.bulkloader.spark;
 
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
-import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderPreflightException;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.Dataset;
@@ -30,9 +29,9 @@ import java.util.concurrent.ThreadFactory;
 import java.util.function.Supplier;
 
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VALIDATE_INPUT_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VALIDATE_INPUT_DATA;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.input_file_name;
 
@@ -119,7 +118,7 @@ public class DatasetOperations implements Serializable {
      */
     public static StorageLevel getDfStorageLevel(final BulkLoaderConfigHelper config) {
         StorageLevel storageLevel = StorageLevel.NONE();
-        if (Boolean.parseBoolean(config.getOrDefault(ENABLE_DATAFRAME_CACHING))) {
+        if (config.getOrDefaultBool(ENABLE_DATAFRAME_CACHING)) {
             switch (config.getOrDefault(DATAFRAME_STORAGE_TYPE).toLowerCase()) {
                 case "memory_only":
                     storageLevel = StorageLevel.MEMORY_ONLY();
@@ -145,7 +144,7 @@ public class DatasetOperations implements Serializable {
     }
 
     public static double getSamplingPercent(final BulkLoaderConfigHelper config) {
-        return Double.parseDouble(config.getOrDefault(SAMPLING_PERCENTAGE)) / 100;
+        return config.getOrDefaultDoublePercentageDecimal(SAMPLING_PERCENTAGE);
     }
 
     public static void preflightCheck(final Dataset<Row> edgeDataset, final Dataset<Row> vertexDataset,

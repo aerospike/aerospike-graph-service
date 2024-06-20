@@ -41,33 +41,33 @@ public class FireflyAerospikeVersionCheck {
         int max = version.length();
 
         while (i < max) {
-            if (! Character.isDigit(version.charAt(i))) {
+            if (!Character.isDigit(version.charAt(i))) {
                 break;
             }
             i++;
         }
 
-        major = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
+        major = (i > begin) ? Integer.parseInt(version.substring(begin, i)) : 0;
         begin = ++i;
 
         while (i < max) {
-            if (! Character.isDigit(version.charAt(i))) {
+            if (!Character.isDigit(version.charAt(i))) {
                 break;
             }
             i++;
         }
 
-        minor = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
+        minor = (i > begin) ? Integer.parseInt(version.substring(begin, i)) : 0;
         begin = ++i;
 
         while (i < max) {
-            if (! Character.isDigit(version.charAt(i))) {
+            if (!Character.isDigit(version.charAt(i))) {
                 break;
             }
             i++;
         }
 
-        revision = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
+        revision = (i > begin) ? Integer.parseInt(version.substring(begin, i)) : 0;
         begin = i;
         final String extensionString = version.substring(begin + 1);
         if (extensionString.contains("-")) {
@@ -85,7 +85,8 @@ public class FireflyAerospikeVersionCheck {
     }
 
     public static void validateVersion(final AerospikeClient client) {
-        for (final Node node: client.getNodes()) {
+        for (final Node node : client.getNodes()) {
+            LOG.debug("Info.request: build");
             final String response = Info.request(null, node, "build");
             final FireflyAerospikeVersionCheck version = new FireflyAerospikeVersionCheck(response);
             if (!validateVersion(version)) {
@@ -95,6 +96,19 @@ public class FireflyAerospikeVersionCheck {
                         MAJOR_MINIMUM, MINOR_MINIMUM, REVISION_MINIMUM, EXTENSION_MINIMUM));
             }
         }
+    }
+
+    public static String getVersionString(final AerospikeClient client) {
+        final StringBuilder versionString = new StringBuilder();
+        for (final Node node: client.getNodes()) {
+            LOG.debug("Info.request: build");
+            final String response = Info.request(null, node, "build");
+            if (!versionString.toString().isEmpty()) {
+                versionString.append(",");
+            }
+            versionString.append(node.getAddress().getHostName()).append(":").append(response);
+        }
+        return versionString.toString();
     }
 
     public static boolean validateVersion(final FireflyAerospikeVersionCheck version) {

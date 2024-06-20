@@ -13,8 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory.HOURS_TO_YEARS;
-import static com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory.MILLISECONDS_TO_HOURS;
+import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.MILLISECONDS_TO_HOURS;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL;
 
 public class FireflyUsageStatsCallMultiTest {
@@ -54,7 +53,7 @@ public class FireflyUsageStatsCallMultiTest {
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
 
             // Call usage stats api to get usage stats.
-            final List<Object> usageStatsList = graph.traversal().call("usage-stats").toList();
+            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.admin.metadata.usage").toList();
             Assert.assertEquals(1, usageStatsList.size());
             final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
             final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");
@@ -68,16 +67,16 @@ public class FireflyUsageStatsCallMultiTest {
             Assert.assertEquals(testVcpuCount, rawUsageStats.get(1).get("vcpus"));
 
             // Max mem of raw should be same of max mem of test.
-            // Memory of docker container is 7 GB in GitHub Actions and we get 80% by default - should round to 5 GB.
+            // Memory of docker container is ~7 GB in GitHub Actions and we get 80% by default - should round to ~5 GB.
             if (rawUsageStats.get(0).get("memory-gb").equals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024))) {
-                Assert.assertEquals(5L, rawUsageStats.get(1).get("memory-gb"));
+                Assert.assertTrue((long) rawUsageStats.get(1).get("memory-gb") > 4L);
             } else {
-                Assert.assertEquals(5L, rawUsageStats.get(0).get("memory-gb"));
+                Assert.assertTrue((long) rawUsageStats.get(0).get("memory-gb") > 4L);
                 Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(1).get("memory-gb"));
             }
 
             // Compare expected vcpu-yrs. We know lower bound since we know minimum time it could be but not upper.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu") > 2 * testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > 2 * testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }

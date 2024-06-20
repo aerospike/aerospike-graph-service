@@ -8,9 +8,10 @@ import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,10 +23,11 @@ import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
 
 public class Admin {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Admin.class);
     public static final Index index = new Index();
 
     public static class Index<I> {
-        public <A> I getIndexList(final FireflyGraph firefly, final AdminContext<A> adminContext) {
+        public I getIndexList(final FireflyGraph firefly) {
             try {
                 // Manually force an update.
                 firefly.fireflyIndexMetadata.updateMetadata();
@@ -39,7 +41,7 @@ public class Admin {
             final List<String> validVertexPropertyIndexes = new ArrayList<>();
             for (final String index : vertexPropertyIndexes) {
                 try {
-                    final Map<String, Long> indexInfo = (Map<String, Long>) getStatusVertexPropertyIndex(firefly, index, adminContext);
+                    final Map<String, Long> indexInfo = (Map<String, Long>) getStatusVertexPropertyIndex(firefly, index);
                     if (indexInfo.get("percent_complete") == 100L) {
                         validVertexPropertyIndexes.add(index);
                     }
@@ -50,7 +52,7 @@ public class Admin {
 
             final boolean vertexLabelIndex = firefly.fireflyCardinalityMetadata.getVertexLabelIndexExists();
             try {
-                if (vertexLabelIndex && getIndexStatus(firefly, firefly.getBaseGraph().V_LABEL_INDEX_NAME, adminContext).get("percent_complete") == 100L) {
+                if (vertexLabelIndex && getIndexStatus(firefly, firefly.getBaseGraph().V_LABEL_INDEX_NAME).get("percent_complete") == 100L) {
                     validVertexPropertyIndexes.add("vertex.~label");
                 }
             } catch (final IllegalStateException ignored) {
@@ -61,7 +63,7 @@ public class Admin {
             return (I) validVertexPropertyIndexes;
         }
 
-        public <A> I getIndexCardinality(final FireflyGraph firefly, final AdminContext<A> adminContext) {
+        public I getIndexCardinality(final FireflyGraph firefly) {
             try {
                 // Manually force an update.
                 firefly.fireflyIndexMetadata.updateMetadata();
@@ -101,7 +103,7 @@ public class Admin {
             return (I) cardinalityMap;
         }
 
-        public <A> I createVertexPropertyIndex(final FireflyGraph firefly, final String key, final AdminContext<A> adminContext) {
+        public I createVertexPropertyIndex(final FireflyGraph firefly, final String key) {
             final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
             final List<String> existingIndexes = getExistingIndexes(firefly);
             String formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
@@ -125,7 +127,7 @@ public class Admin {
             return (I) ("Vertex index creation of property key '" + key + "' in progress.");
         }
 
-        public <A> I dropVertexPropertyIndex(final FireflyGraph firefly, final String key, final AdminContext<A> adminContext) {
+        public I dropVertexPropertyIndex(final FireflyGraph firefly, final String key) {
             final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
             firefly.getBaseGraph().dropIndexBackground(set,
                     String.format("%s_%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key, STRING));
@@ -140,7 +142,7 @@ public class Admin {
                     stream().map(Map.Entry::getKey).collect(Collectors.toList());
         }
 
-        public <A> I createVertexLabelIndex(final FireflyGraph firefly, final AdminContext<A> adminContext) {
+        public I createVertexLabelIndex(final FireflyGraph firefly) {
             final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
             final List<String> existingIndexes = getExistingIndexes(firefly);
             firefly.getBaseGraph().createIndexBackground(existingIndexes,
@@ -153,21 +155,21 @@ public class Admin {
             return (I) "Vertex label index creation in progress.";
         }
 
-        public <A> I dropVertexLabelIndex(final FireflyGraph firefly, final AdminContext<A> adminContext) {
+        public I dropVertexLabelIndex(final FireflyGraph firefly) {
             final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
             firefly.getBaseGraph().dropIndexBackground(set, firefly.getBaseGraph().V_LABEL_INDEX_NAME);
             return (I) "Vertex label index dropped.";
         }
 
-        public <A> I getStatusVertexLabelIndex(final FireflyGraph firefly, final AdminContext<A> adminContext) {
+        public I getStatusVertexLabelIndex(final FireflyGraph firefly) {
             try {
-                return (I) getIndexStatus(firefly, firefly.getBaseGraph().V_LABEL_INDEX_NAME, adminContext);
+                return (I) getIndexStatus(firefly, firefly.getBaseGraph().V_LABEL_INDEX_NAME);
             } catch (final IllegalStateException e) {
                 throw new IllegalStateException("No index found on vertex label.");
             }
         }
 
-        public static <A> Map<String, Long> getIndexStatus(final FireflyGraph firefly, final String indexName, final AdminContext<A> adminContext) {
+        public static Map<String, Long> getIndexStatus(final FireflyGraph firefly, final String indexName) {
             final String infoQueryFormat = "sindex/%s/%s"; // "sindex/<namespace>/<index name>
             int lowestLoadPct = 100;
             int totalEntries = 0;
@@ -175,8 +177,9 @@ public class Admin {
             int highestLoadTime = 0;
             boolean valid = false;
             for (final Node node : firefly.getBaseGraph().getClient().getNodes()) {
-                final String infoResponse = Info.request(new InfoPolicy(), node,
-                        String.format(infoQueryFormat, firefly.getBaseGraph().getNamespace(), indexName));
+                final String infoVar = String.format(infoQueryFormat, firefly.getBaseGraph().getNamespace(), indexName);
+                LOGGER.debug("Info.request: {}", infoVar);
+                final String infoResponse = Info.request(new InfoPolicy(), node, infoVar);
                 for (String s : infoResponse.split(";")) {
                     valid = true;
                     if (s.startsWith("load_pct=")) {
@@ -206,13 +209,13 @@ public class Admin {
             throw new IllegalStateException("Index not found: " + indexName + ".");
         }
 
-        public <A> I getStatusVertexPropertyIndex(final FireflyGraph firefly, final String key, final AdminContext<A> adminContext) {
+        public I getStatusVertexPropertyIndex(final FireflyGraph firefly, final String key) {
             final String formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
             final String stringIndexName = formattedIndex + "_" + STRING;
             final String numericIndexName = formattedIndex + "_" + NUMERIC;
             try {
-                final Map<String, Long> numericIndexStatus = getIndexStatus(firefly, numericIndexName, adminContext);
-                final Map<String, Long> stringIndexStatus = getIndexStatus(firefly, stringIndexName, adminContext);
+                final Map<String, Long> numericIndexStatus = getIndexStatus(firefly, numericIndexName);
+                final Map<String, Long> stringIndexStatus = getIndexStatus(firefly, stringIndexName);
                 if (numericIndexStatus.get("percent_complete") == 100L && stringIndexStatus.get("percent_complete") == 100L) {
                     return (I) Map.of("percent_complete", (long) 100,
                             "total_entries", numericIndexStatus.get("total_entries") + stringIndexStatus.get("total_entries"),

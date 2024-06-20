@@ -1,13 +1,17 @@
 import os, sys
 
-def main(input_properties_file, default_yaml_file, output_yaml_file, output_properties_file, output_java_options_file):
+def main(input_properties_file, default_yaml_file, output_yaml_file, output_properties_file, output_java_options_file, unified_config_file):
     valid_properties = []
     valid_yaml = []
     invalid = []
     java_options_max_heap = None
     java_options_min_heap = None
+    auth_jwt_secret = None
+    auth_jwt_issuer = None
+    auth_jwt_algorithm = None
 
     keys = []
+    unified_config = []
     try:
         # May not be provided so try catch this block.
         with open(input_properties_file) as c:
@@ -16,7 +20,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
             for line in lines:
                 if line == "":
                     continue
-
+                unified_config.append(line)
                 if not "=" in line:
                     invalid.append(line)
                 keys.append(line.split("=")[0])
@@ -24,23 +28,45 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
                     java_options_max_heap = line
                 elif line.startswith("aerospike.graph-service.heap.min"):
                     java_options_min_heap = line
+                elif line.startswith("aerospike.graph-service.auth.jwt.secret"):
+                    auth_jwt_secret = line
+                elif line.startswith("aerospike.graph-service.auth.jwt.issuer"):
+                    auth_jwt_issuer = line
+                elif line.startswith("aerospike.graph-service.auth.jwt.algorithm"):
+                    auth_jwt_algorithm = line
+                elif line.startswith("aerospike.graph-service.auth.enabled"):
+                    raise Exception("Error configuring Aerospike Graph Service.\n\t"
+                                    "The property 'aerospike.graph-service.auth.enabled' is reserved.")
                 elif line.startswith("aerospike.graph-service"):
                     valid_yaml.append(line)
                 elif line.startswith("aerospike"):
                     valid_properties.append(line)
                 elif not line.startswith("gremlin.graph"):
                     invalid.append(line)
-    except:
+    except Exception as e:
+        # Do not allow auth.enabled to be set in properties file.
+        if "'aerospike.graph-service.auth.enabled' is reserved" in str(e):
+            raise e
         pass
 
     keys_in_both_properties_and_environment = []
     for key, value in os.environ.items():
         if key in keys:
             keys_in_both_properties_and_environment.append(key)
+
+        if key.startswith("aerospike"):
+            unified_config.append(f"{key}={value}")
+
         if key.startswith("aerospike.graph-service.heap.max"):
             java_options_max_heap = f"{key}={value}"
         elif key.startswith("aerospike.graph-service.heap.min"):
             java_options_min_heap = f"{key}={value}"
+        elif key.startswith("aerospike.graph-service.auth.jwt.secret"):
+            auth_jwt_secret = f"{key}={value}"
+        elif key.startswith("aerospike.graph-service.auth.jwt.issuer"):
+            auth_jwt_issuer = f"{key}={value}"
+        elif key.startswith("aerospike.graph-service.auth.jwt.algorithm"):
+            auth_jwt_algorithm = f"{key}={value}"
         elif key.startswith("aerospike.graph-service"):
             valid_yaml.append(f"{key}={value}")
         elif key.startswith("aerospike"):
@@ -55,12 +81,21 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
         raise Exception("Error configuring Aerospike Graph Service.\n\tInvalid properties found: " + str(invalid) + ". Properties must start with 'aerospike' and " + \
                     "be in the format 'aerospike.key=value'")
 
-    generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, output_properties_file)
-    generate_properties(valid_properties, output_properties_file)
+    persist_unified_config(unified_config_file, unified_config)
+    generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, output_properties_file, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm)
+    generate_properties(valid_properties, output_properties_file, auth_jwt_secret, auth_jwt_issuer)
     generate_java_options(output_java_options_file, java_options_max_heap, java_options_min_heap)
 
+def persist_unified_config(unified_config_file, unified_config):
+    print("persisting " + str(unified_config) + " to " + unified_config_file)
+    with open(unified_config_file, "w") as unified_config_file:
+        for line in unified_config:
+            if any(x in ['token', 'secret', 'password'] for x in line.split("=")[0]):
+                unified_config_file.write(line.split("=")[0] + "=********\n")
+            else:
+                unified_config_file.write(line + "\n")
 
-def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, output_properties_file):
+def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, output_properties_file, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm):
     rewritten_lines = []
 
     # Read yaml lines.
@@ -92,6 +127,7 @@ processors:
   - { className: org.apache.tinkerpop.gremlin.server.op.session.SessionOpProcessor, config: { sessionTimeout: 28800000 }}
   - { className: org.apache.tinkerpop.gremlin.server.op.traversal.TraversalOpProcessor, config: { cacheExpirationTime: 600000, cacheMaxSize: 1000 }}
 """)
+    find_security_credentials(auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm, rewritten_lines)
 
     lines = lines + rewritten_lines
 
@@ -100,14 +136,84 @@ processors:
             yaml.write(line + "\n")
 
     with open(output_yaml_file, "r") as prop:
-        print("Generated yaml file: " + output_yaml_file + " - " + prop.read())
+        output_yaml_str = prop.read()
+        output_yaml_print = ""
+        lines = output_yaml_str.split('\n')
+        for line in lines:
+            if "aerospike.graph-service.auth.jwt.secret" in line:
+                output_yaml_print += "    aerospike.graph-service.auth.jwt.secret: ********\n"
+            elif "aerospike.graph-service.auth.jwt.issuer" in line:
+                output_yaml_print += "    aerospike.graph-service.auth.jwt.issuer: ********\n"
+            else:
+                output_yaml_print += line + "\n"
+        print("Generated yaml file: " + output_yaml_file + "\n" + output_yaml_print)
 
-def generate_properties(properties, output_properties_file):
+def find_security_credentials(auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm, rewritten_lines):
+    secret = None
+    algorithm = None
+    issuer = None
+    if auth_jwt_secret is not None:
+        secret = auth_jwt_secret.split("=")[1]
+    if auth_jwt_issuer is not None:
+        issuer = auth_jwt_issuer.split("=")[1]
+    if auth_jwt_algorithm is not None:
+        algorithm = auth_jwt_algorithm.split("=")[1]
+
+    if algorithm is not None and secret is None and issuer is None:
+        raise Exception("Error configuring Aerospike Graph Service.\n\t"
+                        "Configuring security requires both 'aerospike.graph-service.auth.jwt.secret' and "
+                        "'aerospike.graph-service.auth.jwt.issuer' to be set, but only "
+                        "'aerospike.graph-service.auth.jwt.algorithm' was set. "
+                        "('aerospike.graph-service.auth.jwt.secret' and 'aerospike.graph-service.auth.jwt.issuer' are required).")
+    if secret is not None and issuer is None:
+        raise Exception("Error configuring Aerospike Graph Service.\n\t"
+                        "Configuring security requires both 'aerospike.graph-service.auth.jwt.secret' and "
+                        "'aerospike.graph-service.auth.jwt.issuer' to be set, but only "
+                        "'aerospike.graph-service.auth.jwt.secret' was set. "
+                        "('aerospike.graph-service.auth.jwt.algorithm' is optional).")
+    elif issuer is not None and secret is None:
+        raise Exception("Error configuring Aerospike Graph Service.\n\t"
+                        "Configuring security requires both 'aerospike.graph-service.auth.jwt.secret' and "
+                        "'aerospike.graph-service.auth.jwt.issuer' to be set, but only "
+                        "'aerospike.graph-service.auth.jwt.issuer' was set. "
+                        "('aerospike.graph-service.auth.jwt.algorithm' is optional).")
+    elif issuer is not None and secret is not None:
+        if algorithm is None:
+            print("Defaulting 'aerospike.graph-service.auth.jwt.algorithm' to 'HMA256'.")
+            algorithm = "HMAC256"
+        elif algorithm not in ["HMAC256", "HMAC384", "HMAC512"]:
+            raise Exception("Error configuring Aerospike Graph Service.\n\t"
+                            "Invalid value for 'aerospike.graph-service.auth.jwt.algorithm'. "
+                            "Valid values are 'HMAC256', 'HMAC384', and 'HMAC512'. "
+                            "Provided value is '" + algorithm + "'.")
+        rewritten_lines.append("""authentication: {
+  authenticator: com.aerospike.firefly.security.JWTAuthenticator,
+  config: {
+    aerospike.graph-service.auth.jwt.secret: """ + secret + """,
+    aerospike.graph-service.auth.jwt.issuer: """ + issuer)
+        if algorithm is not None:
+            rewritten_lines.append(""",
+    aerospike.graph-service.auth.jwt.algorithm: """ + algorithm)
+        rewritten_lines.append("""
+  }
+}
+authorization: {
+    authorizer: com.aerospike.firefly.security.JWTAuthorizer,
+    config: {
+    }
+}
+""")
+    else:
+        print("No security credentials found. Skipping security configuration.")
+
+def generate_properties(properties, output_properties_file, auth_jwt_secret, auth_jwt_issuer):
     with open(output_properties_file, "w") as prop:
         if "gremlin.graph=com.aerospike.firefly.structure.FireflyGraph" not in properties:
             prop.write("gremlin.graph=com.aerospike.firefly.structure.FireflyGraph\n")
         for property in properties:
             prop.write(property + "\n")
+        if auth_jwt_secret is not None and auth_jwt_issuer is not None:
+            prop.write("aerospike.graph-service.auth.enabled=true\n")
 
 def generate_java_options(java_options_file_path, max_heap, min_heap):
     java_options = ""
@@ -140,8 +246,9 @@ if __name__ == "__main__":
     output_yaml_file = sys.argv[3]
     output_properties_file = sys.argv[4]
     output_java_options_file = sys.argv[5]
+    unified_config_file = sys.argv[6]
     try:
-        main(input_properties_file, default_yaml_file, output_yaml_file, output_properties_file, output_java_options_file)
+        main(input_properties_file, default_yaml_file, output_yaml_file, output_properties_file, output_java_options_file, unified_config_file)
         sys.exit(0)
     except Exception as e:
         print(e)

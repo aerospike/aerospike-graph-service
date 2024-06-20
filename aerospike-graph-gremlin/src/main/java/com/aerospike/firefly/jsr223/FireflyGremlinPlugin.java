@@ -2,6 +2,8 @@ package com.aerospike.firefly.jsr223;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.process.computer.local.LocalGraphComputer;
+import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -10,9 +12,8 @@ import com.aerospike.firefly.structure.FireflyGraphVariables;
 import com.aerospike.firefly.structure.FireflyProperty;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
-import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.runtime.HttpServer;
+import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.jsr223.AbstractGremlinPlugin;
 import org.apache.tinkerpop.gremlin.jsr223.DefaultImportCustomizer;
@@ -45,7 +46,8 @@ public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
                             FireflyHelper.class,
                             ConfigurationHelper.class,
                             AerospikeException.class,
-                            AerospikeConnection.class
+                            AerospikeConnection.class,
+                            LocalGraphComputer.class
                     ).create();
         } catch (Exception ex) {
             System.out.println("ERROR LOADING");
@@ -72,9 +74,10 @@ public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
         metricsProtocolServer = HttpServer.create(httpPort, prometheusPath, healthcheckPath);
     }
 
-    public static void initializeGraphMetrics(final AerospikeConnection db) {
-        HttpServer.registerGraphMetrics(db);
-        HttpServer.registerHealthcheck(db);
+    public static void initializeGraphMetrics(final FireflyGraph fireflyGraph) {
+        // NOTE: Invoking this function causes the HTTP server to start due to static initialization.
+        HttpServer.registerGraphMetrics(fireflyGraph.getBaseGraph());
+        HttpServer.registerHealthcheck(fireflyGraph);
     }
 
     private static final FireflyGremlinPlugin instance = new FireflyGremlinPlugin();

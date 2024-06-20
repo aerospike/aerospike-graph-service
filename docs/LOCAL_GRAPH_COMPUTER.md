@@ -32,11 +32,12 @@ A collection of common Gremlin OLAP query motifs are presented below. Note that 
 | `g.V().out('rated')`<br/>&nbsp;`out('vendor').groupCount().by('name')` | count the number of ratings each vendor has for their products |                             
 #### OLAP Limitations
 
-1. When evaluating traversals that rely on path information such as `as()/select()`, `path()`, `otherV()`, etc., practical computational limits can easily be reached due the combinatoric explosion of data. With path computing enabled, every traverser is unique and thus, must be enumerated as opposed to being counted/merged.
+1. Gremlin OLAP is read only. No mutating/write steps can be used in a traversal. A verifying strategy will throw an exception is a mutation is attempted: `The following step is currently not supported on GraphComputer: AddVertexStartStep({label=[thing]})`.
+2. When evaluating traversals that rely on path information such as `as()/select()`, `path()`, `otherV()`, etc., practical computational limits can easily be reached due the combinatoric explosion of data. With path computing enabled, every traverser is unique and thus, must be enumerated as opposed to being counted/merged.
 
-2. Steps that are concerned with the global ordering of traversers do not have a meaningful representation in OLAP. For example, what does `order()`-step mean when all traversers are being processed in parallel? Even if the traversers were aggregated and ordered, then at the next step they would return to being executed in parallel and thus, in an unpredictable order. When `order()`-like steps are executed at the end of a traversal (i.e the final step).
+3. Steps that are concerned with the global ordering of traversers do not have a meaningful representation in OLAP. For example, what does `order()`-step mean when all traversers are being processed in parallel? Even if the traversers were aggregated and ordered, then at the next step they would return to being executed in parallel and thus, in an unpredictable order. When `order()`-like steps are executed at the end of a traversal (i.e the final step).
 
-3. Anonymous traversals (inner traversals) can only traverse to the depth of the current _star graph_ being processed, where a _star graph_ is a vertex, it's properties, incident edges, and the `id` of the adjacent vertices. Thus,
+4. Anonymous traversals (inner traversals) can only traverse to the depth of the current _star graph_ being processed, where a _star graph_ is a vertex, it's properties, incident edges, and the `id` of the adjacent vertices. Thus,
     ```
     // filter to only those people who have more than 10 friends
     g.V().where(outE('knows').count().is(gt(10)))
@@ -52,17 +53,49 @@ A collection of common Gremlin OLAP query motifs are presented below. Note that 
 
 AerospikeGraph exposes OLAP graph processing capabilities through the `GraphComputer` interface. Currently,
 AerospikeGraph provides a single `GraphComputer` implementation called `LocalGraphComputer`. This OLAP processor
-executes on a single node and is oriented for processing small to medium-sized subgraphs in a multi-threaded manner. Exposing an OLAP `GraphTraversalSource` versus an OLTP `GraphTraversalSource` is as simple as declaring a `GraphComputer` to use with a traversal.
+executes on a single node and is oriented for processing small to medium-sized subgraphs in a multi-threaded manner. Exposing an OLAP `GraphTraversalSource` versus an OLTP `GraphTraversalSource` is as simple as ensuring traversals are executed `withComputer()`.
 
 ```
 // OTLP
-g = graph.traversal()
+g = traversal().withRemote(DriverRemoteConnection.using("<AGS-IP>", <AGS-PORT>, "g"))
 
 // OLAP
-g = traversal().withRemote(DriverRemoteConnection.using("111.222.333.444", 8182, "o"))
+g = traversal().withRemote(DriverRemoteConnection.using("<AGS-IP>", <AGS-PORT>, "g")).withComputer()
 ```
 
 From there, the full Gremlin language is available for execution using the underlying OLAP graph processor.
+
+```
+gremlin> g = traversal().withRemote(DriverRemoteConnection.using("<AGS-IP>", <AGS-PORT>, "g")).withComputer()
+==>graphtraversalsource[emptygraph[empty], graphcomputer]
+gremlin> g.V().count()
+==>0
+
+gremlin> g.close()
+gremlin> g = traversal().withRemote(DriverRemoteConnection.using("<AGS-IP>", <AGS-PORT>,, "g"))
+==>graphtraversalsource[emptygraph[empty], standard]
+gremlin> g.addV("thing")
+==>v[-1]
+gremlin> g.addV("thing")
+==>v[-2]
+gremlin> g.addV("thing")
+==>v[-3]
+gremlin> g.addV("thing")
+==>v[-4]
+gremlin> g.addV("thing")
+==>v[-5]
+gremlin> g.close()
+
+gremlin> g = traversal().withRemote(DriverRemoteConnection.using("<AGS-IP>", <AGS-PORT>,, "g")).withComputer()
+==>graphtraversalsource[emptygraph[empty], graphcomputer]
+gremlin> g.V().count()
+==>5
+gremlin> g.V().groupCount()
+==>[v[-1]:1,v[-2]:1,v[-3]:1,v[-4]:1,v[-5]:1]
+gremlin> g.V().label().groupCount()
+==>[thing:5]
+gremlin>
+```
 
 #### Limitations
 

@@ -22,6 +22,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_EMAIL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_KEYFILE_DIRECTORY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEY_TO_CMD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.LOCAL_MODE;
@@ -55,7 +56,8 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
 
     private static final Set<String> BOOLEAN_KEYS = Set.of(
             KEEP_PROVIDED_EDGE_ID_AS_PROPERTY,
-            ENABLE_DATAFRAME_CACHING
+            ENABLE_DATAFRAME_CACHING,
+            INCREMENTAL_LOAD
     );
 
     private static final Set<String> NUMBER_KEYS = Set.of(
@@ -71,6 +73,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
         KEY_TO_ARG.put(VERTICES, null);
         KEY_TO_ARG.put(EDGES, null);
         KEY_TO_ARG.put(VALIDATE_INPUT_DATA, null);
+        KEY_TO_ARG.put(INCREMENTAL_LOAD, null);
         KEY_TO_ARG.putAll(KEY_TO_CMD);
     }
 
@@ -136,13 +139,17 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                 throw new IllegalArgumentException("Either '" + VERTICES + "' or '" + EDGES + "' must be set to true.");
             }
 
+            if (mutableParams.containsKey(INCREMENTAL_LOAD)) {
+                getBooleanFromObject(mutableParams.get(INCREMENTAL_LOAD), INCREMENTAL_LOAD);
+            }
+
             if (mutableParams.containsKey(VALIDATE_INPUT_DATA)) {
                 getBooleanFromObject(mutableParams.get(VALIDATE_INPUT_DATA), VALIDATE_INPUT_DATA);
             }
 
             for (final Map.Entry<String, Object> config : mutableParams.entrySet()) {
                 final String key = config.getKey();
-                if (key.equals(VERTICES) || key.equals(EDGES) || key.equals(VALIDATE_INPUT_DATA)) {
+                if (key.equals(VERTICES) || key.equals(EDGES) || key.equals(VALIDATE_INPUT_DATA) || key.equals(INCREMENTAL_LOAD)) {
                     // Actions are handled elsewhere
                     continue;
                 }
@@ -173,6 +180,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
         boolean vertices = true;
         boolean edges = true;
         boolean validateInputData = true;
+        boolean incrementalLoad = false;
 
         // The way specifying vertices or edges is that:
         // If you specify neither, both are loaded.
@@ -195,13 +203,17 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
             throw new IllegalArgumentException("Either '" + VERTICES + "' or '" + EDGES + "' must be set to true.");
         }
 
+        if (mutableParams.containsKey(INCREMENTAL_LOAD)) {
+            incrementalLoad = getBooleanFromObject(mutableParams.get(INCREMENTAL_LOAD), INCREMENTAL_LOAD);
+        }
+
         if (mutableParams.containsKey(VALIDATE_INPUT_DATA)) {
             validateInputData = getBooleanFromObject(mutableParams.get(VALIDATE_INPUT_DATA), VALIDATE_INPUT_DATA);
         }
 
         for (final Map.Entry<String, Object> config : mutableParams.entrySet()) {
             final String key = config.getKey();
-            if (key.equals(VERTICES) || key.equals(EDGES) || key.equals(VALIDATE_INPUT_DATA)) {
+            if (key.equals(VERTICES) || key.equals(EDGES) || key.equals(VALIDATE_INPUT_DATA) || key.equals(INCREMENTAL_LOAD)) {
                 // Actions are handled elsewhere
                 continue;
             }
@@ -214,6 +226,9 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
         // Local mode has no Spark node workers that can fail individually to cause phantom edges.
         args.add(formatArg(READ_ONLY));
 
+        if (incrementalLoad) {
+            args.add(formatArg(INCREMENTAL_LOAD));
+        }
         if (validateInputData) {
             args.add(formatArg(VALIDATE_INPUT_DATA));
         }
@@ -228,7 +243,6 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
             args.add(formatArg((DISABLE_EDGE_WRITE)));
         }
         args.add(formatArg((VERIFY_OUTPUT_DATA)));
-
         try {
             final Class<? extends FireflyBulkLoaderInterface> bulkLoaderClass = (Class<? extends FireflyBulkLoaderInterface>)
                     Class.forName("com.aerospike.firefly.bulkloader.SparkBulkLoaderMain");

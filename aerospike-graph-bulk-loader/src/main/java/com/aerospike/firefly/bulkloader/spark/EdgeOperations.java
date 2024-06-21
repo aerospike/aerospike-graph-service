@@ -6,11 +6,13 @@ import com.aerospike.firefly.bulkloader.graph.GraphOperations;
 import com.aerospike.firefly.bulkloader.spark.executorservice.EdgeWriteTask;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
+import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Longs;
@@ -31,6 +33,7 @@ import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
@@ -38,6 +41,7 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +54,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -75,6 +80,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_ENTRY_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.NULL_VALUE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
@@ -104,74 +110,152 @@ public class EdgeOperations implements Serializable {
         this.usePersistedEdgeId = !config.hasAction(READ_ONLY);
     }
 
-    public void writeEdges(final Dataset<Row> persistedEdgeDS) {
-        persistedEdgeDS.foreachPartition(rowIterator -> {
-            final int partitionId = TaskContext.getPartitionId();
-            LOGGER.info("Starting to write EdgeDataset in PartitionId: " + partitionId);
+    private CompletableFuture<Void> incrementalWrite(final FireflyGraph graph, final GenericRowWithSchema fireflyRow, final GenericRowWithSchema fireflyMetadataRow) {
+        return CompletableFuture.supplyAsync(() -> {
+            // TODO if keep provided id on we may want to match on that.
+            final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId,
+                    providedIdPropertyName, nullValue, graph, false, null);
+            final Object inVId = sparkEdge.getInVertexId();
+            final Object outVId = sparkEdge.getOutVertexId();
+            final Map<Object, Object> mergeEOptions = new HashMap<>();
+            mergeEOptions.put(T.label, sparkEdge.getLabel());
+            mergeEOptions.put(Direction.IN, new ReferenceVertex(inVId));
+            mergeEOptions.put(Direction.OUT, new ReferenceVertex(outVId));
+            final Map<Object, Object> properties = new HashMap<>();
+            sparkEdge.getProperties().forEach(entry -> properties.put(entry.getKey(), entry.getValue()));
+            graph.traversal().mergeE(mergeEOptions).
+                    option(Merge.onMatch, properties).
+                    option(Merge.onCreate, properties).iterate();
+            return null;
+        });
+    }
 
-            try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
-                LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
-                final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
-                final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
-                final long allowBadEntryCount = this.config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
+    private void writeEdgesIncrementally(final Iterator<Row> rowIterator, final int partitionId) {
+        // TODO: Should throw exception that backoff handles
+        try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
+            final long allowBadEntryCount = this.config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
 
-                final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
-                final ExponentialBackoffRetry retry = new ExponentialBackoffRetry("edge-write-partitionid-" + partitionId);
-                final int bufferSize = getEdgeWriteBufferSize();
-                LOGGER.info(String.format("Edge write buffer size %d", bufferSize));
+            final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
+            final int bufferSize = getEdgeWriteBufferSize();
+            LOGGER.info(String.format("Edge write buffer size %d", bufferSize));
 
-                final Instant totalStart = Instant.now();
-                Instant start = Instant.now();
-                int batch = 1;
-                final List<CompletionStage<Void>> futures = new ArrayList<>();
-                while (rowIterator.hasNext()) {
-                    if (futures.size() >= bufferSize) {
-                        final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
-                        megaTask.join();
-                        writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
-                        LOGGER.info(String.format("Edge write, partitionId: %d, batch: %d, time taken(in milli-seconds): %d, super node size: %d, cleaning all cached vertex maps", partitionId,
-                                batch, Duration.between(start, Instant.now()).toMillis(), supernodes.size()));
-                        start = Instant.now();
-                        batch = batch + 1;
-                        if (megaTask.isCompletedExceptionally()) {
-                            throw new RuntimeException("Error occurred while writing edges - see logs for more details");
-                        }
-                        futures.clear();
+            final Instant totalStart = Instant.now();
+            Instant start = Instant.now();
+            int batch = 1;
+            final List<CompletionStage<Void>> futures = new ArrayList<>();
+            while (rowIterator.hasNext()) {
+                if (futures.size() >= bufferSize) {
+                    final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+                    megaTask.join();
+                    LOGGER.info(String.format("Incremental edge write, partitionId: %d, batch: %d, time taken(in milli-seconds): %d, super node size: %d, cleaning all cached vertex maps", partitionId,
+                            batch, Duration.between(start, Instant.now()).toMillis(), supernodes.size()));
+                    start = Instant.now();
+                    batch = batch + 1;
+                    if (megaTask.isCompletedExceptionally()) {
+                        throw new RuntimeException("Error occurred while writing edges incrementally - see logs for more details");
                     }
-
-                    final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next().copy();
-                    final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, DatasetOperations.COLUMNS_TO_REMOVE);
-
-                    try {
-                        final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
-                                providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
-                                metadataRow, usePersistedEdgeId);
-                        futures.add(ewt.write(executor).thenRunAsync(() -> ewt.updateCacheMap(), executor));
-                    } catch (final FireflyBulkLoaderException e) {
-                        if (allowBadEntryCount == 0) {
-                            throw e;
-                        }
-                    }
+                    futures.clear();
                 }
 
-                LOGGER.info(String.format("Done submitting edge write task; waiting for their completion in partitionId %d", partitionId));
-                final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
-                megaTask.join();
-                LOGGER.info(String.format("Completed edge write task in partitionId %d", partitionId));
-                futures.clear();
-                if (megaTask.isCompletedExceptionally()) {
-                    throw new RuntimeException("Error occurred while writing edges - see logs for more details");
-                } else {
-                    // Flush Vertex Edge cache maps when all Edge writes are done.
-                    try {
-                        writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
-                    } catch (final RuntimeException e) {
-                        LOGGER.error("Failed to flush Vertex Edge cache maps", e);
+                final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next().copy();
+                final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, DatasetOperations.COLUMNS_TO_REMOVE);
+
+                try {
+                    futures.add(incrementalWrite(graph, fireflyRow, metadataRow));
+                } catch (final FireflyBulkLoaderException e) {
+                    if (allowBadEntryCount == 0) {
                         throw e;
                     }
                 }
-                final String taskName = String.format("Edge write in partition:{}", partitionId);
-                LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
+            }
+
+            LOGGER.info(String.format("Done submitting incremental edge write task; waiting for their completion in partitionId %d", partitionId));
+            final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+            megaTask.join();
+            LOGGER.info(String.format("Completed incremental edge write task in partitionId %d", partitionId));
+            futures.clear();
+            if (megaTask.isCompletedExceptionally()) {
+                throw new RuntimeException("Error occurred while writing edges - see logs for more details");
+            }
+            final String taskName = String.format("Incremental edge write in partition:{}", partitionId);
+            LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
+        }
+    }
+
+    public void writeEdges(final Dataset<Row> persistedEdgeDS) {
+        persistedEdgeDS.foreachPartition(rowIterator -> {
+            final boolean incrementalLoad = config.hasAction(INCREMENTAL_LOAD);
+            final int partitionId = TaskContext.getPartitionId();
+            LOGGER.info("Starting to write EdgeDataset in PartitionId: " + partitionId);
+
+            if (incrementalLoad) {
+                LOGGER.info("Incremental load is enabled, skipping edge write.");
+                writeEdgesIncrementally(rowIterator, partitionId);
+            } else {
+                try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
+                    LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
+                    final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
+                    final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
+                    final long allowBadEntryCount = this.config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
+
+                    final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
+                    final ExponentialBackoffRetry retry = new ExponentialBackoffRetry("edge-write-partitionid-" + partitionId);
+                    final int bufferSize = getEdgeWriteBufferSize();
+                    LOGGER.info(String.format("Edge write buffer size %d", bufferSize));
+
+                    final Instant totalStart = Instant.now();
+                    Instant start = Instant.now();
+                    int batch = 1;
+                    final List<CompletionStage<Void>> futures = new ArrayList<>();
+                    while (rowIterator.hasNext()) {
+                        if (futures.size() >= bufferSize) {
+                            final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+                            megaTask.join();
+                            writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
+                            LOGGER.info(String.format("Edge write, partitionId: %d, batch: %d, time taken(in milli-seconds): %d, super node size: %d, cleaning all cached vertex maps", partitionId,
+                                    batch, Duration.between(start, Instant.now()).toMillis(), supernodes.size()));
+                            start = Instant.now();
+                            batch = batch + 1;
+                            if (megaTask.isCompletedExceptionally()) {
+                                throw new RuntimeException("Error occurred while writing edges - see logs for more details");
+                            }
+                            futures.clear();
+                        }
+
+                        final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next().copy();
+                        final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, DatasetOperations.COLUMNS_TO_REMOVE);
+
+                        try {
+                            final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
+                                    providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
+                                    metadataRow, usePersistedEdgeId);
+                            futures.add(ewt.write(executor).thenRunAsync(() -> ewt.updateCacheMap(), executor));
+                        } catch (final FireflyBulkLoaderException e) {
+                            if (allowBadEntryCount == 0) {
+                                throw e;
+                            }
+                        }
+                    }
+
+                    LOGGER.info(String.format("Done submitting edge write task; waiting for their completion in partitionId %d", partitionId));
+                    final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+                    megaTask.join();
+                    LOGGER.info(String.format("Completed edge write task in partitionId %d", partitionId));
+                    futures.clear();
+                    if (megaTask.isCompletedExceptionally()) {
+                        throw new RuntimeException("Error occurred while writing edges - see logs for more details");
+                    } else {
+                        // Flush Vertex Edge cache maps when all Edge writes are done.
+                        try {
+                            writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
+                        } catch (final RuntimeException e) {
+                            LOGGER.error("Failed to flush Vertex Edge cache maps", e);
+                            throw e;
+                        }
+                    }
+                    final String taskName = String.format("Edge write in partition:{}", partitionId);
+                    LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
+                }
             }
         });
     }

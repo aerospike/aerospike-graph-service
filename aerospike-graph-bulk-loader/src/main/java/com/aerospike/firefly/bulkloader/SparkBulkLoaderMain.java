@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -47,6 +48,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_EMAIL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_KEYFILE_DIRECTORY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.LOCAL_MODE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_PASSKEY;
@@ -118,12 +120,20 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             spark.sparkContext().setLogLevel(logLevel);
 
             final FireflyGraph initializerGraph = FireflyGraph.open(config.getFireflyConfig());
-            if (!initializerGraph.isEmpty() && !config.hasAction(DISABLE_EDGE_WRITE) && !config.hasAction(DISABLE_VERTEX_WRITE)) {
+            if (!initializerGraph.isEmpty() && !config.hasAction(DISABLE_EDGE_WRITE) &&
+                    !config.hasAction(DISABLE_VERTEX_WRITE) && !config.hasAction(INCREMENTAL_LOAD)) {
                 // If we're doing partial writing checking the emptiness of the database isn't valid.
                 LOGGER.error(DATABASE_NOT_EMPTY);
                 throw new RuntimeException(DATABASE_NOT_EMPTY);
             }
             initializerGraph.getBaseGraph().initialzeBulkLoadMetadata();
+
+            boolean incrementalLoad = false;
+            if (config.hasAction(INCREMENTAL_LOAD)) {
+                // TODO: Double check that this cannot be set to false.
+                LOGGER.info("Incremental load mode detected.");
+                incrementalLoad = true;
+            }
 
             // Pre-processing
             final List<String> vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
@@ -154,7 +164,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             PROGRESS_BAR.setPreflightCheckComplete();
 
             // Persist Edge ID data to disk
-            final boolean edgeIdWriteDisabled = config.hasAction(READ_ONLY);
+            final boolean edgeIdWriteDisabled = config.hasAction(READ_ONLY) || config.hasAction(INCREMENTAL_LOAD);
             String writeLocation = null;
             if (edgeIdWriteDisabled) {
                 // Persisting Edge IDs is disabled. Do Nothing.
@@ -178,7 +188,12 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             // Get the supernode threshold from Firefly config.
             final long onRecordIdLimit = initializerGraph.getBaseGraph().ON_RECORD_ID_LIMIT;
             LOGGER.info("Supernode threshold: " + onRecordIdLimit);
-            final Set<Object> supernodes = edgeOperations.extractSupernodes(edgeDataset, onRecordIdLimit);
+            final Set<Object> supernodes;
+            if (!incrementalLoad) {
+                supernodes = edgeOperations.extractSupernodes(edgeDataset, onRecordIdLimit);
+            } else {
+                supernodes = new HashSet<>();
+            }
             PROGRESS_BAR.setSuperNodeExtractionComplete();
 
             // Vertex processing
@@ -220,6 +235,8 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             if (PROGRESS_BAR != null) {
                 PROGRESS_BAR.close();
             }
+
+            // TODO: This could potentially be the reason kenny said our http server isnt working. LMFAO
             HttpServer.close();
         }
     }

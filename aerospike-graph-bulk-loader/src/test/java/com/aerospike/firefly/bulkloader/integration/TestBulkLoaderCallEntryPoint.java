@@ -5,12 +5,17 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.sql.AnalysisException;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.List;
+import java.util.Map;
+
 import static com.aerospike.firefly.bulkloader.integration.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 
 public class TestBulkLoaderCallEntryPoint {
     @Test
@@ -449,6 +454,47 @@ public class TestBulkLoaderCallEntryPoint {
                     .iterate();
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
+        }
+    }
+    @Test
+    public void testIncrementalLoad() {
+        // Right now calling the bulk loader here will fail with null config.
+        // Once the parameters are determined this test can be updated.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load").
+                    with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-1.properties").iterate();
+            Assert.assertEquals(12L, g.V().count().next().longValue());
+            Assert.assertEquals(23L, g.E().count().next().longValue());
+            g.call("aerospike.graphloader.admin.bulk-load.load").
+                    with(INCREMENTAL_LOAD, true).
+                    with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-1.properties").iterate();
+            Assert.assertEquals(12L, g.V().count().next().longValue());
+            Assert.assertEquals(23L, g.E().count().next().longValue());
+            // assert simon doesnt drive f150
+            // assert property isDope not present
+            g.call("aerospike.graphloader.admin.bulk-load.load").
+                    with(INCREMENTAL_LOAD, true).
+                    with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-2.properties").iterate();
+            Assert.assertEquals(13L, g.V().count().next().longValue());
+            Assert.assertEquals(24L, g.E().count().next().longValue());
+            // assert simon does drive f150
+            // assert property isDope added
+        }
+    }
+
+    @Test
+    public void readData() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            List<Map<Object, Object>> vertexIds = g.V().elementMap().toList();
+            List<Map<Object, Object>> edgeIds = g.E().elementMap().toList();
+            System.out.println("edge id count: " + g.E().count().next());
+            System.out.println("Vertex IDs: " + vertexIds);
+            System.out.println("Edge IDs: " + edgeIds);
         }
     }
 }

@@ -124,7 +124,6 @@ public class VertexOperations implements Serializable {
             sparkVertex.getProperties().forEach(entry -> propertiesMatch.put(entry.getKey(), entry.getValue()));
             final Map<Object, Object> propertiesCreate = new HashMap<>();
             sparkVertex.getProperties().forEach(entry -> propertiesCreate.put(entry.getKey(), entry.getValue()));
-            System.out.println("T.id=" + id + "=" + id.getClass());
             graph.traversal().mergeV(CollectionUtil.asMap(T.id, id))
                     .option(Merge.onMatch, propertiesMatch)
                     .option(Merge.onCreate, propertiesCreate).iterate();

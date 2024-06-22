@@ -1,10 +1,14 @@
 package com.aerospike.firefly.process.traversal.step;
 
 import com.aerospike.client.Key;
+import com.aerospike.client.Value;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -162,17 +166,10 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
         if (null == search) {
             return Stream.empty();
         } else if (search.containsKey(T.id)) {
-            Object sid = search.get(T.id);
-            long lid;
-            if (Integer.class.isAssignableFrom(sid.getClass()))
-                lid = Long.valueOf((Integer) sid);
-            else if (Long.class.isAssignableFrom(sid.getClass()))
-                lid = (Long) sid;
-            else throw new RuntimeException("unsupported id type");
-            if (graph.getBaseGraph().exists(
-                    new Key(graph.getBaseGraph().getNamespace(),
-                            graph.getBaseGraph().VERTEX_AERO_SET,
-                            lid)))
+            final Object sid = search.get(T.id);
+            final FireflyId fid = FireflyIdFactory.create(graph.getBaseGraph()).createId(sid, FireflyVertex.class);
+            final Key askey = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, fid);
+            if (graph.getBaseGraph().exists(askey))
                 return FireflyCloseableIteratorUtils.stream(graph.vertices(search.get(T.id)));
             else
                 stream = Stream.empty();

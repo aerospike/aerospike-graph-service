@@ -105,7 +105,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         applyStrategy(traversal, fireflyVertexEdgeLocalCountStrategy);
 
         // Steps that replace specific internal steps.
-        //applyStrategy(traversal, fireflyMergeStepStrategy);
+        applyStrategy(traversal, fireflyMergeStepStrategy);
         fireflyCompositeEdgeIdStrategy.setSteps(internalStepClasses);
         applyStrategy(traversal, fireflyCompositeEdgeIdStrategy);
         applyStrategy(traversal, fireflyBatchEdgeReadStrategy);

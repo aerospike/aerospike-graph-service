@@ -124,8 +124,11 @@ public class VertexOperations implements Serializable {
             sparkVertex.getProperties().forEach(entry -> propertiesMatch.put(entry.getKey(), entry.getValue()));
             final Map<Object, Object> propertiesCreate = new HashMap<>();
             sparkVertex.getProperties().forEach(entry -> propertiesCreate.put(entry.getKey(), entry.getValue()));
-            propertiesCreate.put(T.label, sparkVertex.getLabel());
-            graph.traversal().mergeV(CollectionUtil.asMap(T.id, id))
+            propertiesMatch.remove(T.id);
+            propertiesCreate.remove(T.id);
+            propertiesMatch.remove(T.label);
+            propertiesCreate.remove(T.label);
+            graph.traversal().mergeV(CollectionUtil.asMap(T.id, id, T.label, sparkVertex.getLabel()))
                     .option(Merge.onMatch, propertiesMatch)
                     .option(Merge.onCreate, propertiesCreate).iterate();
             return null;

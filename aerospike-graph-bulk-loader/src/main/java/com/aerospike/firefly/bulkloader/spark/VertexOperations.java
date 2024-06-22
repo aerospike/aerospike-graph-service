@@ -21,6 +21,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.util.CollectionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,11 +119,15 @@ public class VertexOperations implements Serializable {
         return CompletableFuture.supplyAsync(() -> {
             final SparkFireflyVertex sparkVertex = SparkFireflyVertex.createVertex(row, this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE));
             final Object id = sparkVertex.getId();
-            final Map<Object, Object> properties = new HashMap<>();
-            sparkVertex.getProperties().forEach(entry -> properties.put(entry.getKey(), entry.getValue()));
-            graph.traversal().mergeV(Map.of(T.id, id, T.label, sparkVertex.getLabel()))
-                    .option(Merge.onMatch, properties)
-                    .option(Merge.onCreate, properties).iterate();
+            // TODO: Update label properly on match.
+            final Map<Object, Object> propertiesMatch = new HashMap<>();
+            sparkVertex.getProperties().forEach(entry -> propertiesMatch.put(entry.getKey(), entry.getValue()));
+            final Map<Object, Object> propertiesCreate = new HashMap<>();
+            sparkVertex.getProperties().forEach(entry -> propertiesCreate.put(entry.getKey(), entry.getValue()));
+            propertiesCreate.put(T.label, sparkVertex.getLabel());
+            graph.traversal().mergeV(CollectionUtil.asMap(T.id, id))
+                    .option(Merge.onMatch, propertiesMatch)
+                    .option(Merge.onCreate, propertiesCreate).iterate();
             return null;
         });
     }

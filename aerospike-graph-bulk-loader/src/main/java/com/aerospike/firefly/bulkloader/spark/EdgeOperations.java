@@ -117,15 +117,22 @@ public class EdgeOperations implements Serializable {
                     providedIdPropertyName, nullValue, graph, false, null);
             final Object inVId = sparkEdge.getInVertexId();
             final Object outVId = sparkEdge.getOutVertexId();
-            final Map<Object, Object> mergeEOptions = new HashMap<>();
-            mergeEOptions.put(T.label, sparkEdge.getLabel());
-            mergeEOptions.put(Direction.IN, new ReferenceVertex(inVId));
-            mergeEOptions.put(Direction.OUT, new ReferenceVertex(outVId));
-            final Map<Object, Object> properties = new HashMap<>();
-            sparkEdge.getProperties().forEach(entry -> properties.put(entry.getKey(), entry.getValue()));
-            graph.traversal().mergeE(mergeEOptions).
-                    option(Merge.onMatch, properties).
-                    option(Merge.onCreate, properties).iterate();
+            if (graph.traversal().V(inVId).hasNext() && graph.traversal().V(outVId).hasNext()) {
+                final GraphTraversal traversal = graph.traversal().V(inVId).addE(sparkEdge.getLabel());
+                for (final Map.Entry<String, Object> property : sparkEdge.getProperties()) {
+                    traversal.property(property.getKey(), property.getValue());
+                }
+                traversal.to(__.V(outVId)).iterate();
+            }
+            //final Map<Object, Object> mergeEOptions = new HashMap<>();
+            //mergeEOptions.put(T.label, sparkEdge.getLabel());
+            //mergeEOptions.put(Direction.IN, new ReferenceVertex(inVId));
+            //mergeEOptions.put(Direction.OUT, new ReferenceVertex(outVId));
+            //final Map<Object, Object> properties = new HashMap<>();
+            //sparkEdge.getProperties().forEach(entry -> properties.put(entry.getKey(), entry.getValue()));
+            //graph.traversal().mergeE(mergeEOptions).
+            //        option(Merge.onMatch, properties).
+            //        option(Merge.onCreate, properties).iterate();
             return null;
         });
     }

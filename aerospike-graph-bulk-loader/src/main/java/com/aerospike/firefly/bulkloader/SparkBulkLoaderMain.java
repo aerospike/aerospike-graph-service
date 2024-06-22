@@ -129,6 +129,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             initializerGraph.getBaseGraph().initialzeBulkLoadMetadata();
 
             boolean incrementalLoad = false;
+            // TODO: Fix progress bar so total is calculated correctly.
             if (config.hasAction(INCREMENTAL_LOAD)) {
                 // TODO: Double check that this cannot be set to false.
                 LOGGER.info("Incremental load mode detected.");
@@ -151,6 +152,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             initializeProgressBar(initializerGraph);
 
             // Preflight check
+            // TODO: Should fix spam of bulk loader
             try {
                 DatasetOperations.preflightCheck(edgeDataset, vertexDataset, config);
             } catch (final Exception e) {

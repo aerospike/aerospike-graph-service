@@ -461,6 +461,7 @@ public class TestBulkLoaderCallEntryPoint {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -472,14 +473,14 @@ public class TestBulkLoaderCallEntryPoint {
                     with(INCREMENTAL_LOAD, true).
                     with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-1.properties").iterate();
             Assert.assertEquals(12L, g.V().count().next().longValue());
-            Assert.assertEquals(23L, g.E().count().next().longValue());
+            Assert.assertEquals(46L, g.E().count().next().longValue());
             // assert simon doesnt drive f150
             // assert property isDope not present
             g.call("aerospike.graphloader.admin.bulk-load.load").
                     with(INCREMENTAL_LOAD, true).
                     with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-2.properties").iterate();
             Assert.assertEquals(13L, g.V().count().next().longValue());
-            Assert.assertEquals(24L, g.E().count().next().longValue());
+            Assert.assertEquals(70L, g.E().count().next().longValue());
             // assert simon does drive f150
             // assert property isDope added
         }

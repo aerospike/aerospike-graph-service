@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -159,7 +160,6 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
      */
     protected Stream<Vertex> createSearchStream(final Map<Object, Object> search) {
         final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
-        Optional<String> firstIndex = Optional.empty();
 
         Stream<Vertex> stream;
         // Prioritize lookup by id but otherwise attempt an index lookup
@@ -169,10 +169,14 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
             final Object sid = search.get(T.id);
             final FireflyId fid = FireflyIdFactory.create(graph.getBaseGraph()).createId(sid, FireflyVertex.class);
             final Key askey = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, fid);
-            if (graph.getBaseGraph().exists(askey))
-                return FireflyCloseableIteratorUtils.stream(graph.vertices(search.get(T.id)));
-            else
+            if (graph.getBaseGraph().exists(askey)) {
+                stream = FireflyCloseableIteratorUtils.stream(graph.vertices(search.get(T.id)));
+                final List<Vertex> vertices = stream.collect(Collectors.toList());
+                System.out.println("!!!!!!!!!!!Searching for T.id " + sid + "..." + sid.getClass().getName() + " passed. Found " + vertices.size() + " vertices. " + vertices);
+                stream = FireflyCloseableIteratorUtils.stream(graph.vertices(search.get(T.id)));
+            }  else {
                 stream = Stream.empty();
+            }
         } else {
             List<Iterator<? extends Vertex>> results = new ArrayList<>();
             search.forEach((key, value) -> {

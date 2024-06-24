@@ -117,13 +117,21 @@ public class EdgeOperations implements Serializable {
                     providedIdPropertyName, nullValue, graph, false, null);
             final Object inVId = sparkEdge.getInVertexId();
             final Object outVId = sparkEdge.getOutVertexId();
-            if (graph.traversal().V(inVId).hasNext() && graph.traversal().V(outVId).hasNext()) {
-                final GraphTraversal traversal = graph.traversal().V(inVId).addE(sparkEdge.getLabel());
-                for (final Map.Entry<String, Object> property : sparkEdge.getProperties()) {
-                    traversal.property(property.getKey(), property.getValue());
-                }
-                traversal.to(__.V(outVId)).iterate();
+            System.out.println("Looking for vertices with ids: " + inVId + "." + inVId.getClass().getName() + " and " + outVId + "." + outVId.getClass().getName());
+            if (!graph.traversal().V(inVId).hasNext()) {
+                LOGGER.error("Vertex with inVId " + inVId + "." + inVId.getClass().getName() + " not found in the graph.");
+                return null;
             }
+            if (!graph.traversal().V(outVId).hasNext()) {
+                LOGGER.error("Vertex with outVId " + outVId + "." + outVId.getClass().getName() + " not found in the graph.");
+                return null;
+            }
+            LOGGER.info("Adding edge from " + outVId + " to " + inVId + " with label " + sparkEdge.getLabel());
+            final GraphTraversal traversal = graph.traversal().V(inVId).addE(sparkEdge.getLabel());
+            for (final Map.Entry<String, Object> property : sparkEdge.getProperties()) {
+                traversal.property(property.getKey(), property.getValue());
+            }
+            traversal.to(__.V(outVId)).iterate();
             //final Map<Object, Object> mergeEOptions = new HashMap<>();
             //mergeEOptions.put(T.label, sparkEdge.getLabel());
             //mergeEOptions.put(Direction.IN, new ReferenceVertex(inVId));

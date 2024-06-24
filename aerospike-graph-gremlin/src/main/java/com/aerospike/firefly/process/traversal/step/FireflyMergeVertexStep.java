@@ -169,14 +169,9 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
             final Object sid = search.get(T.id);
             final FireflyId fid = FireflyIdFactory.create(graph.getBaseGraph()).createId(sid, FireflyVertex.class);
             final Key askey = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, fid);
-            System.out.println("!!!!!!!!!!!Searching for T.id " + sid + "..." + sid.getClass().getName());
             if (graph.getBaseGraph().exists(askey)) {
                 stream = FireflyCloseableIteratorUtils.stream(graph.vertices(search.get(T.id)));
-                final List<Vertex> vertices = stream.collect(Collectors.toList());
-                System.out.println("!!!!!!!!!!!Searching for T.id " + sid + "..." + sid.getClass().getName() + " passed. Found " + vertices.size() + " vertices. " + vertices);
-                stream = FireflyCloseableIteratorUtils.stream(graph.vertices(search.get(T.id)));
             }  else {
-                System.out.println("!!!!!!!!!!!Searching for T.id " + sid + "..." + sid.getClass().getName() + " failed");
                 stream = Stream.empty();
             }
         } else {

@@ -67,6 +67,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.exponentialBackoff;
@@ -110,20 +111,21 @@ public class EdgeOperations implements Serializable {
         this.usePersistedEdgeId = !config.hasAction(READ_ONLY);
     }
 
-    private CompletableFuture<Void> incrementalWrite(final FireflyGraph graph, final GenericRowWithSchema fireflyRow, final GenericRowWithSchema fireflyMetadataRow) {
+    private CompletableFuture<Void> incrementalWrite(final FireflyGraph graph, final GenericRowWithSchema fireflyRow, final GenericRowWithSchema fireflyMetadataRow, final List<Object> badAdjacentIds) {
         return CompletableFuture.supplyAsync(() -> {
             // TODO if keep provided id on we may want to match on that.
             final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId,
                     providedIdPropertyName, nullValue, graph, false, null);
             final Object inVId = sparkEdge.getInVertexId();
             final Object outVId = sparkEdge.getOutVertexId();
-            System.out.println("Looking for vertices with ids: " + inVId + "." + inVId.getClass().getName() + " and " + outVId + "." + outVId.getClass().getName());
             if (!graph.traversal().V(inVId).hasNext()) {
                 LOGGER.error("Vertex with inVId " + inVId + "." + inVId.getClass().getName() + " not found in the graph.");
+                badAdjacentIds.add(inVId);
                 return null;
             }
             if (!graph.traversal().V(outVId).hasNext()) {
                 LOGGER.error("Vertex with outVId " + outVId + "." + outVId.getClass().getName() + " not found in the graph.");
+                badAdjacentIds.add(outVId);
                 return null;
             }
             LOGGER.info("Adding edge from " + outVId + " to " + inVId + " with label " + sparkEdge.getLabel());
@@ -158,6 +160,7 @@ public class EdgeOperations implements Serializable {
             Instant start = Instant.now();
             int batch = 1;
             final List<CompletionStage<Void>> futures = new ArrayList<>();
+            final List<Object> badAdjacentIds = Collections.synchronizedList(new ArrayList<>());
             while (rowIterator.hasNext()) {
                 if (futures.size() >= bufferSize) {
                     final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
@@ -176,7 +179,7 @@ public class EdgeOperations implements Serializable {
                 final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, DatasetOperations.COLUMNS_TO_REMOVE);
 
                 try {
-                    futures.add(incrementalWrite(graph, fireflyRow, metadataRow));
+                    futures.add(incrementalWrite(graph, fireflyRow, metadataRow, badAdjacentIds));
                 } catch (final FireflyBulkLoaderException e) {
                     if (allowBadEntryCount == 0) {
                         throw e;
@@ -193,6 +196,8 @@ public class EdgeOperations implements Serializable {
                 throw new RuntimeException("Error occurred while writing edges - see logs for more details");
             }
             final String taskName = String.format("Incremental edge write in partition:{}", partitionId);
+
+
             LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
         }
     }

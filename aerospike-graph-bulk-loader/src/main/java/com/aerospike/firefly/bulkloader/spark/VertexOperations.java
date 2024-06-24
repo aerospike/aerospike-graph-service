@@ -119,11 +119,12 @@ public class VertexOperations implements Serializable {
         return CompletableFuture.supplyAsync(() -> {
             final SparkFireflyVertex sparkVertex = SparkFireflyVertex.createVertex(row, this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE));
             final Object id = sparkVertex.getId();
-            // TODO: Update label properly on match.
             final Map<Object, Object> propertiesMatch = new HashMap<>();
             sparkVertex.getProperties().forEach(entry -> propertiesMatch.put(entry.getKey(), entry.getValue()));
             final Map<Object, Object> propertiesCreate = new HashMap<>();
             sparkVertex.getProperties().forEach(entry -> propertiesCreate.put(entry.getKey(), entry.getValue()));
+            propertiesCreate.put(T.id, id);
+            propertiesCreate.put(T.label, sparkVertex.getLabel());
             graph.traversal().mergeV(CollectionUtil.asMap(T.id, id))
                     .option(Merge.onMatch, propertiesMatch)
                     .option(Merge.onCreate, propertiesCreate).iterate();

@@ -438,6 +438,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public void mergeVertex(final Object id, final String label, final List<Map.Entry<String, Object>> properties) {
+        int tryCount = 0;
         while (true) {
             try {
                 final Map<Object, Object> propertiesMatch = new HashMap<>();
@@ -446,6 +447,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 properties.forEach(entry -> propertiesCreate.put(entry.getKey(), entry.getValue()));
                 propertiesCreate.put(T.id, id);
                 propertiesCreate.put(T.label, label);
+                propertiesMatch.remove(T.id);
+                propertiesMatch.remove(T.label);
                 traversal().mergeV(CollectionUtil.asMap(T.id, id))
                         .option(Merge.onMatch, propertiesMatch)
                         .option(Merge.onCreate, propertiesCreate).iterate();
@@ -455,6 +458,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 if (!e.getMessage().contains("Vertex with id already exists")) {
                     throw e;
                 }
+                if (tryCount > 0) {
+                    throw e;
+                }
+                tryCount++;
             } catch (final VertexRecordSizeExceededException vrsee) {
                 throw new FireflyLoadingException((AerospikeException) vrsee.getCause(), vrsee.getMessage());
             } catch (final AerospikeException ae) {

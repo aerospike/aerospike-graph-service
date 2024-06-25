@@ -1,10 +1,13 @@
 package com.aerospike.firefly.bulkloader.spark.executorservice;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.bulkloader.graph.GraphOperations;
 import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
+import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -12,11 +15,13 @@ import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 public class EdgeWriteTask {
@@ -75,10 +80,41 @@ public class EdgeWriteTask {
     }
 
     public CompletionStage<Void> write(ScheduledExecutorService service) {
-
         final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
             this.graph.bulkWriteEdge((byte[]) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
                     inVertexId, outVertexId, inVertexSupernode, outVertexSupernode);
+            return null;
+        }, service);
+        return retry.withRetries(supplier, service).exceptionally(e -> {
+            // Log the error when no longer retrying
+            LOGGER.error(String.format("Exception occurred during Edge writing %s", this), e);
+            throw new RuntimeException(e);
+        });
+    }
+
+    public CompletionStage<Void> writeIncremental(final ScheduledExecutorService service, final Map<Object, AtomicLong> vertexIdToBadEdgeCount) {
+        final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
+            try {
+                final FireflyId inVertexFireflyId = graph.getIdFactory().createId(inVertexId, FireflyVertex.class);
+                final FireflyVertex inVertex = graph.readVertex(inVertexFireflyId);
+                if (inVertex == null) {
+                    LOGGER.error("Vertex with (~from) " + inVertexId + " not found in the graph.");
+                    vertexIdToBadEdgeCount.computeIfAbsent(inVertexId, k -> new AtomicLong(0)).incrementAndGet();
+                    return null;
+                }
+                final FireflyId outVertexFireflyId = graph.getIdFactory().createId(outVertexId, FireflyVertex.class);
+                final FireflyVertex outVertex = graph.readVertex(outVertexFireflyId);
+                if (outVertex == null) {
+                    LOGGER.error("Vertex with (~to) " + outVertexId + " not found in the graph.");
+                    vertexIdToBadEdgeCount.computeIfAbsent(outVertexId, k -> new AtomicLong(0)).incrementAndGet();
+                    return null;
+                }
+                this.graph.writeEdge(edgeId, edgeLabel, sparkEdge.getProperties(), inVertex, outVertex);
+            } catch (final EdgeRecordSizeExceededException ersee) {
+                throw new FireflyLoadingException((AerospikeException) ersee.getCause(), ersee.getMessage());
+            } catch (final AerospikeException ae) {
+                throw new FireflyLoadingException(ae);
+            }
             return null;
         }, service);
         return retry.withRetries(supplier, service).exceptionally(e -> {

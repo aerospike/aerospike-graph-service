@@ -129,10 +129,9 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             initializerGraph.getBaseGraph().initialzeBulkLoadMetadata();
 
             boolean incrementalLoad = false;
-            // TODO: Fix progress bar so total is calculated correctly.
             if (config.hasAction(INCREMENTAL_LOAD)) {
-                // TODO: Double check that this cannot be set to false.
                 LOGGER.info("Incremental load mode detected.");
+                PROGRESS_BAR.incrementalLoad();
                 incrementalLoad = true;
             }
 
@@ -152,7 +151,6 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             initializeProgressBar(initializerGraph);
 
             // Preflight check
-            // TODO: Should fix spam of bulk loader
             try {
                 DatasetOperations.preflightCheck(edgeDataset, vertexDataset, config);
             } catch (final Exception e) {
@@ -166,7 +164,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             PROGRESS_BAR.setPreflightCheckComplete();
 
             // Persist Edge ID data to disk
-            final boolean edgeIdWriteDisabled = config.hasAction(READ_ONLY) || config.hasAction(INCREMENTAL_LOAD);
+            final boolean edgeIdWriteDisabled = config.hasAction(READ_ONLY);
             String writeLocation = null;
             if (edgeIdWriteDisabled) {
                 // Persisting Edge IDs is disabled. Do Nothing.
@@ -191,11 +189,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             final long onRecordIdLimit = initializerGraph.getBaseGraph().ON_RECORD_ID_LIMIT;
             LOGGER.info("Supernode threshold: " + onRecordIdLimit);
             final Set<Object> supernodes;
-            if (!incrementalLoad) {
-                supernodes = edgeOperations.extractSupernodes(edgeDataset, onRecordIdLimit);
-            } else {
-                supernodes = new HashSet<>();
-            }
+            supernodes = incrementalLoad ? new HashSet<>() : edgeOperations.extractSupernodes(edgeDataset, onRecordIdLimit);
             PROGRESS_BAR.setSuperNodeExtractionComplete();
 
             // Vertex processing

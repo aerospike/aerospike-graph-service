@@ -33,7 +33,6 @@ import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
-import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
@@ -41,7 +40,6 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +52,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -111,48 +108,11 @@ public class EdgeOperations implements Serializable {
         this.usePersistedEdgeId = !config.hasAction(READ_ONLY);
     }
 
-    private CompletableFuture<Void> incrementalWrite(final FireflyGraph graph, final GenericRowWithSchema fireflyRow, final GenericRowWithSchema fireflyMetadataRow, final List<Object> badAdjacentIds) {
-        return CompletableFuture.supplyAsync(() -> {
-            // TODO if keep provided id on we may want to match on that.
-            final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId,
-                    providedIdPropertyName, nullValue, graph, false, null);
-            final Object inVId = sparkEdge.getInVertexId();
-            final Object outVId = sparkEdge.getOutVertexId();
-            if (!graph.traversal().V(inVId).hasNext()) {
-                LOGGER.error("Vertex with inVId " + inVId + "." + inVId.getClass().getName() + " not found in the graph.");
-                badAdjacentIds.add(inVId);
-                return null;
-            }
-            if (!graph.traversal().V(outVId).hasNext()) {
-                LOGGER.error("Vertex with outVId " + outVId + "." + outVId.getClass().getName() + " not found in the graph.");
-                badAdjacentIds.add(outVId);
-                return null;
-            }
-            LOGGER.info("Adding edge from " + outVId + " to " + inVId + " with label " + sparkEdge.getLabel());
-            final GraphTraversal traversal = graph.traversal().V(inVId).addE(sparkEdge.getLabel());
-            for (final Map.Entry<String, Object> property : sparkEdge.getProperties()) {
-                traversal.property(property.getKey(), property.getValue());
-            }
-            traversal.to(__.V(outVId)).iterate();
-            //final Map<Object, Object> mergeEOptions = new HashMap<>();
-            //mergeEOptions.put(T.label, sparkEdge.getLabel());
-            //mergeEOptions.put(Direction.IN, new ReferenceVertex(inVId));
-            //mergeEOptions.put(Direction.OUT, new ReferenceVertex(outVId));
-            //final Map<Object, Object> properties = new HashMap<>();
-            //sparkEdge.getProperties().forEach(entry -> properties.put(entry.getKey(), entry.getValue()));
-            //graph.traversal().mergeE(mergeEOptions).
-            //        option(Merge.onMatch, properties).
-            //        option(Merge.onCreate, properties).iterate();
-            return null;
-        });
-    }
-
     private void writeEdgesIncrementally(final Iterator<Row> rowIterator, final int partitionId) {
         // TODO: Should throw exception that backoff handles
         try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
             final long allowBadEntryCount = this.config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
 
-            final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
             final int bufferSize = getEdgeWriteBufferSize();
             LOGGER.info(String.format("Edge write buffer size %d", bufferSize));
 
@@ -160,7 +120,10 @@ public class EdgeOperations implements Serializable {
             Instant start = Instant.now();
             int batch = 1;
             final List<CompletionStage<Void>> futures = new ArrayList<>();
-            final List<Object> badAdjacentIds = Collections.synchronizedList(new ArrayList<>());
+            final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
+            final ExponentialBackoffRetry retry = new ExponentialBackoffRetry("incremental-edge-write-partitionid-" + partitionId);
+            final Map<Object, AtomicLong> vertexIdToBadEdgeCount = new ConcurrentHashMap<>();
+
             while (rowIterator.hasNext()) {
                 if (futures.size() >= bufferSize) {
                     final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
@@ -174,17 +137,28 @@ public class EdgeOperations implements Serializable {
                     }
                     futures.clear();
                 }
-
                 final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next().copy();
                 final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, DatasetOperations.COLUMNS_TO_REMOVE);
 
                 try {
-                    futures.add(incrementalWrite(graph, fireflyRow, metadataRow, badAdjacentIds));
+                    final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
+                            providedIdPropertyName, nullValue, graph, null, null, fireflyRow,
+                            metadataRow, usePersistedEdgeId);
+                    futures.add(ewt.writeIncremental(executor, vertexIdToBadEdgeCount));
                 } catch (final FireflyBulkLoaderException e) {
                     if (allowBadEntryCount == 0) {
                         throw e;
                     }
                 }
+            }
+            for (final Map.Entry<Object, AtomicLong> entry : vertexIdToBadEdgeCount.entrySet()) {
+                final Object vertexId = entry.getKey();
+                final long badEdgeCount = entry.getValue().get();
+                if (badEdgeCount > allowBadEntryCount) {
+                    LOGGER.error("Bad edge count for vertex ID " + vertexId + " exceeded the allowed limit of " + allowBadEntryCount + ". Count: " + badEdgeCount);
+                    throw new RuntimeException("Bad edge count for vertex ID " + vertexId + " exceeded the allowed limit of " + allowBadEntryCount + ". Count: " + badEdgeCount);
+                }
+                graph.writeBadEdge(vertexId, entry.getValue().get());
             }
 
             LOGGER.info(String.format("Done submitting incremental edge write task; waiting for their completion in partitionId %d", partitionId));
@@ -296,7 +270,7 @@ public class EdgeOperations implements Serializable {
     }
 
     public void verifySampleEdgesAfterWrite(final Dataset<Row> edgeDatasetsSample) {
-        final String errorMessage= "Error occurred while verifying edges; see logs for more details.";
+        final String errorMessage = "Error occurred while verifying edges; see logs for more details.";
         final int bufferSize = getEdgeWriteBufferSize();
         boolean hasEdgeID = Arrays.asList(edgeDatasetsSample.schema().fieldNames()).contains(EDGE_ID_COLUMN);
         edgeDatasetsSample.foreachPartition(rowIterator -> {
@@ -436,6 +410,9 @@ public class EdgeOperations implements Serializable {
                     fromPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
             final JavaPairRDD<Object, Long> toCountPairRDD =
                     toPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
+
+            // TODO: Can we aggregate these into blocks to batch read and sum in the existing number of edges per vertex?
+            // If so we can optimize the edge writes.
 
             // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.
             final JavaPairRDD<Object, Long> filteredFromCountPairRDD = fromCountPairRDD.filter(

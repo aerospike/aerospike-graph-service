@@ -189,8 +189,10 @@ public class AerospikeConnection implements AutoCloseable {
     private final int READ_SLEEP_BETWEEN_RETRY;
     private final int WRITE_TOTAL_TIMEOUT;
     private final int READ_TOTAL_TIMEOUT;
+    private final int READ_TOTAL_TIMEOUT_BULK_LOAD;
     private final int WRITE_SOCKET_TIMEOUT;
     private final int READ_SOCKET_TIMEOUT;
+    private final int READ_SOCKET_TIMEOUT_BULK_LOAD;
     private final int CONNECT_TIMEOUT;
     private final int TIMEOUT_DELAY;
 
@@ -389,8 +391,10 @@ public class AerospikeConnection implements AutoCloseable {
         READ_SLEEP_BETWEEN_RETRY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_SLEEP_BETWEEN_RETRY, conf);
         WRITE_TOTAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.WRITE_TOTAL_TIMEOUT, conf);
         READ_TOTAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_TOTAL_TIMEOUT, conf);
+        READ_TOTAL_TIMEOUT_BULK_LOAD = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_TOTAL_TIMEOUT_BULK_LOAD, conf);
         WRITE_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.WRITE_SOCKET_TIMEOUT, conf);
         READ_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_SOCKET_TIMEOUT, conf);
+        READ_SOCKET_TIMEOUT_BULK_LOAD = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_SOCKET_TIMEOUT_BULK_LOAD, conf);
         CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CONNECT_TIMEOUT, conf);
         TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf);
 
@@ -1769,12 +1773,18 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public void configureReadPolicy(final Policy policy) {
+        final boolean bulkLoading = conf.getBoolean(ConfigurationHelper.Keys.BULK_LOADER_FLAG, false);
         policy.maxRetries = AEROSPIKE_MAX_RETRIES;
-        policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
-        policy.totalTimeout = READ_TOTAL_TIMEOUT;
-        policy.socketTimeout = READ_SOCKET_TIMEOUT;
         policy.connectTimeout = CONNECT_TIMEOUT;
         policy.timeoutDelay = TIMEOUT_DELAY;
+        policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
+        if (!bulkLoading) {
+            policy.totalTimeout = READ_TOTAL_TIMEOUT;
+            policy.socketTimeout = READ_SOCKET_TIMEOUT;
+        } else {
+            policy.totalTimeout = READ_TOTAL_TIMEOUT_BULK_LOAD;
+            policy.socketTimeout = READ_SOCKET_TIMEOUT_BULK_LOAD;
+        }
     }
 
     public void configureScanPolicy(final ScanPolicy policy) {

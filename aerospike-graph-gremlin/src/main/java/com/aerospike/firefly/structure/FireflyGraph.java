@@ -554,36 +554,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
     }
 
-   // public void writeSupernodeProgress(final long count) {
-   //     final Key key = new Key(db.namespace, db.BULK_LOAD_SUPERNODE_PROGRESS_SET, "key");
-   //     final Bin addBin = new Bin(db.COUNTER_BIN, count);
-   //     final WritePolicy policy = new WritePolicy();
-   //     policy.recordExistsAction = RecordExistsAction.UPDATE;
-   //     policy.sendKey = true;
-   //     try {
-   //         this.db.writeOperate(policy, key, Operation.add(addBin));
-   //     } catch (final AerospikeException e) {
-   //         // Do not retry this or fail because this list being slightly incorrect is inconsequential and will reduce
-   //         // bulk load speed
-   //         LOG.warn("Error recording supernode progress.");
-   //     }
-   // }
-
-   // public long readSupernodeProgress() {
-   //     try {
-   //         final Key[] key = new Key[] {new Key(db.namespace, db.BULK_LOAD_SUPERNODE_PROGRESS_SET, "key")};
-   //         final com.aerospike.client.Record[] record = db.read(key);
-   //         if (record[0] != null) {
-   //             return record[0].getLong(db.COUNTER_BIN);
-   //         }
-   //     } catch (final AerospikeException e) {
-   //         // Do not retry this or fail because this list being slightly incorrect is inconsequential and will reduce
-   //         // bulk load speed
-   //         LOG.warn("Error recording supernode progress.");
-   //     }
-   //     return -1;
-   // }
-
     public Iterator<Map<String, Object>> readBadEdgeErrors() {
         return GraphQuery.create(this).scanSet(null, db.BULK_LOAD_BAD_EDGE_SET, null, null, keyRecord -> {
             final Map<String, Object> errorInfo = new HashMap<>();

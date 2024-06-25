@@ -259,7 +259,6 @@ public final class ConfigurationHelper {
             BULK_LOAD_DUPLICATE_VID_SET(Pair.of((byte) 16, "BL_DUPE_VID")),
             BULK_LOAD_BAD_EDGE_SET(Pair.of((byte) 17, "BL_BAD_EDGE")),
             BULK_LOAD_BAD_ENTRY_SET(Pair.of((byte) 18, "BL_BAD_ENTRY"));
-            //BULK_LOAD_SUPERNODE_PROGRESS_SET(Pair.of((byte) 19, "BL_SN_PROG"));
 
             private final Pair value;
 

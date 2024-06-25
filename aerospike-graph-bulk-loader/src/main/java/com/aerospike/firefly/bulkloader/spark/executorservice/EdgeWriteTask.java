@@ -92,38 +92,6 @@ public class EdgeWriteTask {
         });
     }
 
-    public CompletionStage<Void> writeIncremental(final ScheduledExecutorService service, final Map<Object, AtomicLong> vertexIdToBadEdgeCount) {
-        final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
-            try {
-                final FireflyId inVertexFireflyId = graph.getIdFactory().createId(inVertexId, FireflyVertex.class);
-                final FireflyVertex inVertex = graph.readVertex(inVertexFireflyId);
-                if (inVertex == null) {
-                    LOGGER.error("Vertex with (~from) " + inVertexId + " not found in the graph.");
-                    vertexIdToBadEdgeCount.computeIfAbsent(inVertexId, k -> new AtomicLong(0)).incrementAndGet();
-                    return null;
-                }
-                final FireflyId outVertexFireflyId = graph.getIdFactory().createId(outVertexId, FireflyVertex.class);
-                final FireflyVertex outVertex = graph.readVertex(outVertexFireflyId);
-                if (outVertex == null) {
-                    LOGGER.error("Vertex with (~to) " + outVertexId + " not found in the graph.");
-                    vertexIdToBadEdgeCount.computeIfAbsent(outVertexId, k -> new AtomicLong(0)).incrementAndGet();
-                    return null;
-                }
-                this.graph.writeEdge(edgeId, edgeLabel, sparkEdge.getProperties(), inVertex, outVertex);
-            } catch (final EdgeRecordSizeExceededException ersee) {
-                throw new FireflyLoadingException((AerospikeException) ersee.getCause(), ersee.getMessage());
-            } catch (final AerospikeException ae) {
-                throw new FireflyLoadingException(ae);
-            }
-            return null;
-        }, service);
-        return retry.withRetries(supplier, service).exceptionally(e -> {
-            // Log the error when no longer retrying
-            LOGGER.error(String.format("Exception occurred during Edge writing %s", this), e);
-            throw new RuntimeException(e);
-        });
-    }
-
     public void updateCacheMap() {
         if (edgeCacheEnabled) {
             GraphOperations.updateEdgeMap(supernodes, outVertexId,

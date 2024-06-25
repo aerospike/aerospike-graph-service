@@ -239,9 +239,10 @@ public class AerospikeConnection implements AutoCloseable {
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
 
+
         clientPolicy.maxConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf);
         clientPolicy.minConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE, conf);
-
+        System.out.println("Client policy: " + clientPolicy.maxConnsPerNode);
         clientPolicy.timeout = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf);
         clientPolicy.eventLoops = eventLoops;
 
@@ -294,6 +295,7 @@ public class AerospikeConnection implements AutoCloseable {
 
         final AerospikeClient aerospikeClient;
         try {
+            System.out.println("Client policy: " + policy.maxConnsPerNode);
             aerospikeClient = new AerospikeClient(policy, hosts);
         } catch (final Exception e) {
             LOG.error("Error connecting to Aerospike", e);
@@ -319,10 +321,18 @@ public class AerospikeConnection implements AutoCloseable {
         // Also, we don't want connections recycled, so keep min == max true.
         // We must add 2 because both the metadata updater thread and the cardinality metadata threads using the connection.
         //
-        // The bulk loader uses 2 * availableProcessors (+ 2 for the metadata updater thread and the cardinality metadata thread).
+        // The bulk loader uses 2 * availableProcessors + 2 for buffer + 8 for:
+        // - Metadata updater thread
+        // - Graph summary reader (via Progress bar)
+        // - Cardinality metadata
+        // - Index metadata
+        // - Graph summary writer
+        // - Usage stats writing
+        // - Usage stats reading (via prometheus)
+        // - TTL thread background worker
         //
         // Because of this, we need to use the greatest of either what the bulk loader would use or what gremlin-server would use.
-        return Math.max(2 * Runtime.getRuntime().availableProcessors() + 2, gremlinServerSettings.gremlinPool + 2);
+        return Math.max(2 * Runtime.getRuntime().availableProcessors() + 10, gremlinServerSettings.gremlinPool + 10);
     }
 
 

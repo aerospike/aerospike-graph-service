@@ -112,7 +112,7 @@ public final class ConfigurationHelper {
 
         public static final String MAX_ERROR_RATE = "aerospike.client.clientPolicy.maxErrorRate";
         public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.clientPolicy.minConnsPerNode";
-        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.client.clientPolicy.maxConnsPerNode";
+        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.client.clientpolicy.maxconnspernode";
         public static final String AEROSPIKE_TIMEOUT = "aerospike.client.clientPolicy.timeout";
         public static final String AEROSPIKE_MAX_RETRIES = "aerospike.client.policy.maxRetries";
         public static final String TIMEOUT_DELAY = "aerospike.client.policy.timeoutDelay";
@@ -479,18 +479,32 @@ public final class ConfigurationHelper {
         final String upperKey = key.toUpperCase();
         final boolean debugMode = getOrDefaultBool(Keys.DEBUG_MODE_FLAG, config);
 
-        if (System.getenv().containsKey(lowerKey) || System.getenv().containsKey(upperKey)) {
+        if (System.getenv().containsKey(lowerKey) ||
+                System.getenv().containsKey(upperKey) ||
+                System.getenv().containsKey(key)) {
             String envConfig = System.getenv(upperKey);
             if (envConfig == null || envConfig.isEmpty()) {
                 envConfig = System.getenv(lowerKey);
             }
-            if (envConfig != null && !envConfig.isEmpty()) {
-                return envConfig;
+            if (envConfig == null || envConfig.isEmpty()) {
+                envConfig = System.getenv(key);
             }
-        } else if (!config.containsKey(lowerKey) && !defaultValues.containsKey(key) && !checkInternalKeys(key)) {
+            return envConfig;
+        } else if (!config.containsKey(lowerKey) &&
+                !config.containsKey(upperKey) &&
+                !config.containsKey(key) &&
+                !defaultValues.containsKey(key) &&
+                !checkInternalKeys(key)) {
             throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
-        } else if (config.containsKey(lowerKey)) {
-            return config.getString(lowerKey);
+        } else if (config.containsKey(lowerKey) || config.containsKey(upperKey) || config.containsKey(key)) {
+            String configValue = config.getString(lowerKey, "");
+            if (configValue.isEmpty()) {
+                configValue = config.getString(upperKey, "");
+            }
+            if (configValue.isEmpty()) {
+                configValue = config.getString(key, "");
+            }
+            return configValue;
         } else if (Keys.InternalConfigs.keys().contains(key)) {
             if (debugMode) {
                 return Keys.InternalConfigs.valueOf(key).getValue().english;

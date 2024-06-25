@@ -59,6 +59,7 @@ import com.aerospike.firefly.util.WarmupUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
+import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
@@ -75,6 +76,7 @@ import org.apache.tinkerpop.gremlin.structure.service.ServiceRegistry;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
+import org.apache.tinkerpop.gremlin.util.CollectionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -433,6 +435,32 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final boolean isEdgeCacheOverflowed = !this.db.GLOBAL_EDGE_CACHE_ENABLED_FLAG ||
                 this.db.ON_RECORD_ID_LIMIT <= 0 || supernodeFlag != null;
         return FireflyVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
+    }
+
+    public void mergeVertex(final FireflyId id, final String label, final List<Map.Entry<String, Object>> properties) {
+        while (true) {
+            try {
+                final Map<Object, Object> propertiesMatch = new HashMap<>();
+                properties.forEach(entry -> propertiesMatch.put(entry.getKey(), entry.getValue()));
+                final Map<Object, Object> propertiesCreate = new HashMap<>();
+                properties.forEach(entry -> propertiesCreate.put(entry.getKey(), entry.getValue()));
+                propertiesCreate.put(T.id, id);
+                propertiesCreate.put(T.label, label);
+                traversal().mergeV(CollectionUtil.asMap(T.id, id))
+                        .option(Merge.onMatch, propertiesMatch)
+                        .option(Merge.onCreate, propertiesCreate).iterate();
+                break;
+            } catch (final IllegalArgumentException e) {
+                LOG.warn("Failed to merge vertex with ID: " + id + " due to: " + e.getMessage());
+                if (!e.getMessage().contains("Vertex with id already exists")) {
+                    throw e;
+                }
+            } catch (final VertexRecordSizeExceededException vrsee) {
+                throw new FireflyLoadingException((AerospikeException) vrsee.getCause(), vrsee.getMessage());
+            } catch (final AerospikeException ae) {
+                throw new FireflyLoadingException(ae);
+            }
+        }
     }
 
     public void bulkWriteVertex(final FireflyId idValue,

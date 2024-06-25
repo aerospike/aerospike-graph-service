@@ -51,16 +51,7 @@ public class VertexWriteTask {
 
     public CompletionStage<Void> writeIncremental(final ScheduledExecutorService service) {
         final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
-            final Object id = sparkVertex.getId();
-            final Map<Object, Object> propertiesMatch = new HashMap<>();
-            sparkVertex.getProperties().forEach(entry -> propertiesMatch.put(entry.getKey(), entry.getValue()));
-            final Map<Object, Object> propertiesCreate = new HashMap<>();
-            sparkVertex.getProperties().forEach(entry -> propertiesCreate.put(entry.getKey(), entry.getValue()));
-            propertiesCreate.put(T.id, id);
-            propertiesCreate.put(T.label, sparkVertex.getLabel());
-            graph.traversal().mergeV(CollectionUtil.asMap(T.id, id))
-                    .option(Merge.onMatch, propertiesMatch)
-                    .option(Merge.onCreate, propertiesCreate).iterate();
+            graph.mergeVertex(sparkVertex.getFireflyId(graph.getBaseGraph()), sparkVertex.getLabel(), sparkVertex.getProperties());
             return null;
         }, service);
         return retry.withRetries(supplier, service).exceptionally(e -> {

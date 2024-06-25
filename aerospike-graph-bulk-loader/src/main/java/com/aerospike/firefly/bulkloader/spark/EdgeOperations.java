@@ -349,7 +349,7 @@ public class EdgeOperations implements Serializable {
                             if (idToEdgeCount.size() > bufferSize) {
                                 // No has containers, also we are pushing down the ids to the graph to read in bulk omitting properties.
                                 List<FireflyVertex> vertices = graph.readVertices(List.of(),
-                                        idToEdgeCount.entrySet().stream().map(id -> graph.getIdFactory().createId(id, FireflyVertex.class)).collect(Collectors.toList()),
+                                        idToEdgeCount.keySet().stream().map(id -> graph.getIdFactory().createId(id, FireflyVertex.class)).collect(Collectors.toList()),
                                         List.of());
                                 for (FireflyVertex vertex : vertices) {
                                     long existingEdgeCount = vertex.getEdgeCount(Direction.IN);
@@ -373,7 +373,7 @@ public class EdgeOperations implements Serializable {
                             if (idToEdgeCount.size() > bufferSize) {
                                 // No has containers, also we are pushing down the ids to the graph to read in bulk omitting properties.
                                 List<FireflyVertex> vertices = graph.readVertices(List.of(),
-                                        idToEdgeCount.entrySet().stream().map(id -> graph.getIdFactory().createId(id, FireflyVertex.class)).collect(Collectors.toList()),
+                                        idToEdgeCount.keySet().stream().map(id -> graph.getIdFactory().createId(id, FireflyVertex.class)).collect(Collectors.toList()),
                                         List.of());
                                 for (FireflyVertex vertex : vertices) {
                                     long existingEdgeCount = vertex.getEdgeCount(Direction.OUT);

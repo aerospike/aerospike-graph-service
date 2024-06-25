@@ -239,10 +239,8 @@ public class AerospikeConnection implements AutoCloseable {
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
 
-
         clientPolicy.maxConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf);
         clientPolicy.minConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE, conf);
-        System.out.println("Client policy: " + clientPolicy.maxConnsPerNode);
         clientPolicy.timeout = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf);
         clientPolicy.eventLoops = eventLoops;
 
@@ -295,7 +293,6 @@ public class AerospikeConnection implements AutoCloseable {
 
         final AerospikeClient aerospikeClient;
         try {
-            System.out.println("Client policy: " + policy.maxConnsPerNode);
             aerospikeClient = new AerospikeClient(policy, hosts);
         } catch (final Exception e) {
             LOG.error("Error connecting to Aerospike", e);

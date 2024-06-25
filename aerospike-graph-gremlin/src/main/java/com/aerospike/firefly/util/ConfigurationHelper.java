@@ -112,7 +112,7 @@ public final class ConfigurationHelper {
 
         public static final String MAX_ERROR_RATE = "aerospike.client.clientPolicy.maxErrorRate";
         public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.clientPolicy.minConnsPerNode";
-        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.client.clientpolicy.maxconnspernode";
+        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.client.clientpolicy.maxConnsPerNode";
         public static final String AEROSPIKE_TIMEOUT = "aerospike.client.clientPolicy.timeout";
         public static final String AEROSPIKE_MAX_RETRIES = "aerospike.client.policy.maxRetries";
         public static final String TIMEOUT_DELAY = "aerospike.client.policy.timeoutDelay";

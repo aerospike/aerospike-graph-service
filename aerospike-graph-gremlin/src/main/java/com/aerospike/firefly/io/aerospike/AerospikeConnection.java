@@ -134,6 +134,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final String BULK_LOAD_METADATA_SET;
     public final String BULK_LOAD_DUPLICATE_VID_SET;
     public final String BULK_LOAD_BAD_EDGE_SET;
+    //public final String BULK_LOAD_SUPERNODE_PROGRESS_SET;
     public final String BULK_LOAD_BAD_ENTRY_SET;
     public final String GRAPH_VARIABLES_SET;
     public final Object GRAPH_VARIABLES_REC_KEY;
@@ -424,6 +425,7 @@ public class AerospikeConnection implements AutoCloseable {
         BULK_LOAD_METADATA_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_METADATA_SET.name(), conf);
         BULK_LOAD_DUPLICATE_VID_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_DUPLICATE_VID_SET.name(), conf);
         BULK_LOAD_BAD_EDGE_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_BAD_EDGE_SET.name(), conf);
+        //BULK_LOAD_SUPERNODE_PROGRESS_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_SUPERNODE_PROGRESS_SET.name(), conf);
         BULK_LOAD_BAD_ENTRY_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_BAD_ENTRY_SET.name(), conf);
 
         E_IN_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.E_IN_INDEX_NAME.name(), conf));
@@ -1814,6 +1816,7 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(null, namespace, BULK_LOAD_DUPLICATE_VID_SET, null);
             client.truncate(null, namespace, BULK_LOAD_BAD_EDGE_SET, null);
             client.truncate(null, namespace, BULK_LOAD_BAD_ENTRY_SET, null);
+            //client.truncate(null, namespace, BULK_LOAD_SUPERNODE_PROGRESS_SET, null);
             Thread.sleep(1);
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();

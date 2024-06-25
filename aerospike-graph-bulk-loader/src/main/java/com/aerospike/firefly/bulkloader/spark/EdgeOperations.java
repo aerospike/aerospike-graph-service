@@ -310,6 +310,68 @@ public class EdgeOperations implements Serializable {
         return usePersistedEdgeId ? EdgeOperations.decodeEdgeIDFromString(metadataRow.getAs(EDGE_ID_COLUMN)) : null;
     }
 
+    private JavaPairRDD<Object, Long> readExistingVertices(final JavaPairRDD<Object, Long> input,
+                                                           final Direction direction) {
+        return input.mapPartitionsToPair(iterator -> {
+            int total = 0;
+            final List<Tuple2<Object, Long>> results = new ArrayList<>();
+            final int bufferSize = 5000;
+            try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
+                final Map<Object, Long> idToEdgeCount = new ConcurrentHashMap<>();
+                while (iterator.hasNext()) {
+                    final Tuple2<Object, Long> row = iterator.next();
+                    idToEdgeCount.put(row._1, row._2);
+                    if (idToEdgeCount.size() > bufferSize) {
+                        batchReadToTuple(direction, results, graph, idToEdgeCount);
+                    }
+                    total += idToEdgeCount.size();
+                    idToEdgeCount.clear();
+                }
+                batchReadToTuple(direction, results, graph, idToEdgeCount);
+                total += idToEdgeCount.size();
+                //graph.writeSupernodeProgress(total);
+                idToEdgeCount.clear();
+            }
+            return results.iterator();
+        });
+    }
+
+    private void batchReadToTuple(final Direction direction,
+                                  final List<Tuple2<Object, Long>> results,
+                                  final FireflyGraph graph,
+                                  final Map<Object, Long> idToEdgeCount) {
+        List<FireflyVertex> vertices;
+        int tryCount = 0;
+        while (true) {
+            try {
+                // No has containers, also we are pushing down the ids to the graph to read in bulk omitting properties.
+                vertices = graph.readVertices(List.of(),
+                        idToEdgeCount.keySet().stream().map(id ->
+                                graph.getIdFactory().createId(id, FireflyVertex.class)).collect(Collectors.toList()),
+                        List.of());
+                break;
+            } catch (final AerospikeException ae) {
+                final FireflyLoadingException fle = new FireflyLoadingException(ae);
+                if (!fle.isRetryable()) {
+                    LOGGER.error("Failed to batch read vertices for supernode detection.", ae);
+                    throw ae;
+                } else if (++tryCount > RETRY_LIMIT) {
+                    LOGGER.error("Failed to batch read vertices for supernode detection. " + tryCount + " attempts.", ae);
+                    throw ae;
+                } else {
+                    LOGGER.warn("Failed to batch read vertices for supernode detection. Attempt count: " + tryCount + ".", ae);
+                    exponentialBackoff(tryCount);
+                }
+            }
+        }
+        for (final FireflyVertex vertex : vertices) {
+            long existingEdgeCount = vertex.getEdgeCount(direction);
+            final Long newEdgeCount = idToEdgeCount.remove(vertex.id());
+            results.add(new Tuple2<>(vertex.id.getUserId(), newEdgeCount + existingEdgeCount));
+        }
+        idToEdgeCount.forEach((id, count) -> results.add(new Tuple2<>(id, count)));
+    }
+
     public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset, final long onRecordIdLimit, final boolean incremental) {
         final Configuration fireflyConfig = this.config.getFireflyConfig();
         // If the global edge cache flag is off, then all vertices written have their edge caches disabled upon
@@ -338,54 +400,8 @@ public class EdgeOperations implements Serializable {
 
             // Go through ids of RDD and read the vertex to check the number of existing edges on the vertex and add this as a column to our RDD.
             if (incremental) {
-                fromCountPairRDD = fromCountPairRDD.mapPartitionsToPair(iterator -> {
-                    final int bufferSize = 5000;
-                    final List<Tuple2<Object, Long>> results = new ArrayList<>();
-                    try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
-                        final Map<Object, Long> idToEdgeCount = new ConcurrentHashMap<>();
-                        while (iterator.hasNext()) {
-                            final Tuple2<Object, Long> row = iterator.next();
-                            idToEdgeCount.put(row._1, row._2);
-                            if (idToEdgeCount.size() > bufferSize) {
-                                // No has containers, also we are pushing down the ids to the graph to read in bulk omitting properties.
-                                List<FireflyVertex> vertices = graph.readVertices(List.of(),
-                                        idToEdgeCount.keySet().stream().map(id -> graph.getIdFactory().createId(id, FireflyVertex.class)).collect(Collectors.toList()),
-                                        List.of());
-                                for (FireflyVertex vertex : vertices) {
-                                    long existingEdgeCount = vertex.getEdgeCount(Direction.IN);
-                                    final Long newEdgeCount = idToEdgeCount.remove(vertex.id());
-                                    results.add(new Tuple2<>(vertex.id.getUserId(), newEdgeCount + existingEdgeCount));
-                                }
-                                idToEdgeCount.forEach((id, count) -> results.add(new Tuple2<>(id, count)));
-                            }
-                        }
-                    }
-                    return results.iterator();
-                });
-                toCountPairRDD = toCountPairRDD.mapPartitionsToPair(iterator -> {
-                    final int bufferSize = 5000;
-                    final List<Tuple2<Object, Long>> results = new ArrayList<>();
-                    try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
-                        final Map<Object, Long> idToEdgeCount = new ConcurrentHashMap<>();
-                        while (iterator.hasNext()) {
-                            final Tuple2<Object, Long> row = iterator.next();
-                            idToEdgeCount.put(row._1, row._2);
-                            if (idToEdgeCount.size() > bufferSize) {
-                                // No has containers, also we are pushing down the ids to the graph to read in bulk omitting properties.
-                                List<FireflyVertex> vertices = graph.readVertices(List.of(),
-                                        idToEdgeCount.keySet().stream().map(id -> graph.getIdFactory().createId(id, FireflyVertex.class)).collect(Collectors.toList()),
-                                        List.of());
-                                for (FireflyVertex vertex : vertices) {
-                                    long existingEdgeCount = vertex.getEdgeCount(Direction.OUT);
-                                    final Long newEdgeCount = idToEdgeCount.remove(vertex.id());
-                                    results.add(new Tuple2<>(vertex.id.getUserId(), newEdgeCount + existingEdgeCount));
-                                }
-                                idToEdgeCount.forEach((id, count) -> results.add(new Tuple2<>(id, count)));
-                            }
-                        }
-                    }
-                    return results.iterator();
-                });
+                fromCountPairRDD = readExistingVertices(fromCountPairRDD, Direction.IN);
+                toCountPairRDD = readExistingVertices(toCountPairRDD, Direction.OUT);
             }
             // If so we can optimize the edge writes.
 

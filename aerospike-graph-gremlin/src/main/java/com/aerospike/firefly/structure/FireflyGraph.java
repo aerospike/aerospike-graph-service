@@ -454,10 +454,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                         .option(Merge.onCreate, propertiesCreate).iterate();
                 break;
             } catch (final IllegalArgumentException e) {
-                LOG.warn("Failed to merge vertex with ID: " + id + " due to: " + e.getMessage());
                 if (!e.getMessage().contains("Vertex with id already exists")) {
                     throw e;
                 }
+                // A mergeE can fail due to vertex with id already existing b/c it is not a true transaction and we may
+                // be inserting many updates to the vertex. However once the vertex does exist this should not fail a second time.
+                // Testing has shown that if this happens it tends to happen a lot so it is best left not logged and let the error come out later if
+                // the implementation is wrong.
                 if (tryCount > 0) {
                     throw e;
                 }

@@ -51,7 +51,7 @@ public class VertexWriteTask {
 
     public CompletionStage<Void> writeIncremental(final ScheduledExecutorService service) {
         final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
-            graph.mergeVertex(sparkVertex.getFireflyId(graph.getBaseGraph()), sparkVertex.getLabel(), sparkVertex.getProperties());
+            graph.mergeVertex(sparkVertex.getId(), sparkVertex.getLabel(), sparkVertex.getProperties());
             return null;
         }, service);
         return retry.withRetries(supplier, service).exceptionally(e -> {

@@ -437,7 +437,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return FireflyVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
     }
 
-    public void mergeVertex(final FireflyId id, final String label, final List<Map.Entry<String, Object>> properties) {
+    public void mergeVertex(final Object id, final String label, final List<Map.Entry<String, Object>> properties) {
         while (true) {
             try {
                 final Map<Object, Object> propertiesMatch = new HashMap<>();

@@ -311,7 +311,8 @@ public class EdgeOperations implements Serializable {
     }
 
     private JavaPairRDD<Object, Long> readExistingVertices(final JavaPairRDD<Object, Long> input,
-                                                           final Direction direction) {
+                                                           final Direction direction,
+                                                           final Long onRecordIdLimit) {
         return input.mapPartitionsToPair(iterator -> {
             int total = 0;
             final List<Tuple2<Object, Long>> results = new ArrayList<>();
@@ -322,12 +323,12 @@ public class EdgeOperations implements Serializable {
                     final Tuple2<Object, Long> row = iterator.next();
                     idToEdgeCount.put(row._1, row._2);
                     if (idToEdgeCount.size() > bufferSize) {
-                        batchReadToTuple(direction, results, graph, idToEdgeCount);
+                        batchReadToTuple(direction, results, graph, idToEdgeCount, onRecordIdLimit);
                     }
                     total += idToEdgeCount.size();
                     idToEdgeCount.clear();
                 }
-                batchReadToTuple(direction, results, graph, idToEdgeCount);
+                batchReadToTuple(direction, results, graph, idToEdgeCount, onRecordIdLimit);
                 total += idToEdgeCount.size();
                 //graph.writeSupernodeProgress(total);
                 idToEdgeCount.clear();
@@ -339,7 +340,8 @@ public class EdgeOperations implements Serializable {
     private void batchReadToTuple(final Direction direction,
                                   final List<Tuple2<Object, Long>> results,
                                   final FireflyGraph graph,
-                                  final Map<Object, Long> idToEdgeCount) {
+                                  final Map<Object, Long> idToEdgeCount,
+                                  final Long onRecordIdLimit) {
         List<FireflyVertex> vertices;
         int tryCount = 0;
         while (true) {
@@ -365,9 +367,16 @@ public class EdgeOperations implements Serializable {
             }
         }
         for (final FireflyVertex vertex : vertices) {
-            long existingEdgeCount = vertex.getEdgeCount(direction);
-            final Long newEdgeCount = idToEdgeCount.remove(vertex.id());
-            results.add(new Tuple2<>(vertex.id.getUserId(), newEdgeCount + existingEdgeCount));
+            if (vertex.isEdgeCacheOverflowed()) {
+                // If the edge cache is overflowed, we should not bother counting.
+                // We could be adding an edge to a supernode, and we don't want to count that.
+                results.add(new Tuple2<>(vertex.id.getUserId(), 2 * onRecordIdLimit));
+            } else {
+                // Edge cache is not overflowed so count it.
+                long existingEdgeCount = vertex.getEdgeCount(direction);
+                final Long newEdgeCount = idToEdgeCount.remove(vertex.id());
+                results.add(new Tuple2<>(vertex.id.getUserId(), newEdgeCount + existingEdgeCount));
+            }
         }
         idToEdgeCount.forEach((id, count) -> results.add(new Tuple2<>(id, count)));
     }
@@ -400,8 +409,8 @@ public class EdgeOperations implements Serializable {
 
             // Go through ids of RDD and read the vertex to check the number of existing edges on the vertex and add this as a column to our RDD.
             if (incremental) {
-                fromCountPairRDD = readExistingVertices(fromCountPairRDD, Direction.IN);
-                toCountPairRDD = readExistingVertices(toCountPairRDD, Direction.OUT);
+                fromCountPairRDD = readExistingVertices(fromCountPairRDD, Direction.IN, onRecordIdLimit);
+                toCountPairRDD = readExistingVertices(toCountPairRDD, Direction.OUT, onRecordIdLimit);
             }
             // If so we can optimize the edge writes.
 

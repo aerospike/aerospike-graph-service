@@ -87,7 +87,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
 
         // Look for Lambda functions for security reasons.
         // TinkerPop conveniently has a strategy for this.
-        // applyTinkerPopStrategy(traversal, LambdaRestrictionStrategy.instance());
+        applyTinkerPopStrategy(traversal, LambdaRestrictionStrategy.instance());
 
         // Perform auth strategy before we mutate anything.
         applyStrategy(traversal, fireflyAuthenticationStrategy);

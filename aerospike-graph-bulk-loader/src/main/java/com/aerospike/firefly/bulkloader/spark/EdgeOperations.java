@@ -322,8 +322,8 @@ public class EdgeOperations implements Serializable {
                     idToEdgeCount.put(row._1, row._2);
                     if (idToEdgeCount.size() > bufferSize) {
                         batchReadToTuple(direction, results, graph, idToEdgeCount, onRecordIdLimit);
+                        idToEdgeCount.clear();
                     }
-                    idToEdgeCount.clear();
                 }
                 batchReadToTuple(direction, results, graph, idToEdgeCount, onRecordIdLimit);
                 idToEdgeCount.clear();
@@ -371,6 +371,10 @@ public class EdgeOperations implements Serializable {
                 long existingEdgeCount = vertex.getEdgeCount(direction);
                 final Long newEdgeCount = idToEdgeCount.remove(vertex.id());
                 results.add(new Tuple2<>(vertex.id.getUserId(), newEdgeCount + existingEdgeCount));
+                if (newEdgeCount + existingEdgeCount >= onRecordIdLimit) {
+                    // This is going to become a supernode, mark it now.
+                    vertex.setCacheDisabled();
+                }
             }
         }
         idToEdgeCount.forEach((id, count) -> results.add(new Tuple2<>(id, count)));

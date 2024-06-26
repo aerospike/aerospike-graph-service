@@ -142,14 +142,13 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             final Dataset<Row> edgeDataset = DatasetOperations.loadDataset(spark, edgeDirectories,
                     EdgeOperations.REQUIRED_EDGE_HEADERS, DatasetOperations.getDfStorageLevel(config));
 
-            initializeProgressBar(initializerGraph);
 
             boolean incrementalLoad = false;
             if (config.hasAction(INCREMENTAL_LOAD)) {
                 LOGGER.info("Incremental load mode detected.");
-                PROGRESS_BAR.incrementalLoad();
                 incrementalLoad = true;
             }
+            initializeProgressBar(initializerGraph, incrementalLoad);
 
             // Preflight check
             try {
@@ -239,10 +238,10 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
         }
     }
 
-    private static void initializeProgressBar(final FireflyGraph graph) {
+    private static void initializeProgressBar(final FireflyGraph graph, final boolean incremental) {
         try {
             // Once graph is set in progress bar, it will be used to update progress bar.
-            PROGRESS_BAR.setGraph(graph);
+            PROGRESS_BAR.initialize(graph, incremental);
             PROGRESS_BAR_TIMER.scheduleAtFixedRate(PROGRESS_BAR, 0, PROGRESS_BAR_INTERVAL_MS);
         } catch (final Exception e) {
             LOGGER.warn("Failed to start progress bar", e);

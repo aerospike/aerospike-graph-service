@@ -31,27 +31,21 @@ public class ProgressBar extends TimerTask {
         this.intervalMillis = intervalMillis;
     }
 
-    public void incrementalLoad() {
-        synchronized (ProgressBar.class) {
-            if (graph == null) {
-                return;
-            }
-            final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata =
-                    graph.fireflySummaryUpdater.getFireflyStatistics();
-            verticesInitial = elementMetadata.totalVertexCount();
-            edgesInitial = elementMetadata.totalEdgeCount();
-        }
-    }
-
     public void close() {
         if (graph != null) {
             graph.close();
         }
     }
 
-    public void setGraph(final FireflyGraph graph) {
+    public void initialize(final FireflyGraph graph, final boolean incrementalMode) {
         synchronized (ProgressBar.class) {
             this.graph = graph;
+            if (!incrementalMode) {
+                final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata =
+                        graph.fireflySummaryUpdater.getFireflyStatistics();
+                verticesInitial = elementMetadata.totalVertexCount();
+                edgesInitial = elementMetadata.totalEdgeCount();
+            }
         }
     }
 

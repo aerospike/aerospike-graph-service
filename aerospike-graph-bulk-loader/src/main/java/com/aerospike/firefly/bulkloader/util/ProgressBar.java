@@ -36,13 +36,11 @@ public class ProgressBar extends TimerTask {
             if (graph == null) {
                 return;
             }
-            final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata = graph.fireflySummaryUpdater.getFireflyStatistics();
-            if (elementMetadata.totalVertexCount() > verticesInitial) {
-                verticesInitial = elementMetadata.totalVertexCount();
-            }
-            if (elementMetadata.totalEdgeCount() > edgesInitial) {
-                edgesInitial = elementMetadata.totalEdgeCount();
-            }
+            final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata =
+                    graph.fireflySummaryUpdater.getFireflyStatistics();
+            verticesInitial = elementMetadata.totalVertexCount();
+            edgesInitial = elementMetadata.totalEdgeCount();
+            System.out.println("!!!!!!!!INCREMENTAL LOAD VERTICES AND EDGES: " + verticesInitial + " " + edgesInitial);
         }
     }
 
@@ -110,14 +108,16 @@ public class ProgressBar extends TimerTask {
 
     private String getVertexWritingProgress(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         if (vertexLoadComplete) {
+            final long totalVertexCount = elementMetadata.totalVertexCount();
+            System.out.println("!!!!!!!!VERTEX WRITING PROGRESS: " + verticesInitial);
+            System.out.println("!!!!!!!!VERTEX WRITING PROGRESS: " + totalVertexCount);
             return "\t\tVertex writing complete\n" +
-                    "\t\t\tTotal of " + (elementMetadata.totalVertexCount() - verticesInitial) + " vertices have been successfully written\n";
+                    "\t\t\tTotal of " + (totalVertexCount - verticesInitial) + " vertices have been successfully written\n";
         } else if (superNodeExtractionComplete) {
             if (verticesWritten == 0) {
                 updateAndGetDeltaVertexCount(elementMetadata);
                 return "\t\tVertex writing in progress\n";
             } else {
-                // TODO: Fix these total of counts.
                 final long delta = updateAndGetDeltaVertexCount(elementMetadata);
                 return "\t\tVertex writing in progress\n" +
                         "\t\t\tWriting " + delta / (intervalMillis / 1000) + " vertices per second\n" +
@@ -129,7 +129,6 @@ public class ProgressBar extends TimerTask {
     }
 
     private long updateAndGetDeltaVertexCount(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
-        System.out.println("vertices initial = " + verticesInitial);
         final long totalVertexCount = elementMetadata.totalVertexCount() - verticesInitial;
         final long delta = totalVertexCount - verticesWritten;
         verticesWritten = totalVertexCount;

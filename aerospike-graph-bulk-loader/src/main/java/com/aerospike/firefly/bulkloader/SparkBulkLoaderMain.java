@@ -80,6 +80,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             LOGGER.info("Shutting down DatasetOperations executor service");
             DatasetOperations.getScheduledThreadPoolService().shutdown();
         }));
+        boolean localMode = false;
         try {
             if (IN_PROGRESS.getAndSet(true)) {
                 LOGGER.error(JOB_ALREADY_RUNNING);
@@ -110,6 +111,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             FILE_SYSTEM_MUTABLE = true;
             final SparkSession spark = buildSparkSession(cmd);
             final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
+            localMode = cmd.hasOption(LOCAL_MODE);
             Objects.requireNonNull(configPath);
             final Map<String, Object> fileConfig = loadConfiguration(spark, cmd, configPath);
             LOGGER.info("Config: " + fileConfig);
@@ -231,8 +233,10 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
                 PROGRESS_BAR.close();
             }
 
-            // TODO: This could potentially be the reason kenny said our http server isnt working. LMFAO
-            HttpServer.close();
+            // Only close the HTTP server in L3. Not L2.
+            if (!localMode) {
+                HttpServer.close();
+            }
         }
     }
 

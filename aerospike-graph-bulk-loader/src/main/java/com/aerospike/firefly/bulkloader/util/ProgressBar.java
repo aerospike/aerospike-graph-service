@@ -108,11 +108,8 @@ public class ProgressBar extends TimerTask {
 
     private String getVertexWritingProgress(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         if (vertexLoadComplete) {
-            final long totalVertexCount = elementMetadata.totalVertexCount();
-            System.out.println("!!!!!!!!VERTEX WRITING PROGRESS: " + verticesInitial);
-            System.out.println("!!!!!!!!VERTEX WRITING PROGRESS: " + totalVertexCount);
             return "\t\tVertex writing complete\n" +
-                    "\t\t\tTotal of " + (totalVertexCount - verticesInitial) + " vertices have been successfully written\n";
+                    "\t\t\tTotal of " + (elementMetadata.totalVertexCount() - verticesInitial) + " vertices have been successfully written\n";
         } else if (superNodeExtractionComplete) {
             if (verticesWritten == 0) {
                 updateAndGetDeltaVertexCount(elementMetadata);
@@ -216,6 +213,11 @@ public class ProgressBar extends TimerTask {
                         getVertexValidationProgress() +
                         getEdgeWritingProgress(elementMetadata) +
                         getEdgeValidationProgress());
+                final Runtime javaRuntime = Runtime.getRuntime();
+                final long maxMemory = javaRuntime.maxMemory() / (1024 * 1024 * 1024);
+                final long totalMemory = javaRuntime.totalMemory() / (1024 * 1024 * 1024);
+                final long freeMemory = javaRuntime.freeMemory() / (1024 * 1024 * 1024);
+                LOGGER.info("\n\tJVM Memory Stats: max/total/free memory (GB) {}/{}/{}", maxMemory, totalMemory, freeMemory);
             } catch (final Exception e) {
                 LOGGER.error("Error occurred when grabbing metadata information for progress bar: ", e);
             }

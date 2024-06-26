@@ -205,6 +205,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private static final String GREMLIN_SERVER_YAML_PATH = "GREMLIN_SERVER_YAML_PATH";
     private static final String UNIFIED_CONFIG_PROPERTIES_PATH = "UNIFIED_CONFIG_PROPERTIES_PATH";
     private final Settings gremlinServerSettings;
+    private static final AtomicBoolean INFO_PRINTED = new AtomicBoolean(false);
 
     static {
         synchronized (TraversalStrategies.GlobalCache.class) {
@@ -297,8 +298,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         try {
             // FIREFLY_TESTING is set strictly by surefire plugin so not in any customer systems.
             // This makes our testing logs 100x smaller.
+            boolean infoPrinted = INFO_PRINTED.get();
             if (System.getenv("FIREFLY_TESTING") == null ||
-                    !System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
+                    !System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")
+                            && !infoPrinted) {
                 final Runtime javaRuntime = Runtime.getRuntime();
                 LOG.info("Java Runtime: {} available processors.", javaRuntime.availableProcessors());
                 LOG.info("Java Runtime: {} MB max memory.", javaRuntime.maxMemory() / (1024 * 1024));
@@ -325,6 +328,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             }
             LOG.info("Starting Aerospike Graph Service v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
 
+            INFO_PRINTED.set(true);
             if (ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf)) {
                 // If we are in bulk load mode, sleep between 0 and 1 second to allow Aerospike time between spark
                 // works initializing.

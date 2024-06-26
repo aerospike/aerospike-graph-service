@@ -130,13 +130,6 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             }
             initializerGraph.getBaseGraph().initialzeBulkLoadMetadata();
 
-            boolean incrementalLoad = false;
-            if (config.hasAction(INCREMENTAL_LOAD)) {
-                LOGGER.info("Incremental load mode detected.");
-                PROGRESS_BAR.incrementalLoad();
-                incrementalLoad = true;
-            }
-
             // Pre-processing
             final List<String> vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
             // FILE_SYSTEM cannot be mutated after vertex directory filesystem is checked
@@ -151,6 +144,13 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
                     EdgeOperations.REQUIRED_EDGE_HEADERS, DatasetOperations.getDfStorageLevel(config));
 
             initializeProgressBar(initializerGraph);
+
+            boolean incrementalLoad = false;
+            if (config.hasAction(INCREMENTAL_LOAD)) {
+                LOGGER.info("Incremental load mode detected.");
+                PROGRESS_BAR.incrementalLoad();
+                incrementalLoad = true;
+            }
 
             // Preflight check
             try {

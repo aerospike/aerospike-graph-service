@@ -188,8 +188,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             // Get the supernode threshold from Firefly config.
             final long onRecordIdLimit = initializerGraph.getBaseGraph().ON_RECORD_ID_LIMIT;
             LOGGER.info("Supernode threshold: " + onRecordIdLimit);
-            final Set<Object> supernodes;
-            supernodes = edgeOperations.extractSupernodes(edgeDataset, onRecordIdLimit, incrementalLoad);
+            final Set<Object> supernodes = edgeOperations.extractSupernodes(edgeDataset, onRecordIdLimit, incrementalLoad);
             PROGRESS_BAR.setSuperNodeExtractionComplete();
 
             // Vertex processing

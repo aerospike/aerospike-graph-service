@@ -40,7 +40,7 @@ public class ProgressBar extends TimerTask {
     public void initialize(final FireflyGraph graph, final boolean incrementalMode) {
         synchronized (ProgressBar.class) {
             this.graph = graph;
-            if (!incrementalMode) {
+            if (incrementalMode) {
                 final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata =
                         graph.fireflySummaryUpdater.getFireflyStatistics();
                 verticesInitial = elementMetadata.totalVertexCount();
@@ -205,16 +205,21 @@ public class ProgressBar extends TimerTask {
                         getVertexWritingProgress(elementMetadata) +
                         getVertexValidationProgress() +
                         getEdgeWritingProgress(elementMetadata) +
-                        getEdgeValidationProgress());
-                final Runtime javaRuntime = Runtime.getRuntime();
-                final long maxMemory = javaRuntime.maxMemory() / (1024 * 1024 * 1024);
-                final long totalMemory = javaRuntime.totalMemory() / (1024 * 1024 * 1024);
-                final long freeMemory = javaRuntime.freeMemory() / (1024 * 1024 * 1024);
-                LOGGER.info("\n\tJVM Memory Stats: max/total/free memory (GB) {}/{}/{}", maxMemory, totalMemory, freeMemory);
+                        getEdgeValidationProgress() +
+                        JVMMemoryStats());
             } catch (final Exception e) {
                 LOGGER.error("Error occurred when grabbing metadata information for progress bar: ", e);
             }
         }
+    }
+
+    public String JVMMemoryStats() {
+        final Runtime javaRuntime = Runtime.getRuntime();
+        final long maxMemory = javaRuntime.maxMemory() / (1024 * 1024 * 1024);
+        final long totalMemory = javaRuntime.totalMemory() / (1024 * 1024 * 1024);
+        final long freeMemory = javaRuntime.freeMemory() / (1024 * 1024 * 1024);
+        return String.format("\tJVM Memory Stats: max/total/free memory (GB) %s/%s/%s",
+                maxMemory, totalMemory, freeMemory);
     }
 
     @Override

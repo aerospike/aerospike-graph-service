@@ -40,7 +40,6 @@ public class ProgressBar extends TimerTask {
                     graph.fireflySummaryUpdater.getFireflyStatistics();
             verticesInitial = elementMetadata.totalVertexCount();
             edgesInitial = elementMetadata.totalEdgeCount();
-            System.out.println("!!!!!!!!INCREMENTAL LOAD VERTICES AND EDGES: " + verticesInitial + " " + edgesInitial);
         }
     }
 

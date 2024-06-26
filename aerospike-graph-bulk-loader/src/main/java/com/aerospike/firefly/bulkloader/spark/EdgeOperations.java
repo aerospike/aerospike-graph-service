@@ -77,7 +77,6 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_ENTRY_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.NULL_VALUE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
@@ -314,7 +313,6 @@ public class EdgeOperations implements Serializable {
                                                            final Direction direction,
                                                            final Long onRecordIdLimit) {
         return input.mapPartitionsToPair(iterator -> {
-            int total = 0;
             final List<Tuple2<Object, Long>> results = new ArrayList<>();
             final int bufferSize = 5000;
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
@@ -325,12 +323,9 @@ public class EdgeOperations implements Serializable {
                     if (idToEdgeCount.size() > bufferSize) {
                         batchReadToTuple(direction, results, graph, idToEdgeCount, onRecordIdLimit);
                     }
-                    total += idToEdgeCount.size();
                     idToEdgeCount.clear();
                 }
                 batchReadToTuple(direction, results, graph, idToEdgeCount, onRecordIdLimit);
-                total += idToEdgeCount.size();
-                //graph.writeSupernodeProgress(total);
                 idToEdgeCount.clear();
             }
             return results.iterator();

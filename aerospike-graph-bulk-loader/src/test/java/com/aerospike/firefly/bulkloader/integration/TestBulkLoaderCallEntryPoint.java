@@ -12,8 +12,11 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.bulkloader.integration.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
@@ -470,6 +473,13 @@ public class TestBulkLoaderCallEntryPoint {
                     with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-1.properties").iterate();
             Assert.assertEquals(12L, g.V().count().next().longValue());
             Assert.assertEquals(23L, g.E().count().next().longValue());
+            List<Map<Object, Object>> lyndon1 = g.V().has("name", "Lyndon").elementMap().toList();
+            Assert.assertEquals(1, lyndon1.size());
+            Assert.assertEquals(Set.of("Apache TinkerPop", "Aerospike"),
+                    ((List) lyndon1.get(0).get("companies")).stream().collect(Collectors.toSet()));
+            List<Object> simonDrives1 = g.V("simon").out("drives").id().toList();
+            Assert.assertEquals(1, simonDrives1.size());
+            Assert.assertEquals("GR86", simonDrives1.get(0));
 
             // Identical vertex merge.
             g.call("aerospike.graphloader.admin.bulk-load.load").
@@ -478,9 +488,9 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(12L, g.V().count().next().longValue());
             Assert.assertEquals(46L, g.E().count().next().longValue());
 
-            List<Object> simonDrives1 = g.V("simon").out("drives").id().toList();
-            Assert.assertEquals(1, simonDrives1.size());
-            Assert.assertEquals("GR86", simonDrives1.get(0));
+            List<Object> simonDrives2 = g.V("simon").out("drives").id().toList();
+            Assert.assertEquals(2, simonDrives2.size());
+            Assert.assertEquals(Set.of("GR86"), ((List) simonDrives2).stream().collect(Collectors.toSet()));
 
             g.call("aerospike.graphloader.admin.bulk-load.load").
                     with(INCREMENTAL_LOAD, true).
@@ -489,12 +499,15 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(70L, g.E().count().next().longValue());
             Assert.assertTrue(g.V().has("name", "simon").properties("isDope").toList().isEmpty());
 
-            List<Object> simonDrives2 = g.V("simon").out("drives").id().toList();
-            Assert.assertEquals(2, simonDrives2.size());
-            Assert.assertTrue(simonDrives2.contains("GR86"));
-            Assert.assertTrue(simonDrives2.contains("f150"));
-            g.V("simon").properties("isDope").toList().
-                    forEach(p -> Assert.assertEquals(true, p.value()));
+            List<Object> simonDrives3 = g.V("simon").out("drives").id().toList();
+            Assert.assertEquals(4, simonDrives3.size());
+            Assert.assertEquals(Set.of("GR86", "f150"), ((List) simonDrives3).stream().collect(Collectors.toSet()));
+            List<Map<Object, Object>> lyndon2 = g.V().has("name", "Lyndon1").elementMap().toList();
+            Assert.assertEquals(1, lyndon2.size());
+            Assert.assertEquals(Set.of("Apache TinkerPop1", "Aerospike"),
+                    ((List) lyndon2.get(0).get("companies")).stream().collect(Collectors.toSet()));
+            Assert.assertTrue(g.V().has("name", "Lyndon").toList().isEmpty());
+            g.V("simon").properties("isDope").toList().forEach(p -> Assert.assertEquals("true", p.value()));
         }
     }
 

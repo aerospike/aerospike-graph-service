@@ -15,6 +15,7 @@ public class ProgressBar extends TimerTask {
 
     private final int intervalMillis;
     private FireflyGraph graph = null;
+    private boolean isLocal = false;
     private boolean preflightCheckComplete = false;
     private boolean superNodeExtractionComplete = false;
     private boolean vertexLoadComplete = false;
@@ -52,6 +53,12 @@ public class ProgressBar extends TimerTask {
     public void setEdgeIdWriteComplete() {
         synchronized (ProgressBar.class) {
             this.edgeIdWriteComplete = true;
+        }
+    }
+
+    public void setIsLocal(final boolean isLocal) {
+        synchronized (ProgressBar.class) {
+            this.isLocal = isLocal;
         }
     }
 
@@ -214,12 +221,17 @@ public class ProgressBar extends TimerTask {
     }
 
     public String JVMMemoryStats() {
-        final Runtime javaRuntime = Runtime.getRuntime();
-        final long maxMemory = javaRuntime.maxMemory() / (1024 * 1024 * 1024);
-        final long totalMemory = javaRuntime.totalMemory() / (1024 * 1024 * 1024);
-        final long freeMemory = javaRuntime.freeMemory() / (1024 * 1024 * 1024);
-        return String.format("\tJVM Memory Stats: max/total/free memory (GB) %s/%s/%s",
-                maxMemory, totalMemory, freeMemory);
+        if (isLocal) {
+            final Runtime javaRuntime = Runtime.getRuntime();
+            final long maxMemory = javaRuntime.maxMemory() / (1024 * 1024 * 1024);
+            final long totalMemory = javaRuntime.totalMemory() / (1024 * 1024 * 1024);
+            final long freeMemory = javaRuntime.freeMemory() / (1024 * 1024 * 1024);
+            return String.format("\tJVM Memory Stats: max/total/free memory (GB) %s/%s/%s",
+                    maxMemory, totalMemory, freeMemory);
+        } else {
+            // In L3 mode, this information isn't useful. It is only meaningful in L2.
+            return "";
+        }
     }
 
     @Override

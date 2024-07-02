@@ -103,6 +103,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
 
             // new Timer(true) creates the timer as a daemon, which means that it will not prevent the JVM from exiting.
             PROGRESS_BAR = new ProgressBar(PROGRESS_BAR_INTERVAL_MS);
+            PROGRESS_BAR.setIsLocal(cmd.hasOption(LOCAL_MODE));
             PROGRESS_BAR_TIMER = new Timer(true);
 
             // Initialize Spark.

@@ -189,8 +189,10 @@ public class AerospikeConnection implements AutoCloseable {
     private final int READ_SLEEP_BETWEEN_RETRY;
     private final int WRITE_TOTAL_TIMEOUT;
     private final int READ_TOTAL_TIMEOUT;
+    private final int READ_TOTAL_TIMEOUT_BULK_LOAD;
     private final int WRITE_SOCKET_TIMEOUT;
     private final int READ_SOCKET_TIMEOUT;
+    private final int READ_SOCKET_TIMEOUT_BULK_LOAD;
     private final int CONNECT_TIMEOUT;
     private final int TIMEOUT_DELAY;
 
@@ -241,7 +243,6 @@ public class AerospikeConnection implements AutoCloseable {
 
         clientPolicy.maxConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf);
         clientPolicy.minConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE, conf);
-
         clientPolicy.timeout = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf);
         clientPolicy.eventLoops = eventLoops;
 
@@ -319,10 +320,18 @@ public class AerospikeConnection implements AutoCloseable {
         // Also, we don't want connections recycled, so keep min == max true.
         // We must add 2 because both the metadata updater thread and the cardinality metadata threads using the connection.
         //
-        // The bulk loader uses 2 * availableProcessors (+ 2 for the metadata updater thread and the cardinality metadata thread).
+        // The bulk loader uses 2 * availableProcessors + 2 for buffer + 8 for:
+        // - Metadata updater thread
+        // - Graph summary reader (via Progress bar)
+        // - Cardinality metadata
+        // - Index metadata
+        // - Graph summary writer
+        // - Usage stats writing
+        // - Usage stats reading (via prometheus)
+        // - TTL thread background worker
         //
         // Because of this, we need to use the greatest of either what the bulk loader would use or what gremlin-server would use.
-        return Math.max(2 * Runtime.getRuntime().availableProcessors() + 2, gremlinServerSettings.gremlinPool + 2);
+        return Math.max(2 * Runtime.getRuntime().availableProcessors() + 10, gremlinServerSettings.gremlinPool + 10);
     }
 
 
@@ -382,8 +391,10 @@ public class AerospikeConnection implements AutoCloseable {
         READ_SLEEP_BETWEEN_RETRY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_SLEEP_BETWEEN_RETRY, conf);
         WRITE_TOTAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.WRITE_TOTAL_TIMEOUT, conf);
         READ_TOTAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_TOTAL_TIMEOUT, conf);
+        READ_TOTAL_TIMEOUT_BULK_LOAD = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_TOTAL_TIMEOUT_BULK_LOAD, conf);
         WRITE_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.WRITE_SOCKET_TIMEOUT, conf);
         READ_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_SOCKET_TIMEOUT, conf);
+        READ_SOCKET_TIMEOUT_BULK_LOAD = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_SOCKET_TIMEOUT_BULK_LOAD, conf);
         CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CONNECT_TIMEOUT, conf);
         TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf);
 
@@ -1762,12 +1773,18 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public void configureReadPolicy(final Policy policy) {
+        final boolean bulkLoading = conf.getBoolean(ConfigurationHelper.Keys.BULK_LOADER_FLAG, false);
         policy.maxRetries = AEROSPIKE_MAX_RETRIES;
-        policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
-        policy.totalTimeout = READ_TOTAL_TIMEOUT;
-        policy.socketTimeout = READ_SOCKET_TIMEOUT;
         policy.connectTimeout = CONNECT_TIMEOUT;
         policy.timeoutDelay = TIMEOUT_DELAY;
+        policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
+        if (!bulkLoading) {
+            policy.totalTimeout = READ_TOTAL_TIMEOUT;
+            policy.socketTimeout = READ_SOCKET_TIMEOUT;
+        } else {
+            policy.totalTimeout = READ_TOTAL_TIMEOUT_BULK_LOAD;
+            policy.socketTimeout = READ_SOCKET_TIMEOUT_BULK_LOAD;
+        }
     }
 
     public void configureScanPolicy(final ScanPolicy policy) {

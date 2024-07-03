@@ -79,7 +79,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             LOGGER.info("Shutting down DatasetOperations executor service");
             DatasetOperations.getScheduledThreadPoolService().shutdown();
         }));
-        boolean localMode = false;
+        boolean isL2Mode = false;
         try {
             if (IN_PROGRESS.getAndSet(true)) {
                 LOGGER.error(JOB_ALREADY_RUNNING);
@@ -103,7 +103,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
 
             // new Timer(true) creates the timer as a daemon, which means that it will not prevent the JVM from exiting.
             PROGRESS_BAR = new ProgressBar(PROGRESS_BAR_INTERVAL_MS);
-            PROGRESS_BAR.setIsLocal(cmd.hasOption(LOCAL_MODE));
+            PROGRESS_BAR.setIsL2Mode(cmd.hasOption(LOCAL_MODE));
             PROGRESS_BAR_TIMER = new Timer(true);
 
             // Initialize Spark.
@@ -111,7 +111,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             FILE_SYSTEM_MUTABLE = true;
             final SparkSession spark = buildSparkSession(cmd);
             final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
-            localMode = cmd.hasOption(LOCAL_MODE);
+            isL2Mode = cmd.hasOption(LOCAL_MODE);
             Objects.requireNonNull(configPath);
             final Map<String, Object> fileConfig = loadConfiguration(spark, cmd, configPath);
             LOGGER.info("Config: " + fileConfig);
@@ -233,7 +233,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             }
 
             // Only close the HTTP server in L3. Not L2.
-            if (!localMode) {
+            if (!isL2Mode) {
                 HttpServer.close();
             }
         }

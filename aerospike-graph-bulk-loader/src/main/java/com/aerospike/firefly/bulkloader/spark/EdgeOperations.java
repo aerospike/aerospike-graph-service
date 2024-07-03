@@ -314,8 +314,8 @@ public class EdgeOperations implements Serializable {
                                                            final Long onRecordIdLimit) {
         return input.mapPartitionsToPair(iterator -> {
             final List<Tuple2<Object, Long>> results = new ArrayList<>();
-            final int bufferSize = 5000;
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
+                final int bufferSize = graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE;
                 final Map<Object, Long> idToEdgeCount = new ConcurrentHashMap<>();
                 while (iterator.hasNext()) {
                     final Tuple2<Object, Long> row = iterator.next();

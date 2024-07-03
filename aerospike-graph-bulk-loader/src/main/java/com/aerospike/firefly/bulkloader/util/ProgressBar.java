@@ -15,7 +15,7 @@ public class ProgressBar extends TimerTask {
 
     private final int intervalMillis;
     private FireflyGraph graph = null;
-    private boolean isLocal = false;
+    private boolean isL2Mode = false;
     private boolean preflightCheckComplete = false;
     private boolean superNodeExtractionComplete = false;
     private boolean vertexLoadComplete = false;
@@ -56,9 +56,9 @@ public class ProgressBar extends TimerTask {
         }
     }
 
-    public void setIsLocal(final boolean isLocal) {
+    public void setIsL2Mode(final boolean isL2Mode) {
         synchronized (ProgressBar.class) {
-            this.isLocal = isLocal;
+            this.isL2Mode = isL2Mode;
         }
     }
 
@@ -221,7 +221,7 @@ public class ProgressBar extends TimerTask {
     }
 
     public String JVMMemoryStats() {
-        if (isLocal) {
+        if (isL2Mode) {
             final Runtime javaRuntime = Runtime.getRuntime();
             final long maxMemory = javaRuntime.maxMemory() / (1024 * 1024 * 1024);
             final long totalMemory = javaRuntime.totalMemory() / (1024 * 1024 * 1024);

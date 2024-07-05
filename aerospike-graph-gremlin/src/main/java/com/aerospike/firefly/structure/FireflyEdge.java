@@ -79,6 +79,8 @@ public class FireflyEdge extends FireflyElement implements Edge {
     public static final int TYPE_HINTS_POSITION = 4;
     public static final int EDGE_DATA_SIZE = 5;
     public static final String EDGE_SUPERNODE_LABEL_KEY = T.label.getAccessor();
+    public static final String EDGE_SUPERNODE_OUT_KEY = "~OUT";
+    public static final String EDGE_SUPERNODE_IN_KEY = "~IN";
 
     protected final AerospikeConnection db;
     public boolean removed;
@@ -246,16 +248,26 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
 
         final List<Operation> operations = new ArrayList<>();
         final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-        // ID and Label
+        // Adjacent Vertex ID and Label
         if (isOutSupernode) {
             final Operation labelOperation = MapOperation.put(policy, binName, edgeUniqueId, Value.get(label),
                     CTX.mapKeyCreate(outVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_LABEL_KEY), MapOrder.KEY_ORDERED));
             operations.add(labelOperation);
+            if (graph.getBaseGraph().isMergeEdgeDataModelEnabled) {
+                final Operation adjacentVOperation = MapOperation.put(policy, binName, edgeUniqueId, inVIdValue,
+                        CTX.mapKeyCreate(outVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_IN_KEY), MapOrder.KEY_ORDERED));
+                operations.add(adjacentVOperation);
+            }
         }
         if (isInSupernode) {
             final Operation labelOperation = MapOperation.put(policy, binName, edgeUniqueId, Value.get(label),
                     CTX.mapKeyCreate(inVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_LABEL_KEY), MapOrder.KEY_ORDERED));
             operations.add(labelOperation);
+            if (graph.getBaseGraph().isMergeEdgeDataModelEnabled) {
+                final Operation adjacentVOperation = MapOperation.put(policy, binName, edgeUniqueId, outVIdValue,
+                        CTX.mapKeyCreate(inVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_OUT_KEY), MapOrder.KEY_ORDERED));
+                operations.add(adjacentVOperation);
+            }
         }
         // Properties
         for (final Map.Entry<String, Object> property : propertyMap.entrySet()) {
@@ -416,7 +428,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
                     appendRemoveFilterableSupernodePropertyOperation(this, property.getKey(), operations);
                 }
             }
-            // Remove ID and label pushdowns
+            // Remove adjacent Vertex ID and label pushdowns
             final Exp edgeUniqueId = Exp.val(((FireflyPhatEdgeId) this.id).getUniqueId());
             final Exp supernodePBinExp = Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN);
             final CTX labelMapKeyCtx = CTX.mapKey(Value.get(EDGE_SUPERNODE_LABEL_KEY));
@@ -430,6 +442,14 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
                 final Operation removeEdgeIdToLabel = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN,
                         removeEdgeIdToLabelExp, writeFlags);
                 operations.add(removeEdgeIdToLabel);
+                if (db.isMergeEdgeDataModelEnabled) {
+                    final Expression removeAdjacentVIdExp = Exp.build(
+                            MapExp.removeByKey(edgeUniqueId, supernodePBinExp,
+                                    CTX.mapKey(outVIdValue), CTX.mapKey(Value.get(EDGE_SUPERNODE_IN_KEY))));
+                    final Operation removeAdjacentVId = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN,
+                            removeAdjacentVIdExp, writeFlags);
+                    operations.add(removeAdjacentVId);
+                }
                 // Remove entire vertex id key if label key is empty since that means there are no items
                 final Expression removeVidKeyExp = Exp.build(
                         Exp.cond(
@@ -452,6 +472,14 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
                 final Operation removeEdgeIdToLabel = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN,
                         removeEdgeIdToLabelExp, writeFlags);
                 operations.add(removeEdgeIdToLabel);
+                if (db.isMergeEdgeDataModelEnabled) {
+                    final Expression removeAdjacentVIdExp = Exp.build(
+                            MapExp.removeByKey(edgeUniqueId, supernodePBinExp,
+                                    CTX.mapKey(inVidValue), CTX.mapKey(Value.get(EDGE_SUPERNODE_OUT_KEY))));
+                    final Operation removeAdjacentVId = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN,
+                            removeAdjacentVIdExp, writeFlags);
+                    operations.add(removeAdjacentVId);
+                }
                 // Remove entire vertex id key if label key is empty since that means there are no items
                 final Expression removeVidKeyExp = Exp.build(
                         Exp.cond(
@@ -706,10 +734,13 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
     }
 
     private void removeFromOut() {
-        final FireflyVertex outVertex = this.graph.readVertex(this.outVid);
-        if (outVertex != null) {
-            final FireflyIdFactory idFactory = this.graph.getIdFactory();
-            outVertex.removeEdge(Direction.OUT, idFactory.createCompositeEdgeId(this.id, this.inVid), this.label);
+        // If OUT is a supernode it means this Edge does not exist on its record so skip reading it.
+        if (!this.isOutSupernode) {
+            final FireflyVertex outVertex = this.graph.readVertex(this.outVid);
+            if (outVertex != null) {
+                final FireflyIdFactory idFactory = this.graph.getIdFactory();
+                outVertex.removeEdge(Direction.OUT, idFactory.createCompositeEdgeId(this.id, this.inVid), this.label);
+            }
         }
     }
 
@@ -719,10 +750,13 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
     }
 
     private void removeFromIn() {
-        final FireflyVertex inVertex = this.graph.readVertex(this.inVid);
-        if (inVertex != null) {
-            final FireflyIdFactory idFactory = this.graph.getIdFactory();
-            inVertex.removeEdge(Direction.IN, idFactory.createCompositeEdgeId(this.id, this.outVid), this.label);
+        // If IN is a supernode it means this Edge does not exist on its record so skip reading it.
+        if (!this.isInSupernode) {
+            final FireflyVertex inVertex = this.graph.readVertex(this.inVid);
+            if (inVertex != null) {
+                final FireflyIdFactory idFactory = this.graph.getIdFactory();
+                inVertex.removeEdge(Direction.IN, idFactory.createCompositeEdgeId(this.id, this.outVid), this.label);
+            }
         }
     }
 

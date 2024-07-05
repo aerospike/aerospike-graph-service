@@ -8,6 +8,7 @@ import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
 import org.apache.spark.sql.Dataset;
@@ -15,9 +16,12 @@ import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.util.CollectionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +30,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -61,12 +67,11 @@ public class VertexOperations implements Serializable {
         unionVertexDS.foreachPartition(rowIterator -> {
             final int partitionId = TaskContext.getPartitionId();
             LOGGER.info("Starting to write VertexDataset in PartitionId: " + partitionId);
-
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
                 final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);
                 final long allowBadEntryCount = this.config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
                 final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
-                final ExponentialBackoffRetry retry = new ExponentialBackoffRetry("vertex-write-partitionid-"+ partitionId);
+                final ExponentialBackoffRetry retry = new ExponentialBackoffRetry("vertex-write-partitionid-" + partitionId);
                 final int bufferSize = getVertexWriteBufferSize();
                 LOGGER.info(String.format("Vertex write buffer size %d", bufferSize));
 
@@ -91,7 +96,11 @@ public class VertexOperations implements Serializable {
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNS_TO_REMOVE);
                     try {
                         final VertexWriteTask vwt = new VertexWriteTask(retry, nullValue, graph, fireflyRow, metadataRow, supernodes);
-                        futures.add(vwt.write(executor));
+                        if (config.hasAction(BulkLoaderConfigHelper.INCREMENTAL_LOAD)) {
+                            futures.add(vwt.writeIncremental(executor));
+                        } else {
+                            futures.add(vwt.write(executor));
+                        }
                     } catch (final FireflyBulkLoaderException e) {
                         if (allowBadEntryCount == 0) {
                             throw e;
@@ -115,7 +124,7 @@ public class VertexOperations implements Serializable {
     }
 
     private void verifyVertices(final Dataset<Row> sampledVertexDatasets) {
-        final String errMessage= "Error occurred while verifying vertices; see logs for more details.";
+        final String errMessage = "Error occurred while verifying vertices; see logs for more details.";
         sampledVertexDatasets.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);
 

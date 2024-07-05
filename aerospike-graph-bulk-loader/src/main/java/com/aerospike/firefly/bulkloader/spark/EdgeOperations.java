@@ -325,8 +325,10 @@ public class EdgeOperations implements Serializable {
                         idToEdgeCount.clear();
                     }
                 }
-                batchReadToTuple(direction, results, graph, idToEdgeCount, onRecordIdLimit);
-                idToEdgeCount.clear();
+                if (!idToEdgeCount.isEmpty()) {
+                    batchReadToTuple(direction, results, graph, idToEdgeCount, onRecordIdLimit);
+                    idToEdgeCount.clear();
+                }
             }
             return results.iterator();
         });
@@ -361,11 +363,12 @@ public class EdgeOperations implements Serializable {
                 }
             }
         }
+        final long overflow = 2 * onRecordIdLimit;
         for (final FireflyVertex vertex : vertices) {
             if (vertex.isEdgeCacheOverflowed()) {
                 // If the edge cache is overflowed, we should not bother counting.
                 // We could be adding an edge to a supernode, and we don't want to count that.
-                results.add(new Tuple2<>(vertex.id.getUserId(), 2 * onRecordIdLimit));
+                results.add(new Tuple2<>(vertex.id.getUserId(), overflow));
             } else {
                 // Edge cache is not overflowed so count it.
                 long existingEdgeCount = vertex.getEdgeCount(direction);

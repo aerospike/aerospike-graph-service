@@ -12,7 +12,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -184,13 +186,23 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
 
         } else if (fromId != null && toId != null) {
             LOG.info("Using FireflyMergeEdgeStep to obtain Edges between FROM Vertex {} and TO Vertex {}", fromId, toId);
-            final Iterator<Vertex> fromVIter = graph.vertices(fromId);
-            final Iterator<Vertex> toVIter = graph.vertices(toId);
-            if (!fromVIter.hasNext() || !toVIter.hasNext()) {
+            final FireflyGraph fireflyGraph = (FireflyGraph) graph;
+            final FireflyId fromVId = fireflyGraph.getIdFactory().createId(fromId, FireflyVertex.class);
+            final FireflyId toVId = fireflyGraph.getIdFactory().createId(toId, FireflyVertex.class);
+            final List<FireflyVertex> fromVAndToV = fireflyGraph.readVertices(Collections.emptyList(),
+                    List.of(fromVId, toVId), Collections.emptyList());
+            FireflyVertex fromV = null;
+            FireflyVertex toV = null;
+            for (final FireflyVertex vertex : fromVAndToV) {
+                if (vertex.id.equals(fromVId)) {
+                    fromV = vertex;
+                } else if (vertex.id.equals(toVId)) {
+                    toV = vertex;
+                }
+            }
+            if (fromV == null || toV == null) {
                 return CloseableIterator.of(Collections.emptyIterator());
             }
-            final FireflyVertex fromV = (FireflyVertex) fromVIter.next();
-            final FireflyVertex toV = (FireflyVertex) toVIter.next();
 
             // Get property filters
             final Map<String, Object> propertyFilters = new HashMap<>();

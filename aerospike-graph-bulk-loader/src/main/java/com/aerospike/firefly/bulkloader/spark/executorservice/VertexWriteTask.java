@@ -43,8 +43,19 @@ public class VertexWriteTask {
         fireflyId = sparkVertex.getFireflyId(this.graph.getBaseGraph());
     }
 
-    public CompletionStage<Void> write(final ScheduledExecutorService service) {
+    public CompletionStage<Void> writeIncremental(final ScheduledExecutorService service) {
+        final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
+            graph.mergeVertex(sparkVertex.getId(), sparkVertex.getLabel(), sparkVertex.getProperties());
+            return null;
+        }, service);
+        return retry.withRetries(supplier, service).exceptionally(e -> {
+            // Log the error when no longer retrying
+            LOGGER.error(String.format("Exception occurred during Vertex writing %s", this), e);
+            throw new RuntimeException(e);
+        });
+    }
 
+    public CompletionStage<Void> write(final ScheduledExecutorService service) {
         final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
             this.graph.bulkWriteVertex(fireflyId, sparkVertex.getLabel(),
                     sparkVertex.getProperties(), isSupernode());

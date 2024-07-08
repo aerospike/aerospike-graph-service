@@ -38,6 +38,7 @@ import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DUPLICATE_
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_ENTRY_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_DUPLICATE_VERTEX_ID_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.NULL_VALUE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
@@ -188,7 +189,11 @@ public class Validations {
     public static void dryRunVertices(final Dataset<Row> vertices, final BulkLoaderConfigHelper config) {
         final Instant start = Instant.now();
         long badEntryCount = dryRunVertexCreation(vertices, config);
-        long duplicateIdCount = validateNoDuplicateVertexIds(vertices, config);
+
+        long duplicateIdCount = 0;
+        if (!config.hasAction(INCREMENTAL_LOAD)) {
+            duplicateIdCount = validateNoDuplicateVertexIds(vertices, config);
+        }
         LOGGER.info("Completed dryRunVertices; time taken (in seconds): {}", Duration.between(start,Instant.now()).getSeconds());
 
         if (duplicateIdCount > 0 || badEntryCount > 0) {

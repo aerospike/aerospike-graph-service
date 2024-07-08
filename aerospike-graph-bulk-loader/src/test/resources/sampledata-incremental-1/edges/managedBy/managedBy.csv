@@ -1,0 +1,8 @@
+~id,~label,~from,~to
+8,managedBy,4,2
+9,managedBy,5,2
+20,managedBy,"lyndon","grant"
+21,managedBy,"simon","grant"
+22,managedBy,"grant","joe"
+23,managedBy,"lyndon","joe"
+24,managedBy,"simon","joe"

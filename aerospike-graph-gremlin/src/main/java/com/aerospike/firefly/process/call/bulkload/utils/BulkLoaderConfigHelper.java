@@ -64,6 +64,7 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String S3_ENDPOINT = "aerospike.graphloader.s3-endpoint";
 
     // ==Actions==
+    public static final String INCREMENTAL_LOAD = "incremental_load";
     public static final String VERIFY_OUTPUT_DATA = "verify_output_data";
     public static final String VALIDATE_INPUT_DATA = "validate_input_data";
     public static final String DISABLE_EDGE_WRITE = "disable_edges";

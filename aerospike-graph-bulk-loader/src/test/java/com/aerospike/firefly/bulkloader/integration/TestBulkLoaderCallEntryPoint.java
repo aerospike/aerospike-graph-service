@@ -1,6 +1,9 @@
 package com.aerospike.firefly.bulkloader.integration;
 
+import com.aerospike.client.Key;
+import com.aerospike.client.Record;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.sql.AnalysisException;
@@ -9,8 +12,16 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import static com.aerospike.firefly.bulkloader.integration.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 
 public class TestBulkLoaderCallEntryPoint {
     @Test
@@ -449,6 +460,141 @@ public class TestBulkLoaderCallEntryPoint {
                     .iterate();
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
+        }
+    }
+
+    @Test
+    public void testIncrementalLoad() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load").
+                    with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-1.properties").iterate();
+            Assert.assertEquals(12L, g.V().count().next().longValue());
+            Assert.assertEquals(23L, g.E().count().next().longValue());
+            List<Map<Object, Object>> lyndon1 = g.V().has("name", "Lyndon").elementMap().toList();
+            Assert.assertEquals(1, lyndon1.size());
+            Assert.assertEquals(Set.of("Apache TinkerPop", "Aerospike"),
+                    ((List) lyndon1.get(0).get("companies")).stream().collect(Collectors.toSet()));
+            List<Object> simonDrives1 = g.V("simon").out("drives").id().toList();
+            Assert.assertEquals(1, simonDrives1.size());
+            Assert.assertEquals("GR86", simonDrives1.get(0));
+
+            // Identical vertex merge.
+            g.call("aerospike.graphloader.admin.bulk-load.load").
+                    with(INCREMENTAL_LOAD, true).
+                    with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-1.properties").iterate();
+            Assert.assertEquals(12L, g.V().count().next().longValue());
+            Assert.assertEquals(46L, g.E().count().next().longValue());
+
+            List<Object> simonDrives2 = g.V("simon").out("drives").id().toList();
+            Assert.assertEquals(2, simonDrives2.size());
+            Assert.assertEquals(Set.of("GR86"), ((List) simonDrives2).stream().collect(Collectors.toSet()));
+
+            g.call("aerospike.graphloader.admin.bulk-load.load").
+                    with(INCREMENTAL_LOAD, true).
+                    with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-2.properties").iterate();
+            Assert.assertEquals(13L, g.V().count().next().longValue());
+            Assert.assertEquals(70L, g.E().count().next().longValue());
+            Assert.assertTrue(g.V().has("name", "simon").properties("isDope").toList().isEmpty());
+
+            List<Object> simonDrives3 = g.V("simon").out("drives").id().toList();
+            Assert.assertEquals(4, simonDrives3.size());
+            Assert.assertEquals(Set.of("GR86", "f150"), ((List) simonDrives3).stream().collect(Collectors.toSet()));
+            List<Map<Object, Object>> lyndon2 = g.V().has("name", "Lyndon1").elementMap().toList();
+            Assert.assertEquals(1, lyndon2.size());
+            Assert.assertEquals(Set.of("Apache TinkerPop1", "Aerospike"),
+                    ((List) lyndon2.get(0).get("companies")).stream().collect(Collectors.toSet()));
+            Assert.assertTrue(g.V().has("name", "Lyndon").toList().isEmpty());
+            g.V("simon").properties("isDope").toList().forEach(p -> Assert.assertEquals("true", p.value()));
+        }
+    }
+
+    @Test
+    public void testIncrementalLoadNewSupernode() {
+        // This test will test a dataset where there was previously not a supernode and we are adding to it such that it will
+        // become a supernode from the combination of the previous cache plus the new data.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            Assert.assertTrue(g.V("supernode").toList().isEmpty());
+            g.call("aerospike.graphloader.admin.bulk-load.load").
+                    with("aerospike.graphloader.config",
+                            "src/test/resources/conf/packed/config-incremental-new-supernode-initial.properties").iterate();
+            FireflyVertex supernode = (FireflyVertex) g.V("supernode").next();
+            Key supernodeKey = getKey(fireflyGraph.getBaseGraph(), fireflyGraph.getBaseGraph().VERTEX_AERO_SET, supernode.id);
+            Record r = fireflyGraph.getBaseGraph().read(supernodeKey, null);
+            Map<String, List<Object>> edgeCache = (Map) r.getMap(fireflyGraph.getBaseGraph().OUT_EDGES_BIN);
+            Assert.assertEquals(1, edgeCache.size());
+            Assert.assertEquals(1, edgeCache.get("edge").size());
+
+            // Only change we expect is that now this vertex is a supernode.
+            g.call("aerospike.graphloader.admin.bulk-load.load").
+                    with(INCREMENTAL_LOAD, true).
+                    with("aerospike.graphloader.config",
+                            "src/test/resources/conf/packed/config-incremental-new-supernode-incremental.properties").iterate();
+            supernode = (FireflyVertex) g.V("supernode").next();
+            supernodeKey = getKey(fireflyGraph.getBaseGraph(), fireflyGraph.getBaseGraph().VERTEX_AERO_SET, supernode.id);
+            r = fireflyGraph.getBaseGraph().read(supernodeKey, null);
+            edgeCache = (Map) r.getMap(fireflyGraph.getBaseGraph().OUT_EDGES_BIN);
+            Assert.assertEquals(1, edgeCache.size());
+            Assert.assertEquals(1, edgeCache.get("edge").size());
+            Assert.assertTrue(g.V("supernode").out().count().next() > fireflyGraph.getBaseGraph().ON_RECORD_ID_LIMIT);
+        }
+    }
+
+    @Test
+    public void testIncrementalLoadOldSupernode() {
+        // This test will test a dataset where there was previously a supernode and we are adding to it.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            Assert.assertTrue(g.V("supernode").toList().isEmpty());
+            g.call("aerospike.graphloader.admin.bulk-load.load").
+                    with("aerospike.graphloader.config",
+                            "src/test/resources/conf/packed/config-incremental-old-supernode-initial.properties").iterate();
+            FireflyVertex supernode = (FireflyVertex) g.V("supernode").next();
+            Key supernodeKey = getKey(fireflyGraph.getBaseGraph(), fireflyGraph.getBaseGraph().VERTEX_AERO_SET, supernode.id);
+            Record r = fireflyGraph.getBaseGraph().read(supernodeKey, null);
+            Map<String, List<Object>> edgeCache = (Map) r.getMap(fireflyGraph.getBaseGraph().OUT_EDGES_BIN);
+            Assert.assertEquals(0, edgeCache.size());
+            Assert.assertTrue(g.V("supernode").out().count().next() > fireflyGraph.getBaseGraph().ON_RECORD_ID_LIMIT);
+            final Long supernodeOutCount = g.V("supernode").out().count().next();
+
+            // Only change we expect is that there is now an additional edge on the supernode.
+            g.call("aerospike.graphloader.admin.bulk-load.load").
+                    with(INCREMENTAL_LOAD, true).
+                    with("aerospike.graphloader.config",
+                            "src/test/resources/conf/packed/config-incremental-old-supernode-incremental.properties").iterate();
+            FireflyVertex supernode2 = (FireflyVertex) g.V("supernode").next();
+            Key supernodeKey2 = getKey(fireflyGraph.getBaseGraph(), fireflyGraph.getBaseGraph().VERTEX_AERO_SET, supernode2.id);
+            Record r2 = fireflyGraph.getBaseGraph().read(supernodeKey2, null);
+            Map<String, List<Object>> edgeCache2 = (Map) r2.getMap(fireflyGraph.getBaseGraph().OUT_EDGES_BIN);
+            Assert.assertEquals(0, edgeCache2.size());
+            Assert.assertEquals(supernodeOutCount + 1, g.V("supernode").out().count().next().longValue());
+        }
+    }
+	
+	@Test
+    public void test500mCsvOnGcs() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            Assert.assertEquals(0, g.V().count().next().longValue());
+            Assert.assertEquals(0, g.E().count().next().longValue());
+            Assert.assertEquals("Success", g.with("evaluationTimeout", 120 * 60 * 1000)
+                    .call("aerospike.graphloader.admin.bulk-load.load")
+                    .with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties")
+                    .with("aerospike.graphloader.vertices", "gs://incremental-datasets/synthetic/500m/vertices/")
+                    .with("aerospike.graphloader.edges", "gs://incremental-datasets/synthetic/500m/edges/")
+                    .with("aerospike.graphloader.remote-user", System.getenv("GCS_PRIVATE_KEY_ID"))
+                    .with("aerospike.graphloader.remote-passkey", System.getenv("GCS_PRIVATE_KEY"))
+                    .with("aerospike.graphloader.gcs-email", System.getenv("GCS_CLIENT_EMAIL"))
+                    .next());
         }
     }
 }

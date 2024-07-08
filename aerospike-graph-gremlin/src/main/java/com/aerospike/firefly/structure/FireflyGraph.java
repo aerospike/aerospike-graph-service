@@ -59,6 +59,7 @@ import com.aerospike.firefly.util.WarmupUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
+import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
@@ -75,6 +76,7 @@ import org.apache.tinkerpop.gremlin.structure.service.ServiceRegistry;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
+import org.apache.tinkerpop.gremlin.util.CollectionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -178,7 +180,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static final String PRODUCT_NAME = "Aerospike Graph";
     private static final Logger LOG = LoggerFactory.getLogger(PRODUCT_NAME);
 
-    public static String FIREFLY_VERSION = "2.1.0";
+    public static String FIREFLY_VERSION = "2.2.0-SNAPSHOT";
     public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final Timer fireflyIndexMetadataTask = new Timer(true);
@@ -203,6 +205,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private static final String GREMLIN_SERVER_YAML_PATH = "GREMLIN_SERVER_YAML_PATH";
     private static final String UNIFIED_CONFIG_PROPERTIES_PATH = "UNIFIED_CONFIG_PROPERTIES_PATH";
     private final Settings gremlinServerSettings;
+    private static final AtomicBoolean INFO_PRINTED = new AtomicBoolean(false);
 
     static {
         synchronized (TraversalStrategies.GlobalCache.class) {
@@ -295,8 +298,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         try {
             // FIREFLY_TESTING is set strictly by surefire plugin so not in any customer systems.
             // This makes our testing logs 100x smaller.
+            boolean infoPrinted = INFO_PRINTED.get();
             if (System.getenv("FIREFLY_TESTING") == null ||
-                    !System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
+                    !System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")
+                            && !infoPrinted) {
                 final Runtime javaRuntime = Runtime.getRuntime();
                 LOG.info("Java Runtime: {} available processors.", javaRuntime.availableProcessors());
                 LOG.info("Java Runtime: {} MB max memory.", javaRuntime.maxMemory() / (1024 * 1024));
@@ -323,6 +328,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             }
             LOG.info("Starting Aerospike Graph Service v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
 
+            INFO_PRINTED.set(true);
             if (ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf)) {
                 // If we are in bulk load mode, sleep between 0 and 1 second to allow Aerospike time between spark
                 // works initializing.
@@ -433,6 +439,42 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final boolean isEdgeCacheOverflowed = !this.db.GLOBAL_EDGE_CACHE_ENABLED_FLAG ||
                 this.db.ON_RECORD_ID_LIMIT <= 0 || supernodeFlag != null;
         return FireflyVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
+    }
+
+    public void mergeVertex(final Object id, final String label, final List<Map.Entry<String, Object>> properties) {
+        int tryCount = 0;
+        while (true) {
+            try {
+                final Map<Object, Object> propertiesMatch = new HashMap<>();
+                properties.forEach(entry -> propertiesMatch.put(entry.getKey(), entry.getValue()));
+                final Map<Object, Object> propertiesCreate = new HashMap<>();
+                properties.forEach(entry -> propertiesCreate.put(entry.getKey(), entry.getValue()));
+                propertiesCreate.put(T.id, id);
+                propertiesCreate.put(T.label, label);
+                propertiesMatch.remove(T.id);
+                propertiesMatch.remove(T.label);
+                traversal().mergeV(CollectionUtil.asMap(T.id, id))
+                        .option(Merge.onMatch, propertiesMatch)
+                        .option(Merge.onCreate, propertiesCreate).iterate();
+                break;
+            } catch (final IllegalArgumentException e) {
+                if (!e.getMessage().contains("Vertex with id already exists")) {
+                    throw e;
+                }
+                // A mergeE can fail due to vertex with id already existing b/c it is not a true transaction and we may
+                // be inserting many updates to the vertex. However once the vertex does exist this should not fail a second time.
+                // Testing has shown that if this happens it tends to happen a lot so it is best left not logged and let the error come out later if
+                // the implementation is wrong.
+                if (tryCount > 0) {
+                    throw e;
+                }
+                tryCount++;
+            } catch (final VertexRecordSizeExceededException vrsee) {
+                throw new FireflyLoadingException((AerospikeException) vrsee.getCause(), vrsee.getMessage());
+            } catch (final AerospikeException ae) {
+                throw new FireflyLoadingException(ae);
+            }
+        }
     }
 
     public void bulkWriteVertex(final FireflyId idValue,

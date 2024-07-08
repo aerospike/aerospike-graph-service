@@ -15,6 +15,7 @@ public class ProgressBar extends TimerTask {
 
     private final int intervalMillis;
     private FireflyGraph graph = null;
+    private boolean isL2Mode = false;
     private boolean preflightCheckComplete = false;
     private boolean superNodeExtractionComplete = false;
     private boolean vertexLoadComplete = false;
@@ -24,6 +25,8 @@ public class ProgressBar extends TimerTask {
     private boolean edgeValidationComplete = false;
     private long verticesWritten = 0L;
     private long edgesWritten = 0L;
+    private long edgesInitial = 0L;
+    private long verticesInitial = 0L;
 
     public ProgressBar(final int intervalMillis) {
         this.intervalMillis = intervalMillis;
@@ -35,15 +38,27 @@ public class ProgressBar extends TimerTask {
         }
     }
 
-    public void setGraph(final FireflyGraph graph) {
+    public void initialize(final FireflyGraph graph, final boolean incrementalMode) {
         synchronized (ProgressBar.class) {
             this.graph = graph;
+            if (incrementalMode) {
+                final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata =
+                        graph.fireflySummaryUpdater.getFireflyStatistics();
+                verticesInitial = elementMetadata.totalVertexCount();
+                edgesInitial = elementMetadata.totalEdgeCount();
+            }
         }
     }
 
     public void setEdgeIdWriteComplete() {
         synchronized (ProgressBar.class) {
             this.edgeIdWriteComplete = true;
+        }
+    }
+
+    public void setIsL2Mode(final boolean isL2Mode) {
+        synchronized (ProgressBar.class) {
+            this.isL2Mode = isL2Mode;
         }
     }
 
@@ -94,7 +109,7 @@ public class ProgressBar extends TimerTask {
     private String getVertexWritingProgress(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         if (vertexLoadComplete) {
             return "\t\tVertex writing complete\n" +
-                    "\t\t\tTotal of " + elementMetadata.totalVertexCount() + " vertices have been successfully written\n";
+                    "\t\t\tTotal of " + (elementMetadata.totalVertexCount() - verticesInitial) + " vertices have been successfully written\n";
         } else if (superNodeExtractionComplete) {
             if (verticesWritten == 0) {
                 updateAndGetDeltaVertexCount(elementMetadata);
@@ -111,7 +126,7 @@ public class ProgressBar extends TimerTask {
     }
 
     private long updateAndGetDeltaVertexCount(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
-        final long totalVertexCount = elementMetadata.totalVertexCount();
+        final long totalVertexCount = elementMetadata.totalVertexCount() - verticesInitial;
         final long delta = totalVertexCount - verticesWritten;
         verticesWritten = totalVertexCount;
         return delta;
@@ -120,7 +135,7 @@ public class ProgressBar extends TimerTask {
     private String getEdgeWritingProgress(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         if (edgeLoadComplete) {
             return "\t\tEdge writing complete\n" +
-                    "\t\t\tTotal of " + elementMetadata.totalEdgeCount() + " edges have been successfully written\n";
+                    "\t\t\tTotal of " + (elementMetadata.totalEdgeCount() - edgesInitial) + " edges have been successfully written\n";
         } else if (vertexValidationComplete) {
             if (edgesWritten == 0) {
                 updateAndGetDeltaEdgeCount(elementMetadata);
@@ -137,7 +152,7 @@ public class ProgressBar extends TimerTask {
     }
 
     private long updateAndGetDeltaEdgeCount(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
-        final long totalEdgeCount = elementMetadata.totalEdgeCount();
+        final long totalEdgeCount = elementMetadata.totalEdgeCount() - edgesInitial;
         final long delta = totalEdgeCount - edgesWritten;
         edgesWritten = totalEdgeCount;
         return delta;
@@ -197,10 +212,25 @@ public class ProgressBar extends TimerTask {
                         getVertexWritingProgress(elementMetadata) +
                         getVertexValidationProgress() +
                         getEdgeWritingProgress(elementMetadata) +
-                        getEdgeValidationProgress());
+                        getEdgeValidationProgress() +
+                        JVMMemoryStats());
             } catch (final Exception e) {
                 LOGGER.error("Error occurred when grabbing metadata information for progress bar: ", e);
             }
+        }
+    }
+
+    public String JVMMemoryStats() {
+        if (isL2Mode) {
+            final Runtime javaRuntime = Runtime.getRuntime();
+            final long maxMemory = javaRuntime.maxMemory() / (1024 * 1024 * 1024);
+            final long totalMemory = javaRuntime.totalMemory() / (1024 * 1024 * 1024);
+            final long freeMemory = javaRuntime.freeMemory() / (1024 * 1024 * 1024);
+            return String.format("\tJVM Memory Stats: max/total/free memory (GB) %s/%s/%s",
+                    maxMemory, totalMemory, freeMemory);
+        } else {
+            // In L3 mode, this information isn't useful. It is only meaningful in L2.
+            return "";
         }
     }
 

@@ -11,6 +11,7 @@ import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Longs;
@@ -63,6 +64,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.exponentialBackoff;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNS_TO_REMOVE;
@@ -192,7 +194,7 @@ public class EdgeOperations implements Serializable {
     }
 
     public void verifySampleEdgesAfterWrite(final Dataset<Row> edgeDatasetsSample) {
-        final String errorMessage= "Error occurred while verifying edges; see logs for more details.";
+        final String errorMessage = "Error occurred while verifying edges; see logs for more details.";
         final int bufferSize = getEdgeWriteBufferSize();
         boolean hasEdgeID = Arrays.asList(edgeDatasetsSample.schema().fieldNames()).contains(EDGE_ID_COLUMN);
         edgeDatasetsSample.foreachPartition(rowIterator -> {
@@ -307,7 +309,81 @@ public class EdgeOperations implements Serializable {
         return usePersistedEdgeId ? EdgeOperations.decodeEdgeIDFromString(metadataRow.getAs(EDGE_ID_COLUMN)) : null;
     }
 
-    public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset, final long onRecordIdLimit) {
+    private JavaPairRDD<Object, Long> readExistingVertices(final JavaPairRDD<Object, Long> input,
+                                                           final Direction direction,
+                                                           final Long onRecordIdLimit) {
+        return input.mapPartitionsToPair(iterator -> {
+            final List<Tuple2<Object, Long>> results = new ArrayList<>();
+            try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
+                final int bufferSize = graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE;
+                final Map<Object, Long> idToEdgeCount = new ConcurrentHashMap<>();
+                while (iterator.hasNext()) {
+                    final Tuple2<Object, Long> row = iterator.next();
+                    idToEdgeCount.put(row._1, row._2);
+                    if (idToEdgeCount.size() > bufferSize) {
+                        batchReadToTuple(direction, results, graph, idToEdgeCount, onRecordIdLimit);
+                        idToEdgeCount.clear();
+                    }
+                }
+                if (!idToEdgeCount.isEmpty()) {
+                    batchReadToTuple(direction, results, graph, idToEdgeCount, onRecordIdLimit);
+                    idToEdgeCount.clear();
+                }
+            }
+            return results.iterator();
+        });
+    }
+
+    private void batchReadToTuple(final Direction direction,
+                                  final List<Tuple2<Object, Long>> results,
+                                  final FireflyGraph graph,
+                                  final Map<Object, Long> idToEdgeCount,
+                                  final Long onRecordIdLimit) {
+        List<FireflyVertex> vertices;
+        int tryCount = 0;
+        while (true) {
+            try {
+                // No has containers, also we are pushing down the ids to the graph to read in bulk omitting properties.
+                vertices = graph.readVertices(List.of(),
+                        idToEdgeCount.keySet().stream().map(id ->
+                                graph.getIdFactory().createId(id, FireflyVertex.class)).collect(Collectors.toList()),
+                        List.of());
+                break;
+            } catch (final AerospikeException ae) {
+                final FireflyLoadingException fle = new FireflyLoadingException(ae);
+                if (!fle.isRetryable()) {
+                    LOGGER.error("Failed to batch read vertices for supernode detection.", ae);
+                    throw ae;
+                } else if (++tryCount > RETRY_LIMIT) {
+                    LOGGER.error("Failed to batch read vertices for supernode detection. " + tryCount + " attempts.", ae);
+                    throw ae;
+                } else {
+                    LOGGER.warn("Failed to batch read vertices for supernode detection. Attempt count: " + tryCount + ".", ae);
+                    exponentialBackoff(tryCount);
+                }
+            }
+        }
+        final long overflow = 2 * onRecordIdLimit;
+        for (final FireflyVertex vertex : vertices) {
+            if (vertex.isEdgeCacheOverflowed()) {
+                // If the edge cache is overflowed, we should not bother counting.
+                // We could be adding an edge to a supernode, and we don't want to count that.
+                results.add(new Tuple2<>(vertex.id.getUserId(), overflow));
+            } else {
+                // Edge cache is not overflowed so count it.
+                long existingEdgeCount = vertex.getEdgeCount(direction);
+                final Long newEdgeCount = idToEdgeCount.remove(vertex.id());
+                results.add(new Tuple2<>(vertex.id.getUserId(), newEdgeCount + existingEdgeCount));
+                if (newEdgeCount + existingEdgeCount >= onRecordIdLimit) {
+                    // This is going to become a supernode, mark it now.
+                    vertex.setCacheDisabled();
+                }
+            }
+        }
+        idToEdgeCount.forEach((id, count) -> results.add(new Tuple2<>(id, count)));
+    }
+
+    public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset, final long onRecordIdLimit, final boolean incremental) {
         final Configuration fireflyConfig = this.config.getFireflyConfig();
         // If the global edge cache flag is off, then all vertices written have their edge caches disabled upon
         // creation. No need to find and disable them.
@@ -328,10 +404,17 @@ public class EdgeOperations implements Serializable {
                     new Tuple2<>(PropertyValueParser.parseId(row.getAs("~to")), 1L));
 
             // Aggregate together by keys (sum the count of how many times a vertex ID appeared).
-            final JavaPairRDD<Object, Long> fromCountPairRDD =
+            JavaPairRDD<Object, Long> fromCountPairRDD =
                     fromPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
-            final JavaPairRDD<Object, Long> toCountPairRDD =
+            JavaPairRDD<Object, Long> toCountPairRDD =
                     toPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
+
+            // Go through ids of RDD and read the vertex to check the number of existing edges on the vertex and add this as a column to our RDD.
+            if (incremental) {
+                fromCountPairRDD = readExistingVertices(fromCountPairRDD, Direction.IN, onRecordIdLimit);
+                toCountPairRDD = readExistingVertices(toCountPairRDD, Direction.OUT, onRecordIdLimit);
+            }
+            // If so we can optimize the edge writes.
 
             // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.
             final JavaPairRDD<Object, Long> filteredFromCountPairRDD = fromCountPairRDD.filter(

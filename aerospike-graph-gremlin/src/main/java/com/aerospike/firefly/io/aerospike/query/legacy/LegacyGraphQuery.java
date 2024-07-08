@@ -52,6 +52,7 @@ public class LegacyGraphQuery implements GraphQuery {
         statement.setSetName(setName);
         statement.setIndexName(indexName);
         statement.setFilter(filter);
+        db.configureReadPolicy(policy);
 
         return IteratorUtils.
                 stream(fireflyGraph.getBaseGraph().client.query(policy, statement))
@@ -64,13 +65,14 @@ public class LegacyGraphQuery implements GraphQuery {
         return fireflyGraph;
     }
 
-    public Iterator<KeyRecord> scanAllRecordsInSet(final String setName,
+    private Iterator<KeyRecord> scanAllRecordsInSet(final String setName,
                                                    final String mapKey,
                                                    final ScanPolicy policy,
                                                    final boolean sendKey,
                                                    final String... binNames) {
         final Monitor scanMonitor = new Monitor();
         policy.sendKey = sendKey;
+        db.configureScanPolicy(policy);
         final UUID scanId = UUID.randomUUID();
         final ScanHitCounter shc = db.getScanHitCounter();
         if(mapKey != null) shc.associateUUID(scanId, mapKey);

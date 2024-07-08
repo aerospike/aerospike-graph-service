@@ -215,7 +215,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         writePolicy.sendKey = true;
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
         try {
-            final Record record = db.operate(writePolicy, key, operations.toArray(new Operation[0]));
+            final Record record = db.writeOperate(writePolicy, key, operations.toArray(new Operation[0]));
             graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey)
                     .collect(Collectors.toSet()));
             final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id,
@@ -506,7 +506,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             policy.generation = this.generation;
         }
         try {
-            final Record record = db.operate(policy, key, operations.toArray(new Operation[0]));
+            final Record record = db.writeOperate(policy, key, operations.toArray(new Operation[0]));
 
             // Result returned is always [List<?>, null] since we have operations [removeEdgeData, removeEdgeDataBin]
             final Command.OpResults results = (Command.OpResults) record.getValue(db.EDGE_DATA_BIN);
@@ -787,7 +787,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            db.operate(writePolicy, key, operations.toArray(new Operation[0]));
+            db.writeOperate(writePolicy, key, operations.toArray(new Operation[0]));
             edge.properties.put(propertyKey, value);
             if (typeHint != null) {
                 edge.typeHints.put(propertyKey, typeHint);
@@ -821,7 +821,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            db.operate(writePolicy, key, writeTtl);
+            db.writeOperate(writePolicy, key, writeTtl);
         } catch (final RecordTooBigException e) {
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingProperty((AerospikeException) e.getCause(), db, key, this.id, TTL_PROPERTY_KEY);

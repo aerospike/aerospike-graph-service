@@ -9,7 +9,6 @@ import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.Policy;
-import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
@@ -47,12 +46,6 @@ public class FireflyRecord {
     }};
     private final Key key;
     private final Record record;
-    private static final WritePolicy sendKeyWritePolicy = new WritePolicy();
-
-    static {
-        sendKeyWritePolicy.sendKey = true;
-    }
-
     private final AerospikeConnection ac;
 
     /**
@@ -160,6 +153,7 @@ public class FireflyRecord {
         final BatchPolicy batchReadPolicy = new BatchPolicy();
         batchReadPolicy.sendKey = false;
         batchReadPolicy.filterExp = readInfo.expression;
+        db.configureReadPolicy(batchReadPolicy);
 
         final Record[] records;
         if (readInfo.requiredProperties == null) {

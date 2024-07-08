@@ -32,6 +32,7 @@ import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.RecordExistsAction;
+import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.TlsPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.IndexCollectionType;
@@ -183,12 +184,22 @@ public class AerospikeConnection implements AutoCloseable {
     public final int TTL_PURGE_INTERVAL_SECONDS;
     public final boolean SUPERNODE_TRAVERSAL_LOG_WARNING;
 
-    private final int AEROSPIKE_WRITE_MAX_RETRY;
-    private final int SLEEP_BETWEEN_RETRY;
-    private final int TOTAL_TIMEOUT;
-    public final int SOCKET_TIMEOUT;
+    private final int AEROSPIKE_MAX_RETRIES;
+    private final int WRITE_SLEEP_BETWEEN_RETRY;
+    private final int READ_SLEEP_BETWEEN_RETRY;
+    private final int WRITE_TOTAL_TIMEOUT;
+    private final int READ_TOTAL_TIMEOUT;
+    private final int READ_TOTAL_TIMEOUT_BULK_LOAD;
+    private final int WRITE_SOCKET_TIMEOUT;
+    private final int READ_SOCKET_TIMEOUT;
+    private final int READ_SOCKET_TIMEOUT_BULK_LOAD;
     private final int CONNECT_TIMEOUT;
     private final int TIMEOUT_DELAY;
+
+    private final int SCAN_TOTAL_TIMEOUT;
+    private final int SCAN_SOCKET_TIMEOUT;
+    private final int SCAN_CONNECT_TIMEOUT;
+    private final int SCAN_TIMEOUT_DELAY;
 
     public final long PROPERTY_ID_BUFFER_SIZE;
     public final long VERTEX_ID_BUFFER_SIZE;
@@ -232,7 +243,6 @@ public class AerospikeConnection implements AutoCloseable {
 
         clientPolicy.maxConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf);
         clientPolicy.minConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE, conf);
-
         clientPolicy.timeout = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf);
         clientPolicy.eventLoops = eventLoops;
 
@@ -310,10 +320,18 @@ public class AerospikeConnection implements AutoCloseable {
         // Also, we don't want connections recycled, so keep min == max true.
         // We must add 2 because both the metadata updater thread and the cardinality metadata threads using the connection.
         //
-        // The bulk loader uses 2 * availableProcessors (+ 2 for the metadata updater thread and the cardinality metadata thread).
+        // The bulk loader uses 2 * availableProcessors + 2 for buffer + 8 for:
+        // - Metadata updater thread
+        // - Graph summary reader (via Progress bar)
+        // - Cardinality metadata
+        // - Index metadata
+        // - Graph summary writer
+        // - Usage stats writing
+        // - Usage stats reading (via prometheus)
+        // - TTL thread background worker
         //
         // Because of this, we need to use the greatest of either what the bulk loader would use or what gremlin-server would use.
-        return Math.max(2 * Runtime.getRuntime().availableProcessors() + 2, gremlinServerSettings.gremlinPool + 2);
+        return Math.max(2 * Runtime.getRuntime().availableProcessors() + 10, gremlinServerSettings.gremlinPool + 10);
     }
 
 
@@ -368,12 +386,22 @@ public class AerospikeConnection implements AutoCloseable {
         BL_BAD_EDGES_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_BAD_EDGES_COUNT_KEY.name(), conf);
         BL_BAD_ENTRY_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_BAD_ENTRY_COUNT_KEY.name(), conf);
 
-        AEROSPIKE_WRITE_MAX_RETRY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_WRITE_MAX_RETRY, conf);
-        SLEEP_BETWEEN_RETRY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SLEEP_BETWEEN_RETRY, conf);
-        TOTAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.TOTAL_TIMEOUT, conf);
-        SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SOCKET_TIMEOUT, conf);
+        AEROSPIKE_MAX_RETRIES = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_MAX_RETRIES, conf);
+        WRITE_SLEEP_BETWEEN_RETRY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.WRITE_SLEEP_BETWEEN_RETRY, conf);
+        READ_SLEEP_BETWEEN_RETRY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_SLEEP_BETWEEN_RETRY, conf);
+        WRITE_TOTAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.WRITE_TOTAL_TIMEOUT, conf);
+        READ_TOTAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_TOTAL_TIMEOUT, conf);
+        READ_TOTAL_TIMEOUT_BULK_LOAD = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_TOTAL_TIMEOUT_BULK_LOAD, conf);
+        WRITE_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.WRITE_SOCKET_TIMEOUT, conf);
+        READ_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_SOCKET_TIMEOUT, conf);
+        READ_SOCKET_TIMEOUT_BULK_LOAD = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_SOCKET_TIMEOUT_BULK_LOAD, conf);
         CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CONNECT_TIMEOUT, conf);
         TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf);
+
+        SCAN_TOTAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_TOTAL_TIMEOUT, conf);
+        SCAN_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_SOCKET_TIMEOUT, conf);
+        SCAN_CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_CONNECT_TIMEOUT, conf);
+        SCAN_TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_TIMEOUT_DELAY, conf);
 
         CARDINALITY_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf);
         INDEX_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf);
@@ -514,9 +542,16 @@ public class AerospikeConnection implements AutoCloseable {
      * @param key    unique record identifier
      * @param bins   array of bin name/value pairs
      */
-    public void checkedPut(WritePolicy policy, Key key, Bin... bins) {
+    public void checkedPut(final WritePolicy policy, final Key key, final Bin... bins) {
+        final WritePolicy writePolicy;
+        if (policy == null) {
+            writePolicy = new WritePolicy();
+        } else {
+            writePolicy = policy;
+        }
+        configureWritePolicy(writePolicy);
         try {
-            client.put(policy, key, bins);
+            client.put(writePolicy, key, bins);
         } catch (AerospikeException e) {
             if (e.getResultCode() == ResultCode.SERVER_MEM_ERROR)
                 LOG.error(Tokens.MEMORY_ERROR_MESSAGE);
@@ -581,7 +616,7 @@ public class AerospikeConnection implements AutoCloseable {
         final Operation writeVersion = Operation.put(dataModelVersionBin);
 
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
-        this.operate(null, k, writeName, writeVersion);
+        this.writeOperate(null, k, writeName, writeVersion);
     }
 
     public synchronized void checkConfigurationCompatibility(final Configuration config) {
@@ -605,7 +640,7 @@ public class AerospikeConnection implements AutoCloseable {
             }
             final Bin configBin = new Bin(DATA_MODEL_CONF, configurations);
             final Operation writeConfig = Operation.put(configBin);
-            this.operate(null, key, writeConfig);
+            this.writeOperate(null, key, writeConfig);
         } else {
             final List<Operation> newImmutableConfigs = new ArrayList<>();
             for (final String configKey : IMMUTABLE_CONFIG_KEYS) {
@@ -625,7 +660,7 @@ public class AerospikeConnection implements AutoCloseable {
                 }
             }
             if (!newImmutableConfigs.isEmpty()) {
-                this.operate(null, key, newImmutableConfigs.toArray(new Operation[0]));
+                this.writeOperate(null, key, newImmutableConfigs.toArray(new Operation[0]));
             }
         }
     }
@@ -1102,10 +1137,17 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public Record read(final Key key, final Policy policy) {
         readMetric.addAndGet(1);
+        final Policy readPolicy;
+        if (policy == null) {
+            readPolicy = new Policy();
+        } else {
+            readPolicy = policy;
+        }
+        configureReadPolicy(readPolicy);
         final FireflyCache cache = transactionCache.get();
         final Record[] results;
         try { //@todo policy causes key mismatch error
-            results = (cache != null) ? new Record[]{cache.read(key)} : new Record[]{client.get(policy, key)};
+            results = (cache != null) ? new Record[]{cache.read(key)} : new Record[]{client.get(readPolicy, key)};
         } catch (final AerospikeException e) {
             LOG.error("Error: AerospikeException in read {}", e.getMessage());
             throw e;
@@ -1123,6 +1165,7 @@ public class AerospikeConnection implements AutoCloseable {
     public Record[] read(final Key[] keys) {
         final BatchPolicy batchPolicy = new BatchPolicy();
         batchPolicy.sendKey = false;
+        configureReadPolicy(batchPolicy);
         readMetric.addAndGet(keys.length);
         final FireflyCache cache = transactionCache.get();
         final Record[] results;
@@ -1177,12 +1220,6 @@ public class AerospikeConnection implements AutoCloseable {
         if (writeOnly) {
             writePolicy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
         }
-        writePolicy.maxRetries = AEROSPIKE_WRITE_MAX_RETRY;
-        writePolicy.sleepBetweenRetries = SLEEP_BETWEEN_RETRY;
-        writePolicy.totalTimeout = TOTAL_TIMEOUT;
-        writePolicy.socketTimeout = SOCKET_TIMEOUT;
-        writePolicy.connectTimeout = CONNECT_TIMEOUT;
-        writePolicy.timeoutDelay = TIMEOUT_DELAY;
         if (generation != -1) {
             // Set generation for write.
             writePolicy.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
@@ -1232,6 +1269,7 @@ public class AerospikeConnection implements AutoCloseable {
         final List<Boolean> results = new ArrayList<>();
         final BatchPolicy batchPolicy = BatchPolicy.ReadDefault();
         batchPolicy.filterExp = expression;
+        configureReadPolicy(batchPolicy);
         while (results.size() < keys.length) {
             final Key[] batchKeys = (keys.length - results.size() >= AEROSPIKE_BATCH_READ_SIZE) ?
                     Arrays.copyOfRange(keys, results.size(), results.size() + AEROSPIKE_BATCH_READ_SIZE - 1) :
@@ -1355,7 +1393,7 @@ public class AerospikeConnection implements AutoCloseable {
         final Key key = getKey(this, aeroSet, fid);
         final Operation removeValue = MapOperation.removeByKey(mapName, Value.get(mapKey), MapReturnType.NONE);
         final Operation removeTypeHint = MapOperation.removeByKey(typeHintBin, Value.get(mapKey), MapReturnType.NONE);
-        this.operate(null, key, removeValue, removeTypeHint);
+        this.writeOperate(null, key, removeValue, removeTypeHint);
     }
 
     /**
@@ -1421,7 +1459,7 @@ public class AerospikeConnection implements AutoCloseable {
 
         final Operation[] operations = ops.toArray(new Operation[0]);
 
-        this.operate(writePolicy, key, operations);
+        this.writeOperate(writePolicy, key, operations);
     }
 
     /**
@@ -1449,7 +1487,7 @@ public class AerospikeConnection implements AutoCloseable {
     public long decrementIdCounter(final String name, final long amount) {
         final Key key = new Key(namespace, ID_MANAGER_SET, name);
         final Bin ctr = new Bin(COUNTER_BIN, -amount);
-        final Record record = this.operate(null, key,
+        final Record record = this.writeOperate(null, key,
                 Operation.add(ctr),
                 Operation.get(COUNTER_BIN));
         return record.getLong(COUNTER_BIN);
@@ -1464,7 +1502,7 @@ public class AerospikeConnection implements AutoCloseable {
     public long getAndSetTtlTime(final long time) {
         final Key key = new Key(namespace, GRAPH_METADATA_SET, TTL_TIME_KEY);
         final Bin timeBin = new Bin(COUNTER_BIN, time);
-        final Record record = this.operate(null, key,
+        final Record record = this.writeOperate(null, key,
                 Operation.get(COUNTER_BIN),
                 Operation.put(timeBin));
         return record.getLong(COUNTER_BIN);
@@ -1543,6 +1581,7 @@ public class AerospikeConnection implements AutoCloseable {
     public void dropIndex(final String set, final String indexName) {
         LOG.debug("Dropping index {}:{}.", set, indexName);
         final Policy policy = new Policy();
+        configureWritePolicy(policy);
         policy.socketTimeout = 0; // Do not timeout on index create.
         try {
             final IndexTask task = client.dropIndex(policy, namespace, set, indexName);
@@ -1566,6 +1605,7 @@ public class AerospikeConnection implements AutoCloseable {
     public void dropIndexBackground(final String set, final String indexName) {
         LOG.debug("Dropping index {}:{}.", set, indexName);
         final Policy policy = new Policy();
+        configureWritePolicy(policy);
         policy.socketTimeout = 0; // Do not timeout on index create.
         try {
             client.dropIndex(policy, namespace, set, indexName);
@@ -1606,6 +1646,7 @@ public class AerospikeConnection implements AutoCloseable {
             LOG.info("Creating index {}:{}:{}.", set, indexName, binName);
         }
         final Policy policy = new Policy();
+        configureWritePolicy(policy);
         policy.socketTimeout = 0; // Do not timeout on index create.
         try {
             final IndexTask task = client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType);
@@ -1642,6 +1683,7 @@ public class AerospikeConnection implements AutoCloseable {
         LOG.info("Creating index {}:{}:{}.", set, indexName, binName);
 
         final Policy policy = new Policy();
+        configureWritePolicy(policy);
         policy.socketTimeout = 0; // Do not timeout on index create.
         client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType, ctx);
     }
@@ -1662,31 +1704,13 @@ public class AerospikeConnection implements AutoCloseable {
      * @param operations  Operations for operate.
      * @return Record resulting from operate.
      */
-    public Record operate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
-        final WritePolicy policy;
+    private Record operate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
         if (writePolicy == null) {
-            policy = new WritePolicy();
-        } else {
-            policy = writePolicy;
+            // This should never happen.
+            throw new IllegalArgumentException("Operate policy must be set.");
         }
-        policy.maxRetries = AEROSPIKE_WRITE_MAX_RETRY;
-        policy.sleepBetweenRetries = SLEEP_BETWEEN_RETRY;
-        policy.totalTimeout = TOTAL_TIMEOUT;
-        policy.socketTimeout = SOCKET_TIMEOUT;
-        policy.connectTimeout = CONNECT_TIMEOUT;
-        policy.timeoutDelay = TIMEOUT_DELAY;
-
-        final FireflyCache cache = transactionCache.get();
-        final FireflyCache noPropsCache = emptyPropsTransactionCache.get();
-        if (cache != null) {
-            cache.invalidate(key);
-        }
-        if (noPropsCache != null) {
-            noPropsCache.invalidate(key);
-        }
-
         try {
-            return this.getClient().operate(policy, key, operations);
+            return this.getClient().operate(writePolicy, key, operations);
         } catch (final AerospikeException ae) {
             switch (ae.getResultCode()) {
                 case ResultCode.RECORD_TOO_BIG:
@@ -1700,10 +1724,81 @@ public class AerospikeConnection implements AutoCloseable {
                     LOG.debug("GENERATION_ERROR error on key {}", key);
                     throw ae;
                 default:
-                    LOG.error(ae.getMessage());
+                    // Don't log this when bulk loading because the incremental loader can make this go crazy.
+                    // Also it is logged in other places regardless so this is kind of a useless log statement.
+                    final boolean bulkLoading = conf.getBoolean(ConfigurationHelper.Keys.BULK_LOADER_FLAG, false);
+                    if (!bulkLoading) {
+                        LOG.error(ae.getMessage());
+                    }
                     throw ae;
             }
         }
+    }
+
+    public Record writeOperate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
+        final WritePolicy policy;
+        if (writePolicy == null) {
+            policy = new WritePolicy();
+        } else {
+            policy = writePolicy;
+        }
+        configureWritePolicy(policy);
+
+        final FireflyCache cache = transactionCache.get();
+        final FireflyCache noPropsCache = emptyPropsTransactionCache.get();
+        if (cache != null) {
+            cache.invalidate(key);
+        }
+        if (noPropsCache != null) {
+            noPropsCache.invalidate(key);
+        }
+
+        return operate(policy, key, operations);
+    }
+
+    public Record readOperate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
+        final WritePolicy policy;
+        if (writePolicy == null) {
+            policy = new WritePolicy();
+        } else {
+            policy = writePolicy;
+        }
+        configureReadPolicy(policy);
+
+        return operate(policy, key, operations);
+    }
+
+    public void configureWritePolicy(final Policy policy) {
+        policy.maxRetries = AEROSPIKE_MAX_RETRIES;
+        policy.sleepBetweenRetries = WRITE_SLEEP_BETWEEN_RETRY;
+        policy.totalTimeout = WRITE_TOTAL_TIMEOUT;
+        policy.socketTimeout = WRITE_SOCKET_TIMEOUT;
+        policy.connectTimeout = CONNECT_TIMEOUT;
+        policy.timeoutDelay = TIMEOUT_DELAY;
+    }
+
+    public void configureReadPolicy(final Policy policy) {
+        final boolean bulkLoading = conf.getBoolean(ConfigurationHelper.Keys.BULK_LOADER_FLAG, false);
+        policy.maxRetries = AEROSPIKE_MAX_RETRIES;
+        policy.connectTimeout = CONNECT_TIMEOUT;
+        policy.timeoutDelay = TIMEOUT_DELAY;
+        policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
+        if (!bulkLoading) {
+            policy.totalTimeout = READ_TOTAL_TIMEOUT;
+            policy.socketTimeout = READ_SOCKET_TIMEOUT;
+        } else {
+            policy.totalTimeout = READ_TOTAL_TIMEOUT_BULK_LOAD;
+            policy.socketTimeout = READ_SOCKET_TIMEOUT_BULK_LOAD;
+        }
+    }
+
+    public void configureScanPolicy(final ScanPolicy policy) {
+        policy.maxRetries = AEROSPIKE_MAX_RETRIES;
+        policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
+        policy.totalTimeout = SCAN_TOTAL_TIMEOUT;
+        policy.socketTimeout = SCAN_SOCKET_TIMEOUT;
+        policy.connectTimeout = SCAN_CONNECT_TIMEOUT;
+        policy.timeoutDelay = SCAN_TIMEOUT_DELAY;
     }
 
     /**
@@ -1716,9 +1811,9 @@ public class AerospikeConnection implements AutoCloseable {
 
         final Bin zeroValue = new Bin(COUNTER_BIN, 0L);
         final Operation zeroCounter = Operation.put(zeroValue);
-        this.operate(null, duplicateVertexIdCountKey, zeroCounter);
-        this.operate(null, badEdgeCountKey, zeroCounter);
-        this.operate(null, badEntryCountKey, zeroCounter);
+        this.writeOperate(null, duplicateVertexIdCountKey, zeroCounter);
+        this.writeOperate(null, badEdgeCountKey, zeroCounter);
+        this.writeOperate(null, badEntryCountKey, zeroCounter);
 
         try {
             client.truncate(null, namespace, BULK_LOAD_DUPLICATE_VID_SET, null);
@@ -1733,21 +1828,21 @@ public class AerospikeConnection implements AutoCloseable {
     public long incrementAndGetBadEdgeCount(final long amount) {
         final Key badEdgeCountKey = new Key(namespace, BULK_LOAD_METADATA_SET, Value.get(BL_BAD_EDGES_COUNT_KEY));
         final Bin addBin = new Bin(COUNTER_BIN, amount);
-        final Record record = this.operate(null, badEdgeCountKey, Operation.add(addBin), Operation.get(COUNTER_BIN));
+        final Record record = this.writeOperate(null, badEdgeCountKey, Operation.add(addBin), Operation.get(COUNTER_BIN));
         return record.getLong(COUNTER_BIN);
     }
 
     public long incrementAndGetDuplicateVertexIdCount(final long amount) {
         final Key badVertexIdCountKey = new Key(namespace, BULK_LOAD_METADATA_SET, Value.get(BL_DUPLICATE_VERTEX_COUNT_KEY));
         final Bin addBin = new Bin(COUNTER_BIN, amount);
-        final Record record = this.operate(null, badVertexIdCountKey, Operation.add(addBin), Operation.get(COUNTER_BIN));
+        final Record record = this.writeOperate(null, badVertexIdCountKey, Operation.add(addBin), Operation.get(COUNTER_BIN));
         return record.getLong(COUNTER_BIN);
     }
 
     public long incrementAndGetBadEntryCount(final long amount) {
         final Key badEntryCountKey = new Key(namespace, BULK_LOAD_METADATA_SET, Value.get(BL_BAD_ENTRY_COUNT_KEY));
         final Bin addBin = new Bin(COUNTER_BIN, amount);
-        final Record record = this.operate(null, badEntryCountKey, Operation.add(addBin), Operation.get(COUNTER_BIN));
+        final Record record = this.writeOperate(null, badEntryCountKey, Operation.add(addBin), Operation.get(COUNTER_BIN));
         return record.getLong(COUNTER_BIN);
     }
 

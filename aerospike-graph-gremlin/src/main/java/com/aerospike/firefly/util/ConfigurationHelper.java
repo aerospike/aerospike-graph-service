@@ -382,9 +382,9 @@ public final class ConfigurationHelper {
         put(Keys.SCAN_CONNECT_TIMEOUT, "0");
         put(Keys.SCAN_TIMEOUT_DELAY, "0");
         put(Keys.EVENT_LOOP_TYPE, EventLoopType.NETTY_NIO.name());
-        put(Keys.EVENT_LOOP_COUNT, String.valueOf(2));
-        put(Keys.COMMANDS_PER_EVENT_LOOP, String.valueOf(50));
-        put(Keys.DELAY_QUEUE_SIZE, String.valueOf(50));
+        put(Keys.EVENT_LOOP_COUNT, "2");
+        put(Keys.COMMANDS_PER_EVENT_LOOP, "50");
+        put(Keys.DELAY_QUEUE_SIZE, "50");
     }};
 
     private static final Map<Object, String> BULK_LOAD_DEFAULTS = new HashMap<>() {{

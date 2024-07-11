@@ -114,9 +114,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean E_LABEL_INDEX_ENABLED_FLAG;
     public final String E_IN_INDEX_NAME;
     public final String E_OUT_INDEX_NAME;
-    public static final int NumLoops = 2;
-    public static final int CommandsPerEventLoop = 50;
-    public static final int DelayQueueSize = 50;
     public final EventLoops eventLoops;
     public final AerospikeClient client;
     public final String namespace;
@@ -341,8 +338,8 @@ public class AerospikeConnection implements AutoCloseable {
      * @param conf Apache Configuration
      */
     public AerospikeConnection(final Configuration conf,
-                                final AerospikeClient client,
-                                final EventLoops eventLoops) {
+                               final AerospikeClient client,
+                               final EventLoops eventLoops) {
         LOG.info("Initializing AerospikeConnection.");
         LOG.debug("CONFIGURATION:");
         conf.getKeys().forEachRemaining(key -> {
@@ -430,8 +427,8 @@ public class AerospikeConnection implements AutoCloseable {
         E_OUT_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.E_OUT_INDEX_NAME.name(), conf));
         V_LABEL_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.V_LABEL_INDEX_NAME.name(), conf));
         E_LABEL_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.E_LABEL_INDEX_NAME.name(), conf));
-        TTL_VERTEX_INDEX_NAME =  String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.TTL_VERTEX_INDEX_NAME.name(), conf));
-        TTL_EDGE_INDEX_NAME =  String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.TTL_EDGE_INDEX_NAME.name(), conf));
+        TTL_VERTEX_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.TTL_VERTEX_INDEX_NAME.name(), conf));
+        TTL_EDGE_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.TTL_EDGE_INDEX_NAME.name(), conf));
         VERTEX_PROPERTY_NAME_TO_ID_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_ID_BIN.name(), conf);
         VERTEX_PROPERTY_NAME_TO_VALUE_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_BIN.name(), conf);
         VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN.name(), conf);
@@ -790,7 +787,7 @@ public class AerospikeConnection implements AutoCloseable {
         /**
          * Return list of usable indices in a list of map entries.
          *
-         * @param db    AerospikeConnnection.
+         * @param db        AerospikeConnnection.
          * @param namespace Namespace.
          * @return List of existing indices in a list of map entries.
          * First item of map entry is index
@@ -808,11 +805,11 @@ public class AerospikeConnection implements AutoCloseable {
                                 new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET)))
                         .collect(Collectors.toList());
                 indexSets.add(raw.stream().map(Map.Entry::getKey).filter(s ->
-                                        s.startsWith(db.getVpIndexPrefix()) ||
-                                                s.startsWith(db.getEpIndexPrefix()) ||
-                                                db.V_LABEL_INDEX_NAME.equals(s) ||
-                                                db.E_LABEL_INDEX_NAME.equals(s)).
-                                collect(Collectors.toSet()));
+                                s.startsWith(db.getVpIndexPrefix()) ||
+                                        s.startsWith(db.getEpIndexPrefix()) ||
+                                        db.V_LABEL_INDEX_NAME.equals(s) ||
+                                        db.E_LABEL_INDEX_NAME.equals(s)).
+                        collect(Collectors.toSet()));
             }
 
             final List<String> indexList = new ArrayList<>();
@@ -1419,13 +1416,13 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public <V> void writeTypeHintedValueToMapWithPolicy(final String aeroSet,
-                                                         final FireflyId fid,
-                                                         final String mapName,
-                                                         final String mapKey,
-                                                         final V value,
-                                                         final String typeHintBinName,
-                                                         final WritePolicy writePolicy,
-                                                         final Bin... additionalBins) {
+                                                        final FireflyId fid,
+                                                        final String mapName,
+                                                        final String mapKey,
+                                                        final V value,
+                                                        final String typeHintBinName,
+                                                        final WritePolicy writePolicy,
+                                                        final Bin... additionalBins) {
         final Key key = getKey(this, aeroSet, fid);
         final List<Operation> ops = new ArrayList<>();
 
@@ -1879,7 +1876,13 @@ public class AerospikeConnection implements AutoCloseable {
         public static AerospikeClientProvider connect(final Configuration conf) {
             synchronized (DefaultAerospikeClientProvider.class) {
                 if (OPEN_COUNT.get() == 0) {
-                    eventLoops = initializeEventLoops(EventLoopType.NETTY_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
+                    final String eventLoopTypeName = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.EVENT_LOOP_TYPE, conf);
+                    final EventLoopType eventLoopType = EventLoopType.valueOf(eventLoopTypeName);
+                    final int eventLoopCount = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.EVENT_LOOP_COUNT, conf);
+                    final int commandsPerEventLoop = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.COMMANDS_PER_EVENT_LOOP,conf);
+                    final int delayQueueSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.DELAY_QUEUE_SIZE,conf);
+
+                    eventLoops = initializeEventLoops(EventLoopType.NETTY_NIO, eventLoopCount, commandsPerEventLoop, delayQueueSize);
                     final int threadPoolSize = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());
                     final ClientPolicy clientPolicy = setupClientPolicy(conf, threadPoolSize, eventLoops);
                     client = setupDefaultClient(conf, clientPolicy);

@@ -1882,7 +1882,7 @@ public class AerospikeConnection implements AutoCloseable {
                     final int commandsPerEventLoop = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.COMMANDS_PER_EVENT_LOOP,conf);
                     final int delayQueueSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.DELAY_QUEUE_SIZE,conf);
 
-                    eventLoops = initializeEventLoops(EventLoopType.NETTY_NIO, eventLoopCount, commandsPerEventLoop, delayQueueSize);
+                    eventLoops = initializeEventLoops(eventLoopType, eventLoopCount, commandsPerEventLoop, delayQueueSize);
                     final int threadPoolSize = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());
                     final ClientPolicy clientPolicy = setupClientPolicy(conf, threadPoolSize, eventLoops);
                     client = setupDefaultClient(conf, clientPolicy);

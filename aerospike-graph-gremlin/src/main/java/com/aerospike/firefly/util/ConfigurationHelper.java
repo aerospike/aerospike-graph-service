@@ -82,11 +82,13 @@ public final class ConfigurationHelper {
 
         public static final String WRITE_SOCKET_TIMEOUT = "aerospike.client.policy.write.socketTimeout";
         public static final String READ_SOCKET_TIMEOUT = "aerospike.client.policy.read.socketTimeout";
+        public static final String READ_SOCKET_TIMEOUT_BULK_LOAD = "aerospike.client.bulk-load.policy.read.socketTimeout";
         public static final String WRITE_TOTAL_TIMEOUT = "aerospike.client.policy.write.totalTimeout";
         public static final String READ_TOTAL_TIMEOUT = "aerospike.client.policy.read.totalTimeout";
+        public static final String READ_TOTAL_TIMEOUT_BULK_LOAD = "aerospike.client.bulk-load.policy.read.totalTimeout";
         public static final String WRITE_SLEEP_BETWEEN_RETRY = "aerospike.client.policy.write.sleepBetweenRetry";
         public static final String READ_SLEEP_BETWEEN_RETRY = "aerospike.client.policy.read.sleepBetweenRetry";
-        
+
         // Semi internal semi external configs
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
         public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.index.update.frequency";
@@ -315,6 +317,7 @@ public final class ConfigurationHelper {
         put(Keys.AEROSPIKE_TIMEOUT, "2000");
         put(Keys.WRITE_SOCKET_TIMEOUT, "500");
         put(Keys.READ_SOCKET_TIMEOUT, "50");
+        put(Keys.READ_SOCKET_TIMEOUT_BULK_LOAD, "2000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
@@ -352,6 +355,7 @@ public final class ConfigurationHelper {
         put(Keys.TIMEOUT_DELAY, "2000");
         put(Keys.WRITE_TOTAL_TIMEOUT, "2500");
         put(Keys.READ_TOTAL_TIMEOUT, "150");
+        put(Keys.READ_TOTAL_TIMEOUT_BULK_LOAD, "6000");
         put(Keys.WRITE_SLEEP_BETWEEN_RETRY, "500");
         put(Keys.READ_SLEEP_BETWEEN_RETRY, "0");
         put(Keys.PROMETHEUS_RENAME, "true");
@@ -387,6 +391,9 @@ public final class ConfigurationHelper {
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_MAX_WAIT, 1000);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_TIMEOUT, 0);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.WRITE_SOCKET_TIMEOUT, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.READ_SOCKET_TIMEOUT, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.READ_TOTAL_TIMEOUT_BULK_LOAD, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.READ_SOCKET_TIMEOUT_BULK_LOAD, 0);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.READ_SOCKET_TIMEOUT, 0);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.WRITE_TOTAL_TIMEOUT, 0);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.READ_TOTAL_TIMEOUT, 0);
@@ -479,18 +486,32 @@ public final class ConfigurationHelper {
         final String upperKey = key.toUpperCase();
         final boolean debugMode = getOrDefaultBool(Keys.DEBUG_MODE_FLAG, config);
 
-        if (System.getenv().containsKey(lowerKey) || System.getenv().containsKey(upperKey)) {
+        if (System.getenv().containsKey(lowerKey) ||
+                System.getenv().containsKey(upperKey) ||
+                System.getenv().containsKey(key)) {
             String envConfig = System.getenv(upperKey);
             if (envConfig == null || envConfig.isEmpty()) {
                 envConfig = System.getenv(lowerKey);
             }
-            if (envConfig != null && !envConfig.isEmpty()) {
-                return envConfig;
+            if (envConfig == null || envConfig.isEmpty()) {
+                envConfig = System.getenv(key);
             }
-        } else if (!config.containsKey(lowerKey) && !defaultValues.containsKey(key) && !checkInternalKeys(key)) {
+            return envConfig;
+        } else if (!config.containsKey(lowerKey) &&
+                !config.containsKey(upperKey) &&
+                !config.containsKey(key) &&
+                !defaultValues.containsKey(key) &&
+                !checkInternalKeys(key)) {
             throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
-        } else if (config.containsKey(lowerKey)) {
-            return config.getString(lowerKey);
+        } else if (config.containsKey(lowerKey) || config.containsKey(upperKey) || config.containsKey(key)) {
+            String configValue = config.getString(lowerKey, "");
+            if (configValue.isEmpty()) {
+                configValue = config.getString(upperKey, "");
+            }
+            if (configValue.isEmpty()) {
+                configValue = config.getString(key, "");
+            }
+            return configValue;
         } else if (Keys.InternalConfigs.keys().contains(key)) {
             if (debugMode) {
                 return Keys.InternalConfigs.valueOf(key).getValue().english;

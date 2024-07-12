@@ -265,6 +265,9 @@ public class FireflyIdFactory {
         // Code below complains without the supression and cast to <String, Object>.
         @SuppressWarnings("unchecked")
         final Map<String, Object> fireflyObjectIdsMap = (Map) fireflyObjectIds;
+        if (fireflyObjectIdsMap == null) {
+            return;
+        }
         fireflyObjectIdsMap.forEach((key, value) -> {
             if (value instanceof List<?>) {
                 final List<Object> list = (List<Object>) value;

@@ -38,7 +38,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
                                               final String providedIdPropertyName,
                                               final String nullValue,
                                               final FireflyGraph graph,
-                                              final boolean forVerification,
+                                              final boolean generateNewId,
                                               final byte[] edgeIdSupplied) {
         final String[] headers = row.schema().fieldNames();
         String id = null;
@@ -82,7 +82,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
         }
 
         final byte[] edgeId;
-        if (forVerification) {
+        if (generateNewId) {
             edgeId = null;
         } else {
             try {

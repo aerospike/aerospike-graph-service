@@ -89,7 +89,77 @@ public class FireflyMergeEdgeStepTest {
             graph.getBaseGraph().dropDatabase(graph, false);
             graph.close();
         }
+    }
 
+    @Test
+    public void testConcurrentWriting() throws InterruptedException {
+        final FireflyGraph graph = getGraphWithCacheSize(100);
+        try {
+            final GraphTraversalSource g = graph.traversal();
+            final Vertex v1 = g.addV("v1").next();
+            final Vertex v2 = g.addV("v2").next();
+            final Vertex v3 = g.addV("v3").next();
+            for (int i = 0; i < 50; i++) {
+                g.addE("test").property("foo", i).from(v1).to(v3).iterate();
+            }
+            final List<Thread> threads = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                final Thread task = new Thread(() -> {
+                    final GraphTraversalSource threadG = graph.traversal();
+                    for (int j = 0; j < 100; j++) {
+                        final Map<Object, Object> mergeMap = new HashMap<>();
+                        mergeMap.put(Direction.OUT, new ReferenceVertex(v1.id()));
+                        mergeMap.put(Direction.IN, new ReferenceVertex(v2.id()));
+                        mergeMap.put(T.label, "test");
+                        mergeMap.put("foo", j);
+                        threadG.mergeE(mergeMap).iterate();
+                    }
+                });
+                threads.add(task);
+            }
+            for (final Thread thread : threads) {
+                thread.start();
+            }
+            for (final Thread thread : threads) {
+                thread.join();
+            }
+            Assert.assertEquals(150, (long) g.V().hasLabel("v1").outE().count().next());
+            Assert.assertEquals(100, (long) g.V().hasLabel("v2").inE().count().next());
+            g.V().drop().iterate();
+            threads.clear();
+
+            final Vertex v11 = g.addV("v11").next();
+            final Vertex v22 = g.addV("v22").next();
+            final Vertex v33 = g.addV("v33").next();
+            for (int i = 0; i < 50; i++) {
+                g.addE("test").property("foo", i).from(v33).to(v22).iterate();
+            }
+            for (int i = 0; i < 3; i++) {
+                final Thread task = new Thread(() -> {
+                    final GraphTraversalSource threadG = graph.traversal();
+                    for (int j = 0; j < 100; j++) {
+                        final Map<Object, Object> mergeMap = new HashMap<>();
+                        mergeMap.put(Direction.OUT, new ReferenceVertex(v11.id()));
+                        mergeMap.put(Direction.IN, new ReferenceVertex(v22.id()));
+                        mergeMap.put(T.label, "test");
+                        mergeMap.put("foo", j);
+                        threadG.mergeE(mergeMap).iterate();
+                    }
+                });
+                threads.add(task);
+            }
+            for (final Thread thread : threads) {
+                thread.start();
+            }
+            for (final Thread thread : threads) {
+                thread.join();
+            }
+            Assert.assertEquals(100, (long) g.V().hasLabel("v11").outE().count().next());
+            Assert.assertEquals(150, (long) g.V().hasLabel("v22").inE().count().next());
+        } finally {
+            graph.getBaseGraph().dropDatabase(graph, false);
+            graph.close();
+        }
     }
 
     private void setupGraph(final FireflyGraph graph) {

@@ -314,7 +314,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
 
         Iterator<Edge> edges = searchEdges(mergeMap);
 
-        if (onMatchTraversal != null) {
+        if (onMatchTraversal != null && edges.hasNext()) {
             if (onMatchTraversal instanceof ConstantTraversal) {
                 final Map matchMap = onMatchTraversal.next();
                 validateMapInput(matchMap, true);

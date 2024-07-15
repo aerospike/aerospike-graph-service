@@ -161,10 +161,10 @@ public final class ConfigurationHelper {
         public static final String AUTHENTICATION_ENABLED = "aerospike.graph-service.auth.enabled";
         public static final String USAGE_STATS_SET_INDEX_ENABLED = "aerospike.graph.usage.index.enabled";
 
-        public static final String EVENT_LOOP_TYPE = "aerospike.client.eventloop.type";
-        public static final String EVENT_LOOP_COUNT = "aerospike.client.eventloop.count";
-        public static final String COMMANDS_PER_EVENT_LOOP = "aerospike.client.eventloop.commands";
-        public static final String DELAY_QUEUE_SIZE = "aerospike.client.delayqueue.size";
+        public static final String EVENT_LOOP_TYPE = "aerospike.client.eventLoop.type";
+        public static final String EVENT_LOOP_COUNT = "aerospike.client.eventLoop.count";
+        public static final String COMMANDS_PER_EVENT_LOOP = "aerospike.client.eventLoop.commands";
+        public static final String DELAY_QUEUE_SIZE = "aerospike.client.delayQueue.size";
 
         public static class Pair {
             public final int numeric;

@@ -21,6 +21,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_EMAIL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_KEYFILE_DIRECTORY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEY_TO_CMD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.LOCAL_MODE;
@@ -97,6 +98,7 @@ public class CommandLineParser {
         options.addOption(s3EndPointOption);
 
         // Actions
+        options.addOption(new Option(INCREMENTAL_LOAD, "Enable incremental load."));
         options.addOption(new Option(VERIFY_OUTPUT_DATA, "Read elements back after bulk load completion to validate loading."));
         options.addOption(new Option(VALIDATE_INPUT_DATA, "Validate entire content of vertex and edge CSVs before bulk loading."));
         options.addOption(new Option(READ_ONLY, "Disables intermediate writing to a temporary file to prevent potential duplicate edges."));

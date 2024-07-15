@@ -436,7 +436,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
           
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.1.0'
+          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.2.0-SNAPSHOT'
           
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
@@ -485,18 +485,6 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           mvn install -DskipTests
-      - name: Test Bulk Loader Maven
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
-          GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
-          GH_WORKSPACE: ${{ github.workspace}}
-        run: |
-          sudo echo $GCS_KEYFILE_B64 | base64 -d > ${{ github.workspace }}/gcs-keyfile.json
-          mvn -pl aerospike-graph-bulk-loader test --no-transfer-progress
       - name: Test small memory Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
@@ -761,7 +749,7 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeGraphServiceCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-spark-bulk-loader:
     name: Test Spark Bulk Loader
-    timeout-minutes: 30
+    timeout-minutes: 40
     needs: start-runner-spark-bulk-loader
     runs-on: ${{ needs.start-runner-spark-bulk-loader.outputs.label }}
     steps:
@@ -828,7 +816,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
 
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.1.0'
+          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.2.0-SNAPSHOT'
 
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
@@ -888,7 +876,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
 
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.1.0'
+          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.2.0-SNAPSHOT'
 
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &

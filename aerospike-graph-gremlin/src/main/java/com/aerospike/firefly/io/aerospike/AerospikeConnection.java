@@ -1724,7 +1724,12 @@ public class AerospikeConnection implements AutoCloseable {
                     LOG.debug("GENERATION_ERROR error on key {}", key);
                     throw ae;
                 default:
-                    LOG.error(ae.getMessage());
+                    // Don't log this when bulk loading because the incremental loader can make this go crazy.
+                    // Also it is logged in other places regardless so this is kind of a useless log statement.
+                    final boolean bulkLoading = conf.getBoolean(ConfigurationHelper.Keys.BULK_LOADER_FLAG, false);
+                    if (!bulkLoading) {
+                        LOG.error(ae.getMessage());
+                    }
                     throw ae;
             }
         }

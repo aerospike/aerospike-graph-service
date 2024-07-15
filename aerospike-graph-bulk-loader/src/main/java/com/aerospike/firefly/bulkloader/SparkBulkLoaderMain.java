@@ -47,6 +47,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_EMAIL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_KEYFILE_DIRECTORY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.LOCAL_MODE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_PASSKEY;
@@ -78,6 +79,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             LOGGER.info("Shutting down DatasetOperations executor service");
             DatasetOperations.getScheduledThreadPoolService().shutdown();
         }));
+        boolean isL2Mode = false;
         try {
             if (IN_PROGRESS.getAndSet(true)) {
                 LOGGER.error(JOB_ALREADY_RUNNING);
@@ -101,6 +103,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
 
             // new Timer(true) creates the timer as a daemon, which means that it will not prevent the JVM from exiting.
             PROGRESS_BAR = new ProgressBar(PROGRESS_BAR_INTERVAL_MS);
+            PROGRESS_BAR.setIsL2Mode(cmd.hasOption(LOCAL_MODE));
             PROGRESS_BAR_TIMER = new Timer(true);
 
             // Initialize Spark.
@@ -108,6 +111,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             FILE_SYSTEM_MUTABLE = true;
             final SparkSession spark = buildSparkSession(cmd);
             final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
+            isL2Mode = cmd.hasOption(LOCAL_MODE);
             Objects.requireNonNull(configPath);
             final Map<String, Object> fileConfig = loadConfiguration(spark, cmd, configPath);
             LOGGER.info("Config: " + fileConfig);
@@ -118,7 +122,8 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             spark.sparkContext().setLogLevel(logLevel);
 
             final FireflyGraph initializerGraph = FireflyGraph.open(config.getFireflyConfig());
-            if (!initializerGraph.isEmpty() && !config.hasAction(DISABLE_EDGE_WRITE) && !config.hasAction(DISABLE_VERTEX_WRITE)) {
+            if (!initializerGraph.isEmpty() && !config.hasAction(DISABLE_EDGE_WRITE) &&
+                    !config.hasAction(DISABLE_VERTEX_WRITE) && !config.hasAction(INCREMENTAL_LOAD)) {
                 // If we're doing partial writing checking the emptiness of the database isn't valid.
                 LOGGER.error(DATABASE_NOT_EMPTY);
                 throw new RuntimeException(DATABASE_NOT_EMPTY);
@@ -138,7 +143,13 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             final Dataset<Row> edgeDataset = DatasetOperations.loadDataset(spark, edgeDirectories,
                     EdgeOperations.REQUIRED_EDGE_HEADERS, DatasetOperations.getDfStorageLevel(config));
 
-            initializeProgressBar(initializerGraph);
+
+            boolean incrementalLoad = false;
+            if (config.hasAction(INCREMENTAL_LOAD)) {
+                LOGGER.info("Incremental load mode detected.");
+                incrementalLoad = true;
+            }
+            initializeProgressBar(initializerGraph, incrementalLoad);
 
             // Preflight check
             try {
@@ -178,7 +189,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             // Get the supernode threshold from Firefly config.
             final long onRecordIdLimit = initializerGraph.getBaseGraph().ON_RECORD_ID_LIMIT;
             LOGGER.info("Supernode threshold: " + onRecordIdLimit);
-            final Set<Object> supernodes = edgeOperations.extractSupernodes(edgeDataset, onRecordIdLimit);
+            final Set<Object> supernodes = edgeOperations.extractSupernodes(edgeDataset, onRecordIdLimit, incrementalLoad);
             PROGRESS_BAR.setSuperNodeExtractionComplete();
 
             // Vertex processing
@@ -220,14 +231,18 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             if (PROGRESS_BAR != null) {
                 PROGRESS_BAR.close();
             }
-            HttpServer.close();
+
+            // Only close the HTTP server in L3. Not L2.
+            if (!isL2Mode) {
+                HttpServer.close();
+            }
         }
     }
 
-    private static void initializeProgressBar(final FireflyGraph graph) {
+    private static void initializeProgressBar(final FireflyGraph graph, final boolean incremental) {
         try {
             // Once graph is set in progress bar, it will be used to update progress bar.
-            PROGRESS_BAR.setGraph(graph);
+            PROGRESS_BAR.initialize(graph, incremental);
             PROGRESS_BAR_TIMER.scheduleAtFixedRate(PROGRESS_BAR, 0, PROGRESS_BAR_INTERVAL_MS);
         } catch (final Exception e) {
             LOGGER.warn("Failed to start progress bar", e);

@@ -23,6 +23,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversal
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.empty.EmptyGraph;
 
@@ -72,12 +73,14 @@ public final class FireflyGraphFilterStrategy extends AbstractTraversalStrategy<
             return null;
         GraphTraversal.Admin<Vertex, Vertex> hasTraversal = new DefaultGraphTraversal<>();
         if (traversal.getStartStep() instanceof GraphStep && ((GraphStep<Vertex, Vertex>) traversal.getStartStep()).returnsVertex()) {
+            if (Stream.of(((GraphStep) traversal.getStartStep()).getIds()).count() > 0)
+                hasTraversal = hasTraversal.has(T.id, P.eq(P.within(((GraphStep) traversal.getStartStep()).getIds()))).asAdmin();
             for (Step<?, ?> currentStep = ((GraphStep) traversal.getStartStep()).getNextStep();
                  currentStep instanceof HasStep || currentStep instanceof NoOpBarrierStep || currentStep instanceof ProfileStep;
                  currentStep = currentStep.getNextStep()) {
                 if (currentStep instanceof HasStep) {
                     for (HasContainer hasContainer : ((HasContainerHolder) currentStep).getHasContainers().stream()
-                            .filter(h -> h.getValue() instanceof Number ||
+                            .filter(h -> h.getKey().equals(T.id.getAccessor()) || h.getValue() instanceof Number ||
                                     (h.getPredicate().getPredicateName().equals(P.eq(1).getPredicateName()))).collect(Collectors.toList())) {
                         hasTraversal = hasTraversal.has(hasContainer.getKey(), hasContainer.getPredicate()).asAdmin();
                     }

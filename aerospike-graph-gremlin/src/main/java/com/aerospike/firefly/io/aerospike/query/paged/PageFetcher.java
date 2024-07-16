@@ -44,38 +44,25 @@ public abstract class PageFetcher<E> {
         this.indexName = indexName;
     }
 
+    protected boolean isDone() {
+        return filter.isDone();
+    }
+
     protected abstract void readPage();
 
     public Iterator<E> startQuery() {
         // Start loop.
-        readLoopExecutorService.submit(() -> {
-            while (true) {
-                try {
-                    if (readLoopExecutorService.isShutdown()) {
-                        try {
-                            pageQueue.put(new PoisonPill());
-                        } catch (final InterruptedException e) {
-                            LOG.error("Error adding poison pill.", e);
-                            Thread.currentThread().interrupt();
-                        }
-                        return;
-                    }
-
-                    if (filter.isDone()) {
-                        readLoopExecutorService.shutdown();
-                        continue;
-                    }
-                    readPage();
-                } catch (final Throwable e) {
-                    signalError("Unexpected error while reading " + e.getMessage(), e);
-                }
-            }
-        });
+        readPages();
         return new PageFetcher.PageIterator();
     }
 
     public BlockingQueue<Page> startQueryPagesDirect() {
         // Start loop.
+        readPages();
+        return this.pageQueue;
+    }
+
+    private void readPages() {
         readLoopExecutorService.submit(() -> {
             while (true) {
                 try {
@@ -88,7 +75,7 @@ public abstract class PageFetcher<E> {
                         }
                         return;
                     }
-                    if (filter.isDone()) {
+                    if (isDone()) {
                         readLoopExecutorService.shutdown();
                         continue;
                     }
@@ -98,7 +85,6 @@ public abstract class PageFetcher<E> {
                 }
             }
         });
-        return this.pageQueue;
     }
 
 

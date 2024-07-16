@@ -88,12 +88,15 @@ public interface GraphQuery {
         if (!hasContainers.isEmpty()) {
             final List<Object> ids = hasContainers.stream().filter(it -> "~id".equals(it.getKey())).map(HasContainer::getValue).collect(Collectors.toList());
             final List<HasContainer> nonIdContainers = hasContainers.stream().filter(it -> !"~id".equals(it.getKey())).collect(Collectors.toList());
+
+            // If there are id has containers, we can do a batch read.
             if (!ids.isEmpty()) {
                 final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, nonIdContainers);
                 final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
                 final Expression expression = GraphQueryHelper.hasContainerListToExpression(db, aerospikeSideHasContainers, FireflyVertex.class);
                 return batchReadSetPagesBlocking(graph, new BatchPolicy(), FireflyVertex.class, expression, graph::vertexFromRecord, ids);
             }
+
             final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, hasContainers);
             final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
             final HasContainer topContainer = aerospikeSideHasContainers.isEmpty() ? null : aerospikeSideHasContainers.remove(0);
@@ -104,6 +107,7 @@ public interface GraphQuery {
 
                 if (propertyIndexInfo.isPresent()) {
                     // Need to wrap with has container check
+                    // If we have a property index, we can use it and read sindex pages.
                     return indexSetPagesBlocking(db.VERTEX_AERO_SET, propertyIndexInfo.get().indexName, GraphQueryHelper.predicateToFilter(db, topContainer.getPredicate(), propertyIndexInfo.get()), new QueryPolicy(), graph::vertexIdFromRecord);
                 }
 
@@ -116,6 +120,8 @@ public interface GraphQuery {
                 }
             }
         }
+
+        // Default to scan.
         return scanSetPagesBlocking(mapKey, db.VERTEX_AERO_SET, binName, predicate, graph::vertexIdFromRecord, hasContainers, FireflyVertex.class, true, true);
     }
 

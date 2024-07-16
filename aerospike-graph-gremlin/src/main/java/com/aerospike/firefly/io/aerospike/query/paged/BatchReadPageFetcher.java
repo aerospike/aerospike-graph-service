@@ -28,19 +28,19 @@ public class BatchReadPageFetcher<R> extends PageFetcher<R> {
         this.policy = policy;
         this.policy.sendKey = false;
         this.policy.filterExp = expression;
-        if (idsToRead.size() == 1) {
-            if (idsToRead.get(0) instanceof P) {
-                final P p = (P) idsToRead.get(0);
-                if (p.getBiPredicate().toString().equals("within")) {
-                    idsToRead.clear();
-                    if (p.getValue() instanceof List) {
-                        idsToRead.addAll((List) p.getValue());
-                    } else {
-                        idsToRead.add(p.getValue());
-                    }
-                }
+        if (idsToRead.size() == 1 && idsToRead.get(0) instanceof P) {
+            // Passed in as P.within([id1, id2, ...])
+            final P p = (P) idsToRead.get(0);;
+            if (!p.getBiPredicate().toString().equals("within")) {
+                throw new IllegalArgumentException("Batch read only supports within predicate");
             }
+            if (!(p.getValue() instanceof List)) {
+                throw new IllegalArgumentException("Batch read only supports a single list of keys");
+            }
+            idsToRead.clear();
+            idsToRead.addAll((List) p.getValue());
         }
+
         this.keysToRead = idsToRead.stream().
                 map(id -> graph.getIdFactory().createId(id, type)).
                 map(id -> getKey(graph.getBaseGraph(), graph.getBaseGraph().setFromElementType(type), id)).

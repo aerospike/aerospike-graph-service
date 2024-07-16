@@ -12,14 +12,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import com.aerospike.client.AerospikeException;
-import com.aerospike.client.ResultCode;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
-import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -54,8 +50,6 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyMergeEdgeStep.class);
 
     private static final Set allowedTokens = new LinkedHashSet(Arrays.asList(T.id, T.label, Direction.IN, Direction.OUT));
-
-    private boolean hasOnCreateLogic = false;
 
     public static void validateMapInput(final Map map, final boolean ignoreTokens) {
         MergeStep.validate(map, ignoreTokens, allowedTokens, "mergeE");
@@ -421,23 +415,21 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         if (!onCreateMap.containsKey(Direction.IN))
             throw new IllegalArgumentException("In Vertex not specified in onCreate - edge cannot be created");
 
-        final FireflyVertex fromV = (FireflyVertex) resolveVertex(onCreateMap.get(Direction.OUT));
-        final FireflyVertex toV = (FireflyVertex) resolveVertex(onCreateMap.get(Direction.IN));
+        final Vertex fromV = resolveVertex(onCreateMap.get(Direction.OUT));
+        final Vertex toV = resolveVertex(onCreateMap.get(Direction.IN));
         final String label = (String) onCreateMap.getOrDefault(T.label, Edge.DEFAULT_LABEL);
 
-        final Edge edge;
+        final List<Object> properties = new ArrayList<>();
 
-        // Apply custom Firefly logic to ensure single edge creation.
-        if (this.hasOnCreateLogic) {
-            edge = onCreateEdge(onCreateMap, mergeMap, fromV, toV, label);
-        } else {
-            // The onCreateMap is just the mergeMap in this case.
-            edge = onMergeEdge(onCreateMap, fromV, toV, label);
+        // add property constraints
+        for (final Map.Entry e : ((Map<?,?>) onCreateMap).entrySet()) {
+            final Object k = e.getKey();
+            if (k.equals(Direction.OUT) || k.equals(Direction.IN) || k.equals(T.label)) continue;
+            properties.add(k);
+            properties.add(e.getValue());
         }
-        // null is returned by the above functions when we need to recursively resolve again.
-        if (edge == null) {
-            return flatMap(traverser);
-        }
+
+        final Edge edge = fromV.addEdge(label, toV, properties.toArray());
 
         // trigger callbacks for eventing - in this case, it's a VertexAddedEvent
         if (this.callbackRegistry != null && !callbackRegistry.getCallbacks().isEmpty()) {
@@ -449,143 +441,6 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         return IteratorUtils.of(edge);
     }
 
-    private Edge onCreateEdge(final Map onCreate, final Map onMerge, final FireflyVertex fromV, final FireflyVertex toV,
-                              final String createLabel) {
-        final FireflyGraph graph = (FireflyGraph) getGraph();
-        final FireflyIdFactory idFactory = graph.getIdFactory();
-        final FireflyId edgeId = idFactory.createFromManager(graph, FireflyEdge.class);
-        final List<Map.Entry<String, Object>> propertyList = new ArrayList<>();
-        for (final Map.Entry e : ((Map<?,?>) onCreate).entrySet()) {
-            final Object k = e.getKey();
-            if (k instanceof String) {
-                propertyList.add(e);
-            }
-        }
-        final FireflyEdge edge = graph.writeEdge(edgeId, createLabel, propertyList, toV, fromV);
-        try {
-            final CloseableIterator<Edge> edgeSearch = searchEdges(onMerge);
-            while (edgeSearch.hasNext()) {
-                final FireflyEdge edgeFromSearch = (FireflyEdge) edgeSearch.next();
-                if (!edgeFromSearch.id.equals(edgeId)) {
-                    // A different edge matched the merge search criteria, so call this again to resolve.
-                    edgeSearch.close();
-                    edge.remove();
-                    return null;
-                }
-            }
-            return edge;
-        } catch (final Exception e) {
-            // If something goes wrong, try to clean up the edge best we can.
-            LOG.error("Unexpected error when searching for concurrent Edge creations during onCreate MergeEdge.");
-            edge.remove();
-            throw e;
-        }
-    }
-
-    private Edge onMergeEdge(final Map onMerge, final FireflyVertex fromV, final FireflyVertex toV,
-                             final String createLabel) {
-        if (!fromV.isEdgeCacheOverflowed() || !toV.isEdgeCacheOverflowed()) {
-            // If both vertices are supernodes, no need to search after generation latch since we won't be using it.
-            if (IteratorUtils.count(searchEdgesBetweenTwoVertices(onMerge)) != 0) {
-                // A merge match was found since generation was latched for fromV and toV, so call recursively to resolve.
-                return null;
-            }
-        }
-
-        final FireflyGraph graph = (FireflyGraph) getGraph();
-        final FireflyIdFactory idFactory = graph.getIdFactory();
-        final FireflyId edgeId = idFactory.createFromManager(graph, FireflyEdge.class);
-        final List<Map.Entry<String, Object>> propertyList = new ArrayList<>();
-        for (final Map.Entry e : ((Map<?,?>) onMerge).entrySet()) {
-            final Object k = e.getKey();
-            if (k instanceof String) {
-                propertyList.add(e);
-            }
-        }
-        // fromV and toV are both supernodes.
-        if (fromV.isEdgeCacheOverflowed() && toV.isEdgeCacheOverflowed()) {
-            final FireflyEdge edge = FireflyEdge.writeEdge(graph, edgeId, createLabel, propertyList, toV, fromV,
-                    false, false);
-            // Search to ensure that we didn't concurrently write multiple edges that match the search criteria.
-            try {
-                final CloseableIterator<Edge> edgeSearch = searchEdgesBetweenTwoVertices(onMerge);
-                while (edgeSearch.hasNext()) {
-                    final FireflyEdge edgeFromSearch = (FireflyEdge) edgeSearch.next();
-                    if (!edgeFromSearch.id.equals(edgeId)) {
-                        // A different edge matched the merge search criteria, so call this again to resolve.
-                        edgeSearch.close();
-                        edge.remove();
-                        return null;
-                    }
-                }
-                return edge;
-            } catch (final Exception e) {
-                // If something goes wrong, try to clean up the edge best we can.
-                LOG.error("Unexpected error when searching for concurrent Edge creations during onMerge MergeEdge.");
-                edge.remove();
-                throw e;
-            }
-        }
-        // fromV and toV are both not supernodes.
-        if (!fromV.isEdgeCacheOverflowed() && !toV.isEdgeCacheOverflowed()) {
-            final FireflyEdge edge = FireflyEdge.writeEdge(graph, edgeId, createLabel, propertyList, toV, fromV,
-                    true, true);
-            final FireflyId fromCompositeId = idFactory.createCompositeEdgeId(edgeId, toV.id);
-            try {
-                fromV.writeEdge(Direction.OUT, fromCompositeId, createLabel);
-            } catch (final AerospikeException e) {
-                edge.removeEdge();
-                if (e.getResultCode() == ResultCode.GENERATION_ERROR) {
-                    return null;
-                }
-                LOG.error("Unexpected error when adding Edge to fromV during MergeEdge.");
-                throw e;
-            }
-            try {
-                toV.writeEdge(Direction.IN, idFactory.createCompositeEdgeId(edgeId, fromV.id), createLabel, true);
-            } catch (final AerospikeException e) {
-                edge.removeEdge();
-                fromV.removeEdge(Direction.OUT, fromCompositeId, createLabel);
-                if (e.getResultCode() == ResultCode.GENERATION_ERROR) {
-                    return null;
-                }
-                LOG.error("Unexpected error when adding Edge to toV during MergeEdge.");
-                throw e;
-            }
-            return edge;
-        }
-        // Only fromV is a supernode
-        if (fromV.isEdgeCacheOverflowed()) {
-            final FireflyEdge edge = FireflyEdge.writeEdge(graph, edgeId, createLabel, propertyList, toV, fromV, true, false);
-            try {
-                toV.writeEdge(Direction.IN, idFactory.createCompositeEdgeId(edgeId, fromV.id), createLabel, true);
-            } catch (final AerospikeException e) {
-                edge.removeEdge();
-                if (e.getResultCode() == ResultCode.GENERATION_ERROR) {
-                    return null;
-                }
-                LOG.error("Unexpected error when adding Edge to fromV during MergeEdge.");
-                throw e;
-            }
-            return edge;
-        }
-        // Only toV is a supernode
-        else {
-            final FireflyEdge edge = FireflyEdge.writeEdge(graph, edgeId, createLabel, propertyList, toV, fromV, false, true);
-            try {
-                fromV.writeEdge(Direction.OUT, idFactory.createCompositeEdgeId(edgeId, toV.id), createLabel, true);
-            } catch (final AerospikeException e) {
-                edge.removeEdge();
-                if (e.getResultCode() == ResultCode.GENERATION_ERROR) {
-                    return null;
-                }
-                LOG.error("Unexpected error when adding Edge to toV during MergeEdge.");
-                throw e;
-            }
-            return edge;
-        }
-    }
-
     protected Map onCreateMap(final Traverser.Admin<S> traverser, final Map unresolvedMergeMap, final Map mergeMap) {
         // no onCreateTraversal - use main mergeMap argument
         if (onCreateTraversal == null)
@@ -595,7 +450,6 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         // null result from onCreateTraversal - use main mergeMap argument
         if (onCreateMap == null || onCreateMap.size() == 0)
             return mergeMap;
-        this.hasOnCreateLogic = true;
         validateMapInput(onCreateMap, false);
 
         /*

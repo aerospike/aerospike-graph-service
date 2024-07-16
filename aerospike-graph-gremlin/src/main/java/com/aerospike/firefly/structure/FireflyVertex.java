@@ -24,7 +24,6 @@ import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.exp.ListExp;
 import com.aerospike.client.exp.MapExp;
-import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
@@ -95,7 +94,6 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyVertex extends FireflyElement implements Vertex {
-    private final int generation;
     public static final int VERTEX_TYPE_HINT = 1;
     private static final Logger LOG = LoggerFactory.getLogger(FireflyVertex.class);
     protected final Map<String, List<LazyIdTransform>> inEdgeIds;
@@ -121,8 +119,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                          final Map<Object, Map<String, Object>> vertexPropertyIdToProperties,
                          final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints,
                          final boolean isEdgeCacheOverflowed,
-                         final AerospikeConnection db,
-                         final int generation) {
+                         final AerospikeConnection db) {
         super(fid, label);
         this.graph = graph;
         this.inEdgeIds = inEdgeIds == null ? new TreeMap<>() : inEdgeIds;
@@ -134,7 +131,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         this.vertexPropertyIdToTypeHints = vertexPropertyIdToTypeHints == null ? new TreeMap<>() : vertexPropertyIdToTypeHints;
         this.isEdgeCacheOverflowed = isEdgeCacheOverflowed;
         this.db = db;
-        this.generation = generation;
     }
 
     /**
@@ -358,7 +354,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      * @param edgeId    Id of edge.
      * @param edgeLabel Label of edge.
      */
-    public void removeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
+    protected void removeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
         // Get bin name for edge direction.
         final String cacheBinName = direction == Direction.IN ? db.IN_EDGES_BIN : db.OUT_EDGES_BIN;
 
@@ -446,20 +442,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      * @return was the edge written to this vertex's edge cache.
      */
     public boolean writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
-        return writeEdge(direction, edgeId, edgeLabel, false);
-    }
-
-    /**
-     * Write edge to vertex with ability to enable generation check. Used for FireflyMergeEdgeStep.
-     *
-     * @param direction         Direction of edge.
-     * @param edgeId            Id of edge.
-     * @param edgeLabel         Label of edge.
-     * @param generationCheck   Use generation check.
-     * @return was the edge written to this vertex's edge cache.
-     */
-    public boolean writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel,
-                             final boolean generationCheck) {
         // Edge cache is overflowed for this vertex - do nothing since writing to overflow bin is on the edge record.
         if (this.isEdgeCacheOverflowed) {
             return false;
@@ -512,10 +494,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Operate on database.
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
-        if (generationCheck) {
-            writePolicy.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
-            writePolicy.generation = this.generation;
-        }
         try {
             final Record results = this.db.writeOperate(writePolicy, key, appendToEdgeCache, updateCacheState, getCacheDisabled);
 
@@ -1284,14 +1262,14 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             operations.add(writeVpPropertiesTypeHints);
             operations.add(writeIdTypeHint);
 
-            final Record result = db.writeOperate(policy, key, operations.toArray(new Operation[0]));
+            db.writeOperate(policy, key, operations.toArray(new Operation[0]));
             graph.fireflySummaryUpdater.addVertexWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
             graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, FireflyVertexProperty.class);
             final Map<String, LazyIdTransform> lazyIdTransformMap = (Map) vertexPropertyIds;
             final FireflyVertex vertex = FireflyVertexFactory.create(vertexId, label, graph, new TreeMap<>(),
                     new TreeMap<>(), lazyIdTransformMap, vertexPropertyValueMap,
                     vertexPropertyTypeHintMap, vpProperties, vpPropertiesTypeHints,
-                    isEdgeCacheOverflowed, db, result.generation);
+                    isEdgeCacheOverflowed, db);
             return vertex;
         } else {
             // Should never happen.
@@ -1370,7 +1348,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             return FireflyVertexFactory.create(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds,
                     fireflyVertexPropertyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyProperties,
                     vertexPropertyPropertiesTypeHints,
-                    edgeCacheOverflowed, db, keyRecord.record.generation);
+                    edgeCacheOverflowed, db);
         } else {
             // Should never happen.
             throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
@@ -1409,8 +1387,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                                            final Map<Object, Map<String, Object>> vertexPropertyProperties,
                                            final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints,
                                            final boolean isEdgeCacheOverflowed,
-                                           final AerospikeConnection db,
-                                           final int generation) {
+                                           final AerospikeConnection db) {
 
             return new FireflyVertex(
                     fid,
@@ -1424,8 +1401,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                     vertexPropertyProperties,
                     vertexPropertyPropertiesTypeHints,
                     isEdgeCacheOverflowed,
-                    db,
-                    generation);
+                    db);
         }
     }
 }

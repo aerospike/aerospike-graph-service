@@ -121,6 +121,11 @@ public final class ConfigurationHelper {
         public static final String TIMEOUT_DELAY = "aerospike.client.policy.timeoutDelay";
         public static final String CONNECT_TIMEOUT = "aerospike.client.policy.connectTimeout";
 
+        public static final String MERGE_EDGE_TTL = "aerospike.graph.strategy.merge.edge.lock.timeout";
+        public static final String MERGE_EDGE_POLL_INTERVAL = "aerospike.graph.strategy.merge.edge.poll.interval";
+        public static final String MERGE_EDGE_EVAL_TIMEOUT = "aerospike.graph.strategy.merge.edge.eval.timeout";
+        public static final String MERGE_EDGE_STARVATION_PROTECTION  = "aerospike.graph.strategy.merge.edge.starvation.protection.enabled";
+
         // TODO: Figure out what scan policy settings can be shared with normal read policy settings and therefore removed
         public static final String SCAN_TOTAL_TIMEOUT = "aerospike.client.policy.scan.totalTimeout";
         public static final String SCAN_SOCKET_TIMEOUT = "aerospike.client.policy.scan.socketTimeout";
@@ -385,6 +390,10 @@ public final class ConfigurationHelper {
         put(Keys.EVENT_LOOP_COUNT, "2");
         put(Keys.COMMANDS_PER_EVENT_LOOP, "50");
         put(Keys.DELAY_QUEUE_SIZE, "50");
+        put(Keys.MERGE_EDGE_EVAL_TIMEOUT, "10000");
+        put(Keys.MERGE_EDGE_TTL, "10000");
+        put(Keys.MERGE_EDGE_POLL_INTERVAL, "10");
+        put(Keys.MERGE_EDGE_STARVATION_PROTECTION, "false");
     }};
 
     private static final Map<Object, String> BULK_LOAD_DEFAULTS = new HashMap<>() {{

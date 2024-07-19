@@ -12,11 +12,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import com.aerospike.firefly.util.concurrency.FireflyRecordLockHandler;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -306,6 +308,32 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
          */
         final Map mergeMap = resolveVertices(new LinkedHashMap<>(unresolvedMergeMap), traverser);
 
+        /*
+         * This onCreateMap will inherit from the main merge argument - a union of merge and onCreate with no overrides
+         * allowed.
+         */
+        final Map onCreateMap = onCreateMap(traverser, unresolvedMergeMap, mergeMap);
+
+        // check for from/to vertices, which must be specified for the create action
+        if (!onCreateMap.containsKey(Direction.OUT))
+            throw new IllegalArgumentException("Out Vertex not specified in onCreate - edge cannot be created");
+        if (!onCreateMap.containsKey(Direction.IN))
+            throw new IllegalArgumentException("In Vertex not specified in onCreate - edge cannot be created");
+
+        FireflyRecordLockHandler.FireflyRecordLock lock = null;
+        try {
+            final FireflyGraph graph = ((FireflyGraph) getGraph());
+            lock = graph.getRecordLockHandler().getLock(FireflyRecord.getMergeEdgeKey(graph,
+                    onCreateMap.get(Direction.OUT), onCreateMap.get(Direction.IN)));
+            return lockedFlatMap(traverser, mergeMap, onCreateMap);
+        } finally {
+            if (lock != null) {
+                lock.unlock();
+            }
+        }
+    }
+
+    private Iterator<Edge> lockedFlatMap(final Traverser.Admin<S> traverser, final Map mergeMap, final Map onCreateMap) {
         Iterator<Edge> edges = searchEdges(mergeMap);
 
         if (onMatchTraversal != null && edges.hasNext()) {
@@ -339,7 +367,8 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
             // If no valid edges for the merge were found and updated successfully due to a concurrent delete, call this
             // function again.
             if (validEdge == null) {
-                return flatMap(traverser);
+                CloseableIterator.closeIterator(edges);
+                return lockedFlatMap(traverser, mergeMap, onCreateMap);
             }
 
             final List<MergeEdgePropertyContainer> finalOnMatchMapPropertyChanges = onMatchMapPropertyChanges;
@@ -402,18 +431,6 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
 
         // make sure we close the search traversal
         CloseableIterator.closeIterator(edges);
-
-        /*
-         * This onCreateMap will inherit from the main merge argument - a union of merge and onCreate with no overrides
-         * allowed.
-         */
-        final Map onCreateMap = onCreateMap(traverser, unresolvedMergeMap, mergeMap);
-
-        // check for from/to vertices, which must be specified for the create action
-        if (!onCreateMap.containsKey(Direction.OUT))
-            throw new IllegalArgumentException("Out Vertex not specified in onCreate - edge cannot be created");
-        if (!onCreateMap.containsKey(Direction.IN))
-            throw new IllegalArgumentException("In Vertex not specified in onCreate - edge cannot be created");
 
         final Vertex fromV = resolveVertex(onCreateMap.get(Direction.OUT));
         final Vertex toV = resolveVertex(onCreateMap.get(Direction.IN));

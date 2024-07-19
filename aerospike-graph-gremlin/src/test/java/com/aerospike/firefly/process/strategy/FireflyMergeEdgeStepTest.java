@@ -312,7 +312,7 @@ public class FireflyMergeEdgeStepTest {
 
     static private FireflyGraph getGraphWithCacheSize(final int cacheSize) {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty("aerospike.graph.vertex.edge.cache.size", String.valueOf(cacheSize));
+        config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, String.valueOf(cacheSize));
         return FireflyGraph.open(config);
     }
 }

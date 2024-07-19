@@ -56,6 +56,7 @@ import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.PluginUtil;
 import com.aerospike.firefly.util.WarmupUtil;
+import com.aerospike.firefly.util.concurrency.FireflyRecordLockHandler;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
@@ -201,6 +202,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final FireflyCardinalityMetadata fireflyCardinalityMetadata;
     public final FireflyIndexMetadata fireflyIndexMetadata;
     public final FireflyGraphSummaryUpdater fireflySummaryUpdater;
+    private final FireflyRecordLockHandler fireflyRecordLockHandler;
     private final ServiceRegistry serviceRegistry = new ServiceRegistry();
     private static final String GREMLIN_SERVER_YAML_PATH = "GREMLIN_SERVER_YAML_PATH";
     private static final String UNIFIED_CONFIG_PROPERTIES_PATH = "UNIFIED_CONFIG_PROPERTIES_PATH";
@@ -257,6 +259,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
         fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
+        fireflyRecordLockHandler = new FireflyRecordLockHandler(db);
 
         if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
             final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
@@ -894,6 +897,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return db;
     }
 
+    public FireflyRecordLockHandler getRecordLockHandler() {
+        return fireflyRecordLockHandler;
+    }
+
     @Override
     public Features features() {
         return features;
@@ -927,7 +934,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             while (v == null) {
                 try {
                     v = writeVertex(idValue, label, properties);
-                } catch (AerospikeException e) {
+                } catch (final AerospikeException e) {
                     if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
                         idValue = getIdFactory().createFromManager(this, FireflyVertex.class);
                     } else {
@@ -945,7 +952,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             }
             try {
                 return writeVertex(idValue, label, properties);
-            } catch (AerospikeException e) {
+            } catch (final AerospikeException e) {
                 if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
                     throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.getUserId());
                 } else {

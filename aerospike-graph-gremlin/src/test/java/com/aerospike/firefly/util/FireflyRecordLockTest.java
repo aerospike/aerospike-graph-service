@@ -115,7 +115,7 @@ public class FireflyRecordLockTest {
         Thread.sleep(500);
         Assert.assertFalse(lockGrabbed.get());
         Assert.assertFalse(timeout.get());
-        Thread.sleep(1000);
+        Thread.sleep(2000);
         Assert.assertFalse(lockGrabbed.get());
         Assert.assertTrue(timeout.get());
         lock1.unlock();
@@ -143,7 +143,7 @@ public class FireflyRecordLockTest {
         second.start();
         Thread.sleep(500);
         Assert.assertFalse(lockGrabbed.get());
-        Thread.sleep(1000);
+        Thread.sleep(2000);
         Assert.assertTrue(lockGrabbed.get());
         Assert.assertTrue(locksEqual.get());
         lock1.unlock();

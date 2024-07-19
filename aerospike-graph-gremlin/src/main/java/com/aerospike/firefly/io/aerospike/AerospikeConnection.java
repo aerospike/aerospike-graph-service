@@ -1754,6 +1754,15 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
+    public Record writeKeyLock(final Key key, final int ttlMillis) {
+        final WritePolicy policy = new WritePolicy();
+        policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
+        policy.expiration = ttlMillis / 1000;
+        configureWritePolicy(policy);
+        final Operation createLockRecord = Operation.put(new Bin(this.USER_KEY_BIN, false));
+        return this.getClient().operate(policy, key, createLockRecord);
+    }
+
     public Record writeOperate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
         final WritePolicy policy;
         if (writePolicy == null) {

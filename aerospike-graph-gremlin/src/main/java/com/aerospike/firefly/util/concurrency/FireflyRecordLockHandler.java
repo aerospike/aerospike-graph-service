@@ -1,13 +1,9 @@
 package com.aerospike.firefly.util.concurrency;
 
 import com.aerospike.client.AerospikeException;
-import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
-import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
-import com.aerospike.client.policy.RecordExistsAction;
-import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +26,6 @@ public class FireflyRecordLockHandler {
     private final int lockTimeout;
     private final int lockPollIntervalMillis;
     private final boolean starvationProtectionEnabled;
-    private final String recordLockBin;
 
     public FireflyRecordLockHandler(final AerospikeConnection db) {
         this.db = db;
@@ -38,8 +33,6 @@ public class FireflyRecordLockHandler {
         this.lockTimeout = db.MERGE_EDGE_EVAL_TIMEOUT;
         this.lockPollIntervalMillis = db.MERGE_EDGE_POLL_INTERVAL;
         this.starvationProtectionEnabled = db.MERGE_EDGE_STARVATION_PROTECTION;
-        // No need for a dedicated bin.
-        this.recordLockBin = db.USER_KEY_BIN;
     }
 
     /**
@@ -57,7 +50,6 @@ public class FireflyRecordLockHandler {
         private final FireflyRecordLockHandler handler;
         private final Key key;
         private final ArrayBlockingQueue<Object> lockQueue;
-        private final WritePolicy acquireLockPolicy;
         private final Timer timer;
         private TimerTask lockPoller;
         private AtomicInteger hotKeyCount = new AtomicInteger(0);
@@ -68,10 +60,6 @@ public class FireflyRecordLockHandler {
             this.handler = handler;
             this.key = key;
             this.lockQueue = new ArrayBlockingQueue<>(1, true);
-            final WritePolicy acquireLockPolicy = new WritePolicy();
-            acquireLockPolicy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
-            acquireLockPolicy.expiration = this.handler.lockTtl / 1000;
-            this.acquireLockPolicy = acquireLockPolicy;
             this.timer = new Timer(key.toString(), true);
             this.startLockPoller(0);
         }
@@ -150,10 +138,8 @@ public class FireflyRecordLockHandler {
                     return;
                 }
                 try {
-                    final Operation createLockRecord = Operation.put(
-                            new Bin(this.lockRecord.handler.recordLockBin, false));
-                    final Record record = this.lockRecord.handler.db.writeOperate(this.lockRecord.acquireLockPolicy,
-                            this.lockRecord.key, createLockRecord);
+                    final Record record = this.lockRecord.handler.db.writeKeyLock(this.lockRecord.key,
+                            this.lockRecord.handler.lockTtl);
                     this.lockRecord.lockQueue.offer(record);
                     this.lockRecord.printErrorToLog.set(true);
                     this.lockRecord.hotKeyCount.set(0);

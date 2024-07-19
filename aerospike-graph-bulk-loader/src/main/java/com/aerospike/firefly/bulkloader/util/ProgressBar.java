@@ -27,6 +27,8 @@ public class ProgressBar extends TimerTask {
     private long edgesWritten = 0L;
     private long edgesInitial = 0L;
     private long verticesInitial = 0L;
+    private int vertexPartitions = 0;
+    private int edgePartitions = 0;
 
     public ProgressBar(final int intervalMillis) {
         this.intervalMillis = intervalMillis;
@@ -106,6 +108,18 @@ public class ProgressBar extends TimerTask {
         }
     }
 
+    public void setEdgePartitionCount(final int edgePartitions) {
+        synchronized (ProgressBar.class) {
+            this.edgePartitions = edgePartitions;
+        }
+    }
+
+    public void setVertexPartitionCount(final int vertexPartitions) {
+        synchronized (ProgressBar.class) {
+            this.vertexPartitions = vertexPartitions;
+        }
+    }
+
     private String getVertexWritingProgress(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         if (vertexLoadComplete) {
             return "\t\tVertex writing complete\n" +
@@ -119,6 +133,7 @@ public class ProgressBar extends TimerTask {
                 return "\t\tVertex writing in progress\n" +
                         "\t\t\tWriting " + delta / (intervalMillis / 1000) + " vertices per second\n" +
                         "\t\t\tTotal of " + verticesWritten + " vertices have been successfully written\n";
+                // TODO: Can give % complete from vertex partitions.
             }
         } else {
             return "\t\tVertex writing not started\n";
@@ -145,6 +160,7 @@ public class ProgressBar extends TimerTask {
                 return "\t\tEdge writing in progress\n" +
                         "\t\t\tWriting " + delta / (intervalMillis / 1000) + " edges per second\n" +
                         "\t\t\tTotal of " + edgesWritten + " edges have been successfully written\n";
+                // TODO: Can give % complete from edge partitions.
             }
         } else {
             return "\t\tEdge writing not started\n";

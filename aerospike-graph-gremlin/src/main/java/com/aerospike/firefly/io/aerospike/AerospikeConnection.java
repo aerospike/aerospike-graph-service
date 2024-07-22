@@ -1057,7 +1057,7 @@ public class AerospikeConnection implements AutoCloseable {
         final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(getClient(), getNamespace(), GRAPH_METADATA_SET);
         for (final String index : setIndex) {
             if (!"ok".equals(index)) {
-                LOG.error("Error creating set index: {}", index);
+                LOG.error("Error creating set index for metadata set: {}", index);
             }
         }
 

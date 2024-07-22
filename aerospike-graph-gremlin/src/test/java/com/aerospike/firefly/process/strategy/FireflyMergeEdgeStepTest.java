@@ -94,7 +94,10 @@ public class FireflyMergeEdgeStepTest {
 
     @Test
     public void testConcurrentWriting() throws InterruptedException {
-        final FireflyGraph graph = getGraphWithCacheSize(100);
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, String.valueOf(100));
+        config.setProperty(ConfigurationHelper.Keys.MERGE_EDGE_EVAL_TIMEOUT, String.valueOf(60000));
+        final FireflyGraph graph = FireflyGraph.open(config);
         try {
             final GraphTraversalSource g = graph.traversal();
             final Vertex v1 = g.addV("v1").next();
@@ -138,9 +141,8 @@ public class FireflyMergeEdgeStepTest {
                 v2InECount++;
             }
             Assert.assertEquals(100, v2InECount);
-            graph.getBaseGraph().dropDatabase(graph, false);
+            g.V().drop().iterate();
             threads.clear();
-            Thread.sleep(500);
 
             final Vertex v11 = g.addV("v11").next();
             final Vertex v22 = g.addV("v22").next();

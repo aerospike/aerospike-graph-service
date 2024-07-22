@@ -6,6 +6,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.google.common.collect.Iterators;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -123,10 +124,23 @@ public class FireflyMergeEdgeStepTest {
             for (final Thread thread : threads) {
                 thread.join();
             }
-            Assert.assertEquals(150, (long) g.V().hasLabel("v1").outE().count().next());
-            Assert.assertEquals(100, (long) g.V().hasLabel("v2").inE().count().next());
-            g.V().drop().iterate();
+            int v1OutECount = 0;
+            GraphTraversal<?, Edge> t = g.V().hasLabel("v1").outE();
+            while (t.hasNext()) {
+                final Edge e = t.next();
+                v1OutECount++;
+            }
+            Assert.assertEquals(150, v1OutECount);
+            int v2InECount = 0;
+            t = g.V().hasLabel("v2").inE();
+            while (t.hasNext()) {
+                final Edge e = t.next();
+                v2InECount++;
+            }
+            Assert.assertEquals(100, v2InECount);
+            graph.getBaseGraph().dropDatabase(graph, false);
             threads.clear();
+            Thread.sleep(500);
 
             final Vertex v11 = g.addV("v11").next();
             final Vertex v22 = g.addV("v22").next();
@@ -154,8 +168,20 @@ public class FireflyMergeEdgeStepTest {
             for (final Thread thread : threads) {
                 thread.join();
             }
-            Assert.assertEquals(100, (long) g.V().hasLabel("v11").outE().count().next());
-            Assert.assertEquals(150, (long) g.V().hasLabel("v22").inE().count().next());
+            int v11OutECount = 0;
+            t = g.V().hasLabel("v11").outE();
+            while (t.hasNext()) {
+                final Edge e = t.next();
+                v11OutECount++;
+            }
+            Assert.assertEquals(100, v11OutECount);
+            int v22InECount = 0;
+            t = g.V().hasLabel("v22").inE();
+            while (t.hasNext()) {
+                final Edge e = t.next();
+                v22InECount++;
+            }
+            Assert.assertEquals(150, v22InECount);
         } finally {
             graph.getBaseGraph().dropDatabase(graph, false);
             graph.close();

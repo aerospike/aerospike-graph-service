@@ -16,6 +16,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.MapConfiguration;
+import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -71,6 +72,8 @@ public class SparkBulkLoaderStateMachine {
     public boolean isL2Mode;
     public List<String> vertexDirectories;
     public List<String> edgeDirectories;
+    public String checkpointDir;
+    public boolean checkpointEnabled = false;
     public boolean incrementalLoad;
     public BulkLoaderConfigHelper config;
     public SparkSession spark;
@@ -142,9 +145,15 @@ public class SparkBulkLoaderStateMachine {
         }
         initializerGraph.getBaseGraph().initialzeBulkLoadMetadata();
 
-        final String checkpointDir = config.getOrDefault(CHECKPOINT_DIRECTORY_KEY);
-        if (null != checkpointDir && !checkpointDir.isEmpty()) {
-            spark.sparkContext().setCheckpointDir(checkpointDir);
+        try {
+            checkpointDir = config.getOrDefault(CHECKPOINT_DIRECTORY_KEY);
+            if (null != checkpointDir && !checkpointDir.isEmpty()) {
+                checkpointEnabled = true;
+                spark.sparkContext().setCheckpointDir(checkpointDir);
+            }
+        } catch (final ConfigurationRuntimeException e) {
+            LOGGER.error("Checkpoint directory not set. Checkpointing will not be enabled.");
+
         }
 
         // Pre-processing

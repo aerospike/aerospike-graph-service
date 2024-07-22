@@ -1,5 +1,6 @@
 package com.aerospike.firefly.util;
 
+import com.aerospike.client.async.EventLoopType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -159,6 +160,11 @@ public final class ConfigurationHelper {
         public static final String JWT_ALGORITHM = "aerospike.graph-service.auth.jwt.algorithm";
         public static final String AUTHENTICATION_ENABLED = "aerospike.graph-service.auth.enabled";
         public static final String USAGE_STATS_SET_INDEX_ENABLED = "aerospike.graph.usage.index.enabled";
+
+        public static final String EVENT_LOOP_TYPE = "aerospike.client.eventLoop.type";
+        public static final String EVENT_LOOP_COUNT = "aerospike.client.eventLoop.count";
+        public static final String COMMANDS_PER_EVENT_LOOP = "aerospike.client.eventLoop.commands";
+        public static final String DELAY_QUEUE_SIZE = "aerospike.client.delayQueue.size";
 
         public static class Pair {
             public final int numeric;
@@ -375,6 +381,10 @@ public final class ConfigurationHelper {
         put(Keys.SCAN_SOCKET_TIMEOUT, "1200000");
         put(Keys.SCAN_CONNECT_TIMEOUT, "0");
         put(Keys.SCAN_TIMEOUT_DELAY, "0");
+        put(Keys.EVENT_LOOP_TYPE, EventLoopType.NETTY_NIO.name());
+        put(Keys.EVENT_LOOP_COUNT, "2");
+        put(Keys.COMMANDS_PER_EVENT_LOOP, "50");
+        put(Keys.DELAY_QUEUE_SIZE, "50");
     }};
 
     private static final Map<Object, String> BULK_LOAD_DEFAULTS = new HashMap<>() {{

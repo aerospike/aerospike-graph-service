@@ -233,7 +233,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         final String edgeLabel = (String) search.get(T.label);
         final Object fromId = search.get(Direction.OUT);
         final Object toId = search.get(Direction.IN);
-        LOG.info("Using FireflyMergeEdgeStep to obtain Edges between FROM Vertex {} and TO Vertex {}", fromId, toId);
+        LOG.debug("Using FireflyMergeEdgeStep to obtain Edges between FROM Vertex {} and TO Vertex {}", fromId, toId);
 
         final FireflyId fromVId = fireflyGraph.getIdFactory().createId(fromId, FireflyVertex.class);
         final FireflyId toVId = fireflyGraph.getIdFactory().createId(toId, FireflyVertex.class);
@@ -317,12 +317,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         // Tinkerpop allows MergeEdge steps that "work" without a specified onCreate OUT/IN Vertex for some reason,
         // which does not blow up provided something matches the merge search. Because of this, we need to proceed
         // without locking in such odd cases since we can't generate a lock, but it's fine since we can't write anyway.
-        boolean validOnCreate = true;
-        if (!onCreateMap.containsKey(Direction.OUT)) {
-            validOnCreate = false;
-        } else if (!onCreateMap.containsKey(Direction.IN)) {
-            validOnCreate = false;
-        }
+        final boolean validOnCreate = onCreateMap.containsKey(Direction.OUT) && onCreateMap.containsKey(Direction.IN);
 
         if (validOnCreate) {
             FireflyRecordLockHandler.FireflyRecordLock lock = null;

@@ -11,6 +11,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
+import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
@@ -63,7 +64,7 @@ public class VertexOperations implements Serializable {
         this.vertexPaths = Objects.requireNonNull(vertexCSVFiles);
     }
 
-    private void writeVertices(final Dataset<Row> unionVertexDS, final Set<Object> supernodes) {
+    private void writeVertices(final Dataset<Row> unionVertexDS, final Set<Object> supernodes, final String checkpointDirectory) {
         unionVertexDS.foreachPartition(rowIterator -> {
             final int partitionId = TaskContext.getPartitionId();
             LOGGER.info("Starting to write VertexDataset in PartitionId: " + partitionId);
@@ -119,6 +120,9 @@ public class VertexOperations implements Serializable {
 
                 final String taskName = String.format("Vertex write in partition:{}", partitionId);
                 LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
+
+                if (checkpointDirectory != null && !checkpointDirectory.isEmpty()) {
+                }
             }
         });
     }
@@ -245,12 +249,12 @@ public class VertexOperations implements Serializable {
         }
     }
 
-    public void writeVerticesToDB(final Dataset<Row> vertexDataSet, final Set<Object> supernodes) {
+    public void writeVerticesToDB(final Dataset<Row> vertexDataSet, final Set<Object> supernodes, final String checkpointDirectory) {
         if (!this.config.hasAction(DISABLE_VERTEX_WRITE)) {
             final Instant startOfVertexWrite = Instant.now();
             String taskName = "Vertex write";
             vertexDataSet.sparkSession().sparkContext().setJobGroup(taskName, "Vertex write task", true);
-            writeVertices(vertexDataSet, supernodes);
+            writeVertices(vertexDataSet, supernodes, checkpointDirectory);
             vertexDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
             final Instant endOfVertexWrite = Instant.now();
             Duration vertexInterval = Duration.between(startOfVertexWrite, endOfVertexWrite);

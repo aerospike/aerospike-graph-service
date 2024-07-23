@@ -1816,7 +1816,7 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Initialize the metadata set for bulk loading
      */
-    public void initialzeBulkLoadMetadata() {
+    public void initializeBulkLoadMetadata() {
         final Key duplicateVertexIdCountKey = new Key(namespace, BULK_LOAD_METADATA_SET, Value.get(BL_DUPLICATE_VERTEX_COUNT_KEY));
         final Key badEdgeCountKey = new Key(namespace, BULK_LOAD_METADATA_SET, Value.get(BL_BAD_EDGES_COUNT_KEY));
         final Key badEntryCountKey = new Key(namespace, BULK_LOAD_METADATA_SET, Value.get(BL_BAD_ENTRY_COUNT_KEY));

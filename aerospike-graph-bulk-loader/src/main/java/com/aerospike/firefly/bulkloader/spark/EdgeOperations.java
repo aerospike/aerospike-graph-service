@@ -119,6 +119,8 @@ public class EdgeOperations implements Serializable {
                     return;
                 }
             }
+            final String partitionFailure = System.getenv("bulkloader.testing.partition.failure");
+
             LOGGER.info("Starting to write EdgeDataset in PartitionId: " + partitionId);
 
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {

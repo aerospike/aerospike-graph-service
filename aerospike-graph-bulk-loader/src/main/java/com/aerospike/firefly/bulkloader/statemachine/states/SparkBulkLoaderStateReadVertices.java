@@ -26,7 +26,7 @@ public class SparkBulkLoaderStateReadVertices extends SparkBulkLoaderState {
                 DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config));
         sparkBulkLoaderStateMachine.vertexPartitionCount = sparkBulkLoaderStateMachine.vertexDataset.rdd().partitions().length;
         LOGGER.info("Vertex dataset has {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
-        sparkBulkLoaderStateMachine.PROGRESS_BAR.setVertexPartitionCount(sparkBulkLoaderStateMachine.vertexPartitionCount);
+        sparkBulkLoaderStateMachine.progressBar.setVertexPartitionCount(sparkBulkLoaderStateMachine.vertexPartitionCount);
     }
 
     @Override

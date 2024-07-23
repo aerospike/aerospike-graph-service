@@ -64,7 +64,7 @@ public class VertexOperations implements Serializable {
         this.vertexPaths = Objects.requireNonNull(vertexCSVFiles);
     }
 
-    private void writeVertices(final Dataset<Row> unionVertexDS, final Set<Object> supernodes, final String checkpointDirectory) {
+    private void writeVertices(final Dataset<Row> unionVertexDS, final Set<Object> supernodes) {
         unionVertexDS.foreachPartition(rowIterator -> {
             final int partitionId = TaskContext.getPartitionId();
             LOGGER.info("Starting to write VertexDataset in PartitionId: " + partitionId);
@@ -120,9 +120,6 @@ public class VertexOperations implements Serializable {
 
                 final String taskName = String.format("Vertex write in partition:{}", partitionId);
                 LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
-
-                if (checkpointDirectory != null && !checkpointDirectory.isEmpty()) {
-                }
             }
         });
     }
@@ -249,7 +246,7 @@ public class VertexOperations implements Serializable {
         }
     }
 
-    public void writeVerticesToDB(final Dataset<Row> vertexDataSet, final Set<Object> supernodes, final String checkpointDirectory) {
+    public void writeVerticesToDB(final Dataset<Row> vertexDataSet, final Set<Object> supernodes) {
         if (!this.config.hasAction(DISABLE_VERTEX_WRITE)) {
             final Instant startOfVertexWrite = Instant.now();
             String taskName = "Vertex write";

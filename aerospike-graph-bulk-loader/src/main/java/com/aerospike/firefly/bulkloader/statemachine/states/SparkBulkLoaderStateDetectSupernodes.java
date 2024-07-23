@@ -20,7 +20,7 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
                 sparkBulkLoaderStateMachine.edgeDataset,
                 onRecordIdLimit,
                 sparkBulkLoaderStateMachine.incrementalLoad);
-        sparkBulkLoaderStateMachine.PROGRESS_BAR.setSuperNodeExtractionComplete();
+        sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
     }
 
     @Override

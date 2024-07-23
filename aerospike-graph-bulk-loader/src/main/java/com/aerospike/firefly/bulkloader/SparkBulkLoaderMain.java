@@ -3,7 +3,13 @@ package com.aerospike.firefly.bulkloader;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
+
+    private static final Map<String, SparkBulkLoaderStateMachine> RUNNING_JOBS = new HashMap<>();
 
     public static void main(final String[] args) {
         // Create new Object so we can invoke non-static method load()
@@ -11,8 +17,19 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
     }
 
     public void load(final String[] args) {
+        if (!RUNNING_JOBS.isEmpty()) {
+            throw new IllegalStateException("Another job is already running.");
+        }
         SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(args);
-        stateMachine.executeStateMachine();
+        final String uuid = UUID.randomUUID().toString();
+        RUNNING_JOBS.put(uuid, stateMachine);
+        try {
+            stateMachine.executeStateMachine();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            RUNNING_JOBS.remove(uuid);
+        }
     }
 
     public static void exponentialBackoff(final int attempt) {

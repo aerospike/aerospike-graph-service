@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_EDGES_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_ENTRY_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_DUPLICATE_VERTEX_ID_COUNT;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CHECKPOINT_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
@@ -69,8 +68,6 @@ public class CommandLineParser {
         options.addOption(edgeDirOption);
         final Option edgeIdDirOption = new Option(KEY_TO_CMD.get(TEMP_DIRECTORY_KEY), TEMP_DIRECTORY_KEY, true, "Path to EdgeID directory. Local: Absolute path. AWS S3: Directory after bucket name.");
         options.addOption(edgeIdDirOption);
-        final Option checkpointDirOption = new Option(KEY_TO_CMD.get(CHECKPOINT_DIRECTORY_KEY), CHECKPOINT_DIRECTORY_KEY, true, "Path to checkpoint directory. Local: Absolute path. AWS S3: Directory after bucket name.");
-        options.addOption(checkpointDirOption);
         final Option keepEdgeIdOption = new Option(KEY_TO_CMD.get(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY), KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, true, "Boolean to keep provided Edge IDs as a property. Optional argument - Default: 'false'.");
         options.addOption(keepEdgeIdOption);
         final Option idPropNameOption = new Option(KEY_TO_CMD.get(PROVIDED_EDGE_ID_PROPERTY_NAME), PROVIDED_EDGE_ID_PROPERTY_NAME, true, "Property key of provided Edge ID if stored as a property. Optional argument - Default: '~providedId'.");

@@ -23,7 +23,7 @@ public class SparkBulkLoaderStatePreflight extends SparkBulkLoaderState {
             sparkBulkLoaderStateMachine.progressBar.setPreflightCheckComplete();
         } catch (final Exception e) {
             // We are limiting stacktrace size by DRYRUN_STACKTRACE_LIMIT
-            final StackTraceElement[] originalStackTrace = this.e.getStackTrace();
+            final StackTraceElement[] originalStackTrace = e.getStackTrace();
             final StackTraceElement[] limitedStackTrace =
                     Arrays.copyOf(originalStackTrace,
                             Math.min(originalStackTrace.length, sparkBulkLoaderStateMachine.dryrunStacktraceLimit));

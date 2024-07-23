@@ -12,9 +12,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import com.aerospike.firefly.util.concurrency.FireflyRecordLockHandler;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -185,41 +189,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
                 t = t.where(inV().hasId(toId));
 
         } else if (fromId != null && toId != null) {
-            LOG.info("Using FireflyMergeEdgeStep to obtain Edges between FROM Vertex {} and TO Vertex {}", fromId, toId);
-            final FireflyGraph fireflyGraph = (FireflyGraph) graph;
-            final FireflyId fromVId = fireflyGraph.getIdFactory().createId(fromId, FireflyVertex.class);
-            final FireflyId toVId = fireflyGraph.getIdFactory().createId(toId, FireflyVertex.class);
-            final List<FireflyVertex> fromVAndToV = fireflyGraph.readVertices(Collections.emptyList(),
-                    List.of(fromVId, toVId), Collections.emptyList());
-            FireflyVertex fromV = null;
-            FireflyVertex toV = null;
-            for (final FireflyVertex vertex : fromVAndToV) {
-                if (vertex.id.equals(fromVId)) {
-                    fromV = vertex;
-                } else if (vertex.id.equals(toVId)) {
-                    toV = vertex;
-                }
-            }
-            if (fromV == null || toV == null) {
-                return CloseableIterator.of(Collections.emptyIterator());
-            }
-
-            // Get property filters
-            final Map<String, Object> propertyFilters = new HashMap<>();
-            for (final Map.Entry e : ((Map<?,?>) search).entrySet()) {
-                final Object k = e.getKey();
-                if (k instanceof String) {
-                    propertyFilters.put((String) k, e.getValue());
-                }
-            }
-
-            // If OUT/FROM is a supernode, just use IN/TO since it's a 50/50 which is faster if both are supernodes
-            if (fromV.isEdgeCacheOverflowed()) {
-                return toV.getEdgesAdjacentToVertex(Direction.IN, fromV.id, edgeLabel, propertyFilters);
-            } else {
-                return fromV.getEdgesAdjacentToVertex(Direction.OUT, toV.id, edgeLabel, propertyFilters);
-            }
-
+            return searchEdgesBetweenTwoVertices(search);
         } else if (fromId != null) {
 
             // g.V(fromId).outE(label).where(inV().hasId(toId));
@@ -256,6 +226,47 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
 
         // this should auto-close the underlying traversal
         return CloseableIterator.of(t);
+    }
+
+    private CloseableIterator<Edge> searchEdgesBetweenTwoVertices(Map search) {
+        final FireflyGraph fireflyGraph = (FireflyGraph) this.getGraph();
+        final String edgeLabel = (String) search.get(T.label);
+        final Object fromId = search.get(Direction.OUT);
+        final Object toId = search.get(Direction.IN);
+        LOG.debug("Using FireflyMergeEdgeStep to obtain Edges between FROM Vertex {} and TO Vertex {}", fromId, toId);
+
+        final FireflyId fromVId = fireflyGraph.getIdFactory().createId(fromId, FireflyVertex.class);
+        final FireflyId toVId = fireflyGraph.getIdFactory().createId(toId, FireflyVertex.class);
+        final List<FireflyVertex> fromVAndToV = fireflyGraph.readVertices(Collections.emptyList(),
+                List.of(fromVId, toVId), Collections.emptyList());
+        FireflyVertex fromV = null;
+        FireflyVertex toV = null;
+        for (final FireflyVertex vertex : fromVAndToV) {
+            if (vertex.id.equals(fromVId)) {
+                fromV = vertex;
+            } else if (vertex.id.equals(toVId)) {
+                toV = vertex;
+            }
+        }
+        if (fromV == null || toV == null) {
+            return CloseableIterator.of(Collections.emptyIterator());
+        }
+
+        // Get property filters
+        final Map<String, Object> propertyFilters = new HashMap<>();
+        for (final Map.Entry e : ((Map<?,?>) search).entrySet()) {
+            final Object k = e.getKey();
+            if (k instanceof String) {
+                propertyFilters.put((String) k, e.getValue());
+            }
+        }
+
+        // If OUT/FROM is a supernode, just use IN/TO since it's a 50/50 which is faster if both are supernodes
+        if (fromV.isEdgeCacheOverflowed()) {
+            return toV.getEdgesAdjacentToVertex(Direction.IN, fromV.id, edgeLabel, propertyFilters);
+        } else {
+            return fromV.getEdgesAdjacentToVertex(Direction.OUT, toV.id, edgeLabel, propertyFilters);
+        }
     }
 
     protected Map<?,?> resolveVertices(final Map map, final Traverser.Admin<S> traverser) {
@@ -297,15 +308,88 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
          */
         final Map mergeMap = resolveVertices(new LinkedHashMap<>(unresolvedMergeMap), traverser);
 
+        /*
+         * This onCreateMap will inherit from the main merge argument - a union of merge and onCreate with no overrides
+         * allowed.
+         */
+        final Map onCreateMap = onCreateMap(traverser, unresolvedMergeMap, mergeMap);
+
+        // Tinkerpop allows MergeEdge steps that "work" without a specified onCreate OUT/IN Vertex for some reason,
+        // which does not blow up provided something matches the merge search. Because of this, we need to proceed
+        // without locking in such odd cases since we can't generate a lock, but it's fine since we can't write anyway.
+        final boolean validOnCreate = onCreateMap.containsKey(Direction.OUT) && onCreateMap.containsKey(Direction.IN);
+
+        if (validOnCreate) {
+            FireflyRecordLockHandler.FireflyRecordLock lock = null;
+            try {
+                final FireflyGraph graph = ((FireflyGraph) getGraph());
+                lock = graph.getRecordLockHandler().getLock(FireflyRecord.getMergeEdgeKey(graph,
+                        onCreateMap.get(Direction.OUT), onCreateMap.get(Direction.IN)));
+                return lockedFlatMap(traverser, mergeMap, onCreateMap);
+            } finally {
+                if (lock != null) {
+                    lock.unlock();
+                }
+            }
+        } else {
+            return lockedFlatMap(traverser, mergeMap, onCreateMap);
+        }
+    }
+
+    private Iterator<Edge> lockedFlatMap(final Traverser.Admin<S> traverser, final Map mergeMap, final Map onCreateMap) {
         Iterator<Edge> edges = searchEdges(mergeMap);
 
-        if (onMatchTraversal != null) {
+        if (onMatchTraversal != null && edges.hasNext()) {
             if (onMatchTraversal instanceof ConstantTraversal) {
                 final Map matchMap = onMatchTraversal.next();
                 validateMapInput(matchMap, true);
             }
 
-            edges = IteratorUtils.peek(edges, e -> {
+            Edge validEdge = null;
+            List<MergeEdgePropertyContainer> onMatchMapPropertyChanges = Collections.emptyList();
+            while (validEdge == null && edges.hasNext()) {
+                final Edge edge = edges.next();
+                final Map<String, ?> onMatchMap = materializeMap(traverser, onMatchTraversal);
+                validateMapInput(onMatchMap, true);
+                final List<MergeEdgePropertyContainer> onMatchProperties = new ArrayList<>();
+                try {
+                    onMatchMap.forEach((key, value) -> {
+                        // Store relevant data for eventing
+                        if (this.callbackRegistry != null && !callbackRegistry.getCallbacks().isEmpty()) {
+                            onMatchProperties.add(new MergeEdgePropertyContainer(edge.property(key), value));
+                        }
+                        edge.property(key, value);
+                    });
+                } catch (final ElementNotFoundException ignored) {
+                    continue;
+                }
+                validEdge = edge;
+                onMatchMapPropertyChanges = onMatchProperties;
+            }
+
+            // If no valid edges for the merge were found and updated successfully due to a concurrent delete, call this
+            // function again.
+            if (validEdge == null) {
+                CloseableIterator.closeIterator(edges);
+                return lockedFlatMap(traverser, mergeMap, onCreateMap);
+            }
+
+            final List<MergeEdgePropertyContainer> finalOnMatchMapPropertyChanges = onMatchMapPropertyChanges;
+            Iterator<Edge> validEdgeItty = FireflyCloseableIteratorUtils.of(validEdge);
+            validEdgeItty = IteratorUtils.peek(validEdgeItty, e -> {
+                if (isStart) traverser.set((S) e);
+                for (final MergeEdgePropertyContainer container : finalOnMatchMapPropertyChanges) {
+                    final EventStrategy eventStrategy =
+                            getTraversal().getStrategies().getStrategy(EventStrategy.class).get();
+                    final Property<?> p = container.oldProperty;
+                    final Property<Object> oldValue =
+                            p.isPresent() ? (Property<Object>) eventStrategy.detach(container.oldProperty) : null;
+                    final Event.EdgePropertyChangedEvent vpce = new Event.EdgePropertyChangedEvent(eventStrategy.detach(e), oldValue, container.newValue);
+                    this.callbackRegistry.getCallbacks().forEach(c -> c.accept(vpce));
+                }
+            });
+
+            edges = IteratorUtils.map(edges, e -> {
 
                 // override current traverser with the matched Edge so that the option() traversal can operate
                 // on it properly. this should only work this way for the start step form to retain the original
@@ -317,24 +401,28 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
                 // assume good input from GraphTraversal - folks might drop in a T here even though it is immutable
                 final Map<String, ?> onMatchMap = materializeMap(traverser, onMatchTraversal);
                 validateMapInput(onMatchMap, true);
-
-                onMatchMap.forEach((key, value) -> {
-                    // trigger callbacks for eventing - in this case, it's a EdgePropertyChangedEvent. if there's no
-                    // registry/callbacks then just set the property
-                    if (this.callbackRegistry != null && !callbackRegistry.getCallbacks().isEmpty()) {
-                        final EventStrategy eventStrategy =
-                                getTraversal().getStrategies().getStrategy(EventStrategy.class).get();
-                        final Property<?> p = e.property(key);
-                        final Property<Object> oldValue =
-                                p.isPresent() ? eventStrategy.detach(e.property(key)) : null;
-                        final Event.EdgePropertyChangedEvent vpce = new Event.EdgePropertyChangedEvent(eventStrategy.detach(e), oldValue, value);
-                        this.callbackRegistry.getCallbacks().forEach(c -> c.accept(vpce));
-                    }
-                    e.property(key, value);
-                });
-
+                try {
+                    onMatchMap.forEach((key, value) -> {
+                        // trigger callbacks for eventing - in this case, it's a EdgePropertyChangedEvent. if there's no
+                        // registry/callbacks then just set the property
+                        if (this.callbackRegistry != null && !callbackRegistry.getCallbacks().isEmpty()) {
+                            final EventStrategy eventStrategy =
+                                    getTraversal().getStrategies().getStrategy(EventStrategy.class).get();
+                            final Property<?> p = e.property(key);
+                            final Property<Object> oldValue =
+                                    p.isPresent() ? eventStrategy.detach(e.property(key)) : null;
+                            final Event.EdgePropertyChangedEvent vpce = new Event.EdgePropertyChangedEvent(eventStrategy.detach(e), oldValue, value);
+                            this.callbackRegistry.getCallbacks().forEach(c -> c.accept(vpce));
+                        }
+                        e.property(key, value);
+                    });
+                    return e;
+                } catch (final ElementNotFoundException enfe) {
+                    return null;
+                }
             });
 
+            edges = FireflyCloseableIteratorUtils.concat(validEdgeItty, IteratorUtils.filter(edges, Objects::nonNull));
         }
 
         /*
@@ -346,12 +434,6 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
 
         // make sure we close the search traversal
         CloseableIterator.closeIterator(edges);
-
-        /*
-         * This onCreateMap will inherit from the main merge argument - a union of merge and onCreate with no overrides
-         * allowed.
-         */
-        final Map onCreateMap = onCreateMap(traverser, unresolvedMergeMap, mergeMap);
 
         // check for from/to vertices, which must be specified for the create action
         if (!onCreateMap.containsKey(Direction.OUT))
@@ -471,6 +553,16 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
             }
         } else {
             return v;
+        }
+    }
+
+    private static class MergeEdgePropertyContainer {
+        private final Property<?> oldProperty;
+        private final Object newValue;
+
+        private MergeEdgePropertyContainer(final Property<?> oldProperty, final Object newValue) {
+            this.oldProperty = oldProperty;
+            this.newValue = newValue;
         }
     }
 }

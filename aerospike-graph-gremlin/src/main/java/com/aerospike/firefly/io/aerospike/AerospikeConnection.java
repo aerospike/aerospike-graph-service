@@ -225,6 +225,12 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY;
     public final boolean ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY;
 
+    // MergeEdge fields
+    public final int MERGE_EDGE_EVAL_TIMEOUT;
+    public final int MERGE_EDGE_TTL;
+    public final int MERGE_EDGE_POLL_INTERVAL;
+    public final boolean MERGE_EDGE_STARVATION_PROTECTION;
+
     // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
     public final boolean ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY;
     public final boolean ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY;
@@ -471,6 +477,11 @@ public class AerospikeConnection implements AutoCloseable {
         PROPERTY_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, conf);
         VERTEX_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, conf);
         EDGE_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, conf);
+
+        MERGE_EDGE_TTL = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MERGE_EDGE_TTL, conf);
+        MERGE_EDGE_EVAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MERGE_EDGE_EVAL_TIMEOUT, conf);
+        MERGE_EDGE_POLL_INTERVAL = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MERGE_EDGE_POLL_INTERVAL, conf);
+        MERGE_EDGE_STARVATION_PROTECTION = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.MERGE_EDGE_STARVATION_PROTECTION, conf);
 
         USAGE_STATS_UPDATE_INTERVAL = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL, conf);
         WARMUP_MODE = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf);
@@ -1052,6 +1063,14 @@ public class AerospikeConnection implements AutoCloseable {
                     IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
         }
 
+        // Create set index on GRAPH_METADATA_SET for lock records.
+        final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(getClient(), getNamespace(), GRAPH_METADATA_SET);
+        for (final String index : setIndex) {
+            if (!"ok".equals(index)) {
+                LOG.error("Error creating set index for metadata set: {}", index);
+            }
+        }
+
         // Create label index in background.
         if (V_LABEL_INDEX_ENABLED_FLAG) {
             createIndexBackground(existingIndexes, setFromElementType(FireflyVertex.class),
@@ -1310,7 +1329,9 @@ public class AerospikeConnection implements AutoCloseable {
         if (noPropsCache != null) {
             noPropsCache.invalidate(key);
         }
-        return client.delete(null, key);
+        final WritePolicy policy = new WritePolicy();
+        configureWritePolicy(policy);
+        return client.delete(policy, key);
     }
 
     /**
@@ -1745,6 +1766,15 @@ public class AerospikeConnection implements AutoCloseable {
                     throw ae;
             }
         }
+    }
+
+    public Record writeKeyLock(final Key key, final int ttlMillis) {
+        final WritePolicy policy = new WritePolicy();
+        policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
+        policy.expiration = ttlMillis / 1000;
+        configureWritePolicy(policy);
+        final Operation createLockRecord = Operation.put(new Bin(this.USER_KEY_BIN, false));
+        return this.getClient().operate(policy, key, createLockRecord);
     }
 
     public Record writeOperate(final WritePolicy writePolicy, final Key key, final Operation... operations) {

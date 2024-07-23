@@ -93,8 +93,30 @@ public class FireflyEdge extends FireflyElement implements Edge {
     private final boolean isOutSupernode;
     private final int generation;
 
+    public FireflyEdge(final FireflyPhatEdgeId id,
+                       final String label,
+                       final FireflyGraph graph,
+                       final FireflyId outVid,
+                       final FireflyId inVid,
+                       final Map<String, Object> properties,
+                       final Map<String, Object> typeHints,
+                       final boolean isOutSupernode,
+                       final boolean isInSupernode,
+                       final int generation) {
+        super(id, label);
+        this.graph = graph;
+        this.inVid = inVid;
+        this.outVid = outVid;
+        this.properties = properties;
+        this.typeHints = typeHints;
+        this.db = graph.getBaseGraph();
+        this.isOutSupernode = isOutSupernode;
+        this.isInSupernode = isInSupernode;
+        this.generation = generation;
+    }
+
     /**
-     * Write edge including caching IN/OUT vertices and edge properties.
+     * Write edge to record. This does not write to edge caches on attached vertices.
      *
      * @param graph                 handle to Graph.
      * @param edgeId                Id of Edge to write.
@@ -105,26 +127,6 @@ public class FireflyEdge extends FireflyElement implements Edge {
      * @param outVertexCacheWrite   was the edge written to the edge cache of the out vertex.
      * @param properties Edge properties.
      */
-
-/*
-We must have a standard for if inV or outV occurs first
-the subtle issue here is that both of the 4-5th arguments have the same Type but are reversed in order.
-    public FireflyEdge(final FireflyId fid,
-                          final String label,
-                          final FireflyGraph graph,
-                          final FireflyId outVertex,
-                          final FireflyId inVertex,
-                          final Map<String, Object> properties,
-                          final Map<String, Object> typeHints) {
-    public FireflyEdge(final FireflyId id,
-                       final String label,
-                       final FireflyGraph graph,
-                       final FireflyId inVid,
-                       final FireflyId outVid,
-                       final Map<String, Object> properties,
-                       final Map<String, Object> typeHints)
-
- */
     public static FireflyEdge writeEdge(final FireflyGraph graph,
                                         final FireflyId edgeId,
                                         final String label,
@@ -594,28 +596,6 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
     public void removePropertyFromCache(final String key) {
         properties.remove(key);
         typeHints.remove(key);
-    }
-
-    public FireflyEdge(final FireflyPhatEdgeId id,
-                       final String label,
-                       final FireflyGraph graph,
-                       final FireflyId outVid,
-                       final FireflyId inVid,
-                       final Map<String, Object> properties,
-                       final Map<String, Object> typeHints,
-                       final boolean isOutSupernode,
-                       final boolean isInSupernode,
-                       final int generation) {
-        super(id, label);
-        this.graph = graph;
-        this.inVid = inVid;
-        this.outVid = outVid;
-        this.properties = properties;
-        this.typeHints = typeHints;
-        this.db = graph.getBaseGraph();
-        this.isOutSupernode = isOutSupernode;
-        this.isInSupernode = isInSupernode;
-        this.generation = generation;
     }
 
     @Override

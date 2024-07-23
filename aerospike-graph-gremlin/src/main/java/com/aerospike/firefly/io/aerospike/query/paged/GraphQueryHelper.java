@@ -13,11 +13,13 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.util.ArrayList;
@@ -26,7 +28,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_IN_KEY;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_LABEL_KEY;
+import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_OUT_KEY;
 
 public class GraphQueryHelper {
 
@@ -189,18 +193,26 @@ public class GraphQueryHelper {
     public static Expression phatEdgeHasContainerListToExpression(final AerospikeConnection db,
                                                                   final List<HasContainer> hasContainers,
                                                                   final Set<String> labels,
-                                                                  final String vertexIdKeyHashString) {
+                                                                  final String vertexIdKeyHashString,
+                                                                  final FireflyId adjacentVertexId,
+                                                                  final Direction direction) {
         final Exp labelExp = getPhatEdgeLabelExp(db, labels, vertexIdKeyHashString);
         final Exp propertiesExp = getPhatEdgePropertyExp(db, hasContainers, vertexIdKeyHashString);
-        if (labelExp != null && propertiesExp != null) {
-            return Exp.build(Exp.and(labelExp, propertiesExp));
-        } else if (labelExp != null) {
-            return Exp.build(labelExp);
-        } else if (propertiesExp != null) {
-            return Exp.build(propertiesExp);
-        } else {
+        final Exp adjacentVertexExp = getPhatEdgeAdjacentVertexExp(db, adjacentVertexId, direction, vertexIdKeyHashString);
+        if (labelExp == null && propertiesExp == null && adjacentVertexExp == null) {
             return null;
         }
+        Exp expToBuild = Exp.val(true);
+        if (labelExp != null) {
+            expToBuild = Exp.and(expToBuild, labelExp);
+        }
+        if (propertiesExp != null) {
+            expToBuild = Exp.and(expToBuild, propertiesExp);
+        }
+        if (adjacentVertexExp != null) {
+            expToBuild = Exp.and(expToBuild, adjacentVertexExp);
+        }
+        return Exp.build(expToBuild);
     }
 
     private static Exp getPhatEdgeLabelExp(final AerospikeConnection db,
@@ -222,6 +234,27 @@ public class GraphQueryHelper {
                 return Exp.or(allLabelExp.toArray(new Exp[0]));
             }
         }
+    }
+
+    private static Exp getPhatEdgeAdjacentVertexExp(final AerospikeConnection db,
+                                                    final FireflyId adjacentVertexId,
+                                                    final Direction direction,
+                                                    final String vertexIdKeyHashString) {
+        if (adjacentVertexId == null) {
+            return null;
+        }
+        final String directionMapKey;
+        if (direction == Direction.IN) {
+            directionMapKey = EDGE_SUPERNODE_OUT_KEY;
+        } else if (direction == Direction.OUT) {
+            directionMapKey = EDGE_SUPERNODE_IN_KEY;
+        } else {
+            // This should never happen.
+            throw new IllegalArgumentException("Adjacency pushdown filter for adjacent Vertex ID can not be invoked with Direction BOTH.");
+        }
+         return MapExp.getByValue(MapReturnType.EXISTS, Exp.val(adjacentVertexId.getKeyHashString()),
+                 Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
+                 CTX.mapKey(Value.get(directionMapKey)));
     }
 
     private static Exp getPhatEdgePropertyExp(final AerospikeConnection db,

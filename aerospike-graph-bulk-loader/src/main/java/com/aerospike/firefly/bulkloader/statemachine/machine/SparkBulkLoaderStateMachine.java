@@ -59,16 +59,16 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 
 public class SparkBulkLoaderStateMachine {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderStateMachine.class);
-    public final String LOCAL = "local";
-    public final String S3 = "s3";
-    public final String GCS = "gcs";
-    public String FILE_SYSTEM;
-    public boolean FILE_SYSTEM_MUTABLE;
-    public ProgressBar PROGRESS_BAR;
-    public Timer PROGRESS_BAR_TIMER;
-    public final int PROGRESS_BAR_INTERVAL_MS = 10000;
-    public final int DRYRUN_STACKTRACE_LIMIT = 5;
-    public final AtomicBoolean IN_PROGRESS = new AtomicBoolean(false);
+    public final String local = "local";
+    public final String s3 = "s3";
+    public final String gcs = "gcs";
+    public String fileSystem;
+    public boolean fileSystemMutable;
+    public ProgressBar progressBar;
+    public Timer progressBarTimer;
+    public final int progressBarIntervalMs = 10000;
+    public final int dryrunStacktraceLimit = 5;
+    public final AtomicBoolean inProgress = new AtomicBoolean(false);
     public boolean isL2Mode;
     public List<String> vertexDirectories;
     public List<String> edgeDirectories;
@@ -96,7 +96,7 @@ public class SparkBulkLoaderStateMachine {
         }));
 
         isL2Mode = false;
-        if (IN_PROGRESS.getAndSet(true)) {
+        if (inProgress.getAndSet(true)) {
             LOGGER.error(JOB_ALREADY_RUNNING);
             throw new RuntimeException(JOB_ALREADY_RUNNING);
         }
@@ -117,13 +117,13 @@ public class SparkBulkLoaderStateMachine {
         LOGGER.info("Command line input: {}", String.join(", ", printableArgs));
 
         // new Timer(true) creates the timer as a daemon, which means that it will not prevent the JVM from exiting.
-        PROGRESS_BAR = new ProgressBar(PROGRESS_BAR_INTERVAL_MS);
-        PROGRESS_BAR.setIsL2Mode(cmd.hasOption(LOCAL_MODE));
-        PROGRESS_BAR_TIMER = new Timer(true);
+        progressBar = new ProgressBar(progressBarIntervalMs);
+        progressBar.setIsL2Mode(cmd.hasOption(LOCAL_MODE));
+        progressBarTimer = new Timer(true);
 
         // Initialize Spark.
-        FILE_SYSTEM = LOCAL;
-        FILE_SYSTEM_MUTABLE = true;
+        fileSystem = local;
+        fileSystemMutable = true;
         spark = buildSparkSession(cmd);
         final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
         isL2Mode = cmd.hasOption(LOCAL_MODE);
@@ -159,7 +159,7 @@ public class SparkBulkLoaderStateMachine {
         // Pre-processing
         vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
         // FILE_SYSTEM cannot be mutated after vertex directory filesystem is checked
-        FILE_SYSTEM_MUTABLE = false;
+        fileSystemMutable = false;
 
         edgeDirectories = getDirectories(spark, cmd, config.getOrDefault(EDGE_DIRECTORY_KEY));
         incrementalLoad = false;
@@ -176,6 +176,13 @@ public class SparkBulkLoaderStateMachine {
                 state.executeState();
                 state = state.transitionState();
             }
+            if (state instanceof SparkBulkLoaderStateError) {
+                final SparkBulkLoaderStateError errorState = (SparkBulkLoaderStateError) state;
+                LOGGER.error(errorState.errorMessage);
+                if (errorState.e != null) {
+                    LOGGER.error("Exception: ", errorState.e);
+                }
+            }
             final String output = formatErrorCount(initializerGraph);
             if (!output.equals(BULK_LOAD_SUCCESS)) {
                 LOGGER.warn(output);
@@ -185,6 +192,12 @@ public class SparkBulkLoaderStateMachine {
             // Only close the HTTP server in L3. Not L2.
             if (!isL2Mode) {
                 HttpServer.close();
+            }
+            if (progressBarTimer != null) {
+                progressBarTimer.cancel();
+            }
+            if (progressBar != null) {
+                progressBar.close();
             }
         }
     }
@@ -263,20 +276,20 @@ public class SparkBulkLoaderStateMachine {
         // means that it should only be configured one time.
         // FILE_SYSTEM_MUTABLE is set to false once the vertex directory is checked for its file system.
         final String uriFileSystem = getFileSystem(uri);
-        if (FILE_SYSTEM.equals(uriFileSystem)) {
+        if (fileSystem.equals(uriFileSystem)) {
             // Don't need to do anything if file system did not change.
             return;
-        } else if (FILE_SYSTEM.equals(LOCAL) && FILE_SYSTEM_MUTABLE) {
+        } else if (fileSystem.equals(local) && fileSystemMutable) {
             LOGGER.info("Remote file system detected. Changing to '" + uriFileSystem + "' mode.");
-            FILE_SYSTEM = uriFileSystem;
-            if (FILE_SYSTEM.equals(S3)) {
+            fileSystem = uriFileSystem;
+            if (fileSystem.equals(s3)) {
                 if (cmd.hasOption("u")) {
                     spark.conf().set("fs.s3a.access.key", cmd.getOptionValue("u").trim());
                 }
                 if (cmd.hasOption("p")) {
                     spark.conf().set("fs.s3a.secret.key", cmd.getOptionValue("p").trim());
                 }
-            } else if (uriFileSystem.equals(GCS)) {
+            } else if (uriFileSystem.equals(gcs)) {
                 if (cmd.hasOption("gck")) {
                     final String keyFilePath = cmd.getOptionValue("gck");
                     LOGGER.info("Google Cloud Service Account key file specified: " + keyFilePath);
@@ -307,11 +320,11 @@ public class SparkBulkLoaderStateMachine {
 
     private String getFileSystem(final String uri) {
         if (uri.toLowerCase().startsWith("s3://")) {
-            return S3;
+            return s3;
         } else if (uri.toLowerCase().startsWith("gs://")) {
-            return GCS;
+            return gcs;
         } else {
-            return LOCAL;
+            return local;
         }
     }
 

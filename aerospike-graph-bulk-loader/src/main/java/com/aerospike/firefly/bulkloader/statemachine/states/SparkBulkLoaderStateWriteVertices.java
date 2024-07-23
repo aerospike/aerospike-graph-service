@@ -13,7 +13,7 @@ public class SparkBulkLoaderStateWriteVertices extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.vertexOperations.writeVerticesToDB(
                 sparkBulkLoaderStateMachine.vertexDataset,
                 sparkBulkLoaderStateMachine.supernodes);
-        sparkBulkLoaderStateMachine.PROGRESS_BAR.setVertexLoadComplete();
+        sparkBulkLoaderStateMachine.progressBar.setVertexLoadComplete();
     }
 
     @Override

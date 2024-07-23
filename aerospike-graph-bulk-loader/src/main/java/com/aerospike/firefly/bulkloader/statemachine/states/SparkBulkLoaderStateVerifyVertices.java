@@ -13,7 +13,7 @@ public class SparkBulkLoaderStateVerifyVertices extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.vertexOperations.verifySampleVerticesAfterWrite(
                 sparkBulkLoaderStateMachine.vertexDataset.sample(
                         DatasetOperations.getSamplingPercent(sparkBulkLoaderStateMachine.config)));
-        sparkBulkLoaderStateMachine.PROGRESS_BAR.setVertexValidationComplete();
+        sparkBulkLoaderStateMachine.progressBar.setVertexValidationComplete();
     }
 
     @Override

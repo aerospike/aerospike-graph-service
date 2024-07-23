@@ -36,7 +36,7 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
             } catch (final ConfigurationRuntimeException cre) {
                 throw new RuntimeException(String.format("%s is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
             }
-            final String dirSeperator = sparkBulkLoaderStateMachine.FILE_SYSTEM.equals(sparkBulkLoaderStateMachine.LOCAL)
+            final String dirSeperator = sparkBulkLoaderStateMachine.fileSystem.equals(sparkBulkLoaderStateMachine.local)
                     ? File.separator : "/";
             final String tempEdgeDir = RandomStringUtils.randomAlphanumeric(8);
             writeLocation =  writeLocation.endsWith(dirSeperator) ? writeLocation + tempEdgeDir : writeLocation + dirSeperator + tempEdgeDir;
@@ -56,10 +56,10 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
 
         sparkBulkLoaderStateMachine.edgePartitionCount = edgeIdDataset.rdd().getPartitions().length;
         LOGGER.info("EdgeId dataset have {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
-        sparkBulkLoaderStateMachine.PROGRESS_BAR.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
+        sparkBulkLoaderStateMachine.progressBar.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
         sparkBulkLoaderStateMachine.persistedEdgeIdDataset = DatasetOperations.persistIfPossible(
                 DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config), edgeIdDataset);
-        sparkBulkLoaderStateMachine.PROGRESS_BAR.setEdgeIdWriteComplete();
+        sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();
     }
 
     @Override

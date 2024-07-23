@@ -1,6 +1,7 @@
 package com.aerospike.firefly.bulkloader.statemachine.states;
 
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +21,11 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
                 sparkBulkLoaderStateMachine.edgeDataset,
                 onRecordIdLimit,
                 sparkBulkLoaderStateMachine.incrementalLoad);
+        if (!sparkBulkLoaderStateMachine.readOnly) {
+            LOGGER.info("Writing supernode list to Aerospike for recovery.");
+            RecoveryUtil.writeSupernodeList(
+                    sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), sparkBulkLoaderStateMachine.supernodes);
+        }
         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
     }
 

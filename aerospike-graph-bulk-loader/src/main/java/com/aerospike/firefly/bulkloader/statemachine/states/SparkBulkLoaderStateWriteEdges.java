@@ -10,7 +10,10 @@ public class SparkBulkLoaderStateWriteEdges extends SparkBulkLoaderState {
     @Override
     public void executeState() {
         // Write edges to Aerospike.
-        sparkBulkLoaderStateMachine.edgeOperations.writeEdgeToDB(sparkBulkLoaderStateMachine.persistedEdgeIdDataset);
+        sparkBulkLoaderStateMachine.edgeOperations.writeEdgeToDB(
+                sparkBulkLoaderStateMachine.persistedEdgeIdDataset,
+                sparkBulkLoaderStateMachine.completedEdgePartitions,
+                sparkBulkLoaderStateMachine.readOnly);
         sparkBulkLoaderStateMachine.progressBar.setEdgeLoadComplete();
     }
 

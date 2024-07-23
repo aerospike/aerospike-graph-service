@@ -4,6 +4,7 @@ import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.bulkloader.spark.executorservice.VertexWriteTask;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
@@ -64,9 +65,19 @@ public class VertexOperations implements Serializable {
         this.vertexPaths = Objects.requireNonNull(vertexCSVFiles);
     }
 
-    private void writeVertices(final Dataset<Row> unionVertexDS, final Set<Object> supernodes) {
+    private void writeVertices(final Dataset<Row> unionVertexDS,
+                               final Set<Object> supernodes,
+                               final Set<Long> completedVertexPartitions,
+                               final boolean readOnly) {
         unionVertexDS.foreachPartition(rowIterator -> {
             final int partitionId = TaskContext.getPartitionId();
+            if (!readOnly) {
+                final Long partitionIdLong = Long.valueOf(partitionId);
+                if (completedVertexPartitions.contains(partitionIdLong)) {
+                    LOGGER.info("Vertices PartitionId " + partitionId + " is already written, skipping.");
+                    return;
+                }
+            }
             LOGGER.info("Starting to write VertexDataset in PartitionId: " + partitionId);
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
                 final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);
@@ -119,6 +130,10 @@ public class VertexOperations implements Serializable {
                 }
 
                 final String taskName = String.format("Vertex write in partition:{}", partitionId);
+                if (!readOnly) {
+                    LOGGER.info("Writing vertex partition complete for partitionId: {}", partitionId);
+                    RecoveryUtil.writeVertexPartitionComplete(graph.getBaseGraph(), partitionId);
+                }
                 LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
             }
         });
@@ -246,12 +261,15 @@ public class VertexOperations implements Serializable {
         }
     }
 
-    public void writeVerticesToDB(final Dataset<Row> vertexDataSet, final Set<Object> supernodes) {
+    public void writeVerticesToDB(final Dataset<Row> vertexDataSet,
+                                  final Set<Object> supernodes,
+                                  final Set<Long> completedVertexPartitions,
+                                  final boolean readOnly) {
         if (!this.config.hasAction(DISABLE_VERTEX_WRITE)) {
             final Instant startOfVertexWrite = Instant.now();
             String taskName = "Vertex write";
             vertexDataSet.sparkSession().sparkContext().setJobGroup(taskName, "Vertex write task", true);
-            writeVertices(vertexDataSet, supernodes);
+            writeVertices(vertexDataSet, supernodes, completedVertexPartitions, readOnly);
             vertexDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
             final Instant endOfVertexWrite = Instant.now();
             Duration vertexInterval = Duration.between(startOfVertexWrite, endOfVertexWrite);

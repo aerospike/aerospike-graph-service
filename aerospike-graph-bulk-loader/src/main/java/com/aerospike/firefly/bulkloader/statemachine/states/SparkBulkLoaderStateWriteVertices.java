@@ -12,7 +12,9 @@ public class SparkBulkLoaderStateWriteVertices extends SparkBulkLoaderState {
         // Write vertices to Aerospike.
         sparkBulkLoaderStateMachine.vertexOperations.writeVerticesToDB(
                 sparkBulkLoaderStateMachine.vertexDataset,
-                sparkBulkLoaderStateMachine.supernodes);
+                sparkBulkLoaderStateMachine.supernodes,
+                sparkBulkLoaderStateMachine.completedVertexPartitions,
+                sparkBulkLoaderStateMachine.readOnly);
         sparkBulkLoaderStateMachine.progressBar.setVertexLoadComplete();
     }
 

@@ -251,7 +251,7 @@ public class VertexOperations implements Serializable {
             final Instant startOfVertexWrite = Instant.now();
             String taskName = "Vertex write";
             vertexDataSet.sparkSession().sparkContext().setJobGroup(taskName, "Vertex write task", true);
-            writeVertices(vertexDataSet, supernodes, checkpointDirectory);
+            writeVertices(vertexDataSet, supernodes);
             vertexDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
             final Instant endOfVertexWrite = Instant.now();
             Duration vertexInterval = Duration.between(startOfVertexWrite, endOfVertexWrite);

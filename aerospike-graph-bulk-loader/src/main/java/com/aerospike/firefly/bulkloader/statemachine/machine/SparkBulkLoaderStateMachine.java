@@ -5,7 +5,6 @@ import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderState;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateDone;
-import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateError;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateStart;
 import com.aerospike.firefly.bulkloader.util.ProgressBar;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
@@ -16,7 +15,6 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.MapConfiguration;
-import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -176,24 +174,17 @@ public class SparkBulkLoaderStateMachine {
     public void executeStateMachine() {
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(this);
         try {
-            while (!(state instanceof SparkBulkLoaderStateDone) && !(state instanceof SparkBulkLoaderStateError)) {
+            while (!(state instanceof SparkBulkLoaderStateDone)) {
                 state.executeState();
                 state = state.transitionState();
-            }
-            if (state instanceof SparkBulkLoaderStateError) {
-                final SparkBulkLoaderStateError errorState = (SparkBulkLoaderStateError) state;
-                LOGGER.error(errorState.errorMessage);
-                if (errorState.e != null) {
-                    LOGGER.error("Exception: ", errorState.e);
-                }
             }
             final String output = formatErrorCount(initializerGraph);
             if (!output.equals(BULK_LOAD_SUCCESS)) {
                 LOGGER.warn(output);
             }
-            spark.sparkContext().stop();
         } finally {
             // Only close the HTTP server in L3. Not L2.
+            spark.sparkContext().stop();
             if (!isL2Mode) {
                 HttpServer.close();
             }

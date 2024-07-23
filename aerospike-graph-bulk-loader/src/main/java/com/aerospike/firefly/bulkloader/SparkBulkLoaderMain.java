@@ -2,14 +2,23 @@ package com.aerospike.firefly.bulkloader;
 
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
 
 public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderMain.class);
 
-    private static final Map<String, SparkBulkLoaderStateMachine> RUNNING_JOBS = new HashMap<>();
+    private static final Map<String, Future<SparkBulkLoaderStateMachine>> RUNNING_JOBS = new HashMap<>();
 
     public static void main(final String[] args) {
         // Create new Object so we can invoke non-static method load()
@@ -18,15 +27,22 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
 
     public void load(final String[] args) {
         if (!RUNNING_JOBS.isEmpty()) {
-            throw new IllegalStateException("Another job is already running.");
+            throw new IllegalStateException(JOB_ALREADY_RUNNING);
         }
-        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(args);
+        final ExecutorService executor = Executors.newSingleThreadExecutor();
         final String uuid = UUID.randomUUID().toString();
-        RUNNING_JOBS.put(uuid, stateMachine);
+        RUNNING_JOBS.put(uuid, executor.submit(() -> new SparkBulkLoaderStateMachine(args)));
         try {
-            stateMachine.executeStateMachine();
-        } catch (Exception e) {
-            e.printStackTrace();
+            final SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine = RUNNING_JOBS.get(uuid).get();
+            sparkBulkLoaderStateMachine.executeStateMachine();
+        } catch (final ExecutionException | InterruptedException e) {
+            // Drill into exception and throw the root exception. Should be a RuntimeException generally.
+            Throwable ee = e;
+            while (ee.getCause() != null) {
+                ee = ee.getCause();
+            }
+            LOGGER.error("Failed to bootstrap SparkBulkLoaderStateMachine", ee);
+            throw (ee instanceof RuntimeException) ? (RuntimeException) ee : new RuntimeException(ee);
         } finally {
             RUNNING_JOBS.remove(uuid);
         }

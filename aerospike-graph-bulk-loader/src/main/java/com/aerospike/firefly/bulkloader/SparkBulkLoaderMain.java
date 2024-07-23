@@ -2,10 +2,13 @@ package com.aerospike.firefly.bulkloader;
 
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -13,6 +16,7 @@ import java.util.concurrent.Future;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
 
 public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderMain.class);
 
     private static final Map<String, Future<SparkBulkLoaderStateMachine>> RUNNING_JOBS = new HashMap<>();
 
@@ -31,8 +35,14 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
         try {
             final SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine = RUNNING_JOBS.get(uuid).get();
             sparkBulkLoaderStateMachine.executeStateMachine();
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (final ExecutionException | InterruptedException e) {
+            // Drill into exception and throw the root exception. Should be a RuntimeException generally.
+            Throwable ee = e;
+            while (ee.getCause() != null) {
+                ee = ee.getCause();
+            }
+            LOGGER.error("Failed to bootstrap SparkBulkLoaderStateMachine", ee);
+            throw (ee instanceof RuntimeException) ? (RuntimeException) ee : new RuntimeException(ee);
         } finally {
             RUNNING_JOBS.remove(uuid);
         }

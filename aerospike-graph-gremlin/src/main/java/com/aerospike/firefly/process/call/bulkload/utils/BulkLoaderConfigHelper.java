@@ -39,8 +39,6 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String VERTEX_DIRECTORY_KEY = "aerospike.graphloader.vertices";
     // Directory containing the Edge CSV files.
     public static final String EDGE_DIRECTORY_KEY = "aerospike.graphloader.edges";
-    // Directory for checkpoint.
-    public static final String CHECKPOINT_DIRECTORY_KEY = "aerospike.graphloader.checkpoint-directory";
     // Directory where temporary data is written to for bulk loading.
     public static final String TEMP_DIRECTORY_KEY = "aerospike.graphloader.temp-directory";
     // Boolean value to determine whether to keep provided ID values for Edges as a Property on the Edge.
@@ -85,7 +83,6 @@ public class BulkLoaderConfigHelper implements Serializable {
             Map.entry(VERTEX_DIRECTORY_KEY, "vd"),
             Map.entry(EDGE_DIRECTORY_KEY, "ed"),
             Map.entry(TEMP_DIRECTORY_KEY, "td"),
-            Map.entry(CHECKPOINT_DIRECTORY_KEY, "cd"),
             Map.entry(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, "ki"),
             Map.entry(PROVIDED_EDGE_ID_PROPERTY_NAME, "ep"),
             Map.entry(NULL_VALUE, "nv"),

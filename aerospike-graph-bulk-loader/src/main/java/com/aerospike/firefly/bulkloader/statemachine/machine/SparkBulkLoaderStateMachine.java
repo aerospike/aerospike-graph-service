@@ -42,7 +42,6 @@ import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_N
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
 import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad.BULK_LOAD_SUCCESS;
 import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad.formatErrorCount;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CHECKPOINT_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
@@ -72,8 +71,6 @@ public class SparkBulkLoaderStateMachine {
     public boolean isL2Mode;
     public List<String> vertexDirectories;
     public List<String> edgeDirectories;
-    public String checkpointDir;
-    public boolean checkpointEnabled = false;
     public boolean incrementalLoad;
     public BulkLoaderConfigHelper config;
     public SparkSession spark;
@@ -144,17 +141,6 @@ public class SparkBulkLoaderStateMachine {
             throw new RuntimeException(DATABASE_NOT_EMPTY);
         }
         initializerGraph.getBaseGraph().initialzeBulkLoadMetadata();
-
-        try {
-            checkpointDir = config.getOrDefault(CHECKPOINT_DIRECTORY_KEY);
-            if (null != checkpointDir && !checkpointDir.isEmpty()) {
-                checkpointEnabled = true;
-                spark.sparkContext().setCheckpointDir(checkpointDir);
-            }
-        } catch (final ConfigurationRuntimeException e) {
-            LOGGER.error("Checkpoint directory not set. Checkpointing will not be enabled.");
-
-        }
 
         // Pre-processing
         vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));

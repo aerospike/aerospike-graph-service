@@ -15,14 +15,12 @@ public class TestRecoveryUtil {
     private final String DEFAULT_CONFIG = "src/test/resources/conf/packed/config.properties";
 
     @Test
-    public void test() {
+    public void testInfo() {
         try (FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(DEFAULT_CONFIG))) {
+            RecoveryUtil.truncate(graph.getBaseGraph());
+
             graph.traversal().V().drop().iterate();
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+
             for (int i = 0; i < 50_000; i++) {
                 RecoveryUtil.writeVertexPartitionComplete(graph.getBaseGraph(), i);
                 RecoveryUtil.writeEdgePartitionComplete(graph.getBaseGraph(), i);
@@ -63,6 +61,37 @@ public class TestRecoveryUtil {
             }
             Assert.assertEquals(0, stringIdx);
             Assert.assertEquals(0, intIdx);
+        }
+    }
+
+    @Test
+    public void testState() {
+        try (FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(DEFAULT_CONFIG))) {
+            RecoveryUtil.truncate(graph.getBaseGraph());
+
+            RecoveryUtil.updateState(graph.getBaseGraph(), RecoveryUtil.RecoveryState.DETECT_SUPERNODES);
+            RecoveryUtil.RecoveryInfo recoveryInfo = RecoveryUtil.recover(graph.getBaseGraph());
+            Assert.assertEquals(RecoveryUtil.RecoveryState.DETECT_SUPERNODES.name(), recoveryInfo.getState());
+
+            RecoveryUtil.updateState(graph.getBaseGraph(), RecoveryUtil.RecoveryState.VERTEX_WRITE);
+            recoveryInfo = RecoveryUtil.recover(graph.getBaseGraph());
+            Assert.assertEquals(RecoveryUtil.RecoveryState.VERTEX_WRITE.name(), recoveryInfo.getState());
+
+            RecoveryUtil.updateState(graph.getBaseGraph(), RecoveryUtil.RecoveryState.VERTEX_VERIFY);
+            recoveryInfo = RecoveryUtil.recover(graph.getBaseGraph());
+            Assert.assertEquals(RecoveryUtil.RecoveryState.VERTEX_VERIFY.name(), recoveryInfo.getState());
+
+            RecoveryUtil.updateState(graph.getBaseGraph(), RecoveryUtil.RecoveryState.EDGE_WRITE);
+            recoveryInfo = RecoveryUtil.recover(graph.getBaseGraph());
+            Assert.assertEquals(RecoveryUtil.RecoveryState.EDGE_WRITE.name(), recoveryInfo.getState());
+
+            RecoveryUtil.updateState(graph.getBaseGraph(), RecoveryUtil.RecoveryState.EDGE_VERIFY);
+            recoveryInfo = RecoveryUtil.recover(graph.getBaseGraph());
+            Assert.assertEquals(RecoveryUtil.RecoveryState.EDGE_VERIFY.name(), recoveryInfo.getState());
+
+            RecoveryUtil.truncate(graph.getBaseGraph());
+            recoveryInfo = RecoveryUtil.recover(graph.getBaseGraph());
+            Assert.assertNull(recoveryInfo.getState());
         }
     }
 }

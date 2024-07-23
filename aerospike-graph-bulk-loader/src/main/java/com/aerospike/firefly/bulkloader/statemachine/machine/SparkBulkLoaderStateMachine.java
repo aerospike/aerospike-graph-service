@@ -7,6 +7,7 @@ import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderState
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateDone;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateStart;
 import com.aerospike.firefly.bulkloader.util.ProgressBar;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
@@ -145,7 +146,7 @@ public class SparkBulkLoaderStateMachine {
             LOGGER.error(DATABASE_NOT_EMPTY);
             throw new RuntimeException(DATABASE_NOT_EMPTY);
         }
-        initializerGraph.getBaseGraph().initialzeBulkLoadMetadata();
+        initializerGraph.getBaseGraph().initializeBulkLoadMetadata();
 
         // Pre-processing
         vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
@@ -179,6 +180,10 @@ public class SparkBulkLoaderStateMachine {
                 state.executeState();
                 state = state.transitionState();
             }
+
+            // Completed all states, truncate the recovery metadata.
+            RecoveryUtil.truncate(initializerGraph.getBaseGraph());
+
             final String output = formatErrorCount(initializerGraph);
             if (!output.equals(BULK_LOAD_SUCCESS)) {
                 LOGGER.warn(output);

@@ -1,6 +1,7 @@
 package com.aerospike.firefly.bulkloader.statemachine.states;
 
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 
 public class SparkBulkLoaderStateWriteEdges extends SparkBulkLoaderState {
     public SparkBulkLoaderStateWriteEdges(final SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine) {
@@ -9,6 +10,9 @@ public class SparkBulkLoaderStateWriteEdges extends SparkBulkLoaderState {
 
     @Override
     public void executeState() {
+        RecoveryUtil.updateState(
+                sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.EDGE_WRITE);
+
         // Write edges to Aerospike.
         sparkBulkLoaderStateMachine.edgeOperations.writeEdgeToDB(
                 sparkBulkLoaderStateMachine.persistedEdgeIdDataset,

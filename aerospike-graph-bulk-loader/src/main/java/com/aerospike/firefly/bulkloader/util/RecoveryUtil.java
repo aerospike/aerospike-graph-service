@@ -11,12 +11,14 @@ import com.aerospike.client.cdt.ListOrder;
 import com.aerospike.client.cdt.ListPolicy;
 import com.aerospike.client.cdt.ListWriteFlags;
 import com.aerospike.client.listener.RecordSequenceListener;
-import com.aerospike.client.policy.BatchReadPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
+import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateReadVertices;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -25,18 +27,32 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.DefaultAerospikeClientProvider.client;
-
 public class RecoveryUtil {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RecoveryUtil.class);
 
-    private static final String VERTEX_PREFIX = "vertex_";
-    private static final String EDGE_PREFIX = "edge_";
-    private static final String SUPERNODE_PREFIX = "supernode_";
+    public static enum RecoveryState {
+        DETECT_SUPERNODES,
+        VERTEX_WRITE,
+        VERTEX_VERIFY,
+        EDGE_WRITE,
+        EDGE_VERIFY
+    }
+
+    public static void truncate(final AerospikeConnection db) {
+        try {
+            db.getClient().truncate(null, db.getNamespace(), db.BULK_LOAD_RECOVERY_VERTEX_SET, null);
+            db.getClient().truncate(null, db.getNamespace(), db.BULK_LOAD_RECOVERY_EDGE_SET, null);
+            db.getClient().truncate(null, db.getNamespace(), db.BULK_LOAD_RECOVERY_SUPERNODE_SET, null);
+            db.getClient().truncate(null, db.getNamespace(), db.BULK_LOAD_RECOVERY_STATE_SET, null);
+            Thread.sleep(1);
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
 
     public static void writePartitionComplete(final AerospikeConnection db, final int partitionId, final String set) {
         final String keyId = String.valueOf(partitionId / 100);
         final Key key = new Key(db.namespace, set, Value.get(keyId));
-
 
         final ListPolicy createListOnlyPolicy = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL);
         final Operation createOp = ListOperation.create(db.BULK_LOAD_RECOVERY_BIN, ListOrder.UNORDERED, false);
@@ -74,28 +90,26 @@ public class RecoveryUtil {
         for (int i = 0; i < supernodeArray.length; i += 1000) {
             final Object[] supernodeBatch = new Object[Math.min(1000, supernodeArray.length - i)];
             System.arraycopy(supernodeArray, i, supernodeBatch, 0, supernodeBatch.length);
-            final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_SUPERNODE_SET, Value.get(SUPERNODE_PREFIX + i / 1000));
+            final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_SUPERNODE_SET, Value.get(i / 1000));
             List<Value> values = new ArrayList<>();
             for (Object supernode : supernodeBatch) {
                 values.add(Value.get(supernode));
             }
             final Operation updateOp = ListOperation.appendItems(createListOnlyPolicy, db.BULK_LOAD_RECOVERY_BIN, values);
-            final Bin bin = new Bin(db.USER_KEY_BIN, Value.get(SUPERNODE_PREFIX + i / 1000));
-            final Operation addKeyOp = Operation.put(bin);
 
             // TODO: Retry logic.
             try {
-                db.writeOperate(writePolicy, key, createOp, updateOp, addKeyOp);
+                db.writeOperate(writePolicy, key, createOp, updateOp);
             } catch (AerospikeException e) {
                 throw new FireflyLoadingException(e);
             }
         }
     }
 
-    public static void updateState(final AerospikeConnection db, final String state) {
+    public static void updateState(final AerospikeConnection db, final RecoveryState state) {
         // Create policy and configure.
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "state");
-        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, state);
+        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, state.name());
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
@@ -116,7 +130,7 @@ public class RecoveryUtil {
         listener.mode = mode;
         listener.latch = new CountDownLatch(1);
         listener.reset();
-        client.scanAll(db.getEventLoops().next(), listener, scanPolicy, db.getNamespace(), set);
+        db.getClient().scanAll(db.getEventLoops().next(), listener, scanPolicy, db.getNamespace(), set);
         try {
             // Wait up to 5 minutes for the scan to complete.
             listener.latch.await(5 * 60 * 1000, java.util.concurrent.TimeUnit.MILLISECONDS);
@@ -178,7 +192,6 @@ public class RecoveryUtil {
 
         @Override
         public void onRecord(final Key key, final Record record) throws AerospikeException {
-            final String keyId = record.getString(db.USER_KEY_BIN);
             if (RecoveryMode.VERTEX.equals(mode)) {
                 final Set<Long> partitionIds = (Set) ((List) record.bins.get(db.BULK_LOAD_RECOVERY_BIN)).stream().collect(Collectors.toSet());
                 vertexPartitions.addAll(partitionIds);
@@ -204,6 +217,7 @@ public class RecoveryUtil {
         @Override
         public void onFailure(final AerospikeException ae) {
             failed = true;
+            LOGGER.error("Failed to recover from checkpoint", ae);
             latch.countDown();
         }
 

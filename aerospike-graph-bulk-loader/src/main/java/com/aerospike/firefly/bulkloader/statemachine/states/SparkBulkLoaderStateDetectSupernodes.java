@@ -13,6 +13,16 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
 
     @Override
     public void executeState() {
+        RecoveryUtil.updateState(
+                sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.DETECT_SUPERNODES);
+
+        // TESTING USAGE ONLY
+        final String failureOnSupernodes = System.getProperty("bulkloader.testing.recovery.failure.type");
+        if (failureOnSupernodes != null && failureOnSupernodes.equals("true")) {
+            LOGGER.info("Testing supernode detection failure.");
+            throw new RuntimeException("Testing supernode detection failure.");
+        }
+
         // Supernode processing
         // Get the supernode threshold from Firefly config.
         final long onRecordIdLimit = sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph().ON_RECORD_ID_LIMIT;

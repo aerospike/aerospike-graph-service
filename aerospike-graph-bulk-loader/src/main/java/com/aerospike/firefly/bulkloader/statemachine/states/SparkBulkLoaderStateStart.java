@@ -107,14 +107,20 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                         throw new IllegalStateException("Error during bulk load recovery, unknown state: " + state);
                 }
             } else {
+                // Fresh load, truncate any metadata.
+                RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
+
                 // No state found, start from the beginning.
                 LOGGER.info("Unable to find state to recover from. Restarting from beginning.");
-                nextState = new SparkBulkLoaderStateStart(sparkBulkLoaderStateMachine);
+                nextState = new SparkBulkLoaderStateReadVertices(sparkBulkLoaderStateMachine);
             }
         } else {
+            // Fresh load, truncate any metadata.
+            RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
+
             // Read only mode, start from the beginning.
             LOGGER.info("Read only mode detected. Starting from the beginning.");
-            nextState = new SparkBulkLoaderStateStart(sparkBulkLoaderStateMachine);
+            nextState = new SparkBulkLoaderStateReadVertices(sparkBulkLoaderStateMachine);
         }
     }
 

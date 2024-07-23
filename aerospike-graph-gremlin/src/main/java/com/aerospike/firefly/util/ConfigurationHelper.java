@@ -266,7 +266,10 @@ public final class ConfigurationHelper {
             BULK_LOAD_DUPLICATE_VID_SET(Pair.of((byte) 16, "BL_DUPE_VID")),
             BULK_LOAD_BAD_EDGE_SET(Pair.of((byte) 17, "BL_BAD_EDGE")),
             BULK_LOAD_BAD_ENTRY_SET(Pair.of((byte) 18, "BL_BAD_ENTRY")),
-            BULK_LOAD_RECOVERY_SET(Pair.of((byte) 19, "BL_RECOVERY"));
+            BULK_LOAD_RECOVERY_VERTEX_SET(Pair.of((byte) 19, "BL_RECOVERY_V")),
+            BULK_LOAD_RECOVERY_EDGE_SET(Pair.of((byte) 20, "BL_RECOVERY_E")),
+            BULK_LOAD_RECOVERY_SUPERNODE_SET(Pair.of((byte) 21, "BL_RECOVERY_SN")),
+            BULK_LOAD_RECOVERY_STATE_SET(Pair.of((byte) 22, "BL_RECOVERY_S"));
 
             private final Pair value;
 

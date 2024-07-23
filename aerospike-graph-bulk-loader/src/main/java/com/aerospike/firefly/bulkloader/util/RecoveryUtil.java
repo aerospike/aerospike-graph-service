@@ -11,6 +11,8 @@ import com.aerospike.client.cdt.ListOrder;
 import com.aerospike.client.cdt.ListPolicy;
 import com.aerospike.client.cdt.ListWriteFlags;
 import com.aerospike.client.listener.RecordSequenceListener;
+import com.aerospike.client.policy.BatchReadPolicy;
+import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
@@ -31,22 +33,20 @@ public class RecoveryUtil {
     private static final String EDGE_PREFIX = "edge_";
     private static final String SUPERNODE_PREFIX = "supernode_";
 
-    public static void writePartitionComplete(final AerospikeConnection db, final int partitionId, final String type) {
-        final String keyId = type + partitionId / 100;
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_SET, Value.get(keyId));
+    public static void writePartitionComplete(final AerospikeConnection db, final int partitionId, final String set) {
+        final String keyId = String.valueOf(partitionId / 100);
+        final Key key = new Key(db.namespace, set, Value.get(keyId));
 
 
         final ListPolicy createListOnlyPolicy = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL);
         final Operation createOp = ListOperation.create(db.BULK_LOAD_RECOVERY_BIN, ListOrder.UNORDERED, false);
         final Operation updateOp = ListOperation.append(createListOnlyPolicy, db.BULK_LOAD_RECOVERY_BIN, Value.get(partitionId));
-        final Bin bin = new Bin(db.USER_KEY_BIN, Value.get(keyId));
-        final Operation addKeyOp = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
 
         // TODO: Retry logic.
         try {
-            db.writeOperate(writePolicy, key, createOp, updateOp, addKeyOp);
+            db.writeOperate(writePolicy, key, createOp, updateOp);
         } catch (AerospikeException e) {
             throw new FireflyLoadingException(e);
         }
@@ -54,12 +54,12 @@ public class RecoveryUtil {
 
     public static void writeVertexPartitionComplete(final AerospikeConnection db, final int partitionId) {
         // write complete vertex partition id to aerospike
-        writePartitionComplete(db, partitionId, VERTEX_PREFIX);
+        writePartitionComplete(db, partitionId, db.BULK_LOAD_RECOVERY_VERTEX_SET);
     }
 
     public static void writeEdgePartitionComplete(final AerospikeConnection db, final int partitionId) {
         // write complete edge partition id to aerospike
-        writePartitionComplete(db, partitionId, EDGE_PREFIX);
+        writePartitionComplete(db, partitionId, db.BULK_LOAD_RECOVERY_EDGE_SET);
     }
 
     public static void writeSupernodeList(final AerospikeConnection db, final Set<Object> supernodes) {
@@ -74,7 +74,7 @@ public class RecoveryUtil {
         for (int i = 0; i < supernodeArray.length; i += 1000) {
             final Object[] supernodeBatch = new Object[Math.min(1000, supernodeArray.length - i)];
             System.arraycopy(supernodeArray, i, supernodeBatch, 0, supernodeBatch.length);
-            final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_SET, Value.get(SUPERNODE_PREFIX + i / 1000));
+            final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_SUPERNODE_SET, Value.get(SUPERNODE_PREFIX + i / 1000));
             List<Value> values = new ArrayList<>();
             for (Object supernode : supernodeBatch) {
                 values.add(Value.get(supernode));
@@ -92,25 +92,67 @@ public class RecoveryUtil {
         }
     }
 
+    public static void updateState(final AerospikeConnection db, final String state) {
+        // Create policy and configure.
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "state");
+        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, state);
+        final Operation operation = Operation.put(bin);
+        final WritePolicy writePolicy = new WritePolicy();
+        db.configureWritePolicy(writePolicy);
+
+        // TODO: Retry logic.
+        try {
+            db.writeOperate(writePolicy, key, operation);
+        } catch (AerospikeException e) {
+            throw new FireflyLoadingException(e);
+        }
+    }
+
+    private static void recoverPartitions(final RecoveryRecordSequenceListener listener,
+                                          final AerospikeConnection db,
+                                          final ScanPolicy scanPolicy,
+                                          final String set,
+                                          final RecoveryRecordSequenceListener.RecoveryMode mode) {
+        listener.mode = mode;
+        listener.latch = new CountDownLatch(1);
+        listener.reset();
+        client.scanAll(db.getEventLoops().next(), listener, scanPolicy, db.getNamespace(), set);
+        try {
+            // Wait up to 5 minutes for the scan to complete.
+            listener.latch.await(5 * 60 * 1000, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (final InterruptedException ignored) {
+        }
+        if (listener.getFailed() || !listener.isDone()) {
+            throw new RuntimeException("Failed to recover from checkpoint");
+        }
+    }
+
+    private static String recoverState(final AerospikeConnection db) {
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "state");
+        final Policy readPolicy = new Policy();
+        db.configureReadPolicy(readPolicy);
+
+        // TODO: Retry logic.
+        try {
+            final Record record = db.client.get(readPolicy, key);
+            if (record != null) {
+                return record.getString(db.BULK_LOAD_RECOVERY_BIN);
+            }
+            return null;
+        } catch (AerospikeException e) {
+            throw new FireflyLoadingException(e);
+        }
+    }
+
     public static RecoveryInfo recover(final AerospikeConnection db) {
         final ScanPolicy scanPolicy = new ScanPolicy();
         db.configureScanPolicy(scanPolicy);
         scanPolicy.sendKey = true;
-        final CountDownLatch countDownLatch = new CountDownLatch(1);
-        final RecoveryRecordSequenceListener listener = new RecoveryRecordSequenceListener(db, countDownLatch);
-        client.scanAll(db.getEventLoops().next(), listener, scanPolicy, db.getNamespace(), db.BULK_LOAD_RECOVERY_SET);
-
-        try {
-            // Wait up to 5 minutes for the scan to complete.
-            countDownLatch.await(5 * 60 * 1000, java.util.concurrent.TimeUnit.MILLISECONDS);
-        } catch (final InterruptedException ignored) {
-        }
-
-        if (listener.getFailed()) {
-            throw new RuntimeException("Failed to recover from checkpoint");
-        }
-
-        return new RecoveryInfo(listener.getVertexPartitions(), listener.getEdgePartitions(), listener.getSupernodes());
+        final RecoveryRecordSequenceListener listener = new RecoveryRecordSequenceListener(db);
+        recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_VERTEX_SET, RecoveryRecordSequenceListener.RecoveryMode.VERTEX);
+        recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_EDGE_SET, RecoveryRecordSequenceListener.RecoveryMode.EDGE);
+        recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_SUPERNODE_SET, RecoveryRecordSequenceListener.RecoveryMode.SUPERNODE);
+        return new RecoveryInfo(listener.getVertexPartitions(), listener.getEdgePartitions(), listener.getSupernodes(), recoverState(db));
     }
 
     static class RecoveryRecordSequenceListener implements RecordSequenceListener {
@@ -118,31 +160,44 @@ public class RecoveryUtil {
         final Set<Long> edgePartitions = new HashSet<>();
         final Set<Object> supernodes = new HashSet<>();
         final AerospikeConnection db;
-        final CountDownLatch latch;
+        public CountDownLatch latch;
         boolean failed = false;
+        boolean done = false;
+        public RecoveryMode mode;
 
-        RecoveryRecordSequenceListener(final AerospikeConnection db, final CountDownLatch latch) {
+        public enum RecoveryMode {
+            VERTEX,
+            EDGE,
+            SUPERNODE
+        }
+
+        RecoveryRecordSequenceListener(final AerospikeConnection db) {
             this.db = db;
-            this.latch = latch;
+            mode = RecoveryMode.VERTEX;
         }
 
         @Override
         public void onRecord(final Key key, final Record record) throws AerospikeException {
             final String keyId = record.getString(db.USER_KEY_BIN);
-            if (keyId.startsWith(VERTEX_PREFIX)) {
+            if (RecoveryMode.VERTEX.equals(mode)) {
                 final Set<Long> partitionIds = (Set) ((List) record.bins.get(db.BULK_LOAD_RECOVERY_BIN)).stream().collect(Collectors.toSet());
                 vertexPartitions.addAll(partitionIds);
-            } else if (keyId.startsWith(EDGE_PREFIX)) {
+            } else if (RecoveryMode.EDGE.equals(mode)) {
                 final Set<Long> partitionIds = (Set) ((List) record.bins.get(db.BULK_LOAD_RECOVERY_BIN)).stream().collect(Collectors.toSet());
                 edgePartitions.addAll(partitionIds);
-            } else if (keyId.startsWith(SUPERNODE_PREFIX)) {
+            } else if (RecoveryMode.SUPERNODE.equals(mode)) {
                 final Set<Object> partitionIds = (Set) ((List) record.bins.get(db.BULK_LOAD_RECOVERY_BIN)).stream().collect(Collectors.toSet());
                 supernodes.addAll(partitionIds);
+            } else {
+                failed = true;
+                latch.countDown();
+                throw new RuntimeException("Invalid recovery mode.");
             }
         }
 
         @Override
         public void onSuccess() {
+            done = true;
             latch.countDown();
         }
 
@@ -167,17 +222,30 @@ public class RecoveryUtil {
         public Set<Object> getSupernodes() {
             return supernodes;
         }
+
+        public void reset() {
+            done = false;
+        }
+
+        public boolean isDone() {
+            return done;
+        }
     }
 
     public static class RecoveryInfo {
         private Set<Long> vertexPartitions;
         private Set<Long> edgePartitions;
         private Set<Object> supernodes;
+        private String state;
 
-        public RecoveryInfo(final Set<Long> vertexPartitions, final Set<Long> edgePartitions, final Set<Object> supernodes) {
+        public RecoveryInfo(final Set<Long> vertexPartitions,
+                            final Set<Long> edgePartitions,
+                            final Set<Object> supernodes,
+                            final String state) {
             this.vertexPartitions = vertexPartitions;
             this.edgePartitions = edgePartitions;
             this.supernodes = supernodes;
+            this.state = state;
         }
 
         public Set<Long> getVertexPartitions() {
@@ -190,6 +258,10 @@ public class RecoveryUtil {
 
         public Set<Object> getSupernodes() {
             return supernodes;
+        }
+
+        public String getState() {
+            return state;
         }
     }
 }

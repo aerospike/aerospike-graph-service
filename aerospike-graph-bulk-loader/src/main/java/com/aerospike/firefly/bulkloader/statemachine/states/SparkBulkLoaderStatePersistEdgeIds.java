@@ -24,9 +24,8 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
     public void executeState() {
         // Persist edge ids.
         // Persist Edge ID data to disk
-        final boolean edgeIdWriteDisabled = sparkBulkLoaderStateMachine.config.hasAction(READ_ONLY);
         String writeLocation = null;
-        if (edgeIdWriteDisabled) {
+        if (sparkBulkLoaderStateMachine.readOnly) {
             // Persisting Edge IDs is disabled. Do Nothing.
             LOGGER.debug("{} mode detected. System will not write persistent Edge IDs to temp storage.", READ_ONLY);
         } else {
@@ -50,7 +49,7 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
 
         }
         // If Edge ID persistence mode was disabled, read directly from Edge CSVs - else read written Edge IDs from disk.
-        final Dataset<Row> edgeIdDataset = edgeIdWriteDisabled ?
+        final Dataset<Row> edgeIdDataset = sparkBulkLoaderStateMachine.readOnly ?
                 sparkBulkLoaderStateMachine.edgeDataset :
                 sparkBulkLoaderStateMachine.spark.read().option("header", "true").csv(writeLocation);
 
@@ -59,6 +58,9 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.progressBar.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
         sparkBulkLoaderStateMachine.persistedEdgeIdDataset = DatasetOperations.persistIfPossible(
                 DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config), edgeIdDataset);
+        if (!sparkBulkLoaderStateMachine.readOnly) {
+            sparkBulkLoaderStateMachine.persistedEdgeIdDataset = sparkBulkLoaderStateMachine.persistedEdgeIdDataset.checkpoint(true);
+        }
         sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();
     }
 

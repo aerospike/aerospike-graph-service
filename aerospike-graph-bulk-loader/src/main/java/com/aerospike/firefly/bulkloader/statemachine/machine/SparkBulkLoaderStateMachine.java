@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -50,6 +51,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_KEYFILE_DIRECTORY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.LOCAL_MODE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_PASSKEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_USERNAME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
@@ -85,6 +87,10 @@ public class SparkBulkLoaderStateMachine {
     public Dataset<Row> persistedEdgeIdDataset;
     public Integer edgePartitionCount;
     public Integer vertexPartitionCount;
+    public String checkpointDirectory = null;
+    public boolean readOnly;
+    public Set<Long> completedVertexPartitions = new HashSet<>();
+    public Set<Long> completedEdgePartitions = new HashSet<>();
 
     public SparkBulkLoaderStateMachine(final String[] args) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -152,6 +158,18 @@ public class SparkBulkLoaderStateMachine {
         if (config.hasAction(INCREMENTAL_LOAD)) {
             LOGGER.info("Incremental load mode detected.");
             incrementalLoad = true;
+        }
+        readOnly = config.hasAction(READ_ONLY);
+        if (readOnly) {
+            // Persisting Edge IDs is disabled. Do Nothing.
+            LOGGER.debug("{} mode detected. System will not enable checkpoint recovery.", READ_ONLY);
+        } else {
+            // Check that the temp directory to write to is set.
+            try {
+                spark.sparkContext().setCheckpointDir(checkpointDirectory);
+            } catch (final ConfigurationRuntimeException cre) {
+                throw new RuntimeException(String.format("%s is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
+            }
         }
     }
 

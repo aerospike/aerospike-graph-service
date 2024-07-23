@@ -132,7 +132,10 @@ public class AerospikeConnection implements AutoCloseable {
     public final String BULK_LOAD_DUPLICATE_VID_SET;
     public final String BULK_LOAD_BAD_EDGE_SET;
     public final String BULK_LOAD_BAD_ENTRY_SET;
-    public final String BULK_LOAD_RECOVERY_SET;
+    public final String BULK_LOAD_RECOVERY_VERTEX_SET;
+    public final String BULK_LOAD_RECOVERY_EDGE_SET;
+    public final String BULK_LOAD_RECOVERY_SUPERNODE_SET;
+    public final String BULK_LOAD_RECOVERY_STATE_SET;
     public final String BULK_LOAD_RECOVERY_BIN;
     public final String GRAPH_VARIABLES_SET;
     public final Object GRAPH_VARIABLES_REC_KEY;
@@ -425,7 +428,10 @@ public class AerospikeConnection implements AutoCloseable {
         BULK_LOAD_DUPLICATE_VID_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_DUPLICATE_VID_SET.name(), conf);
         BULK_LOAD_BAD_EDGE_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_BAD_EDGE_SET.name(), conf);
         BULK_LOAD_BAD_ENTRY_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_BAD_ENTRY_SET.name(), conf);
-        BULK_LOAD_RECOVERY_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_RECOVERY_SET.name(), conf);
+        BULK_LOAD_RECOVERY_VERTEX_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_RECOVERY_VERTEX_SET.name(), conf);
+        BULK_LOAD_RECOVERY_EDGE_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_RECOVERY_EDGE_SET.name(), conf);
+        BULK_LOAD_RECOVERY_SUPERNODE_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_RECOVERY_SUPERNODE_SET.name(), conf);
+        BULK_LOAD_RECOVERY_STATE_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_RECOVERY_STATE_SET.name(), conf);
 
         E_IN_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.E_IN_INDEX_NAME.name(), conf));
         E_OUT_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.E_OUT_INDEX_NAME.name(), conf));
@@ -1540,7 +1546,10 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(null, namespace, IN_VP_SET, null);
             client.truncate(null, namespace, SUMMARY_SET, null);
             client.truncate(null, namespace, BULK_LOAD_METADATA_SET, null);
-            client.truncate(null, namespace, BULK_LOAD_RECOVERY_SET, null);
+            client.truncate(null, namespace, BULK_LOAD_RECOVERY_VERTEX_SET, null);
+            client.truncate(null, namespace, BULK_LOAD_RECOVERY_EDGE_SET, null);
+            client.truncate(null, namespace, BULK_LOAD_RECOVERY_SUPERNODE_SET, null);
+            client.truncate(null, namespace, BULK_LOAD_RECOVERY_STATE_SET, null);
 
             // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the
             // id manager set and if we delete it here, they will likely insert a record with the same id as the one

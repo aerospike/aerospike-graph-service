@@ -8,7 +8,6 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
     }
     @Override
     public void executeState() {
-        // Stub for now, will need to use later for resuming.
     }
 
     @Override

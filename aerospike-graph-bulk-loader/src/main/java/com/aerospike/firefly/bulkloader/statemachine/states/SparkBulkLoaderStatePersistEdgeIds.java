@@ -36,7 +36,7 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
             } catch (final ConfigurationRuntimeException cre) {
                 throw new RuntimeException(String.format("%s is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
             }
-            final String dirSeperator = sparkBulkLoaderStateMachine.fileSystem.equals(sparkBulkLoaderStateMachine.local)
+            final String dirSeperator = sparkBulkLoaderStateMachine.fileSystem.equals(sparkBulkLoaderStateMachine.LOCAL)
                     ? File.separator : "/";
             final String tempEdgeDir = RandomStringUtils.randomAlphanumeric(8);
             writeLocation =  writeLocation.endsWith(dirSeperator) ? writeLocation + tempEdgeDir : writeLocation + dirSeperator + tempEdgeDir;

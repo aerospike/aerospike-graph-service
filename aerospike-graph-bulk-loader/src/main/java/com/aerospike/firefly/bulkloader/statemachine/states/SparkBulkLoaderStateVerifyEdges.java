@@ -23,14 +23,11 @@ public class SparkBulkLoaderStateVerifyEdges extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.edgeOperations.verifySampleEdgeAfterWrite(
                 sparkBulkLoaderStateMachine.persistedEdgeIdDataset.sample(
                         DatasetOperations.getSamplingPercent(sparkBulkLoaderStateMachine.config)));
-        sparkBulkLoaderStateMachine.edgeDataset.unpersist();
         sparkBulkLoaderStateMachine.progressBar.setEdgeValidationComplete();
-
-        // TODO: Should clean up all recovery artifacts.
     }
 
     @Override
     public SparkBulkLoaderState transitionState() {
-        return new SparkBulkLoaderStateDone(sparkBulkLoaderStateMachine);
+        return new SparkBulkLoaderStateCleanUp(sparkBulkLoaderStateMachine);
     }
 }

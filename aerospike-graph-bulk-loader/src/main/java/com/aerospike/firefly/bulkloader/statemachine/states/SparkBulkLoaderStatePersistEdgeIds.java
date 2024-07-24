@@ -2,6 +2,7 @@ package com.aerospike.firefly.bulkloader.statemachine.states;
 
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.spark.sql.Dataset;
@@ -58,18 +59,21 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.progressBar.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
         sparkBulkLoaderStateMachine.persistedEdgeIdDataset = DatasetOperations.persistIfPossible(
                 DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config), edgeIdDataset);
+        RecoveryUtil.updateEdgeRecovery(
+                sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
+                sparkBulkLoaderStateMachine.edgePartitionCount);
         if (!sparkBulkLoaderStateMachine.readOnly) {
             // Check that the temp directory to write to is set.
-            String checkpointDirectory = null;
+            String edgeRecoveryDirectory = null;
             try {
-                checkpointDirectory = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/checkpoint/edge";
-                sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(checkpointDirectory);
+                edgeRecoveryDirectory = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/recovery/edge";
+                //sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(edgeRecoveryDirectory);
             } catch (final ConfigurationRuntimeException cre) {
                 throw new RuntimeException(String.format("%s configuration key is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
             }
 
-            sparkBulkLoaderStateMachine.persistedEdgeIdDataset.checkpoint(true);
-            sparkBulkLoaderStateMachine.persistedEdgeIdDataset.write().mode("overwrite").parquet(checkpointDirectory);
+            //sparkBulkLoaderStateMachine.persistedEdgeIdDataset.checkpoint(true);
+            sparkBulkLoaderStateMachine.persistedEdgeIdDataset.write().mode("overwrite").parquet(edgeRecoveryDirectory);
         }
         sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();
     }

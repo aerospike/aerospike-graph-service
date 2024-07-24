@@ -5,6 +5,7 @@ import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
+import org.apache.spark.sql.Column;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,17 +29,19 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         final String vertexCheckpoint;
         final String edgeCheckpoint;
         try {
-            vertexCheckpoint = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/checkpoint/vertex";
-            edgeCheckpoint = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/checkpoint/edge";
+            vertexCheckpoint = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/recovery/vertex";
+            edgeCheckpoint = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/recovery/edge";
         } catch (final ConfigurationRuntimeException cre) {
             throw new RuntimeException(String.format("%s configuration key is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
         }
-        sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(vertexCheckpoint);
+        //sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(vertexCheckpoint);
         sparkBulkLoaderStateMachine.vertexDataset =
                 sparkBulkLoaderStateMachine.spark.read().parquet(vertexCheckpoint);
-        sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(edgeCheckpoint);
+        sparkBulkLoaderStateMachine.vertexDataset.repartition(info.getVertexPartitionCount(), new Column("~id"));
+        //sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(edgeCheckpoint);
         sparkBulkLoaderStateMachine.persistedEdgeIdDataset =
                 sparkBulkLoaderStateMachine.spark.read().parquet(edgeCheckpoint);
+        sparkBulkLoaderStateMachine.persistedEdgeIdDataset.repartition(info.getEdgePartitionCount(), new Column("~id"));
 
         // Generation vertex and edge operations.
         sparkBulkLoaderStateMachine.vertexOperations = new VertexOperations(

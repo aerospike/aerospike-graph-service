@@ -10,6 +10,7 @@ import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderState
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateVerifyVertices;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateWriteEdges;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateWriteVertices;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.lang3.ArrayUtils;
@@ -49,6 +50,7 @@ public class TestBulkLoaderRecovery {
         System.clearProperty("bulkloader.testing.partition.failure.vertex.verification");
         System.clearProperty("bulkloader.testing.partition.failure.edge.writing");
         System.clearProperty("bulkloader.testing.partition.failure.edge.verification");
+        RecoveryUtil.truncate(graph.getBaseGraph());
     }
 
     @After
@@ -215,14 +217,11 @@ public class TestBulkLoaderRecovery {
         // Define the checkpoint directory
         String checkpointDir = "/home/lyndon/github/firefly/aerospike-graph-bulk-loader/src/test/resources/recoverydata/checkpoint"; // Replace with your checkpoint directory
 
-        // Set the checkpoint directory
-        spark.sparkContext().setCheckpointDir(checkpointDir);
-
         // Checkpoint the DataFrame
-        df.checkpoint();
+        //df.checkpoint();
 
         // Save the checkpointed DataFrame to a file (optional)
-        //df.write().mode("overwrite").parquet(checkpointDir);
+        df.write().mode("overwrite").parquet(checkpointDir);
 
         Dataset<Row> rows = spark.read().parquet(checkpointDir);
 

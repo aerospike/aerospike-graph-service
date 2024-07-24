@@ -38,10 +38,6 @@ public class RecoveryUtil {
         EDGE_VERIFY
     }
 
-    public static String getStateName(final RecoveryState state) {
-        return state.name();
-    }
-
     public static void truncate(final AerospikeConnection db) {
         try {
             db.getClient().truncate(null, db.getNamespace(), db.BULK_LOAD_RECOVERY_VERTEX_SET, null);
@@ -126,10 +122,10 @@ public class RecoveryUtil {
         }
     }
 
-    public static void updateVertexRecovery(final AerospikeConnection db, final String path) {
+    public static void updateVertexRecovery(final AerospikeConnection db, final int partitionCount) {
         // Create policy and configure.
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex");
-        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, path);
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex_partition_count");
+        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, partitionCount);
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
@@ -142,10 +138,10 @@ public class RecoveryUtil {
         }
     }
 
-    public static void updateEdgeRecovery(final AerospikeConnection db, final String path) {
+    public static void updateEdgeRecovery(final AerospikeConnection db, final int partition_count) {
         // Create policy and configure.
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "edge");
-        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, path);
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "edge_partition_count");
+        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, partition_count);
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
@@ -194,6 +190,40 @@ public class RecoveryUtil {
         }
     }
 
+    private static int recoverVertexPartitionCount(final AerospikeConnection db) {
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex_partition_count");
+        final Policy readPolicy = new Policy();
+        db.configureReadPolicy(readPolicy);
+
+        // TODO: Retry logic.
+        try {
+            final Record record = db.client.get(readPolicy, key);
+            if (record != null) {
+                return record.getInt(db.BULK_LOAD_RECOVERY_BIN);
+            }
+            return -1;
+        } catch (AerospikeException e) {
+            throw new FireflyLoadingException(e);
+        }
+    }
+
+    private static int recoverEdgePartitionCount(final AerospikeConnection db) {
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "edge_partition_count");
+        final Policy readPolicy = new Policy();
+        db.configureReadPolicy(readPolicy);
+
+        // TODO: Retry logic.
+        try {
+            final Record record = db.client.get(readPolicy, key);
+            if (record != null) {
+                return record.getInt(db.BULK_LOAD_RECOVERY_BIN);
+            }
+            return -1;
+        } catch (AerospikeException e) {
+            throw new FireflyLoadingException(e);
+        }
+    }
+
     private static String recoverVertexDirectory(final AerospikeConnection db) {
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex");
         final Policy readPolicy = new Policy();
@@ -219,7 +249,13 @@ public class RecoveryUtil {
         recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_VERTEX_SET, RecoveryRecordSequenceListener.RecoveryMode.VERTEX);
         recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_EDGE_SET, RecoveryRecordSequenceListener.RecoveryMode.EDGE);
         recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_SUPERNODE_SET, RecoveryRecordSequenceListener.RecoveryMode.SUPERNODE);
-        return new RecoveryInfo(listener.getVertexPartitions(), listener.getEdgePartitions(), listener.getSupernodes(), recoverState(db), recoverVertexDirectory(db));
+        return new RecoveryInfo(
+                listener.getVertexPartitions(),
+                listener.getEdgePartitions(),
+                listener.getSupernodes(),
+                recoverState(db),
+                recoverVertexPartitionCount(db),
+                recoverEdgePartitionCount(db));
     }
 
     static class RecoveryRecordSequenceListener implements RecordSequenceListener {
@@ -304,18 +340,21 @@ public class RecoveryUtil {
         private Set<Long> edgePartitions;
         private Set<Object> supernodes;
         private String state;
-        private String vertexRecoverPath;
+        private int vertexPartitionCount;
+        private int edgePartitionCount;
 
         public RecoveryInfo(final Set<Long> vertexPartitions,
                             final Set<Long> edgePartitions,
                             final Set<Object> supernodes,
                             final String state,
-                            final String vertexRecoverPath) {
+                            final int vertexPartitionCount,
+                            final int edgePartitionCount) {
             this.vertexPartitions = vertexPartitions;
             this.edgePartitions = edgePartitions;
             this.supernodes = supernodes;
             this.state = state;
-            this.vertexRecoverPath = vertexRecoverPath;
+            this.vertexPartitionCount = vertexPartitionCount;
+            this.edgePartitionCount = edgePartitionCount;
         }
 
         public Set<Long> getVertexPartitions() {
@@ -334,8 +373,12 @@ public class RecoveryUtil {
             return state;
         }
 
-        public String getVertexRecoverPath() {
-            return vertexRecoverPath;
+        public int getVertexPartitionCount() {
+            return vertexPartitionCount;
+        }
+
+        public int getEdgePartitionCount() {
+            return edgePartitionCount;
         }
     }
 }

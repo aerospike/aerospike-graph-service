@@ -5,9 +5,14 @@ import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
+import org.apache.spark.sql.Column;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
 
@@ -28,17 +33,19 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         final String vertexCheckpoint;
         final String edgeCheckpoint;
         try {
-            vertexCheckpoint = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/checkpoint/vertex";
-            edgeCheckpoint = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/checkpoint/edge";
+            vertexCheckpoint = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/recovery/vertex";
+            edgeCheckpoint = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/recovery/edge";
         } catch (final ConfigurationRuntimeException cre) {
             throw new RuntimeException(String.format("%s configuration key is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
         }
-        sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(vertexCheckpoint);
+        //sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(vertexCheckpoint);
         sparkBulkLoaderStateMachine.vertexDataset =
                 sparkBulkLoaderStateMachine.spark.read().parquet(vertexCheckpoint);
-        sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(edgeCheckpoint);
+        sparkBulkLoaderStateMachine.vertexDataset.repartition(info.getVertexPartitionCount(), new Column("~id"));
+        //sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(edgeCheckpoint);
         sparkBulkLoaderStateMachine.persistedEdgeIdDataset =
                 sparkBulkLoaderStateMachine.spark.read().parquet(edgeCheckpoint);
+        sparkBulkLoaderStateMachine.persistedEdgeIdDataset.repartition(info.getEdgePartitionCount(), new Column("~id"));
 
         // Generation vertex and edge operations.
         sparkBulkLoaderStateMachine.vertexOperations = new VertexOperations(
@@ -122,6 +129,15 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                         throw new IllegalStateException("Error during bulk load recovery, unknown state: " + state);
                 }
             } else {
+                if (!sparkBulkLoaderStateMachine.initializerGraph.isEmpty() &&
+                        !sparkBulkLoaderStateMachine.config.hasAction(DISABLE_EDGE_WRITE) &&
+                        !sparkBulkLoaderStateMachine.config.hasAction(DISABLE_VERTEX_WRITE) &&
+                        !sparkBulkLoaderStateMachine.config.hasAction(INCREMENTAL_LOAD)) {
+                    // If we're doing partial writing checking the emptiness of the database isn't valid.
+                    LOGGER.error(DATABASE_NOT_EMPTY);
+                    throw new RuntimeException(DATABASE_NOT_EMPTY);
+                }
+
                 // Fresh load, truncate any metadata.
                 RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
 
@@ -130,6 +146,15 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                 nextState = new SparkBulkLoaderStateReadVertices(sparkBulkLoaderStateMachine);
             }
         } else {
+            if (!sparkBulkLoaderStateMachine.initializerGraph.isEmpty() &&
+                    !sparkBulkLoaderStateMachine.config.hasAction(DISABLE_EDGE_WRITE) &&
+                    !sparkBulkLoaderStateMachine.config.hasAction(DISABLE_VERTEX_WRITE) &&
+                    !sparkBulkLoaderStateMachine.config.hasAction(INCREMENTAL_LOAD)) {
+                // If we're doing partial writing checking the emptiness of the database isn't valid.
+                LOGGER.error(DATABASE_NOT_EMPTY);
+                throw new RuntimeException(DATABASE_NOT_EMPTY);
+            }
+
             // Fresh load, truncate any metadata.
             RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
 

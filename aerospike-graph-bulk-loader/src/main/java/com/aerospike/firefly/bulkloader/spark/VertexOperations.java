@@ -85,6 +85,11 @@ public class VertexOperations implements Serializable {
                 try {
                     int failurePartitionId = Integer.parseInt(failureOnVertexWriting);
                     if (partitionId == failurePartitionId) {
+                        // Wait so other partitions can complete before we fail this partition.
+                        try {
+                            Thread.sleep(300000);
+                        } catch (final InterruptedException ignored) {
+                        }
                         throw new RuntimeException("Testing vertex writing failure.");
                     }
                 } catch (final NumberFormatException ignored) {

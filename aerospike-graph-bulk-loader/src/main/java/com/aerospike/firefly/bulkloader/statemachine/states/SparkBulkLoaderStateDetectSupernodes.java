@@ -36,6 +36,7 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
             RecoveryUtil.writeSupernodeList(
                     sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), sparkBulkLoaderStateMachine.supernodes);
         }
+        System.out.println("Supernode extraction complete - " + sparkBulkLoaderStateMachine.supernodes);
         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
     }
 

@@ -40,7 +40,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
-import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
 import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad.BULK_LOAD_SUCCESS;
 import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad.formatErrorCount;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
@@ -60,16 +59,15 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 
 public class SparkBulkLoaderStateMachine {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderStateMachine.class);
-    public final String local = "local";
-    public final String s3 = "s3";
-    public final String gcs = "gcs";
+    public static final String LOCAL = "local";
+    public static final String S3 = "s3";
+    public static final String GCS = "gcs";
     public String fileSystem;
     public boolean fileSystemMutable;
     public ProgressBar progressBar;
     public Timer progressBarTimer;
     public final int progressBarIntervalMs = 10000;
     public final int dryrunStacktraceLimit = 5;
-    public final AtomicBoolean inProgress = new AtomicBoolean(false);
     public boolean isL2Mode;
     public List<String> vertexDirectories;
     public List<String> edgeDirectories;
@@ -99,10 +97,6 @@ public class SparkBulkLoaderStateMachine {
         }));
 
         isL2Mode = false;
-        if (inProgress.getAndSet(true)) {
-            LOGGER.error(JOB_ALREADY_RUNNING);
-            throw new RuntimeException(JOB_ALREADY_RUNNING);
-        }
 
         cmd = CommandLineParser.parseCmdArgs(args);
         final List<String> printableArgs = new ArrayList();
@@ -125,7 +119,7 @@ public class SparkBulkLoaderStateMachine {
         progressBarTimer = new Timer(true);
 
         // Initialize Spark.
-        fileSystem = local;
+        fileSystem = LOCAL;
         fileSystemMutable = true;
         spark = buildSparkSession(cmd);
         final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
@@ -140,13 +134,6 @@ public class SparkBulkLoaderStateMachine {
         spark.sparkContext().setLogLevel(logLevel);
 
         initializerGraph = FireflyGraph.open(config.getFireflyConfig());
-        if (!initializerGraph.isEmpty() && !config.hasAction(DISABLE_EDGE_WRITE) &&
-                !config.hasAction(DISABLE_VERTEX_WRITE) && !config.hasAction(INCREMENTAL_LOAD)) {
-            // If we're doing partial writing checking the emptiness of the database isn't valid.
-            // TODO: Check for recovery here.
-            LOGGER.error(DATABASE_NOT_EMPTY);
-            //throw new RuntimeException(DATABASE_NOT_EMPTY);
-        }
         initializerGraph.getBaseGraph().initializeBulkLoadMetadata();
 
         // Pre-processing
@@ -270,17 +257,17 @@ public class SparkBulkLoaderStateMachine {
         if (fileSystem.equals(uriFileSystem)) {
             // Don't need to do anything if file system did not change.
             return;
-        } else if (fileSystem.equals(local) && fileSystemMutable) {
+        } else if (fileSystem.equals(LOCAL) && fileSystemMutable) {
             LOGGER.info("Remote file system detected. Changing to '" + uriFileSystem + "' mode.");
             fileSystem = uriFileSystem;
-            if (fileSystem.equals(s3)) {
+            if (fileSystem.equals(S3)) {
                 if (cmd.hasOption("u")) {
                     spark.conf().set("fs.s3a.access.key", cmd.getOptionValue("u").trim());
                 }
                 if (cmd.hasOption("p")) {
                     spark.conf().set("fs.s3a.secret.key", cmd.getOptionValue("p").trim());
                 }
-            } else if (uriFileSystem.equals(gcs)) {
+            } else if (uriFileSystem.equals(GCS)) {
                 if (cmd.hasOption("gck")) {
                     final String keyFilePath = cmd.getOptionValue("gck");
                     LOGGER.info("Google Cloud Service Account key file specified: " + keyFilePath);
@@ -311,11 +298,11 @@ public class SparkBulkLoaderStateMachine {
 
     private String getFileSystem(final String uri) {
         if (uri.toLowerCase().startsWith("s3://")) {
-            return s3;
+            return S3;
         } else if (uri.toLowerCase().startsWith("gs://")) {
-            return gcs;
+            return GCS;
         } else {
-            return local;
+            return LOCAL;
         }
     }
 

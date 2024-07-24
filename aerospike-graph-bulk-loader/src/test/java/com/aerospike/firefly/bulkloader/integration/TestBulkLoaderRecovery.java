@@ -10,6 +10,7 @@ import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderState
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateVerifyVertices;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateWriteEdges;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateWriteVertices;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.lang3.ArrayUtils;
@@ -17,12 +18,18 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.ExecutionException;
 
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.getConfig;
 
@@ -49,6 +56,21 @@ public class TestBulkLoaderRecovery {
         System.clearProperty("bulkloader.testing.partition.failure.vertex.verification");
         System.clearProperty("bulkloader.testing.partition.failure.edge.writing");
         System.clearProperty("bulkloader.testing.partition.failure.edge.verification");
+        RecoveryUtil.truncate(graph.getBaseGraph());
+    }
+
+    @BeforeClass
+    public static void generateData() throws IOException, InterruptedException, ExecutionException {
+        final Process python = Runtime.getRuntime().exec("python3 src/test/resources/csv-generate.py");
+        if (python.onExit().get().exitValue() != 0) {
+            throw new RuntimeException("Failed to generate csv data to run tests.");
+        }
+    }
+
+    @AfterClass
+    public static void clearData() throws IOException {
+        Files.deleteIfExists(Path.of("src/test/resources/recoverydata/vertices/vertexList"));
+        Files.deleteIfExists(Path.of("src/test/resources/recoverydata/edges/edgeList"));
     }
 
     @After
@@ -94,11 +116,13 @@ public class TestBulkLoaderRecovery {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
         } catch (Exception e) {
+            System.out.println(e.getMessage());
             // Expected
         }
         SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
         state.executeState();
+
         // Should have loaded supernodes. Also should have loaded vertex and edge dataset.
         Assert.assertFalse(stateMachine.supernodes.isEmpty());
 
@@ -215,14 +239,11 @@ public class TestBulkLoaderRecovery {
         // Define the checkpoint directory
         String checkpointDir = "/home/lyndon/github/firefly/aerospike-graph-bulk-loader/src/test/resources/recoverydata/checkpoint"; // Replace with your checkpoint directory
 
-        // Set the checkpoint directory
-        spark.sparkContext().setCheckpointDir(checkpointDir);
-
         // Checkpoint the DataFrame
-        df.checkpoint();
+        //df.checkpoint();
 
         // Save the checkpointed DataFrame to a file (optional)
-        //df.write().mode("overwrite").parquet(checkpointDir);
+        df.write().mode("overwrite").parquet(checkpointDir);
 
         Dataset<Row> rows = spark.read().parquet(checkpointDir);
 

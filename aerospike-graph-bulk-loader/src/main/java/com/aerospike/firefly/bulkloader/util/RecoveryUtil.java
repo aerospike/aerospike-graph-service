@@ -123,7 +123,6 @@ public class RecoveryUtil {
     }
 
     public static void updateVertexRecovery(final AerospikeConnection db, final int partitionCount) {
-        System.out.println("Updating vertex partition count to " + partitionCount);
         // Create policy and configure.
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex_partition_count");
         final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, partitionCount);
@@ -139,11 +138,10 @@ public class RecoveryUtil {
         }
     }
 
-    public static void updateEdgeRecovery(final AerospikeConnection db, final int partitionCount) {
-        System.out.println("Updating edge partition count to " + partitionCount);
+    public static void updateEdgeRecovery(final AerospikeConnection db, final int partition_count) {
         // Create policy and configure.
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "edge_partition_count");
-        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, partitionCount);
+        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, partition_count);
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);

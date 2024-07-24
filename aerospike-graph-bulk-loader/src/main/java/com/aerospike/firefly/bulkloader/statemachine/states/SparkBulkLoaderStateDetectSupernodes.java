@@ -17,7 +17,7 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
                 sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.DETECT_SUPERNODES);
 
         // TESTING USAGE ONLY
-        final String failureOnSupernodes = System.getProperty("bulkloader.testing.recovery.failure.type");
+        final String failureOnSupernodes = System.getProperty("bulkloader.testing.partition.failure.supernode");
         if (failureOnSupernodes != null && failureOnSupernodes.equals("true")) {
             LOGGER.info("Testing supernode detection failure.");
             throw new RuntimeException("Testing supernode detection failure.");

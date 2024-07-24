@@ -143,8 +143,9 @@ public class SparkBulkLoaderStateMachine {
         if (!initializerGraph.isEmpty() && !config.hasAction(DISABLE_EDGE_WRITE) &&
                 !config.hasAction(DISABLE_VERTEX_WRITE) && !config.hasAction(INCREMENTAL_LOAD)) {
             // If we're doing partial writing checking the emptiness of the database isn't valid.
+            // TODO: Check for recovery here.
             LOGGER.error(DATABASE_NOT_EMPTY);
-            throw new RuntimeException(DATABASE_NOT_EMPTY);
+            //throw new RuntimeException(DATABASE_NOT_EMPTY);
         }
         initializerGraph.getBaseGraph().initializeBulkLoadMetadata();
 
@@ -160,17 +161,6 @@ public class SparkBulkLoaderStateMachine {
             incrementalLoad = true;
         }
         readOnly = config.hasAction(READ_ONLY);
-        if (readOnly) {
-            // Persisting Edge IDs is disabled. Do Nothing.
-            LOGGER.debug("{} mode detected. System will not enable checkpoint recovery.", READ_ONLY);
-        } else {
-            // Check that the temp directory to write to is set.
-            try {
-                spark.sparkContext().setCheckpointDir(checkpointDirectory);
-            } catch (final ConfigurationRuntimeException cre) {
-                throw new RuntimeException(String.format("%s configuration key is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
-            }
-        }
     }
 
     public void executeStateMachine() {

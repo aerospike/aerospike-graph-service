@@ -4,8 +4,12 @@ import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
+import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
 
 public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderStateStart.class);
@@ -20,12 +24,21 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.progressBar.setPreflightCheckComplete();
         sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();
 
-
         // Load the edge dataset and vertex dataset checkpoints.
-        sparkBulkLoaderStateMachine.persistedEdgeIdDataset =
-                sparkBulkLoaderStateMachine.spark.read().load(sparkBulkLoaderStateMachine.checkpointDirectory);
+        final String vertexCheckpoint;
+        final String edgeCheckpoint;
+        try {
+            vertexCheckpoint = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/checkpoint/vertex";
+            edgeCheckpoint = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/checkpoint/edge";
+        } catch (final ConfigurationRuntimeException cre) {
+            throw new RuntimeException(String.format("%s configuration key is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
+        }
+        sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(vertexCheckpoint);
         sparkBulkLoaderStateMachine.vertexDataset =
-                sparkBulkLoaderStateMachine.spark.read().load(sparkBulkLoaderStateMachine.checkpointDirectory);
+                sparkBulkLoaderStateMachine.spark.read().parquet(vertexCheckpoint);
+        sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(edgeCheckpoint);
+        sparkBulkLoaderStateMachine.persistedEdgeIdDataset =
+                sparkBulkLoaderStateMachine.spark.read().parquet(edgeCheckpoint);
 
         // Generation vertex and edge operations.
         sparkBulkLoaderStateMachine.vertexOperations = new VertexOperations(
@@ -56,12 +69,13 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                 loadCheckpointDatasets(info);
                 switch (state) {
                     // Preflight ->
-                    case "detectSupernodes":
+                    case "DETECT_SUPERNODES":
                         LOGGER.info("Recovering from detectSupernodes state");
                         // Here we have completed the preflight and persistentance of edge ids.
                         // Therefore, we can reload the edge dataset and vertex dataset checkpoints.
                         nextState = new SparkBulkLoaderStateDetectSupernodes(sparkBulkLoaderStateMachine);
-                    case "writeVertices":
+                        break;
+                    case "VERTEX_WRITE":
                         LOGGER.info("Recovering from writeVertices state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
                         // Here we have completed the supernode detection and died during vertex writing.
@@ -69,7 +83,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                         // We can also load the supernodes and vertex partitions.
                         nextState = new SparkBulkLoaderStateWriteVertices(sparkBulkLoaderStateMachine);
                         break;
-                    case "verifyVertices":
+                    case "VERTEX_VERIFY":
                         LOGGER.info("Recovering from verifyVertices state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
                         sparkBulkLoaderStateMachine.progressBar.setVertexLoadComplete();
@@ -79,7 +93,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                         // Vertex partitions are irrelevant, and we can restart the vertex verification step.
                         nextState = new SparkBulkLoaderStateVerifyVertices(sparkBulkLoaderStateMachine);
                         break;
-                    case "writeEdges":
+                    case "EDGE_WRITE":
                         LOGGER.info("Recovering from writeEdges state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
                         sparkBulkLoaderStateMachine.progressBar.setVertexLoadComplete();
@@ -90,7 +104,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                         // Vertex partitions are irrelevant, and we can restart the edge writing step.
                         nextState = new SparkBulkLoaderStateWriteEdges(sparkBulkLoaderStateMachine);
                         break;
-                    case "verifyEdges":
+                    case "EDGE_VERIFY":
                         LOGGER.info("Recovering from verifyEdges state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
                         sparkBulkLoaderStateMachine.progressBar.setVertexLoadComplete();
@@ -101,6 +115,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                         // We can also load the supernodes.
                         // Partitions are irrelevant, and we can restart the edge verification step.
                         nextState = new SparkBulkLoaderStateVerifyEdges(sparkBulkLoaderStateMachine);
+                        break;
                     default:
                         // Unknown state
                         // This should never happen.

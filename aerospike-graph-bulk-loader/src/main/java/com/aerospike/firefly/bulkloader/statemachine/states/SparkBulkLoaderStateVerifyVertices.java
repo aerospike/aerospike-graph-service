@@ -14,6 +14,12 @@ public class SparkBulkLoaderStateVerifyVertices extends SparkBulkLoaderState {
         RecoveryUtil.updateState(
                 sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.VERTEX_VERIFY);
 
+        // TESTING USAGE ONLY
+        final String failureOnVertexVerification = System.getProperty("bulkloader.testing.partition.failure.vertex.verification");
+        if (failureOnVertexVerification != null && failureOnVertexVerification.equals("true")) {
+            throw new RuntimeException("Testing vertex verification failure.");
+        }
+
         sparkBulkLoaderStateMachine.vertexOperations.verifySampleVerticesAfterWrite(
                 sparkBulkLoaderStateMachine.vertexDataset.sample(
                         DatasetOperations.getSamplingPercent(sparkBulkLoaderStateMachine.config)));

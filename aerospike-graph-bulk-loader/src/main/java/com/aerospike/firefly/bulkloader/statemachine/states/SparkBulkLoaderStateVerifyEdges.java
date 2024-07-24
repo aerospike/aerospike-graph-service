@@ -14,6 +14,12 @@ public class SparkBulkLoaderStateVerifyEdges extends SparkBulkLoaderState {
         RecoveryUtil.updateState(
                 sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.EDGE_VERIFY);
 
+        // TESTING USAGE ONLY
+        final String failureOnEdgeVerification = System.getProperty("bulkloader.testing.partition.failure.edge.verification");
+        if (failureOnEdgeVerification != null && failureOnEdgeVerification.equals("true")) {
+            throw new RuntimeException("Testing edge verification failure.");
+        }
+
         sparkBulkLoaderStateMachine.edgeOperations.verifySampleEdgeAfterWrite(
                 sparkBulkLoaderStateMachine.persistedEdgeIdDataset.sample(
                         DatasetOperations.getSamplingPercent(sparkBulkLoaderStateMachine.config)));

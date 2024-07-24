@@ -78,6 +78,19 @@ public class VertexOperations implements Serializable {
                     return;
                 }
             }
+
+            // TESTING USAGE ONLY
+            final String failureOnVertexWriting = System.getProperty("bulkloader.testing.partition.failure.vertex.writing");
+            if (failureOnVertexWriting != null && !failureOnVertexWriting.isEmpty()) {
+                try {
+                    int failurePartitionId = Integer.parseInt(failureOnVertexWriting);
+                    if (partitionId == failurePartitionId) {
+                        throw new RuntimeException("Testing vertex writing failure.");
+                    }
+                } catch (final NumberFormatException ignored) {
+                }
+            }
+
             LOGGER.info("Starting to write VertexDataset in PartitionId: " + partitionId);
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
                 final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);

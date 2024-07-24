@@ -30,12 +30,16 @@ import java.util.stream.Collectors;
 public class RecoveryUtil {
     private static final Logger LOGGER = LoggerFactory.getLogger(RecoveryUtil.class);
 
-    public static enum RecoveryState {
+    public enum RecoveryState {
         DETECT_SUPERNODES,
         VERTEX_WRITE,
         VERTEX_VERIFY,
         EDGE_WRITE,
         EDGE_VERIFY
+    }
+
+    public static String getStateName(final RecoveryState state) {
+        return state.name();
     }
 
     public static void truncate(final AerospikeConnection db) {
@@ -122,6 +126,38 @@ public class RecoveryUtil {
         }
     }
 
+    public static void updateVertexRecovery(final AerospikeConnection db, final String path) {
+        // Create policy and configure.
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex");
+        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, path);
+        final Operation operation = Operation.put(bin);
+        final WritePolicy writePolicy = new WritePolicy();
+        db.configureWritePolicy(writePolicy);
+
+        // TODO: Retry logic.
+        try {
+            db.writeOperate(writePolicy, key, operation);
+        } catch (AerospikeException e) {
+            throw new FireflyLoadingException(e);
+        }
+    }
+
+    public static void updateEdgeRecovery(final AerospikeConnection db, final String path) {
+        // Create policy and configure.
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "edge");
+        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, path);
+        final Operation operation = Operation.put(bin);
+        final WritePolicy writePolicy = new WritePolicy();
+        db.configureWritePolicy(writePolicy);
+
+        // TODO: Retry logic.
+        try {
+            db.writeOperate(writePolicy, key, operation);
+        } catch (AerospikeException e) {
+            throw new FireflyLoadingException(e);
+        }
+    }
+
     private static void recoverPartitions(final RecoveryRecordSequenceListener listener,
                                           final AerospikeConnection db,
                                           final ScanPolicy scanPolicy,
@@ -158,6 +194,23 @@ public class RecoveryUtil {
         }
     }
 
+    private static String recoverVertexDirectory(final AerospikeConnection db) {
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex");
+        final Policy readPolicy = new Policy();
+        db.configureReadPolicy(readPolicy);
+
+        // TODO: Retry logic.
+        try {
+            final Record record = db.client.get(readPolicy, key);
+            if (record != null) {
+                return record.getString(db.BULK_LOAD_RECOVERY_BIN);
+            }
+            return null;
+        } catch (AerospikeException e) {
+            throw new FireflyLoadingException(e);
+        }
+    }
+
     public static RecoveryInfo recover(final AerospikeConnection db) {
         final ScanPolicy scanPolicy = new ScanPolicy();
         db.configureScanPolicy(scanPolicy);
@@ -166,7 +219,7 @@ public class RecoveryUtil {
         recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_VERTEX_SET, RecoveryRecordSequenceListener.RecoveryMode.VERTEX);
         recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_EDGE_SET, RecoveryRecordSequenceListener.RecoveryMode.EDGE);
         recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_SUPERNODE_SET, RecoveryRecordSequenceListener.RecoveryMode.SUPERNODE);
-        return new RecoveryInfo(listener.getVertexPartitions(), listener.getEdgePartitions(), listener.getSupernodes(), recoverState(db));
+        return new RecoveryInfo(listener.getVertexPartitions(), listener.getEdgePartitions(), listener.getSupernodes(), recoverState(db), recoverVertexDirectory(db));
     }
 
     static class RecoveryRecordSequenceListener implements RecordSequenceListener {
@@ -251,15 +304,18 @@ public class RecoveryUtil {
         private Set<Long> edgePartitions;
         private Set<Object> supernodes;
         private String state;
+        private String vertexRecoverPath;
 
         public RecoveryInfo(final Set<Long> vertexPartitions,
                             final Set<Long> edgePartitions,
                             final Set<Object> supernodes,
-                            final String state) {
+                            final String state,
+                            final String vertexRecoverPath) {
             this.vertexPartitions = vertexPartitions;
             this.edgePartitions = edgePartitions;
             this.supernodes = supernodes;
             this.state = state;
+            this.vertexRecoverPath = vertexRecoverPath;
         }
 
         public Set<Long> getVertexPartitions() {
@@ -276,6 +332,10 @@ public class RecoveryUtil {
 
         public String getState() {
             return state;
+        }
+
+        public String getVertexRecoverPath() {
+            return vertexRecoverPath;
         }
     }
 }

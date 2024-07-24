@@ -59,7 +59,17 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.persistedEdgeIdDataset = DatasetOperations.persistIfPossible(
                 DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config), edgeIdDataset);
         if (!sparkBulkLoaderStateMachine.readOnly) {
-            sparkBulkLoaderStateMachine.persistedEdgeIdDataset = sparkBulkLoaderStateMachine.persistedEdgeIdDataset.checkpoint(true);
+            // Check that the temp directory to write to is set.
+            String checkpointDirectory = null;
+            try {
+                checkpointDirectory = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/checkpoint/edge";
+                sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(checkpointDirectory);
+            } catch (final ConfigurationRuntimeException cre) {
+                throw new RuntimeException(String.format("%s configuration key is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
+            }
+
+            sparkBulkLoaderStateMachine.persistedEdgeIdDataset.checkpoint(true);
+            sparkBulkLoaderStateMachine.persistedEdgeIdDataset.write().mode("overwrite").parquet(checkpointDirectory);
         }
         sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();
     }

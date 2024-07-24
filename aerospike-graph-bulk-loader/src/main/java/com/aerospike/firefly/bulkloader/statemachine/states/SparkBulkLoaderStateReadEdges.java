@@ -4,6 +4,8 @@ import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 
+import javax.xml.crypto.Data;
+
 public class SparkBulkLoaderStateReadEdges extends SparkBulkLoaderState {
 
     SparkBulkLoaderStateReadEdges(SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine) {

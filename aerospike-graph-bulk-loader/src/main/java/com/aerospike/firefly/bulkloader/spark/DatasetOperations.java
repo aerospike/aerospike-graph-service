@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -75,7 +76,6 @@ public class DatasetOperations implements Serializable {
      */
     public static List<Dataset<Row>> createDatasets(final SparkSession spark, final List<String> csvPaths,
                                                     final List<String> requiredHeaders) {
-
         final List<Dataset<Row>> datasets = new ArrayList<>();
         for (final String csv : csvPaths) {
             final Dataset<Row> dataset = spark.read()
@@ -137,6 +137,18 @@ public class DatasetOperations implements Serializable {
     public static Dataset<Row> loadDataset(final SparkSession session, final List<String> paths, final List<String> requiredHeaders, StorageLevel level) {
         Dataset<Row> data = mergeDatasets(session, createDatasets(session, paths, requiredHeaders));
         return persistIfPossible(level, data);
+    }
+
+    public static Set<String> getHeaders(final SparkSession session, final List<String> paths) {
+        final Set<String> headers = new HashSet<>();
+        for (final String csv : paths) {
+            final Dataset<Row> dataset = session.read()
+                    .option("header", "true")
+                    .option("recursiveFileLookup", "true").csv(csv)
+                    .select(input_file_name().as(FILENAME_COLUMN), col("*"));
+            headers.addAll(Set.of(dataset.columns()));
+        }
+        return headers;
     }
 
     public static Dataset<Row> persistIfPossible(StorageLevel level, Dataset<Row> data) {

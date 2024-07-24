@@ -119,7 +119,18 @@ public class EdgeOperations implements Serializable {
                     return;
                 }
             }
-            final String partitionFailure = System.getenv("bulkloader.testing.partition.failure");
+
+            // TESTING USAGE ONLY
+            final String failureOnEdgeWriting = System.getProperty("bulkloader.testing.partition.failure.edge.writing");
+            if (failureOnEdgeWriting != null && !failureOnEdgeWriting.isEmpty()) {
+                try {
+                    int failurePartitionId = Integer.parseInt(failureOnEdgeWriting);
+                    if (partitionId == failurePartitionId) {
+                        throw new RuntimeException("Testing edge writing failure.");
+                    }
+                } catch (final NumberFormatException ignored) {
+                }
+            }
 
             LOGGER.info("Starting to write EdgeDataset in PartitionId: " + partitionId);
 

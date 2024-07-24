@@ -4,8 +4,13 @@ import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
+import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
+import org.apache.spark.sql.Column;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
 
 public class SparkBulkLoaderStateReadVertices extends SparkBulkLoaderState {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderStateReadVertices.class);
@@ -30,7 +35,22 @@ public class SparkBulkLoaderStateReadVertices extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.progressBar.setVertexPartitionCount(sparkBulkLoaderStateMachine.vertexPartitionCount);
 
         if (!sparkBulkLoaderStateMachine.readOnly) {
-            sparkBulkLoaderStateMachine.vertexDataset = sparkBulkLoaderStateMachine.vertexDataset.checkpoint(true);
+            // Check that the temp directory to write to is set.
+            String checkpointDirectory = null;
+            try {
+                checkpointDirectory = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/checkpoint/vertex";
+                sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(checkpointDirectory);
+            } catch (final ConfigurationRuntimeException cre) {
+                throw new RuntimeException(String.format("%s configuration key is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
+            }
+
+            sparkBulkLoaderStateMachine.vertexDataset.checkpoint(true);
+            sparkBulkLoaderStateMachine.vertexDataset.repartition(
+                    sparkBulkLoaderStateMachine.vertexPartitionCount, new Column("~id")).
+                    write().mode("overwrite").parquet(checkpointDirectory);
+            //RecoveryUtil.updateVertexRecovery(
+            //        sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
+            //        sparkBulkLoaderStateMachine.spark.sparkContext().getCheckpointDir().get());
         }
     }
 

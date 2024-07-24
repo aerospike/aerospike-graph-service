@@ -125,7 +125,14 @@ public class SparkBulkLoaderStateMachine {
             // Set LOG LEVEL for spark logging to disable logging of each step during debugging purposes.
             spark.sparkContext().setLogLevel(logLevel);
 
+            incrementalLoad = false;
+            if (config.hasAction(INCREMENTAL_LOAD)) {
+                LOGGER.info("Incremental load mode detected.");
+                incrementalLoad = true;
+            }
+
             initializerGraph = FireflyGraph.open(config.getFireflyConfig());
+            progressBar.initialize(initializerGraph, incrementalLoad);
             if (!initializerGraph.isEmpty() && !config.hasAction(DISABLE_EDGE_WRITE) &&
                     !config.hasAction(DISABLE_VERTEX_WRITE) && !config.hasAction(INCREMENTAL_LOAD)) {
                 // If we're doing partial writing checking the emptiness of the database isn't valid.
@@ -141,12 +148,6 @@ public class SparkBulkLoaderStateMachine {
             fileSystemMutable = false;
 
             edgeDirectories = getDirectories(spark, cmd, config.getOrDefault(EDGE_DIRECTORY_KEY));
-            incrementalLoad = false;
-            if (config.hasAction(INCREMENTAL_LOAD)) {
-                LOGGER.info("Incremental load mode detected.");
-                incrementalLoad = true;
-            }
-            progressBar.initialize(initializerGraph, incrementalLoad);
         } catch (final Exception e) {
             LOGGER.error("Failed to initialize SparkBulkLoaderStateMachine", e);
             cleanup();
@@ -165,12 +166,9 @@ public class SparkBulkLoaderStateMachine {
                 progressBarTimer.cancel();
                 progressBarTimer = null;
             }
-            if (initializerGraph != null) {
-                initializerGraph.close();
-                initializerGraph = null;
-            }
-            if (!isL2Mode) {
-                HttpServer.close();
+            if (progressBar != null) {
+                progressBar.close();
+                progressBar = null;
             }
         }
     }

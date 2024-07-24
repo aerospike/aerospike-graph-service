@@ -8,6 +8,8 @@ import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLo
 import java.util.Arrays;
 
 public class SparkBulkLoaderStatePreflight extends SparkBulkLoaderState {
+    private static final int DRYRUN_STACKTRACE_LIMIT = 5;
+
     public SparkBulkLoaderStatePreflight(SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine) {
         super(sparkBulkLoaderStateMachine);
     }
@@ -15,10 +17,19 @@ public class SparkBulkLoaderStatePreflight extends SparkBulkLoaderState {
     @Override
     public void executeState() {
         // Preflight check
-        DatasetOperations.preflightCheck(
-                sparkBulkLoaderStateMachine.edgeDataset,
-                sparkBulkLoaderStateMachine.vertexDataset,
-                sparkBulkLoaderStateMachine.config);
+        try {
+            DatasetOperations.preflightCheck(
+                    sparkBulkLoaderStateMachine.edgeDataset,
+                    sparkBulkLoaderStateMachine.vertexDataset,
+                    sparkBulkLoaderStateMachine.config);
+        } catch (final Exception e) {
+            // We are limiting stacktrace size by DRYRUN_STACKTRACE_LIMIT
+            StackTraceElement[] originalStackTrace = e.getStackTrace();
+            StackTraceElement[] limitedStackTrace =
+                    Arrays.copyOf(originalStackTrace, Math.min(originalStackTrace.length, DRYRUN_STACKTRACE_LIMIT));
+            e.setStackTrace(limitedStackTrace);
+            throw e;
+        }
         sparkBulkLoaderStateMachine.progressBar.setPreflightCheckComplete();
     }
 

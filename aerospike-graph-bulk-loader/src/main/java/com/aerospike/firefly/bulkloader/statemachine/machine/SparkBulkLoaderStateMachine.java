@@ -67,7 +67,6 @@ public class SparkBulkLoaderStateMachine {
     public ProgressBar progressBar;
     public Timer progressBarTimer;
     public final int progressBarIntervalMs = 10000;
-    public final int dryrunStacktraceLimit = 5;
     public boolean isL2Mode;
     public List<String> vertexDirectories;
     public List<String> edgeDirectories;
@@ -91,90 +90,89 @@ public class SparkBulkLoaderStateMachine {
     public Set<Long> completedEdgePartitions = new HashSet<>();
 
     public SparkBulkLoaderStateMachine(final String[] args) {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            LOGGER.info("Shutting down DatasetOperations executor service");
-            DatasetOperations.getScheduledThreadPoolService().shutdown();
-        }));
+        try {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                LOGGER.info("Shutting down DatasetOperations executor service");
+                DatasetOperations.getScheduledThreadPoolService().shutdown();
+            }));
 
-        isL2Mode = false;
+            isL2Mode = false;
 
-        cmd = CommandLineParser.parseCmdArgs(args);
-        final List<String> printableArgs = new ArrayList();
-        String previous = "";
-        for (final String current : args) {
-            if (previous.equals("-p") || previous.equals("-" + REMOTE_PASSKEY)) {
-                char[] censoredPass = new char[current.length()];
-                Arrays.fill(censoredPass, '*');
-                printableArgs.add(new String(censoredPass));
-            } else {
-                printableArgs.add(current);
+            cmd = CommandLineParser.parseCmdArgs(args);
+            final List<String> printableArgs = new ArrayList();
+            String previous = "";
+            for (final String current : args) {
+                if (previous.equals("-p") || previous.equals("-" + REMOTE_PASSKEY)) {
+                    char[] censoredPass = new char[current.length()];
+                    Arrays.fill(censoredPass, '*');
+                    printableArgs.add(new String(censoredPass));
+                } else {
+                    printableArgs.add(current);
+                }
+                previous = current;
             }
-            previous = current;
+            LOGGER.info("Command line input: {}", String.join(", ", printableArgs));
+
+            // new Timer(true) creates the timer as a daemon, which means that it will not prevent the JVM from exiting.
+            progressBar = new ProgressBar(progressBarIntervalMs);
+            progressBar.setIsL2Mode(cmd.hasOption(LOCAL_MODE));
+            progressBarTimer = new Timer(true);
+
+            // Initialize Spark.
+            fileSystem = LOCAL;
+            fileSystemMutable = true;
+            spark = buildSparkSession(cmd);
+            final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
+            isL2Mode = cmd.hasOption(LOCAL_MODE);
+            Objects.requireNonNull(configPath);
+            fileConfig = loadConfiguration(spark, cmd, configPath);
+            LOGGER.info("Config: " + fileConfig);
+            config = new BulkLoaderConfigHelper(fileConfig, cmd);
+
+            final String logLevel = config.getOrDefault(SPARK_LOG_LEVEL).toUpperCase();
+            // Set LOG LEVEL for spark logging to disable logging of each step during debugging purposes.
+            spark.sparkContext().setLogLevel(logLevel);
+
+            incrementalLoad = false;
+            if (config.hasAction(INCREMENTAL_LOAD)) {
+                LOGGER.info("Incremental load mode detected.");
+                incrementalLoad = true;
+            }
+
+            initializerGraph = FireflyGraph.open(config.getFireflyConfig());
+            progressBar.initialize(initializerGraph, incrementalLoad);
+            initializerGraph.getBaseGraph().initializeBulkLoadMetadata();
+
+            // Pre-processing
+            vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
+
+            // FILE_SYSTEM cannot be mutated after vertex directory filesystem is checked
+            fileSystemMutable = false;
+
+            edgeDirectories = getDirectories(spark, cmd, config.getOrDefault(EDGE_DIRECTORY_KEY));
+            readOnly = config.hasAction(READ_ONLY);
+        } catch (final Exception e) {
+            LOGGER.error("Failed to initialize SparkBulkLoaderStateMachine", e);
+            cleanup();
+            throw e;
         }
-        LOGGER.info("Command line input: {}", String.join(", ", printableArgs));
-
-        // new Timer(true) creates the timer as a daemon, which means that it will not prevent the JVM from exiting.
-        progressBar = new ProgressBar(progressBarIntervalMs);
-        progressBar.setIsL2Mode(cmd.hasOption(LOCAL_MODE));
-        progressBarTimer = new Timer(true);
-
-        // Initialize Spark.
-        fileSystem = LOCAL;
-        fileSystemMutable = true;
-        spark = buildSparkSession(cmd);
-        final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
-        isL2Mode = cmd.hasOption(LOCAL_MODE);
-        Objects.requireNonNull(configPath);
-        fileConfig = loadConfiguration(spark, cmd, configPath);
-        LOGGER.info("Config: " + fileConfig);
-        config = new BulkLoaderConfigHelper(fileConfig, cmd);
-
-        final String logLevel = config.getOrDefault(SPARK_LOG_LEVEL).toUpperCase();
-        // Set LOG LEVEL for spark logging to disable logging of each step during debugging purposes.
-        spark.sparkContext().setLogLevel(logLevel);
-
-        initializerGraph = FireflyGraph.open(config.getFireflyConfig());
-        initializerGraph.getBaseGraph().initializeBulkLoadMetadata();
-
-        // Pre-processing
-        vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
-        // FILE_SYSTEM cannot be mutated after vertex directory filesystem is checked
-        fileSystemMutable = false;
-
-        edgeDirectories = getDirectories(spark, cmd, config.getOrDefault(EDGE_DIRECTORY_KEY));
-        incrementalLoad = false;
-        if (config.hasAction(INCREMENTAL_LOAD)) {
-            LOGGER.info("Incremental load mode detected.");
-            incrementalLoad = true;
-        }
-        readOnly = config.hasAction(READ_ONLY);
     }
 
-    public void executeStateMachine() {
-        SparkBulkLoaderState state = new SparkBulkLoaderStateStart(this);
-        try {
-            while (!(state instanceof SparkBulkLoaderStateDone)) {
-                state.executeState();
-                state = state.transitionState();
-            }
-
-            // Completed all states, truncate the recovery metadata.
-            RecoveryUtil.truncate(initializerGraph.getBaseGraph());
-
-            final String output = formatErrorCount(initializerGraph);
-            if (!output.equals(BULK_LOAD_SUCCESS)) {
-                LOGGER.warn(output);
-            }
-        } finally {
+    public void cleanup() {
+        synchronized (SparkBulkLoaderStateMachine.class) {
             // Only close the HTTP server in L3. Not L2.
-            spark.sparkContext().stop();
-            if (!isL2Mode) {
-                HttpServer.close();
+            if (spark != null) {
+                System.out.println("Closing down spark");
+                spark.sparkContext().stop();
+                spark = null;
             }
             if (progressBarTimer != null) {
+                System.out.println("Closing down progress bar timer");
                 progressBarTimer.cancel();
+                progressBarTimer = null;
             }
             if (progressBar != null) {
+                System.out.println("Closing down progress bar ");
                 progressBar.close();
             }
         }

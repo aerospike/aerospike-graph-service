@@ -136,6 +136,7 @@ public class SparkBulkLoaderStateMachine {
 
         // Pre-processing
         vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
+
         // FILE_SYSTEM cannot be mutated after vertex directory filesystem is checked
         fileSystemMutable = false;
 
@@ -145,6 +146,8 @@ public class SparkBulkLoaderStateMachine {
             LOGGER.info("Incremental load mode detected.");
             incrementalLoad = true;
         }
+        progressBar.initialize(initializerGraph, incrementalLoad);
+
     }
 
     public void executeStateMachine() {
@@ -160,14 +163,18 @@ public class SparkBulkLoaderStateMachine {
             }
         } finally {
             // Only close the HTTP server in L3. Not L2.
+            System.out.println("Stopping spark");
             spark.sparkContext().stop();
             if (!isL2Mode) {
+                System.out.println("Closing HTTP server");
                 HttpServer.close();
             }
             if (progressBarTimer != null) {
+                System.out.println("Stopping progress bar timer");
                 progressBarTimer.cancel();
             }
             if (progressBar != null) {
+                System.out.println("Stopping progress bar");
                 progressBar.close();
             }
         }

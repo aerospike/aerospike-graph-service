@@ -1,6 +1,9 @@
 package com.aerospike.firefly.bulkloader;
 
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderState;
+import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateDone;
+import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateStart;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +17,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
+import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad.BULK_LOAD_SUCCESS;
+import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad.formatErrorCount;
 
 public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderMain.class);
@@ -31,10 +36,19 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
         }
         final ExecutorService executor = Executors.newSingleThreadExecutor();
         final String uuid = UUID.randomUUID().toString();
-        RUNNING_JOBS.put(uuid, executor.submit(() -> new SparkBulkLoaderStateMachine(args)));
+        SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine = null;
         try {
-            final SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine = RUNNING_JOBS.get(uuid).get();
-            sparkBulkLoaderStateMachine.executeStateMachine();
+            RUNNING_JOBS.put(uuid, executor.submit(() -> new SparkBulkLoaderStateMachine(args)));
+            sparkBulkLoaderStateMachine = RUNNING_JOBS.get(uuid).get();
+            SparkBulkLoaderState state = new SparkBulkLoaderStateStart(sparkBulkLoaderStateMachine);
+            while (!(state instanceof SparkBulkLoaderStateDone)) {
+                state.executeState();
+                state = state.transitionState();
+            }
+            final String output = formatErrorCount(sparkBulkLoaderStateMachine.initializerGraph);
+            if (!output.equals(BULK_LOAD_SUCCESS)) {
+                LOGGER.warn(output);
+            }
         } catch (final ExecutionException | InterruptedException e) {
             // Drill into exception and throw the root exception. Should be a RuntimeException generally.
             Throwable ee = e;
@@ -44,6 +58,9 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             LOGGER.error("Failed to bootstrap SparkBulkLoaderStateMachine", ee);
             throw (ee instanceof RuntimeException) ? (RuntimeException) ee : new RuntimeException(ee);
         } finally {
+            if (sparkBulkLoaderStateMachine != null) {
+                sparkBulkLoaderStateMachine.cleanup();
+            }
             RUNNING_JOBS.remove(uuid);
         }
     }

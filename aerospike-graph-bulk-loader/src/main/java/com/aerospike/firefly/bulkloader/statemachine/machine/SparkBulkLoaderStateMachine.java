@@ -64,7 +64,6 @@ public class SparkBulkLoaderStateMachine {
     public Timer progressBarTimer;
     public final int progressBarIntervalMs = 10000;
     public final int dryrunStacktraceLimit = 5;
-    public final AtomicBoolean inProgress = new AtomicBoolean(false);
     public boolean isL2Mode;
     public List<String> vertexDirectories;
     public List<String> edgeDirectories;

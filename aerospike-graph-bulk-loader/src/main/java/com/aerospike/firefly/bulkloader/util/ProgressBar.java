@@ -34,6 +34,15 @@ public class ProgressBar extends TimerTask {
         this.intervalMillis = intervalMillis;
     }
 
+    public void close() {
+        synchronized (ProgressBar.class) {
+            if (this.graph != null) {
+                this.graph.close();
+                this.graph = null;
+            }
+        }
+    }
+
     public void initialize(final FireflyGraph graph, final boolean incrementalMode) {
         synchronized (ProgressBar.class) {
             this.graph = graph;

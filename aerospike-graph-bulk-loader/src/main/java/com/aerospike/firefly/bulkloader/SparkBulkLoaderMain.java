@@ -17,6 +17,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
 import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad.BULK_LOAD_SUCCESS;
@@ -36,7 +37,10 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
         if (!RUNNING_JOBS.isEmpty()) {
             throw new IllegalStateException(JOB_ALREADY_RUNNING);
         }
-        final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+        // Make as daemon so it doesn't hang L3.
+        final ExecutorService executor = Executors.newSingleThreadExecutor(
+                new ThreadFactoryBuilder().setDaemon(true).build());
         final String uuid = UUID.randomUUID().toString();
         SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine = null;
         try {
@@ -62,6 +66,15 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
         } finally {
             if (sparkBulkLoaderStateMachine != null) {
                 sparkBulkLoaderStateMachine.cleanup();
+            }
+            executor.shutdown();
+            try {
+                boolean shutdownSucceeded = executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS);
+                if (!shutdownSucceeded) {
+                    LOGGER.error("Failed to shutdown executor.");
+                }
+            } catch (InterruptedException e) {
+                LOGGER.error("Failed to shutdown executor", e);
             }
             RUNNING_JOBS.remove(uuid);
         }

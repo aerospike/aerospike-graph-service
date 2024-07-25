@@ -162,18 +162,16 @@ public class SparkBulkLoaderStateMachine {
         synchronized (SparkBulkLoaderStateMachine.class) {
             // Only close the HTTP server in L3. Not L2.
             if (spark != null) {
-                System.out.println("Closing down spark");
                 spark.sparkContext().stop();
                 spark = null;
             }
             if (progressBarTimer != null) {
-                System.out.println("Closing down progress bar timer");
                 progressBarTimer.cancel();
                 progressBarTimer = null;
             }
             if (progressBar != null) {
-                System.out.println("Closing down progress bar ");
                 progressBar.close();
+                progressBar = null;
             }
         }
     }

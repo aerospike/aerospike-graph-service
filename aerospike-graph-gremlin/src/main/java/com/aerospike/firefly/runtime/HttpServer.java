@@ -11,6 +11,7 @@ import io.prometheus.client.exporter.common.TextFormat;
 import io.prometheus.client.hotspot.DefaultExports;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.ext.web.Router;
@@ -46,7 +47,7 @@ public class HttpServer {
     public static boolean PROMETHEUS_RENAME_ENABLED = true;
     private static FireflyGraph graph;
     private static final AtomicBoolean started = new AtomicBoolean(false);
-    private static final Vertx vertx = Vertx.vertx();
+    private static final Vertx vertx = Vertx.vertx(new VertxOptions().setUseDaemonThread(true));
     private static AtomicBoolean INITIALIZED = new AtomicBoolean(false);
 
     private HttpServer(final int port, final String prometheusPath, final String healthcheckpath) {

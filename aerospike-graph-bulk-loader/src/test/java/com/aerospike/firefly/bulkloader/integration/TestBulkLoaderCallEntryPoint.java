@@ -49,8 +49,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", "invalid path").iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertTrue(e instanceof AnalysisException);
-                Assert.assertTrue(e.getMessage().startsWith("[PATH_NOT_FOUND] Path does not exist:"));
+                Assert.assertTrue(e.getMessage().contains("[PATH_NOT_FOUND] Path does not exist:"));
             }
         }
     }

@@ -11,10 +11,9 @@ public class SparkBulkLoaderStateCleanUp extends SparkBulkLoaderState {
     @Override
     public void executeState() {
         // Clean up all recovery artifacts.
-        sparkBulkLoaderStateMachine.edgeDataset.unpersist();
-        sparkBulkLoaderStateMachine.vertexDataset.unpersist();
-        sparkBulkLoaderStateMachine.persistedEdgeIdDataset.unpersist();
-        sparkBulkLoaderStateMachine.vertexDataset.unpersist();
+        if (!sparkBulkLoaderStateMachine.readOnly) {
+            sparkBulkLoaderStateMachine.edgeDataset.unpersist();
+        }
         RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
     }
 

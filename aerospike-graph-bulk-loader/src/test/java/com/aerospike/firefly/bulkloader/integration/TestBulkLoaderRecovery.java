@@ -97,7 +97,7 @@ public class TestBulkLoaderRecovery {
 
         // Should have loaded vertex and edge dataset.
         Assert.assertNotNull(stateMachine.vertexDataset);
-        Assert.assertNotNull(stateMachine.persistedEdgeIdDataset);
+        Assert.assertNotNull(stateMachine.edgeDataset);
 
         // Should not have loaded any partitions.
         Assert.assertTrue(stateMachine.completedVertexPartitions.isEmpty());
@@ -128,7 +128,7 @@ public class TestBulkLoaderRecovery {
 
         // Should have loaded vertex and edge dataset.
         Assert.assertNotNull(stateMachine.vertexDataset);
-        Assert.assertNotNull(stateMachine.persistedEdgeIdDataset);
+        Assert.assertNotNull(stateMachine.edgeDataset);
 
         // Should have loaded any vertex partitions but no edge partitions.
         Assert.assertFalse(stateMachine.completedVertexPartitions.isEmpty());
@@ -155,7 +155,7 @@ public class TestBulkLoaderRecovery {
 
         // Should have loaded vertex and edge dataset.
         Assert.assertNotNull(stateMachine.vertexDataset);
-        Assert.assertNotNull(stateMachine.persistedEdgeIdDataset);
+        Assert.assertNotNull(stateMachine.edgeDataset);
 
         // Should have loaded any vertex partitions but no edge partitions.
         Assert.assertFalse(stateMachine.completedVertexPartitions.isEmpty());
@@ -183,7 +183,7 @@ public class TestBulkLoaderRecovery {
 
         // Should have loaded vertex and edge dataset.
         Assert.assertNotNull(stateMachine.vertexDataset);
-        Assert.assertNotNull(stateMachine.persistedEdgeIdDataset);
+        Assert.assertNotNull(stateMachine.edgeDataset);
 
         // Should have loaded any vertex partitions but no edge partitions.
         Assert.assertFalse(stateMachine.completedVertexPartitions.isEmpty());
@@ -211,7 +211,7 @@ public class TestBulkLoaderRecovery {
 
         // Should have loaded vertex and edge dataset.
         Assert.assertNotNull(stateMachine.vertexDataset);
-        Assert.assertNotNull(stateMachine.persistedEdgeIdDataset);
+        Assert.assertNotNull(stateMachine.edgeDataset);
 
         // Should have loaded any vertex partitions but no edge partitions.
         Assert.assertFalse(stateMachine.completedVertexPartitions.isEmpty());

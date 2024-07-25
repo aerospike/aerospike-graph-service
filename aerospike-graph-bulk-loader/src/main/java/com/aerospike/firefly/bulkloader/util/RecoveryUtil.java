@@ -190,7 +190,7 @@ public class RecoveryUtil {
         }
     }
 
-    private static int recoverVertexPartitionCount(final AerospikeConnection db) {
+    public static int recoverVertexPartitionCount(final AerospikeConnection db) {
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex_partition_count");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
@@ -207,7 +207,15 @@ public class RecoveryUtil {
         }
     }
 
-    private static int recoverEdgePartitionCount(final AerospikeConnection db) {
+    public static String getEdgeRecoveryDirectory(final String tempDirectory, final String separator) {
+        if (tempDirectory.endsWith(separator) || tempDirectory.endsWith("/")) {
+            return tempDirectory + "recovery" + separator + "edge";
+        } else {
+            return tempDirectory + separator + "recovery" + separator + "edge";
+        }
+    }
+
+    public static int recoverEdgePartitionCount(final AerospikeConnection db) {
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "edge_partition_count");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);

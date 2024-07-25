@@ -123,6 +123,24 @@ public class ProgressBar extends TimerTask {
         }
     }
 
+    private String getPartitionProgress(final int totalPartitions, final int completePartitions) {
+        if (graph == null || totalPartitions <= 0) {
+            return null;
+        } else {
+            final double percentComplete = (double) completePartitions / totalPartitions;
+            final int blocksComplete = (int) (percentComplete * 20);
+            final String partitionProgress = IntStream.range(0, blocksComplete)
+                    .mapToObj(i -> i < completePartitions ? "■" : " ")
+                    .collect(Collectors.joining());
+            final String partitionProgressRemaining = IntStream.range(0, 20 - blocksComplete)
+                    .mapToObj(i -> " ")
+                    .collect(Collectors.joining());
+            return "\t\t\t[" + partitionProgress + partitionProgressRemaining + "]\n" +
+                    "\t\t\t" + completePartitions + " of " + totalPartitions + " partitions complete (" +
+                    String.format("%.2f", percentComplete * 100) + "%)\n";
+        }
+    }
+
     private String getVertexWritingProgress(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         if (vertexLoadComplete) {
             return "\t\tVertex writing complete\n" +
@@ -133,10 +151,13 @@ public class ProgressBar extends TimerTask {
                 return "\t\tVertex writing in progress\n";
             } else {
                 final long delta = updateAndGetDeltaVertexCount(elementMetadata);
-                return "\t\tVertex writing in progress\n" +
+                final String output = "\t\tVertex writing in progress\n" +
                         "\t\t\tWriting " + delta / (intervalMillis / 1000) + " vertices per second\n" +
                         "\t\t\tTotal of " + verticesWritten + " vertices have been successfully written\n";
-                // TODO: Can give % complete from vertex partitions.
+                final int totalPartitions = vertexPartitions;
+                final int completePartitions = RecoveryUtil.recoverVertexPartitionCount(graph.getBaseGraph());
+                final String partitionProgress = getPartitionProgress(totalPartitions, completePartitions);
+                return output + (partitionProgress == null ? "" : partitionProgress);
             }
         } else {
             return "\t\tVertex writing not started\n";
@@ -160,10 +181,13 @@ public class ProgressBar extends TimerTask {
                 return "\t\tEdge writing in progress\n";
             } else {
                 final long delta = updateAndGetDeltaEdgeCount(elementMetadata);
-                return "\t\tEdge writing in progress\n" +
+                final String output = "\t\tEdge writing in progress\n" +
                         "\t\t\tWriting " + delta / (intervalMillis / 1000) + " edges per second\n" +
                         "\t\t\tTotal of " + edgesWritten + " edges have been successfully written\n";
-                // TODO: Can give % complete from edge partitions.
+                final int totalPartitions = edgePartitions;
+                final int completePartitions = RecoveryUtil.recoverEdgePartitionCount(graph.getBaseGraph());
+                final String partitionProgress = getPartitionProgress(totalPartitions, completePartitions);
+                return output + (partitionProgress == null ? "" : partitionProgress);
             }
         } else {
             return "\t\tEdge writing not started\n";

@@ -36,25 +36,8 @@ public class SparkBulkLoaderStateReadVertices extends SparkBulkLoaderState {
         RecoveryUtil.updateVertexRecovery(
                 sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
                 sparkBulkLoaderStateMachine.vertexPartitionCount);
-
-        if (!sparkBulkLoaderStateMachine.readOnly) {
-            // Check that the temp directory to write to is set.
-            String vertexRecoveryDirectory = null;
-            try {
-                vertexRecoveryDirectory = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/recovery/vertex";
-                //sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(vertexRecoveryDirectory);
-            } catch (final ConfigurationRuntimeException cre) {
-                throw new RuntimeException(String.format("%s configuration key is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
-            }
-
-            //sparkBulkLoaderStateMachine.vertexDataset.checkpoint(true);
-            sparkBulkLoaderStateMachine.vertexDataset.repartition(
-                    sparkBulkLoaderStateMachine.vertexPartitionCount, new Column("~id")).
-                    write().mode("overwrite").parquet(vertexRecoveryDirectory);
-            //RecoveryUtil.updateVertexRecovery(
-            //        sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
-            //        sparkBulkLoaderStateMachine.spark.sparkContext().getCheckpointDir().get());
-        }
+        sparkBulkLoaderStateMachine.vertexDataset.repartition(
+                sparkBulkLoaderStateMachine.vertexPartitionCount, new Column("~id"));
     }
 
     @Override

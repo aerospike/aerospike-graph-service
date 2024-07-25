@@ -81,10 +81,8 @@ public class SparkBulkLoaderStateMachine {
     public Map<String, Object> fileConfig;
     public FireflyGraph initializerGraph;
     public Set<Object> supernodes;
-    public Dataset<Row> persistedEdgeIdDataset;
     public Integer edgePartitionCount;
     public Integer vertexPartitionCount;
-    public String checkpointDirectory = null;
     public boolean readOnly;
     public Set<Long> completedVertexPartitions = new HashSet<>();
     public Set<Long> completedEdgePartitions = new HashSet<>();
@@ -139,14 +137,18 @@ public class SparkBulkLoaderStateMachine {
                 incrementalLoad = true;
             }
 
+            // Create graph and initialize progress bar.
             initializerGraph = FireflyGraph.open(config.getFireflyConfig());
             progressBar.initialize(initializerGraph, incrementalLoad);
+            progressBarTimer.scheduleAtFixedRate(progressBar, 0, 10000);
+
+            // Initialize bulk loader metadata.
             initializerGraph.getBaseGraph().initializeBulkLoadMetadata();
 
             // Pre-processing
             vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
 
-            // FILE_SYSTEM cannot be mutated after vertex directory filesystem is checked
+            // File system cannot be mutated after vertex directory filesystem is checked.
             fileSystemMutable = false;
 
             edgeDirectories = getDirectories(spark, cmd, config.getOrDefault(EDGE_DIRECTORY_KEY));
@@ -221,7 +223,7 @@ public class SparkBulkLoaderStateMachine {
         return config;
     }
 
-    private List<String> getDirectories(final SparkSession spark, final CommandLine cmd, final String directory) {
+    public List<String> getDirectories(final SparkSession spark, final CommandLine cmd, final String directory) {
         configureFileSystem(spark, cmd, directory);
 
         final Dataset<Row> directories = spark.read().format("csv").option("recursiveFileLookup", "true")

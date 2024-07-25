@@ -21,7 +21,7 @@ public class SparkBulkLoaderStateVerifyEdges extends SparkBulkLoaderState {
         }
 
         sparkBulkLoaderStateMachine.edgeOperations.verifySampleEdgeAfterWrite(
-                sparkBulkLoaderStateMachine.persistedEdgeIdDataset.sample(
+                sparkBulkLoaderStateMachine.edgeDataset.sample(
                         DatasetOperations.getSamplingPercent(sparkBulkLoaderStateMachine.config)));
         sparkBulkLoaderStateMachine.progressBar.setEdgeValidationComplete();
     }

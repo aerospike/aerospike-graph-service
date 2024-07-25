@@ -1,13 +1,17 @@
 package com.aerospike.firefly.bulkloader.statemachine.states;
 
+import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.spark.sql.Column;
+import org.apache.spark.storage.StorageLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
 
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
@@ -24,45 +28,78 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         super(sparkBulkLoaderStateMachine);
     }
 
-    private void loadCheckpointDatasets(final RecoveryUtil.RecoveryInfo info) {
-        // Update progress bar.
-        sparkBulkLoaderStateMachine.progressBar.setPreflightCheckComplete();
-        sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();
+    private void loadVertexDataset(final RecoveryUtil.RecoveryInfo info) {
+        sparkBulkLoaderStateMachine.vertexPartitionCount = info.getVertexPartitionCount();
 
-        // Load the edge dataset and vertex dataset checkpoints.
-        final String vertexCheckpoint;
-        final String edgeCheckpoint;
-        try {
-            vertexCheckpoint = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/recovery/vertex";
-            edgeCheckpoint = sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY) + "/recovery/edge";
-        } catch (final ConfigurationRuntimeException cre) {
-            throw new RuntimeException(String.format("%s configuration key is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
-        }
-        //sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(vertexCheckpoint);
-        sparkBulkLoaderStateMachine.vertexDataset =
-                sparkBulkLoaderStateMachine.spark.read().parquet(vertexCheckpoint);
-        sparkBulkLoaderStateMachine.vertexDataset.repartition(info.getVertexPartitionCount(), new Column("~id"));
-        //sparkBulkLoaderStateMachine.spark.sparkContext().setCheckpointDir(edgeCheckpoint);
-        sparkBulkLoaderStateMachine.persistedEdgeIdDataset =
-                sparkBulkLoaderStateMachine.spark.read().parquet(edgeCheckpoint);
-        sparkBulkLoaderStateMachine.persistedEdgeIdDataset.repartition(info.getEdgePartitionCount(), new Column("~id"));
-
-        // Generation vertex and edge operations.
+        // Load vertex dataset.
         sparkBulkLoaderStateMachine.vertexOperations = new VertexOperations(
                 sparkBulkLoaderStateMachine.config,
                 sparkBulkLoaderStateMachine.vertexDirectories);
-        sparkBulkLoaderStateMachine.edgeOperations = new EdgeOperations(
-                sparkBulkLoaderStateMachine.config,
-                sparkBulkLoaderStateMachine.edgeDirectories);
+        sparkBulkLoaderStateMachine.vertexDataset = DatasetOperations.loadDataset(
+                sparkBulkLoaderStateMachine.spark,
+                sparkBulkLoaderStateMachine.vertexDirectories,
+                VertexOperations.REQUIRED_VERTEX_HEADERS,
+                DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config));
 
-        // Calculate the number of partitions.
-        sparkBulkLoaderStateMachine.vertexPartitionCount = sparkBulkLoaderStateMachine.vertexDataset.rdd().partitions().length;
-        sparkBulkLoaderStateMachine.edgePartitionCount = sparkBulkLoaderStateMachine.persistedEdgeIdDataset.rdd().partitions().length;
+        // Set progress bar info.
+        LOGGER.info("Vertex dataset has {} partitions", sparkBulkLoaderStateMachine.vertexPartitionCount);
+        sparkBulkLoaderStateMachine.progressBar.setVertexPartitionCount(sparkBulkLoaderStateMachine.vertexPartitionCount);
+
+        // Repartition the vertex dataset.
+        sparkBulkLoaderStateMachine.vertexDataset.repartition(
+                sparkBulkLoaderStateMachine.vertexPartitionCount, new Column("~id"));
+    }
+
+    private void loadEdgeDataset(final RecoveryUtil.RecoveryInfo info) {
+        // Find temp directory holding edge ids.
+        String edgeRecoveryDirectory = null;
+        try {
+            edgeRecoveryDirectory = RecoveryUtil.getEdgeRecoveryDirectory(
+                    sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY),
+                    sparkBulkLoaderStateMachine.fileSystem.equals(SparkBulkLoaderStateMachine.LOCAL)
+                            ? File.separator : "/");
+        } catch (final ConfigurationRuntimeException cre) {
+            throw new RuntimeException(String.format("%s configuration key is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
+        }
+        sparkBulkLoaderStateMachine.edgeDirectories = sparkBulkLoaderStateMachine.getDirectories(
+                sparkBulkLoaderStateMachine.spark,
+                sparkBulkLoaderStateMachine.cmd,
+                edgeRecoveryDirectory);
+        sparkBulkLoaderStateMachine.edgeDataset = DatasetOperations.loadDataset(
+                sparkBulkLoaderStateMachine.spark,
+                sparkBulkLoaderStateMachine.edgeDirectories,
+                EdgeOperations.REQUIRED_EDGE_HEADERS,
+                DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config));
+
+        sparkBulkLoaderStateMachine.edgeDataset.repartition(info.getEdgePartitionCount(), new Column("~id"));
+
+        sparkBulkLoaderStateMachine.edgePartitionCount = info.getEdgePartitionCount();
+        LOGGER.info("EdgeId dataset has {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
+        sparkBulkLoaderStateMachine.progressBar.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
+
+        RecoveryUtil.updateEdgeRecovery(
+                sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
+                sparkBulkLoaderStateMachine.edgePartitionCount);
+        sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();
+    }
+
+    private void loadCheckpointDatasets(final RecoveryUtil.RecoveryInfo info) {
+        // Load datasets.
+        loadVertexDataset(info);
+        loadEdgeDataset(info);
 
         // Load the supernodes and partitions.
         sparkBulkLoaderStateMachine.supernodes = info.getSupernodes();
         sparkBulkLoaderStateMachine.completedVertexPartitions = info.getVertexPartitions();
         sparkBulkLoaderStateMachine.completedEdgePartitions = info.getEdgePartitions();
+
+        // Update progress bar.
+        sparkBulkLoaderStateMachine.progressBar.setPreflightCheckComplete();
+        sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();
+
+        // Calculate the number of partitions.
+        sparkBulkLoaderStateMachine.vertexPartitionCount = sparkBulkLoaderStateMachine.vertexDataset.rdd().partitions().length;
+        sparkBulkLoaderStateMachine.edgePartitionCount = sparkBulkLoaderStateMachine.edgeDataset.rdd().partitions().length;
     }
 
     @Override

@@ -1820,7 +1820,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
-    public void configureScanPolicy(final ScanPolicy policy) {
+    public void configureScanPolicy(final Policy policy) {
         policy.maxRetries = AEROSPIKE_MAX_RETRIES;
         policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
         policy.totalTimeout = SCAN_TOTAL_TIMEOUT;

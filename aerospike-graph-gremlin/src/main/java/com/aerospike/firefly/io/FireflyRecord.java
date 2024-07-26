@@ -12,7 +12,10 @@ import com.aerospike.client.policy.Policy;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import org.apache.commons.lang3.ArrayUtils;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -106,6 +109,14 @@ public class FireflyRecord {
             return new Key(db.getNamespace(), set, Value.get(id.getStorageId()));
         else
             return new Key(db.getNamespace(), id.getKeyHash(), set, Value.NULL);
+    }
+
+    public static Key getMergeEdgeKey(final FireflyGraph graph, final Object fromV, final Object toV) {
+        final FireflyId fromVId = graph.getIdFactory().createId(fromV, FireflyVertex.class);
+        final FireflyId toVId = graph.getIdFactory().createId(toV, FireflyVertex.class);
+        final byte[] compoundKeyHash = ArrayUtils.addAll(fromVId.getKeyHash(), toVId.getKeyHash());
+        final AerospikeConnection db = graph.getBaseGraph();
+        return new Key(db.getNamespace(), db.GRAPH_METADATA_SET, Value.get(compoundKeyHash));
     }
 
     public static FireflyRecord read(final AerospikeConnection db, final String set, final FireflyId id) {

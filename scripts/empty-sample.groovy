@@ -37,4 +37,4 @@ globals << [hook : [
 ] as LifeCycleHook]
 
 // define the default TraversalSource to bind queries to - this one will be named "g".
-globals << [g : traversal().withEmbedded(graph)]
+globals << [g : traversal().withEmbedded(graph), o : traversal().withEmbedded(graph).withComputer()]

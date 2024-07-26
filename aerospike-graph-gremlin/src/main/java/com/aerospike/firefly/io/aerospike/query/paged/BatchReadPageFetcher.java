@@ -30,7 +30,8 @@ public class BatchReadPageFetcher<R> extends PageFetcher<R> {
         this.policy.filterExp = expression;
         if (idsToRead.size() == 1 && idsToRead.get(0) instanceof P) {
             // Passed in as P.within([id1, id2, ...])
-            final P p = (P) idsToRead.get(0);;
+            final P p = (P) idsToRead.get(0);
+            ;
             if (!p.getBiPredicate().toString().equals("within")) {
                 throw new IllegalArgumentException("Batch read only supports within predicate");
             }
@@ -53,14 +54,16 @@ public class BatchReadPageFetcher<R> extends PageFetcher<R> {
     protected void readPage() {
         final List<Key> keysToRead = this.keysToRead.subList(idx, Math.min(this.keysToRead.size(), idx + maxPageSize));
         final Record[] records = graph.getBaseGraph().getClient().get(policy, keysToRead.toArray(new Key[0]));
-        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, () -> {});
+        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, () -> {
+        });
         try {
             pageQueue.put(new Page(pi));
         } catch (final InterruptedException e) {
             signalError("Failed to add page to queue: " + e.getMessage(), e);
         }
         for (int i = 0; i < records.length; i++) {
-            pi.add(new KeyRecord(keysToRead.get(i), records[i]));
+            if (records[i] != null)
+                pi.add(new KeyRecord(keysToRead.get(i), records[i]));
         }
         pi.close();
         idx += keysToRead.size();

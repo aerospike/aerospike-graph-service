@@ -19,6 +19,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.Contains;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.slf4j.Logger;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public interface GraphQuery {
     FireflyGraph getGraph();
@@ -85,8 +87,16 @@ public interface GraphQuery {
         String mapKey = null;
         final FireflyGraph graph = getGraph();
         final AerospikeConnection db = graph.getBaseGraph();
-        if (!hasContainers.isEmpty()) {
-            final List<Object> ids = hasContainers.stream().filter(it -> "~id".equals(it.getKey())).map(HasContainer::getValue).collect(Collectors.toList());
+        final List<HasContainer> negativeFilters = hasContainers.stream().filter(it -> it.getBiPredicate().equals(Contains.without)).collect(Collectors.toList());
+        final List<HasContainer> positiveFilters = hasContainers.stream().filter(it -> ! it.getBiPredicate().equals(Contains.without)).collect(Collectors.toList());
+
+        if (!positiveFilters.isEmpty()) {
+            final List<Object> ids = positiveFilters
+                    .stream()
+                    .filter(it -> "~id".equals(it.getKey()))
+                    .map(HasContainer::getValue)
+                    .flatMap(it -> it instanceof List? ((List<?>) it).stream(): Stream.of(it))
+                    .collect(Collectors.toList());
             final List<HasContainer> nonIdContainers = hasContainers.stream().filter(it -> !"~id".equals(it.getKey())).collect(Collectors.toList());
 
             // If there are id has containers, we can do a batch read.

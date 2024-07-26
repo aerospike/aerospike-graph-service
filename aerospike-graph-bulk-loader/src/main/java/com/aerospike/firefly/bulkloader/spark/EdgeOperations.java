@@ -126,6 +126,11 @@ public class EdgeOperations implements Serializable {
                 try {
                     int failurePartitionId = Integer.parseInt(failureOnEdgeWriting);
                     if (partitionId == failurePartitionId) {
+                        // Wait so other partitions can complete before we fail this partition.
+                        try {
+                            Thread.sleep(180000);
+                        } catch (final InterruptedException ignored) {
+                        }
                         throw new RuntimeException("Testing edge writing failure.");
                     }
                 } catch (final NumberFormatException ignored) {
@@ -410,6 +415,10 @@ public class EdgeOperations implements Serializable {
         idToEdgeCount.forEach((id, count) -> results.add(new Tuple2<>(id, count)));
     }
 
+    public void setSupernodes(final Set<Object> supernodes) {
+        this.supernodes = supernodes;
+    }
+
     public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset, final long onRecordIdLimit, final boolean incremental) {
         final Configuration fireflyConfig = this.config.getFireflyConfig();
         // If the global edge cache flag is off, then all vertices written have their edge caches disabled upon
@@ -454,8 +463,7 @@ public class EdgeOperations implements Serializable {
 
             final JavaRDD<Object> fromSupernodes = filteredFromCountPairRDD.keys();
             final JavaRDD<Object> toSupernodes = filteredToCountPairRDD.keys();
-            fromSupernodes.union(toSupernodes).collect().
-                    forEach(item -> supernodes.add(item));
+            supernodes.addAll(fromSupernodes.union(toSupernodes).collect());
             LOGGER.info("Final supernodes set: " + supernodes);
         }
         return this.supernodes;

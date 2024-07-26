@@ -25,8 +25,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
@@ -46,11 +46,14 @@ public class TestBulkLoaderRecovery {
     }
     private static final String[] DEFAULT_PARAMS= {"-validate_input_data", "-verify_output_data"};
     protected FireflyGraph graph = null;
+    private static long vertexLineCount;
+    private static long edgeLineCount;
 
     @Before
     public void beforeEach() {
         Configuration config = getTestConfig();
         graph = FireflyGraph.open(config);
+        graph.traversal().V().drop().iterate();
         System.clearProperty("bulkloader.testing.partition.failure.supernode");
         System.clearProperty("bulkloader.testing.partition.failure.vertex.writing");
         System.clearProperty("bulkloader.testing.partition.failure.vertex.verification");
@@ -65,6 +68,24 @@ public class TestBulkLoaderRecovery {
         if (python.onExit().get().exitValue() != 0) {
             throw new RuntimeException("Failed to generate csv data to run tests.");
         }
+
+        // Count lines.
+        final BufferedReader vertexReader =
+                new BufferedReader(new FileReader("src/test/resources/recoverydata/vertices/vertexList.csv"));
+        final BufferedReader edgeReader =
+                new BufferedReader(new FileReader("src/test/resources/recoverydata/edges/edgeList.csv"));
+
+        vertexLineCount = 0;
+        while (vertexReader.readLine() != null) vertexLineCount++;
+        vertexReader.close();
+
+        edgeLineCount = 0;
+        while (edgeReader.readLine() != null) edgeLineCount++;
+        edgeReader.close();
+
+        // Remove header.
+        vertexLineCount--;
+        edgeLineCount--;
     }
 
     @AfterClass
@@ -75,7 +96,6 @@ public class TestBulkLoaderRecovery {
 
     @After
     public void afterEach() {
-        graph.getBaseGraph().dropDatabase(graph, true);
         graph.close();
     }
 
@@ -88,24 +108,10 @@ public class TestBulkLoaderRecovery {
         } catch (Exception ignored) {
             // Expected
         }
-        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
-        SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
-        state.executeState();
-
-        // Should not have loaded supernodes.
-        Assert.assertTrue(stateMachine.supernodes.isEmpty());
-
-        // Should have loaded vertex and edge dataset.
-        Assert.assertNotNull(stateMachine.vertexDataset);
-        Assert.assertNotNull(stateMachine.edgeDataset);
-
-        // Should not have loaded any partitions.
-        Assert.assertTrue(stateMachine.completedVertexPartitions.isEmpty());
-        Assert.assertTrue(stateMachine.completedEdgePartitions.isEmpty());
-
-        // Expect default start state to be read vertices.
-        final SparkBulkLoaderState nextState = state.transitionState();
-        Assert.assertTrue(nextState instanceof SparkBulkLoaderStateDetectSupernodes);
+        System.clearProperty("bulkloader.testing.partition.failure.supernode");
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+        Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
+        Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
 
     }
 
@@ -115,26 +121,13 @@ public class TestBulkLoaderRecovery {
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+        } catch (Exception ignored) {
             // Expected
         }
-        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
-        SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
-        state.executeState();
-
-        // Should have loaded supernodes. Also should have loaded vertex and edge dataset.
-        Assert.assertFalse(stateMachine.supernodes.isEmpty());
-
-        // Should have loaded vertex and edge dataset.
-        Assert.assertNotNull(stateMachine.vertexDataset);
-        Assert.assertNotNull(stateMachine.edgeDataset);
-
-        // Should have loaded any vertex partitions but no edge partitions.
-        Assert.assertFalse(stateMachine.completedVertexPartitions.isEmpty());
-        Assert.assertTrue(stateMachine.completedEdgePartitions.isEmpty());
-        final SparkBulkLoaderState nextState = state.transitionState();
-        Assert.assertTrue(nextState instanceof SparkBulkLoaderStateWriteVertices);
+        System.clearProperty("bulkloader.testing.partition.failure.vertex.writing");
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+        Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
+        Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
     }
 
     @Test
@@ -143,112 +136,43 @@ public class TestBulkLoaderRecovery {
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
-        } catch (Exception e) {
+        } catch (Exception ignored) {
             // Expected
         }
-        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
-        SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
-        state.executeState();
-
-        // Should have loaded supernodes. Also should have loaded vertex and edge dataset.
-        Assert.assertFalse(stateMachine.supernodes.isEmpty());
-
-        // Should have loaded vertex and edge dataset.
-        Assert.assertNotNull(stateMachine.vertexDataset);
-        Assert.assertNotNull(stateMachine.edgeDataset);
-
-        // Should have loaded any vertex partitions but no edge partitions.
-        Assert.assertFalse(stateMachine.completedVertexPartitions.isEmpty());
-        Assert.assertTrue(stateMachine.completedEdgePartitions.isEmpty());
-        final SparkBulkLoaderState nextState = state.transitionState();
-        Assert.assertTrue(nextState instanceof SparkBulkLoaderStateVerifyVertices);
+        System.clearProperty("bulkloader.testing.partition.failure.vertex.verification");
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+        Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
+        Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
     }
 
     @Test
     public void testEdgeWritingFailure() {
         System.setProperty("bulkloader.testing.partition.failure.edge.writing", "3");
-
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
-        } catch (Exception e) {
+        } catch (Exception ignored) {
             // Expected
         }
-        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
-        SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
-        state.executeState();
-
-        // Should have loaded supernodes. Also should have loaded vertex and edge dataset.
-        Assert.assertFalse(stateMachine.supernodes.isEmpty());
-
-        // Should have loaded vertex and edge dataset.
-        Assert.assertNotNull(stateMachine.vertexDataset);
-        Assert.assertNotNull(stateMachine.edgeDataset);
-
-        // Should have loaded any vertex partitions but no edge partitions.
-        Assert.assertFalse(stateMachine.completedVertexPartitions.isEmpty());
-        Assert.assertFalse(stateMachine.completedEdgePartitions.isEmpty());
-        final SparkBulkLoaderState nextState = state.transitionState();
-        Assert.assertTrue(nextState instanceof SparkBulkLoaderStateWriteEdges);
+        System.clearProperty("bulkloader.testing.partition.failure.edge.writing");
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+        Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
+        Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
     }
 
     @Test
     public void testEdgeVerificationFailure() {
         System.setProperty("bulkloader.testing.partition.failure.edge.verification", "true");
-
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
-        } catch (Exception e) {
+        } catch (Exception ignored) {
             // Expected
         }
-        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
-        SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
-        state.executeState();
-
-        // Should have loaded supernodes. Also should have loaded vertex and edge dataset.
-        Assert.assertFalse(stateMachine.supernodes.isEmpty());
-
-        // Should have loaded vertex and edge dataset.
-        Assert.assertNotNull(stateMachine.vertexDataset);
-        Assert.assertNotNull(stateMachine.edgeDataset);
-
-        // Should have loaded any vertex partitions but no edge partitions.
-        Assert.assertFalse(stateMachine.completedVertexPartitions.isEmpty());
-        Assert.assertFalse(stateMachine.completedEdgePartitions.isEmpty());
-        final SparkBulkLoaderState nextState = state.transitionState();
-        Assert.assertTrue(nextState instanceof SparkBulkLoaderStateVerifyEdges);
-    }
-
-    @Test
-    public void checkpoint() {
-        // Initialize Spark session
-        SparkSession spark = SparkSession.builder()
-                .appName("CheckpointCSVExample")
-                .config("spark.master", "local")  // Run locally for simplicity
-                .getOrCreate();
-
-        // Define the path to your CSV file
-        String csvFilePath = "/home/lyndon/github/firefly/aerospike-graph-bulk-loader/src/test/resources/recoverydata/edges"; // Replace with your actual CSV file path
-
-        // Read the CSV file with headers
-        Dataset<Row> df = spark.read()
-                .option("header", "true")
-                .csv(csvFilePath);
-
-        // Define the checkpoint directory
-        String checkpointDir = "/home/lyndon/github/firefly/aerospike-graph-bulk-loader/src/test/resources/recoverydata/checkpoint"; // Replace with your checkpoint directory
-
-        // Checkpoint the DataFrame
-        //df.checkpoint();
-
-        // Save the checkpointed DataFrame to a file (optional)
-        df.write().mode("overwrite").parquet(checkpointDir);
-
-        Dataset<Row> rows = spark.read().parquet(checkpointDir);
-
-        // Stop the Spark session
-        spark.stop();
+        System.clearProperty("bulkloader.testing.partition.failure.edge.verification");
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+        Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
+        Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
     }
 
     // Test cases:

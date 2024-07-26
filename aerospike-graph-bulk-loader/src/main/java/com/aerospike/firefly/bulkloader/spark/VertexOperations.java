@@ -87,7 +87,7 @@ public class VertexOperations implements Serializable {
                     if (partitionId == failurePartitionId) {
                         // Wait so other partitions can complete before we fail this partition.
                         try {
-                            Thread.sleep(300000);
+                            Thread.sleep(60000);
                         } catch (final InterruptedException ignored) {
                         }
                         throw new RuntimeException("Testing vertex writing failure.");

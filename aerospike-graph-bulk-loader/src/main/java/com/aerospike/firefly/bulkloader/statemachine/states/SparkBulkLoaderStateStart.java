@@ -51,6 +51,11 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
     }
 
     private void loadEdgeDataset(final RecoveryUtil.RecoveryInfo info) {
+        // Load edge operations.
+        sparkBulkLoaderStateMachine.edgeOperations = new EdgeOperations(
+                sparkBulkLoaderStateMachine.config,
+                sparkBulkLoaderStateMachine.edgeDirectories);
+
         // Find temp directory holding edge ids.
         String edgeRecoveryDirectory = null;
         try {
@@ -65,11 +70,8 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                 sparkBulkLoaderStateMachine.spark,
                 sparkBulkLoaderStateMachine.cmd,
                 edgeRecoveryDirectory);
-        sparkBulkLoaderStateMachine.edgeDataset = DatasetOperations.loadDataset(
-                sparkBulkLoaderStateMachine.spark,
-                sparkBulkLoaderStateMachine.edgeDirectories,
-                EdgeOperations.REQUIRED_EDGE_HEADERS,
-                DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config));
+        sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.spark.
+                read().option("header", "true").csv(edgeRecoveryDirectory);
 
         sparkBulkLoaderStateMachine.edgeDataset.repartition(info.getEdgePartitionCount(), new Column("~id"));
 
@@ -90,6 +92,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
 
         // Load the supernodes and partitions.
         sparkBulkLoaderStateMachine.supernodes = info.getSupernodes();
+        sparkBulkLoaderStateMachine.edgeOperations.setSupernodes(sparkBulkLoaderStateMachine.supernodes);
         sparkBulkLoaderStateMachine.completedVertexPartitions = info.getVertexPartitions();
         sparkBulkLoaderStateMachine.completedEdgePartitions = info.getEdgePartitions();
 
@@ -110,9 +113,10 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                     RecoveryUtil.recover(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
             final String state = info.getState();
             if (state != null && !state.isEmpty()) {
+                sparkBulkLoaderStateMachine.progressBar.setResumeableLoad();
                 loadCheckpointDatasets(info);
+                sparkBulkLoaderStateMachine.progressBar.setResumeableLoadComplete();
                 switch (state) {
-                    // Preflight ->
                     case "DETECT_SUPERNODES":
                         LOGGER.info("Recovering from detectSupernodes state");
                         // Here we have completed the preflight and persistentance of edge ids.

@@ -51,6 +51,7 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
                     sparkBulkLoaderStateMachine.edgeDataset,
                     edgeRecoveryDirectory,
                     sparkBulkLoaderStateMachine.fileConfig);
+            sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.spark.read().option("header", "true").csv(edgeRecoveryDirectory);
             sparkBulkLoaderStateMachine.edgeDataset.persist(StorageLevel.DISK_ONLY());
         }
         sparkBulkLoaderStateMachine.edgePartitionCount = sparkBulkLoaderStateMachine.edgeDataset.rdd().getPartitions().length;

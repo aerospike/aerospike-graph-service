@@ -23,6 +23,8 @@ public class ProgressBar extends TimerTask {
     private boolean edgeIdWriteComplete = false;
     private boolean edgeLoadComplete = false;
     private boolean edgeValidationComplete = false;
+    private boolean resumableLoad = false;
+    private boolean resumeableLoadComplete = false;
     private long verticesWritten = 0L;
     private long edgesWritten = 0L;
     private long edgesInitial = 0L;
@@ -67,6 +69,18 @@ public class ProgressBar extends TimerTask {
         }
     }
 
+    public void setResumeableLoad() {
+        synchronized (ProgressBar.class) {
+            this.resumableLoad = true;
+        }
+    }
+
+    public void setResumeableLoadComplete() {
+        synchronized (ProgressBar.class) {
+            this.resumeableLoadComplete = true;
+        }
+    }
+
     public void setVertexLoadComplete() {
         synchronized (ProgressBar.class) {
             this.vertexLoadComplete = true;
@@ -104,10 +118,14 @@ public class ProgressBar extends TimerTask {
     }
 
     private String getPreFlightCheckProgress() {
-        if (this.preflightCheckComplete) {
-            return "\t\tPreflight check complete\n";
+        if (!this.resumableLoad) {
+            if (this.preflightCheckComplete) {
+                return "\t\tPreflight check complete\n";
+            } else {
+                return "\t\tPreflight check in progress\n";
+            }
         } else {
-            return "\t\tPreflight check in progress\n";
+            return "\t\tPreflight check not started\n";
         }
     }
 
@@ -129,13 +147,10 @@ public class ProgressBar extends TimerTask {
         } else {
             final double percentComplete = (double) completePartitions / totalPartitions;
             final int blocksComplete = (int) (percentComplete * 20);
-            final String partitionProgress = IntStream.range(0, blocksComplete)
-                    .mapToObj(i -> i < completePartitions ? "■" : " ")
+            final String partitionProgress = IntStream.range(0, 20)
+                    .mapToObj(i -> i < blocksComplete ? "■" : "□")
                     .collect(Collectors.joining());
-            final String partitionProgressRemaining = IntStream.range(0, 20 - blocksComplete)
-                    .mapToObj(i -> " ")
-                    .collect(Collectors.joining());
-            return "\t\t\t[" + partitionProgress + partitionProgressRemaining + "]\n" +
+            return "\t\t\t[" + partitionProgress + "]\n" +
                     "\t\t\t" + completePartitions + " of " + totalPartitions + " partitions complete (" +
                     String.format("%.2f", percentComplete * 100) + "%)\n";
         }
@@ -155,7 +170,7 @@ public class ProgressBar extends TimerTask {
                         "\t\t\tWriting " + delta / (intervalMillis / 1000) + " vertices per second\n" +
                         "\t\t\tTotal of " + verticesWritten + " vertices have been successfully written\n";
                 final int totalPartitions = vertexPartitions;
-                final int completePartitions = RecoveryUtil.recoverVertexPartitionCount(graph.getBaseGraph());
+                final int completePartitions = RecoveryUtil.completedVertexPartitions(graph.getBaseGraph()).size();
                 final String partitionProgress = getPartitionProgress(totalPartitions, completePartitions);
                 return output + (partitionProgress == null ? "" : partitionProgress);
             }
@@ -185,7 +200,7 @@ public class ProgressBar extends TimerTask {
                         "\t\t\tWriting " + delta / (intervalMillis / 1000) + " edges per second\n" +
                         "\t\t\tTotal of " + edgesWritten + " edges have been successfully written\n";
                 final int totalPartitions = edgePartitions;
-                final int completePartitions = RecoveryUtil.recoverEdgePartitionCount(graph.getBaseGraph());
+                final int completePartitions = RecoveryUtil.completedEdgePartitions(graph.getBaseGraph()).size();
                 final String partitionProgress = getPartitionProgress(totalPartitions, completePartitions);
                 return output + (partitionProgress == null ? "" : partitionProgress);
             }
@@ -249,6 +264,7 @@ public class ProgressBar extends TimerTask {
                 }
                 final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata = graph.fireflySummaryUpdater.getFireflyStatistics();
                 LOGGER.info("\n\tBulk Loader Progress:\n" +
+                        getResumeableLoadProgress() +
                         getPreFlightCheckProgress() +
                         getEdgeIdProgress() +
                         getSuperNodeExtractionProgress() +
@@ -260,6 +276,18 @@ public class ProgressBar extends TimerTask {
             } catch (final Exception e) {
                 LOGGER.error("Error occurred when grabbing metadata information for progress bar: ", e);
             }
+        }
+    }
+
+    public String getResumeableLoadProgress() {
+        if (resumableLoad) {
+            if (resumeableLoadComplete) {
+                return "\t\tResuming load complete\n";
+            } else {
+                return "\t\tResuming load in progress\n";
+            }
+        } else {
+            return "";
         }
     }
 
@@ -279,6 +307,7 @@ public class ProgressBar extends TimerTask {
 
     @Override
     public void run() {
+        System.out.println("PROGRESS BAR");
         printProgress();
     }
 }

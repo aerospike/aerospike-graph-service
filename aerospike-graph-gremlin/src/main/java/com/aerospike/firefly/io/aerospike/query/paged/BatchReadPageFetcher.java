@@ -31,7 +31,6 @@ public class BatchReadPageFetcher<R> extends PageFetcher<R> {
         if (idsToRead.size() == 1 && idsToRead.get(0) instanceof P) {
             // Passed in as P.within([id1, id2, ...])
             final P p = (P) idsToRead.get(0);
-            ;
             if (!p.getBiPredicate().toString().equals("within")) {
                 throw new IllegalArgumentException("Batch read only supports within predicate");
             }

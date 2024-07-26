@@ -87,15 +87,14 @@ public interface GraphQuery {
         String mapKey = null;
         final FireflyGraph graph = getGraph();
         final AerospikeConnection db = graph.getBaseGraph();
-        final List<HasContainer> negativeFilters = hasContainers.stream().filter(it -> it.getBiPredicate().equals(Contains.without)).collect(Collectors.toList());
-        final List<HasContainer> positiveFilters = hasContainers.stream().filter(it -> ! it.getBiPredicate().equals(Contains.without)).collect(Collectors.toList());
+        final List<HasContainer> positiveFilters = hasContainers.stream().filter(it -> !it.getBiPredicate().equals(Contains.without)).collect(Collectors.toList());
 
         if (!positiveFilters.isEmpty()) {
             final List<Object> ids = positiveFilters
                     .stream()
                     .filter(it -> "~id".equals(it.getKey()))
                     .map(HasContainer::getValue)
-                    .flatMap(it -> it instanceof List? ((List<?>) it).stream(): Stream.of(it))
+                    .flatMap(it -> it instanceof List ? ((List<?>) it).stream() : Stream.of(it))
                     .collect(Collectors.toList());
             final List<HasContainer> nonIdContainers = hasContainers.stream().filter(it -> !"~id".equals(it.getKey())).collect(Collectors.toList());
 
@@ -191,11 +190,13 @@ public interface GraphQuery {
                             FireflyGraph.TransformKeyRecord<E> transform, List<HasContainer> hasContainers,
                             Class<? extends FireflyElement> clazz, boolean sendKey, boolean includeBinData,
                             String... binNames);
+
     <E> BlockingQueue<PageFetcher.Page> indexSetPagesBlocking(String setName,
                                                               String indexName,
                                                               Filter filter,
                                                               QueryPolicy policy,
                                                               FireflyGraph.TransformKeyRecord<E> transformKeyRecord);
+
     <E> BlockingQueue<PageFetcher.Page> scanSetPagesBlocking(String mapKey,
                                                              String setName,
                                                              String binName,
@@ -206,6 +207,7 @@ public interface GraphQuery {
                                                              boolean sendKey,
                                                              boolean includeBinData,
                                                              String... binNames);
+
     <E> BlockingQueue<PageFetcher.Page> batchReadSetPagesBlocking(FireflyGraph graph, BatchPolicy policy,
                                                                   Class<? extends FireflyElement> type,
                                                                   Expression expression,

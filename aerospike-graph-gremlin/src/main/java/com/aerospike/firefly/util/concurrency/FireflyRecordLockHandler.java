@@ -42,8 +42,12 @@ public class FireflyRecordLockHandler {
      * @return FireflyRecordLock, which represents the current holding of the record lock.
      */
     public FireflyRecordLock getLock(final Key key) {
+        System.out.println(Thread.currentThread().getName() + "Create lock");
         final FireflyRecordLock lock = RECORD_LOCKS.computeIfAbsent(key, k -> new FireflyRecordLock(this, key));
-        return lock.lock();
+        System.out.println(Thread.currentThread().getName() + "lock");
+        FireflyRecordLock lockLock = lock.lock();
+        System.out.println(Thread.currentThread().getName() + "lockLock");
+        return lockLock;
     }
 
     static public class FireflyRecordLock {
@@ -67,23 +71,31 @@ public class FireflyRecordLockHandler {
         private FireflyRecordLock lock() {
             Object lockRecord;
             try {
+                System.out.println(Thread.currentThread().getName() + "lockQueue.poll - " + this.handler.lockTimeout + " milliseconds");
                 lockRecord = lockQueue.poll(this.handler.lockTimeout, TimeUnit.MILLISECONDS);
             } catch (final InterruptedException e) {
+                System.out.println(Thread.currentThread().getName() + "lockQueue.poll interrupted");
                 Thread.currentThread().interrupt();
                 lockRecord = null;
             }
             if (lockRecord == null) {
+                System.out.println(Thread.currentThread().getName() + "lockQueue.poll null");
                 final String message = "Timeout of " + this.handler.lockTimeout + " milliseconds exceeded when attempting to acquire record lock.";
                 LOG.error(message);
+                System.out.println(Thread.currentThread().getName() + "lockQueue.poll null throw");
                 throw new RuntimeException(message);
             } else if (lockRecord instanceof PoisonPillRecord) {
+                System.out.println(Thread.currentThread().getName() + "lockQueue.poll PoisonPillRecord");
                 // Give the poison pill back to the queue to notify any other threads waiting for the lock.
                 while (!this.lockQueue.offer(PoisonPillRecord.INSTANCE)) {
+                    System.out.println(Thread.currentThread().getName() + "lockQueue.poll PoisonPillRecord offer");
                     this.lockQueue.poll();
                 }
+                System.out.println(Thread.currentThread().getName() + "lockQueue.poll PoisonPillRecord throw");
                 // Recursively call for a new FireflyRecordLock that is not shut down.
                 return this.handler.getLock(this.key);
             } else {
+                System.out.println(Thread.currentThread().getName() + "lockQueue.poll return this");
                 return this;
             }
         }
@@ -152,6 +164,7 @@ public class FireflyRecordLockHandler {
                         } catch (final Exception e) {
                             LOG.warn("Unexpected error when releasing record lock after no more requests for it.", e);
                         }
+                        System.out.println("Removing key from RECORD_LOCKS ");
                         RECORD_LOCKS.remove(this.lockRecord.key);
                         // Put a poison pill in the queue to notify threads that started polling this after started shut down.
                         while (!this.lockRecord.lockQueue.offer(PoisonPillRecord.INSTANCE)) {

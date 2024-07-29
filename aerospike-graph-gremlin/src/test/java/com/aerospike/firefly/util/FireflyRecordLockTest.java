@@ -124,7 +124,6 @@ public class FireflyRecordLockTest {
 
     @Test
     public void testIsFair() throws InterruptedException {
-        Thread.sleep(5000);
         final FireflyRecordLockHandler handler = graph.getRecordLockHandler();
         final Key key = FireflyRecord.getMergeEdgeKey(graph, 1239, 45610);
         final AtomicInteger orderChecker = new AtomicInteger(0);

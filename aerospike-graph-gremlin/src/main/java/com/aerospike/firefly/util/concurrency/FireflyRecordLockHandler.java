@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -26,6 +27,7 @@ public class FireflyRecordLockHandler {
     private final int lockTimeout;
     private final int lockPollIntervalMillis;
     private final boolean starvationProtectionEnabled;
+    private static final Map<Key, AtomicInteger> LOCK_IN_USE = new ConcurrentHashMap<>();
 
     public FireflyRecordLockHandler(final AerospikeConnection db) {
         this.db = db;
@@ -42,12 +44,11 @@ public class FireflyRecordLockHandler {
      * @return FireflyRecordLock, which represents the current holding of the record lock.
      */
     public FireflyRecordLock getLock(final Key key) {
-        System.out.println(Thread.currentThread().getName() + "Create lock");
+        synchronized (LOCK_IN_USE) {
+            LOCK_IN_USE.computeIfAbsent(key, k -> new AtomicInteger(0)).incrementAndGet();
+        }
         final FireflyRecordLock lock = RECORD_LOCKS.computeIfAbsent(key, k -> new FireflyRecordLock(this, key));
-        System.out.println(Thread.currentThread().getName() + "lock");
-        FireflyRecordLock lockLock = lock.lock();
-        System.out.println(Thread.currentThread().getName() + "lockLock");
-        return lockLock;
+        return lock.lock();
     }
 
     static public class FireflyRecordLock {
@@ -71,31 +72,23 @@ public class FireflyRecordLockHandler {
         private FireflyRecordLock lock() {
             Object lockRecord;
             try {
-                System.out.println(Thread.currentThread().getName() + "lockQueue.poll - " + this.handler.lockTimeout + " milliseconds");
                 lockRecord = lockQueue.poll(this.handler.lockTimeout, TimeUnit.MILLISECONDS);
             } catch (final InterruptedException e) {
-                System.out.println(Thread.currentThread().getName() + "lockQueue.poll interrupted");
                 Thread.currentThread().interrupt();
                 lockRecord = null;
             }
             if (lockRecord == null) {
-                System.out.println(Thread.currentThread().getName() + "lockQueue.poll null");
                 final String message = "Timeout of " + this.handler.lockTimeout + " milliseconds exceeded when attempting to acquire record lock.";
                 LOG.error(message);
-                System.out.println(Thread.currentThread().getName() + "lockQueue.poll null throw");
-                throw new RuntimeException(message);
-            } else if (lockRecord instanceof PoisonPillRecord) {
-                System.out.println(Thread.currentThread().getName() + "lockQueue.poll PoisonPillRecord");
-                // Give the poison pill back to the queue to notify any other threads waiting for the lock.
-                while (!this.lockQueue.offer(PoisonPillRecord.INSTANCE)) {
-                    System.out.println(Thread.currentThread().getName() + "lockQueue.poll PoisonPillRecord offer");
-                    this.lockQueue.poll();
+                synchronized (LOCK_IN_USE) {
+                    if (LOCK_IN_USE.get(key).decrementAndGet() == 0) {
+                        LOCK_IN_USE.remove(this.key);
+                        RECORD_LOCKS.remove(this.key);
+                        this.timer.cancel();
+                    }
                 }
-                System.out.println(Thread.currentThread().getName() + "lockQueue.poll PoisonPillRecord throw");
-                // Recursively call for a new FireflyRecordLock that is not shut down.
-                return this.handler.getLock(this.key);
+                throw new RuntimeException(message);
             } else {
-                System.out.println(Thread.currentThread().getName() + "lockQueue.poll return this");
                 return this;
             }
         }
@@ -106,18 +99,36 @@ public class FireflyRecordLockHandler {
          */
         public void unlock() {
             try {
-                this.handler.db.delete(this.key);
+                final AtomicInteger lockCounter = LOCK_IN_USE.get(this.key);
+                if (lockCounter == null) {
+                    // This should never happen, but if it does, it is a bug.
+                    throw new IllegalStateException("Error, could not find lock for " + this.key + " for FireflyRecordLockHandler. Please contact support.");
+                }
+                Integer value;
+                synchronized (LOCK_IN_USE) {
+                    value = lockCounter.decrementAndGet();
+                    if (value == 0) {
+                        LOCK_IN_USE.remove(this.key);
+                        RECORD_LOCKS.remove(this.key);
+                        this.timer.cancel();
+                    }
+                }
+
+                try {
+                    this.handler.db.delete(this.key);
+                } catch (final Exception e) {
+                    LOG.warn("Unexpected error when releasing record lock after no more requests for it.", e);
+                }
+
+                if (value != 0) {
+                    this.startLockPoller(this.handler.starvationProtectionEnabled ? this.handler.lockPollIntervalMillis : 0);
+                }
             } catch (final Exception e) {
                 LOG.warn("Unexpected error when unlocking record lock.", e);
             }
-            if (this.handler.starvationProtectionEnabled) {
-                this.startLockPoller(this.handler.lockPollIntervalMillis);
-            } else {
-                this.startLockPoller(0);
-            }
         }
 
-        private synchronized void startLockPoller(final int startDelay) {
+        private void startLockPoller(final int startDelay) {
             if (lockPoller != null) {
                 lockPoller.cancel();
                 timer.purge();
@@ -127,12 +138,7 @@ public class FireflyRecordLockHandler {
             try {
                 timer.schedule(poller, startDelay, this.handler.lockPollIntervalMillis);
             } catch (final IllegalStateException e) {
-                // This shouldn't happen unless this class is misused badly in combination with the application being
-                // paused, but giving a poison pill here handles things gracefully.
-                LOG.warn("Record lock in illegal state - replacing it with a new one.");
-                while (!this.lockQueue.offer(PoisonPillRecord.INSTANCE)) {
-                    this.lockQueue.poll();
-                }
+                LOG.error("Unexpected error - record lock in illegal state.");
             }
         }
 
@@ -156,27 +162,6 @@ public class FireflyRecordLockHandler {
                     this.lockRecord.printErrorToLog.set(true);
                     this.lockRecord.hotKeyCount.set(0);
                     this.lockRecord.hotKeyBackoff.set(0);
-                    if (this.lockRecord.lockQueue.poll() != null) {
-                        // We grabbed the lock record here meaning no one polling for it, so we shut this key down.
-                        LOG.debug("Removing record lock with Key {} from RECORD_LOCKS table.", this.lockRecord.key);
-                        try {
-                            this.lockRecord.handler.db.delete(this.lockRecord.key);
-                        } catch (final Exception e) {
-                            LOG.warn("Unexpected error when releasing record lock after no more requests for it.", e);
-                        }
-                        System.out.println("Removing key from RECORD_LOCKS ");
-                        RECORD_LOCKS.remove(this.lockRecord.key);
-                        // Put a poison pill in the queue to notify threads that started polling this after started shut down.
-                        while (!this.lockRecord.lockQueue.offer(PoisonPillRecord.INSTANCE)) {
-                            this.lockRecord.lockQueue.poll();
-                        }
-                        this.cancel();
-                        this.lockRecord.timer.cancel();
-                    } else {
-                        // This stops this TimerTask since we found a result - schedule a new one after TTL expires to
-                        // handle application downtime.
-                        this.lockRecord.startLockPoller(this.lockRecord.handler.lockTtl);
-                    }
                 } catch (final AerospikeException e) {
                     if (e.getResultCode() == ResultCode.KEY_BUSY) {
                         // Hot key.
@@ -189,10 +174,6 @@ public class FireflyRecordLockHandler {
                     }
                 }
             }
-        }
-
-        static private class PoisonPillRecord {
-            static private final PoisonPillRecord INSTANCE = new PoisonPillRecord();
         }
     }
 }

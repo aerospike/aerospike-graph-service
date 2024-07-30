@@ -96,7 +96,6 @@ public class FireflyMergeEdgeStepTest {
     public void testConcurrentWriting() throws InterruptedException {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, String.valueOf(100));
-        config.setProperty(ConfigurationHelper.Keys.MERGE_EDGE_EVAL_TIMEOUT, String.valueOf(60000));
         final FireflyGraph graph = FireflyGraph.open(config);
         try {
             final GraphTraversalSource g = graph.traversal();

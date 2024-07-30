@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -17,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class FireflyRecordLockHandler {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyRecordLockHandler.class);
@@ -56,10 +56,11 @@ public class FireflyRecordLockHandler {
         private final Key key;
         private final ArrayBlockingQueue<Object> lockQueue;
         private final Timer timer;
+        private final AtomicInteger pendingRequests = new AtomicInteger(0);
+        private final AtomicLong lockAcquireTime = new AtomicLong(0);
         private final AtomicInteger hotKeyCount = new AtomicInteger(0);
         private final AtomicInteger hotKeyBackoff = new AtomicInteger(0);
         private final AtomicBoolean printErrorToLog = new AtomicBoolean(true);
-        private final AtomicInteger pendingRequests = new AtomicInteger(0);
 
         private FireflyRecordLock(final FireflyRecordLockHandler handler, final Key key) {
             this.handler = handler;
@@ -72,20 +73,20 @@ public class FireflyRecordLockHandler {
         private FireflyRecordLock lock() {
             try {
                 if (lockQueue.poll(this.handler.lockTimeout, TimeUnit.MILLISECONDS) != null) {
+                    this.lockAcquireTime.set(System.currentTimeMillis());
                     return this;
                 }
             } catch (final InterruptedException ignored) {
                 // Do nothing.
             }
-
-            final String message = "Timeout of " + this.handler.lockTimeout + " milliseconds exceeded when attempting to acquire record lock.";
-            LOG.error(message);
             synchronized (RECORD_LOCKS) {
                 if (pendingRequests.decrementAndGet() == 0) {
                     RECORD_LOCKS.remove(this.key);
                     this.timer.cancel();
                 }
             }
+            final String message = "Timeout of " + this.handler.lockTimeout + " milliseconds exceeded when attempting to acquire record lock.";
+            LOG.error(message);
             throw new RuntimeException(message);
         }
 
@@ -94,27 +95,27 @@ public class FireflyRecordLockHandler {
          * of holding the lock for longer than the configured TTL or if misused by invoking more than once.
          */
         public void unlock() {
+            final int pendingLockRequests;
+            synchronized (RECORD_LOCKS) {
+                pendingLockRequests = pendingRequests.decrementAndGet();
+                if (pendingLockRequests == 0) {
+                    RECORD_LOCKS.remove(this.key);
+                    this.timer.cancel();
+                }
+            }
+
             try {
-                int pendingLockRequests;
-                synchronized (RECORD_LOCKS) {
-                    pendingLockRequests = pendingRequests.decrementAndGet();
-                    if (pendingLockRequests == 0) {
-                        RECORD_LOCKS.remove(this.key);
-                        this.timer.cancel();
-                    }
-                }
-
-                try {
+                if (System.currentTimeMillis() - this.lockAcquireTime.get() < this.handler.lockTtl) {
+                    // Holding a record lock for longer than its TTL invalidates it since it is released, so check here
+                    // to at least not unlock a different Firefly that might've grabbed this lock.
                     this.handler.db.delete(this.key);
-                } catch (final Exception e) {
-                    LOG.warn("Unexpected error when releasing record lock after no more requests for it.", e);
-                }
-
-                if (pendingLockRequests != 0) {
-                    this.startLockPoller(this.handler.starvationProtectionEnabled ? this.handler.lockPollIntervalMillis : 0);
                 }
             } catch (final Exception e) {
-                LOG.warn("Unexpected error when unlocking record lock.", e);
+                LOG.warn("Unexpected error when releasing record lock when unlocking.", e);
+            }
+
+            if (pendingLockRequests != 0) {
+                this.startLockPoller(this.handler.starvationProtectionEnabled ? this.handler.lockPollIntervalMillis : 0);
             }
         }
 
@@ -123,7 +124,12 @@ public class FireflyRecordLockHandler {
             try {
                 timer.schedule(poller, startDelay, this.handler.lockPollIntervalMillis);
             } catch (final IllegalStateException e) {
-                LOG.error("Unexpected error - record lock in illegal state.");
+                // This should never happen.
+                LOG.error("Unexpected error: record lock in illegal state.");
+                synchronized (RECORD_LOCKS) {
+                    RECORD_LOCKS.remove(this.key);
+                    this.timer.cancel();
+                }
             }
         }
 
@@ -151,8 +157,13 @@ public class FireflyRecordLockHandler {
                 } catch (final AerospikeException e) {
                     if (e.getResultCode() == ResultCode.KEY_BUSY) {
                         // Hot key.
-                        LOG.warn("Hot key on record lock with Key {}. Backing off before next grab attempt.", this.lockRecord.key);
-                        this.lockRecord.hotKeyBackoff.set(this.lockRecord.hotKeyCount.incrementAndGet());
+                        LOG.warn("Hot key on record lock with Key {}. Exponentially backing off before next grab attempt.", this.lockRecord.key);
+                        int hotKeyCount = this.lockRecord.hotKeyCount.getAndIncrement();
+                        // Prevent overflow.
+                        if (hotKeyCount > 15) {
+                            hotKeyCount = 15;
+                        }
+                        this.lockRecord.hotKeyBackoff.set(Math.max(1, 2 << hotKeyCount));
                     } else if (e.getResultCode() != ResultCode.KEY_EXISTS_ERROR) {
                         if (this.lockRecord.printErrorToLog.getAndSet(false)) {
                             LOG.warn("Unexpected error when attempting to acquire record lock.", e);

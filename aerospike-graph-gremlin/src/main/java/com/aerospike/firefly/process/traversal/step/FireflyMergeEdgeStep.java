@@ -322,16 +322,21 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         if (validOnCreate) {
             FireflyRecordLockHandler.FireflyRecordLock lock = null;
             try {
+                LOG.debug("Getting MergeEdge record lock for OUT Vertex {} and IN Vertex {}.",
+                        onCreateMap.get(Direction.OUT), onCreateMap.get(Direction.IN));
                 final FireflyGraph graph = ((FireflyGraph) getGraph());
                 lock = graph.getRecordLockHandler().getLock(FireflyRecord.getMergeEdgeKey(graph,
                         onCreateMap.get(Direction.OUT), onCreateMap.get(Direction.IN)));
                 return lockedFlatMap(traverser, mergeMap, onCreateMap);
             } finally {
                 if (lock != null) {
+                    LOG.debug("Releasing MergeEdge record lock for OUT Vertex {} and IN Vertex {}.",
+                            onCreateMap.get(Direction.OUT), onCreateMap.get(Direction.IN));
                     lock.unlock();
                 }
             }
         } else {
+            LOG.debug("Running MergeEdge without record lock.");
             return lockedFlatMap(traverser, mergeMap, onCreateMap);
         }
     }
@@ -340,6 +345,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         Iterator<Edge> edges = searchEdges(mergeMap);
 
         if (onMatchTraversal != null && edges.hasNext()) {
+            LOG.debug("MergeEdge found matches - applying onMatchTraversal.");
             if (onMatchTraversal instanceof ConstantTraversal) {
                 final Map matchMap = onMatchTraversal.next();
                 validateMapInput(matchMap, true);
@@ -370,6 +376,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
             // If no valid edges for the merge were found and updated successfully due to a concurrent delete, call this
             // function again.
             if (validEdge == null) {
+                LOG.debug("MergeEdge could not apply onMatchTraversal successfully to any matched Edges. Recursively retrying.");
                 CloseableIterator.closeIterator(edges);
                 return lockedFlatMap(traverser, mergeMap, onCreateMap);
             }
@@ -429,8 +436,10 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
          * Search produced results, and onMatch action will be triggered.
          */
         if (edges.hasNext()) {
+            LOG.debug("MergeEdge returning matched Edges.");
             return edges;
         }
+        LOG.debug("MergeEdge did not find any matching Edges.");
 
         // make sure we close the search traversal
         CloseableIterator.closeIterator(edges);
@@ -455,9 +464,10 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
             properties.add(e.getValue());
         }
 
+        LOG.debug("Writing a new Edge during MergeEdge since no matches were found.");
         final Edge edge = fromV.addEdge(label, toV, properties.toArray());
 
-        // trigger callbacks for eventing - in this case, it's a VertexAddedEvent
+        // trigger callbacks for eventing - in this case, it's a EdgeAddedEvent
         if (this.callbackRegistry != null && !callbackRegistry.getCallbacks().isEmpty()) {
             final EventStrategy eventStrategy = getTraversal().getStrategies().getStrategy(EventStrategy.class).get();
             final Event.EdgeAddedEvent vae = new Event.EdgeAddedEvent(eventStrategy.detach(edge));

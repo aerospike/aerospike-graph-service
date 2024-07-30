@@ -66,7 +66,7 @@ public class FireflyRecordLockHandler {
             this.handler = handler;
             this.key = key;
             this.lockQueue = new ArrayBlockingQueue<>(1, true);
-            this.timer = new Timer(key.toString(), true);
+            this.timer = new Timer(true);
             this.startLockPoller(0);
         }
 
@@ -76,8 +76,9 @@ public class FireflyRecordLockHandler {
                     this.lockAcquireTime.set(System.currentTimeMillis());
                     return this;
                 }
-            } catch (final InterruptedException ignored) {
-                // Do nothing.
+            } catch (final InterruptedException e) {
+                // This shouldn't happen normally.
+                LOG.error("Unexpected error: interrupted when trying to acquire record lock. Contact support for additional help if needed.", e);
             }
             synchronized (RECORD_LOCKS) {
                 if (pendingRequests.decrementAndGet() == 0) {
@@ -111,7 +112,7 @@ public class FireflyRecordLockHandler {
                     this.handler.db.delete(this.key);
                 }
             } catch (final Exception e) {
-                LOG.warn("Unexpected error when releasing record lock when unlocking.", e);
+                LOG.error("Unexpected error when unlocking record lock.", e);
             }
 
             if (pendingLockRequests != 0) {
@@ -125,7 +126,7 @@ public class FireflyRecordLockHandler {
                 timer.schedule(poller, startDelay, this.handler.lockPollIntervalMillis);
             } catch (final IllegalStateException e) {
                 // This should never happen.
-                LOG.error("Unexpected error: record lock in illegal state.");
+                LOG.error("Unexpected error: record lock in illegal state. Contact support for additional help if needed.", e);
                 synchronized (RECORD_LOCKS) {
                     RECORD_LOCKS.remove(this.key);
                     this.timer.cancel();
@@ -157,7 +158,8 @@ public class FireflyRecordLockHandler {
                 } catch (final AerospikeException e) {
                     if (e.getResultCode() == ResultCode.KEY_BUSY) {
                         // Hot key.
-                        LOG.warn("Hot key on record lock with Key {}. Exponentially backing off before next grab attempt.", this.lockRecord.key);
+                        LOG.warn("Hot key on record lock with Key {}. Exponentially backing off before next grab attempt.",
+                                this.lockRecord.key);
                         int hotKeyCount = this.lockRecord.hotKeyCount.getAndIncrement();
                         // Prevent overflow.
                         if (hotKeyCount > 15) {
@@ -166,7 +168,7 @@ public class FireflyRecordLockHandler {
                         this.lockRecord.hotKeyBackoff.set(Math.max(1, 2 << hotKeyCount));
                     } else if (e.getResultCode() != ResultCode.KEY_EXISTS_ERROR) {
                         if (this.lockRecord.printErrorToLog.getAndSet(false)) {
-                            LOG.warn("Unexpected error when attempting to acquire record lock.", e);
+                            LOG.error("Unexpected error when attempting to acquire record lock.", e);
                         }
                     }
                 }

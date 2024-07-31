@@ -52,7 +52,7 @@ public class FireflyUsageStats {
             // Only create once.
             if (instance == null) {
                 final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(connection.getClient(), connection.getNamespace(), connection.USAGE_STATS_SET);
-                for (String index : setIndex) {
+                for (final String index : setIndex) {
                     if (!"ok".equals(index)) {
                         LOG.error("Error creating set index: {}", index);
                     }

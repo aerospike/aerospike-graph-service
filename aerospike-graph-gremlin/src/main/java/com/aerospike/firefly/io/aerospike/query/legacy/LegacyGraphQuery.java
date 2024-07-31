@@ -2,6 +2,8 @@ package com.aerospike.firefly.io.aerospike.query.legacy;
 
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.exp.Exp;
+import com.aerospike.client.exp.Expression;
+import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
@@ -93,6 +95,16 @@ public class LegacyGraphQuery implements GraphQuery {
         throw new RuntimeException("The graph computer does not support legacy reading.");
     }
 
+
+    @Override
+    public <E> BlockingQueue<PageFetcher.Page> batchReadSetPagesBlocking(final FireflyGraph graph, BatchPolicy policy,
+                                                                         final Class<? extends FireflyElement> type,
+                                                                         final Expression expression,
+                                                                         final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
+                                                                         final List<Object> idsToRead) {
+        throw new RuntimeException("The graph computer does not support legacy reading.");
+    }
+
     @Override
     public <E> Iterator<E> scanSet(final String mapKey,
                                    final String setName,
@@ -125,6 +137,15 @@ public class LegacyGraphQuery implements GraphQuery {
             db.getScanHitCounter().increment(mapKey);
         }
         return (Iterator<E>) IteratorUtils.map(scanAllRecordsInSet(setName,mapKey,policy,sendKey,binNames), it -> transform.transform(it));
+    }
+
+    @Override
+    public <E> BlockingQueue<PageFetcher.Page> indexSetPagesBlocking(final String setName,
+                                                                     final String indexName,
+                                                                     final Filter filter,
+                                                                     final QueryPolicy policy,
+                                                                     final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
+        throw new RuntimeException("The graph computer does not support legacy reading.");
     }
 
 

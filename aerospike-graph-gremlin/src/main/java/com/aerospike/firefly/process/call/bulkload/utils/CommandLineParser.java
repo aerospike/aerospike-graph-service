@@ -66,7 +66,7 @@ public class CommandLineParser {
         options.addOption(vertexDirOption);
         final Option edgeDirOption = new Option(KEY_TO_CMD.get(EDGE_DIRECTORY_KEY), EDGE_DIRECTORY_KEY, true, "Path to directory containing edge CSVs. Local: Absolute path. AWS S3: Directory after bucket name.");
         options.addOption(edgeDirOption);
-        final Option edgeIdDirOption = new Option(KEY_TO_CMD.get(TEMP_DIRECTORY_KEY), TEMP_DIRECTORY_KEY, true, "Path to EdgeID director. Local: Absolute path. AWS S3: Directory after bucket name.");
+        final Option edgeIdDirOption = new Option(KEY_TO_CMD.get(TEMP_DIRECTORY_KEY), TEMP_DIRECTORY_KEY, true, "Path to EdgeID directory. Local: Absolute path. AWS S3: Directory after bucket name.");
         options.addOption(edgeIdDirOption);
         final Option keepEdgeIdOption = new Option(KEY_TO_CMD.get(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY), KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, true, "Boolean to keep provided Edge IDs as a property. Optional argument - Default: 'false'.");
         options.addOption(keepEdgeIdOption);

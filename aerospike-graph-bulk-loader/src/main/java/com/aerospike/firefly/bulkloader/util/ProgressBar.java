@@ -25,16 +25,22 @@ public class ProgressBar extends TimerTask {
     private boolean edgeValidationComplete = false;
     private long verticesWritten = 0L;
     private long edgesWritten = 0L;
+    private long edgesWrittenHighWatermark = 0L;
     private long edgesInitial = 0L;
     private long verticesInitial = 0L;
+    private int vertexPartitions = 0;
+    private int edgePartitions = 0;
 
     public ProgressBar(final int intervalMillis) {
         this.intervalMillis = intervalMillis;
     }
 
     public void close() {
-        if (graph != null) {
-            graph.close();
+        synchronized (ProgressBar.class) {
+            if (this.graph != null) {
+                this.graph.close();
+                this.graph = null;
+            }
         }
     }
 
@@ -106,6 +112,18 @@ public class ProgressBar extends TimerTask {
         }
     }
 
+    public void setEdgePartitionCount(final int edgePartitions) {
+        synchronized (ProgressBar.class) {
+            this.edgePartitions = edgePartitions;
+        }
+    }
+
+    public void setVertexPartitionCount(final int vertexPartitions) {
+        synchronized (ProgressBar.class) {
+            this.vertexPartitions = vertexPartitions;
+        }
+    }
+
     private String getVertexWritingProgress(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         if (vertexLoadComplete) {
             return "\t\tVertex writing complete\n" +
@@ -119,6 +137,7 @@ public class ProgressBar extends TimerTask {
                 return "\t\tVertex writing in progress\n" +
                         "\t\t\tWriting " + delta / (intervalMillis / 1000) + " vertices per second\n" +
                         "\t\t\tTotal of " + verticesWritten + " vertices have been successfully written\n";
+                // TODO: Can give % complete from vertex partitions.
             }
         } else {
             return "\t\tVertex writing not started\n";
@@ -142,9 +161,23 @@ public class ProgressBar extends TimerTask {
                 return "\t\tEdge writing in progress\n";
             } else {
                 final long delta = updateAndGetDeltaEdgeCount(elementMetadata);
-                return "\t\tEdge writing in progress\n" +
-                        "\t\t\tWriting " + delta / (intervalMillis / 1000) + " edges per second\n" +
-                        "\t\t\tTotal of " + edgesWritten + " edges have been successfully written\n";
+                if (delta >= 0) {
+                    return "\t\tEdge writing in progress\n" +
+                            "\t\t\tWriting " + delta / (intervalMillis / 1000) + " edges per second\n" +
+                            "\t\t\tTotal of " + edgesWritten + " edges have been successfully written\n";
+                } else {
+                    final long badEdgeCount = this.graph.getBaseGraph().incrementAndGetBadEdgeCount(0);
+                    if (badEdgeCount >= edgesWrittenHighWatermark - edgesWritten) {
+                        return "\t\tEdge writing in progress\n" +
+                                "\t\t\tTotal of " + badEdgeCount + " edges detected as invalid and scheduled for purging\n" +
+                                "\t\t\tTotal of " + edgesWritten + " valid edges currently persist\n";
+                    } else {
+                        return "\t\tEdge writing in progress\n" +
+                                "\t\t\tError: Unexpected edge count decrease during a bulk load\n" +
+                                "\t\t\tEnsure that elements are not being concurrently removed via another source or contact support\n";
+                    }
+                }
+                // TODO: Can give % complete from edge partitions.
             }
         } else {
             return "\t\tEdge writing not started\n";
@@ -153,6 +186,7 @@ public class ProgressBar extends TimerTask {
 
     private long updateAndGetDeltaEdgeCount(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         final long totalEdgeCount = elementMetadata.totalEdgeCount() - edgesInitial;
+        edgesWrittenHighWatermark = Math.max(edgesWrittenHighWatermark, totalEdgeCount);
         final long delta = totalEdgeCount - edgesWritten;
         edgesWritten = totalEdgeCount;
         return delta;

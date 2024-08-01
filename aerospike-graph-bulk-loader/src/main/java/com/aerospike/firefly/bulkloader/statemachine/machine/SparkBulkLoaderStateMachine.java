@@ -220,18 +220,24 @@ public class SparkBulkLoaderStateMachine {
 
     private List<String> getDirectories(final SparkSession spark, final CommandLine cmd, final String directory) {
         configureFileSystem(spark, cmd, directory);
+        try {
+            final Dataset<Row> directories = spark.read().format("csv").option("recursiveFileLookup", "true")
+                    .load(directory)
+                    .withColumn("~temp", org.apache.spark.sql.functions.input_file_name())
+                    .select("~temp")
+                    .withColumnRenamed("~temp", "fname")
+                    .withColumn("fname", functions.expr("substring(fname, 1, length(fname) - length(substring_index(fname, '/', -1)))")) // Extract directory
+                    .distinct();
+            final List<String> directoryPaths = directories.collectAsList().stream().map(row -> row.get(0).toString()).collect(Collectors.toList());
+            LOGGER.info("CSV directories: {}", String.join(", ", directoryPaths));
+            return directoryPaths;
+        } catch (final Exception e) {
+            LOGGER.error("Failed to read directories from " + directory + ". This is usually the result of an empty " +
+                    "directory or missing headers. Look at the directory and ensure it is populated with valid csv files.", e);
+            throw new RuntimeException("Failed to read directories from " + directory + ". This is usually the result of an empty " +
+                    "directory or missing headers. Look at the directory and ensure it is populated with valid csv files. Exception: " + e.getMessage());
+        }
 
-        final Dataset<Row> directories = spark.read().format("csv").option("recursiveFileLookup", "true")
-                .load(directory)
-                .withColumn( "~temp", org.apache.spark.sql.functions.input_file_name())
-                .select("~temp")
-                .withColumnRenamed("~temp", "fname")
-                .withColumn("fname", functions.expr("substring(fname, 1, length(fname) - length(substring_index(fname, '/', -1)))")) // Extract directory
-                .distinct();
-
-        final List<String> directoryPaths = directories.collectAsList().stream().map( row -> row.get(0).toString()).collect(Collectors.toList());
-        LOGGER.info("CSV directories: {}", String.join(", ", directoryPaths));
-        return directoryPaths;
     }
 
     /**

@@ -338,6 +338,26 @@ public class TestBulkLoaderCallEntryPoint {
     }
 
     @Test
+    public void testEmptyPath() {
+        // Right now calling the bulk loader here will fail with null config.
+        // Once the parameters are determined this test can be updated.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            Assert.assertEquals(0, g.V().count().next().longValue());
+            Assert.assertEquals(0, g.E().count().next().longValue());
+            try {
+                g.call("aerospike.graphloader.admin.bulk-load.load").
+                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-empty.properties").iterate();
+            } catch (final Exception e) {
+                Assert.assertTrue(e.getMessage().contains("Failed to read directories from src/test/resources/sampledata-empty/vertices." +
+                        " This is usually the result of an empty directory or missing headers. Look at the directory and ensure it is populated with valid csv files."));
+            }
+        }
+    }
+
+    @Test
     public void numericConfigAsString() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.

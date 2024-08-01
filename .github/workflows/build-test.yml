@@ -779,9 +779,9 @@ jobs:
           bash -x scripts/start_aerospike.sh
           sudo echo $GCS_KEYFILE_B64 | base64 -d > ${{ github.workspace }}/gcs-keyfile.json
           mvn clean install -DskipTests
-          mvn -pl aerospike-graph-bulk-loader -Dtest=TestRecoveryUtil --no-transfer-progress
-          mvn -pl aerospike-graph-bulk-loader -Dtest=TestSparkStateMachineRecovery --no-transfer-progress
-          mvn -pl aerospike-graph-bulk-loader -Dtest=TestBulkLoaderRecovery --no-transfer-progress
+          mvn -pl test aerospike-graph-bulk-loader -Dtest=TestRecoveryUtil --no-transfer-progress
+          mvn -pl test aerospike-graph-bulk-loader -Dtest=TestSparkStateMachineRecovery --no-transfer-progress
+          mvn -pl test aerospike-graph-bulk-loader -Dtest=TestBulkLoaderRecovery --no-transfer-progress
 
   test-firefly-spark-bulk-loader:
     name: Test Spark Bulk Loader

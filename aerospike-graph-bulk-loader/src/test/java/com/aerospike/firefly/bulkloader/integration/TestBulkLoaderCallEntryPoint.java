@@ -350,9 +350,10 @@ public class TestBulkLoaderCallEntryPoint {
             try {
                 g.call("aerospike.graphloader.admin.bulk-load.load").
                         with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-empty.properties").iterate();
+                Assert.fail("Expected exception to be thrown.");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().contains("Failed to read directories from src/test/resources/sampledata-empty/vertices." +
-                        " This is usually the result of an empty directory or missing headers. Look at the directory and ensure it is populated with valid csv files."));
+                Assert.assertTrue(e.getMessage().contains("Failed to read directories from src/test/resources/sampledata-empty/vertices. " +
+                        "This is usually the result of an empty directory or missing headers. Look at the directory and ensure it is populated with valid csv files."));
             }
         }
     }

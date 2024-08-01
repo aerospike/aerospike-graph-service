@@ -234,8 +234,7 @@ public class SparkBulkLoaderStateMachine {
         } catch (final Exception e) {
             final String message = "Failed to read directories from " + directory + ". This is usually the result of an empty " +
                     "directory or missing headers. Look at the directory and ensure it is populated with valid csv files.";
-            LOGGER.error(message, e);
-            throw new RuntimeException(message, e);
+            throw new RuntimeException(message + e.getMessage());
         }
 
     }

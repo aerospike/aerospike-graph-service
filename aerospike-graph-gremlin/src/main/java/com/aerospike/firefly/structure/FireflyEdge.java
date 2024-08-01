@@ -161,7 +161,8 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
         final List<Operation> operations = new ArrayList<>();
         // CREATE_ONLY as writing an edge will always have a newly-generated unique ID.
-        final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.CREATE_ONLY);
+        final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED,
+                MapWriteFlags.CREATE_ONLY | MapWriteFlags.NO_FAIL | MapWriteFlags.PARTIAL);
 
         // Add label to Edge data.
         edgeData.add(LABEL_POSITION, Value.get(label));

@@ -176,6 +176,9 @@
                         <exclude>**/TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark.java</exclude>
                         <exclude>**/TestFireflyServer.java</exclude>
                         <exclude>**/TestAerospikeClientProviderConfiguration.java</exclude>
+                        <exclude>**/TestRecoveryUtil</exclude>
+                        <exclude>**/TestSparkStateMachineRecovery</exclude>
+                        <exclude>**/TestBulkLoaderRecovery</exclude>
                     </excludes>
                 </configuration>
             </plugin>

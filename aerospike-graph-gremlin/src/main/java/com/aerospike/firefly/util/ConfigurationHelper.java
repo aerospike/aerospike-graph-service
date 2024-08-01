@@ -1,5 +1,6 @@
 package com.aerospike.firefly.util;
 
+import ch.qos.logback.classic.Level;
 import com.aerospike.client.async.EventLoopType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
@@ -648,6 +649,12 @@ public final class ConfigurationHelper {
             }
         }
         if (!invalidKeys.isEmpty()) {
+            LOG.error("ERROR: Aerospike Graph Service was unable to initialize due to invalid configuration keys: {}. Please fix these keys and try again.", invalidKeys);
+
+            // This error comes out in a bunch of massive stack traces and ultimately the container hangs.
+            // Disable any more logging and force system to shut down.
+            LoggerUtil.setLogLevel(Level.OFF);
+            System.exit(1);
             throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
         }
     }

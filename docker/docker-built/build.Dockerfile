@@ -65,7 +65,7 @@ RUN mkdir /opt/sizing-tool &&\
 
 # Build CLASSPATH before invoking gremlin-server. This is assigned in the gremlin-server script.
 # Note bulk-loader also needs to be in the classpath.
-RUN python3 scripts/generate_classpath.py
+RUN python3 docker-runtime-scripts/generate_classpath.py
 
 RUN mkdir -p $CONF_DIR && mv /opt/aerospike-graph/conf/docker-default/flattened-default-gremlin-server.yaml $CONF_DIR/flattened-default-gremlin-server.yaml
 

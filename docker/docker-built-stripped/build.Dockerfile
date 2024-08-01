@@ -70,7 +70,7 @@ RUN yum remove -y vim-minimal vim-data unzip xz tar
 ADD docker-runtime-scripts /opt/aerospike-graph/scripts
 
 # Make gremlin-server-docker.sh runnable and make files in config dir read/write/executable.
-RUN chmod +x docker-runtime-scripts/gremlin-server-docker.sh
+RUN chmod +x scripts/gremlin-server-docker.sh
 RUN chmod -R 777 $CONF_DIR
 
 # Add user firefly.

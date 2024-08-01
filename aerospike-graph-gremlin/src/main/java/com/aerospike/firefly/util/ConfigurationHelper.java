@@ -652,7 +652,7 @@ public final class ConfigurationHelper {
             LOG.error("ERROR: Aerospike Graph Service was unable to initialize due to invalid configuration keys: {}. Please fix these keys and try again.", invalidKeys);
 
             // This error comes out in a bunch of massive stack traces and ultimately the container hangs.
-            // Disable any more logging and force system to shut down.
+            // Disable any more logging and force system to shut down. A bunch of logs come out after this system call which is why it is required.
             LoggerUtil.setLogLevel(Level.OFF);
             System.exit(1);
             throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);

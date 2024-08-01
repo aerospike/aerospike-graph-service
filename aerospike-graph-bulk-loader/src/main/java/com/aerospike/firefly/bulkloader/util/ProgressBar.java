@@ -307,7 +307,6 @@ public class ProgressBar extends TimerTask {
 
     @Override
     public void run() {
-        System.out.println("PROGRESS BAR");
         printProgress();
     }
 }

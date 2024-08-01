@@ -1,6 +1,8 @@
 package com.aerospike.firefly.io.aerospike.query.paged;
 
 import com.aerospike.client.exp.Exp;
+import com.aerospike.client.exp.Expression;
+import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
@@ -109,6 +111,17 @@ public class PagedGraphQuery implements GraphQuery {
         return pageFetcher.startQueryPagesDirect();
     }
 
+    @Override
+    public <E> BlockingQueue<PageFetcher.Page> indexSetPagesBlocking(final String setName,
+                                                                    final String indexName,
+                                                                    final Filter filter,
+                                                                    final QueryPolicy policy,
+                                                                    final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
+        final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(graph, policy, setName, db.getNamespace(), filter,
+                db.PAGINATION_PAGE_QUEUE_SIZE, db.PAGINATION_PAGE_SIZE, transformKeyRecord, indexName);
+        return pageFetcher.startQueryPagesDirect();
+    }
+
 
     @Override
     public <E> Iterator<E> querySIndex(final String setName,
@@ -116,8 +129,20 @@ public class PagedGraphQuery implements GraphQuery {
                                        final Filter filter,
                                        final QueryPolicy policy,
                                        final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
+        graph.getBaseGraph().configureScanPolicy(policy);
         final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(graph, policy, setName, db.getNamespace(), filter,
                 db.PAGINATION_PAGE_QUEUE_SIZE, db.PAGINATION_PAGE_SIZE, transformKeyRecord, indexName);
         return pageFetcher.startQuery();
+    }
+
+    @Override
+    public <E> BlockingQueue<PageFetcher.Page> batchReadSetPagesBlocking(final FireflyGraph graph, BatchPolicy policy,
+                                                                         final Class<? extends FireflyElement> type,
+                                                                         final Expression expression,
+                                                                         final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
+                                                                         final List<Object> idsToRead) {
+        final PageFetcher<E> pageFetcher = new BatchReadPageFetcher<>(graph, policy, type, db.PAGINATION_PAGE_SIZE,
+                db.PAGINATION_PAGE_SIZE, expression, transformKeyRecord, idsToRead);
+        return pageFetcher.startQueryPagesDirect();
     }
 }

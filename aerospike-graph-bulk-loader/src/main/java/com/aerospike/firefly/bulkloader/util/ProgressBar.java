@@ -27,6 +27,7 @@ public class ProgressBar extends TimerTask {
     private boolean resumeableLoadComplete = false;
     private long verticesWritten = 0L;
     private long edgesWritten = 0L;
+    private long edgesWrittenHighWatermark = 0L;
     private long edgesInitial = 0L;
     private long verticesInitial = 0L;
     private int vertexPartitions = 0;
@@ -196,10 +197,24 @@ public class ProgressBar extends TimerTask {
                 return "\t\tEdge writing in progress\n";
             } else {
                 final long delta = updateAndGetDeltaEdgeCount(elementMetadata);
-                final String output = "\t\tEdge writing in progress\n" +
-                        "\t\t\tWriting " + delta / (intervalMillis / 1000) + " edges per second\n" +
-                        "\t\t\tTotal of " + edgesWritten + " edges have been successfully written\n";
+                final String output;
                 final int totalPartitions = edgePartitions;
+                if (delta >= 0) {
+                    output = "\t\tEdge writing in progress\n" +
+                            "\t\t\tWriting " + delta / (intervalMillis / 1000) + " edges per second\n" +
+                            "\t\t\tTotal of " + edgesWritten + " edges have been successfully written\n";
+                } else {
+                    final long badEdgeCount = this.graph.getBaseGraph().incrementAndGetBadEdgeCount(0);
+                    if (badEdgeCount >= edgesWrittenHighWatermark - edgesWritten) {
+                        output = "\t\tEdge writing in progress\n" +
+                                "\t\t\tTotal of " + badEdgeCount + " edges detected as invalid and scheduled for purging\n" +
+                                "\t\t\tTotal of " + edgesWritten + " valid edges currently persist\n";
+                    } else {
+                        output = "\t\tEdge writing in progress\n" +
+                                "\t\t\tError: Unexpected edge count decrease during a bulk load\n" +
+                                "\t\t\tEnsure that elements are not being concurrently removed via another source or contact support\n";
+                    }
+                }
                 final int completePartitions = RecoveryUtil.completedEdgePartitions(graph.getBaseGraph()).size();
                 final String partitionProgress = getPartitionProgress(totalPartitions, completePartitions);
                 return output + (partitionProgress == null ? "" : partitionProgress);
@@ -211,6 +226,7 @@ public class ProgressBar extends TimerTask {
 
     private long updateAndGetDeltaEdgeCount(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         final long totalEdgeCount = elementMetadata.totalEdgeCount() - edgesInitial;
+        edgesWrittenHighWatermark = Math.max(edgesWrittenHighWatermark, totalEdgeCount);
         final long delta = totalEdgeCount - edgesWritten;
         edgesWritten = totalEdgeCount;
         return delta;

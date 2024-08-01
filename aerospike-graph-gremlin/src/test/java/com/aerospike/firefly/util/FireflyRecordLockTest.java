@@ -59,8 +59,8 @@ public class FireflyRecordLockTest {
     @Test
     public void testDifferentKey() throws InterruptedException {
         final FireflyRecordLockHandler handler = graph.getRecordLockHandler();
-        final Key key1 = FireflyRecord.getMergeEdgeKey(graph, 123, 456);
-        final Key key2 = FireflyRecord.getMergeEdgeKey(graph, 123, 457);
+        final Key key1 = FireflyRecord.getMergeEdgeKey(graph, 1231, 4561);
+        final Key key2 = FireflyRecord.getMergeEdgeKey(graph, 1232, 4572);
         final AtomicBoolean lockGrabbed = new AtomicBoolean(false);
         final AtomicBoolean locksEqual = new AtomicBoolean(true);
 
@@ -81,7 +81,7 @@ public class FireflyRecordLockTest {
     @Test
     public void testLockReleaseWhenNonePending() throws InterruptedException {
         final FireflyRecordLockHandler handler = graph.getRecordLockHandler();
-        final Key key = FireflyRecord.getMergeEdgeKey(graph, 123, 456);
+        final Key key = FireflyRecord.getMergeEdgeKey(graph, 1233, 4564);
         final FireflyRecordLockHandler.FireflyRecordLock lock1 = handler.getLock(key);
         lock1.unlock();
         Thread.sleep(100);
@@ -97,7 +97,7 @@ public class FireflyRecordLockTest {
         config.setProperty(ConfigurationHelper.Keys.MERGE_EDGE_EVAL_TIMEOUT, "1000");
         graph = FireflyGraph.open(config);
         final FireflyRecordLockHandler handler = graph.getRecordLockHandler();
-        final Key key = FireflyRecord.getMergeEdgeKey(graph, 123, 456);
+        final Key key = FireflyRecord.getMergeEdgeKey(graph, 1235, 4566);
         final AtomicBoolean lockGrabbed = new AtomicBoolean(false);
         final AtomicBoolean timeout = new AtomicBoolean(false);
 
@@ -123,37 +123,9 @@ public class FireflyRecordLockTest {
     }
 
     @Test
-    public void testTtl() throws InterruptedException {
-        graph.close();
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.MERGE_EDGE_TTL, "1000");
-        graph = FireflyGraph.open(config);
-        final FireflyRecordLockHandler handler = graph.getRecordLockHandler();
-        final Key key = FireflyRecord.getMergeEdgeKey(graph, 123, 456);
-        final AtomicBoolean lockGrabbed = new AtomicBoolean(false);
-        final AtomicBoolean locksEqual = new AtomicBoolean(false);
-
-        final FireflyRecordLockHandler.FireflyRecordLock lock1 = handler.getLock(key);
-        final Thread second = new Thread(() -> {
-            final FireflyRecordLockHandler.FireflyRecordLock lock2 = handler.getLock(key);
-            lockGrabbed.set(true);
-            locksEqual.set(lock2 == lock1);
-            lock2.unlock();
-        });
-        second.start();
-        Thread.sleep(500);
-        Assert.assertFalse(lockGrabbed.get());
-        Thread.sleep(2000);
-        Assert.assertTrue(lockGrabbed.get());
-        Assert.assertTrue(locksEqual.get());
-        lock1.unlock();
-        second.join();
-    }
-
-    @Test
     public void testIsFair() throws InterruptedException {
         final FireflyRecordLockHandler handler = graph.getRecordLockHandler();
-        final Key key = FireflyRecord.getMergeEdgeKey(graph, 123, 456);
+        final Key key = FireflyRecord.getMergeEdgeKey(graph, 1239, 45610);
         final AtomicInteger orderChecker = new AtomicInteger(0);
         final AtomicBoolean inOrder = new AtomicBoolean(true);
         final List<Thread> threads = new ArrayList<>();

@@ -6,6 +6,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.google.common.collect.Iterators;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -96,7 +97,6 @@ public class FireflyMergeEdgeStepTest {
     public void testConcurrentWriting() throws InterruptedException {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, String.valueOf(100));
-        config.setProperty(ConfigurationHelper.Keys.MERGE_EDGE_EVAL_TIMEOUT, String.valueOf(60000));
         final FireflyGraph graph = FireflyGraph.open(config);
         try {
             final GraphTraversalSource g = graph.traversal();
@@ -187,6 +187,84 @@ public class FireflyMergeEdgeStepTest {
         } finally {
             graph.getBaseGraph().dropDatabase(graph, false);
             graph.close();
+        }
+    }
+
+    @Test
+    public void testConcurrentWithOptions() throws InterruptedException {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, String.valueOf(100));
+        final FireflyGraph graph = FireflyGraph.open(config);
+        try {
+            final GraphTraversalSource g = graph.traversal();
+            final ArrayList<Vertex> verticesA = new ArrayList<>();
+            final ArrayList<Vertex> verticesB = new ArrayList<>();
+
+            for (int i = 0; i < 1000; i++) {
+                verticesA.add(g.addV("A").property(String.valueOf(i), i).next());
+                verticesB.add(g.addV("B").property(String.valueOf(i), i).next());
+            }
+
+            Assert.assertEquals(2000, (long) g.V().count().next());
+            Assert.assertEquals(0, (long) g.E().count().next());
+            Assert.assertEquals(0, (long) g.V(verticesA.get(0)).outE().count().next());
+
+            final Thread t0 = new Thread(new MergeERunnable(g, verticesA, verticesB));
+            final Thread t1 = new Thread(new MergeERunnable(g, verticesA, verticesB));
+            t0.start();
+            t1.start();
+            t0.join();
+            t1.join();
+
+            Assert.assertEquals(1000, (long) g.E().count().next());
+            Assert.assertEquals(1000, (long) g.V(verticesA.get(0)).outE().count().next());
+            var traversal = g.V(verticesA.get(0)).outE();
+            while (traversal.hasNext()) {
+                final Edge e = traversal.next();
+                Assert.assertEquals(3, e.property("created").value());
+            }
+            int inECount = 0;
+            for (final Vertex v : verticesB) {
+                traversal = g.V(v).inE();
+                Assert.assertTrue(traversal.hasNext());
+                while (traversal.hasNext()) {
+                    inECount++;
+                    final Edge e = traversal.next();
+                    Assert.assertEquals(3, e.property("created").value());
+                }
+            }
+            Assert.assertEquals(1000, inECount);
+        } finally {
+            graph.getBaseGraph().dropDatabase(graph, false);
+            graph.close();
+        }
+    }
+
+    private static class MergeERunnable implements Runnable {
+        final private GraphTraversalSource g;
+        final private ArrayList<Vertex> verticesA;
+        final private ArrayList<Vertex> verticesB;
+
+        private MergeERunnable(final GraphTraversalSource g, final ArrayList<Vertex> verticesA,
+                               final ArrayList<Vertex> verticesB) {
+            this.g = g;
+            this.verticesA = verticesA;
+            this.verticesB = verticesB;
+        }
+
+        @Override
+        public void run() {
+            for (int i = 0; i < 1000; i++) {
+                final Map<Object, Object> mergeMap = new HashMap<>();
+                final Map<Object, Object> matchMap = new HashMap<>();
+                final Map<Object, Object> createMap = new HashMap<>();
+                mergeMap.put(T.label, "connect");
+                mergeMap.put(Direction.OUT, verticesA.get(0));
+                mergeMap.put(Direction.IN, verticesB.get(i));
+                matchMap.put("created", 3);
+                createMap.put("created", 2);
+                g.mergeE(mergeMap).option(Merge.onCreate, createMap).option(Merge.onMatch, matchMap).iterate();
+            }
         }
     }
 

@@ -442,6 +442,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      * @return was the edge written to this vertex's edge cache.
      */
     public boolean writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
+        LOG.debug("Writing Edge {} to ECACHE of Vertex {} with Direction {}.", edgeId, this, direction);
         // Edge cache is overflowed for this vertex - do nothing since writing to overflow bin is on the edge record.
         if (this.isEdgeCacheOverflowed) {
             return false;

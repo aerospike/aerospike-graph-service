@@ -232,10 +232,10 @@ public class SparkBulkLoaderStateMachine {
             LOGGER.info("CSV directories: {}", String.join(", ", directoryPaths));
             return directoryPaths;
         } catch (final Exception e) {
-            LOGGER.error("Failed to read directories from " + directory + ". This is usually the result of an empty " +
-                    "directory or missing headers. Look at the directory and ensure it is populated with valid csv files.", e);
-            throw new RuntimeException("Failed to read directories from " + directory + ". This is usually the result of an empty " +
-                    "directory or missing headers. Look at the directory and ensure it is populated with valid csv files. Exception: " + e.getMessage());
+            final String message = "Failed to read directories from " + directory + ". This is usually the result of an empty " +
+                    "directory or missing headers. Look at the directory and ensure it is populated with valid csv files.";
+            LOGGER.error(message, e);
+            throw new RuntimeException(message, e);
         }
 
     }

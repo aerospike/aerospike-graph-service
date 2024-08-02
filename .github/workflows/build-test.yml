@@ -777,6 +777,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
+          mvn clean install -DskipTests --no-transfer-progress
           mvn -pl aerospike-graph-bulk-loader test -Dtest=TestBulkLoaderRecovery --no-transfer-progress
   test-firefly-spark-bulk-loader-load-recovery-2:
     name: Test Spark Bulk Loader Load Recovery 2
@@ -808,6 +809,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
+          mvn clean install -DskipTests --no-transfer-progress
           mvn -pl aerospike-graph-bulk-loader test -Dtest=TestSparkStateMachineRecovery --no-transfer-progress
   test-firefly-spark-bulk-loader-load-recovery-3:
     name: Test Spark Bulk Loader Load Recovery 3
@@ -839,6 +841,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
+          mvn clean install -DskipTests --no-transfer-progress
           mvn -pl aerospike-graph-bulk-loader test -Dtest=TestRecoveryUtil --no-transfer-progress
   test-firefly-spark-bulk-loader:
     name: Test Spark Bulk Loader

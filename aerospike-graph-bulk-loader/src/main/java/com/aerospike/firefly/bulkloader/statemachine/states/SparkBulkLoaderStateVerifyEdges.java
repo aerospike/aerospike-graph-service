@@ -4,6 +4,8 @@ import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RECOVERY_FAILURE;
+
 public class SparkBulkLoaderStateVerifyEdges extends SparkBulkLoaderState {
     public SparkBulkLoaderStateVerifyEdges(final SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine) {
         super(sparkBulkLoaderStateMachine);
@@ -15,9 +17,12 @@ public class SparkBulkLoaderStateVerifyEdges extends SparkBulkLoaderState {
                 sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.EDGE_VERIFY);
 
         // TESTING USAGE ONLY
-        final String failureOnEdgeVerification = System.getProperty("bulkloader.testing.partition.failure.edge.verification");
-        if (failureOnEdgeVerification != null && failureOnEdgeVerification.equals("true")) {
-            throw new RuntimeException("Testing edge verification failure.");
+        final String recoveryFailure = sparkBulkLoaderStateMachine.config.getOrDefault(RECOVERY_FAILURE);
+        if ("EDGE_VERIFY".equals(recoveryFailure)) {
+            System.out.println("FOOOOOOOOOOOOObar " + recoveryFailure);
+            throw new RuntimeException("Testing recovery failure.");
+        } else {
+            System.out.println("FOOOOOOOOOOOOO " + recoveryFailure);
         }
 
         sparkBulkLoaderStateMachine.edgeOperations.verifySampleEdgeAfterWrite(

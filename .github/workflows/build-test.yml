@@ -750,7 +750,7 @@ jobs:
   test-firefly-spark-bulk-loader-load-recovery-1:
     name: Test Spark Bulk Loader Load Recovery 1
     timeout-minutes: 60
-    runs-on: ubuntu-latest-xlarge
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v5
@@ -782,7 +782,7 @@ jobs:
   test-firefly-spark-bulk-loader-load-recovery-2:
     name: Test Spark Bulk Loader Load Recovery 2
     timeout-minutes: 60
-    runs-on: ubuntu-latest-xlarge
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v5

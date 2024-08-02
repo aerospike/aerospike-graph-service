@@ -13,9 +13,6 @@ import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -33,6 +30,11 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 public class TestSparkStateMachineRecovery {
 
     private final String DEFAULT_CONFIG = "src/test/resources/conf/packed/config-recovery.properties";
+    private final String FAIL_EDGE_WRITE = "src/test/resources/conf/packed/config-recovery-fail-edge-write.properties";
+    private final String FAIL_EDGE_VERIFY = "src/test/resources/conf/packed/config-recovery-fail-edge-verify.properties";
+    private final String FAIL_VERTEX_WRITE = "src/test/resources/conf/packed/config-recovery-fail-vertex-write.properties";
+    private final String FAIL_VERTEX_VERIFY = "src/test/resources/conf/packed/config-recovery-fail-vertex-verify.properties";
+    private final String FAIL_SUPERNODE = "src/test/resources/conf/packed/config-recovery-fail-supernode.properties";
 
     private Configuration getTestConfig() {
         return getConfig(Path.of(DEFAULT_CONFIG));
@@ -48,11 +50,6 @@ public class TestSparkStateMachineRecovery {
     public void beforeEach() {
         Configuration config = getTestConfig();
         graph = FireflyGraph.open(config);
-        System.clearProperty("bulkloader.testing.partition.failure.supernode");
-        System.clearProperty("bulkloader.testing.partition.failure.vertex.writing");
-        System.clearProperty("bulkloader.testing.partition.failure.vertex.verification");
-        System.clearProperty("bulkloader.testing.partition.failure.edge.writing");
-        System.clearProperty("bulkloader.testing.partition.failure.edge.verification");
         RecoveryUtil.truncate(graph.getBaseGraph());
     }
 
@@ -79,9 +76,8 @@ public class TestSparkStateMachineRecovery {
     @Test
     public void testSupernodeDetectionFailure() {
         System.out.println("Testing testSupernodeDetectionFailure");
-        System.setProperty("bulkloader.testing.partition.failure.supernode", "true");
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_SUPERNODE}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
         } catch (Exception ignored) {
             // Expected
@@ -110,9 +106,8 @@ public class TestSparkStateMachineRecovery {
     @Test
     public void testVertexWritingFailure() {
         System.out.println("Testing testVertexWritingFailure");
-        System.setProperty("bulkloader.testing.partition.failure.vertex.writing", "3");
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_VERTEX_WRITE}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -139,9 +134,8 @@ public class TestSparkStateMachineRecovery {
     @Test
     public void testVertexVerificationFailure() {
         System.out.println("Testing testVertexVerificationFailure");
-        System.setProperty("bulkloader.testing.partition.failure.vertex.verification", "true");
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_VERTEX_VERIFY}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
         } catch (Exception e) {
             // Expected
@@ -167,10 +161,9 @@ public class TestSparkStateMachineRecovery {
     @Test
     public void testEdgeWritingFailure() {
         System.out.println("Testing testEdgeWritingFailure");
-        System.setProperty("bulkloader.testing.partition.failure.edge.writing", "3");
 
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_WRITE}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
         } catch (Exception e) {
             // Expected
@@ -196,13 +189,14 @@ public class TestSparkStateMachineRecovery {
     @Test
     public void testEdgeVerificationFailure() {
         System.out.println("Testing testEdgeVerificationFailure");
-        System.setProperty("bulkloader.testing.partition.failure.edge.verification", "true");
 
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_VERIFY}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
         } catch (Exception e) {
             // Expected
+            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
         SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);

@@ -82,6 +82,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.NULL_VALUE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RECOVERY_FAILURE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 
@@ -121,19 +122,20 @@ public class EdgeOperations implements Serializable {
             }
 
             // TESTING USAGE ONLY
-            final String failureOnEdgeWriting = System.getProperty("bulkloader.testing.partition.failure.edge.writing");
-            if (failureOnEdgeWriting != null && !failureOnEdgeWriting.isEmpty()) {
-                try {
-                    int failurePartitionId = Integer.parseInt(failureOnEdgeWriting);
-                    if (partitionId == failurePartitionId) {
+            final String recoveryFailure = config.getOrDefault(RECOVERY_FAILURE);
+            if (recoveryFailure != null && recoveryFailure.startsWith("EDGE_WRITE")) {
+                int partitionToFailOn = recoveryFailure.split(":", 2).length > 1 ? Integer.parseInt(recoveryFailure.split(":", 2)[1]) : -1;
+                if (partitionToFailOn == -1) {
+                    throw new RuntimeException("Failed to get partition to fail on from recovery failure property.");
+                } else {
+                    if (partitionId == partitionToFailOn) {
                         // Wait so other partitions can complete before we fail this partition.
                         try {
                             Thread.sleep(180000);
                         } catch (final InterruptedException ignored) {
                         }
-                        throw new RuntimeException("Testing edge writing failure.");
+                        throw new RuntimeException("Testing recovery failure.");
                     }
-                } catch (final NumberFormatException ignored) {
                 }
             }
 

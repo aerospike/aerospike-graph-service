@@ -52,6 +52,7 @@ import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEleme
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_ENTRY_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_DUPLICATE_VERTEX_ID_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RECOVERY_FAILURE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 
 public class VertexOperations implements Serializable {
@@ -80,19 +81,20 @@ public class VertexOperations implements Serializable {
             }
 
             // TESTING USAGE ONLY
-            final String failureOnVertexWriting = System.getProperty("bulkloader.testing.partition.failure.vertex.writing");
-            if (failureOnVertexWriting != null && !failureOnVertexWriting.isEmpty()) {
-                try {
-                    int failurePartitionId = Integer.parseInt(failureOnVertexWriting);
-                    if (partitionId == failurePartitionId) {
+            final String recoveryFailure = config.getOrDefault(RECOVERY_FAILURE);
+            if (recoveryFailure != null && recoveryFailure.startsWith("VERTEX_WRITE")) {
+                int partitionToFailOn = recoveryFailure.split(":", 2).length > 1 ? Integer.parseInt(recoveryFailure.split(":", 2)[1]) : -1;
+                if (partitionToFailOn == -1) {
+                    throw new RuntimeException("Failed to get partition to fail on from recovery failure property.");
+                } else {
+                    if (partitionId == partitionToFailOn) {
                         // Wait so other partitions can complete before we fail this partition.
                         try {
-                            Thread.sleep(60000);
+                            Thread.sleep(180000);
                         } catch (final InterruptedException ignored) {
                         }
-                        throw new RuntimeException("Testing vertex writing failure.");
+                        throw new RuntimeException("Testing recovery failure.");
                     }
-                } catch (final NumberFormatException ignored) {
                 }
             }
 

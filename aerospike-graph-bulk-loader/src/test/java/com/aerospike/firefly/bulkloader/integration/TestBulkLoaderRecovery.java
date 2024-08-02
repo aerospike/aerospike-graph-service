@@ -36,6 +36,11 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 public class TestBulkLoaderRecovery {
 
     private final String DEFAULT_CONFIG = "src/test/resources/conf/packed/config-recovery.properties";
+    private final String FAIL_EDGE_WRITE = "src/test/resources/conf/packed/config-recovery-fail-edge-write.properties";
+    private final String FAIL_EDGE_VERIFY = "src/test/resources/conf/packed/config-recovery-fail-edge-verify.properties";
+    private final String FAIL_VERTEX_WRITE = "src/test/resources/conf/packed/config-recovery-fail-vertex-write.properties";
+    private final String FAIL_VERTEX_VERIFY = "src/test/resources/conf/packed/config-recovery-fail-vertex-verify.properties";
+    private final String FAIL_SUPERNODE = "src/test/resources/conf/packed/config-recovery-fail-supernode.properties";
 
     private Configuration getTestConfig() {
         return getConfig(Path.of(DEFAULT_CONFIG));
@@ -44,6 +49,7 @@ public class TestBulkLoaderRecovery {
     private String getDefaultConfig() {
         return DEFAULT_CONFIG;
     }
+
     private static final String[] DEFAULT_PARAMS= {"-validate_input_data", "-verify_output_data"};
     protected FireflyGraph graph = null;
     private static long vertexLineCount;
@@ -54,11 +60,6 @@ public class TestBulkLoaderRecovery {
         Configuration config = getTestConfig();
         graph = FireflyGraph.open(config);
         graph.traversal().V().drop().iterate();
-        System.clearProperty("bulkloader.testing.partition.failure.supernode");
-        System.clearProperty("bulkloader.testing.partition.failure.vertex.writing");
-        System.clearProperty("bulkloader.testing.partition.failure.vertex.verification");
-        System.clearProperty("bulkloader.testing.partition.failure.edge.writing");
-        System.clearProperty("bulkloader.testing.partition.failure.edge.verification");
         RecoveryUtil.truncate(graph.getBaseGraph());
     }
 
@@ -102,14 +103,12 @@ public class TestBulkLoaderRecovery {
     @Test
     public void testSupernodeDetectionFailure() {
         System.out.println("Testing testSupernodeDetectionFailure");
-        System.setProperty("bulkloader.testing.partition.failure.supernode", "true");
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_SUPERNODE}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
         } catch (Exception ignored) {
             // Expected
         }
-        System.clearProperty("bulkloader.testing.partition.failure.supernode");
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
         Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
         Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
@@ -119,14 +118,12 @@ public class TestBulkLoaderRecovery {
     @Test
     public void testVertexWritingFailure() {
         System.out.println("Testing testVertexWritingFailure");
-        System.setProperty("bulkloader.testing.partition.failure.vertex.writing", "3");
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_VERTEX_WRITE}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
         } catch (Exception ignored) {
             // Expected
         }
-        System.clearProperty("bulkloader.testing.partition.failure.vertex.writing");
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
         Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
         Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
@@ -135,14 +132,12 @@ public class TestBulkLoaderRecovery {
     @Test
     public void testVertexVerificationFailure() {
         System.out.println("Testing testVertexVerificationFailure");
-        System.setProperty("bulkloader.testing.partition.failure.vertex.verification", "true");
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_VERTEX_VERIFY}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
         } catch (Exception ignored) {
             // Expected
         }
-        System.clearProperty("bulkloader.testing.partition.failure.vertex.verification");
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
         Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
         Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
@@ -151,14 +146,12 @@ public class TestBulkLoaderRecovery {
     @Test
     public void testEdgeWritingFailure() {
         System.out.println("Testing testEdgeWritingFailure");
-        System.setProperty("bulkloader.testing.partition.failure.edge.writing", "3");
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_WRITE}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
         } catch (Exception ignored) {
             // Expected
         }
-        System.clearProperty("bulkloader.testing.partition.failure.edge.writing");
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
         Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
         Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
@@ -167,14 +160,12 @@ public class TestBulkLoaderRecovery {
     @Test
     public void testEdgeVerificationFailure() {
         System.out.println("Testing testEdgeVerificationFailure");
-        System.setProperty("bulkloader.testing.partition.failure.edge.verification", "true");
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_VERIFY}, DEFAULT_PARAMS));
             Assert.fail("Should have thrown an exception");
         } catch (Exception ignored) {
             // Expected
         }
-        System.clearProperty("bulkloader.testing.partition.failure.edge.verification");
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
         Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
         Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());

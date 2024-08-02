@@ -2,6 +2,7 @@ package com.aerospike.firefly.bulkloader.statemachine.states;
 
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
+import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,9 +18,8 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
                 sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.DETECT_SUPERNODES);
 
         // TESTING USAGE ONLY
-        final String failureOnSupernodes = System.getProperty("bulkloader.testing.partition.failure.supernode");
-        if (failureOnSupernodes != null && failureOnSupernodes.equals("true")) {
-            LOGGER.info("Testing supernode detection failure.");
+        final String failureOnSupernodes = sparkBulkLoaderStateMachine.config.getOrDefault(BulkLoaderConfigHelper.RECOVERY_FAILURE);
+        if ("DETECT_SUPERNODES".equals(failureOnSupernodes)) {
             throw new RuntimeException("Testing supernode detection failure.");
         }
 

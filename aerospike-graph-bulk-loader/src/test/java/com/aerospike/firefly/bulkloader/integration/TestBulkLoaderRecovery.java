@@ -101,6 +101,7 @@ public class TestBulkLoaderRecovery {
 
     @Test
     public void testSupernodeDetectionFailure() {
+        System.out.println("Testing testSupernodeDetectionFailure");
         System.setProperty("bulkloader.testing.partition.failure.supernode", "true");
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
@@ -117,6 +118,7 @@ public class TestBulkLoaderRecovery {
 
     @Test
     public void testVertexWritingFailure() {
+        System.out.println("Testing testVertexWritingFailure");
         System.setProperty("bulkloader.testing.partition.failure.vertex.writing", "3");
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
@@ -132,6 +134,7 @@ public class TestBulkLoaderRecovery {
 
     @Test
     public void testVertexVerificationFailure() {
+        System.out.println("Testing testVertexVerificationFailure");
         System.setProperty("bulkloader.testing.partition.failure.vertex.verification", "true");
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
@@ -147,6 +150,7 @@ public class TestBulkLoaderRecovery {
 
     @Test
     public void testEdgeWritingFailure() {
+        System.out.println("Testing testEdgeWritingFailure");
         System.setProperty("bulkloader.testing.partition.failure.edge.writing", "3");
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
@@ -162,6 +166,7 @@ public class TestBulkLoaderRecovery {
 
     @Test
     public void testEdgeVerificationFailure() {
+        System.out.println("Testing testEdgeVerificationFailure");
         System.setProperty("bulkloader.testing.partition.failure.edge.verification", "true");
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
@@ -174,11 +179,4 @@ public class TestBulkLoaderRecovery {
         Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
         Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
     }
-
-    // Test cases:
-    // 1. Failure before supernode detection
-    // 2. Failure during vertex writing
-    // 3. Failure during vertex verification (should not include verification issues)
-    // 4. Failure during edge writing
-    // 5. Failure during edge verification (should not include verification issues)
 }

@@ -28,7 +28,6 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
     public void executeState() {
         // Persist edge ids.
         // Persist Edge ID data to disk
-        String writeLocation = null;
         if (sparkBulkLoaderStateMachine.readOnly) {
             // Persisting Edge IDs is disabled. Do Nothing.
             LOGGER.debug("{} mode detected. System will not write persistent Edge IDs to temp storage.", READ_ONLY);
@@ -41,9 +40,12 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
                         sparkBulkLoaderStateMachine.fileSystem.equals(SparkBulkLoaderStateMachine.LOCAL)
                                 ? File.separator : "/");
             } catch (final ConfigurationRuntimeException cre) {
-                // TODO: better msg.
-                throw new RuntimeException(String.format("%s configuration key is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
+                throw new RuntimeException(String.format("%s configuration key is empty. " +
+                        "Please set %s in the configuration file or use the %s flag with caution.",
+                        TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
             }
+
+            // Configure file system and write edge ids to storage.
             sparkBulkLoaderStateMachine.configureFileSystem(
                     sparkBulkLoaderStateMachine.spark,
                     sparkBulkLoaderStateMachine.cmd, edgeRecoveryDirectory);
@@ -51,20 +53,25 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
                     sparkBulkLoaderStateMachine.edgeDataset,
                     edgeRecoveryDirectory,
                     sparkBulkLoaderStateMachine.fileConfig);
+
+            // Now the order of ids in the partition should be preserved.
             sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.spark.read().option("header", "true").csv(edgeRecoveryDirectory);
             sparkBulkLoaderStateMachine.edgeDataset.persist(StorageLevel.DISK_ONLY());
+            sparkBulkLoaderStateMachine.edgeDataset.repartition(new Column("~edgeid"));
         }
+
         sparkBulkLoaderStateMachine.edgePartitionCount = sparkBulkLoaderStateMachine.edgeDataset.rdd().getPartitions().length;
 
-        LOGGER.info("EdgeId dataset have {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
-        sparkBulkLoaderStateMachine.progressBar.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
-
         if (!sparkBulkLoaderStateMachine.readOnly) {
-            sparkBulkLoaderStateMachine.edgeDataset.repartition(sparkBulkLoaderStateMachine.edgePartitionCount, new Column("~id"));
+            // Update edge recovery info.
             RecoveryUtil.updateEdgeRecovery(
                     sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
                     sparkBulkLoaderStateMachine.edgePartitionCount);
         }
+
+        LOGGER.info("EdgeId dataset have {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
+        sparkBulkLoaderStateMachine.progressBar.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
+
         sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();
     }
 

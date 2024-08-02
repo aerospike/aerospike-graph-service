@@ -73,7 +73,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.spark.
                 read().option("header", "true").csv(edgeRecoveryDirectory);
 
-        sparkBulkLoaderStateMachine.edgeDataset.repartition(info.getEdgePartitionCount(), new Column("~id"));
+        sparkBulkLoaderStateMachine.edgeDataset.repartition(info.getEdgePartitionCount(), new Column("~edgeid"));
 
         sparkBulkLoaderStateMachine.edgePartitionCount = info.getEdgePartitionCount();
         LOGGER.info("EdgeId dataset has {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);

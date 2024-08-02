@@ -78,6 +78,7 @@ public class TestSparkStateMachineRecovery {
 
     @Test
     public void testSupernodeDetectionFailure() {
+        System.out.println("Testing testSupernodeDetectionFailure");
         System.setProperty("bulkloader.testing.partition.failure.supernode", "true");
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
@@ -108,6 +109,7 @@ public class TestSparkStateMachineRecovery {
 
     @Test
     public void testVertexWritingFailure() {
+        System.out.println("Testing testVertexWritingFailure");
         System.setProperty("bulkloader.testing.partition.failure.vertex.writing", "3");
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
@@ -136,6 +138,7 @@ public class TestSparkStateMachineRecovery {
 
     @Test
     public void testVertexVerificationFailure() {
+        System.out.println("Testing testVertexVerificationFailure");
         System.setProperty("bulkloader.testing.partition.failure.vertex.verification", "true");
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
@@ -163,6 +166,7 @@ public class TestSparkStateMachineRecovery {
 
     @Test
     public void testEdgeWritingFailure() {
+        System.out.println("Testing testEdgeWritingFailure");
         System.setProperty("bulkloader.testing.partition.failure.edge.writing", "3");
 
         try {
@@ -191,6 +195,7 @@ public class TestSparkStateMachineRecovery {
 
     @Test
     public void testEdgeVerificationFailure() {
+        System.out.println("Testing testEdgeVerificationFailure");
         System.setProperty("bulkloader.testing.partition.failure.edge.verification", "true");
 
         try {
@@ -216,42 +221,4 @@ public class TestSparkStateMachineRecovery {
         final SparkBulkLoaderState nextState = state.transitionState();
         Assert.assertTrue(nextState instanceof SparkBulkLoaderStateVerifyEdges);
     }
-
-    @Test
-    public void checkpoint() {
-        // Initialize Spark session
-        SparkSession spark = SparkSession.builder()
-                .appName("CheckpointCSVExample")
-                .config("spark.master", "local")  // Run locally for simplicity
-                .getOrCreate();
-
-        // Define the path to your CSV file
-        String csvFilePath = "/home/lyndon/github/firefly/aerospike-graph-bulk-loader/src/test/resources/recoverydata/edges"; // Replace with your actual CSV file path
-
-        // Read the CSV file with headers
-        Dataset<Row> df = spark.read()
-                .option("header", "true")
-                .csv(csvFilePath);
-
-        // Define the checkpoint directory
-        String checkpointDir = "/home/lyndon/github/firefly/aerospike-graph-bulk-loader/src/test/resources/recoverydata/checkpoint"; // Replace with your checkpoint directory
-
-        // Checkpoint the DataFrame
-        //df.checkpoint();
-
-        // Save the checkpointed DataFrame to a file (optional)
-        df.write().mode("overwrite").parquet(checkpointDir);
-
-        Dataset<Row> rows = spark.read().parquet(checkpointDir);
-
-        // Stop the Spark session
-        spark.stop();
-    }
-
-    // Test cases:
-    // 1. Failure before supernode detection
-    // 2. Failure during vertex writing
-    // 3. Failure during vertex verification (should not include verification issues)
-    // 4. Failure during edge writing
-    // 5. Failure during edge verification (should not include verification issues)
 }

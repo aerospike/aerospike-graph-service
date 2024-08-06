@@ -59,8 +59,7 @@ public class FireflyReadThroughCacheStrategy extends FireflyStrategyBase {
         db.emptyPropsTransactionCache.set(emptyPropsCache);
 
         // Tack on the step that will remove the cache when it's finished.
-        final FireflyCacheGCStep gcStep = new FireflyCacheGCStep(traversal, cache, emptyPropsCache,
-                new HashSet<>(traversal.getEndStep().getLabels()));
+        final FireflyCacheGCStep gcStep = new FireflyCacheGCStep(traversal, new HashSet<>(traversal.getEndStep().getLabels()));
 
         // Profile must be last if it exists.
         if (TraversalHelper.hasStepOfClass(ProfileSideEffectStep.class, traversal)) {

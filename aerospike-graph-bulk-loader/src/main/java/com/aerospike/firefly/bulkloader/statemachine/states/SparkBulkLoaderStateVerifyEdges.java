@@ -19,10 +19,7 @@ public class SparkBulkLoaderStateVerifyEdges extends SparkBulkLoaderState {
         // TESTING USAGE ONLY
         final String recoveryFailure = sparkBulkLoaderStateMachine.config.getOrDefault(RECOVERY_FAILURE);
         if ("EDGE_VERIFY".equals(recoveryFailure)) {
-            System.out.println("FOOOOOOOOOOOOObar " + recoveryFailure);
             throw new RuntimeException("Testing recovery failure.");
-        } else {
-            System.out.println("FOOOOOOOOOOOOO " + recoveryFailure);
         }
 
         sparkBulkLoaderStateMachine.edgeOperations.verifySampleEdgeAfterWrite(

@@ -891,6 +891,7 @@ jobs:
           bash -x scripts/start_aerospike.sh
           mvn clean install -DskipTests --no-transfer-progress
           mvn -pl aerospike-graph-bulk-loader test -Dtest=TestRecoveryUtil --no-transfer-progress
+          mvn -pl aerospike-graph-bulk-loader test -Dtest=TestRecoveryActionFlags --no-transfer-progress
   test-firefly-spark-bulk-loader:
     name: Test Spark Bulk Loader
     timeout-minutes: 40

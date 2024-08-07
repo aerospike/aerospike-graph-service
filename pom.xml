@@ -179,6 +179,7 @@
                         <exclude>**/TestRecoveryUtil</exclude>
                         <exclude>**/TestSparkStateMachineRecovery</exclude>
                         <exclude>**/TestBulkLoaderRecovery</exclude>
+                        <exclude>**/TestRecoveryActionFlags</exclude>
                     </excludes>
                 </configuration>
             </plugin>

@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
 
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RESUME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.getConfig;
 
 public class TestSparkStateMachineRecovery {
@@ -82,7 +83,7 @@ public class TestSparkStateMachineRecovery {
         } catch (Exception ignored) {
             // Expected
         }
-        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
+        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME});
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
         state.executeState();
 
@@ -113,7 +114,7 @@ public class TestSparkStateMachineRecovery {
             System.out.println(e.getMessage());
             // Expected
         }
-        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
+        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME});
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
         state.executeState();
 
@@ -140,7 +141,7 @@ public class TestSparkStateMachineRecovery {
         } catch (Exception e) {
             // Expected
         }
-        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
+        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME});
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
         state.executeState();
 
@@ -168,7 +169,7 @@ public class TestSparkStateMachineRecovery {
         } catch (Exception e) {
             // Expected
         }
-        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
+        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME});
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
         state.executeState();
 
@@ -198,7 +199,7 @@ public class TestSparkStateMachineRecovery {
             e.printStackTrace();
             System.out.println(e.getMessage());
         }
-        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
+        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME});
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
         state.executeState();
 

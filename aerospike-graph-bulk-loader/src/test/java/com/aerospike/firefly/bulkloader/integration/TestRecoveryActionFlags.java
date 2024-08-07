@@ -9,11 +9,16 @@ import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.ExecutionException;
 
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.CLEAR_EXISTING_DATA_EMPTY_DATABASE;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
@@ -43,6 +48,20 @@ public class TestRecoveryActionFlags {
     }
 
     protected FireflyGraph graph = null;
+
+    @BeforeClass
+    public static void generateData() throws IOException, InterruptedException, ExecutionException {
+        final Process python = Runtime.getRuntime().exec("python3 src/test/resources/csv-generate.py");
+        if (python.onExit().get().exitValue() != 0) {
+            throw new RuntimeException("Failed to generate csv data to run tests.");
+        }
+    }
+
+    @AfterClass
+    public static void clearData() throws IOException {
+        Files.deleteIfExists(Path.of("src/test/resources/recoverydata/vertices/vertexList"));
+        Files.deleteIfExists(Path.of("src/test/resources/recoverydata/edges/edgeList"));
+    }
 
     @Before
     public void beforeEach() {

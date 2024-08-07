@@ -14,6 +14,7 @@ import java.util.Set;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_EDGES_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_ENTRY_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_DUPLICATE_VERTEX_ID_COUNT;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CLEAR_EXISTING_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
@@ -29,6 +30,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_PASSKEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_USERNAME;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RESUME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VALIDATE_INPUT_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
@@ -57,7 +59,9 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
     private static final Set<String> BOOLEAN_KEYS = Set.of(
             KEEP_PROVIDED_EDGE_ID_AS_PROPERTY,
             ENABLE_DATAFRAME_CACHING,
-            INCREMENTAL_LOAD
+            INCREMENTAL_LOAD,
+            RESUME,
+            CLEAR_EXISTING_DATA
     );
 
     private static final Set<String> NUMBER_KEYS = Set.of(
@@ -74,6 +78,8 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
         KEY_TO_ARG.put(EDGES, null);
         KEY_TO_ARG.put(VALIDATE_INPUT_DATA, null);
         KEY_TO_ARG.put(INCREMENTAL_LOAD, null);
+        KEY_TO_ARG.put(RESUME, null);
+        KEY_TO_ARG.put(CLEAR_EXISTING_DATA, null);
         KEY_TO_ARG.putAll(KEY_TO_CMD);
     }
 
@@ -143,13 +149,26 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                 getBooleanFromObject(mutableParams.get(INCREMENTAL_LOAD), INCREMENTAL_LOAD);
             }
 
+            if (mutableParams.containsKey(RESUME)) {
+                getBooleanFromObject(mutableParams.get(RESUME), RESUME);
+            }
+
+            if (mutableParams.containsKey(CLEAR_EXISTING_DATA)) {
+                getBooleanFromObject(mutableParams.get(CLEAR_EXISTING_DATA), CLEAR_EXISTING_DATA);
+            }
+
             if (mutableParams.containsKey(VALIDATE_INPUT_DATA)) {
                 getBooleanFromObject(mutableParams.get(VALIDATE_INPUT_DATA), VALIDATE_INPUT_DATA);
             }
 
             for (final Map.Entry<String, Object> config : mutableParams.entrySet()) {
                 final String key = config.getKey();
-                if (key.equals(VERTICES) || key.equals(EDGES) || key.equals(VALIDATE_INPUT_DATA) || key.equals(INCREMENTAL_LOAD)) {
+                if (key.equals(VERTICES) ||
+                        key.equals(EDGES) ||
+                        key.equals(VALIDATE_INPUT_DATA) ||
+                        key.equals(INCREMENTAL_LOAD) ||
+                        key.equals(RESUME) ||
+                        key.equals(CLEAR_EXISTING_DATA)) {
                     // Actions are handled elsewhere
                     continue;
                 }
@@ -213,7 +232,12 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
 
         for (final Map.Entry<String, Object> config : mutableParams.entrySet()) {
             final String key = config.getKey();
-            if (key.equals(VERTICES) || key.equals(EDGES) || key.equals(VALIDATE_INPUT_DATA) || key.equals(INCREMENTAL_LOAD)) {
+            if (key.equals(VERTICES) ||
+                    key.equals(EDGES) ||
+                    key.equals(VALIDATE_INPUT_DATA) ||
+                    key.equals(INCREMENTAL_LOAD) ||
+                    key.equals(RESUME) ||
+                    key.equals(CLEAR_EXISTING_DATA)) {
                 // Actions are handled elsewhere
                 continue;
             }

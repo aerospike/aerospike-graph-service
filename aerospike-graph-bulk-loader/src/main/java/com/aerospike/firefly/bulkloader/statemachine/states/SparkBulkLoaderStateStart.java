@@ -13,11 +13,20 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.CLEAR_EXISTING_DATA_EMPTY_DATABASE;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.INCREMENTAL_AND_CLEAR_EXISTING_DATA;
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.INCREMENTAL_AND_RECOVERY_INFO_NO_RESUME_FLAG;
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.INCREMENTAL_LOAD_EMPTY_DATABASE;
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.RECOVERY_INFO_NO_CLEAR_EXISTING_DATA_FLAG_OR_RESUME;
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.RESUME_AND_CLEAR_EXISTING_DATA;
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.RESUME_WITHOUT_RECOVERY_INFO;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CLEAR_EXISTING_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RESUME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
 
 public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
@@ -107,10 +116,53 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
 
     @Override
     public void executeState() {
+        // Check to see if actions are valid.
+        final boolean resumeFlag = sparkBulkLoaderStateMachine.config.hasAction(RESUME);
+        final boolean incrementalLoadFlag = sparkBulkLoaderStateMachine.config.hasAction(INCREMENTAL_LOAD);
+        final boolean clearExistingDataFlag = sparkBulkLoaderStateMachine.config.hasAction(CLEAR_EXISTING_DATA);
+        RecoveryUtil.RecoveryInfo info =
+                RecoveryUtil.recover(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
+        final boolean recoveryInfoExists = info.getState() != null;
+       //         INCREMENTAL_AND_RECOVERY_INFO_NO_RESUME_FLAG
+       // RECOVERY_INFO_NO_CLEAR_EXISTING_DATA_FLAG_OR_RESUME
+
+        // Cannot set both incremental and clear existing data flags or resume and clear existing data flags.
+        if (incrementalLoadFlag && clearExistingDataFlag) {
+            throw new IllegalArgumentException(INCREMENTAL_AND_CLEAR_EXISTING_DATA);
+        }
+        if (resumeFlag && clearExistingDataFlag) {
+            throw new IllegalArgumentException(RESUME_AND_CLEAR_EXISTING_DATA);
+        }
+
+        // Cannot set incremental load when database is empty.
+        if (incrementalLoadFlag && sparkBulkLoaderStateMachine.initializerGraph.isEmpty()) {
+            throw new IllegalStateException(INCREMENTAL_LOAD_EMPTY_DATABASE);
+        }
+
+        if (resumeFlag && !recoveryInfoExists) {
+            throw new IllegalStateException(RESUME_WITHOUT_RECOVERY_INFO);
+        }
+
+        // Clear existing data is not valid if graph is empty and no recovery info exists.
+        if (clearExistingDataFlag && (sparkBulkLoaderStateMachine.initializerGraph.isEmpty() && !recoveryInfoExists)) {
+            throw new IllegalStateException(CLEAR_EXISTING_DATA_EMPTY_DATABASE);
+        } else if (clearExistingDataFlag) {
+            RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
+            sparkBulkLoaderStateMachine.initializerGraph.traversal().V().drop().iterate();
+
+            // Reload recovery info after truncating the database, should be nulled out now.
+            info = RecoveryUtil.recover(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
+        } else {
+            if (recoveryInfoExists && !resumeFlag && incrementalLoadFlag) {
+                throw new IllegalStateException(INCREMENTAL_AND_RECOVERY_INFO_NO_RESUME_FLAG);
+            } else if (recoveryInfoExists && !resumeFlag) {
+                throw new IllegalStateException(RECOVERY_INFO_NO_CLEAR_EXISTING_DATA_FLAG_OR_RESUME);
+            }
+        }
+
+
         // Recover from checkpoint.
         if (!sparkBulkLoaderStateMachine.readOnly) {
-            final RecoveryUtil.RecoveryInfo info =
-                    RecoveryUtil.recover(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
             final String state = info.getState();
             if (state != null && !state.isEmpty()) {
                 sparkBulkLoaderStateMachine.progressBar.setResumeableLoad();

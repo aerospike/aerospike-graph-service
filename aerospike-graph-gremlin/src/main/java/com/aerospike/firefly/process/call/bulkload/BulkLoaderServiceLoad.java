@@ -60,7 +60,6 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
             KEEP_PROVIDED_EDGE_ID_AS_PROPERTY,
             ENABLE_DATAFRAME_CACHING,
             INCREMENTAL_LOAD,
-            RESUME,
             CLEAR_EXISTING_DATA
     );
 
@@ -78,7 +77,6 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
         KEY_TO_ARG.put(EDGES, null);
         KEY_TO_ARG.put(VALIDATE_INPUT_DATA, null);
         KEY_TO_ARG.put(INCREMENTAL_LOAD, null);
-        KEY_TO_ARG.put(RESUME, null);
         KEY_TO_ARG.put(CLEAR_EXISTING_DATA, null);
         KEY_TO_ARG.putAll(KEY_TO_CMD);
     }
@@ -95,13 +93,13 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
     @Override
     protected String usage(final Map params) {
         return String.format("Illegal arguments provided to '%s'.\n" +
-                        "\tExpected arguments within '%s'.\n" +
+                        "\tExpected arguments within '%s' and '%s'.\n" +
                         "\tProvided argument: '%s'.\n" +
                         "\tExample of correct usage:\n" +
                         "\t\tg.with(\"evaluationTimeout\", 24 * 60 * 60 * 1000).call(\"%s\")\n" +
                         "\t\t\t.with(\"aerospike.graphloader.vertices\", \"/opt/aerospike-graph/etc/sampledata/vertices\")\n" +
                         "\t\t\t.with(\"aerospike.graphloader.edges\", \"/opt/aerospike-graph/etc/sampledata/edges\");\n",
-                getName(), PUBLIC_PARAMS, params, getName());
+                getName(), PUBLIC_PARAMS, BOOLEAN_KEYS, params, getName());
     }
 
     @Override
@@ -149,10 +147,6 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                 getBooleanFromObject(mutableParams.get(INCREMENTAL_LOAD), INCREMENTAL_LOAD);
             }
 
-            if (mutableParams.containsKey(RESUME)) {
-                getBooleanFromObject(mutableParams.get(RESUME), RESUME);
-            }
-
             if (mutableParams.containsKey(CLEAR_EXISTING_DATA)) {
                 getBooleanFromObject(mutableParams.get(CLEAR_EXISTING_DATA), CLEAR_EXISTING_DATA);
             }
@@ -163,11 +157,15 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
 
             for (final Map.Entry<String, Object> config : mutableParams.entrySet()) {
                 final String key = config.getKey();
+                if (key.equals(RESUME)) {
+                    throw new IllegalArgumentException(
+                            "The '" + RESUME + "' parameter is not supported in the call API. " +
+                                    "Use the distributed bulk loader for resume functionality.");
+                }
                 if (key.equals(VERTICES) ||
                         key.equals(EDGES) ||
                         key.equals(VALIDATE_INPUT_DATA) ||
                         key.equals(INCREMENTAL_LOAD) ||
-                        key.equals(RESUME) ||
                         key.equals(CLEAR_EXISTING_DATA)) {
                     // Actions are handled elsewhere
                     continue;
@@ -200,6 +198,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
         boolean edges = true;
         boolean validateInputData = true;
         boolean incrementalLoad = false;
+        boolean clearExistingData = false;
 
         // The way specifying vertices or edges is that:
         // If you specify neither, both are loaded.
@@ -224,6 +223,10 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
 
         if (mutableParams.containsKey(INCREMENTAL_LOAD)) {
             incrementalLoad = getBooleanFromObject(mutableParams.get(INCREMENTAL_LOAD), INCREMENTAL_LOAD);
+        }
+
+        if (mutableParams.containsKey(CLEAR_EXISTING_DATA)) {
+            clearExistingData = getBooleanFromObject(mutableParams.get(CLEAR_EXISTING_DATA), CLEAR_EXISTING_DATA);
         }
 
         if (mutableParams.containsKey(VALIDATE_INPUT_DATA)) {
@@ -255,6 +258,9 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
         }
         if (validateInputData) {
             args.add(formatArg(VALIDATE_INPUT_DATA));
+        }
+        if (clearExistingData) {
+            args.add(formatArg(CLEAR_EXISTING_DATA));
         }
 
         // These won't be simultaneously false due to check above.

@@ -123,8 +123,6 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         RecoveryUtil.RecoveryInfo info =
                 RecoveryUtil.recover(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
         final boolean recoveryInfoExists = info.getState() != null;
-       //         INCREMENTAL_AND_RECOVERY_INFO_NO_RESUME_FLAG
-       // RECOVERY_INFO_NO_CLEAR_EXISTING_DATA_FLAG_OR_RESUME
 
         // Cannot set both incremental and clear existing data flags or resume and clear existing data flags.
         if (incrementalLoadFlag && clearExistingDataFlag) {

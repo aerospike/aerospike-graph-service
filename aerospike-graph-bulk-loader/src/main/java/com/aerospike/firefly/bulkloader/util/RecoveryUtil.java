@@ -102,6 +102,7 @@ public class RecoveryUtil {
         while (tryCount < 3) {
             try {
                 db.writeOperate(writePolicy, key, createOp, updateOp);
+                return;
             } catch (final AerospikeException e) {
                 tryCount++;
                 exponentialBackoff(tryCount);

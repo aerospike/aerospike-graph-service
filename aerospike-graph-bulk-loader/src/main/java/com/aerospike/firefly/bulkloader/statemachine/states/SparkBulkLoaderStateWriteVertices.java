@@ -10,8 +10,6 @@ public class SparkBulkLoaderStateWriteVertices extends SparkBulkLoaderState {
 
     @Override
     public void executeState() {
-        // TODO: Set indexes.
-        // TODO: Progress bar.
         RecoveryUtil.updateState(
                 sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.VERTEX_WRITE);
 

@@ -182,14 +182,16 @@ public class RecoveryUtil {
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "state");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
-        return retryReadOperation(db, key, readPolicy).getString(db.BULK_LOAD_RECOVERY_BIN);
+        final Record r = retryReadOperation(db, key, readPolicy);
+        return r == null ? null : r.getString(db.BULK_LOAD_RECOVERY_BIN);
     }
 
     public static int recoverVertexPartitionCount(final AerospikeConnection db) {
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex_partition_count");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
-        return retryReadOperation(db, key, readPolicy).getInt(db.BULK_LOAD_RECOVERY_BIN);
+        final Record r = retryReadOperation(db, key, readPolicy);
+        return r == null ? -1 : r.getInt(db.BULK_LOAD_RECOVERY_BIN);
     }
 
     public static String getEdgeRecoveryDirectory(final String tempDirectory, final String separator) {
@@ -204,7 +206,8 @@ public class RecoveryUtil {
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "edge_partition_count");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
-        return retryReadOperation(db, key, readPolicy).getInt(db.BULK_LOAD_RECOVERY_BIN);
+        final Record r = retryReadOperation(db, key, readPolicy);
+        return r == null ? -1 : r.getInt(db.BULK_LOAD_RECOVERY_BIN);
     }
 
     public static RecoveryInfo recover(final AerospikeConnection db) {

@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.TimerTask;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -24,7 +23,7 @@ public class ProgressBar extends TimerTask {
     private boolean edgeLoadComplete = false;
     private boolean edgeValidationComplete = false;
     private boolean resumableLoad = false;
-    private boolean resumeableLoadComplete = false;
+    private boolean resumableLoadComplete = false;
     private long verticesWritten = 0L;
     private long edgesWritten = 0L;
     private long edgesWrittenHighWatermark = 0L;
@@ -78,7 +77,7 @@ public class ProgressBar extends TimerTask {
 
     public void setResumeableLoadComplete() {
         synchronized (ProgressBar.class) {
-            this.resumeableLoadComplete = true;
+            this.resumableLoadComplete = true;
         }
     }
 
@@ -297,7 +296,7 @@ public class ProgressBar extends TimerTask {
 
     public String getResumeableLoadProgress() {
         if (resumableLoad) {
-            if (resumeableLoadComplete) {
+            if (resumableLoadComplete) {
                 return "\t\tResuming load complete\n";
             } else {
                 return "\t\tResuming load in progress\n";

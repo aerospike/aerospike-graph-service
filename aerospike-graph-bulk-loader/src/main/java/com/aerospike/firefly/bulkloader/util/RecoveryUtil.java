@@ -5,6 +5,7 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
+import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.ListOrder;
@@ -14,7 +15,6 @@ import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
-import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateReadVertices;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import org.slf4j.Logger;
@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
+
+import static com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine.exponentialBackoff;
 
 public class RecoveryUtil {
     private static final Logger LOGGER = LoggerFactory.getLogger(RecoveryUtil.class);
@@ -60,12 +62,7 @@ public class RecoveryUtil {
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
 
-        // TODO: Retry logic.
-        try {
-            db.writeOperate(writePolicy, key, createOp, updateOp);
-        } catch (AerospikeException e) {
-            throw new FireflyLoadingException(e);
-        }
+        retryWriteOperation(db, createOp, writePolicy, key, updateOp);
     }
 
     public static void writeVertexPartitionComplete(final AerospikeConnection db, final int partitionId) {
@@ -96,14 +93,24 @@ public class RecoveryUtil {
                 values.add(Value.get(supernode));
             }
             final Operation updateOp = ListOperation.appendItems(createListOnlyPolicy, db.BULK_LOAD_RECOVERY_BIN, values);
+            retryWriteOperation(db, createOp, writePolicy, key, updateOp);
+        }
+    }
 
-            // TODO: Retry logic.
+    private static void retryWriteOperation(final AerospikeConnection db, final Operation createOp, final WritePolicy writePolicy, final Key key, final Operation updateOp) {
+        int tryCount = 0;
+        while (tryCount < 3) {
             try {
                 db.writeOperate(writePolicy, key, createOp, updateOp);
-            } catch (AerospikeException e) {
-                throw new FireflyLoadingException(e);
+            } catch (final AerospikeException e) {
+                tryCount++;
+                exponentialBackoff(tryCount);
+                if (!new FireflyLoadingException(e).isRetryable()) {
+                    throw new FireflyLoadingException(e);
+                }
             }
         }
+        throw new FireflyLoadingException(new AerospikeException(ResultCode.TIMEOUT, "Failed to write to Aerospike for recovery operations"));
     }
 
     public static void updateState(final AerospikeConnection db, final RecoveryState state) {
@@ -113,13 +120,7 @@ public class RecoveryUtil {
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
-
-        // TODO: Retry logic.
-        try {
-            db.writeOperate(writePolicy, key, operation);
-        } catch (AerospikeException e) {
-            throw new FireflyLoadingException(e);
-        }
+        retryWriteOperation(db, operation, writePolicy, key, operation);
     }
 
     public static void updateVertexRecovery(final AerospikeConnection db, final int partitionCount) {
@@ -129,13 +130,7 @@ public class RecoveryUtil {
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
-
-        // TODO: Retry logic.
-        try {
-            db.writeOperate(writePolicy, key, operation);
-        } catch (AerospikeException e) {
-            throw new FireflyLoadingException(e);
-        }
+        retryWriteOperation(db, operation, writePolicy, key, operation);
     }
 
     public static void updateEdgeRecovery(final AerospikeConnection db, final int partition_count) {
@@ -145,13 +140,7 @@ public class RecoveryUtil {
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
-
-        // TODO: Retry logic.
-        try {
-            db.writeOperate(writePolicy, key, operation);
-        } catch (AerospikeException e) {
-            throw new FireflyLoadingException(e);
-        }
+        retryWriteOperation(db, operation, writePolicy, key, operation);
     }
 
     private static void recoverPartitions(final RecoveryRecordSequenceListener listener,
@@ -173,38 +162,34 @@ public class RecoveryUtil {
         }
     }
 
+    public static Record retryReadOperation(final AerospikeConnection db, final Key key, final Policy readPolicy) {
+        int tryCount = 0;
+        while (tryCount < 3) {
+            try {
+                return db.client.get(readPolicy, key);
+            } catch (final AerospikeException e) {
+                tryCount++;
+                exponentialBackoff(tryCount);
+                if (!new FireflyLoadingException(e).isRetryable()) {
+                    throw new FireflyLoadingException(e);
+                }
+            }
+        }
+        throw new FireflyLoadingException(new AerospikeException(ResultCode.TIMEOUT, "Failed to read from Aerospike for recovery operations"));
+    }
+
     private static String recoverState(final AerospikeConnection db) {
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "state");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
-
-        // TODO: Retry logic.
-        try {
-            final Record record = db.client.get(readPolicy, key);
-            if (record != null) {
-                return record.getString(db.BULK_LOAD_RECOVERY_BIN);
-            }
-            return null;
-        } catch (AerospikeException e) {
-            throw new FireflyLoadingException(e);
-        }
+        return retryReadOperation(db, key, readPolicy).getString(db.BULK_LOAD_RECOVERY_BIN);
     }
 
     public static int recoverVertexPartitionCount(final AerospikeConnection db) {
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex_partition_count");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
-
-        // TODO: Retry logic.
-        try {
-            final Record record = db.client.get(readPolicy, key);
-            if (record != null) {
-                return record.getInt(db.BULK_LOAD_RECOVERY_BIN);
-            }
-            return -1;
-        } catch (AerospikeException e) {
-            throw new FireflyLoadingException(e);
-        }
+        return retryReadOperation(db, key, readPolicy).getInt(db.BULK_LOAD_RECOVERY_BIN);
     }
 
     public static String getEdgeRecoveryDirectory(final String tempDirectory, final String separator) {
@@ -219,34 +204,7 @@ public class RecoveryUtil {
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "edge_partition_count");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
-
-        // TODO: Retry logic.
-        try {
-            final Record record = db.client.get(readPolicy, key);
-            if (record != null) {
-                return record.getInt(db.BULK_LOAD_RECOVERY_BIN);
-            }
-            return -1;
-        } catch (AerospikeException e) {
-            throw new FireflyLoadingException(e);
-        }
-    }
-
-    private static String recoverVertexDirectory(final AerospikeConnection db) {
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex");
-        final Policy readPolicy = new Policy();
-        db.configureReadPolicy(readPolicy);
-
-        // TODO: Retry logic.
-        try {
-            final Record record = db.client.get(readPolicy, key);
-            if (record != null) {
-                return record.getString(db.BULK_LOAD_RECOVERY_BIN);
-            }
-            return null;
-        } catch (AerospikeException e) {
-            throw new FireflyLoadingException(e);
-        }
+        return retryReadOperation(db, key, readPolicy).getInt(db.BULK_LOAD_RECOVERY_BIN);
     }
 
     public static RecoveryInfo recover(final AerospikeConnection db) {

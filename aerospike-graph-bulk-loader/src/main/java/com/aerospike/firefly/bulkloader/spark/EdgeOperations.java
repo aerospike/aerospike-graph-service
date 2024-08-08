@@ -121,20 +121,23 @@ public class EdgeOperations implements Serializable {
                 }
             }
 
-            // TESTING USAGE ONLY
+            // This is a testing config, used to force failure in specific spots to allow us to test the recovery modes.
             final String recoveryFailure = config.getOrDefault(RECOVERY_FAILURE);
             if (recoveryFailure != null && recoveryFailure.startsWith("EDGE_WRITE")) {
-                int partitionToFailOn = recoveryFailure.split(":", 2).length > 1 ? Integer.parseInt(recoveryFailure.split(":", 2)[1]) : -1;
+                // The failure position is supplied as "EDGE_WRITE:<partition_id>".
+                final int partitionToFailOn = recoveryFailure.split(":", 2).length > 1 ? Integer.parseInt(recoveryFailure.split(":", 2)[1]) : -1;
                 if (partitionToFailOn == -1) {
-                    throw new RuntimeException("Failed to get partition to fail on from recovery failure property.");
+                    // If a specific partition was not supplied, fail instantly.
+                    throw new RuntimeException("Failed to get partition to fail on from recovery failure property, please contact support.");
                 } else {
+                    // Otherwise fail on the specific partition a few mins later to allow other partitions to complete.
                     if (partitionId == partitionToFailOn) {
                         // Wait so other partitions can complete before we fail this partition.
                         try {
                             Thread.sleep(180000);
                         } catch (final InterruptedException ignored) {
                         }
-                        throw new RuntimeException("Testing recovery failure.");
+                        throw new RuntimeException("Testing recovery failure, please contact support.");
                     }
                 }
             }

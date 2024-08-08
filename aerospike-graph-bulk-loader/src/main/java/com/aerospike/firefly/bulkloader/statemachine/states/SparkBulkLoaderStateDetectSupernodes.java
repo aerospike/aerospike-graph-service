@@ -17,10 +17,10 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
         RecoveryUtil.updateState(
                 sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.DETECT_SUPERNODES);
 
-        // TESTING USAGE ONLY
+        // This is a testing config, used to force failure in specific spots to allow us to test the recovery modes.
         final String failureOnSupernodes = sparkBulkLoaderStateMachine.config.getOrDefault(BulkLoaderConfigHelper.RECOVERY_FAILURE);
         if ("DETECT_SUPERNODES".equals(failureOnSupernodes)) {
-            throw new RuntimeException("Testing supernode detection failure.");
+            throw new RuntimeException("Testing recovery failure, please contact support.");
         }
 
         // Supernode processing

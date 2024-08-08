@@ -139,18 +139,6 @@ public class DatasetOperations implements Serializable {
         return persistIfPossible(level, data);
     }
 
-    public static Set<String> getHeaders(final SparkSession session, final List<String> paths) {
-        final Set<String> headers = new HashSet<>();
-        for (final String csv : paths) {
-            final Dataset<Row> dataset = session.read()
-                    .option("header", "true")
-                    .option("recursiveFileLookup", "true").csv(csv)
-                    .select(input_file_name().as(FILENAME_COLUMN), col("*"));
-            headers.addAll(Set.of(dataset.columns()));
-        }
-        return headers;
-    }
-
     public static Dataset<Row> persistIfPossible(StorageLevel level, Dataset<Row> data) {
         return level.isValid() ? data.persist(level) : data;
     }

@@ -37,7 +37,7 @@ public class TestRecoveryActionFlags {
     // Flags in question:
     // resume, incremental, and clear_existing_data
 
-    private final String DEFAULT_CONFIG = "src/test/resources/conf/packed/config-recovery.properties";
+    private final String DEFAULT_CONFIG = "src/test/resources/conf/packed/config-recovery-prepopulated.properties";
 
     private Configuration getTestConfig() {
         return getConfig(Path.of(DEFAULT_CONFIG));

@@ -23,16 +23,14 @@ public class SparkBulkLoaderStateCleanUp extends SparkBulkLoaderState {
         // Clean up all recovery artifacts.
         if (!sparkBulkLoaderStateMachine.readOnly) {
             // Delete the temp directory.
+            String edgeRecoveryDirectory = null;
             try {
-                // TODO: If cleanup set?
-                String edgeRecoveryDirectory;
                 try {
                     edgeRecoveryDirectory = RecoveryUtil.getEdgeRecoveryDirectory(
                             sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY),
                             sparkBulkLoaderStateMachine.fileSystem.equals(SparkBulkLoaderStateMachine.LOCAL)
                                     ? File.separator : "/");
                 } catch (final ConfigurationRuntimeException cre) {
-                    // TODO: better msg.
                     throw new RuntimeException(String.format("%s configuration key is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
                 }
                 final Configuration conf = sparkBulkLoaderStateMachine.spark.sparkContext().hadoopConfiguration();
@@ -45,11 +43,12 @@ public class SparkBulkLoaderStateCleanUp extends SparkBulkLoaderState {
                     fs.delete(tempDir, true);
                 }
             } catch (IOException e) {
-                throw new RuntimeException("Failed to get FileSystem", e);
+                throw new RuntimeException(String.format("Failed to cleanup recovery data in folder %s.", edgeRecoveryDirectory), e);
+            } finally {
+                sparkBulkLoaderStateMachine.edgeDataset.unpersist();
+                RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
             }
-            sparkBulkLoaderStateMachine.edgeDataset.unpersist();
         }
-        RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
     }
 
     @Override

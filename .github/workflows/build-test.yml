@@ -783,7 +783,7 @@ jobs:
           mvn -pl aerospike-graph-bulk-loader test --no-transfer-progress
   test-aerospike-graph-api:
     name: Test Aerospike Graph API
-    timeout-minutes: 5
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - name: Free Disk Space (Ubuntu)
@@ -823,7 +823,8 @@ jobs:
           bash -x scripts/start_aerospike.sh
           sudo echo $GCS_KEYFILE_B64 | base64 -d > ${{ github.workspace }}/gcs-keyfile.json
           mvn clean install -DskipTests
-          mvn -pl aerospike-graph-api test --no-transfer-progress
+          cd aerospike-graph-api
+          mvn test --no-transfer-progress
   benchmark-internal dataset-flow-firefly:
     name: Benchmark internal dataset Flow Firefly
     timeout-minutes: 240

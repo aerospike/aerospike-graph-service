@@ -350,8 +350,8 @@ public class AerospikeConnection implements AutoCloseable {
         LOG.info("Initializing AerospikeConnection.");
         LOG.debug("CONFIGURATION:");
         conf.getKeys().forEachRemaining(key -> {
-            if (!key.contains("password") && !key.contains("secret") && !key.contains("token")) {
-                LOG.debug("\tconfig: [{}]:[{}]", key, "*******");
+            if (key.contains("password") || key.contains("secret") || key.contains("token")) {
+                LOG.debug("\tconfig: [{}]:[{}]", key, "********");
             } else {
                 LOG.debug("\tconfig: [{}]:[{}]", key, conf.get(String.class, key));
             }

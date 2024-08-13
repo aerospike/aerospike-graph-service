@@ -455,15 +455,15 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
     public Runnable getUpdateRunnable() {
         return () -> {
-            try {
-                printGraphSummaryTicker();
-            } catch (final RuntimeException e) {
-                // This should work but in case it doesn't, continue into standard operation.
-                LOG.warn("Failed to print graph summary ticker.", e);
-            }
-
             boolean hadError = false;
             while (true) {
+                try {
+                    printGraphSummaryTicker();
+                } catch (final RuntimeException e) {
+                    // This should work but in case it doesn't, continue into standard operation.
+                    LOG.warn("Failed to print graph summary ticker.", e);
+                }
+
                 try {
                     // If shutdown is initiated, go through the map and then exit (i.e skip CountDownLatch).
                     if (!SHUTDOWN.get()) {

@@ -4,6 +4,7 @@ import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.bulkloader.spark.executorservice.VertexWriteTask;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
@@ -11,6 +12,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
+import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
@@ -50,6 +52,7 @@ import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEleme
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_ENTRY_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_DUPLICATE_VERTEX_ID_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RECOVERY_FAILURE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 
 public class VertexOperations implements Serializable {
@@ -63,9 +66,41 @@ public class VertexOperations implements Serializable {
         this.vertexPaths = Objects.requireNonNull(vertexCSVFiles);
     }
 
-    private void writeVertices(final Dataset<Row> unionVertexDS, final Set<Object> supernodes) {
+    private void writeVertices(final Dataset<Row> unionVertexDS,
+                               final Set<Object> supernodes,
+                               final Set<Long> completedVertexPartitions,
+                               final boolean readOnly) {
         unionVertexDS.foreachPartition(rowIterator -> {
             final int partitionId = TaskContext.getPartitionId();
+            if (!readOnly) {
+                final Long partitionIdLong = Long.valueOf(partitionId);
+                if (completedVertexPartitions.contains(partitionIdLong)) {
+                    LOGGER.info("Vertices PartitionId " + partitionId + " is already written, skipping.");
+                    return;
+                }
+            }
+
+            // This is a testing config, used to force failure in specific spots to allow us to test the recovery modes.
+            final String recoveryFailure = config.getOrDefault(RECOVERY_FAILURE);
+            if (recoveryFailure != null && recoveryFailure.startsWith("VERTEX_WRITE")) {
+                // The failure position is supplied as "VERTEX_WRITE:<partition_id>".
+                final int partitionToFailOn = recoveryFailure.split(":", 2).length > 1 ? Integer.parseInt(recoveryFailure.split(":", 2)[1]) : -1;
+                if (partitionToFailOn == -1) {
+                    // If a specific partition was not supplied, fail instantly.
+                    throw new RuntimeException("Failed to get partition to fail on from recovery failure property, please contact support.");
+                } else {
+                    // Otherwise fail on the specific partition a few mins later to allow other partitions to complete.
+                    if (partitionId == partitionToFailOn) {
+                        // Wait so other partitions can complete before we fail this partition.
+                        try {
+                            Thread.sleep(180000);
+                        } catch (final InterruptedException ignored) {
+                        }
+                        throw new RuntimeException("Testing recovery failure, please contact support.");
+                    }
+                }
+            }
+
             LOGGER.info("Starting to write VertexDataset in PartitionId: " + partitionId);
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
                 final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);
@@ -118,6 +153,10 @@ public class VertexOperations implements Serializable {
                 }
 
                 final String taskName = String.format("Vertex write in partition:{}", partitionId);
+                if (!readOnly) {
+                    LOGGER.info("Writing vertex partition complete for partitionId: {}", partitionId);
+                    RecoveryUtil.writeVertexPartitionComplete(graph.getBaseGraph(), partitionId);
+                }
                 LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
             }
         });
@@ -245,12 +284,15 @@ public class VertexOperations implements Serializable {
         }
     }
 
-    public void writeVerticesToDB(final Dataset<Row> vertexDataSet, final Set<Object> supernodes) {
+    public void writeVerticesToDB(final Dataset<Row> vertexDataSet,
+                                  final Set<Object> supernodes,
+                                  final Set<Long> completedVertexPartitions,
+                                  final boolean readOnly) {
         if (!this.config.hasAction(DISABLE_VERTEX_WRITE)) {
             final Instant startOfVertexWrite = Instant.now();
             String taskName = "Vertex write";
             vertexDataSet.sparkSession().sparkContext().setJobGroup(taskName, "Vertex write task", true);
-            writeVertices(vertexDataSet, supernodes);
+            writeVertices(vertexDataSet, supernodes, completedVertexPartitions, readOnly);
             vertexDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
             final Instant endOfVertexWrite = Instant.now();
             Duration vertexInterval = Duration.between(startOfVertexWrite, endOfVertexWrite);

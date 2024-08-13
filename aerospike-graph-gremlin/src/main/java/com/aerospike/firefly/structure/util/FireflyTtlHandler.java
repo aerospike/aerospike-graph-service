@@ -43,7 +43,7 @@ public class FireflyTtlHandler implements Closeable {
 
     public FireflyTtlHandler(final FireflyGraph graph) {
         this.graph = graph;
-        this.isTtlEnabled = graph.getBaseGraph().TTL_ENABLED_FLAG;
+        this.isTtlEnabled = graph.getBaseGraph().TTL_ENABLED_FLAG && !graph.bulkLoaderFlag;
         this.ttlPurgeIntervalMillis = graph.getBaseGraph().TTL_PURGE_INTERVAL_SECONDS * 1000;
         this.thisRunTime = new AtomicLong();
         if (this.isTtlEnabled) {

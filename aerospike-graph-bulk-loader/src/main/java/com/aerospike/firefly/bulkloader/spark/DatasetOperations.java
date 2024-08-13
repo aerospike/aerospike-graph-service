@@ -75,7 +75,6 @@ public class DatasetOperations implements Serializable {
      */
     public static List<Dataset<Row>> createDatasets(final SparkSession spark, final List<String> csvPaths,
                                                     final List<String> requiredHeaders) {
-
         final List<Dataset<Row>> datasets = new ArrayList<>();
         for (final String csv : csvPaths) {
             final Dataset<Row> dataset = spark.read()

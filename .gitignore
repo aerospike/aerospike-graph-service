@@ -37,3 +37,5 @@ hs_err_pid*
 datageneratoroutput/
 *dependency-reduced-pom.xml
 *.iml
+/aerospike-graph-bulk-loader/src/test/resources/recoverydata/vertices/vertexList.csv
+/aerospike-graph-bulk-loader/src/test/resources/recoverydata/edges/edgeList.csv

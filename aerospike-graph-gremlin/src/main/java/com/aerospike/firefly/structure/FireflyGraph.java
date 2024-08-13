@@ -263,7 +263,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
             final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
-            final List<String> plugins = Arrays.asList(pluginConfigString.split(","));
+            final String[] plugins = pluginConfigString.split(",");
             for (final String plugin : plugins) {
                 PluginUtil.loadPlugin(plugin, conf, this);
             }
@@ -396,8 +396,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 final String yamlLocation = getGremlinServerYamlFile();
                 GREMLIN_SERVER_SETTINGS = Settings.read(yamlLocation);
             } catch (final Exception e) {
-                if (System.getenv("FIREFLY_TESTING") == null ||
-                        !System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
+                final String testing = System.getenv("FIREFLY_TESTING");
+                final String bulkLoading = System.getenv("BULK_LOADING");
+                if ((!"true".equalsIgnoreCase(testing)) && "true".equalsIgnoreCase(bulkLoading)) {
                     LOG.error("Failed to load gremlin-server settings file.", e);
                 }
                 GREMLIN_SERVER_SETTINGS = new Settings();

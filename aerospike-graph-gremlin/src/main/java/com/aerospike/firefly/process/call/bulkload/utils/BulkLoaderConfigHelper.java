@@ -59,6 +59,7 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String ALLOWED_DUPLICATE_VERTEX_ID_COUNT = "aerospike.graphloader.allowed-duplicate-vertex-id-count";
     public static final String ALLOWED_BAD_EDGES_COUNT = "aerospike.graphloader.allowed-bad-edges-count";
     public static final String ALLOWED_BAD_ENTRY_COUNT = "aerospike.graphloader.allowed-bad-entry-count";
+    public static final String RECOVERY_FAILURE = "aerospike.graphloader.reserved.recovery-failure";
 
     // ==Internal-only use configurations==
     public static final String S3_ENDPOINT = "aerospike.graphloader.s3-endpoint";
@@ -70,7 +71,8 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String DISABLE_EDGE_WRITE = "disable_edges";
     public static final String DISABLE_VERTEX_WRITE = "disable_vertices";
     public static final String READ_ONLY = "read_only";
-
+    public static final String RESUME = "resume";
+    public static final String CLEAR_EXISTING_DATA = "clear_existing_data";
 
     public static final Map<String, String> KEY_TO_CMD = Map.ofEntries(
             Map.entry(CONFIG_DIRECTORY_KEY, "c"),
@@ -97,7 +99,8 @@ public class BulkLoaderConfigHelper implements Serializable {
             Map.entry(ALLOWED_BAD_EDGES_COUNT, "ade"),
             Map.entry(ALLOWED_BAD_ENTRY_COUNT, "abe"),
 
-            Map.entry(S3_ENDPOINT, "s3e")
+            Map.entry(S3_ENDPOINT, "s3e"),
+            Map.entry(RECOVERY_FAILURE, "rf")
     );
 
     private final Map<String, Object> fileConfig;
@@ -116,6 +119,7 @@ public class BulkLoaderConfigHelper implements Serializable {
         put(ALLOWED_DUPLICATE_VERTEX_ID_COUNT, String.valueOf(Integer.MAX_VALUE));
         put(ALLOWED_BAD_EDGES_COUNT, String.valueOf(Integer.MAX_VALUE));
         put(ALLOWED_BAD_ENTRY_COUNT, String.valueOf(Integer.MAX_VALUE));
+        put(RECOVERY_FAILURE, "false");
     }};
 
     static {

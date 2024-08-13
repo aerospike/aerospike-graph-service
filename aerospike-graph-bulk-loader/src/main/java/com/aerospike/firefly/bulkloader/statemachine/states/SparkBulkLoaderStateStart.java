@@ -158,7 +158,6 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
             }
         }
 
-
         // Recover from checkpoint.
         if (!sparkBulkLoaderStateMachine.readOnly) {
             final String state = info.getState();

@@ -43,7 +43,7 @@ public class SparkBulkLoaderStateCleanUp extends SparkBulkLoaderState {
                     fs.delete(tempDir, true);
                 }
             } catch (final IOException e) {
-                throw new RuntimeException(String.format("Failed to cleanup recovery data in folder %s.", edgeRecoveryDirectory), e);
+                throw new RuntimeException(String.format("Bulk load completed successfully but cleanup failed in folder %s, please do it manually.", edgeRecoveryDirectory), e);
             } finally {
                 sparkBulkLoaderStateMachine.edgeDataset.unpersist();
                 RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());

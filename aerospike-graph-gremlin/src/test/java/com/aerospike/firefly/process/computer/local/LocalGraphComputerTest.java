@@ -124,6 +124,21 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
     }
 
     @Test
+    public void testOut() {
+        final GraphTraversalSource g = graph.traversal();
+        g.V().drop().iterate();
+        g.addV("person").property(T.id, "marko").property("name", "marko").property("age", 32).next();
+        g.addV("person").property(T.id, "stephen").property("name", "stephen").property("age", 35).next();
+        g.addE("knows").from(__.V("marko")).to(__.V("stephen")).next();
+        g.addE("knows").from(__.V("stephen")).to(__.V("marko")).next();
+        final GraphTraversalSource gComputer = graph.traversal().withComputer();
+        //final List<Vertex> vertices = gComputer.V().has(T.id, 1).has(T.id, 2).toList();
+        System.out.println("!!!!!!!!!!!!!! GRAPH COMPUTER QUERY");
+        final List<Vertex> vertices = gComputer.V("marko").out().out().toList();
+        assertEquals(1, vertices.size());
+    }
+
+    @Test
     public void testId() {
         final GraphTraversalSource g = graph.traversal();
         g.V().drop().iterate();

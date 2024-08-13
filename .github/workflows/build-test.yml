@@ -952,6 +952,17 @@ jobs:
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
+      - name: Test Firefly Docker Image Secret Masking
+        run: |
+          echo "Running docker image with secrets"
+          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-secret-masking/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
+          echo "Sleeping for 30 seconds while gremlin-server starts"
+          sleep 30
+
+          echo "Running secret masking test script"
+          bash scripts/test-secret-masking.sh
+          docker stop $(docker ps -q --filter ancestor=firefly)
+          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Launch Firefly Docker Image with Custom yaml
         run: |
           echo "Running docker image with custom yaml file"
@@ -979,7 +990,7 @@ jobs:
           echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image with Security Enabled
         run: |
-          echo "Running docker image with prometheus"
+          echo "Running docker image with security enabled"
           docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-security/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30

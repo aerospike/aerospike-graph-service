@@ -86,17 +86,17 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
     generate_properties(valid_properties, output_properties_file, auth_jwt_secret, auth_jwt_issuer)
     generate_java_options(output_java_options_file, java_options_max_heap, java_options_min_heap)
 
+
 def persist_unified_config(unified_config_file, unified_config):
     print("Persisting configuration to " + unified_config_file)
     with open(unified_config_file, "w") as unified_config_file:
         for line in unified_config:
-            persisted_line = None
-            if any(x in ['token', 'secret', 'password'] for x in line.split("=")[0]):
-                persisted_line = line.split("=")[0] + "=********\n"
-            else:
-                persisted_line = line + "\n"
-            print("Persisting configuration: " + persisted_line)
-            unified_config_file.write(persisted_line)
+            unified_config_file.write(line + "\n")
+            if any(masked_keyword in line.split("=")[0] for masked_keyword in ['token', 'secret', 'password']):
+                print("Persisting configuration: " + line.split("=")[0] + "=********")
+            else :
+                print("Persisting configuration: " + line)
+
 
 def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, output_properties_file, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm):
     rewritten_lines = []
@@ -150,6 +150,7 @@ processors:
             else:
                 output_yaml_print += line + "\n"
         print("Generated yaml file: " + output_yaml_file + "\n" + output_yaml_print)
+
 
 def find_security_credentials(auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm, rewritten_lines):
     secret = None
@@ -209,6 +210,7 @@ authorization: {
     else:
         print("No security credentials found. Skipping security configuration.")
 
+
 def generate_properties(properties, output_properties_file, auth_jwt_secret, auth_jwt_issuer):
     with open(output_properties_file, "w") as prop:
         if "gremlin.graph=com.aerospike.firefly.structure.FireflyGraph" not in properties:
@@ -217,6 +219,7 @@ def generate_properties(properties, output_properties_file, auth_jwt_secret, aut
             prop.write(property + "\n")
         if auth_jwt_secret is not None and auth_jwt_issuer is not None:
             prop.write("aerospike.graph-service.auth.enabled=true\n")
+
 
 def generate_java_options(java_options_file_path, max_heap, min_heap):
     java_options = ""
@@ -242,6 +245,7 @@ def generate_java_options(java_options_file_path, max_heap, min_heap):
     # Write classpath to file. Use 'w' to overwrite file.
     with open(java_options_file_path, "w") as java_options_file:
         java_options_file.write(java_options)
+
 
 if __name__ == "__main__":
     input_properties_file = sys.argv[1]

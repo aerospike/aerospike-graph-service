@@ -959,8 +959,9 @@ jobs:
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
-          echo "Running secret masking test script"
+          echo "Showing docker image logging..."
           docker logs firefly
+          echo "Running secret masking test script"
           bash scripts/test-secret-masking.sh
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"

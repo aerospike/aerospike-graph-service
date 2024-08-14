@@ -960,6 +960,7 @@ jobs:
           sleep 30
 
           echo "Running secret masking test script"
+          docker logs firefly
           bash scripts/test-secret-masking.sh
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"

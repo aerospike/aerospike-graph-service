@@ -1,7 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
-import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStepLocal;
+import com.aerospike.firefly.process.traversal.step.computer.FireflyCompositeIdStepLocal;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;

@@ -9,6 +9,7 @@ import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.GremlinTypeErrorException;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -93,7 +94,6 @@ public class FireflyBatchReadHelper {
         drainDataToOutput(notThat, fireflyIdList, uniqueIdSet, elementMap, readInfo, aerospikeHasContainers, fireflyHasContainers, output, readElements, requiredProperties, false);
     }
 
-
     public static <E extends FireflyElement, T extends Element> void drainDataToOutput(final Step<T, T> notThat,
                                                                                        final List<FireflyId> fireflyIdList,
                                                                                        final Set<FireflyId> uniqueIdSet,
@@ -144,6 +144,60 @@ public class FireflyBatchReadHelper {
                 output.add(info.traverser.split(element, notThat));
                 //else
                 //    output.add(info.traverser.split((T) e, notThat));
+            }
+        }
+
+        // Clear intermediate buffers.
+        fireflyIdList.clear();
+        uniqueIdSet.clear();
+        readInfo.clear();
+    }
+
+    public static <E extends FireflyElement, T extends Element> void drainDataToCache(
+                                                                                       final List<FireflyId> fireflyIdList,
+                                                                                       final Set<FireflyId> uniqueIdSet,
+                                                                                       final Map<FireflyId, E> elementMap,
+                                                                                       final List<ReadStepInfo<T>> readInfo,
+                                                                                       final List<HasContainer> aerospikeHasContainers,
+                                                                                       final List<HasContainer> fireflyHasContainers,
+                                                                                       final Map<Traverser.Admin<T>, Pair<FireflyVertex, List<T>>> output,
+                                                                                       final ReadElements<E> readElements,
+                                                                                       final List<String> requiredProperties) {
+        // Read all IDs in a batch.
+        final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
+        final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds, requiredProperties);
+
+        // If there is a mismatch we might have had concurrent removals or expression filtering. To fix this rematch the lists.
+        if (unorderedIds.size() != unorderedElements.size()) {
+            final Set<FireflyId> unorderedEdgesIds = unorderedElements.stream().map(e -> e.id).collect(Collectors.toSet());
+            final Set<FireflyId> missingIds = new HashSet<>(unorderedIds);
+            missingIds.removeAll(unorderedEdgesIds);
+            unorderedIds.removeAll(missingIds);
+        }
+
+        for (int i = 0; i < unorderedIds.size(); i++) {
+            elementMap.put(unorderedIds.get(i), unorderedElements.get(i));
+        }
+
+        // Loop through the info list and assign the appropriate number of vertices to each traverser using the info.
+        int i = 0;
+        for (final ReadStepInfo<T> info : readInfo) {
+            for (int j = 0; j < info.size; j++) {
+                // Create a new traverser with the edge and add it to the output set using the split.
+                // Note, this is invoked info.size times.
+                final T element = (T) elementMap.get(fireflyIdList.get(i++));
+
+                // Check firefly has containers to ensure we apply all predicates.
+                try {
+                    if (element == null || !HasContainer.testAll(element, fireflyHasContainers)) {
+                        // Element was not found - this is because it was deleted concurrently or filtered via expression.
+                        continue;
+                    }
+                } catch (final GremlinTypeErrorException e) {
+                    // Element was not found due to a predicate filter type mismatch.
+                    continue;
+                }
+                output.get(info.traverser).getRight().add(element);
             }
         }
 

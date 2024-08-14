@@ -1,4 +1,4 @@
-package com.aerospike.firefly.process.traversal.step;
+package com.aerospike.firefly.process.traversal.step.computer;
 
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
@@ -6,26 +6,21 @@ import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
-import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
-import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
-import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.AbstractStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
-import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -33,18 +28,18 @@ import java.util.stream.Collectors;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyCompositeIdStepLocal extends AbstractStep<Vertex, Vertex> implements LocalBarrier<Vertex> {
+public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements PrecomputableComputerStep {
     private final Direction direction;
     private final Set<String> edgeLabels;
 
     // HasContainers to apply to the read of the composite id step to filter results.
     public final List<HasContainer> fireflyHasContainers;
     public final List<HasContainer> aerospikeHasContainers;
-    private final int barrierSize;
     private final List<String> requiredProperties;
-    private TraverserSet<Vertex> barrier;
     final Traversal.Admin traversal;
     final Set<String> labels;
+    private static final ThreadLocal<Map<Traverser.Admin<Vertex>, Pair<FireflyVertex, List<Vertex>>>> cache =
+            ThreadLocal.withInitial(HashMap::new);
 
     public FireflyCompositeIdStepLocal(final Traversal.Admin traversal,
                                        final Direction direction,
@@ -53,13 +48,11 @@ public class FireflyCompositeIdStepLocal extends AbstractStep<Vertex, Vertex> im
                                        final List<HasContainer> hasContainers,
                                        final int barrierSize,
                                        final List<String> requiredProperties) {
-        super(traversal);
+        super(traversal, Vertex.class, direction, edgeLabels);
         this.traversal = traversal;
         this.direction = direction;
-        this.barrier = (TraverserSet<Vertex>) traversal.getTraverserSetSupplier().get();
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
         this.labels = new HashSet<>(labels);
-        this.barrierSize = barrierSize;
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
                     FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) traversal.getGraph().get(), Vertex.class, hasContainers);
@@ -75,28 +68,45 @@ public class FireflyCompositeIdStepLocal extends AbstractStep<Vertex, Vertex> im
         this.requiredProperties = requiredProperties;
     }
 
-    @Override
-    public void processAllStarts() {
-        final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
+    public void add(final Traverser.Admin<?> vertex, final Vertex v) {
+        //System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - add");
+        cache.get().putIfAbsent((Traverser.Admin<Vertex>) vertex, new Pair<>() {
+            final FireflyVertex fireflyVertex = (FireflyVertex) v;
+            final List<Vertex> vertices = new ArrayList<>();
 
-        // Create output traverser set since we cant append to the input while we are iterating.
-        final TraverserSet<Vertex> output = new TraverserSet<>();
+            @Override
+            public FireflyVertex getLeft() {
+                return fireflyVertex;
+            }
+
+            @Override
+            public List<Vertex> getRight() {
+                return vertices;
+            }
+
+            @Override
+            public List<Vertex> setValue(final List<Vertex> value) {
+                return null;
+            }
+        });
+    }
+
+    public void precompute() {
+        //System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - precompute");
+        final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
 
         // Info is used to keep track of how many output items we assign for each input (executed in order).
         final List<FireflyBatchReadHelper.ReadStepInfo<Vertex>> fireflyCompositeIdStepInfos = new ArrayList<>();
         final List<FireflyId> fireflyIdList = new ArrayList<>();
         final Set<FireflyId> uniqueIdSet = new HashSet<>();
         final Map<FireflyId, FireflyVertex> fireflyVertexMap = new TreeMap<>();
-
-        final BulkSet<Object> set = new BulkSet<>();
         int count = 0;
-        while (this.starts.hasNext()) {
+
+        for (final Traverser.Admin<Vertex> traverser : cache.get().keySet()) {
             count++;
             // Get next input traverser and get the FireflyVertex form of it.
-            final Traverser.Admin<Vertex> traverser = this.starts.next();
             traverser.setStepId(this.getNextStep().getId());
-            final ComputerGraph.ComputerVertex computerVertex = (ComputerGraph.ComputerVertex) traverser.get();
-            final FireflyVertex vertex = (FireflyVertex) computerVertex.getBaseVertex();
+            final FireflyVertex vertex = cache.get().get(traverser).getLeft();
 
             // Latch the size of the current id list.
             final int previousSize = fireflyIdList.size();
@@ -115,61 +125,38 @@ public class FireflyCompositeIdStepLocal extends AbstractStep<Vertex, Vertex> im
             if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 // Drain data to output.
-                FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
-                        fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties, true);
+                FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
+                        fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache.get(), graph::readVertices, requiredProperties);
             }
         }
-        System.out.println("!!!!!!!! input -> " + count);
+        System.out.println("!!!!!!!! input " + this.hashCode() + "-> " + count);
 
         // Drain data to output.
-        FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
-                fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties, true);
-
-        System.out.println("!!!!!!!! output -> " + output.size());
-        this.barrier.addAll(output);
-        output.clear(); // Force garbage collection.
+        FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
+                fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache.get(), graph::readVertices, requiredProperties);
     }
 
     @Override
-    public boolean hasNextBarrier() {
-        if (this.barrier.isEmpty()) {
-            this.processAllStarts();
+    protected Iterator<Vertex> flatMap(final Traverser.Admin<Vertex> traverser) {
+        //System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - flatmap");
+        if (cache.get() == null) {
+            System.out.println("No cache");
+            return traverser.get().vertices(this.direction, super.getEdgeLabels());
+        } else if (cache.get().containsKey(traverser)) {
+            System.out.println("Cache hit");
+            return cache.get().get(traverser).getRight().iterator();
+        } else {
+            System.out.println("Cache miss");
+            return traverser.get().vertices(this.direction, super.getEdgeLabels());
         }
-        return !this.barrier.isEmpty();
-    }
-
-    @Override
-    public TraverserSet<Vertex> nextBarrier() throws NoSuchElementException {
-        if (this.barrier.isEmpty()) {
-            this.processAllStarts();
-        }
-        if (this.barrier.isEmpty())
-            throw FastNoSuchElementException.instance();
-        else {
-            final TraverserSet<Vertex> temp = this.barrier;
-            this.barrier = (TraverserSet<Vertex>) this.traversal.getTraverserSetSupplier().get();
-            return temp;
-        }
-    }
-
-    @Override
-    public void addBarrier(final TraverserSet<Vertex> barrier) {
-        this.barrier.addAll(barrier);
     }
 
     @Override
     public void reset() {
-        System.out.println("!!!!!!!! Reset -> " + this.barrier.size());
+        System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - reset");
+        cache.remove();
+        cache.set(new HashMap<>());
         super.reset();
-        this.barrier.clear();
     }
 
-    @Override
-    protected Traverser.Admin<Vertex> processNextStart() throws NoSuchElementException {
-        System.out.println("!!!!!!!! processNextStart -> " + this.barrier.size());
-        if (this.barrier.isEmpty()) {
-            this.processAllStarts();
-        }
-        return this.barrier.remove();
-    }
 }

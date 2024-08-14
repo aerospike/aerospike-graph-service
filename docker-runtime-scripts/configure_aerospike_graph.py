@@ -87,13 +87,16 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
     generate_java_options(output_java_options_file, java_options_max_heap, java_options_min_heap)
 
 def persist_unified_config(unified_config_file, unified_config):
-    print("persisting " + str(unified_config) + " to " + unified_config_file)
+    print("Persisting configuration to " + unified_config_file)
     with open(unified_config_file, "w") as unified_config_file:
         for line in unified_config:
+            persisted_line = None
             if any(x in ['token', 'secret', 'password'] for x in line.split("=")[0]):
-                unified_config_file.write(line.split("=")[0] + "=********\n")
+                persisted_line = line.split("=")[0] + "=********\n"
             else:
-                unified_config_file.write(line + "\n")
+                persisted_line = line + "\n"
+            print("Persisting configuration: " + persisted_line)
+            unified_config_file.write(persisted_line)
 
 def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, output_properties_file, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm):
     rewritten_lines = []

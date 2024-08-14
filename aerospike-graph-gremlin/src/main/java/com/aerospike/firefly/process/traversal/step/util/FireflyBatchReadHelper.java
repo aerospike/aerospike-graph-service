@@ -160,7 +160,7 @@ public class FireflyBatchReadHelper {
                                                                                        final List<ReadStepInfo<T>> readInfo,
                                                                                        final List<HasContainer> aerospikeHasContainers,
                                                                                        final List<HasContainer> fireflyHasContainers,
-                                                                                       final Map<Traverser.Admin<T>, Pair<FireflyVertex, List<T>>> output,
+                                                                                       final Map<FireflyId, FireflyVertex> output,
                                                                                        final ReadElements<E> readElements,
                                                                                        final List<String> requiredProperties) {
         // Read all IDs in a batch.
@@ -197,7 +197,8 @@ public class FireflyBatchReadHelper {
                     // Element was not found due to a predicate filter type mismatch.
                     continue;
                 }
-                output.get(info.traverser).getRight().add(element);
+                FireflyElement e = (FireflyElement) element;
+                output.put(e.id, (FireflyVertex) e);
             }
         }
 

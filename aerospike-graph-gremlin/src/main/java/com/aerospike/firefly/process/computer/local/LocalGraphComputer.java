@@ -9,6 +9,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.computer.ComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
@@ -202,7 +203,8 @@ public class LocalGraphComputer implements GraphComputer {
                             workers.executeVertexProgram((vertices, vertexProgram, workerMemory) -> {
                                 long counter = 0;
                                 vertexProgram.workerIterationStart(workerMemory.asImmutable());
-                                vertices = preComputeVertices(vertices, vertexProgram, workerMemory);
+                                Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = preComputeVertices(vertices, vertexProgram, workerMemory);
+                                vertices = output.getLeft();
                                 while (vertices.hasNext()) {
                                     final Vertex vertex = vertices.next();
                                     counter++;
@@ -213,12 +215,15 @@ public class LocalGraphComputer implements GraphComputer {
                                                 new LocalMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner()),
                                                 workerMemory);
                                     } catch (final Exception e) {
-                                        LOG.error("Worker failed evaluating vertex {}: {}", vertex.id(), e.getMessage());
+                                        LOG.error("Worker failed evaluating vertex {}", vertex.id(), e);
                                     }
                                 }
                                 vertexProgram.workerIterationEnd(workerMemory.asImmutable());
                                 workerMemory.complete();
                                 vertexCount.getAndAdd(counter);
+                                if (output.getRight() != null) {
+                                    output.getRight().release();
+                                }
                                 return counter;
                             }, this.graphFilter);
                             this.messageBoard.completeIteration();
@@ -331,9 +336,9 @@ public class LocalGraphComputer implements GraphComputer {
         return precomputableComputerStep;
     }
 
-    private Iterator<FireflyVertex> preComputeVertices(final Iterator<FireflyVertex> vertices,
-                                                       final VertexProgram vertexProgram,
-                                                       final LocalWorkerMemory memory) {
+    private Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> preComputeVertices(final Iterator<FireflyVertex> vertices,
+                                                                                        final VertexProgram vertexProgram,
+                                                                                        final LocalWorkerMemory memory) {
         final IndexedTraverserSet<Object,Vertex> maybeActiveTraversers = memory.get(TraversalVertexProgram.ACTIVE_TRAVERSERS);
         final PureTraversal<?, ?> traversal = ((TraversalVertexProgram) vertexProgram).getTraversal().clone();
         if (!traversal.get().isLocked())
@@ -350,33 +355,64 @@ public class LocalGraphComputer implements GraphComputer {
                     if (traversers == null) {
                         continue;
                     }
-                    traversers.forEach(traverser ->
-                            precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser));
-                }
-
-                vertex.<TraverserSet<Object>>property(TraversalVertexProgram.ACTIVE_TRAVERSERS).ifPresent(previousActiveTraversers -> {
-                    previousActiveTraversers.stream().forEach(traverser ->
-                            precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser));
-                });
-
-                LocalMessenger messenger = new LocalMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner());
-                final Iterator<TraverserSet<Object>> messages = messenger.receiveMessages();
-                while (messages.hasNext()) {
-                    final TraverserSet<Object> traversers = messages.next();
                     traversers.forEach(traverser -> {
-                        if (!traverser.isHalted()) {
-                            precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
+                        precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
+                        if (precomputableComputerStep[0] != null) {
+                            System.out.println("maybeActiveTraversers");
                         }
                     });
                 }
 
+                vertex.<TraverserSet<Object>>property(TraversalVertexProgram.ACTIVE_TRAVERSERS).ifPresent(previousActiveTraversers -> {
+                    previousActiveTraversers.stream().forEach(traverser -> {
+                            precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
+                            if (precomputableComputerStep[0] != null) {
+                                System.out.println("previousActiveTraversers");
+                            }
+                    });
+                });
+
+                LocalMessenger messenger = new LocalMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner());
+                Iterator<TraverserSet<Object>> messages = messenger.receiveMessages();
+                int msgCount1 = 0;
+                while (messages.hasNext()) {
+                    msgCount1++;
+                    final TraverserSet<Object> traversers = messages.next();
+                    traversers.forEach(traverser -> {
+                        if (!traverser.isHalted()) {
+                            precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
+                            if (precomputableComputerStep[0] != null) {
+                                System.out.println("Messageboard");
+                            }
+                        }
+                    });
+                }
             }
         }
 
         if (precomputableComputerStep[0] != null) {
             precomputableComputerStep[0].precompute();
         }
-        return outputVertices.iterator();
+
+        return new Pair<>() {
+            final Iterator<FireflyVertex> ffv = outputVertices.iterator();
+            final PrecomputableComputerStep pccs = precomputableComputerStep[0];
+
+            @Override
+            public Iterator<FireflyVertex> getLeft() {
+                return ffv;
+            }
+
+            @Override
+            public PrecomputableComputerStep getRight() {
+                return pccs;
+            }
+
+            @Override
+            public PrecomputableComputerStep setValue(final PrecomputableComputerStep value) {
+                return null;
+            }
+        };
     }
 
     @Override

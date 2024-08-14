@@ -7,6 +7,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
@@ -38,8 +39,10 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
     private final List<String> requiredProperties;
     final Traversal.Admin traversal;
     final Set<String> labels;
-    private static final ThreadLocal<Map<Traverser.Admin<Vertex>, Pair<FireflyVertex, List<Vertex>>>> cache =
+    private static final ThreadLocal<Map<FireflyId, FireflyVertex>> cache =
             ThreadLocal.withInitial(HashMap::new);
+    private static final ThreadLocal<List<Pair<Traverser.Admin<Vertex>, FireflyVertex>>> inputCache =
+            ThreadLocal.withInitial(ArrayList::new);
 
     public FireflyCompositeIdStepLocal(final Traversal.Admin traversal,
                                        final Direction direction,
@@ -68,31 +71,31 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
         this.requiredProperties = requiredProperties;
     }
 
-    public void add(final Traverser.Admin<?> vertex, final Vertex v) {
+    public void add(final Traverser.Admin<?> tv, final Vertex v) {
         //System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - add");
-        cache.get().putIfAbsent((Traverser.Admin<Vertex>) vertex, new Pair<>() {
-            final FireflyVertex fireflyVertex = (FireflyVertex) v;
-            final List<Vertex> vertices = new ArrayList<>();
-
+        inputCache.get().add(new Pair<>() {
             @Override
-            public FireflyVertex getLeft() {
-                return fireflyVertex;
-            }
-
-            @Override
-            public List<Vertex> getRight() {
-                return vertices;
-            }
-
-            @Override
-            public List<Vertex> setValue(final List<Vertex> value) {
+            public FireflyVertex setValue(final FireflyVertex value) {
                 return null;
+            }
+
+            final Traverser.Admin<Vertex> traverser = (Traverser.Admin<Vertex>) tv;
+            final FireflyVertex vertex = (FireflyVertex) v;
+
+            @Override
+            public Traverser.Admin<Vertex> getLeft() {
+                return traverser;
+            }
+
+            @Override
+            public FireflyVertex getRight() {
+                return vertex;
             }
         });
     }
 
     public void precompute() {
-        //System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - precompute");
+        System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - precompute");
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
 
         // Info is used to keep track of how many output items we assign for each input (executed in order).
@@ -102,11 +105,11 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
         final Map<FireflyId, FireflyVertex> fireflyVertexMap = new TreeMap<>();
         int count = 0;
 
-        for (final Traverser.Admin<Vertex> traverser : cache.get().keySet()) {
+        for (final Pair<Traverser.Admin<Vertex>, FireflyVertex> pair : inputCache.get()) {
             count++;
             // Get next input traverser and get the FireflyVertex form of it.
-            traverser.setStepId(this.getNextStep().getId());
-            final FireflyVertex vertex = cache.get().get(traverser).getLeft();
+            pair.getLeft().setStepId(this.getNextStep().getId());
+            final FireflyVertex vertex = pair.getRight();
 
             // Latch the size of the current id list.
             final int previousSize = fireflyIdList.size();
@@ -119,7 +122,7 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
 
             // Calculate how many ids were added by the function (size of list - previous size).
             // Create composite id info with this value and the appropriate traverser to the info list.
-            fireflyCompositeIdStepInfos.add(new FireflyBatchReadHelper.ReadStepInfo<>(traverser, fireflyIdList.size() - previousSize));
+            fireflyCompositeIdStepInfos.add(new FireflyBatchReadHelper.ReadStepInfo<>(pair.getLeft(), fireflyIdList.size() - previousSize));
 
             // If we reach or exceed batch size then execute so we don't use too much memory at any given point. Also drain if list size gets very big.
             if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
@@ -129,7 +132,6 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
                         fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache.get(), graph::readVertices, requiredProperties);
             }
         }
-        System.out.println("!!!!!!!! input " + this.hashCode() + "-> " + count);
 
         // Drain data to output.
         FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
@@ -138,25 +140,36 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
 
     @Override
     protected Iterator<Vertex> flatMap(final Traverser.Admin<Vertex> traverser) {
-        //System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - flatmap");
+        System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - flatmap");
         if (cache.get() == null) {
             System.out.println("No cache");
             return traverser.get().vertices(this.direction, super.getEdgeLabels());
-        } else if (cache.get().containsKey(traverser)) {
-            System.out.println("Cache hit");
-            return cache.get().get(traverser).getRight().iterator();
         } else {
-            System.out.println("Cache miss");
-            return traverser.get().vertices(this.direction, super.getEdgeLabels());
+            List<Vertex> output = new ArrayList<>();
+            List<FireflyId> missingIds = new ArrayList<>();
+            FireflyVertex fireflyVertex = (FireflyVertex) ((ComputerGraph.ComputerVertex) traverser.get()).getBaseVertex();
+            fireflyVertex.getVertexIdsFromVertex(direction, edgeLabels).forEachRemaining(id -> {
+                if (cache.get().containsKey(id)) {
+                    System.out.println("Cache hit");
+                    output.add(cache.get().get(id));
+                } else {
+                    System.out.println("Cache miss");
+                    missingIds.add(id);
+                }
+            });
+            final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
+            System.out.println("Missing ids: " + missingIds.size());
+            List<FireflyVertex> vertices = graph.readVertices(List.of(), missingIds, requiredProperties);
+            System.out.println("Vertices: " + vertices.size());
+            output.addAll(vertices);
+            System.out.println("output: " + output.size());
+            return output.iterator();
         }
     }
 
     @Override
-    public void reset() {
-        System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - reset");
-        cache.remove();
-        cache.set(new HashMap<>());
-        super.reset();
+    public void release() {
+        cache.get().clear();
+        inputCache.get().clear();
     }
-
 }

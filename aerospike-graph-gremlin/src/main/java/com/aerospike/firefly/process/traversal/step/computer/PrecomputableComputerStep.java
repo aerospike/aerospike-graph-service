@@ -6,4 +6,5 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 public interface PrecomputableComputerStep {
     void precompute();
     void add(Traverser.Admin<?> t, Vertex v);
+    void release();
 }

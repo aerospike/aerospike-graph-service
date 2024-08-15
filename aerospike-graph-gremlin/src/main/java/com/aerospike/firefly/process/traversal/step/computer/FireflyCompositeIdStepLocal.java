@@ -69,6 +69,9 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
             aerospikeHasContainers = List.of();
         }
         this.requiredProperties = requiredProperties;
+        for (final String label : labels) {
+            this.addLabel(label);
+        }
     }
 
     public void add(final Traverser.Admin<?> tv, final Vertex v) {
@@ -108,7 +111,6 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
         for (final Pair<Traverser.Admin<Vertex>, FireflyVertex> pair : inputCache.get()) {
             count++;
             // Get next input traverser and get the FireflyVertex form of it.
-            pair.getLeft().setStepId(this.getNextStep().getId());
             final FireflyVertex vertex = pair.getRight();
 
             // Latch the size of the current id list.
@@ -162,7 +164,6 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
             List<FireflyVertex> vertices = graph.readVertices(List.of(), missingIds, requiredProperties);
             System.out.println("Vertices: " + vertices.size());
             output.addAll(vertices);
-            System.out.println("output: " + output.size());
             return output.iterator();
         }
     }

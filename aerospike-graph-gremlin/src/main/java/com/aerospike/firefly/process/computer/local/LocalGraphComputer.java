@@ -24,6 +24,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.IndexedTraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
@@ -53,6 +54,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -207,6 +209,7 @@ public class LocalGraphComputer implements GraphComputer {
                                 vertices = output.getLeft();
                                 while (vertices.hasNext()) {
                                     final Vertex vertex = vertices.next();
+                                    System.out.println(vertex.id());
                                     counter++;
                                     if (Thread.interrupted()) throw new TraversalInterruptedException();
                                     try {
@@ -332,7 +335,16 @@ public class LocalGraphComputer implements GraphComputer {
                 precomputableComputerStep = (PrecomputableComputerStep) currentStep;
             }
             precomputableComputerStep.add(traverser, vertex);
+        } else if (currentStep instanceof GraphStep) {
+            final Step<?, ?> nextStep = currentStep.getNextStep();
+            if (nextStep instanceof PrecomputableComputerStep) {
+                if (precomputableComputerStep == null) {
+                    precomputableComputerStep = (PrecomputableComputerStep) nextStep;
+                }
+                precomputableComputerStep.add(traverser, vertex);
+            }
         }
+
         return precomputableComputerStep;
     }
 
@@ -374,12 +386,12 @@ public class LocalGraphComputer implements GraphComputer {
 
                 LocalMessenger messenger = new LocalMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner());
                 Iterator<TraverserSet<Object>> messages = messenger.receiveMessages();
-                int msgCount1 = 0;
+                final AtomicInteger msgCount1 = new AtomicInteger();
                 while (messages.hasNext()) {
-                    msgCount1++;
                     final TraverserSet<Object> traversers = messages.next();
                     traversers.forEach(traverser -> {
                         if (!traverser.isHalted()) {
+                            msgCount1.getAndIncrement();
                             precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
                             if (precomputableComputerStep[0] != null) {
                                 System.out.println("Messageboard");

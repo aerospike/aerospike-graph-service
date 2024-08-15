@@ -462,7 +462,15 @@ public final class ConfigurationHelper {
             props.keySet().forEach(it -> {
                 final String key = it.toString().toLowerCase();
                 final Object value = props.get(it.toString());
-                LOG.debug("config[{}:{}]", key, value);
+                if (LOG.isDebugEnabled()) {
+                    final Object maskedValue;
+                    if (key.contains("password") || key.contains("secret") || key.contains("token")) {
+                        maskedValue = "*******";
+                    } else {
+                        maskedValue = value;
+                    }
+                    LOG.debug("config: [{}:{}]", key, maskedValue);
+                }
                 configData.put(key, value);
             });
             return new MapConfiguration(configData);

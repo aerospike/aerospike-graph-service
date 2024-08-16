@@ -143,17 +143,15 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
 
     @Override
     protected Iterator<Vertex> flatMap(final Traverser.Admin<Vertex> traverser) {
-        System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - flatmapVertex");
         final AtomicInteger cacheMisses = new AtomicInteger();
         final AtomicInteger cacheHits = new AtomicInteger();
         if (cache.get() == null) {
-            System.out.println("NO CACHE");
-            Iterator<Vertex> vertices = traverser.get().vertices(this.direction, super.getEdgeLabels());
+            final Iterator<Vertex> vertices = traverser.get().vertices(this.direction, super.getEdgeLabels());
             return FireflyCloseableIteratorUtils.filter(vertices, v -> HasContainer.testAll(v, fireflyHasContainers));
         } else {
-            List<Vertex> output = new ArrayList<>();
-            List<FireflyId> missingIds = new ArrayList<>();
-            FireflyVertex fireflyVertex = (FireflyVertex) ((ComputerGraph.ComputerVertex) traverser.get()).getBaseVertex();
+            final List<Vertex> output = new ArrayList<>();
+            final List<FireflyId> missingIds = new ArrayList<>();
+            final FireflyVertex fireflyVertex = (FireflyVertex) ((ComputerGraph.ComputerVertex) traverser.get()).getBaseVertex();
             fireflyVertex.getVertexIdsFromVertex(direction, edgeLabels).forEachRemaining(id -> {
                 if (cache.get().containsKey(id)) {
                     cacheHits.getAndIncrement();
@@ -164,10 +162,8 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
                 }
             });
             final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
-            List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, missingIds, requiredProperties);
+            final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, missingIds, requiredProperties);
             output.addAll(vertices);
-            System.out.println("Vertex Cache hits: " + cacheHits.get());
-            System.out.println("Vertex Cache misses: " + cacheMisses.get());
             return FireflyCloseableIteratorUtils.filter(output.iterator(), v -> HasContainer.testAll(v, fireflyHasContainers));
         }
     }

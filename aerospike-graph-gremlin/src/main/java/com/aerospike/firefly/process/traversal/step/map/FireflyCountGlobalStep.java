@@ -37,7 +37,6 @@ public class FireflyCountGlobalStep<S extends Element> extends AbstractStep<S, L
     protected Traverser.Admin<Long> processNextStart() throws NoSuchElementException {
         if (!this.done) {
             this.done = true;
-            System.out.println("FireflyCountGlobalStep.processNextStart");
             final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
             return this.getTraversal().getTraverserGenerator().generate(Vertex.class.isAssignableFrom(this.elementClass) ?
                             FireflyHelper.countVertices(graph, aerospikeHasContainers) : FireflyHelper.countEdges(graph),

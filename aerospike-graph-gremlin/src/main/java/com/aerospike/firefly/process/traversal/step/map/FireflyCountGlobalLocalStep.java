@@ -30,8 +30,7 @@ public class FireflyCountGlobalLocalStep<S> extends ReducingBarrierStep<S, Long>
 
     @Override
     public Long projectTraverser(final Traverser.Admin<S> traverser) {
-        System.out.println("FOO");
-        S element = traverser.get();
+        final S element = traverser.get();
         final FireflyVertex fireflyVertex;
         if (element instanceof ComputerGraph.ComputerVertex) {
             fireflyVertex = (FireflyVertex) ((ComputerGraph.ComputerVertex) element).getBaseVertex();

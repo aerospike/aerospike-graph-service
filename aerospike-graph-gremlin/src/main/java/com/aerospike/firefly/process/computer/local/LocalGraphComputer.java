@@ -26,7 +26,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.BranchStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.branch.LocalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.RepeatStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
@@ -223,7 +222,7 @@ public class LocalGraphComputer implements GraphComputer {
                                 final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.get());
                                 long counter = 0;
                                 vertexProgram.workerIterationStart(workerMemory.asImmutable());
-                                Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = preComputeVertices(traversalMatrix, vertices, (TraversalVertexProgram) vertexProgram, workerMemory);
+                                final Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = preComputeVertices(traversalMatrix, vertices, (TraversalVertexProgram) vertexProgram, workerMemory);
                                 vertices = output.getLeft();
                                 while (vertices.hasNext()) {
                                     final Vertex vertex = vertices.next();
@@ -345,95 +344,81 @@ public class LocalGraphComputer implements GraphComputer {
         }
     }
 
-    private PrecomputableComputerStep updatePrecompute(FireflyVertex vertex, PrecomputableComputerStep precomputableComputerStep, TraversalMatrix<?, ?> traversalMatrix, final Traverser.Admin<?> traverser) {
+    private PrecomputableComputerStep updatePrecompute(final FireflyVertex vertex,
+                                                       final PrecomputableComputerStep precomputableComputerStep,
+                                                       final TraversalMatrix<?, ?> traversalMatrix,
+                                                       final Traverser.Admin<?> traverser) {
+        PrecomputableComputerStep localPrecomputableComputerStep = precomputableComputerStep;
         final Step<Object, Object> currentStep = traversalMatrix.getStepById(traverser.getStepId());
         if (currentStep instanceof PrecomputableComputerStep) {
-            if (precomputableComputerStep == null) {
-                precomputableComputerStep = (PrecomputableComputerStep) currentStep;
+            if (localPrecomputableComputerStep == null) {
+                localPrecomputableComputerStep = (PrecomputableComputerStep) currentStep;
             }
-            precomputableComputerStep.add(traverser, vertex);
+            localPrecomputableComputerStep.add(traverser, vertex);
         } else if (currentStep instanceof GraphStep) {
             final Step<?, ?> nextStep = currentStep.getNextStep();
             if (nextStep instanceof PrecomputableComputerStep) {
-                if (precomputableComputerStep == null) {
-                    precomputableComputerStep = (PrecomputableComputerStep) nextStep;
+                if (localPrecomputableComputerStep == null) {
+                    localPrecomputableComputerStep = (PrecomputableComputerStep) nextStep;
                 }
-                precomputableComputerStep.add(traverser, vertex);
+                localPrecomputableComputerStep.add(traverser, vertex);
             }
         } else if (currentStep instanceof TraversalParent) {
             final TraversalParent traversalParent = (TraversalParent) currentStep;
             final List<? extends Traversal.Admin<?, ?>> globalChildren = traversalParent.getGlobalChildren();
             for (final Traversal.Admin<?, ?> globalChild : globalChildren) {
                 if (globalChild.getStartStep() instanceof PrecomputableComputerStep) {
-                    if (precomputableComputerStep == null) {
-                        precomputableComputerStep = (PrecomputableComputerStep) globalChild.getStartStep();
+                    if (localPrecomputableComputerStep == null) {
+                        localPrecomputableComputerStep = (PrecomputableComputerStep) globalChild.getStartStep();
                     }
-                    precomputableComputerStep.add(traverser, vertex);
-                } else if (globalChild.getStartStep() instanceof HasStep) {
-                    final HasStep hasStep = (HasStep) globalChild.getStartStep();
-                    if (hasStep.getNextStep() instanceof PrecomputableComputerStep) {
-                        if (HasContainer.testAll(vertex, hasStep.getHasContainers())) {
-                            if (precomputableComputerStep == null) {
-                                precomputableComputerStep = (PrecomputableComputerStep) hasStep.getNextStep();
-                            }
-                            precomputableComputerStep.add(traverser, vertex);
-                        }
-                    }
+                    localPrecomputableComputerStep.add(traverser, vertex);
+                } else {
+                    localPrecomputableComputerStep = getPrecomputableComputerStep(vertex, localPrecomputableComputerStep, traverser, globalChild);
                 }
             }
-            List<? extends Traversal.Admin<?, ?>> children = traversalParent.getLocalChildren();
+            final List<? extends Traversal.Admin<?, ?>> children = traversalParent.getLocalChildren();
             for (final Traversal.Admin<?, ?> child : children) {
                 if (child.getStartStep() instanceof PrecomputableComputerStep) {
-                    if (precomputableComputerStep == null) {
-                        precomputableComputerStep = (PrecomputableComputerStep) child.getStartStep();
+                    if (localPrecomputableComputerStep == null) {
+                        localPrecomputableComputerStep = (PrecomputableComputerStep) child.getStartStep();
                     }
-                    precomputableComputerStep.add(traverser, vertex);
+                    localPrecomputableComputerStep.add(traverser, vertex);
                 }
-                if (child.getStartStep() instanceof HasStep) {
-                    final HasStep hasStep = (HasStep) child.getStartStep();
-                    if (hasStep.getNextStep() instanceof PrecomputableComputerStep) {
-                        if (HasContainer.testAll(vertex, hasStep.getHasContainers())) {
-                            if (precomputableComputerStep == null) {
-                                precomputableComputerStep = (PrecomputableComputerStep) hasStep.getNextStep();
-                            }
-                            precomputableComputerStep.add(traverser, vertex);
-                        }
-                    }
-                }
-            }
-        } else if (currentStep instanceof RepeatStep) {
-            final RepeatStep<?> repeatStep = (RepeatStep<?>) currentStep;
-            Traversal.Admin<?, ?> innerTraversal = repeatStep.getRepeatTraversal();
-            if (innerTraversal.getStartStep() instanceof PrecomputableComputerStep) {
-                if (precomputableComputerStep == null) {
-                    precomputableComputerStep = (PrecomputableComputerStep) innerTraversal.getStartStep();
-                }
-                precomputableComputerStep.add(traverser, vertex);
-            }
-        } else if (currentStep instanceof BranchStep) {
-            final BranchStep<?, ?, ?> branchStep = (BranchStep<?, ?, ?>) currentStep;
-            final List<? extends Traversal.Admin<?, ?>> localBranches = branchStep.getGlobalChildren();
-            for (final Traversal.Admin<?, ?> branch : localBranches) {
-                if (branch.getStartStep() instanceof PrecomputableComputerStep) {
-                    if (precomputableComputerStep == null) {
-                        precomputableComputerStep = (PrecomputableComputerStep) branch.getStartStep();
-                    }
-                    precomputableComputerStep.add(traverser, vertex);
-                }
+                localPrecomputableComputerStep = getPrecomputableComputerStep(vertex, localPrecomputableComputerStep, traverser, child);
             }
         }
 
         return precomputableComputerStep;
     }
 
+    private PrecomputableComputerStep getPrecomputableComputerStep(final FireflyVertex vertex,
+                                                                   final PrecomputableComputerStep precomputableComputerStep,
+                                                                   final Traverser.Admin<?> traverser,
+                                                                   final Traversal.Admin<?, ?> child) {
+        PrecomputableComputerStep localPrecomputableComputerStep = precomputableComputerStep;
+        if (child.getStartStep() instanceof HasStep) {
+            final HasStep hasStep = (HasStep) child.getStartStep();
+            if (hasStep.getNextStep() instanceof PrecomputableComputerStep) {
+                if (HasContainer.testAll(vertex, hasStep.getHasContainers())) {
+                    if (localPrecomputableComputerStep == null) {
+                        localPrecomputableComputerStep = (PrecomputableComputerStep) hasStep.getNextStep();
+                    }
+                    localPrecomputableComputerStep.add(traverser, vertex);
+                }
+            }
+        }
+        return localPrecomputableComputerStep;
+    }
+
     private Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> preComputeVertices(final TraversalMatrix<?, ?> traversalMatrix,
                                                                                         final Iterator<FireflyVertex> vertices,
                                                                                         final TraversalVertexProgram vertexProgram,
                                                                                         final LocalWorkerMemory memory) {
+        final List<FireflyVertex> outputVertices = new ArrayList<>();
+        final PrecomputableComputerStep[] precomputableComputerStep = {null};
         if (memory.isInitialIteration()) {
-            final List<FireflyVertex> outputVertices = new ArrayList<>();
-            final PrecomputableComputerStep[] precomputableComputerStep = {null};
-            for (final FireflyVertex vertex : IteratorUtils.list(vertices)) {
+            while (vertices.hasNext()) {
+                final FireflyVertex vertex = vertices.next();
                 outputVertices.add(vertex);
                 final TraverserSet<Object> activeTraversers = new TraverserSet<>();
                 final VertexProperty<TraverserSet<Object>> property = vertex.property(HALTED_TRAVERSERS);
@@ -444,7 +429,6 @@ public class LocalGraphComputer implements GraphComputer {
                     haltedTraversers = new TraverserSet<>();
                 }
                 haltedTraversers.stream().iterator().forEachRemaining(activeTraversers::add);
-
                 if (vertexProgram.getTraversal().get().getStartStep() instanceof GraphStep) {
                     final GraphStep<Element, Element> graphStep = (GraphStep<Element, Element>) vertexProgram.getTraversal().get().getStartStep();
                     graphStep.reset();
@@ -459,45 +443,13 @@ public class LocalGraphComputer implements GraphComputer {
                             activeTraversers.add((Traverser.Admin) traverser);
                         }
                     });
-                    if (graphStep.getNextStep() instanceof PrecomputableComputerStep) {
-
-                    }
                 }
 
-                activeTraversers.forEach(traverser -> {
-                    precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
-                    if (precomputableComputerStep[0] != null) {
-                        System.out.println("activeTraversers");
-                    }
-                });
+                activeTraversers.forEach(traverser ->
+                        precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser));
             }
-            if (precomputableComputerStep[0] != null) {
-                precomputableComputerStep[0].precompute();
-            }
-
-            return new Pair<>() {
-                final Iterator<FireflyVertex> ffv = outputVertices.iterator();
-                final PrecomputableComputerStep pccs = precomputableComputerStep[0];
-
-                @Override
-                public Iterator<FireflyVertex> getLeft() {
-                    return ffv;
-                }
-
-                @Override
-                public PrecomputableComputerStep getRight() {
-                    return pccs;
-                }
-
-                @Override
-                public PrecomputableComputerStep setValue(final PrecomputableComputerStep value) {
-                    return null;
-                }
-            };
         } else {
             final IndexedTraverserSet<Object, Vertex> maybeActiveTraversers = memory.get(TraversalVertexProgram.ACTIVE_TRAVERSERS);
-            final PrecomputableComputerStep[] precomputableComputerStep = {null};
-            final List<FireflyVertex> outputVertices = new ArrayList<>();
             while (vertices.hasNext()) {
                 final FireflyVertex vertex = vertices.next();
                 outputVertices.add(vertex);
@@ -507,64 +459,53 @@ public class LocalGraphComputer implements GraphComputer {
                         if (traversers == null) {
                             continue;
                         }
-                        traversers.forEach(traverser -> {
-                            precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
-                            if (precomputableComputerStep[0] != null) {
-                                System.out.println("maybeActiveTraversers");
-                            }
-                        });
+                        traversers.forEach(traverser -> precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser));
                     }
 
                     vertex.<TraverserSet<Object>>property(TraversalVertexProgram.ACTIVE_TRAVERSERS).ifPresent(previousActiveTraversers -> {
-                        previousActiveTraversers.stream().forEach(traverser -> {
+                        previousActiveTraversers.forEach(traverser -> {
                             precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
-                            if (precomputableComputerStep[0] != null) {
-                                System.out.println("previousActiveTraversers");
-                            }
                         });
                     });
 
-                    LocalMessenger messenger = new LocalMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner());
-                    Iterator<TraverserSet<Object>> messages = messenger.receiveMessages();
-                    final AtomicInteger msgCount1 = new AtomicInteger();
+                    final LocalMessenger<TraverserSet<Object>> messenger = new LocalMessenger<TraverserSet<Object>>(
+                            vertex, this.messageBoard, vertexProgram.getMessageCombiner());
+                    final Iterator<TraverserSet<Object>> messages = messenger.receiveMessages();
                     while (messages.hasNext()) {
                         final TraverserSet<Object> traversers = messages.next();
                         traversers.forEach(traverser -> {
                             if (!traverser.isHalted()) {
-                                msgCount1.getAndIncrement();
                                 precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
-                                if (precomputableComputerStep[0] != null) {
-                                    System.out.println("Messageboard");
-                                }
                             }
                         });
                     }
                 }
             }
-            if (precomputableComputerStep[0] != null) {
-                precomputableComputerStep[0].precompute();
+        }
+
+        if (precomputableComputerStep[0] != null) {
+            precomputableComputerStep[0].precompute();
+        }
+
+        return new Pair<>() {
+            final Iterator<FireflyVertex> ffv = outputVertices.iterator();
+            final PrecomputableComputerStep pccs = precomputableComputerStep[0];
+
+            @Override
+            public Iterator<FireflyVertex> getLeft() {
+                return ffv;
             }
 
-            return new Pair<>() {
-                final Iterator<FireflyVertex> ffv = outputVertices.iterator();
-                final PrecomputableComputerStep pccs = precomputableComputerStep[0];
+            @Override
+            public PrecomputableComputerStep getRight() {
+                return pccs;
+            }
 
-                @Override
-                public Iterator<FireflyVertex> getLeft() {
-                    return ffv;
-                }
-
-                @Override
-                public PrecomputableComputerStep getRight() {
-                    return pccs;
-                }
-
-                @Override
-                public PrecomputableComputerStep setValue(final PrecomputableComputerStep value) {
-                    return null;
-                }
-            };
-        }
+            @Override
+            public PrecomputableComputerStep setValue(final PrecomputableComputerStep value) {
+                return null;
+            }
+        };
     }
 
     @Override

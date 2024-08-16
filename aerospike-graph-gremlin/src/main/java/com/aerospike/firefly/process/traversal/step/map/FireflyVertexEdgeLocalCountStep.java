@@ -30,7 +30,6 @@ public class FireflyVertexEdgeLocalCountStep extends MapStep<Vertex, Long> {
 
     @Override
     protected Traverser.Admin<Long> processNextStart() throws NoSuchElementException {
-        System.out.println("FireflyVertexEdgeLocalCountStep.processNextStart");
         final Traverser.Admin<Vertex> traverser = this.starts.next();
         final FireflyVertex vertex = isGraphComputer ?
                 (FireflyVertex) ((ComputerGraph.ComputerVertex) traverser.get()).getBaseVertex() :

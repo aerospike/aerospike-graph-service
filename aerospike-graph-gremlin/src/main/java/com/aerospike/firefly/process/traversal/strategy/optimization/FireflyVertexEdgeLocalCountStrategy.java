@@ -35,8 +35,8 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
             }
         }
 
-        //if (TraversalHelper.onGraphComputer(traversal))
-        //    return;
+        if (!TraversalHelper.onGraphComputer(traversal))
+            return;
 
         for (final LocalStep localStep : TraversalHelper.getStepsOfClass(LocalStep.class, traversal)) {
             final List<Traversal.Admin> localTraversal = localStep.getLocalChildren();

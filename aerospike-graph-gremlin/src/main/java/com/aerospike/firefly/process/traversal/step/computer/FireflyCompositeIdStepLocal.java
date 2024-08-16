@@ -6,6 +6,7 @@ import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -145,7 +146,8 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
         System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - flatmap");
         if (cache.get() == null) {
             System.out.println("No cache");
-            return traverser.get().vertices(this.direction, super.getEdgeLabels());
+            Iterator<Vertex> vertices = traverser.get().vertices(this.direction, super.getEdgeLabels());
+            return FireflyCloseableIteratorUtils.filter(vertices, v -> HasContainer.testAll(v, fireflyHasContainers));
         } else {
             List<Vertex> output = new ArrayList<>();
             List<FireflyId> missingIds = new ArrayList<>();
@@ -164,7 +166,7 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
             List<FireflyVertex> vertices = graph.readVertices(List.of(), missingIds, requiredProperties);
             System.out.println("Vertices: " + vertices.size());
             output.addAll(vertices);
-            return output.iterator();
+            return FireflyCloseableIteratorUtils.filter(output.iterator(), v -> HasContainer.testAll(v, fireflyHasContainers));
         }
     }
 

@@ -12,6 +12,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.VerificationException;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
@@ -25,6 +26,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.tinkerpop.gremlin.process.traversal.P.neq;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.as;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.bothE;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.has;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasLabel;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.in;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.values;
 import static org.apache.tinkerpop.gremlin.structure.Column.keys;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -108,6 +118,25 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
 
     }
 
+    @Test
+    public void testBazer() {
+        final GraphTraversalSource g = graph.traversal();
+        g.V().drop().iterate();
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        final GraphTraversalSource gComputer = graph.traversal().withComputer();
+        System.out.println(g.V().out("created").in("created").has("name", "marko").toList());
+        System.out.println(gComputer.V().out("created").in("created").has("name", "marko").toList());
+        System.out.println("--------------------------------------");
+        System.out.println(g.V().out("created")
+                        .as("project").in("created").has("name", "marko").select("project").toList());
+                        //as("project").in("created").in("knows").has("name", "marko")).toList());
+                                //select("project")).groupCount().by("name").toList());
+        System.out.println(gComputer.V().out("created").
+                as("project").in("created").has("name", "marko").select("project").toList());
+                //        as("project").in("created").in("knows").has("name", "marko")).toList());
+                                //select("project")).groupCount().by("name").toList());
+    }
+
     void createIndexWaitComplete(final String property) {
         final GraphTraversalSource g = graph.traversal();
         System.out.println(g.call("aerospike.graph.admin.index.create").
@@ -126,88 +155,6 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
                     with("property_key", property).
                     with("element_type", "vertex").next();
         }
-    }
-
-    @Test
-    public void testFooooo() {
-        final GraphTraversalSource g = graph.traversal();
-        g.V().drop().iterate();
-        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
-        final GraphTraversalSource gComputer = graph.traversal().withComputer();
-        List<Vertex> vertices = gComputer.V().out().out().toList();
-        Assert.assertEquals(2, vertices.size());
-        //TraversalExplanation exp = gComputer.V().out().out().explain();
-        //System.out.println(exp.prettyPrint());
-
-    }
-
-    @Test
-    public void apoisunoasifn() {
-        final GraphTraversalSource g = graph.traversal();
-        g.V().drop().iterate();
-        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
-        final GraphTraversalSource gComputer = graph.traversal().withComputer();
-        var traversal = gComputer.V().as("a", "b").out().as("c").path().select(keys);
-        int counter = 0;
-        while (traversal.hasNext()) {
-            final List<Set<String>> set = (List) traversal.next();
-            assertTrue(set.get(0).contains("a"));
-            assertTrue(set.get(0).contains("b"));
-            assertEquals(2, set.get(0).size());
-            assertTrue(set.get(1).contains("c"));
-            assertEquals(1, set.get(1).size());
-            counter++;
-        }
-        assertEquals(6, counter);
-        assertFalse(traversal.hasNext());
-    }
-
-    @Test
-    public void testOut() {
-        final GraphTraversalSource g = graph.traversal();
-        g.V().drop().iterate();
-        g.addV("person").property(T.id, "marko").property("name", "marko").property("age", 32).next();
-        g.addV("person").property(T.id, "stephen").property("name", "stephen").property("age", 35).next();
-        g.addE("knows").from(__.V("marko")).to(__.V("stephen")).next();
-        g.addE("knows").from(__.V("stephen")).to(__.V("marko")).next();
-        final GraphTraversalSource gComputer = graph.traversal().withComputer();
-        //final List<Vertex> vertices = gComputer.V().has(T.id, 1).has(T.id, 2).toList();
-        System.out.println("!!!!!!!!!!!!!! GRAPH COMPUTER QUERY");
-        final List<Vertex> vertices = gComputer.V("marko", "stephen").out().out().out().out().out().toList();
-        //final Vertex stephen = gComputer.V("marko").out().next();
-        //Assert.assertEquals("stephen", stephen.property("name").value());
-        assertEquals(2, vertices.size());
-    }
-
-    @Test
-    public void testFoobar() {
-        final GraphTraversalSource g = graph.traversal();
-        g.V().drop().iterate();
-        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-
-        final GraphTraversalSource gComputer = graph.traversal().withComputer();
-
-        //System.out.println("Found  " + gComputer.V().has("song", "name", "OH BOY").toList().size() +
-        //        " vs " + g.V().has("song", "name", "OH BOY").toList().size());
-
-        System.out.println("gcomputer = " +
-                gComputer.V().has("song", "name", "OH BOY").
-                        out("followedBy").out("followedBy").toList());
-        System.out.println("g = " +
-                g.V().has("song", "name", "OH BOY").
-                        out("followedBy").out("followedBy").toList());
-
-
-        //System.out.println("Found  " + gComputer.V().has("song", "name", "OH BOY").out("followedBy").out("followedBy").toList().size() +
-        //        " vs " + g.V().has("song", "name", "OH BOY").out("followedBy").out("followedBy").toList().size());
-//
-//
-        //List<Vertex> noComputer = g.V().has("song", "name", "OH BOY").out("followedBy").out("followedBy").order().by("performances").by("songType", desc).toList();
-//
-        //List<Vertex> vertices = gComputer.V().has("song", "name", "OH BOY").out("followedBy").out("followedBy").order().by("performances").by("songType", desc).toList();
-        //assertEquals(144, noComputer.size());
-        //assertEquals(144, vertices.size());
-
     }
 
     @Test

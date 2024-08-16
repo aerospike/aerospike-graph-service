@@ -91,20 +91,6 @@ public class FireflyBatchReadHelper {
                                                                                        final TraverserSet<T> output,
                                                                                        final ReadElements<E> readElements,
                                                                                        final List<String> requiredProperties) {
-        drainDataToOutput(notThat, fireflyIdList, uniqueIdSet, elementMap, readInfo, aerospikeHasContainers, fireflyHasContainers, output, readElements, requiredProperties, false);
-    }
-
-    public static <E extends FireflyElement, T extends Element> void drainDataToOutput(final Step<T, T> notThat,
-                                                                                       final List<FireflyId> fireflyIdList,
-                                                                                       final Set<FireflyId> uniqueIdSet,
-                                                                                       final Map<FireflyId, E> elementMap,
-                                                                                       final List<ReadStepInfo<T>> readInfo,
-                                                                                       final List<HasContainer> aerospikeHasContainers,
-                                                                                       final List<HasContainer> fireflyHasContainers,
-                                                                                       final TraverserSet<T> output,
-                                                                                       final ReadElements<E> readElements,
-                                                                                       final List<String> requiredProperties,
-                                                                                       final boolean isComputer) {
         // Read all IDs in a batch.
         final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
         final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds, requiredProperties);
@@ -139,11 +125,7 @@ public class FireflyBatchReadHelper {
                     // Element was not found due to a predicate filter type mismatch.
                     continue;
                 }
-                //final Vertex e = ComputerGraph.mapReduce((Vertex) element);
-                //if (!isComputer)
                 output.add(info.traverser.split(element, notThat));
-                //else
-                //    output.add(info.traverser.split((T) e, notThat));
             }
         }
 
@@ -205,13 +187,6 @@ public class FireflyBatchReadHelper {
         fireflyIdList.clear();
         uniqueIdSet.clear();
         readInfo.clear();
-    }
-
-    public static <E extends FireflyElement, T extends Element> void runSample(final List<FireflyId> outputFireflyIdList,
-                                                            final Map<FireflyId, E> outputFireflyElementMap,
-                                                            final Set<Long> outputIds,
-                                                            final TraverserSet<T> output) {
-
     }
 
     public static <E extends FireflyElement> void addElementsToSet(final List<FireflyId> fireflyIdList,

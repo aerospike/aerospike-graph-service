@@ -60,8 +60,6 @@ public final class FireflyGraphCountStrategy extends FireflyStrategyBase {
             }
         }
 
-        //if (TraversalHelper.onGraphComputer(traversal))
-        //    return;
         final List<Step> steps = new ArrayList<>(traversal.getSteps());
         steps.removeIf(step -> step.getClass().equals(FireflyCacheGCStep.class));
 

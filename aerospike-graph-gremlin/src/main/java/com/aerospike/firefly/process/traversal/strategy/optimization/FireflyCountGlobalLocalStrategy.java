@@ -49,8 +49,8 @@ public class FireflyCountGlobalLocalStrategy  extends FireflyStrategyBase {
             }
         }
 
-        //if (TraversalHelper.onGraphComputer(traversal))
-        //    return;
+        if (!TraversalHelper.onGraphComputer(traversal))
+            return;
         for (int i = 0; i < traversal.getSteps().size(); i++) {
             if (traversal.getSteps().get(i) instanceof CountGlobalStep) {
                 if (i > 0 && traversal.getSteps().get(i - 1) instanceof VertexStep) {

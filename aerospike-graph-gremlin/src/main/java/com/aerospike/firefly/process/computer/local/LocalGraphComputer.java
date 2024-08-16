@@ -30,12 +30,18 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSe
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
+import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
+import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +62,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+
+import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -203,9 +211,13 @@ public class LocalGraphComputer implements GraphComputer {
                             this.memory.completeSubRound();
                             workers.setVertexProgram(this.vertexProgram);
                             workers.executeVertexProgram((vertices, vertexProgram, workerMemory) -> {
+                                final PureTraversal<?, ?> traversal = ((TraversalVertexProgram) vertexProgram).getTraversal().clone();
+                                if (!traversal.get().isLocked())
+                                    traversal.get().applyStrategies();
+                                final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.get());
                                 long counter = 0;
                                 vertexProgram.workerIterationStart(workerMemory.asImmutable());
-                                Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = preComputeVertices(vertices, vertexProgram, workerMemory);
+                                Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = preComputeVertices(traversalMatrix, vertices, (TraversalVertexProgram) vertexProgram, workerMemory);
                                 vertices = output.getLeft();
                                 while (vertices.hasNext()) {
                                     final Vertex vertex = vertices.next();
@@ -336,6 +348,7 @@ public class LocalGraphComputer implements GraphComputer {
             }
             precomputableComputerStep.add(traverser, vertex);
         } else if (currentStep instanceof GraphStep) {
+            System.out.println("GraphSTep");
             final Step<?, ?> nextStep = currentStep.getNextStep();
             if (nextStep instanceof PrecomputableComputerStep) {
                 if (precomputableComputerStep == null) {
@@ -348,83 +361,145 @@ public class LocalGraphComputer implements GraphComputer {
         return precomputableComputerStep;
     }
 
-    private Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> preComputeVertices(final Iterator<FireflyVertex> vertices,
-                                                                                        final VertexProgram vertexProgram,
+    private Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> preComputeVertices(final TraversalMatrix<?, ?> traversalMatrix,
+                                                                                        final Iterator<FireflyVertex> vertices,
+                                                                                        final TraversalVertexProgram vertexProgram,
                                                                                         final LocalWorkerMemory memory) {
-        final IndexedTraverserSet<Object,Vertex> maybeActiveTraversers = memory.get(TraversalVertexProgram.ACTIVE_TRAVERSERS);
-        final PureTraversal<?, ?> traversal = ((TraversalVertexProgram) vertexProgram).getTraversal().clone();
-        if (!traversal.get().isLocked())
-            traversal.get().applyStrategies();
-        final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.get());
-        final PrecomputableComputerStep[] precomputableComputerStep = {null};
-        final List<FireflyVertex> outputVertices = new ArrayList<>();
-        while (vertices.hasNext()) {
-            final FireflyVertex vertex = vertices.next();
-            outputVertices.add(vertex);
-            synchronized (maybeActiveTraversers) {
-                if (!maybeActiveTraversers.isEmpty()) {
-                    final Collection<Traverser.Admin<Object>> traversers = maybeActiveTraversers.get(vertex);
-                    if (traversers == null) {
-                        continue;
-                    }
-                    traversers.forEach(traverser -> {
-                        precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
-                        if (precomputableComputerStep[0] != null) {
-                            System.out.println("maybeActiveTraversers");
+        if (memory.isInitialIteration()) {
+            final List<FireflyVertex> outputVertices = new ArrayList<>();
+            final PrecomputableComputerStep[] precomputableComputerStep = {null};
+            for (final FireflyVertex vertex : IteratorUtils.list(vertices)) {
+                outputVertices.add(vertex);
+                final TraverserSet<Object> activeTraversers = new TraverserSet<>();
+                final VertexProperty<TraverserSet<Object>> property = vertex.property(HALTED_TRAVERSERS);
+                final TraverserSet<Object> haltedTraversers;
+                if (property.isPresent()) {
+                    haltedTraversers = property.value();
+                } else {
+                    haltedTraversers = new TraverserSet<>();
+                }
+                haltedTraversers.stream().iterator().forEachRemaining(activeTraversers::add);
+
+                if (vertexProgram.getTraversal().get().getStartStep() instanceof GraphStep) {
+                    final GraphStep<Element, Element> graphStep = (GraphStep<Element, Element>) vertexProgram.getTraversal().get().getStartStep();
+                    graphStep.reset();
+                    activeTraversers.forEach(traverser -> graphStep.addStart((Traverser.Admin) traverser));
+                    activeTraversers.clear();
+                    if (graphStep.returnsVertex())
+                        graphStep.setIteratorSupplier(() -> ElementHelper.idExists(vertex.id(), graphStep.getIds()) ? (Iterator) IteratorUtils.of(vertex) : EmptyIterator.instance());
+                    else
+                        graphStep.setIteratorSupplier(() -> (Iterator) IteratorUtils.filter(vertex.edges(Direction.OUT), edge -> ElementHelper.idExists(edge.id(), graphStep.getIds())));
+                    graphStep.forEachRemaining(traverser -> {
+                        if (!traverser.isHalted()) {
+                            activeTraversers.add((Traverser.Admin) traverser);
                         }
                     });
+                    if (graphStep.getNextStep() instanceof PrecomputableComputerStep) {
+
+                    }
                 }
 
-                vertex.<TraverserSet<Object>>property(TraversalVertexProgram.ACTIVE_TRAVERSERS).ifPresent(previousActiveTraversers -> {
-                    previousActiveTraversers.stream().forEach(traverser -> {
+                activeTraversers.forEach(traverser -> {
+                    precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
+                    if (precomputableComputerStep[0] != null) {
+                        System.out.println("activeTraversers");
+                    }
+                });
+            }
+            if (precomputableComputerStep[0] != null) {
+                precomputableComputerStep[0].precompute();
+            }
+
+            return new Pair<>() {
+                final Iterator<FireflyVertex> ffv = outputVertices.iterator();
+                final PrecomputableComputerStep pccs = precomputableComputerStep[0];
+
+                @Override
+                public Iterator<FireflyVertex> getLeft() {
+                    return ffv;
+                }
+
+                @Override
+                public PrecomputableComputerStep getRight() {
+                    return pccs;
+                }
+
+                @Override
+                public PrecomputableComputerStep setValue(final PrecomputableComputerStep value) {
+                    return null;
+                }
+            };
+        } else {
+            final IndexedTraverserSet<Object, Vertex> maybeActiveTraversers = memory.get(TraversalVertexProgram.ACTIVE_TRAVERSERS);
+            final PrecomputableComputerStep[] precomputableComputerStep = {null};
+            final List<FireflyVertex> outputVertices = new ArrayList<>();
+            while (vertices.hasNext()) {
+                final FireflyVertex vertex = vertices.next();
+                outputVertices.add(vertex);
+                synchronized (maybeActiveTraversers) {
+                    if (!maybeActiveTraversers.isEmpty()) {
+                        final Collection<Traverser.Admin<Object>> traversers = maybeActiveTraversers.get(vertex);
+                        if (traversers == null) {
+                            continue;
+                        }
+                        traversers.forEach(traverser -> {
+                            precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
+                            if (precomputableComputerStep[0] != null) {
+                                System.out.println("maybeActiveTraversers");
+                            }
+                        });
+                    }
+
+                    vertex.<TraverserSet<Object>>property(TraversalVertexProgram.ACTIVE_TRAVERSERS).ifPresent(previousActiveTraversers -> {
+                        previousActiveTraversers.stream().forEach(traverser -> {
                             precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
                             if (precomputableComputerStep[0] != null) {
                                 System.out.println("previousActiveTraversers");
                             }
+                        });
                     });
-                });
 
-                LocalMessenger messenger = new LocalMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner());
-                Iterator<TraverserSet<Object>> messages = messenger.receiveMessages();
-                final AtomicInteger msgCount1 = new AtomicInteger();
-                while (messages.hasNext()) {
-                    final TraverserSet<Object> traversers = messages.next();
-                    traversers.forEach(traverser -> {
-                        if (!traverser.isHalted()) {
-                            msgCount1.getAndIncrement();
-                            precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
-                            if (precomputableComputerStep[0] != null) {
-                                System.out.println("Messageboard");
+                    LocalMessenger messenger = new LocalMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner());
+                    Iterator<TraverserSet<Object>> messages = messenger.receiveMessages();
+                    final AtomicInteger msgCount1 = new AtomicInteger();
+                    while (messages.hasNext()) {
+                        final TraverserSet<Object> traversers = messages.next();
+                        traversers.forEach(traverser -> {
+                            if (!traverser.isHalted()) {
+                                msgCount1.getAndIncrement();
+                                precomputableComputerStep[0] = updatePrecompute(vertex, precomputableComputerStep[0], traversalMatrix, traverser);
+                                if (precomputableComputerStep[0] != null) {
+                                    System.out.println("Messageboard");
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
                 }
             }
+            if (precomputableComputerStep[0] != null) {
+                precomputableComputerStep[0].precompute();
+            }
+
+            return new Pair<>() {
+                final Iterator<FireflyVertex> ffv = outputVertices.iterator();
+                final PrecomputableComputerStep pccs = precomputableComputerStep[0];
+
+                @Override
+                public Iterator<FireflyVertex> getLeft() {
+                    return ffv;
+                }
+
+                @Override
+                public PrecomputableComputerStep getRight() {
+                    return pccs;
+                }
+
+                @Override
+                public PrecomputableComputerStep setValue(final PrecomputableComputerStep value) {
+                    return null;
+                }
+            };
         }
-
-        if (precomputableComputerStep[0] != null) {
-            precomputableComputerStep[0].precompute();
-        }
-
-        return new Pair<>() {
-            final Iterator<FireflyVertex> ffv = outputVertices.iterator();
-            final PrecomputableComputerStep pccs = precomputableComputerStep[0];
-
-            @Override
-            public Iterator<FireflyVertex> getLeft() {
-                return ffv;
-            }
-
-            @Override
-            public PrecomputableComputerStep getRight() {
-                return pccs;
-            }
-
-            @Override
-            public PrecomputableComputerStep setValue(final PrecomputableComputerStep value) {
-                return null;
-            }
-        };
     }
 
     @Override

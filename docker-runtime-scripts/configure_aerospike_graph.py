@@ -92,7 +92,7 @@ def persist_unified_config(unified_config_file, unified_config):
     with open(unified_config_file, "w") as unified_config_file:
         for line in unified_config:
             unified_config_file.write(line + "\n")
-            if any(masked_keyword in line.split("=")[0].casefold() for masked_keyword in ['token', 'secret', 'password']):
+            if any(masked_keyword in line.split("=")[0].casefold() for masked_keyword in ['token', 'secret', 'password', 'passkey']):
                 print("Persisting configuration: " + line.split("=")[0] + "=********")
             else :
                 print("Persisting configuration: " + line)

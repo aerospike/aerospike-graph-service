@@ -464,7 +464,7 @@ public final class ConfigurationHelper {
                 final Object value = props.get(it.toString());
                 if (LOG.isDebugEnabled()) {
                     final Object maskedValue;
-                    if (key.contains("password") || key.contains("secret") || key.contains("token")) {
+                    if (key.contains("password") || key.contains("secret") || key.contains("token") || key.contains("passkey")) {
                         maskedValue = "*******";
                     } else {
                         maskedValue = value;

@@ -76,7 +76,6 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
     }
 
     public void add(final Traverser.Admin<?> tv, final Vertex v) {
-        //System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - add");
         inputCache.get().add(new Pair<>() {
             @Override
             public FireflyVertex setValue(final FireflyVertex value) {
@@ -107,10 +106,8 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
         final List<FireflyId> fireflyIdList = new ArrayList<>();
         final Set<FireflyId> uniqueIdSet = new HashSet<>();
         final Map<FireflyId, FireflyVertex> fireflyVertexMap = new TreeMap<>();
-        int count = 0;
 
         for (final Pair<Traverser.Admin<Vertex>, FireflyVertex> pair : inputCache.get()) {
-            count++;
             // Get next input traverser and get the FireflyVertex form of it.
             final FireflyVertex vertex = pair.getRight();
 
@@ -143,8 +140,6 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
 
     @Override
     protected Iterator<Vertex> flatMap(final Traverser.Admin<Vertex> traverser) {
-        final AtomicInteger cacheMisses = new AtomicInteger();
-        final AtomicInteger cacheHits = new AtomicInteger();
         if (cache.get() == null) {
             final Iterator<Vertex> vertices = traverser.get().vertices(this.direction, super.getEdgeLabels());
             return FireflyCloseableIteratorUtils.filter(vertices, v -> HasContainer.testAll(v, fireflyHasContainers));
@@ -154,10 +149,8 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
             final FireflyVertex fireflyVertex = (FireflyVertex) ((ComputerGraph.ComputerVertex) traverser.get()).getBaseVertex();
             fireflyVertex.getVertexIdsFromVertex(direction, edgeLabels).forEachRemaining(id -> {
                 if (cache.get().containsKey(id)) {
-                    cacheHits.getAndIncrement();
                     output.add(cache.get().get(id));
                 } else {
-                    cacheMisses.getAndIncrement();
                     missingIds.add(id);
                 }
             });

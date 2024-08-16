@@ -147,10 +147,8 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> implements P
 
     @Override
     protected Iterator<Edge> flatMap(final Traverser.Admin<Vertex> traverser) {
-        final AtomicInteger cacheMisses = new AtomicInteger();
-        final AtomicInteger cacheHits = new AtomicInteger();
         if (cache.get() == null) {
-            Iterator<Edge> edges = traverser.get().edges(this.direction, super.getEdgeLabels());
+            final Iterator<Edge> edges = traverser.get().edges(this.direction, super.getEdgeLabels());
             return FireflyCloseableIteratorUtils.filter(edges, e -> HasContainer.testAll(e, fireflyHasContainers));
         } else {
             final List<Edge> output = new ArrayList<>();
@@ -158,10 +156,8 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> implements P
             FireflyVertex fireflyVertex = (FireflyVertex) ((ComputerGraph.ComputerVertex) traverser.get()).getBaseVertex();
             fireflyVertex.getEdgeIdsFromVertex(direction, edgeLabels, aerospikeHasContainers).forEachRemaining(id -> {
                 if (cache.get().containsKey(id)) {
-                    cacheHits.getAndIncrement();
                     output.add(cache.get().get(id));
                 } else {
-                    cacheMisses.getAndIncrement();
                     missingIds.add(id);
                 }
             });

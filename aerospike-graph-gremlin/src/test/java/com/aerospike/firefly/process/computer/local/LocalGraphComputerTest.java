@@ -118,25 +118,6 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
 
     }
 
-    @Test
-    public void testBazer() {
-        final GraphTraversalSource g = graph.traversal();
-        g.V().drop().iterate();
-        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
-        final GraphTraversalSource gComputer = graph.traversal().withComputer();
-        System.out.println(g.V().out("created").in("created").has("name", "marko").toList());
-        System.out.println(gComputer.V().out("created").in("created").has("name", "marko").toList());
-        System.out.println("--------------------------------------");
-        System.out.println(g.V().out("created")
-                        .as("project").in("created").has("name", "marko").select("project").toList());
-                        //as("project").in("created").in("knows").has("name", "marko")).toList());
-                                //select("project")).groupCount().by("name").toList());
-        System.out.println(gComputer.V().out("created").
-                as("project").in("created").has("name", "marko").select("project").toList());
-                //        as("project").in("created").in("knows").has("name", "marko")).toList());
-                                //select("project")).groupCount().by("name").toList());
-    }
-
     void createIndexWaitComplete(final String property) {
         final GraphTraversalSource g = graph.traversal();
         System.out.println(g.call("aerospike.graph.admin.index.create").

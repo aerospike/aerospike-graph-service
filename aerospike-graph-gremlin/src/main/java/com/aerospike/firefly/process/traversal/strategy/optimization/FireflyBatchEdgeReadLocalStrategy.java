@@ -1,6 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.traversal.step.computer.FireflyCompositeIdStepLocal;
+import com.aerospike.firefly.process.traversal.step.computer.FireflyBatchEdgeReadStepLocal;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
+public class FireflyBatchEdgeReadLocalStrategy extends FireflyStrategyBase {
 
     final ThreadLocal<Boolean> rootGroup = new ThreadLocal<Boolean>() {
         @Override
@@ -37,14 +37,14 @@ public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
     };
 
     /**
-     * Default constructor for FireflyCompositeEdgeIdStrategy.
+     * Default constructor for FireflyBatchEdgeReadStrategy.
      */
-    public FireflyCompositeEdgeIdLocalStrategy() {
+    public FireflyBatchEdgeReadLocalStrategy() {
     }
 
     @Override
     public String getStrategyEnabledKey() {
-        return ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY;
+        return ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_STRATEGY;
     }
 
     @Override
@@ -93,13 +93,11 @@ public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
             // Cast to VertexStep so we have access to the methods.
             final VertexStep<?> vertexStep = (VertexStep<?>) steps.get(index);
 
-            // If it does not return a vertex, skip it. This is the case for something like:
-            //  g.V().outE() <- In this case we can let the tinkerpop core handle it.
-            if (!vertexStep.returnsVertex()) {
+            // If it does return a vertex, skip it. This is the case for something like:
+            //  g.V().out() <- In this case we can let the tinkerpop core handle it.
+            if (vertexStep.returnsVertex()) {
                 continue;
             }
-
-            boolean propertyRemovalValid = !(super.steps.contains(PathStep.class) || super.steps.contains(TreeStep.class) || super.steps.contains(TreeSideEffectStep.class));
 
             // Replace vertex step with composite id step.
             traversal.removeStep(vertexStep);
@@ -120,25 +118,8 @@ public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
                     final NoOpBarrierStep<?> noOpBarrierStep = (NoOpBarrierStep<?>) steps.get(index);
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
-                } else if (steps.get(index) instanceof PropertiesStep){
-                    if (traversal.isRoot() && propertyRemovalValid) {
-                        // Grab any labels and remove the properties step.
-                        final PropertiesStep<?> propertiesStep = (PropertiesStep<?>) steps.get(index);
-                        final String[] propertyKeyArray = propertiesStep.getPropertyKeys();
-                        if (propertyKeyArray == null || propertyKeyArray.length == 0) {
-                            break;
-                        }
-                        propertyKeys = new ArrayList<>();
-                        for (final String propertyKey : propertyKeyArray) {
-                            if (!propertyKeys.contains(propertyKey)) {
-                                propertyKeys.add(propertyKey);
-                            }
-                        }
-                        labels = propertiesStep.getLabels();
-                    }
-                    break;
                 } else if (steps.get(index) instanceof IdStep) {
-                    if (traversal.isRoot() && propertyRemovalValid) {
+                    if (traversal.isRoot()) {
                         // Grab any labels.
                         propertyKeys = new ArrayList<>();
                         final IdStep<?> idStep = (IdStep<?>) steps.get(index);
@@ -146,41 +127,17 @@ public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
                     }
                     break;
                 } else if (steps.get(index) instanceof HasStep) {
-                    // Grab has containers and push them down.
-                    final HasStep<?> hasStep = (HasStep<?>) steps.get(index);
-                    hasContainers = hasStep.getHasContainers();
-
-                    if (steps.size() > (index + 1) && steps.get(index + 1) instanceof VertexStep) {
-                        if (traversal.isRoot() && propertyRemovalValid) {
-                            propertyKeys = new ArrayList<>();
-                            final List<String> properties = hasContainers.stream().
-                                    map(HasContainer::getKey).collect(Collectors.toList());
-                            for (final String propertyKey : properties) {
-                                if (!propertyKeys.contains(propertyKey)) {
-                                    propertyKeys.add(propertyKey);
-                                }
-                            }
-                        }
-                    }
-
-                    // No support for pushdown of primary key check at this time.
-                    // This isn't really a useful pushdown anyway.
-                    if (hasContainers.stream().map(HasContainer::getKey).noneMatch(key -> key.equals(T.id.getAccessor()))) {
-                        labels = hasStep.getLabels();
-                        traversal.removeStep(hasStep);
-
-                        // Cannot use sample strategy after HasStep at this time so break.
-                        break;
-                    } else {
-                        hasContainers = new ArrayList<>();
-                        break;
+                    if (graph.getBaseGraph().isSupernodePushdownEnabled) {
+                        hasContainers = ((HasStep) steps.get(index)).getHasContainers();
+                        labels = steps.get(index).getLabels();
+                        traversal.removeStep(steps.get(index));
                     }
                 } else {
                     // Unknown step, break.
                     break;
                 }
             }
-            traversal.addStep(index, new FireflyCompositeIdStepLocal(
+            traversal.addStep(index, new FireflyBatchEdgeReadStepLocal(
                     traversal,
                     vertexStep.getDirection(),
                     vertexStep.getEdgeLabels(),
@@ -189,9 +146,5 @@ public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
                     propertyKeys));
 
         }
-    }
-
-    public static FireflyCompositeEdgeIdLocalStrategy instance() {
-        return new FireflyCompositeEdgeIdLocalStrategy();
     }
 }

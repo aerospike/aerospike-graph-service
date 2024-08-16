@@ -24,7 +24,13 @@ import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
+import org.apache.tinkerpop.gremlin.process.traversal.step.branch.BranchStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.branch.LocalStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.branch.RepeatStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.IndexedTraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
@@ -221,7 +227,6 @@ public class LocalGraphComputer implements GraphComputer {
                                 vertices = output.getLeft();
                                 while (vertices.hasNext()) {
                                     final Vertex vertex = vertices.next();
-                                    System.out.println(vertex.id());
                                     counter++;
                                     if (Thread.interrupted()) throw new TraversalInterruptedException();
                                     try {
@@ -348,13 +353,73 @@ public class LocalGraphComputer implements GraphComputer {
             }
             precomputableComputerStep.add(traverser, vertex);
         } else if (currentStep instanceof GraphStep) {
-            System.out.println("GraphSTep");
             final Step<?, ?> nextStep = currentStep.getNextStep();
             if (nextStep instanceof PrecomputableComputerStep) {
                 if (precomputableComputerStep == null) {
                     precomputableComputerStep = (PrecomputableComputerStep) nextStep;
                 }
                 precomputableComputerStep.add(traverser, vertex);
+            }
+        } else if (currentStep instanceof TraversalParent) {
+            final TraversalParent traversalParent = (TraversalParent) currentStep;
+            final List<? extends Traversal.Admin<?, ?>> globalChildren = traversalParent.getGlobalChildren();
+            for (final Traversal.Admin<?, ?> globalChild : globalChildren) {
+                if (globalChild.getStartStep() instanceof PrecomputableComputerStep) {
+                    if (precomputableComputerStep == null) {
+                        precomputableComputerStep = (PrecomputableComputerStep) globalChild.getStartStep();
+                    }
+                    precomputableComputerStep.add(traverser, vertex);
+                } else if (globalChild.getStartStep() instanceof HasStep) {
+                    final HasStep hasStep = (HasStep) globalChild.getStartStep();
+                    if (hasStep.getNextStep() instanceof PrecomputableComputerStep) {
+                        if (HasContainer.testAll(vertex, hasStep.getHasContainers())) {
+                            if (precomputableComputerStep == null) {
+                                precomputableComputerStep = (PrecomputableComputerStep) hasStep.getNextStep();
+                            }
+                            precomputableComputerStep.add(traverser, vertex);
+                        }
+                    }
+                }
+            }
+            List<? extends Traversal.Admin<?, ?>> children = traversalParent.getLocalChildren();
+            for (final Traversal.Admin<?, ?> child : children) {
+                if (child.getStartStep() instanceof PrecomputableComputerStep) {
+                    if (precomputableComputerStep == null) {
+                        precomputableComputerStep = (PrecomputableComputerStep) child.getStartStep();
+                    }
+                    precomputableComputerStep.add(traverser, vertex);
+                }
+                if (child.getStartStep() instanceof HasStep) {
+                    final HasStep hasStep = (HasStep) child.getStartStep();
+                    if (hasStep.getNextStep() instanceof PrecomputableComputerStep) {
+                        if (HasContainer.testAll(vertex, hasStep.getHasContainers())) {
+                            if (precomputableComputerStep == null) {
+                                precomputableComputerStep = (PrecomputableComputerStep) hasStep.getNextStep();
+                            }
+                            precomputableComputerStep.add(traverser, vertex);
+                        }
+                    }
+                }
+            }
+        } else if (currentStep instanceof RepeatStep) {
+            final RepeatStep<?> repeatStep = (RepeatStep<?>) currentStep;
+            Traversal.Admin<?, ?> innerTraversal = repeatStep.getRepeatTraversal();
+            if (innerTraversal.getStartStep() instanceof PrecomputableComputerStep) {
+                if (precomputableComputerStep == null) {
+                    precomputableComputerStep = (PrecomputableComputerStep) innerTraversal.getStartStep();
+                }
+                precomputableComputerStep.add(traverser, vertex);
+            }
+        } else if (currentStep instanceof BranchStep) {
+            final BranchStep<?, ?, ?> branchStep = (BranchStep<?, ?, ?>) currentStep;
+            final List<? extends Traversal.Admin<?, ?>> localBranches = branchStep.getGlobalChildren();
+            for (final Traversal.Admin<?, ?> branch : localBranches) {
+                if (branch.getStartStep() instanceof PrecomputableComputerStep) {
+                    if (precomputableComputerStep == null) {
+                        precomputableComputerStep = (PrecomputableComputerStep) branch.getStartStep();
+                    }
+                    precomputableComputerStep.add(traverser, vertex);
+                }
             }
         }
 

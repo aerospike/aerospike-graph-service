@@ -3,6 +3,7 @@ package com.aerospike.firefly.process.traversal.step.computer;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
+import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -14,10 +15,12 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -31,7 +34,7 @@ import java.util.stream.Collectors;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements PrecomputableComputerStep {
+public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> implements PrecomputableComputerStep {
     private final Direction direction;
     private final Set<String> edgeLabels;
 
@@ -41,18 +44,18 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
     private final List<String> requiredProperties;
     final Traversal.Admin traversal;
     final Set<String> labels;
-    private static final ThreadLocal<Map<FireflyId, FireflyVertex>> cache =
+    private static final ThreadLocal<Map<FireflyId, FireflyEdge>> cache =
             ThreadLocal.withInitial(HashMap::new);
     private static final ThreadLocal<List<Pair<Traverser.Admin<Vertex>, FireflyVertex>>> inputCache =
             ThreadLocal.withInitial(ArrayList::new);
 
-    public FireflyCompositeIdStepLocal(final Traversal.Admin traversal,
-                                       final Direction direction,
-                                       final String[] edgeLabels,
-                                       final Set<String> labels,
-                                       final List<HasContainer> hasContainers,
-                                       final List<String> requiredProperties) {
-        super(traversal, Vertex.class, direction, edgeLabels);
+    public FireflyBatchEdgeReadStepLocal(final Traversal.Admin traversal,
+                                         final Direction direction,
+                                         final String[] edgeLabels,
+                                         final Set<String> labels,
+                                         final List<HasContainer> hasContainers,
+                                         final List<String> requiredProperties) {
+        super(traversal, Edge.class, direction, edgeLabels);
         this.traversal = traversal;
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
@@ -103,10 +106,10 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
 
         // Info is used to keep track of how many output items we assign for each input (executed in order).
-        final List<FireflyBatchReadHelper.ReadStepInfo<?>> fireflyCompositeIdStepInfos = new ArrayList<>();
+        final List<FireflyBatchReadHelper.ReadStepInfo<?>> fireflyBatchEdgeReadStepInfos = new ArrayList<>();
         final List<FireflyId> fireflyIdList = new ArrayList<>();
         final Set<FireflyId> uniqueIdSet = new HashSet<>();
-        final Map<FireflyId, FireflyVertex> fireflyVertexMap = new TreeMap<>();
+        final Map<FireflyId, FireflyEdge> fireflyEdgeMap = new HashMap<>();
         int count = 0;
 
         for (final Pair<Traverser.Admin<Vertex>, FireflyVertex> pair : inputCache.get()) {
@@ -120,41 +123,45 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
             // All the work for supernode scan/index/cache handling is done in the getVertexIdsFromVertex function.
             TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
 
-            FireflyBatchReadHelper.addElementsToSet(
-                    fireflyIdList, uniqueIdSet, fireflyVertexMap, vertex.getVertexIdsFromVertex(direction, edgeLabels));
+            vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, fireflyIdList, aerospikeHasContainers);
+            for (int i = previousSize; i < fireflyIdList.size(); i++) {
+                final FireflyId id = fireflyIdList.get(i);
+                if (!fireflyEdgeMap.containsKey(id)) {
+                    uniqueIdSet.add(id);
+                }
+            }
 
             // Calculate how many ids were added by the function (size of list - previous size).
             // Create composite id info with this value and the appropriate traverser to the info list.
-            fireflyCompositeIdStepInfos.add(new FireflyBatchReadHelper.ReadStepInfo<>(pair.getLeft(), fireflyIdList.size() - previousSize));
+            fireflyBatchEdgeReadStepInfos.add(new FireflyBatchReadHelper.ReadStepInfo<>(pair.getLeft(), fireflyIdList.size() - previousSize));
 
             // If we reach or exceed batch size then execute so we don't use too much memory at any given point. Also drain if list size gets very big.
             if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
-                // Drain data to output.
+                // Drain data to output. No need to pass in aerospikeHasContainers since they were used to filter Edge IDs already.
                 FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
-                        fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache.get(), graph::readVertices, requiredProperties);
+                        fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, cache.get(), graph::readEdges, null);
             }
         }
 
-        // Drain data to output.
         FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
-                fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache.get(), graph::readVertices, requiredProperties);
+                fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, cache.get(), graph::readEdges, null);
     }
 
     @Override
-    protected Iterator<Vertex> flatMap(final Traverser.Admin<Vertex> traverser) {
-        System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - flatmapVertex");
+    protected Iterator<Edge> flatMap(final Traverser.Admin<Vertex> traverser) {
+        System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - flatmapEdge");
         final AtomicInteger cacheMisses = new AtomicInteger();
         final AtomicInteger cacheHits = new AtomicInteger();
         if (cache.get() == null) {
-            System.out.println("NO CACHE");
-            Iterator<Vertex> vertices = traverser.get().vertices(this.direction, super.getEdgeLabels());
-            return FireflyCloseableIteratorUtils.filter(vertices, v -> HasContainer.testAll(v, fireflyHasContainers));
+            System.out.println("No cache");
+            Iterator<Edge> edges = traverser.get().edges(this.direction, super.getEdgeLabels());
+            return FireflyCloseableIteratorUtils.filter(edges, e -> HasContainer.testAll(e, fireflyHasContainers));
         } else {
-            List<Vertex> output = new ArrayList<>();
+            List<Edge> output = new ArrayList<>();
             List<FireflyId> missingIds = new ArrayList<>();
             FireflyVertex fireflyVertex = (FireflyVertex) ((ComputerGraph.ComputerVertex) traverser.get()).getBaseVertex();
-            fireflyVertex.getVertexIdsFromVertex(direction, edgeLabels).forEachRemaining(id -> {
+            fireflyVertex.getEdgeIdsFromVertex(direction, edgeLabels, aerospikeHasContainers).forEachRemaining(id -> {
                 if (cache.get().containsKey(id)) {
                     cacheHits.getAndIncrement();
                     output.add(cache.get().get(id));
@@ -164,11 +171,11 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
                 }
             });
             final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
-            List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, missingIds, requiredProperties);
-            output.addAll(vertices);
-            System.out.println("Vertex Cache hits: " + cacheHits.get());
-            System.out.println("Vertex Cache misses: " + cacheMisses.get());
-            return FireflyCloseableIteratorUtils.filter(output.iterator(), v -> HasContainer.testAll(v, fireflyHasContainers));
+            List<FireflyEdge> edges = graph.readEdges(List.of(), missingIds, requiredProperties);
+            System.out.println("Edge Cache hits: " + cacheHits.get());
+            System.out.println("Edge Cache misses: " + cacheMisses.get());
+            output.addAll(edges);
+            return FireflyCloseableIteratorUtils.filter(output.iterator(), e -> HasContainer.testAll(e, fireflyHasContainers));
         }
     }
 

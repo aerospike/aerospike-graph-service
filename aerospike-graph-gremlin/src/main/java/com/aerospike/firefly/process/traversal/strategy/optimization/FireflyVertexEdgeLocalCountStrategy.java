@@ -34,8 +34,8 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
             }
         }
 
-        if (TraversalHelper.onGraphComputer(traversal))
-            return;
+        //if (TraversalHelper.onGraphComputer(traversal))
+        //    return;
 
         for (final LocalStep localStep : TraversalHelper.getStepsOfClass(LocalStep.class, traversal)) {
             final List<Traversal.Admin> localTraversal = localStep.getLocalChildren();
@@ -59,8 +59,24 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
             LOG.debug("Applying FireflyVertexEdgeLocalCountStrategy");
             TraversalHelper.replaceStep(
                     localStep,
-                    new FireflyVertexEdgeLocalCountStep(traversal, vertexStep.getDirection(), localStep.getLabels()),
+                    new FireflyVertexEdgeLocalCountStep(
+                            traversal, vertexStep.getDirection(), localStep.getLabels(), TraversalHelper.onGraphComputer(traversal)),
                     traversal);
+        }
+        for (int i = 0; i < traversal.getSteps().size(); i++) {
+            if (traversal.getSteps().get(i) instanceof CountGlobalStep) {
+                if (i > 0 && traversal.getSteps().get(i - 1) instanceof VertexStep) {
+                    final VertexStep vertexStep = (VertexStep) traversal.getSteps().get(i - 1);
+                    if (vertexStep.getEdgeLabels().length == 0) {
+                        LOG.debug("Applying FireflyVertexEdgeLocalCountStrategy");
+                        TraversalHelper.replaceStep(
+                                traversal.getSteps().get(i),
+                                new FireflyVertexEdgeLocalCountStep(
+                                        traversal, vertexStep.getDirection(), vertexStep.getLabels(), TraversalHelper.onGraphComputer(traversal)),
+                                traversal);
+                    }
+                }
+            }
         }
     }
 }

@@ -157,10 +157,10 @@ public class FireflyBatchReadHelper {
                                                                                        final List<FireflyId> fireflyIdList,
                                                                                        final Set<FireflyId> uniqueIdSet,
                                                                                        final Map<FireflyId, E> elementMap,
-                                                                                       final List<ReadStepInfo<T>> readInfo,
+                                                                                       final List<ReadStepInfo<?>> readInfo,
                                                                                        final List<HasContainer> aerospikeHasContainers,
                                                                                        final List<HasContainer> fireflyHasContainers,
-                                                                                       final Map<FireflyId, FireflyVertex> output,
+                                                                                       final Map<FireflyId, E> output,
                                                                                        final ReadElements<E> readElements,
                                                                                        final List<String> requiredProperties) {
         // Read all IDs in a batch.
@@ -181,7 +181,7 @@ public class FireflyBatchReadHelper {
 
         // Loop through the info list and assign the appropriate number of vertices to each traverser using the info.
         int i = 0;
-        for (final ReadStepInfo<T> info : readInfo) {
+        for (final ReadStepInfo<?> info : readInfo) {
             for (int j = 0; j < info.size; j++) {
                 // Create a new traverser with the edge and add it to the output set using the split.
                 // Note, this is invoked info.size times.
@@ -197,8 +197,7 @@ public class FireflyBatchReadHelper {
                     // Element was not found due to a predicate filter type mismatch.
                     continue;
                 }
-                FireflyElement e = (FireflyElement) element;
-                output.put(e.id, (FireflyVertex) e);
+                output.put(((FireflyElement)element).id, (E) element);
             }
         }
 

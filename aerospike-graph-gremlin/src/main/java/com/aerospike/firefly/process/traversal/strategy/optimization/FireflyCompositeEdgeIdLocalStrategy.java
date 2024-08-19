@@ -99,8 +99,6 @@ public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
                 continue;
             }
 
-            boolean propertyRemovalValid = !(super.steps.contains(PathStep.class) || super.steps.contains(TreeStep.class) || super.steps.contains(TreeSideEffectStep.class));
-
             // Replace vertex step with composite id step.
             traversal.removeStep(vertexStep);
 
@@ -110,7 +108,6 @@ public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
             // Note we don't want to push down ids.
             List<HasContainer> hasContainers = null;
             Set<String> labels = vertexStep.getLabels();
-            List<String> propertyKeys = null;
             while (labels.isEmpty()) {
                 if (index >= steps.size()) {
                     break;
@@ -120,48 +117,10 @@ public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
                     final NoOpBarrierStep<?> noOpBarrierStep = (NoOpBarrierStep<?>) steps.get(index);
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
-                } else if (steps.get(index) instanceof PropertiesStep){
-                    if (traversal.isRoot() && propertyRemovalValid) {
-                        // Grab any labels and remove the properties step.
-                        final PropertiesStep<?> propertiesStep = (PropertiesStep<?>) steps.get(index);
-                        final String[] propertyKeyArray = propertiesStep.getPropertyKeys();
-                        if (propertyKeyArray == null || propertyKeyArray.length == 0) {
-                            break;
-                        }
-                        propertyKeys = new ArrayList<>();
-                        for (final String propertyKey : propertyKeyArray) {
-                            if (!propertyKeys.contains(propertyKey)) {
-                                propertyKeys.add(propertyKey);
-                            }
-                        }
-                        labels = propertiesStep.getLabels();
-                    }
-                    break;
-                } else if (steps.get(index) instanceof IdStep) {
-                    if (traversal.isRoot() && propertyRemovalValid) {
-                        // Grab any labels.
-                        propertyKeys = new ArrayList<>();
-                        final IdStep<?> idStep = (IdStep<?>) steps.get(index);
-                        labels = idStep.getLabels();
-                    }
-                    break;
                 } else if (steps.get(index) instanceof HasStep) {
                     // Grab has containers and push them down.
                     final HasStep<?> hasStep = (HasStep<?>) steps.get(index);
                     hasContainers = hasStep.getHasContainers();
-
-                    if (steps.size() > (index + 1) && steps.get(index + 1) instanceof VertexStep) {
-                        if (traversal.isRoot() && propertyRemovalValid) {
-                            propertyKeys = new ArrayList<>();
-                            final List<String> properties = hasContainers.stream().
-                                    map(HasContainer::getKey).collect(Collectors.toList());
-                            for (final String propertyKey : properties) {
-                                if (!propertyKeys.contains(propertyKey)) {
-                                    propertyKeys.add(propertyKey);
-                                }
-                            }
-                        }
-                    }
 
                     // No support for pushdown of primary key check at this time.
                     // This isn't really a useful pushdown anyway.
@@ -186,7 +145,7 @@ public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
                     vertexStep.getEdgeLabels(),
                     labels,
                     hasContainers,
-                    propertyKeys));
+                    null));
 
         }
     }

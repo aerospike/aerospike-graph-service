@@ -108,7 +108,6 @@ public class FireflyBatchEdgeReadLocalStrategy extends FireflyStrategyBase {
             // Note we don't want to push down ids.
             List<HasContainer> hasContainers = null;
             Set<String> labels = vertexStep.getLabels();
-            List<String> propertyKeys = null;
             while (labels.isEmpty()) {
                 if (index >= steps.size()) {
                     break;
@@ -118,14 +117,6 @@ public class FireflyBatchEdgeReadLocalStrategy extends FireflyStrategyBase {
                     final NoOpBarrierStep<?> noOpBarrierStep = (NoOpBarrierStep<?>) steps.get(index);
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
-                } else if (steps.get(index) instanceof IdStep) {
-                    if (traversal.isRoot()) {
-                        // Grab any labels.
-                        propertyKeys = new ArrayList<>();
-                        final IdStep<?> idStep = (IdStep<?>) steps.get(index);
-                        labels = idStep.getLabels();
-                    }
-                    break;
                 } else if (steps.get(index) instanceof HasStep) {
                     if (graph.getBaseGraph().isSupernodePushdownEnabled) {
                         hasContainers = ((HasStep) steps.get(index)).getHasContainers();
@@ -143,7 +134,7 @@ public class FireflyBatchEdgeReadLocalStrategy extends FireflyStrategyBase {
                     vertexStep.getEdgeLabels(),
                     labels,
                     hasContainers,
-                    propertyKeys));
+                    null));
 
         }
     }

@@ -133,6 +133,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 }
             }
         }
+        graph.setUser(jwtUser.getName());
     }
 
     @Override

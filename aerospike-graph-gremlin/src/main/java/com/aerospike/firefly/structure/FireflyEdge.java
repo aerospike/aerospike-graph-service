@@ -707,6 +707,9 @@ public class FireflyEdge extends FireflyElement implements Edge {
         removeEdge();
         removeFromOut();
         removeFromIn();
+        if (graph.getBaseGraph().IS_AUDIT_LOG_ENABLED) {
+            LOG.info("{{}} Dropped edge [{}]-[{}]>[{}].", graph.getUser(), outVertex().id(), label, inVertex().id());
+        }
     }
 
     public void removeSelfAndFromOut() {

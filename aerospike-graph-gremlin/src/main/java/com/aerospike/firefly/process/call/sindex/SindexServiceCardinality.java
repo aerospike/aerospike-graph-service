@@ -47,7 +47,7 @@ public class SindexServiceCardinality<I, R> extends SindexServiceBase<I, R> {
 
     @Override
     protected void auditLog(final Map params) {
-        LOGGER.info(getName() + " Get index cardinality.");
+        LOGGER.info("{" + getUser() + "} - " + getName() + " - Get index cardinality.");
     }
 
     protected UserContext.ROLE getRequiredRole() {

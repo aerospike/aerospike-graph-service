@@ -237,6 +237,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final int PAGINATION_PAGE_QUEUE_SIZE;
     public final int PAGINATION_PAGE_SIZE;
     public final int PAGINATION_PAGE_MAX_WAIT;
+    public final boolean IS_AUDIT_LOG_ENABLED;
     public final boolean AUTHENTICATION_ENABLED;
     public final boolean USAGE_STATS_SET_INDEX_ENABLED;
     public boolean isSupernodePushdownEnabled = true;
@@ -389,6 +390,11 @@ public class AerospikeConnection implements AutoCloseable {
         PAGINATION_PAGE_QUEUE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, conf);
         AUTHENTICATION_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTHENTICATION_ENABLED, conf);
         USAGE_STATS_SET_INDEX_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.USAGE_STATS_SET_INDEX_ENABLED, conf);
+        IS_AUDIT_LOG_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUDIT_LOG_ENABLED, conf);
+
+        if (IS_AUDIT_LOG_ENABLED && !AUTHENTICATION_ENABLED) {
+            throw new IllegalStateException("Audit logging requires JWT authentication to be configured.");
+        }
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);
         BL_DUPLICATE_VERTEX_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_DUPLICATE_VERTEX_COUNT_KEY.name(), conf);

@@ -84,6 +84,6 @@ public class JwtServiceIssueToken<I, R> extends JwtServiceBase<I, R> {
     @Override
     protected void auditLog(final Map params) {
         final String username = (String) params.get("username");
-        LOGGER.info(getName() + " Creating a new JWT token for user '" + username + "'.");
+        LOGGER.info("{" + getUser() + "} - " + getName() + " - Creating a new JWT token for user '" + username + "'.");
     }
 }

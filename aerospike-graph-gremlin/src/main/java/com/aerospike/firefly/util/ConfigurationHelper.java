@@ -166,6 +166,7 @@ public final class ConfigurationHelper {
         public static final String JWT_ALGORITHM = "aerospike.graph-service.auth.jwt.algorithm";
         public static final String AUTHENTICATION_ENABLED = "aerospike.graph-service.auth.enabled";
         public static final String USAGE_STATS_SET_INDEX_ENABLED = "aerospike.graph.usage.index.enabled";
+        public static final String AUDIT_LOG_ENABLED = "aerospike.graph.audit.log.enabled";
 
         public static final String EVENT_LOOP_TYPE = "aerospike.client.eventLoop.type";
         public static final String EVENT_LOOP_COUNT = "aerospike.client.eventLoop.count";
@@ -388,6 +389,7 @@ public final class ConfigurationHelper {
         put(Keys.JWT_ALGORITHM, "HMAC256");
         put(Keys.AUTHENTICATION_ENABLED, "false");
         put(Keys.USAGE_STATS_SET_INDEX_ENABLED, "true");
+        put(Keys.AUDIT_LOG_ENABLED, "false");
         put(Keys.SCAN_TOTAL_TIMEOUT, "0");
         put(Keys.SCAN_SOCKET_TIMEOUT, "1200000");
         put(Keys.SCAN_CONNECT_TIMEOUT, "0");

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process;
 
+import com.aerospike.firefly.io.aerospike.admin.AuthenticationException;
 import com.aerospike.firefly.runtime.FireflyServer;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
@@ -211,15 +212,18 @@ public class TestAuditLog {
             final GraphTraversalSource g = traversal().withRemote(drc);
             try {
                 g.V().drop().iterate();
-            } catch (Exception ignored) {
+                Assert.fail("Should not be able to drop vertices.");
+            } catch (AuthenticationException ignored) {
             }
             try {
                 Vertex v = g.addV("foo").next();
-            } catch (Exception ignored) {
+                Assert.fail("Should not be able to drop vertices.");
+            } catch (AuthenticationException ignored) {
             }
             try {
                 g.mergeV(asMap(T.id, "foo1")).next();
-            } catch (Exception ignored) {
+                Assert.fail("Should not be able to drop vertices.");
+            } catch (AuthenticationException ignored) {
             }
             final HashMap<Object, Object> mergeMap = new HashMap<>();
             mergeMap.put(Direction.OUT, new ReferenceVertex("1"));
@@ -227,27 +231,33 @@ public class TestAuditLog {
             mergeMap.put(T.label, "mergeE");
             try {
                 g.mergeE(mergeMap).next();
-            } catch (Exception ignored) {
+                Assert.fail("Should not be able to drop vertices.");
+            } catch (AuthenticationException ignored) {
             }
             try {
                 Edge e = g.addE("bar").from(__.V()).to(__.V()).next();
-            } catch (Exception ignored) {
+                Assert.fail("Should not be able to drop vertices.");
+            } catch (AuthenticationException ignored) {
             }
             try {
                 g.addE("bar").from(__.V()).to(__.V()).next();
-            } catch (Exception ignored) {
+                Assert.fail("Should not be able to drop vertices.");
+            } catch (AuthenticationException ignored) {
             }
             try {
                 g.E("1").drop().iterate();
-            } catch (Exception ignored) {
+                Assert.fail("Should not be able to drop vertices.");
+            } catch (AuthenticationException ignored) {
             }
             try {
                 g.V("1").drop().iterate();
-            } catch (Exception ignored) {
+                Assert.fail("Should not be able to drop vertices.");
+            } catch (AuthenticationException ignored) {
             }
             try {
                 g.call("aerospike.graph.admin.index.create").next();
-            } catch (Exception ignored) {
+                Assert.fail("Should not be able to drop vertices.");
+            } catch (AuthenticationException ignored) {
             }
             boolean foundAddV = false;
             boolean foundAddE = false;

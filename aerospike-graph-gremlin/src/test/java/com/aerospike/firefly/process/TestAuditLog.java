@@ -35,6 +35,12 @@ public class TestAuditLog {
             .withIssuer("aerospike")
             .sign(Algorithm.HMAC256("lyndon_secret"));
 
+    final String validRead = JWT.create()
+            .withClaim("role", "READ")
+            .withSubject("lyndon_loser")
+            .withIssuer("aerospike")
+            .sign(Algorithm.HMAC256("lyndon_secret"));
+
     private static FireflyServer server;
     private static final String auditLogWithJWT = "../conf/credentials-config/firefly-gremlin-server-audit-log-jwt.yaml";
     private static final String noAuditLogJWT = "../conf/credentials-config/firefly-gremlin-server-no-audit-log-jwt.yaml";
@@ -56,7 +62,6 @@ public class TestAuditLog {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baos));
-            System.clearProperty("FIREFLY_TESTING");
             createServerWithAuth(false);
             Cluster cluster = Cluster.build().addContactPoint("localhost").port(8182).
                     credentials("lyndon_username", validAdmin).create();
@@ -119,14 +124,13 @@ public class TestAuditLog {
     }
 
     @Test
-    public void testEnabled() {
+    public void testEnabledAdmin() {
         PrintStream originalOut = System.out;
         final List<String> linesReport = new ArrayList<>();
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baos));
             createServerWithAuth(true);
-            System.clearProperty("FIREFLY_TESTING");
             Cluster cluster = Cluster.build().addContactPoint("localhost").port(8182).
                     credentials("lyndon_username", validAdmin).create();
             final DriverRemoteConnection drc = DriverRemoteConnection.using(cluster);
@@ -183,6 +187,143 @@ public class TestAuditLog {
             Assert.assertTrue(foundDroppedE);
             Assert.assertTrue(foundMergeV);
             Assert.assertTrue(foundMergeE);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            System.setOut(originalOut);
+            for (final String lineReport : linesReport) {
+                System.out.println(lineReport);
+            }
+        }
+    }
+
+    @Test
+    public void testEnabledRead() {
+        PrintStream originalOut = System.out;
+        final List<String> linesReport = new ArrayList<>();
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            System.setOut(new PrintStream(baos));
+            createServerWithAuth(true);
+            Cluster cluster = Cluster.build().addContactPoint("localhost").port(8182).
+                    credentials("lyndon_loser", validRead).create();
+            final DriverRemoteConnection drc = DriverRemoteConnection.using(cluster);
+            final GraphTraversalSource g = traversal().withRemote(drc);
+            try {
+                g.V().drop().iterate();
+            } catch (Exception ignored) {
+            }
+            try {
+                Vertex v = g.addV("foo").next();
+            } catch (Exception ignored) {
+            }
+            try {
+                g.mergeV(asMap(T.id, "foo1")).next();
+            } catch (Exception ignored) {
+            }
+            final HashMap<Object, Object> mergeMap = new HashMap<>();
+            mergeMap.put(Direction.OUT, new ReferenceVertex("1"));
+            mergeMap.put(Direction.IN, new ReferenceVertex("1"));
+            mergeMap.put(T.label, "mergeE");
+            try {
+                g.mergeE(mergeMap).next();
+            } catch (Exception ignored) {
+            }
+            try {
+                Edge e = g.addE("bar").from(__.V()).to(__.V()).next();
+            } catch (Exception ignored) {
+            }
+            try {
+                g.addE("bar").from(__.V()).to(__.V()).next();
+            } catch (Exception ignored) {
+            }
+            try {
+                g.E("1").drop().iterate();
+            } catch (Exception ignored) {
+            }
+            try {
+                g.V("1").drop().iterate();
+            } catch (Exception ignored) {
+            }
+            try {
+                g.call("aerospike.graph.admin.index.create").next();
+            } catch (Exception ignored) {
+            }
+            boolean foundAddV = false;
+            boolean foundAddE = false;
+            boolean foundCreateSindex = false;
+            boolean foundDrop = false;
+            boolean foundDroppedV = false;
+            boolean foundDroppedE = false;
+            boolean foundMergeV = false;
+            boolean foundMergeE = false;
+
+            boolean foundAddVFailed = false;
+            boolean foundAddEFailed = false;
+            boolean foundCreateSindexFailed = false;
+            boolean foundDropFailed = false;
+            boolean foundDroppedVFailed = false;
+            boolean foundDroppedEFailed = false;
+            boolean foundMergeVFailed = false;
+            boolean foundMergeEFailed = false;
+
+            final List<String> logList = new ArrayList<>(Arrays.asList(baos.toString().split("\n")));
+            for (String line : logList) {
+                if (line.contains("{lyndon_loser}")) {
+                    if (line.contains("created vertex with id: foo1")) {
+                        foundMergeV = true;
+                    } else if (line.contains("created vertex with id:")) {
+                        foundAddV = true;
+                    } else if (line.contains("created edge: ") && line.contains("mergeE")) {
+                        foundMergeE = true;
+                    } else if (line.contains("created edge: ")) {
+                        foundAddE = true;
+                    } else if (line.contains("summary - Get graph summary.")) {
+                        foundCreateSindex = true;
+                    } else if (line.contains("Dropped entire database.")) {
+                        foundDrop = true;
+                    } else if (line.contains("Dropped vertex with id: ")) {
+                        foundDroppedV = true;
+                    } else if (line.contains("Dropped edge ")) {
+                        foundDroppedE = true;
+                    } else if (line.contains("Insufficient permissions")) {
+                        if (line.contains("Query: 'g.V().drop()")) {
+                            foundDropFailed = true;
+                        } else if (line.contains("Query: 'g.addV(\"foo\")")) {
+                            foundAddVFailed = true;
+                        } else if (line.contains("Query: 'g.mergeV")) {
+                            foundMergeVFailed = true;
+                        } else if (line.contains("Query: 'g.mergeE")) {
+                            foundMergeEFailed = true;
+                        } else if (line.contains("Query: 'g.addE(\"bar\")")) {
+                            foundAddEFailed = true;
+                        } else if (line.contains("Query: 'g.E(\"1\").drop()")) {
+                            foundDroppedEFailed = true;
+                        } else if (line.contains("Query: 'g.V(\"1\").drop()")) {
+                            foundDroppedVFailed = true;
+                        } else if (line.contains("aerospike.graph.admin.index.create")) {
+                            foundCreateSindexFailed = true;
+                        }
+                    }
+                    linesReport.add(line);
+                }
+            }
+            Assert.assertFalse(foundAddE);
+            Assert.assertFalse(foundAddV);
+            Assert.assertFalse(foundCreateSindex);
+            Assert.assertFalse(foundDrop);
+            Assert.assertFalse(foundDroppedV);
+            Assert.assertFalse(foundDroppedE);
+            Assert.assertFalse(foundMergeV);
+            Assert.assertFalse(foundMergeE);
+            Assert.assertTrue(foundAddVFailed);
+            Assert.assertTrue(foundAddEFailed);
+            Assert.assertTrue(foundCreateSindexFailed);
+            Assert.assertTrue(foundDropFailed);
+            Assert.assertTrue(foundDroppedVFailed);
+            Assert.assertTrue(foundDroppedEFailed);
+            Assert.assertTrue(foundMergeVFailed);
+            Assert.assertTrue(foundMergeEFailed);
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {

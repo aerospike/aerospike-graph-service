@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 import static org.apache.tinkerpop.gremlin.util.CollectionUtil.asMap;
@@ -76,8 +77,8 @@ public class TestAuditLog {
             mergeMap.put(Direction.IN, new ReferenceVertex(v.id()));
             mergeMap.put(T.label, "mergeE");
             g.mergeE(mergeMap).next();
-            Edge e = g.addE("bar").from(__.V()).to(__.V()).next();
-            g.addE("bar").from(__.V()).to(__.V()).next();
+            Edge e = g.addE("bar").from(__.V(v.id())).to(__.V(v.id())).next();
+            g.addE("bar").from(__.V(v.id())).to(__.V(v.id())).next();
             g.E(e.id()).drop().iterate();
             g.V(v.id()).drop().iterate();
             g.call("summary").next();
@@ -111,14 +112,14 @@ public class TestAuditLog {
                     }
                 }
             }
-            Assert.assertTrue(foundAddE);
-            Assert.assertTrue(foundAddV);
+            Assert.assertFalse(foundAddE);
+            Assert.assertFalse(foundAddV);
             Assert.assertTrue(foundSummary);
-            Assert.assertTrue(foundDrop);
-            Assert.assertTrue(foundDroppedV);
-            Assert.assertTrue(foundDroppedE);
-            Assert.assertTrue(foundMergeV);
-            Assert.assertTrue(foundMergeE);
+            Assert.assertFalse(foundDrop);
+            Assert.assertFalse(foundDroppedV);
+            Assert.assertFalse(foundDroppedE);
+            Assert.assertFalse(foundMergeV);
+            Assert.assertFalse(foundMergeE);
         } finally {
             System.setOut(originalOut);
         }
@@ -144,8 +145,8 @@ public class TestAuditLog {
             mergeMap.put(Direction.IN, new ReferenceVertex(v.id()));
             mergeMap.put(T.label, "mergeE");
             g.mergeE(mergeMap).next();
-            Edge e = g.addE("bar").from(__.V()).to(__.V()).next();
-            g.addE("bar").from(__.V()).to(__.V()).next();
+            Edge e = g.addE("bar").from(__.V(v.id())).to(__.V(v.id())).next();
+            g.addE("bar").from(__.V(v.id())).to(__.V(v.id())).next();
             g.E(e.id()).drop().iterate();
             g.V(v.id()).drop().iterate();
             g.call("summary").next();
@@ -213,17 +214,20 @@ public class TestAuditLog {
             try {
                 g.V().drop().iterate();
                 Assert.fail("Should not be able to drop vertices.");
-            } catch (AuthenticationException ignored) {
+            } catch (CompletionException e) {
+                Assert.assertTrue(e.getMessage().contains("User does not have write access"));
             }
             try {
                 Vertex v = g.addV("foo").next();
                 Assert.fail("Should not be able to drop vertices.");
-            } catch (AuthenticationException ignored) {
+            } catch (CompletionException e) {
+                Assert.assertTrue(e.getMessage().contains("User does not have write access"));
             }
             try {
                 g.mergeV(asMap(T.id, "foo1")).next();
                 Assert.fail("Should not be able to drop vertices.");
-            } catch (AuthenticationException ignored) {
+            } catch (CompletionException e) {
+                Assert.assertTrue(e.getMessage().contains("User does not have write access"));
             }
             final HashMap<Object, Object> mergeMap = new HashMap<>();
             mergeMap.put(Direction.OUT, new ReferenceVertex("1"));
@@ -232,32 +236,38 @@ public class TestAuditLog {
             try {
                 g.mergeE(mergeMap).next();
                 Assert.fail("Should not be able to drop vertices.");
-            } catch (AuthenticationException ignored) {
+            } catch (CompletionException e) {
+                Assert.assertTrue(e.getMessage().contains("User does not have write access"));
             }
             try {
                 Edge e = g.addE("bar").from(__.V()).to(__.V()).next();
                 Assert.fail("Should not be able to drop vertices.");
-            } catch (AuthenticationException ignored) {
+            } catch (CompletionException e) {
+                Assert.assertTrue(e.getMessage().contains("User does not have write access"));
             }
             try {
                 g.addE("bar").from(__.V()).to(__.V()).next();
                 Assert.fail("Should not be able to drop vertices.");
-            } catch (AuthenticationException ignored) {
+            } catch (CompletionException e) {
+                Assert.assertTrue(e.getMessage().contains("User does not have write access"));
             }
             try {
                 g.E("1").drop().iterate();
                 Assert.fail("Should not be able to drop vertices.");
-            } catch (AuthenticationException ignored) {
+            } catch (CompletionException e) {
+                Assert.assertTrue(e.getMessage().contains("User does not have write access"));
             }
             try {
                 g.V("1").drop().iterate();
                 Assert.fail("Should not be able to drop vertices.");
-            } catch (AuthenticationException ignored) {
+            } catch (CompletionException e) {
+                Assert.assertTrue(e.getMessage().contains("User does not have write access"));
             }
             try {
                 g.call("aerospike.graph.admin.index.create").next();
                 Assert.fail("Should not be able to drop vertices.");
-            } catch (AuthenticationException ignored) {
+            } catch (CompletionException e) {
+                Assert.assertTrue(e.getMessage().contains("Insufficient permissions for 'aerospike.graph.admin.index.create'."));
             }
             boolean foundAddV = false;
             boolean foundAddE = false;

@@ -41,6 +41,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_PASSKEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_USERNAME;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RESUME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
@@ -102,6 +103,9 @@ public class SparkBulkLoaderStateMachine {
             // new Timer(true) creates the timer as a daemon, which means that it will not prevent the JVM from exiting.
             progressBar = new ProgressBar(progressBarIntervalMs);
             progressBar.setIsL2Mode(cmd.hasOption(LOCAL_MODE));
+            if (cmd.hasOption(RESUME)) {
+                progressBar.setResumeableLoad();
+            }
             progressBarTimer = new Timer(true);
 
             // Initialize Spark.
@@ -128,7 +132,7 @@ public class SparkBulkLoaderStateMachine {
             // Create graph and initialize progress bar.
             initializerGraph = FireflyGraph.open(config.getFireflyConfig());
             progressBar.initialize(initializerGraph, incrementalLoad);
-            progressBarTimer.scheduleAtFixedRate(progressBar, 0, 10000);
+            progressBarTimer.scheduleAtFixedRate(progressBar, 0, 500);
 
             // Initialize bulk loader metadata.
             initializerGraph.getBaseGraph().initializeBulkLoadMetadata();

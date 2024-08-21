@@ -65,16 +65,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                 sparkBulkLoaderStateMachine.config,
                 sparkBulkLoaderStateMachine.edgeDirectories);
 
-        // Find temp directory holding edge ids.
-        String edgeRecoveryDirectory = null;
-        try {
-            edgeRecoveryDirectory = RecoveryUtil.getEdgeRecoveryDirectory(
-                    sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY),
-                    sparkBulkLoaderStateMachine.fileSystem.equals(SparkBulkLoaderStateMachine.LOCAL)
-                            ? File.separator : "/");
-        } catch (final ConfigurationRuntimeException cre) {
-            throw new RuntimeException(String.format("%s configuration key is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
-        }
+        final String edgeRecoveryDirectory = info.getTempDirectory();
         sparkBulkLoaderStateMachine.edgeDirectories = sparkBulkLoaderStateMachine.getDirectories(
                 sparkBulkLoaderStateMachine.spark,
                 sparkBulkLoaderStateMachine.cmd,
@@ -162,7 +153,6 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         if (!sparkBulkLoaderStateMachine.readOnly) {
             final String state = info.getState();
             if (state != null && !state.isEmpty()) {
-                sparkBulkLoaderStateMachine.progressBar.setResumeableLoad();
                 loadCheckpointDatasets(info);
                 sparkBulkLoaderStateMachine.progressBar.setResumeableLoadComplete();
                 switch (state) {

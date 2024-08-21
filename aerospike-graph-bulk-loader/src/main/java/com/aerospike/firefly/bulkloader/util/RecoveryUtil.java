@@ -17,6 +17,7 @@ import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,6 +125,23 @@ public class RecoveryUtil {
         retryWriteOperation(db, operation, writePolicy, key, operation);
     }
 
+    public static void writeTempDirectory(final AerospikeConnection db, final String tempDirectory) {
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "temp_directory");
+        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, tempDirectory);
+        final Operation operation = Operation.put(bin);
+        final WritePolicy writePolicy = new WritePolicy();
+        db.configureWritePolicy(writePolicy);
+        retryWriteOperation(db, operation, writePolicy, key, operation);
+    }
+
+    public static String recoverTempDirectory(final AerospikeConnection db) {
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "temp_directory");
+        final Policy readPolicy = new Policy();
+        db.configureReadPolicy(readPolicy);
+        final Record r = retryReadOperation(db, key, readPolicy);
+        return r == null ? null : r.getString(db.BULK_LOAD_RECOVERY_BIN);
+    }
+
     public static void updateVertexRecovery(final AerospikeConnection db, final int partitionCount) {
         // Create policy and configure.
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex_partition_count");
@@ -197,9 +215,9 @@ public class RecoveryUtil {
 
     public static String getEdgeRecoveryDirectory(final String tempDirectory, final String separator) {
         if (tempDirectory.endsWith(separator) || tempDirectory.endsWith("/")) {
-            return tempDirectory + "recovery" + separator + "edge";
+            return tempDirectory + "recovery" + separator + "edge" + separator + RandomStringUtils.randomAlphanumeric(8);
         } else {
-            return tempDirectory + separator + "recovery" + separator + "edge";
+            return tempDirectory + separator + "recovery" + separator + "edge" + separator + RandomStringUtils.randomAlphanumeric(8);
         }
     }
 
@@ -225,7 +243,8 @@ public class RecoveryUtil {
                 listener.getSupernodes(),
                 recoverState(db),
                 recoverVertexPartitionCount(db),
-                recoverEdgePartitionCount(db));
+                recoverEdgePartitionCount(db),
+                recoverTempDirectory(db));
     }
 
     public static Set<Long> completedVertexPartitions(final AerospikeConnection db) {
@@ -330,19 +349,26 @@ public class RecoveryUtil {
         private String state;
         private int vertexPartitionCount;
         private int edgePartitionCount;
+        private String tempDirectory;
 
         public RecoveryInfo(final Set<Long> vertexPartitions,
                             final Set<Long> edgePartitions,
                             final Set<Object> supernodes,
                             final String state,
                             final int vertexPartitionCount,
-                            final int edgePartitionCount) {
+                            final int edgePartitionCount,
+                            final String tempDirectory) {
             this.vertexPartitions = vertexPartitions;
             this.edgePartitions = edgePartitions;
             this.supernodes = supernodes;
             this.state = state;
             this.vertexPartitionCount = vertexPartitionCount;
             this.edgePartitionCount = edgePartitionCount;
+            this.tempDirectory = tempDirectory;
+        }
+
+        public String getTempDirectory() {
+            return tempDirectory;
         }
 
         public Set<Long> getVertexPartitions() {

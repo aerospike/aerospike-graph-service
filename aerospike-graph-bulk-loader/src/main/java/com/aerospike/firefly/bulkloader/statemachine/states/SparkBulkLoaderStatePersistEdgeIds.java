@@ -28,13 +28,13 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
     public void executeState() {
         // Persist edge ids.
         // Persist Edge ID data to disk
+        String edgeRecoveryDirectory;
         if (sparkBulkLoaderStateMachine.readOnly) {
             // Persisting Edge IDs is disabled. Do Nothing.
             LOGGER.debug("{} mode detected. System will not write persistent Edge IDs to temp storage.", READ_ONLY);
         } else {
-            // Check that the temp directory to write to is set.
-            String edgeRecoveryDirectory;
             try {
+                // Check that the temp directory to write to is set.
                 edgeRecoveryDirectory = RecoveryUtil.getEdgeRecoveryDirectory(
                         sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY),
                         sparkBulkLoaderStateMachine.fileSystem.equals(SparkBulkLoaderStateMachine.LOCAL)
@@ -58,6 +58,9 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
             sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.spark.read().option("header", "true").csv(edgeRecoveryDirectory);
             sparkBulkLoaderStateMachine.edgeDataset.persist(StorageLevel.DISK_ONLY());
             sparkBulkLoaderStateMachine.edgeDataset.repartition(new Column("~edgeid"));
+
+            // Latch recovery directory.
+            RecoveryUtil.writeTempDirectory(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), edgeRecoveryDirectory);
         }
 
         sparkBulkLoaderStateMachine.edgePartitionCount = sparkBulkLoaderStateMachine.edgeDataset.rdd().getPartitions().length;

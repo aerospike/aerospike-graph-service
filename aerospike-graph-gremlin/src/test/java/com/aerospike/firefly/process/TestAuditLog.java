@@ -219,13 +219,13 @@ public class TestAuditLog {
             }
             try {
                 Vertex v = g.addV("foo").next();
-                Assert.fail("Should not be able to drop vertices.");
+                Assert.fail("Should not be able add vertices.");
             } catch (CompletionException e) {
                 Assert.assertTrue(e.getMessage().contains("User does not have write access"));
             }
             try {
                 g.mergeV(asMap(T.id, "foo1")).next();
-                Assert.fail("Should not be able to drop vertices.");
+                Assert.fail("Should not be merge vertices.");
             } catch (CompletionException e) {
                 Assert.assertTrue(e.getMessage().contains("User does not have write access"));
             }
@@ -235,25 +235,19 @@ public class TestAuditLog {
             mergeMap.put(T.label, "mergeE");
             try {
                 g.mergeE(mergeMap).next();
-                Assert.fail("Should not be able to drop vertices.");
+                Assert.fail("Should not be able to merge edges.");
             } catch (CompletionException e) {
                 Assert.assertTrue(e.getMessage().contains("User does not have write access"));
             }
             try {
                 Edge e = g.addE("bar").from(__.V()).to(__.V()).next();
-                Assert.fail("Should not be able to drop vertices.");
-            } catch (CompletionException e) {
-                Assert.assertTrue(e.getMessage().contains("User does not have write access"));
-            }
-            try {
-                g.addE("bar").from(__.V()).to(__.V()).next();
-                Assert.fail("Should not be able to drop vertices.");
+                Assert.fail("Should not be able to add edges.");
             } catch (CompletionException e) {
                 Assert.assertTrue(e.getMessage().contains("User does not have write access"));
             }
             try {
                 g.E("1").drop().iterate();
-                Assert.fail("Should not be able to drop vertices.");
+                Assert.fail("Should not be able to drop edges.");
             } catch (CompletionException e) {
                 Assert.assertTrue(e.getMessage().contains("User does not have write access"));
             }
@@ -265,7 +259,7 @@ public class TestAuditLog {
             }
             try {
                 g.call("aerospike.graph.admin.index.create").next();
-                Assert.fail("Should not be able to drop vertices.");
+                Assert.fail("Should not be able to create index.");
             } catch (CompletionException e) {
                 Assert.assertTrue(e.getMessage().contains("Insufficient permissions for 'aerospike.graph.admin.index.create'."));
             }

@@ -83,6 +83,6 @@ public class SindexServiceDrop<I, R> extends SindexServiceBase<I, R> {
 
     @Override
     protected void auditLog(final Map params) {
-        LOGGER.info(getName() + " Drop index.");
+        LOGGER.info("{" + getUser() + "} - " + getName() + " - Drop index.");
     }
 }

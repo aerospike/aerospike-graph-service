@@ -538,6 +538,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
         // Set flags to indicate vertex has been removed.
         this.removed = true;
+        if (graph.getBaseGraph().IS_AUDIT_LOG_ENABLED) {
+            LOG.info("{{}} Dropped vertex with id: {}", graph.getUser(), id());
+        }
     }
 
     public Iterator<FireflyId> getEdgeIdsFromVertex(final Direction direction, final Set<String> labels, List<HasContainer> hasContainers) {

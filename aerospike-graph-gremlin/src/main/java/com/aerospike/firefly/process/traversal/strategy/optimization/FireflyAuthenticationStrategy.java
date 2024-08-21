@@ -4,11 +4,15 @@ import com.aerospike.firefly.io.aerospike.admin.AuthenticationException;
 import com.aerospike.firefly.security.JWTAuthenticator;
 import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
+import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Mutating;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.CallStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.Parameters;
+import org.apache.tinkerpop.gremlin.process.traversal.translator.GroovyTranslator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -22,6 +26,7 @@ import static com.aerospike.firefly.security.JWTAuthorizer.RESERVED_CALL_STRING;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyAuthenticationStrategy.class);
     boolean hasMutateStep = false;
     JWTAuthenticator.JWTAuthenticatedUser jwtUser = null;
 
@@ -122,6 +127,27 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
             // Admin steps are call steps. These have internal auth checks.
             if (hasMutateStep) {
                 if (!role.equals(UserContext.ROLE.READ_WRITE) && !role.equals(UserContext.ROLE.ADMIN)) {
+                    if (graph.getBaseGraph().IS_AUDIT_LOG_ENABLED) {
+                        // The clone doesn't take the reserved step.
+                        final Traversal copy = traversal.clone();
+                        final List<Bytecode.Instruction> instructions = copy.asAdmin().getBytecode().getStepInstructions();
+                        final List<Bytecode.Instruction> toRemove = new ArrayList<>();
+                        boolean found = false;
+                        for (final Bytecode.Instruction instruction : instructions) {
+                            // If we removed the previous instruction, this one needs to be removed too. Call and with are separate in the bytecode.
+                            if (found) {
+                                toRemove.add(instruction);
+                            }
+                            if (instruction.getOperator().equals("call") && instruction.getArguments().length > 0 &&
+                                    instruction.getArguments()[0].equals(RESERVED_CALL_STRING)) {
+                                toRemove.add(instruction);
+                                found = true;
+                            }
+                        }
+                        toRemove.forEach(instructions::remove);
+                        LOG.info("{{}} - " + " Insufficient permissions to execute mutating step. Query: 'g{}'.", jwtUser.getName(),
+                                GroovyTranslator.of("").translate(copy.asAdmin().getBytecode()).getScript());
+                    }
                     throw AuthenticationException.userDoesNotHaveWriteAccess();
                 }
             }
@@ -133,6 +159,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 }
             }
         }
+        graph.setUser(jwtUser.getName());
     }
 
     @Override

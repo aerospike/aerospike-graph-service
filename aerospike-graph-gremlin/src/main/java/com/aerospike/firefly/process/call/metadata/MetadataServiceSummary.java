@@ -75,6 +75,6 @@ public class MetadataServiceSummary<I, R> extends MetadataServiceBase<I, R> {
 
     @Override
     protected void auditLog(final Map params) {
-        LOGGER.info(getName() + " Get graph summary.");
+        LOGGER.info("{" + getUser() + "} - " + getName() + " - Get graph summary.");
     }
 }

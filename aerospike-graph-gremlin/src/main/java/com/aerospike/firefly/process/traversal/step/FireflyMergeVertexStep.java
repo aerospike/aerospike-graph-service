@@ -242,79 +242,87 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
     protected Iterator<Vertex> flatMap(final Traverser.Admin<S> traverser) {
         final Map<Object, Object> searchCreate = TraversalUtil.apply(traverser, searchCreateTraversal);
         validateMapInput(searchCreate, false);
-        Stream<Vertex> stream = createSearchStream(searchCreate);
-        stream = stream.map(v -> {
-            // If no onMatch is defined then there is no update - return the vertex unchanged
-            if (null == onMatchTraversal) return v;
+        while (true) {
+            try {
+                Stream<Vertex> stream = createSearchStream(searchCreate);
+                stream = stream.map(v -> {
+                    // If no onMatch is defined then there is no update - return the vertex unchanged
+                    if (null == onMatchTraversal) return v;
 
-            // If this was a start step the traverser is initialized with Boolean/false, so override that with
-            // the matched Vertex so that the option() traversal can operate on it properly
-            if (isStart) traverser.set((S) v);
+                    // If this was a start step the traverser is initialized with Boolean/false, so override that with
+                    // the matched Vertex so that the option() traversal can operate on it properly
+                    if (isStart) traverser.set((S) v);
 
-            // Assume good input from GraphTraversal - folks might drop in a T here even though it is immutable
-            final Map<String, Object> onMatchMap = TraversalUtil.apply(traverser, onMatchTraversal);
-            validateMapInput(onMatchMap, true);
+                    // Assume good input from GraphTraversal - folks might drop in a T here even though it is immutable
+                    final Map<String, Object> onMatchMap = TraversalUtil.apply(traverser, onMatchTraversal);
+                    validateMapInput(onMatchMap, true);
 
-            if (onMatchMap != null) {
-                onMatchMap.forEach((key, value) -> {
-                    // Trigger callbacks for eventing - in this case, it's a VertexPropertyChangedEvent. if there's no
-                    // registry/callbacks then just set the property
-                    if (this.callbackRegistry != null && !callbackRegistry.getCallbacks().isEmpty()) {
-                        final EventStrategy eventStrategy = getTraversal().getStrategies().getStrategy(EventStrategy.class).get();
-                        final Property<?> p = v.property(key);
-                        final Property<Object> oldValue = p.isPresent() ? eventStrategy.detach(v.property(key)) : null;
-                        final Event.VertexPropertyChangedEvent vpce = new Event.VertexPropertyChangedEvent(eventStrategy.detach(v), oldValue, value);
-                        this.callbackRegistry.getCallbacks().forEach(c -> c.accept(vpce));
+                    if (onMatchMap != null) {
+                        onMatchMap.forEach((key, value) -> {
+                            // Trigger callbacks for eventing - in this case, it's a VertexPropertyChangedEvent. if there's no
+                            // registry/callbacks then just set the property
+                            if (this.callbackRegistry != null && !callbackRegistry.getCallbacks().isEmpty()) {
+                                final EventStrategy eventStrategy = getTraversal().getStrategies().getStrategy(EventStrategy.class).get();
+                                final Property<?> p = v.property(key);
+                                final Property<Object> oldValue = p.isPresent() ? eventStrategy.detach(v.property(key)) : null;
+                                final Event.VertexPropertyChangedEvent vpce = new Event.VertexPropertyChangedEvent(eventStrategy.detach(v), oldValue, value);
+                                this.callbackRegistry.getCallbacks().forEach(c -> c.accept(vpce));
+                            }
+
+                            // Try to detect proper cardinality for the key according to the graph
+                            final Graph graph = this.getTraversal().getGraph().get();
+                            VertexProperty.Cardinality effectiveCard;
+                            if (FireflyCloseableIteratorUtils.count(v.properties(key)) <= 1)
+                                effectiveCard = VertexProperty.Cardinality.single;
+                            else effectiveCard = VertexProperty.Cardinality.list;
+                            v.property(effectiveCard, key, value);
+                        });
                     }
 
-                    // Try to detect proper cardinality for the key according to the graph
-                    final Graph graph = this.getTraversal().getGraph().get();
-                    VertexProperty.Cardinality effectiveCard;
-                    if (FireflyCloseableIteratorUtils.count(v.properties(key)) <= 1)
-                        effectiveCard = VertexProperty.Cardinality.single;
-                    else effectiveCard = VertexProperty.Cardinality.list;
-                    v.property(effectiveCard, key, value);
+                    return v;
                 });
-            }
 
-            return v;
-        });
+                // If the stream has something then there is a match (possibly updated) and is returned, otherwise a new
+                // vertex is created
+                final Iterator<Vertex> vertices = stream.iterator();
+                if (vertices.hasNext()) {
+                    return vertices;
+                } else {
+                    final Vertex vertex;
 
-        // If the stream has something then there is a match (possibly updated) and is returned, otherwise a new
-        // vertex is created
-        final Iterator<Vertex> vertices = stream.iterator();
-        if (vertices.hasNext()) {
-            return vertices;
-        } else {
-            final Vertex vertex;
+                    // If there is an onCreateTraversal then the search criteria is ignored for the creation as it is provided
+                    // by way of the traversal which will return the Map
+                    final boolean useOnCreate = onCreateTraversal != null;
+                    final Map<Object, Object> onCreateMap = useOnCreate ? TraversalUtil.apply(traverser, onCreateTraversal) : searchCreate;
 
-            // If there is an onCreateTraversal then the search criteria is ignored for the creation as it is provided
-            // by way of the traversal which will return the Map
-            final boolean useOnCreate = onCreateTraversal != null;
-            final Map<Object, Object> onCreateMap = useOnCreate ? TraversalUtil.apply(traverser, onCreateTraversal) : searchCreate;
+                    // searchCreate should have already been validated so only do it if it is overridden
+                    if (useOnCreate) validateMapInput(onCreateMap, false);
 
-            // searchCreate should have already been validated so only do it if it is overridden
-            if (useOnCreate) validateMapInput(onCreateMap, false);
+                    // If onCreate is null then it's a do nothing
+                    final List<Object> keyValues = new ArrayList<>();
+                    if (onCreateMap != null) {
+                        for (Map.Entry<Object, Object> entry : onCreateMap.entrySet()) {
+                            keyValues.add(entry.getKey());
+                            keyValues.add(entry.getValue());
+                        }
+                        vertex = this.getTraversal().getGraph().get().addVertex(keyValues.toArray(new Object[keyValues.size()]));
 
-            // If onCreate is null then it's a do nothing
-            final List<Object> keyValues = new ArrayList<>();
-            if (onCreateMap != null) {
-                for (Map.Entry<Object, Object> entry : onCreateMap.entrySet()) {
-                    keyValues.add(entry.getKey());
-                    keyValues.add(entry.getValue());
+                        // Trigger callbacks for eventing - in this case, it's a VertexAddedEvent
+                        if (this.callbackRegistry != null && !callbackRegistry.getCallbacks().isEmpty()) {
+                            final EventStrategy eventStrategy = getTraversal().getStrategies().getStrategy(EventStrategy.class).get();
+                            final Event.VertexAddedEvent vae = new Event.VertexAddedEvent(eventStrategy.detach(vertex));
+                            this.callbackRegistry.getCallbacks().forEach(c -> c.accept(vae));
+                        }
+
+                        return FireflyCloseableIteratorUtils.of(vertex);
+                    } else {
+                        return Collections.emptyIterator();
+                    }
                 }
-                vertex = this.getTraversal().getGraph().get().addVertex(keyValues.toArray(new Object[keyValues.size()]));
-
-                // Trigger callbacks for eventing - in this case, it's a VertexAddedEvent
-                if (this.callbackRegistry != null && !callbackRegistry.getCallbacks().isEmpty()) {
-                    final EventStrategy eventStrategy = getTraversal().getStrategies().getStrategy(EventStrategy.class).get();
-                    final Event.VertexAddedEvent vae = new Event.VertexAddedEvent(eventStrategy.detach(vertex));
-                    this.callbackRegistry.getCallbacks().forEach(c -> c.accept(vae));
+            } catch (final IllegalArgumentException e) {
+                if (!e.getMessage().contains("Vertex with id already exists:")) {
+                    throw e;
                 }
-
-                return FireflyCloseableIteratorUtils.of(vertex);
-            } else {
-                return Collections.emptyIterator();
             }
         }
     }

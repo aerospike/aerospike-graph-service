@@ -30,6 +30,7 @@ import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
 public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
     protected FireflyGraph graph;
+    private String user = null;
     protected static final Logger LOGGER = LoggerFactory.getLogger(AdminServiceRegistry.class);
     public static final String RESERVED_USER_CONTEXT = "aerospike.graph.admin.reserved.user.context";
 
@@ -109,6 +110,7 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
     @Override
     public CloseableIterator<R> execute(final ServiceCallContext ctx, final Map params) {
         if (!validateAdminContext(ctx, params)) {
+            LOGGER.info("{" + getUser() + "} - " + getName() + " - Insufficient permissions to run service.");
             throw new IllegalArgumentException("Insufficient permissions for '" + getName() + "'.");
         }
         if (!sanitize(params)) {
@@ -128,6 +130,7 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
             // This should never happen.
             throw AuthenticationException.invalidUserContext();
         }
+        user = userContext.getName();
 
         final UserContext.ROLE role = userContext.getRole();
         if (role == null) {
@@ -145,6 +148,10 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
                     role.equals(UserContext.ROLE.READ_WRITE) ||
                     role.equals(UserContext.ROLE.READ);
         }
+    }
+
+    protected String getUser() {
+        return user == null ? "anonymous" : user;
     }
 
     private static final int SUCCESS_CODE = 200;

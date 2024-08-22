@@ -91,6 +91,9 @@ public class TestFireflySindexCallSteps {
             final List<String> indexesAfterDrop = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             Assert.assertTrue(indexesAfterDrop.isEmpty());
             g.call("aerospike.graph.admin.index.create").
+                    with("property_key", "~label").
+                    with("element_type", "vertex").next();
+            g.call("aerospike.graph.admin.index.create").
                     with("property_key", "nameB").
                     with("element_type", "vertex").next();
             g.call("aerospike.graph.admin.index.create").
@@ -102,7 +105,12 @@ public class TestFireflySindexCallSteps {
             Map<String, Long> nameCStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                     with("property_key", "nameC").
                     with("element_type", "vertex").next();
-            while (nameBStatus.get("percent_complete") < 100 || nameCStatus.get("percent_complete") < 100) {
+            Map<String, Long> labelStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                    with("property_key", "~label").
+                    with("element_type", "vertex").next();
+            while (nameBStatus.get("percent_complete") < 100 ||
+                    nameCStatus.get("percent_complete") < 100 ||
+                    labelStatus.get("percent_complete") < 100) {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
@@ -114,9 +122,12 @@ public class TestFireflySindexCallSteps {
                 nameCStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                         with("property_key", "nameC").
                         with("element_type", "vertex").next();
+                labelStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                        with("property_key", "~label").
+                        with("element_type", "vertex").next();
             }
             final List<String> sindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
-            Assert.assertEquals(Set.of("nameB", "nameC"), new HashSet<>(sindexes));
+            Assert.assertEquals(Set.of("nameB", "nameC", "vertex.~label"), new HashSet<>(sindexes));
         }
     }
 
@@ -127,6 +138,11 @@ public class TestFireflySindexCallSteps {
             final GraphTraversalSource g = fireflyGraph.traversal();
             final List<String> initialSindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             for (final String s : initialSindexes) {
+                if (s.equals("vertex.~label")) {
+                    g.call("aerospike.graph.admin.index.drop").
+                            with("property_key", "~label").
+                            with("element_type", "vertex").next();
+                }
                 g.call("aerospike.graph.admin.index.drop").
                         with("property_key", s).
                         with("element_type", "vertex").next();
@@ -171,10 +187,17 @@ public class TestFireflySindexCallSteps {
             g.call("aerospike.graph.admin.index.create").
                     with("property_key", "nameA").
                     with("element_type", "vertex").next();
+            g.call("aerospike.graph.admin.index.create").
+                    with("property_key", "~label").
+                    with("element_type", "vertex").next();
             Map<String, Long> nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                     with("property_key", "nameA").
                     with("element_type", "vertex").next();
-            while (nameAStatus.get("percent_complete") < 100) {
+            Map<String, Long> labelStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                    with("property_key", "~label").
+                    with("element_type", "vertex").next();
+            while (nameAStatus.get("percent_complete") < 100 ||
+                    labelStatus.get("percent_complete") < 100) {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
@@ -183,10 +206,16 @@ public class TestFireflySindexCallSteps {
                 nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                         with("property_key", "nameA").
                         with("element_type", "vertex").next();
+                labelStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                        with("property_key", "~label").
+                        with("element_type", "vertex").next();
             }
-            Assert.assertEquals(Set.of("nameA"), new HashSet<>(((List<String>) g.call("aerospike.graph.admin.index.list").next())));
+            Assert.assertEquals(Set.of("nameA", "vertex.~label"), new HashSet<>(((List<String>) g.call("aerospike.graph.admin.index.list").next())));
             g.call("aerospike.graph.admin.index.drop").
                     with("property_key", "nameA").
+                    with("element_type", "vertex").next();
+            g.call("aerospike.graph.admin.index.drop").
+                    with("property_key", "~label").
                     with("element_type", "vertex").next();
             Assert.assertTrue(((List<String>) g.call("aerospike.graph.admin.index.list").next()).isEmpty());
         }
@@ -202,8 +231,14 @@ public class TestFireflySindexCallSteps {
             g.call("aerospike.graph.admin.index.create").
                     with("property_key", "nameA").
                     with("element_type", "vertex").next();
+            g.call("aerospike.graph.admin.index.create").
+                    with("property_key", "~label").
+                    with("element_type", "vertex").next();
             Map<String, Long> nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                     with("property_key", "nameA").
+                    with("element_type", "vertex").next();
+            Map<String, Long> labelStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                    with("property_key", "~label").
                     with("element_type", "vertex").next();
             while (nameAStatus.get("percent_complete") < 100) {
                 try {
@@ -214,8 +249,12 @@ public class TestFireflySindexCallSteps {
                 nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                         with("property_key", "nameA").
                         with("element_type", "vertex").next();
+                labelStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                        with("property_key", "~label").
+                        with("element_type", "vertex").next();
             }
             Assert.assertTrue(nameAStatus.get("load_time") > 0);
+            Assert.assertEquals(100, (long) nameAStatus.get("percent_complete"));
         }
     }
 

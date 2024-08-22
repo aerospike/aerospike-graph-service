@@ -21,6 +21,7 @@ def parse_cluster_cli():
     parser.add_argument('--node_count', help="number of nodes", type=int, default=3)
     parser.add_argument('--debug', help="debug logging", action="store_true", default=False)
     parser.add_argument('--test', help="test", action="store_true", default=False)
+    parser.add_argument('--default_ttl', help="Default ttl for Aerospike nodes", default=0, type=str)
 
     cli = parser.parse_args()
     assert cli.repo_path is not None
@@ -33,6 +34,7 @@ def parse_cluster_cli():
                 "aerospike_image": f"aerospike:{cli.aerospike_version}",
                 "node_count": cli.node_count,
                 "debug": cli.debug,
+                "default_ttl": cli.default_ttl,
                 "test": cli.test if "test" in cli else False})
 
 
@@ -73,7 +75,8 @@ class ClusterManager:
             legacy_memory_setting=legacy_memory_setting,
             access_port=f"30{numeric_id}0",
             port=f"30{numeric_id}0",
-            tls_port=f"43{numeric_id}3"
+            tls_port=f"43{numeric_id}3",
+            default_ttl=config.default_ttl
         )
         node_config_file = os.path.join(temp_dir, f"aerospike_{numeric_id}.conf")
         with open(node_config_file, "w") as fh:

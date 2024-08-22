@@ -207,6 +207,14 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private static final String GREMLIN_SERVER_YAML_PATH = "GREMLIN_SERVER_YAML_PATH";
     private static final String UNIFIED_CONFIG_PROPERTIES_PATH = "UNIFIED_CONFIG_PROPERTIES_PATH";
     private final Settings gremlinServerSettings;
+    public static ExitManager EXIT_MANAGER = new ExitManager();
+
+    public static class ExitManager {
+        public void exit(final int code) {
+            System.exit(code);
+        }
+    }
+
     private static final AtomicBoolean INFO_PRINTED = new AtomicBoolean(false);
 
     static {
@@ -354,7 +362,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             LOG.error("========== See Error message for more details:", e);
 
             // Signal to gremlin-server to shut down.
-            System.exit(1);
+            EXIT_MANAGER.exit(1);
 
             // Required to compile.
             return null;

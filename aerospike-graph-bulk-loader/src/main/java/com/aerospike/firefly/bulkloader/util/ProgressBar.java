@@ -125,7 +125,11 @@ public class ProgressBar extends TimerTask {
                 return "\t\tPreflight check in progress\n";
             }
         } else {
-            return "\t\tPreflight check not started\n";
+            if (resumableLoadComplete) {
+                return "\t\tPreflight check skipped\n";
+            } else {
+                return "\t\tPreflight check not started\n";
+            }
         }
     }
 
@@ -262,6 +266,9 @@ public class ProgressBar extends TimerTask {
     }
 
     private String getEdgeIdProgress() {
+        if (resumableLoad && resumableLoadComplete) {
+            return "\t\tTemp data writing skipped\n";
+        }
         if (edgeIdWriteComplete) {
             return "\t\tTemp data writing complete\n";
         } else if (preflightCheckComplete) {

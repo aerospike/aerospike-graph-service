@@ -870,7 +870,6 @@ public class AerospikeConnection implements AutoCloseable {
         public static boolean getIsAerospikeTTLEnabled(final AerospikeClient client, final String namespace) {
             final String requestKey = Keys.GET_CONFIG + namespace;
             final Node[] nodes = client.getNodes();
-            final List<String> ttls = new ArrayList<>();
 
             for (final Node node : nodes) {
                 LOG.debug("Info.request: {}", requestKey);
@@ -879,7 +878,7 @@ public class AerospikeConnection implements AutoCloseable {
                 for (final Map<String, String> config : listOfConfigs) {
                     if (config.containsKey(DEFAULT_TTL)) {
                         if (!config.get(DEFAULT_TTL).equals("0")) {
-                            LOG.error("One or more Aerospike node has default-ttl set to non-zero value: " + ttl +
+                            LOG.error("One or more Aerospike node has default-ttl set to non-zero value: " + config.get(DEFAULT_TTL) +
                                     " in the namespace '" + namespace + "'. Please set default-ttl to 0 in all Aerospike " +
                                     "configuration files under the namespace '" + namespace + "'.");
                             return true;

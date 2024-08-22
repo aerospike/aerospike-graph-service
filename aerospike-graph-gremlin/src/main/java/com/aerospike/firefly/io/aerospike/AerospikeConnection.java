@@ -861,12 +861,11 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         /**
-         * Return the max-record-size configured on Aerospike. If Aerospike is in a cluster, returns the value for the
-         * node with the smallest max-record-size.
+         * Get whether TTL is enabled in Aerospike or not.
          *
          * @param client    client.
          * @param namespace Namespace.
-         * @return The max-record-size.
+         * @return True if enabled on any node, false otherwise.
          */
         public static boolean getIsAerospikeTTLEnabled(final AerospikeClient client, final String namespace) {
             final String requestKey = Keys.GET_CONFIG + namespace;
@@ -879,17 +878,13 @@ public class AerospikeConnection implements AutoCloseable {
                 final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
                 for (final Map<String, String> config : listOfConfigs) {
                     if (config.containsKey(DEFAULT_TTL)) {
-                        ttls.add(config.get(DEFAULT_TTL));
+                        if (!config.get(DEFAULT_TTL).equals("0")) {
+                            LOG.error("One or more Aerospike node has default-ttl set to non-zero value: " + ttl +
+                                    " in the namespace '" + namespace + "'. Please set default-ttl to 0 in all Aerospike " +
+                                    "configuration files under the namespace '" + namespace + "'.");
+                            return true;
+                        }
                     }
-                }
-            }
-
-            for (final String ttl : ttls) {
-                if (!ttl.equals("0")) {
-                    LOG.error("One or more Aerospike node has default-ttl set to non-zero value: " + ttl +
-                            " in the namespace '" + namespace + "'. Please set default-ttl to 0 in all Aerospike " +
-                            "configuration files under the namespace '" + namespace + "'.");
-                    return true;
                 }
             }
             return false;

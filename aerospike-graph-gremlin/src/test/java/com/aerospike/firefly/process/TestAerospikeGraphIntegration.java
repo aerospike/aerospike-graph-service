@@ -12,6 +12,7 @@ import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.TestHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.IO;
+import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
@@ -201,6 +202,17 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             assertThat(ex.getMessage(), endsWith("Vertex id could not be resolved from mergeE: 100"));
         }
         assertEquals(0, FireflyCloseableIteratorUtils.count(g.E()));
+    }
+
+    @Test
+    public void MergeVWithCreateOption() {
+        final Vertex v = g.mergeV(asMap("c", "3"))
+                .option(Merge.onCreate, asMap("a", 1))
+                .option(Merge.onMatch, asMap("b", 2))
+                .next();
+
+        assertEquals(1, v.property("a").value());
+        assertEquals("3", v.property("c").value());
     }
 
     private static void assertId(final Graph g, final boolean lossyForId, final Element e, final Object expected) {

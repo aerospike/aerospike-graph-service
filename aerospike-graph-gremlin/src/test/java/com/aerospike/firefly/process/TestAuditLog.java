@@ -52,9 +52,9 @@ public class TestAuditLog {
             server.stop().join();
         }
         if (auditLogEnabled) {
-            server = FireflyServer.main(new String[]{auditLogWithJWT});
+            server = FireflyServer.start(new String[]{auditLogWithJWT});
         } else {
-            server = FireflyServer.main(new String[]{noAuditLogJWT});
+            server = FireflyServer.start(new String[]{noAuditLogJWT});
         }
     }
 

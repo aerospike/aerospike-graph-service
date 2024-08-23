@@ -49,7 +49,7 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <aerospike-client.version>7.2.1</aerospike-client.version>
-        <tinkerpop.version>3.7.1</tinkerpop.version>
+        <tinkerpop.version>3.7.2</tinkerpop.version>
         <junit.version>4.13.1</junit.version>
         <awaitly.version>4.2.0</awaitly.version>
         <logback.version>1.2.13</logback.version>
@@ -147,7 +147,7 @@
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
                     <environmentVariables>
-                        <FIREFLY_TESTING>true</FIREFLY_TESTING>
+                        <FIREFLY_TESTING>false</FIREFLY_TESTING>
                         <!--
                             This should be set to the lowest version of Aerospike graph that is available in dockerhub.
                             Note the major version must align. In this case, 1.0.0 was removed, so we use 1.0.1

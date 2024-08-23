@@ -369,6 +369,13 @@ public class AerospikeConnection implements AutoCloseable {
         this.eventLoops = eventLoops;
         this.client = client;
 
+        // Verify that the namespace is not using a default-ttl.
+        if (InfoOps.getIsAerospikeTTLEnabled(client, namespace)) {
+            throw new IllegalStateException("Graph cannot run in a namespace that has a 'default-ttl'. " +
+                    "Aerospike has a non-zero 'default-ttl' in one or more nodes. " +
+                    "Please disable it for all nodes in namespace '" + namespace + ".");
+        }
+
         V_LABEL_INDEX_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG, conf);
         E_LABEL_INDEX_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG, conf);
         GLOBAL_EDGE_CACHE_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED, conf);
@@ -524,6 +531,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
         LOG.info("{} configured to {}.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, onRecordIdLimit);
         ON_RECORD_ID_LIMIT = onRecordIdLimit;
+
     }
 
     private long getRecordIdLimitFromAerospike(final double fillPercentage) {
@@ -742,6 +750,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         private static final String MAX_RECORD_SIZE = "max-record-size";
+        private static final String DEFAULT_TTL = "default-ttl";
         private static final String STORAGE_ENGINE = "storage-engine";
         private static final String WRITE_BLOCK_SIZE = "storage-engine.write-block-size";
         private static final String STORAGE_ENGINE_PMEM = "pmem";
@@ -849,6 +858,35 @@ public class AerospikeConnection implements AutoCloseable {
                 }
             }
             return indexList;
+        }
+
+        /**
+         * Get whether TTL is enabled in Aerospike or not.
+         *
+         * @param client    client.
+         * @param namespace Namespace.
+         * @return True if enabled on any node, false otherwise.
+         */
+        public static boolean getIsAerospikeTTLEnabled(final AerospikeClient client, final String namespace) {
+            final String requestKey = Keys.GET_CONFIG + namespace;
+            final Node[] nodes = client.getNodes();
+
+            for (final Node node : nodes) {
+                LOG.debug("Info.request: {}", requestKey);
+                final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
+                final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
+                for (final Map<String, String> config : listOfConfigs) {
+                    if (config.containsKey(DEFAULT_TTL)) {
+                        if (!config.get(DEFAULT_TTL).equals("0")) {
+                            LOG.error("One or more Aerospike node has default-ttl set to non-zero value: " + config.get(DEFAULT_TTL) +
+                                    " in the namespace '" + namespace + "'. Please set default-ttl to 0 in all Aerospike " +
+                                    "configuration files under the namespace '" + namespace + "'.");
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
         }
 
         /**
@@ -1948,8 +1986,8 @@ public class AerospikeConnection implements AutoCloseable {
                     final String eventLoopTypeName = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.EVENT_LOOP_TYPE, conf);
                     final EventLoopType eventLoopType = EventLoopType.valueOf(eventLoopTypeName);
                     final int eventLoopCount = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.EVENT_LOOP_COUNT, conf);
-                    final int commandsPerEventLoop = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.COMMANDS_PER_EVENT_LOOP,conf);
-                    final int delayQueueSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.DELAY_QUEUE_SIZE,conf);
+                    final int commandsPerEventLoop = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.COMMANDS_PER_EVENT_LOOP, conf);
+                    final int delayQueueSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.DELAY_QUEUE_SIZE, conf);
 
                     eventLoops = initializeEventLoops(eventLoopType, eventLoopCount, commandsPerEventLoop, delayQueueSize);
                     final int threadPoolSize = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());

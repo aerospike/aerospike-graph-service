@@ -276,6 +276,11 @@ public class TestAdminCallHttp {
             g.addV("person").property("nameA", "Alice").property("nameB", "Bob").next();
             final List<String> initialSindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             for (final String s : initialSindexes) {
+                if (s.equals("vertex.~label")) {
+                    g.call("aerospike.graph.admin.index.drop").
+                            with("property_key", "~label").
+                            with("element_type", "vertex").next();
+                }
                 g.call("aerospike.graph.admin.index.drop").
                         with("property_key", s).
                         with("element_type", "vertex").next();

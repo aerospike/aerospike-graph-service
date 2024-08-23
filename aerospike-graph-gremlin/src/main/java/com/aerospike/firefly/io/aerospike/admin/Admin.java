@@ -203,7 +203,7 @@ public class Admin {
             }
             if (valid) {
                 // This is the case if the index is dropped.
-                if (highestMemoryUsed != 0) {
+                if (totalUsedBytes != 0 || highestMemoryUsed != 0) {
                     return Map.of("percent_complete", lowestLoadPct,
                             "total_entries", totalEntries,
                             "total_used_bytes", totalUsedBytes,

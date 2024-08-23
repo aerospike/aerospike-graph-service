@@ -3,6 +3,7 @@ package com.aerospike.firefly.io.aerospike.admin;
 import com.aerospike.firefly.process.call.AdministrativeInfoService;
 import com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceBase;
 import com.aerospike.firefly.process.call.metadata.MetadataServiceBase;
+import com.aerospike.firefly.process.call.query.QueryServiceBase;
 import com.aerospike.firefly.process.call.rbac.JwtServiceBase;
 import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
 import com.aerospike.firefly.security.JWTAuthenticator;
@@ -97,6 +98,7 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
         BulkLoaderServiceBase.registerBulkLoadServices(firefly);
         AdministrativeInfoService.registerAdministrativeService(firefly);
         JwtServiceBase.registerJwtServices(firefly);
+        QueryServiceBase.registerQueryServices(firefly);
     }
 
     public static void appendHandlers(final Router router) {
@@ -104,6 +106,7 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
         MetadataServiceBase.routeMetadataServices(router);
         BulkLoaderServiceBase.routeBulkLoadServices(router);
         JwtServiceBase.routeJwtServices(router);
+        QueryServiceBase.routeQueryServices(router);
     }
 
     @Override

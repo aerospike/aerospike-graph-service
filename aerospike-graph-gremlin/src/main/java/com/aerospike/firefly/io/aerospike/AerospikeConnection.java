@@ -733,6 +733,8 @@ public class AerospikeConnection implements AutoCloseable {
             public static final String INDEXNAME = "indexname";
             public static final String RESULT = "result";
             public static final String GET_CONFIG = "get-config:context=namespace;id=";
+            public static final String SHOW_ALL_QUERY = "query-show";
+            public static final String QUERY_ABORT = "query-abort:trid=";
         }
 
         private static final String MAX_RECORD_SIZE = "max-record-size";
@@ -740,6 +742,10 @@ public class AerospikeConnection implements AutoCloseable {
         private static final String WRITE_BLOCK_SIZE = "storage-engine.write-block-size";
         private static final String STORAGE_ENGINE_PMEM = "pmem";
         private static final String STORAGE_ENGINE_MEMORY = "memory";
+        private static final String QUERY_STATUS = "status";
+        private static final String QUERY_TRID = "trid";
+        private static final String QUERY_ABORT_RESULT = "result";
+        private static final String QUERY_ABORT_SUCCESS = "OK";
 
         //Parse the whole infoResponse and return it as a List of Maps
         public static List<Map<String, String>> parseRaw(String infoResponse) {
@@ -873,7 +879,6 @@ public class AerospikeConnection implements AutoCloseable {
                     if (config.containsKey(STORAGE_ENGINE)) {
                         relevantConfigs.put(STORAGE_ENGINE, config.get(STORAGE_ENGINE));
                     }
-
                 }
 
                 if (relevantConfigs.containsKey(MAX_RECORD_SIZE) && Long.parseLong(relevantConfigs.get(MAX_RECORD_SIZE)) != 0) {
@@ -893,6 +898,65 @@ public class AerospikeConnection implements AutoCloseable {
             }
 
             return maxRecordSize;
+        }
+
+        public static Map<String, Integer> abortAllQueries(final AerospikeClient client, final String namespace) {
+            final String requestKey = Keys.SHOW_ALL_QUERY;
+            final Node[] nodes = client.getNodes();
+
+            final Set<String> activeTrids = new HashSet<>();
+            for (final Node node : nodes) {
+                LOG.debug("Info.request: {}", requestKey);
+                final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
+                final List<Map<String, String>> listOfQueries = parseRaw(infoResponse).stream()
+                        .filter(m -> m.get(Keys.NS).equals(namespace))
+                        .collect(Collectors.toList());
+                for (final Map<String, String> query : listOfQueries) {
+                    if (!query.containsKey(QUERY_STATUS)) {
+                        LOG.warn("Unexpected failure to get a query's status when aborting all queries.");
+                        continue;
+                    }
+                    if (query.get(QUERY_STATUS).contains(("active"))) {
+                        if (!query.containsKey(QUERY_TRID)) {
+                            LOG.warn("Unexpected failure to get an active query's trid when aborting all queries.");
+                            continue;
+                        }
+                        activeTrids.add(query.get(QUERY_TRID));
+                    }
+                }
+            }
+
+            final Map<String, Integer> resultMap = new HashMap<>();
+            LOG.info("Found {} active queries to abort.", activeTrids.size());
+            resultMap.put("found", activeTrids.size());
+            int successfulAborts = 0;
+            for (final String trid : activeTrids) {
+                if (abortQuery(client, trid)) {
+                    successfulAborts++;
+                }
+            }
+            LOG.info("{} active queries were successfully aborted.", successfulAborts);
+            resultMap.put("aborted", successfulAborts);
+            return resultMap;
+        }
+
+        public static boolean abortQuery(final AerospikeClient client, final String trid) {
+            final String requestKey = Keys.QUERY_ABORT + trid;
+            final Node[] nodes = client.getNodes();
+
+            boolean success = false;
+            for (final Node node : nodes) {
+                LOG.debug("Info.request: {}", requestKey);
+                final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
+                final List<Map<String, String>> queryAbortResponses = parseRaw(infoResponse);
+                for (final Map<String, String> abortResponse : queryAbortResponses) {
+                    if (abortResponse.containsKey(QUERY_ABORT_RESULT) &&
+                            QUERY_ABORT_SUCCESS.equals(abortResponse.get(QUERY_ABORT_RESULT))) {
+                        success = true;
+                    }
+                }
+            }
+            return success;
         }
 
         /**
@@ -1116,6 +1180,10 @@ public class AerospikeConnection implements AutoCloseable {
                 }
             });
         }
+    }
+
+    public Map<String, Integer> abortQueries() {
+        return InfoOps.abortAllQueries(this.client, this.namespace);
     }
 
     /**

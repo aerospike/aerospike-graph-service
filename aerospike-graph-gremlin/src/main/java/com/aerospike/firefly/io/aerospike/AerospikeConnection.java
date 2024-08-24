@@ -913,12 +913,12 @@ public class AerospikeConnection implements AutoCloseable {
                         .collect(Collectors.toList());
                 for (final Map<String, String> query : listOfQueries) {
                     if (!query.containsKey(QUERY_STATUS)) {
-                        LOG.warn("Unexpected failure to get a query's status when aborting all queries.");
+                        LOG.error("Unexpected failure to get a query's status when aborting all queries. Please contact support if an ongoing query persists.");
                         continue;
                     }
                     if (query.get(QUERY_STATUS).contains(("active"))) {
                         if (!query.containsKey(QUERY_TRID)) {
-                            LOG.warn("Unexpected failure to get an active query's trid when aborting all queries.");
+                            LOG.error("Unexpected failure to get an active query's trid when aborting all queries. Please contact support if an ongoing query persists.");
                             continue;
                         }
                         activeTrids.add(query.get(QUERY_TRID));
@@ -955,6 +955,9 @@ public class AerospikeConnection implements AutoCloseable {
                         success = true;
                     }
                 }
+            }
+            if (!success) {
+                LOG.error("Failed to abort query with trid {}. Please contact support if an ongoing query persists.", trid);
             }
             return success;
         }

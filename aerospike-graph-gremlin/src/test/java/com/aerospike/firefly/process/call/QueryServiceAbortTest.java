@@ -16,6 +16,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -65,8 +66,10 @@ public class QueryServiceAbortTest {
         final GraphTraversalSource g = graph.traversal();
         final int scanCount = 4;
         final List<Thread> scanThreads = new ArrayList<>(scanCount);
+        final List<AtomicBoolean> threadSuccesses = new ArrayList<>(scanCount);
         for (int i = 0; i < scanCount; i++) {
             final int finalI = i;
+            final AtomicBoolean assertion = new AtomicBoolean(false);
             final Thread scanThread = new Thread(() -> {
                 final var scan = g.V().has("propertyKey", String.valueOf(finalI));
                 try {
@@ -77,14 +80,17 @@ public class QueryServiceAbortTest {
                 } catch (final Exception e) {
                     if (e.getCause() instanceof AerospikeException) {
                         final AerospikeException ae = (AerospikeException) e.getCause();
-                        Assert.assertEquals(ResultCode.SCAN_ABORT, ae.getResultCode());
+                        if (ae.getResultCode() == ResultCode.SCAN_ABORT) {
+                            assertion.set(true);
+                        }
                     } else {
-                        Assert.fail("Unexpected error cause type from scan.");
+                        throw e;
                     }
                 }
             });
             scanThread.start();
             scanThreads.add(scanThread);
+            threadSuccesses.add(assertion);
         }
         Thread.sleep(200);
         Map<String, Integer> queryAbortResult = (Map<String, Integer>) g.call("aerospike.graph.admin.query.abort").next();
@@ -92,6 +98,9 @@ public class QueryServiceAbortTest {
         Assert.assertEquals(scanCount, (int) queryAbortResult.get("aborted"));
         for (final Thread scanThread : scanThreads) {
             scanThread.join();
+        }
+        for (final AtomicBoolean assertion : threadSuccesses) {
+            Assert.assertTrue(assertion.get());
         }
         queryAbortResult = (Map<String, Integer>) g.call("aerospike.graph.admin.query.abort").next();
         Assert.assertEquals(0, (int) queryAbortResult.get("found"));

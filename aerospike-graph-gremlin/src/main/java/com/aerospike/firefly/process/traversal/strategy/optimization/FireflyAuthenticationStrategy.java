@@ -27,8 +27,8 @@ import static com.aerospike.firefly.security.JWTAuthorizer.RESERVED_CALL_STRING;
  */
 public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyAuthenticationStrategy.class);
-    boolean hasMutateStep = false;
-    JWTAuthenticator.JWTAuthenticatedUser jwtUser = null;
+    final ThreadLocal<JWTAuthenticator.JWTAuthenticatedUser> jwtUser = ThreadLocal.withInitial(() -> null);
+    final ThreadLocal<Boolean> hasMutateStep = ThreadLocal.withInitial(() -> false);
 
     /**
      * Default constructor for FireflyAuthenticationStrategy.
@@ -70,7 +70,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
         for (final Step step : traversal.getSteps()) {
             if (!(step instanceof CallStep)) {
                 if (step instanceof Mutating) {
-                    hasMutateStep = true;
+                    hasMutateStep.set(true);
                 }
                 continue;
             }
@@ -99,7 +99,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                     throw AuthenticationException.userNotFoundInParameters();
                 }
 
-                jwtUser = (JWTAuthenticator.JWTAuthenticatedUser) params.get("user").get(0);
+                jwtUser.set((JWTAuthenticator.JWTAuthenticatedUser) params.get("user").get(0));
                 adminStep = callStep;
             } catch (final IllegalAccessException | NoSuchFieldException e) {
                 throw new RuntimeException(e);
@@ -107,25 +107,25 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
         }
 
         // Add token.
-        callSteps.forEach(callStep -> callStep.configure(RESERVED_USER_CONTEXT, jwtUser));
+        callSteps.forEach(callStep -> callStep.configure(RESERVED_USER_CONTEXT, jwtUser.get()));
 
         // Remove admin step.
         if (adminStep != null) {
             traversal.removeStep(adminStep);
         }
 
-        if (jwtUser == null) {
+        if (jwtUser.get() == null) {
             throw AuthenticationException.userNotFoundInParameters();
         } else {
-            if (!jwtUser.valid()) {
+            if (!jwtUser.get().valid()) {
                 throw AuthenticationException.tokenExpired();
             }
-            final UserContext.ROLE role = jwtUser.getRole();
+            final UserContext.ROLE role = jwtUser.get().getRole();
             if (role == null) {
                 throw AuthenticationException.userDoesNotHaveValidRole();
             }
             // Admin steps are call steps. These have internal auth checks.
-            if (hasMutateStep) {
+            if (hasMutateStep.get()) {
                 if (!role.equals(UserContext.ROLE.READ_WRITE) && !role.equals(UserContext.ROLE.ADMIN)) {
                     if (graph.getBaseGraph().IS_AUDIT_LOG_ENABLED) {
                         // The clone doesn't take the reserved step.
@@ -145,13 +145,13 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                             }
                         }
                         toRemove.forEach(instructions::remove);
-                        LOG.info("{{}} - " + " Insufficient permissions to execute mutating step. Query: 'g{}'.", jwtUser.getName(),
+                        LOG.info("{{}} - " + " Insufficient permissions to execute mutating step. Query: 'g{}'.", jwtUser.get().getName(),
                                 GroovyTranslator.of("").translate(copy.asAdmin().getBytecode()).getScript());
                     }
                     throw AuthenticationException.userDoesNotHaveWriteAccess();
                 }
             }
-            if (!hasMutateStep) {
+            if (!hasMutateStep.get()) {
                 if (!role.equals(UserContext.ROLE.READ) &&
                         !role.equals(UserContext.ROLE.READ_WRITE) &&
                         !role.equals(UserContext.ROLE.ADMIN)) {
@@ -159,12 +159,12 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 }
             }
         }
-        graph.setUser(jwtUser.getName());
+        graph.setUser(jwtUser.get().getName());
     }
 
     @Override
     public void reset() {
-        hasMutateStep = false;
-        jwtUser = null;
+        jwtUser.remove();
+        hasMutateStep.remove();
     }
 }

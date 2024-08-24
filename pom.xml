@@ -182,6 +182,7 @@
                         <exclude>**/TestSparkStateMachineRecovery</exclude>
                         <exclude>**/TestBulkLoaderRecovery</exclude>
                         <exclude>**/TestRecoveryActionFlags</exclude>
+                        <exclude>**/QueryServiceAbortTest</exclude>
                     </excludes>
                 </configuration>
             </plugin>

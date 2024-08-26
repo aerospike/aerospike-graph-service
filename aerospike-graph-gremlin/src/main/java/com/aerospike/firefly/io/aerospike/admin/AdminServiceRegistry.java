@@ -6,6 +6,7 @@ import com.aerospike.firefly.process.call.metadata.MetadataServiceBase;
 import com.aerospike.firefly.process.call.query.QueryServiceBase;
 import com.aerospike.firefly.process.call.rbac.JwtServiceBase;
 import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAuthenticationStrategy;
 import com.aerospike.firefly.security.JWTAuthenticator;
 import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -128,12 +129,12 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
             return true;
         }
 
-        final JWTAuthenticator.JWTAuthenticatedUser userContext = (JWTAuthenticator.JWTAuthenticatedUser) params.remove(RESERVED_USER_CONTEXT);
+        final FireflyAuthenticationStrategy.UsernameRolePair userContext = (FireflyAuthenticationStrategy.UsernameRolePair) params.remove(RESERVED_USER_CONTEXT);
         if (userContext == null) {
             // This should never happen.
             throw AuthenticationException.invalidUserContext();
         }
-        user = userContext.getName();
+        user = userContext.getUsername();
 
         final UserContext.ROLE role = userContext.getRole();
         if (role == null) {

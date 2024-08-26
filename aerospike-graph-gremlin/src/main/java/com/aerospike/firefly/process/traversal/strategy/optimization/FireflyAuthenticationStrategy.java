@@ -1,10 +1,8 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.io.aerospike.admin.AuthenticationException;
-import com.aerospike.firefly.security.JWTAuthenticator;
 import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.auth0.jwt.interfaces.DecodedJWT;
 import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -22,7 +20,6 @@ import java.util.Map;
 
 import static com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry.RESERVED_USER_CONTEXT;
 import static com.aerospike.firefly.security.JWTAuthorizer.RESERVED_CALL_STRING;
-import static org.apache.tinkerpop.gremlin.groovy.jsr223.dsl.credential.CredentialGraphTokens.PROPERTY_PASSWORD;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -108,22 +105,17 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 callSteps.add(callStep);
                 continue;
             }
-            try {
-                final Field parametersField = CallStep.class.getDeclaredField("parameters");
-                parametersField.setAccessible(true);
-                final Parameters parameters = (Parameters) parametersField.get(callStep);
-                final Map<Object, List<Object>> params = parameters.getRaw();
-                if (!params.containsKey("name") || !params.containsKey("role") ||
-                        params.get("name").size() != 1 || params.get("role").size() != 1) {
-                    throw AuthenticationException.userNotFoundInParameters();
-                }
-                final String username = (String) params.get("name").get(0);
-                final UserContext.ROLE role = UserContext.ROLE.valueOf((String) params.get("role").get(0));
-                usernameRolePair.set(new UsernameRolePair(username, role));
-                adminStep = callStep;
-            } catch (final IllegalAccessException | NoSuchFieldException e) {
-                throw new RuntimeException(e);
+
+            final Parameters parameters = callStep.getParameters();
+            final Map<Object, List<Object>> params = parameters.getRaw();
+            if (!params.containsKey("name") || !params.containsKey("role") ||
+                    params.get("name").size() != 1 || params.get("role").size() != 1) {
+                throw AuthenticationException.userNotFoundInParameters();
             }
+            final String username = (String) params.get("name").get(0);
+            final UserContext.ROLE role = UserContext.ROLE.valueOf((String) params.get("role").get(0));
+            usernameRolePair.set(new UsernameRolePair(username, role));
+            adminStep = callStep;
         }
 
         // Add token.

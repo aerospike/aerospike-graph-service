@@ -1,5 +1,6 @@
 package com.aerospike.firefly.security;
 
+import com.aerospike.firefly.io.aerospike.admin.AuthenticationException;
 import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.server.auth.AuthenticatedUser;
@@ -17,6 +18,11 @@ public class JWTAuthorizer implements Authorizer {
 
     @Override
     public Bytecode authorize(final AuthenticatedUser user, final Bytecode bytecode, final Map<String, String> aliases) {
+        final JWTAuthenticator.JWTAuthenticatedUser jwtUser = (JWTAuthenticator.JWTAuthenticatedUser) user;
+        if (!jwtUser.valid()) {
+            throw AuthenticationException.tokenExpired();
+        }
+        // TODO: Arguments should now match the below authorize function.
         bytecode.addStep(GraphTraversal.Symbols.call, RESERVED_CALL_STRING);
         bytecode.addStep(GraphTraversal.Symbols.with, "user", user);
         return bytecode;
@@ -24,6 +30,14 @@ public class JWTAuthorizer implements Authorizer {
 
     @Override
     public void authorize(final AuthenticatedUser user, final RequestMessage msg) {
-        throw new RuntimeException("Cannot authorize script.");
+        final JWTAuthenticator.JWTAuthenticatedUser jwtUser = (JWTAuthenticator.JWTAuthenticatedUser) user;
+        if (!jwtUser.valid()) {
+            throw AuthenticationException.tokenExpired();
+        }
+        final Map<String, Object> arguments = msg.getArgs();
+        final String gremlinString = arguments.get("gremlin") +
+                String.format(".call('aerospike.graph.admin.reserved.info').with('name', '%s').with('role', '%s')",
+                        jwtUser.getName(), jwtUser.getRole().toString());
+        arguments.put("gremlin", gremlinString);
     }
 }

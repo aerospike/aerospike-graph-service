@@ -4,6 +4,7 @@ import com.aerospike.firefly.io.aerospike.admin.AuthenticationException;
 import com.aerospike.firefly.security.JWTAuthenticator;
 import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -21,14 +22,33 @@ import java.util.Map;
 
 import static com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry.RESERVED_USER_CONTEXT;
 import static com.aerospike.firefly.security.JWTAuthorizer.RESERVED_CALL_STRING;
+import static org.apache.tinkerpop.gremlin.groovy.jsr223.dsl.credential.CredentialGraphTokens.PROPERTY_PASSWORD;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyAuthenticationStrategy.class);
-    final ThreadLocal<JWTAuthenticator.JWTAuthenticatedUser> jwtUser = ThreadLocal.withInitial(() -> null);
+    final ThreadLocal<UsernameRolePair> usernameRolePair = ThreadLocal.withInitial(() -> null);
     final ThreadLocal<Boolean> hasMutateStep = ThreadLocal.withInitial(() -> false);
+
+    public static class UsernameRolePair {
+        private final String username;
+        private final UserContext.ROLE role;
+
+        private UsernameRolePair(String username, UserContext.ROLE role) {
+            this.username = username;
+            this.role = role;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public UserContext.ROLE getRole() {
+            return role;
+        }
+    }
 
     /**
      * Default constructor for FireflyAuthenticationStrategy.
@@ -93,13 +113,13 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 parametersField.setAccessible(true);
                 final Parameters parameters = (Parameters) parametersField.get(callStep);
                 final Map<Object, List<Object>> params = parameters.getRaw();
-                if (!params.containsKey("user")
-                        || params.get("user").size() != 1 ||
-                        !(params.get("user").get(0) instanceof JWTAuthenticator.JWTAuthenticatedUser)) {
+                if (!params.containsKey("name") || !params.containsKey("role") ||
+                        params.get("name").size() != 1 || params.get("role").size() != 1) {
                     throw AuthenticationException.userNotFoundInParameters();
                 }
-
-                jwtUser.set((JWTAuthenticator.JWTAuthenticatedUser) params.get("user").get(0));
+                final String username = (String) params.get("name").get(0);
+                final UserContext.ROLE role = UserContext.ROLE.valueOf((String) params.get("role").get(0));
+                usernameRolePair.set(new UsernameRolePair(username, role));
                 adminStep = callStep;
             } catch (final IllegalAccessException | NoSuchFieldException e) {
                 throw new RuntimeException(e);
@@ -107,20 +127,17 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
         }
 
         // Add token.
-        callSteps.forEach(callStep -> callStep.configure(RESERVED_USER_CONTEXT, jwtUser.get()));
+        callSteps.forEach(callStep -> callStep.configure(RESERVED_USER_CONTEXT, usernameRolePair.get()));
 
         // Remove admin step.
         if (adminStep != null) {
             traversal.removeStep(adminStep);
         }
 
-        if (jwtUser.get() == null) {
+        if (usernameRolePair.get() == null) {
             throw AuthenticationException.userNotFoundInParameters();
         } else {
-            if (!jwtUser.get().valid()) {
-                throw AuthenticationException.tokenExpired();
-            }
-            final UserContext.ROLE role = jwtUser.get().getRole();
+            final UserContext.ROLE role = usernameRolePair.get().getRole();
             if (role == null) {
                 throw AuthenticationException.userDoesNotHaveValidRole();
             }
@@ -145,7 +162,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                             }
                         }
                         toRemove.forEach(instructions::remove);
-                        LOG.info("{{}} - " + " Insufficient permissions to execute mutating step. Query: 'g{}'.", jwtUser.get().getName(),
+                        LOG.info("{{}} - " + " Insufficient permissions to execute mutating step. Query: 'g{}'.", usernameRolePair.get().getUsername(),
                                 GroovyTranslator.of("").translate(copy.asAdmin().getBytecode()).getScript());
                     }
                     throw AuthenticationException.userDoesNotHaveWriteAccess();
@@ -159,12 +176,12 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 }
             }
         }
-        graph.setUser(jwtUser.get().getName());
+        graph.setUser(usernameRolePair.get().username);
     }
 
     @Override
     public void reset() {
-        jwtUser.remove();
+        usernameRolePair.remove();
         hasMutateStep.remove();
     }
 }

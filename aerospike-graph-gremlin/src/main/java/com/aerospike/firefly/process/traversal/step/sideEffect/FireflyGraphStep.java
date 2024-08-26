@@ -7,6 +7,7 @@ import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.util.TimeoutHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
@@ -40,11 +41,13 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
     private final List<HasContainer> hasContainers = new ArrayList<>();
     private final List<Iterator> iterators = new ArrayList<>();
     private List<String> properties = null;
+    private Optional<Long> evaluationTimeout;
 
     public FireflyGraphStep(final GraphStep<S, E> originalGraphStep) {
         super(originalGraphStep.getTraversal(), originalGraphStep.getReturnClass(), originalGraphStep.isStartStep(), originalGraphStep.getIds());
         originalGraphStep.getLabels().forEach(this::addLabel);
         this.setIteratorSupplier(() -> (Vertex.class.isAssignableFrom(this.returnClass) ? (Iterator<E>) this.vertices() : (Iterator<E>) this.edges()));
+        this.evaluationTimeout = Optional.of(TimeoutHelper.calculate(originalGraphStep.getTraversal()));
     }
 
     public void addProperties(final List<String> properties) {
@@ -159,7 +162,8 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                 iterator = GraphQuery.create(graph).queryVertexSIndex(propertyIndexInfo.get(),
                         topContainer.getPredicate(),
                         transformKeyRecord,
-                        aerospikeSideHasContainers);
+                        aerospikeSideHasContainers,
+                        evaluationTimeout);
             } else {
                 LOG.debug("No index found for key {} and value {}, running scan", topContainer.getKey(), topContainer.getValue());
                 iterator = GraphQuery.create(graph).scanSet(
@@ -171,7 +175,8 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                         aerospikeSideHasContainers,
                         elementClass,
                         true,
-                        true);
+                        true,
+                        evaluationTimeout);
             }
             // Need to wrap iterator in hasContainerCheckedIterator() to apply hasContainers that could not be pushed down to Aerospike.
             iterator = this.hasContainerCheckedIterator(iterator, fireflySideHasContainers);

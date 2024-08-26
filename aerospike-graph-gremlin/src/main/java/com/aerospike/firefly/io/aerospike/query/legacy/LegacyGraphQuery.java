@@ -25,6 +25,7 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 
@@ -91,6 +92,7 @@ public class LegacyGraphQuery implements GraphQuery {
     public <E> BlockingQueue<PageFetcher.Page> scanSetPagesBlocking(final String mapKey, final String setName, final String binName, final P<?> predicate,
                                                                     final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
                                                                     final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
+                                                                    final Optional<Long> evaluationTimeout,
                                                                     final String... binNames) {
         throw new RuntimeException("The graph computer does not support legacy reading.");
     }
@@ -115,10 +117,12 @@ public class LegacyGraphQuery implements GraphQuery {
                                    final Class<? extends FireflyElement> clazz,
                                    final boolean sendKey,
                                    final boolean includeBinData,
+                                   Optional<Long> evaluationTimeout,
                                    final String... binNames) {
         final ScanPolicy policy = new ScanPolicy();
         policy.sendKey = sendKey;
         policy.includeBinData = includeBinData;
+        policy.setTimeout(evaluationTimeout.orElse(fireflyGraph.settings().evaluationTimeout).intValue());
         // Build expression using predicate.
         if (predicate != null) {
             final Exp exp = GraphQueryHelper.predicateToExpression(db, binName, mapKey, predicate);
@@ -153,12 +157,14 @@ public class LegacyGraphQuery implements GraphQuery {
     public <E> Iterator<E> queryVertexSIndex(final FireflyIndexMetadata.IndexInfo indexInfo,
                                              final P<?> predicate,
                                              final FireflyGraph.TransformKeyRecord<E> transform,
-                                             final List<HasContainer> hasContainers) {
+                                             final List<HasContainer> hasContainers,
+                                             final Optional<Long> evaluationTimeout) {
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
         queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, FireflyVertex.class);
+        queryPolicy.setTimeout(evaluationTimeout.orElse(fireflyGraph.settings().evaluationTimeout).intValue());
 
-        return querySIndex(indexInfo.setName, indexInfo.indexName, GraphQueryHelper.predicateToFilter(db, predicate, indexInfo), queryPolicy, transform);
-
-    }
+        return querySIndex(indexInfo.setName, indexInfo.indexName, GraphQueryHelper.predicateToFilter(db, predicate, indexInfo),
+                queryPolicy, transform);
+   }
 }

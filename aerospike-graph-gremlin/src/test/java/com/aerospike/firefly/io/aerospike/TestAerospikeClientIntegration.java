@@ -422,8 +422,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
             graph.traversal().V().drop().iterate();
             sleep(2000);
-            final Iterator<FireflyId> vertexKeys = GraphQuery.create(graph).scanVertexIds();
-            final Iterator<FireflyId> edgeKeys = GraphQuery.create(graph).scanEdgeIds();
+            final Iterator<FireflyId> vertexKeys = GraphQuery.create(graph).scanVertexIds(evaluationTimeout);
+            final Iterator<FireflyId> edgeKeys = GraphQuery.create(graph).scanEdgeIds(evaluationTimeout);
             assertFalse(vertexKeys.hasNext());
             assertFalse(edgeKeys.hasNext());
         } finally {

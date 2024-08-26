@@ -9,6 +9,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import com.aerospike.firefly.util.TimeoutHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -49,12 +50,14 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
     private static final Logger LOG = LoggerFactory.getLogger(FireflyMergeVertexStep.class);
 
     protected CallbackRegistry<Event> callbackRegistry;
+    protected Optional<Long> evaluationTimeout;
 
     public FireflyMergeVertexStep(final MergeVertexStep step) {
         this(step.getTraversal(), step.isStart(), step.getMergeTraversal());
         if (step.getOnMatchTraversal() != null) this.addChildOption(Merge.onMatch, step.getOnMatchTraversal());
         if (step.getOnCreateTraversal() != null) this.addChildOption(Merge.onCreate, step.getOnCreateTraversal());
         if (step.getCallbackRegistry() != null) this.callbackRegistry = step.getCallbackRegistry();
+        this.evaluationTimeout = Optional.of(TimeoutHelper.calculate(step.getTraversal()));
     }
 
     public FireflyMergeVertexStep(final Traversal.Admin traversal, final boolean isStart) {
@@ -121,10 +124,13 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                         // If we have index, query it, otherwise we need to scan (or error out).
                         final P<?> predicate = P.eq(value);
                         if (propertyIndexInfo.isPresent()) {
-                            results.add(GraphQuery.create(graph).queryVertexSIndex(propertyIndexInfo.get(), predicate, graph::vertexFromRecord));
+                            results.add(GraphQuery.create(graph).queryVertexSIndex(propertyIndexInfo.get(), predicate,
+                                    graph::vertexFromRecord, evaluationTimeout));
                         } else {
                             LOG.debug("No index found for vertex label, running scan");
-                            results.add(GraphQuery.create(graph).scanSet(null, graph.getBaseGraph().VERTEX_AERO_SET,graph.getBaseGraph().LABEL_BIN, predicate, graph::vertexFromRecord));
+                            results.add(GraphQuery.create(graph).scanSet(null,
+                                    graph.getBaseGraph().VERTEX_AERO_SET,graph.getBaseGraph().LABEL_BIN, predicate,
+                                    graph::vertexFromRecord, evaluationTimeout));
                         }
                     } else {
                         results.add(graph.vertices());
@@ -138,10 +144,13 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                         // If we have index, query it, otherwise we need to scan (or error out).
                         final Iterator<? extends Vertex> iterator;
                         if (propertyIndexInfo.isPresent()) {
-                            iterator = GraphQuery.create(graph).queryVertexSIndex(propertyIndexInfo.get(), P.eq(value), graph::vertexFromRecord);
+                            iterator = GraphQuery.create(graph).queryVertexSIndex(propertyIndexInfo.get(), P.eq(value),
+                                    graph::vertexFromRecord, evaluationTimeout);
                         } else {
                             LOG.debug("No index found for key {} and value {}, running scan", key.toString(), value);
-                            iterator = GraphQuery.create(graph).scanSet(key.toString(), graph.getBaseGraph().VERTEX_AERO_SET, graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN, P.eq(value), graph::vertexFromRecord);
+                            iterator = GraphQuery.create(graph).scanSet(key.toString(), graph.getBaseGraph().VERTEX_AERO_SET,
+                                    graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN, P.eq(value),
+                                    graph::vertexFromRecord, evaluationTimeout);
                         }
                         results.add(iterator);
                     } else {

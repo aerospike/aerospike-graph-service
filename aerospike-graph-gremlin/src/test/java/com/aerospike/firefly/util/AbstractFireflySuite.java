@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -29,7 +30,7 @@ public abstract class AbstractFireflySuite {
     protected static Logger LOG;
     protected static AerospikeConnection db;
     protected static FireflyGraph graph;
-
+    protected static Optional<Long> evaluationTimeout = Optional.of(10000L);
 
     protected abstract boolean clearData();
     protected boolean runTest() {

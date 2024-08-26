@@ -34,6 +34,11 @@
             <email>szhao@aerospike.com</email>
             <organization>Aerospike</organization>
         </developer>
+        <developer>
+            <name>Valentyn Kahamlyk</name>
+            <email>vkahamlyk@aerospike.com</email>
+            <organization>Aerospike</organization>
+        </developer>
     </developers>
     <!-- firefly SUBMODULES (COMPILE ORDERED) -->
     <modules>
@@ -164,6 +169,7 @@
                         <exclude>**/BenchmarkTest*</exclude>
                         <exclude>**/TestPhantomEdges</exclude>
                         <exclude>**/ValidConnectionTest.java</exclude>
+                        <exclude>**/TestPerformanceModes.java</exclude>
                         <exclude>**/FireflyUsageStatsCallMultiTest.java</exclude>
                         <exclude>**/TestMovielens1M.java</exclude>
                         <exclude>**/TestFireflyExceedHeap.java</exclude>

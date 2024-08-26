@@ -1158,6 +1158,10 @@ jobs:
           bash scripts/test-secret-masking.sh
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
+      - name: Test Firefly Docker Image Performance Mode
+        run: |
+          echo "Running performance mode tests"
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestPerformanceModes -DfailIfNoTests=false --no-transfer-progress
       - name: Launch Firefly Docker Image with Custom yaml
         run: |
           echo "Running docker image with custom yaml file"

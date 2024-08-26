@@ -710,7 +710,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final FireflyEdge edge = FireflyEdge.writeEdge(this, edgeId, label, properties, inVertex, outVertex, inVertexCacheWrite, outVertexCacheWrite);
         if (db.IS_AUDIT_LOG_ENABLED) {
             // Edge id is byte buffer so not useful.
-            LOG.info("{{}} created edge: [{}]-[{}]>[{}]", USER.get(), inVertex.id(), label, outVertex.id());
+            LOG.info("[{}] created edge: [{}]-[{}]>[{}].", USER.get(), inVertex.id(), label, outVertex.id());
         }
         return edge;
     }
@@ -976,7 +976,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 }
             }
             if (db.IS_AUDIT_LOG_ENABLED) {
-                LOG.info("{{}} created vertex with id: {}", USER.get(), idValue.getUserId());
+                LOG.info("[{}] created vertex with id: {}", USER.get(), idValue.getUserId());
             }
             return v;
         } else {
@@ -989,7 +989,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             try {
                 final Vertex v = writeVertex(idValue, label, properties);
                 if (db.IS_AUDIT_LOG_ENABLED) {
-                    LOG.info("{{}} created vertex with id: {}", USER.get(), idValue.getUserId());
+                    LOG.info("[{}] created vertex with id: {}", USER.get(), idValue.getUserId());
                 }
                 return v;
             } catch (final AerospikeException e) {

@@ -2,6 +2,7 @@ package com.aerospike.firefly.security;
 
 import com.aerospike.firefly.io.aerospike.admin.AuthenticationException;
 
+import org.apache.commons.text.StringEscapeUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.server.auth.AuthenticatedUser;
@@ -45,7 +46,7 @@ public class JWTAuthorizer implements Authorizer {
         final Map<String, Object> arguments = msg.getArgs();
         final String gremlin = ((String) arguments.get("gremlin"));
         final String injection = String.format(".call('aerospike.graph.admin.reserved.info').with('name', '%s').with('role', '%s')",
-                jwtUser.getName(), jwtUser.getRole().toString());
+                StringEscapeUtils.escapeJava(jwtUser.getName()), StringEscapeUtils.escapeJava(jwtUser.getRole().toString()));
 
         String updatedGremlin = gremlin;
 

@@ -72,6 +72,6 @@ public class SindexServiceCreate<I, R> extends SindexServiceBase<I, R> {
 
     @Override
     protected void auditLog(final Map params) {
-        LOGGER.info(getName() + " Create sindex.");
+        LOGGER.info("{" + getUser() + "} - " + getName() + " - Create sindex.");
     }
 }

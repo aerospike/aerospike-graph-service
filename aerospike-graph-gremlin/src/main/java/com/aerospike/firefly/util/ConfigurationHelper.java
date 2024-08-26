@@ -166,6 +166,7 @@ public final class ConfigurationHelper {
         public static final String JWT_ALGORITHM = "aerospike.graph-service.auth.jwt.algorithm";
         public static final String AUTHENTICATION_ENABLED = "aerospike.graph-service.auth.enabled";
         public static final String USAGE_STATS_SET_INDEX_ENABLED = "aerospike.graph.usage.index.enabled";
+        public static final String AUDIT_LOG_ENABLED = "aerospike.graph.audit.log.enabled";
 
         public static final String EVENT_LOOP_TYPE = "aerospike.client.eventLoop.type";
         public static final String EVENT_LOOP_COUNT = "aerospike.client.eventLoop.count";
@@ -208,7 +209,8 @@ public final class ConfigurationHelper {
             EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
             BL_ROW_BIN(Pair.of((byte) 21, "BL_ROW")),
             BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE")),
-            SUPERNODE_EDGE_PROPERTIES_BIN(Pair.of((byte) 23, "SUPERNODE_P"));
+            SUPERNODE_EDGE_PROPERTIES_BIN(Pair.of((byte) 23, "SUPERNODE_P")),
+            BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA"));
 
 
             private final Pair value;
@@ -270,7 +272,11 @@ public final class ConfigurationHelper {
             BULK_LOAD_METADATA_SET(Pair.of((byte) 15, "BL_METADATA")),
             BULK_LOAD_DUPLICATE_VID_SET(Pair.of((byte) 16, "BL_DUPE_VID")),
             BULK_LOAD_BAD_EDGE_SET(Pair.of((byte) 17, "BL_BAD_EDGE")),
-            BULK_LOAD_BAD_ENTRY_SET(Pair.of((byte) 18, "BL_BAD_ENTRY"));
+            BULK_LOAD_BAD_ENTRY_SET(Pair.of((byte) 18, "BL_BAD_ENTRY")),
+            BULK_LOAD_RECOVERY_VERTEX_SET(Pair.of((byte) 19, "BL_RECOVERY_V")),
+            BULK_LOAD_RECOVERY_EDGE_SET(Pair.of((byte) 20, "BL_RECOVERY_E")),
+            BULK_LOAD_RECOVERY_SUPERNODE_SET(Pair.of((byte) 21, "BL_RECOVERY_SN")),
+            BULK_LOAD_RECOVERY_STATE_SET(Pair.of((byte) 22, "BL_RECOVERY_S"));
 
             private final Pair value;
 
@@ -383,6 +389,7 @@ public final class ConfigurationHelper {
         put(Keys.JWT_ALGORITHM, "HMAC256");
         put(Keys.AUTHENTICATION_ENABLED, "false");
         put(Keys.USAGE_STATS_SET_INDEX_ENABLED, "true");
+        put(Keys.AUDIT_LOG_ENABLED, "false");
         put(Keys.SCAN_TOTAL_TIMEOUT, "0");
         put(Keys.SCAN_SOCKET_TIMEOUT, "1200000");
         put(Keys.SCAN_CONNECT_TIMEOUT, "0");
@@ -457,7 +464,15 @@ public final class ConfigurationHelper {
             props.keySet().forEach(it -> {
                 final String key = it.toString().toLowerCase();
                 final Object value = props.get(it.toString());
-                LOG.debug("config[{}:{}]", key, value);
+                if (LOG.isDebugEnabled()) {
+                    final Object maskedValue;
+                    if (key.contains("password") || key.contains("secret") || key.contains("token") || key.contains("passkey")) {
+                        maskedValue = "*******";
+                    } else {
+                        maskedValue = value;
+                    }
+                    LOG.debug("config: [{}:{}]", key, maskedValue);
+                }
                 configData.put(key, value);
             });
             return new MapConfiguration(configData);

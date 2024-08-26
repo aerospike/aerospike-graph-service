@@ -7,6 +7,7 @@ import com.aerospike.firefly.bulkloader.spark.executorservice.EdgeWriteTask;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
@@ -81,6 +82,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.NULL_VALUE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RECOVERY_FAILURE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 
@@ -106,9 +108,40 @@ public class EdgeOperations implements Serializable {
         this.usePersistedEdgeId = !config.hasAction(READ_ONLY);
     }
 
-    public void writeEdges(final Dataset<Row> persistedEdgeDS) {
+    public void writeEdges(final Dataset<Row> persistedEdgeDS,
+                           final Set<Long> completedEdgePartitions,
+                           final boolean readOnly) {
         persistedEdgeDS.foreachPartition(rowIterator -> {
             final int partitionId = TaskContext.getPartitionId();
+            if (!readOnly) {
+                final Long partitionIdLong = Long.valueOf(partitionId);
+                if (completedEdgePartitions.contains(partitionIdLong)) {
+                    LOGGER.info("Edges PartitionId " + partitionId + " is already written, skipping.");
+                    return;
+                }
+            }
+
+            // This is a testing config, used to force failure in specific spots to allow us to test the recovery modes.
+            final String recoveryFailure = config.getOrDefault(RECOVERY_FAILURE);
+            if (recoveryFailure != null && recoveryFailure.startsWith("EDGE_WRITE")) {
+                // The failure position is supplied as "EDGE_WRITE:<partition_id>".
+                final int partitionToFailOn = recoveryFailure.split(":", 2).length > 1 ? Integer.parseInt(recoveryFailure.split(":", 2)[1]) : -1;
+                if (partitionToFailOn == -1) {
+                    // If a specific partition was not supplied, fail instantly.
+                    throw new RuntimeException("Failed to get partition to fail on from recovery failure property, please contact support.");
+                } else {
+                    // Otherwise fail on the specific partition a few mins later to allow other partitions to complete.
+                    if (partitionId == partitionToFailOn) {
+                        // Wait so other partitions can complete before we fail this partition.
+                        try {
+                            Thread.sleep(180000);
+                        } catch (final InterruptedException ignored) {
+                        }
+                        throw new RuntimeException("Testing recovery failure, please contact support.");
+                    }
+                }
+            }
+
             LOGGER.info("Starting to write EdgeDataset in PartitionId: " + partitionId);
 
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
@@ -173,6 +206,10 @@ public class EdgeOperations implements Serializable {
                     }
                 }
                 final String taskName = String.format("Edge write in partition:{}", partitionId);
+                if (!readOnly) {
+                    LOGGER.info("Writing edge partition complete for partitionId: {}", partitionId);
+                    RecoveryUtil.writeEdgePartitionComplete(graph.getBaseGraph(), partitionId);
+                }
                 LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
             }
         });
@@ -383,6 +420,10 @@ public class EdgeOperations implements Serializable {
         idToEdgeCount.forEach((id, count) -> results.add(new Tuple2<>(id, count)));
     }
 
+    public void setSupernodes(final Set<Object> supernodes) {
+        this.supernodes = supernodes;
+    }
+
     public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset, final long onRecordIdLimit, final boolean incremental) {
         final Configuration fireflyConfig = this.config.getFireflyConfig();
         // If the global edge cache flag is off, then all vertices written have their edge caches disabled upon
@@ -427,8 +468,7 @@ public class EdgeOperations implements Serializable {
 
             final JavaRDD<Object> fromSupernodes = filteredFromCountPairRDD.keys();
             final JavaRDD<Object> toSupernodes = filteredToCountPairRDD.keys();
-            fromSupernodes.union(toSupernodes).collect().
-                    forEach(item -> supernodes.add(item));
+            supernodes.addAll(fromSupernodes.union(toSupernodes).collect());
             LOGGER.info("Final supernodes set: " + supernodes);
         }
         return this.supernodes;
@@ -604,13 +644,15 @@ public class EdgeOperations implements Serializable {
         return  graphID;
     }
 
-    public void writeEdgeToDB(final Dataset<Row> edgeIdDataSet) {
+    public void writeEdgeToDB(final Dataset<Row> edgeIdDataSet,
+                              final Set<Long> completedEdgePartitions,
+                              final boolean readOnly) {
         if (!this.config.hasAction(DISABLE_EDGE_WRITE)) {
             final Instant startWriteEdge = Instant.now();
             final String taskName = "Edges write to Aerospike Database";
             edgeIdDataSet.sparkSession().sparkContext().setJobGroup(taskName,
                     "Edges write task", true);
-            writeEdges(edgeIdDataSet);
+            writeEdges(edgeIdDataSet, completedEdgePartitions, readOnly);
             edgeIdDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
             LOGGER.info("Execution time in seconds for Edge write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
         }

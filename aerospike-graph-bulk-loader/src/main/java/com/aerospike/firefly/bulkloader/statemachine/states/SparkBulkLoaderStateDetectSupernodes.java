@@ -1,6 +1,8 @@
 package com.aerospike.firefly.bulkloader.statemachine.states;
 
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
+import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +14,15 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
 
     @Override
     public void executeState() {
+        RecoveryUtil.updateState(
+                sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.DETECT_SUPERNODES);
+
+        // This is a testing config, used to force failure in specific spots to allow us to test the recovery modes.
+        final String failureOnSupernodes = sparkBulkLoaderStateMachine.config.getOrDefault(BulkLoaderConfigHelper.RECOVERY_FAILURE);
+        if ("DETECT_SUPERNODES".equals(failureOnSupernodes)) {
+            throw new RuntimeException("Testing recovery failure, please contact support.");
+        }
+
         // Supernode processing
         // Get the supernode threshold from Firefly config.
         final long onRecordIdLimit = sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph().ON_RECORD_ID_LIMIT;
@@ -20,6 +31,11 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
                 sparkBulkLoaderStateMachine.edgeDataset,
                 onRecordIdLimit,
                 sparkBulkLoaderStateMachine.incrementalLoad);
+        if (!sparkBulkLoaderStateMachine.readOnly) {
+            LOGGER.info("Writing supernode list to Aerospike for recovery.");
+            RecoveryUtil.writeSupernodeList(
+                    sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), sparkBulkLoaderStateMachine.supernodes);
+        }
         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
     }
 

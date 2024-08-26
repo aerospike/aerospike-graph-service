@@ -46,6 +46,6 @@ public class MetadataServiceVersion<I, R> extends MetadataServiceBase<I, R> {
 
     @Override
     protected void auditLog(final Map params) {
-        LOGGER.info(getName() + " Get Aerospike version and Aerospike Graph Service version.");
+        LOGGER.info("{" + getUser() + "} - " + getName() + " - Get Aerospike version and Aerospike Graph Service version.");
     }
 }

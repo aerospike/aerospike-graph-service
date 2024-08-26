@@ -419,7 +419,7 @@ public class TestAdminCallHttpJwt {
 
     @BeforeClass
     public static void setup() {
-        server = FireflyServer.main(new String[]{"../conf/credentials-config/gremlin-server-authenticator.yaml"});
+        server = FireflyServer.start(new String[]{"../conf/credentials-config/gremlin-server-authenticator.yaml"});
     }
 
     @AfterClass

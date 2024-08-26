@@ -3,14 +3,10 @@ package com.aerospike.firefly.bulkloader.statemachine.machine;
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
-import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderState;
-import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateDone;
-import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateStart;
 import com.aerospike.firefly.bulkloader.util.ProgressBar;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
-import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
@@ -27,28 +23,25 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Timer;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
-import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad.BULK_LOAD_SUCCESS;
-import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad.formatErrorCount;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_EMAIL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_KEYFILE_DIRECTORY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.LOCAL_MODE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_PASSKEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_USERNAME;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RESUME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
@@ -77,9 +70,11 @@ public class SparkBulkLoaderStateMachine {
     public Map<String, Object> fileConfig;
     public FireflyGraph initializerGraph;
     public Set<Object> supernodes;
-    public Dataset<Row> persistedEdgeIdDataset;
     public Integer edgePartitionCount;
     public Integer vertexPartitionCount;
+    public boolean readOnly;
+    public Set<Long> completedVertexPartitions = new HashSet<>();
+    public Set<Long> completedEdgePartitions = new HashSet<>();
 
     public SparkBulkLoaderStateMachine(final String[] args) {
         try {
@@ -108,6 +103,9 @@ public class SparkBulkLoaderStateMachine {
             // new Timer(true) creates the timer as a daemon, which means that it will not prevent the JVM from exiting.
             progressBar = new ProgressBar(progressBarIntervalMs);
             progressBar.setIsL2Mode(cmd.hasOption(LOCAL_MODE));
+            if (cmd.hasOption(RESUME)) {
+                progressBar.setResumeableLoad();
+            }
             progressBarTimer = new Timer(true);
 
             // Initialize Spark.
@@ -131,23 +129,22 @@ public class SparkBulkLoaderStateMachine {
                 incrementalLoad = true;
             }
 
+            // Create graph and initialize progress bar.
             initializerGraph = FireflyGraph.open(config.getFireflyConfig());
             progressBar.initialize(initializerGraph, incrementalLoad);
-            if (!initializerGraph.isEmpty() && !config.hasAction(DISABLE_EDGE_WRITE) &&
-                    !config.hasAction(DISABLE_VERTEX_WRITE) && !config.hasAction(INCREMENTAL_LOAD)) {
-                // If we're doing partial writing checking the emptiness of the database isn't valid.
-                LOGGER.error(DATABASE_NOT_EMPTY);
-                throw new RuntimeException(DATABASE_NOT_EMPTY);
-            }
-            initializerGraph.getBaseGraph().initialzeBulkLoadMetadata();
+            progressBarTimer.scheduleAtFixedRate(progressBar, 0, 10000);
+
+            // Initialize bulk loader metadata.
+            initializerGraph.getBaseGraph().initializeBulkLoadMetadata();
 
             // Pre-processing
             vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
 
-            // FILE_SYSTEM cannot be mutated after vertex directory filesystem is checked
+            // File system cannot be mutated after vertex directory filesystem is checked.
             fileSystemMutable = false;
 
             edgeDirectories = getDirectories(spark, cmd, config.getOrDefault(EDGE_DIRECTORY_KEY));
+            readOnly = config.hasAction(READ_ONLY);
         } catch (final Exception e) {
             LOGGER.error("Failed to initialize SparkBulkLoaderStateMachine", e);
             cleanup();
@@ -218,7 +215,7 @@ public class SparkBulkLoaderStateMachine {
         return config;
     }
 
-    private List<String> getDirectories(final SparkSession spark, final CommandLine cmd, final String directory) {
+    public List<String> getDirectories(final SparkSession spark, final CommandLine cmd, final String directory) {
         configureFileSystem(spark, cmd, directory);
         try {
             final Dataset<Row> directories = spark.read().format("csv").option("recursiveFileLookup", "true")

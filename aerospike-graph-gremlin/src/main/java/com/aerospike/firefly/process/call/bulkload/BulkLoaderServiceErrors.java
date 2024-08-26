@@ -58,6 +58,6 @@ public class BulkLoaderServiceErrors<I, R> extends BulkLoaderServiceBase<I, R> {
 
     @Override
     protected void auditLog(final Map params) {
-        LOGGER.info("{" + getUser() + "} - " + getName() + " - Get bulk load errors.");
+        LOGGER.info("[{}] - {} - Get bulk load errors.", getUser(), getName());
     }
 }

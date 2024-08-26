@@ -375,6 +375,6 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
 
     @Override
     protected void auditLog(final Map params) {
-        LOGGER.info("{" + getUser() + "} - " + getName() + " - Bulk load graph.");
+        LOGGER.info("[{}] - {} - Bulk load graph.", getUser(), getName());
     }
 }

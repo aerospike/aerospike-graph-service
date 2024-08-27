@@ -47,6 +47,7 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String PROVIDED_EDGE_ID_PROPERTY_NAME = "aerospike.graphloader.provided-edge-id-property-name";
     // Percentage of the provided Vertex and Edge data to sample to verify integrity of the bulk load after completion.
     public static final String SAMPLING_PERCENTAGE = "aerospike.graphloader.sampling-percentage";
+    public static final String SUPERNODE_SAMPLING_PERCENTAGE = "aerospike.graphloader.supernode.sampling-percentage";
     public static final String SPARK_LOG_LEVEL = "aerospike.graphloader.spark-log-level";
     // String value of what should be parsed as a literal null value for properties. The null character \0 is a good alternative choice for this.
     public static final String NULL_VALUE = "aerospike.graphloader.null-value";
@@ -89,6 +90,7 @@ public class BulkLoaderConfigHelper implements Serializable {
             Map.entry(PROVIDED_EDGE_ID_PROPERTY_NAME, "ep"),
             Map.entry(NULL_VALUE, "nv"),
             Map.entry(SAMPLING_PERCENTAGE, "sp"),
+            Map.entry(SUPERNODE_SAMPLING_PERCENTAGE, "ssp"),
             Map.entry(SPARK_LOG_LEVEL, "lv"),
             Map.entry(VERTEX_WRITE_BUFFER, "vb"),
             Map.entry(EDGE_WRITE_BUFFER, "eb"),
@@ -110,6 +112,7 @@ public class BulkLoaderConfigHelper implements Serializable {
         put(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, "false");
         put(PROVIDED_EDGE_ID_PROPERTY_NAME, "~providedId");
         put(SAMPLING_PERCENTAGE, "0");
+        put(SUPERNODE_SAMPLING_PERCENTAGE, "0");
         put(ENABLE_DATAFRAME_CACHING, "false");
         put(DATAFRAME_STORAGE_TYPE, "disk_only");
         put(SPARK_LOG_LEVEL, "INFO");

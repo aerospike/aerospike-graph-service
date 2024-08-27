@@ -32,6 +32,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_USERNAME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RESUME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SUPERNODE_SAMPLING_PERCENTAGE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VALIDATE_INPUT_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
@@ -47,6 +48,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
             VERTEX_DIRECTORY_KEY,
             EDGE_DIRECTORY_KEY,
             SAMPLING_PERCENTAGE,
+            SUPERNODE_SAMPLING_PERCENTAGE,
             REMOTE_USERNAME,
             REMOTE_PASSKEY,
             GCS_EMAIL,
@@ -65,6 +67,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
 
     private static final Set<String> NUMBER_KEYS = Set.of(
             SAMPLING_PERCENTAGE,
+            SUPERNODE_SAMPLING_PERCENTAGE,
             VERTEX_WRITE_BUFFER,
             EDGE_WRITE_BUFFER,
             ALLOWED_DUPLICATE_VERTEX_ID_COUNT,

@@ -1,22 +1,10 @@
 package com.aerospike.firefly.bulkloader.integration;
 
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
-import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
-import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderState;
-import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateDetectSupernodes;
-import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateReadVertices;
-import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateStart;
-import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateVerifyEdges;
-import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateVerifyVertices;
-import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateWriteEdges;
-import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateWriteVertices;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -113,7 +101,6 @@ public class TestBulkLoaderRecovery {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME}, DEFAULT_PARAMS));
         Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
         Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
-
     }
 
     @Test

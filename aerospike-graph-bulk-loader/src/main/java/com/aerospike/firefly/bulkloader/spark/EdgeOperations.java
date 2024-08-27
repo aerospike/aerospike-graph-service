@@ -85,7 +85,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RECOVERY_FAILURE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
-
+import static org.apache.spark.sql.functions.approx_count_distinct;
 
 public class EdgeOperations implements Serializable {
     public static final List<String> REQUIRED_EDGE_HEADERS = List.of(FROM_VERTEX_HEADER, TO_VERTEX_HEADER);
@@ -346,12 +346,13 @@ public class EdgeOperations implements Serializable {
         return usePersistedEdgeId ? EdgeOperations.decodeEdgeIDFromString(metadataRow.getAs(EDGE_ID_COLUMN)) : null;
     }
 
-    private JavaPairRDD<Object, Long> readExistingVertices(final JavaPairRDD<Object, Long> input,
-                                                           final Direction direction,
-                                                           final Long onRecordIdLimit) {
+    private static JavaPairRDD<Object, Long> readExistingVertices(final BulkLoaderConfigHelper config,
+                                                                  final JavaPairRDD<Object, Long> input,
+                                                                  final Direction direction,
+                                                                  final Long onRecordIdLimit) {
         return input.mapPartitionsToPair(iterator -> {
             final List<Tuple2<Object, Long>> results = new ArrayList<>();
-            try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
+            try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
                 final int bufferSize = graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE;
                 final Map<Object, Long> idToEdgeCount = new ConcurrentHashMap<>();
                 while (iterator.hasNext()) {
@@ -371,7 +372,7 @@ public class EdgeOperations implements Serializable {
         });
     }
 
-    private void batchReadToTuple(final Direction direction,
+    private static void batchReadToTuple(final Direction direction,
                                   final List<Tuple2<Object, Long>> results,
                                   final FireflyGraph graph,
                                   final Map<Object, Long> idToEdgeCount,
@@ -424,26 +425,40 @@ public class EdgeOperations implements Serializable {
         this.supernodes = supernodes;
     }
 
-    public Set<Object> extractSupernodesDirection(final Dataset<Row> edgeDataset,
-                                                  final Direction direction,
-                                                  final long onRecordIdLimit,
-                                                  final boolean incremental) {
+    public static Set<Object> extractSupernodesDirection(final BulkLoaderConfigHelper config,
+                                                               final Dataset<Row> edgeDataset,
+                                                               final Direction direction,
+                                                               final long onRecordIdLimit,
+                                                               final double sampleSize,
+                                                               final boolean incremental) {
         LOGGER.info("Extracting supernodes for: " + direction);
         final String column = direction.equals(Direction.IN) ? "~from" : "~to";
         final JavaRDD<Row> edgeRDD = edgeDataset.javaRDD();
 
         // Values in csv for ~from and ~to will return as strings but can be strings or longs.
-        LOGGER.info("Supernode pair mapping for: " + direction);
-        final JavaPairRDD<Object, Long> pairRDD = edgeRDD.mapToPair((PairFunction<Row, Object, Long>) row ->
-                new Tuple2<>(PropertyValueParser.parseId(row.getAs(column)), 1L));
+        final JavaPairRDD<Object, Long> pairRDD;
+        if (sampleSize != 0) {
+            LOGGER.info("Supernode pair mapping for: " + direction + " with sampling of " + sampleSize);
+            final Long value = ((Double) (1L / sampleSize)).longValue();
+            pairRDD = edgeRDD.sample(false, sampleSize, 1).
+                    mapToPair((PairFunction<Row, Object, Long>) row ->
+                            new Tuple2<>(PropertyValueParser.parseId(row.getAs(column)), value));
+        } else {
+            LOGGER.info("Supernode pair mapping for: " + direction + " without sampling");
+            pairRDD = edgeRDD.
+                    mapToPair((PairFunction<Row, Object, Long>) row ->
+                            new Tuple2<>(PropertyValueParser.parseId(row.getAs(column)), 1L));
+        }
+        edgeRDD.unpersist();
 
         LOGGER.info("Supernode aggregation for: " + direction);
         JavaPairRDD<Object, Long> countPairRDD =
                 pairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
         pairRDD.unpersist();
+
         if (incremental) {
             LOGGER.info("Checking existing edge caches for: " + direction);
-            countPairRDD = readExistingVertices(countPairRDD, direction, onRecordIdLimit);
+            countPairRDD = readExistingVertices(config, countPairRDD, direction, onRecordIdLimit);
         }
 
         LOGGER.info("Filtering for edge cache size for: " + direction);
@@ -473,9 +488,9 @@ public class EdgeOperations implements Serializable {
                     .setJobGroup(taskName, "Compute Supernodes RDD operation", true);
             LOGGER.info("Supernode extraction starting...");
             // Csv format is: ~id, ~from, ~to, ...
-            final JavaRDD<Row> edgeRDD = edgeDataset.javaRDD();
-            supernodes.addAll(extractSupernodesDirection(edgeDataset, Direction.IN, onRecordIdLimit, incremental));
-            supernodes.addAll(extractSupernodesDirection(edgeDataset, Direction.OUT, onRecordIdLimit, incremental));
+            final double supernodeSamplingPercentage = DatasetOperations.getSupernodeSamplingPercentage(this.config);
+            supernodes.addAll(extractSupernodesDirection(this.config, edgeDataset, Direction.IN, onRecordIdLimit, supernodeSamplingPercentage, incremental));
+            supernodes.addAll(extractSupernodesDirection(this.config, edgeDataset, Direction.OUT, onRecordIdLimit, supernodeSamplingPercentage, incremental));
             LOGGER.info("Final supernodes set: " + supernodes);
         }
         return this.supernodes;

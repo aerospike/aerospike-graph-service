@@ -114,7 +114,7 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
     @Override
     public CloseableIterator<R> execute(final ServiceCallContext ctx, final Map params) {
         if (!validateAdminContext(ctx, params)) {
-            LOGGER.info("{" + getUser() + "} - " + getName() + " - Insufficient permissions to run service.");
+            LOGGER.info("[{}] - {} - Insufficient permissions to run service.", getUser(), getName());
             throw new IllegalArgumentException("Insufficient permissions for '" + getName() + "'.");
         }
         if (!sanitize(params)) {

@@ -154,7 +154,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                             }
                         }
                         toRemove.forEach(instructions::remove);
-                        LOG.info("{{}} - " + " Insufficient permissions to execute mutating step. Query: 'g{}'.", usernameRolePair.get().getUsername(),
+                        LOG.info("[{}] - " + " Insufficient permissions to execute mutating step. Query: 'g{}'.", usernameRolePair.get().getUsername(),
                                 GroovyTranslator.of("").translate(copy.asAdmin().getBytecode()).getScript());
                     }
                     throw AuthenticationException.userDoesNotHaveWriteAccess();

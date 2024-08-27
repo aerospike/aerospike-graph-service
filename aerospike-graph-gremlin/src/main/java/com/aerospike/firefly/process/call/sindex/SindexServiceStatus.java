@@ -73,7 +73,7 @@ public class SindexServiceStatus<I, R> extends SindexServiceBase<I, R> {
 
     @Override
     protected void auditLog(final Map params) {
-        LOGGER.info("{" + getUser() + "} - " + getName() + " - Get status.");
+        LOGGER.info("[{}] - {} - Get status.", getUser(), getName());
     }
 
     protected UserContext.ROLE getRequiredRole() {

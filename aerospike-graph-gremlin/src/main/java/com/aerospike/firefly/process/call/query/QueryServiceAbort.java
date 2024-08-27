@@ -37,6 +37,6 @@ public class QueryServiceAbort<I, R> extends QueryServiceBase<I, R> {
 
     @Override
     protected void auditLog(final Map params) {
-        LOGGER.info("{} Cancelling all ongoing queries.", getName());
+        LOGGER.info("[{}] - {} - Cancelling all ongoing queries.", getUser(), getName());
     }
 }

@@ -29,7 +29,7 @@ public class FireflyDropStep extends AbstractStep {
             final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
             graph.getBaseGraph().dropDatabase(graph, false);
             if (graph.getBaseGraph().IS_AUDIT_LOG_ENABLED) {
-                LOGGER.info("{{}} Dropped entire database.", graph.getUser());
+                LOGGER.info("[{}] Dropped entire database.", graph.getUser());
             }
         }
         throw FastNoSuchElementException.instance();

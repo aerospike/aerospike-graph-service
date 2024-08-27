@@ -85,7 +85,6 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RECOVERY_FAILURE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
-import static org.apache.spark.sql.functions.approx_count_distinct;
 
 public class EdgeOperations implements Serializable {
     public static final List<String> REQUIRED_EDGE_HEADERS = List.of(FROM_VERTEX_HEADER, TO_VERTEX_HEADER);
@@ -251,7 +250,7 @@ public class EdgeOperations implements Serializable {
                         verifyEdge(metadataRow, keepProvidedId, providedIdPropertyName, nullValue, graph, g, hasEdgeID);
                         return null;
                     }, ses).exceptionally(e -> {
-                        LOGGER.error(String.format("Exception occurred in verifying Edge row"), e);  // Log the error when final failure happens
+                        LOGGER.error("Exception occurred in verifying Edge row", e);  // Log the error when final failure happens
                         throw new RuntimeException(e);
                     }));
                 }
@@ -346,10 +345,9 @@ public class EdgeOperations implements Serializable {
         return usePersistedEdgeId ? EdgeOperations.decodeEdgeIDFromString(metadataRow.getAs(EDGE_ID_COLUMN)) : null;
     }
 
-    private static JavaPairRDD<Object, Long> readExistingVertices(final BulkLoaderConfigHelper config,
-                                                                  final JavaPairRDD<Object, Long> input,
-                                                                  final Direction direction,
-                                                                  final Long onRecordIdLimit) {
+    private JavaPairRDD<Object, Long> readExistingVertices(final JavaPairRDD<Object, Long> input,
+                                                           final Direction direction,
+                                                           final Long onRecordIdLimit) {
         return input.mapPartitionsToPair(iterator -> {
             final List<Tuple2<Object, Long>> results = new ArrayList<>();
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
@@ -372,7 +370,7 @@ public class EdgeOperations implements Serializable {
         });
     }
 
-    private static void batchReadToTuple(final Direction direction,
+    private void batchReadToTuple(final Direction direction,
                                   final List<Tuple2<Object, Long>> results,
                                   final FireflyGraph graph,
                                   final Map<Object, Long> idToEdgeCount,
@@ -425,12 +423,11 @@ public class EdgeOperations implements Serializable {
         this.supernodes = supernodes;
     }
 
-    public static Set<Object> extractSupernodesDirection(final BulkLoaderConfigHelper config,
-                                                               final Dataset<Row> edgeDataset,
-                                                               final Direction direction,
-                                                               final long onRecordIdLimit,
-                                                               final double sampleSize,
-                                                               final boolean incremental) {
+    public Set<Object> extractSupernodesDirection(final Dataset<Row> edgeDataset,
+                                                  final Direction direction,
+                                                  final long onRecordIdLimit,
+                                                  final double sampleSize,
+                                                  final boolean incremental) {
         LOGGER.info("Extracting supernodes for: " + direction);
         final String column = direction.equals(Direction.IN) ? "~from" : "~to";
         final JavaRDD<Row> edgeRDD = edgeDataset.javaRDD();
@@ -489,8 +486,8 @@ public class EdgeOperations implements Serializable {
             LOGGER.info("Supernode extraction starting...");
             // Csv format is: ~id, ~from, ~to, ...
             final double supernodeSamplingPercentage = DatasetOperations.getSupernodeSamplingPercentage(this.config);
-            supernodes.addAll(extractSupernodesDirection(this.config, edgeDataset, Direction.IN, onRecordIdLimit, supernodeSamplingPercentage, incremental));
-            supernodes.addAll(extractSupernodesDirection(this.config, edgeDataset, Direction.OUT, onRecordIdLimit, supernodeSamplingPercentage, incremental));
+            supernodes.addAll(extractSupernodesDirection(edgeDataset, Direction.IN, onRecordIdLimit, supernodeSamplingPercentage, incremental));
+            supernodes.addAll(extractSupernodesDirection(edgeDataset, Direction.OUT, onRecordIdLimit, supernodeSamplingPercentage, incremental));
             LOGGER.info("Final supernodes set: " + supernodes);
         }
         return this.supernodes;
@@ -510,7 +507,7 @@ public class EdgeOperations implements Serializable {
                 return;
             }
             final String taskName = "Verify Edges";
-            sampledEdgeDataset.sparkSession().sparkContext().setJobGroup(taskName,"Verify Edges task", true);
+            sampledEdgeDataset.sparkSession().sparkContext().setJobGroup(taskName, "Verify Edges task", true);
             LOGGER.info("verify_output_data is enabled, starting the Edge write verification.");
             verifySampleEdgesAfterWrite(sampledEdgeDataset);
             sampledEdgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
@@ -525,6 +522,7 @@ public class EdgeOperations implements Serializable {
             this.fileConfig = fileConfig;
             this.schema = writeSchema;
         }
+
         @Override
         public Iterator call(final Iterator input) {
             return new EdgeIDOutputIterator(fileConfig, input, schema);
@@ -541,11 +539,12 @@ public class EdgeOperations implements Serializable {
 
         private final Supplier<FireflyGraph> graphSupplier = new Supplier<>() {
             private FireflyGraph instance = null;
+
             @Override
             public FireflyGraph get() {
                 if (instance == null) {
                     synchronized (this) {
-                        if (instance == null ) {
+                        if (instance == null) {
                             instance = FireflyGraph.open(new MapConfiguration(config));
                         }
                     }
@@ -557,6 +556,7 @@ public class EdgeOperations implements Serializable {
         public FireflyGraph getFireflyGraph() {
             return graphSupplier.get();
         }
+
         public EdgeIDOutputIterator(final Map<String, Object> conf, final Iterator<Row> data, final StructType writeSchema) {
             start = Instant.now();
             this.config = conf;
@@ -567,7 +567,7 @@ public class EdgeOperations implements Serializable {
         @Override
         public boolean hasNext() {
             final boolean hasMore = data.hasNext();
-            if(!hasMore) {
+            if (!hasMore) {
                 ITER_LOGGER.info("Done processing edgeID write task in partition:{}, rows:{}, time taken(in seconds):{}", TaskContext.getPartitionId(), counter, Duration.between(start, Instant.now()).getSeconds());
                 getFireflyGraph().close();
             }
@@ -583,7 +583,7 @@ public class EdgeOperations implements Serializable {
                 outputRow.add(input.get(i));
             }
             //add the edgeID
-            final byte[] nextId =getFireflyGraph().edgeIdManager.getNextId(getFireflyGraph());
+            final byte[] nextId = getFireflyGraph().edgeIdManager.getNextId(getFireflyGraph());
             outputRow.add(encodeID(nextId)); //encode using our custom encoder
             return new GenericRowWithSchema(outputRow.toArray(), schema);
         }
@@ -603,8 +603,8 @@ public class EdgeOperations implements Serializable {
         edgeDataSet.sparkSession().sparkContext().setJobGroup(taskName,
                 "Edges ID write task", true);
         final ExpressionEncoder<Row> encoder = RowEncoder.apply(writeSchema);
-        final Dataset<Row> EdgeIdDF =  edgeDataSet.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), encoder);
-        EdgeIdDF.write().option("header",true).mode(SaveMode.Overwrite).option("compression","bzip2").csv(writeLocation);
+        final Dataset<Row> EdgeIdDF = edgeDataSet.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), encoder);
+        EdgeIdDF.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "bzip2").csv(writeLocation);
         edgeDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
         LOGGER.info("Execution time in seconds for Edge ID write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
     }
@@ -619,7 +619,7 @@ public class EdgeOperations implements Serializable {
         // Isolate bytes from both component
         final byte[] recycleBytes = new byte[8];
         final byte[] numericBytes = new byte[8];
-        System.arraycopy(arr, 0, recycleBytes,0, 8);
+        System.arraycopy(arr, 0, recycleBytes, 0, 8);
         System.arraycopy(arr, 8, numericBytes, 0, 8);
 
         // Extract numeric content from both components
@@ -629,11 +629,10 @@ public class EdgeOperations implements Serializable {
         final Long numericID = bb1.getLong();
 
         // Encode each number to string using a delimiter
-        final StringBuilder sb = new StringBuilder();
-        sb.append(recycleId);
-        sb.append(":");
-        sb.append(numericID);
-        return sb.toString();
+        final String sb = recycleId +
+                ":" +
+                numericID;
+        return sb;
     }
 
     /***
@@ -660,10 +659,10 @@ public class EdgeOperations implements Serializable {
         final byte[] numByte = Longs.toByteArray(numericID);
 
         final byte[] graphID = new byte[16];
-        System.arraycopy(recycleByte, 0, graphID,0, 8);
+        System.arraycopy(recycleByte, 0, graphID, 0, 8);
         System.arraycopy(numByte, 0, graphID, 8, 8);
 
-        return  graphID;
+        return graphID;
     }
 
     public void writeEdgeToDB(final Dataset<Row> edgeIdDataSet,

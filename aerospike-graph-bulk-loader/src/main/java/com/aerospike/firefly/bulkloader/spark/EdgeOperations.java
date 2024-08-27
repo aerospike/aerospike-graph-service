@@ -455,7 +455,7 @@ public class EdgeOperations implements Serializable {
 
         if (incremental) {
             LOGGER.info("Checking existing edge caches for: " + direction);
-            countPairRDD = readExistingVertices(config, countPairRDD, direction, onRecordIdLimit);
+            countPairRDD = readExistingVertices(countPairRDD, direction, onRecordIdLimit);
         }
 
         LOGGER.info("Filtering for edge cache size for: " + direction);

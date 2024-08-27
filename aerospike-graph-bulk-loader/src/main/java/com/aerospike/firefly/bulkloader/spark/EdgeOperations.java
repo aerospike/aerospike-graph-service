@@ -424,6 +424,44 @@ public class EdgeOperations implements Serializable {
         this.supernodes = supernodes;
     }
 
+    public Set<Object> extractSupernodesDirection(final Dataset<Row> edgeDataset,
+                                                  final Direction direction,
+                                                  final long onRecordIdLimit,
+                                                  final boolean incremental) {
+        LOGGER.info("Extracting supernodes for: " + direction);
+        final String column = direction.equals(Direction.IN) ? "~from" : "~to";
+        final JavaRDD<Row> edgeRDD = edgeDataset.javaRDD();
+
+        // Values in csv for ~from and ~to will return as strings but can be strings or longs.
+        LOGGER.info("Supernode pair mapping for: " + direction);
+        final JavaPairRDD<Object, Long> pairRDD = edgeRDD.mapToPair((PairFunction<Row, Object, Long>) row ->
+                new Tuple2<>(PropertyValueParser.parseId(row.getAs(column)), 1L));
+
+        LOGGER.info("Supernode aggregation for: " + direction);
+        JavaPairRDD<Object, Long> countPairRDD =
+                pairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
+        pairRDD.unpersist();
+        if (incremental) {
+            LOGGER.info("Checking existing edge caches for: " + direction);
+            countPairRDD = readExistingVertices(countPairRDD, direction, onRecordIdLimit);
+        }
+
+        LOGGER.info("Filtering for edge cache size for: " + direction);
+        final JavaPairRDD<Object, Long> filteredCountPairRDD = countPairRDD.filter(
+                (Function<Tuple2<Object, Long>, Boolean>)
+                        longLongTuple2 -> longLongTuple2._2 >= onRecordIdLimit);
+        countPairRDD.unpersist();
+
+        LOGGER.info("Getting keys from filter output: " + direction);
+        final JavaRDD<Object> fromSupernodes = filteredCountPairRDD.keys();
+        filteredCountPairRDD.unpersist();
+
+        final Set<Object> localSupernodes = new HashSet<>(fromSupernodes.collect());
+        LOGGER.info("Obtained supernodes " + localSupernodes + " for: " + direction);
+        fromSupernodes.unpersist();
+        return localSupernodes;
+    }
+
     public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset, final long onRecordIdLimit, final boolean incremental) {
         final Configuration fireflyConfig = this.config.getFireflyConfig();
         // If the global edge cache flag is off, then all vertices written have their edge caches disabled upon
@@ -436,39 +474,8 @@ public class EdgeOperations implements Serializable {
             LOGGER.info("Supernode extraction starting...");
             // Csv format is: ~id, ~from, ~to, ...
             final JavaRDD<Row> edgeRDD = edgeDataset.javaRDD();
-
-            // Values in csv for ~from and ~to will return as strings but can be strings or longs.
-            final JavaPairRDD<Object, Long> fromPairRDD = edgeRDD.mapToPair((PairFunction<Row, Object, Long>) row ->
-                    new Tuple2<>(PropertyValueParser.parseId(row.getAs("~from")), 1L));
-
-            final JavaPairRDD<Object, Long> toPairRDD = edgeRDD.mapToPair((PairFunction<Row, Object, Long>) row ->
-                    new Tuple2<>(PropertyValueParser.parseId(row.getAs("~to")), 1L));
-
-            // Aggregate together by keys (sum the count of how many times a vertex ID appeared).
-            JavaPairRDD<Object, Long> fromCountPairRDD =
-                    fromPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
-            JavaPairRDD<Object, Long> toCountPairRDD =
-                    toPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
-
-            // Go through ids of RDD and read the vertex to check the number of existing edges on the vertex and add this as a column to our RDD.
-            if (incremental) {
-                fromCountPairRDD = readExistingVertices(fromCountPairRDD, Direction.IN, onRecordIdLimit);
-                toCountPairRDD = readExistingVertices(toCountPairRDD, Direction.OUT, onRecordIdLimit);
-            }
-            // If so we can optimize the edge writes.
-
-            // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.
-            final JavaPairRDD<Object, Long> filteredFromCountPairRDD = fromCountPairRDD.filter(
-                    (Function<Tuple2<Object, Long>, Boolean>)
-                            longLongTuple2 -> longLongTuple2._2 >= onRecordIdLimit);
-
-            final JavaPairRDD<Object, Long> filteredToCountPairRDD = toCountPairRDD.filter(
-                    (Function<Tuple2<Object, Long>, Boolean>)
-                            longLongTuple2 -> longLongTuple2._2 >= onRecordIdLimit);
-
-            final JavaRDD<Object> fromSupernodes = filteredFromCountPairRDD.keys();
-            final JavaRDD<Object> toSupernodes = filteredToCountPairRDD.keys();
-            supernodes.addAll(fromSupernodes.union(toSupernodes).collect());
+            supernodes.addAll(extractSupernodesDirection(edgeDataset, Direction.IN, onRecordIdLimit, incremental));
+            supernodes.addAll(extractSupernodesDirection(edgeDataset, Direction.OUT, onRecordIdLimit, incremental));
             LOGGER.info("Final supernodes set: " + supernodes);
         }
         return this.supernodes;

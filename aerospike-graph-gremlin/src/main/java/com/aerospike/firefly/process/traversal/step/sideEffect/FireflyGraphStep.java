@@ -41,13 +41,13 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
     private final List<HasContainer> hasContainers = new ArrayList<>();
     private final List<Iterator> iterators = new ArrayList<>();
     private List<String> properties = null;
-    private Optional<Long> evaluationTimeout;
+    private Long evaluationTimeout;
 
     public FireflyGraphStep(final GraphStep<S, E> originalGraphStep) {
         super(originalGraphStep.getTraversal(), originalGraphStep.getReturnClass(), originalGraphStep.isStartStep(), originalGraphStep.getIds());
         originalGraphStep.getLabels().forEach(this::addLabel);
         this.setIteratorSupplier(() -> (Vertex.class.isAssignableFrom(this.returnClass) ? (Iterator<E>) this.vertices() : (Iterator<E>) this.edges()));
-        this.evaluationTimeout = Optional.of(TimeoutHelper.calculate(originalGraphStep.getTraversal()));
+        this.evaluationTimeout = TimeoutHelper.calculate(originalGraphStep.getTraversal());
     }
 
     public void addProperties(final List<String> properties) {

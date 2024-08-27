@@ -30,7 +30,7 @@ public abstract class AbstractFireflySuite {
     protected static Logger LOG;
     protected static AerospikeConnection db;
     protected static FireflyGraph graph;
-    protected static Optional<Long> evaluationTimeout = Optional.of(10000L);
+    protected static Long evaluationTimeout = 10000L;
 
     protected abstract boolean clearData();
     protected boolean runTest() {

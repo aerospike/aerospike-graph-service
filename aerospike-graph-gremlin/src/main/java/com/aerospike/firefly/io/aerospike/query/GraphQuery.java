@@ -51,11 +51,11 @@ public interface GraphQuery {
             throw new RuntimeException("unknown query impl: " + fireflyGraph.getBaseGraph().QUERY_IMPL);
     }
 
-    default Iterator<FireflyId> scanVertexIds(Optional<Long> evaluationTimeout) {
+    default Iterator<FireflyId> scanVertexIds(Long evaluationTimeout) {
         return scanElementIds(FireflyVertex.class, List.of(), evaluationTimeout);
     }
 
-    default BlockingQueue<PageFetcher.Page> scanVertexIdPages(final List<HasContainer> hasContainers, Optional<Long> evaluationTimeout) {
+    default BlockingQueue<PageFetcher.Page> scanVertexIdPages(final List<HasContainer> hasContainers, Long evaluationTimeout) {
         final P<?> predicate;
         final String binName;
         final String mapKey;
@@ -81,7 +81,7 @@ public interface GraphQuery {
                 hasContainers, FireflyVertex.class, true, true, evaluationTimeout);
     }
 
-    default BlockingQueue<PageFetcher.Page> partitionVertexIdPages(final List<HasContainer> hasContainers, Optional<Long> evaluationTimeout) {
+    default BlockingQueue<PageFetcher.Page> partitionVertexIdPages(final List<HasContainer> hasContainers, Long evaluationTimeout) {
         P<?> predicate = null;
         String binName = null;
         String mapKey = null;
@@ -104,7 +104,7 @@ public interface GraphQuery {
                 final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
                 final Expression expression = GraphQueryHelper.hasContainerListToExpression(db, aerospikeSideHasContainers, FireflyVertex.class);
                 final BatchPolicy policy = new BatchPolicy();
-                evaluationTimeout.ifPresent(t -> policy.setTimeout(t.intValue()));
+                policy.setTimeout(evaluationTimeout.intValue());
                 return batchReadSetPagesBlocking(graph, policy, FireflyVertex.class, expression, graph::vertexFromRecord, ids);
             }
 
@@ -118,7 +118,7 @@ public interface GraphQuery {
 
                 if (propertyIndexInfo.isPresent()) {
                     final QueryPolicy policy = new QueryPolicy();
-                    evaluationTimeout.ifPresent(t -> policy.setTimeout(t.intValue()));
+                    policy.setTimeout(evaluationTimeout.intValue());
                     // Need to wrap with has container check
                     // If we have a property index, we can use it and read sindex pages.
                     return indexSetPagesBlocking(db.VERTEX_AERO_SET, propertyIndexInfo.get().indexName,
@@ -141,16 +141,16 @@ public interface GraphQuery {
                 hasContainers, FireflyVertex.class, true, true, evaluationTimeout);
     }
 
-    default Iterator<FireflyId> scanEdgeIds(Optional<Long> evaluationTimeout) {
+    default Iterator<FireflyId> scanEdgeIds(Long evaluationTimeout) {
         return scanElementIds(FireflyEdge.class, List.of(), evaluationTimeout);
     }
 
-    default Iterator<FireflyId> scanVertexIds(List<HasContainer> hasContainers, Optional<Long> evaluationTimeout) {
+    default Iterator<FireflyId> scanVertexIds(List<HasContainer> hasContainers, Long evaluationTimeout) {
         return scanElementIds(FireflyVertex.class, hasContainers, evaluationTimeout);
     }
 
     default Iterator<FireflyId> scanElementIds(Class<? extends FireflyElement> clazz, List<HasContainer> hasContainers,
-                                               Optional<Long> evaluationTimeout) {
+                                               Long evaluationTimeout) {
         final P<?> predicate;
         final String binName;
         final String mapKey;
@@ -190,7 +190,7 @@ public interface GraphQuery {
     }
 
     default <E> Iterator<E> scanSet(String mapKey, String setName, String binName, P<?> predicate,
-                                    FireflyGraph.TransformKeyRecord<E> transform, Optional<Long> evaluationTimeout) {
+                                    FireflyGraph.TransformKeyRecord<E> transform, Long evaluationTimeout) {
         return scanSet(mapKey, setName, binName, predicate, transform, List.of(), FireflyVertex.class,
                 true, true, evaluationTimeout);
     }
@@ -198,7 +198,7 @@ public interface GraphQuery {
     <E> Iterator<E> scanSet(String mapKey, String setName, String binName, P<?> predicate,
                             FireflyGraph.TransformKeyRecord<E> transform, List<HasContainer> hasContainers,
                             Class<? extends FireflyElement> clazz, boolean sendKey, boolean includeBinData,
-                            Optional<Long> evaluationTimeout, String... binNames);
+                            Long evaluationTimeout, String... binNames);
 
     <E> BlockingQueue<PageFetcher.Page> indexSetPagesBlocking(String setName,
                                                               String indexName,
@@ -215,7 +215,7 @@ public interface GraphQuery {
                                                              Class<? extends FireflyElement> clazz,
                                                              boolean sendKey,
                                                              boolean includeBinData,
-                                                             Optional<Long> evaluationTimeout,
+                                                             Long evaluationTimeout,
                                                              String... binNames);
 
     <E> BlockingQueue<PageFetcher.Page> batchReadSetPagesBlocking(FireflyGraph graph, BatchPolicy policy,
@@ -227,7 +227,7 @@ public interface GraphQuery {
     default <E> Iterator<E> queryVertexSIndex(FireflyIndexMetadata.IndexInfo indexInfo,
                                               P<?> predicate,
                                               FireflyGraph.TransformKeyRecord<E> transform,
-                                              Optional<Long> evaluationTimeout) {
+                                              Long evaluationTimeout) {
         return queryVertexSIndex(indexInfo, predicate, transform, Collections.emptyList(), evaluationTimeout);
     }
 
@@ -235,11 +235,11 @@ public interface GraphQuery {
                                               P<?> predicate,
                                               FireflyGraph.TransformKeyRecord<E> transform,
                                               List<HasContainer> hasContainers,
-                                              Optional<Long> evaluationTimeout) {
+                                              Long evaluationTimeout) {
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
         queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(getGraph().getBaseGraph(), hasContainers, FireflyVertex.class);
-        evaluationTimeout.ifPresent(t -> queryPolicy.setTimeout(t.intValue()));
+        queryPolicy.setTimeout(evaluationTimeout.intValue());
 
         // Query index.
         return querySIndex(indexInfo.setName, indexInfo.indexName,

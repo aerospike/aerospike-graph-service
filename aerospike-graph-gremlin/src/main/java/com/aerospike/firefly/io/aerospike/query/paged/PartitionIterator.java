@@ -1,8 +1,6 @@
 package com.aerospike.firefly.io.aerospike.query.paged;
 
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
-import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
-import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
@@ -85,7 +83,7 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
 
     private PartitionIterator(final Builder builder) {
         this.graph = builder.graph;
-        this.pageQueue = GraphQuery.create(graph).partitionVertexIdPages(builder.filters, Optional.of(graph.settings().evaluationTimeout));
+        this.pageQueue = GraphQuery.create(graph).partitionVertexIdPages(builder.filters, graph.settings().evaluationTimeout);
     }
 
     public boolean hasNext() {

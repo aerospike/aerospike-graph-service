@@ -50,14 +50,14 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
     private static final Logger LOG = LoggerFactory.getLogger(FireflyMergeVertexStep.class);
 
     protected CallbackRegistry<Event> callbackRegistry;
-    protected Optional<Long> evaluationTimeout;
+    protected Long evaluationTimeout;
 
     public FireflyMergeVertexStep(final MergeVertexStep step) {
         this(step.getTraversal(), step.isStart(), step.getMergeTraversal());
         if (step.getOnMatchTraversal() != null) this.addChildOption(Merge.onMatch, step.getOnMatchTraversal());
         if (step.getOnCreateTraversal() != null) this.addChildOption(Merge.onCreate, step.getOnCreateTraversal());
         if (step.getCallbackRegistry() != null) this.callbackRegistry = step.getCallbackRegistry();
-        this.evaluationTimeout = Optional.of(TimeoutHelper.calculate(step.getTraversal()));
+        this.evaluationTimeout = TimeoutHelper.calculate(step.getTraversal());
     }
 
     public FireflyMergeVertexStep(final Traversal.Admin traversal, final boolean isStart) {

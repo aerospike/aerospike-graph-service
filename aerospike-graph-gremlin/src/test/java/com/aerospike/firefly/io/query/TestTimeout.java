@@ -19,6 +19,7 @@ import org.mockito.stubbing.Answer;
 import java.lang.reflect.Field;
 import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -30,12 +31,31 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class TestTimeout {
+    private static final long DEFAULT_TIMEOUT = 12345;
+
     @Test
     public void testScanTimeout() throws NoSuchFieldException, IllegalAccessException {
+        final long timeout = getUsedTimeoutFromScan((g) -> g.V().has("name", "test"));
+        assertEquals(DEFAULT_TIMEOUT, timeout);
+    }
+
+    @Test
+    public void testScanTimeoutWithOverride() throws NoSuchFieldException, IllegalAccessException {
+        final long timeout = getUsedTimeoutFromScan((g) -> g.with("evaluationTimeout", 321L).V().has("name", "test"));
+        assertEquals(321L, timeout);
+    }
+
+    private void setFieldValue(Class clazz, Object object, String fieldName, Object value) throws NoSuchFieldException, IllegalAccessException {
+        final Field f = clazz.getDeclaredField(fieldName);
+        f.setAccessible(true);
+        f.set(object, value);
+    }
+
+    private long getUsedTimeoutFromScan(Function<GraphTraversalSource, GraphTraversal> traversalFunc) throws NoSuchFieldException, IllegalAccessException {
         final EventLoops eventLoops = mock(EventLoops.class);
         final IAerospikeClient aerospikeClient = mock(IAerospikeClient.class);
 
-        AtomicReference<ScanPolicy> scanPolicy = new AtomicReference<>();
+        final AtomicReference<ScanPolicy> scanPolicy = new AtomicReference<>();
         doAnswer((Answer<Void>) invocation -> {
             scanPolicy.set(invocation.getArgument(2));
             return null;
@@ -60,7 +80,7 @@ public class TestTimeout {
         setFieldValue(FireflyGraph.class, graph, "fireflyIndexMetadata", new FireflyIndexMetadata(connection));
 
         final Settings settings = mock(Settings.class);
-        setFieldValue(Settings.class, settings, "evaluationTimeout", 12345L);
+        setFieldValue(Settings.class, settings, "evaluationTimeout", DEFAULT_TIMEOUT);
 
         when(graph.settings()).thenReturn(settings);
         when(graph.getBaseGraph()).thenReturn(connection);
@@ -69,7 +89,7 @@ public class TestTimeout {
         final FireflyGraphStepStrategy graphStepStrategy = new FireflyGraphStepStrategy();
         graphStepStrategy.setSteps(new HashSet<>());
 
-        final GraphTraversal traversal = g.V().has("name", "test");
+        final GraphTraversal traversal = traversalFunc.apply(g);
         graphStepStrategy.apply(traversal.asAdmin());
 
         try {
@@ -86,12 +106,6 @@ public class TestTimeout {
                 isNull());
 
         assertNotNull(scanPolicy.get());
-        assertEquals(12345L, scanPolicy.get().totalTimeout);
-    }
-
-    private void setFieldValue(Class clazz, Object object, String fieldName, Object value) throws NoSuchFieldException, IllegalAccessException {
-        final Field f = clazz.getDeclaredField(fieldName);
-        f.setAccessible(true);
-        f.set(object, value);
+        return scanPolicy.get().totalTimeout;
     }
 }

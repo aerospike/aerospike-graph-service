@@ -51,11 +51,11 @@ public interface GraphQuery {
             throw new RuntimeException("unknown query impl: " + fireflyGraph.getBaseGraph().QUERY_IMPL);
     }
 
-    default Iterator<FireflyId> scanVertexIds(Long evaluationTimeout) {
+    default Iterator<FireflyId> scanVertexIds(final Long evaluationTimeout) {
         return scanElementIds(FireflyVertex.class, List.of(), evaluationTimeout);
     }
 
-    default BlockingQueue<PageFetcher.Page> scanVertexIdPages(final List<HasContainer> hasContainers, Long evaluationTimeout) {
+    default BlockingQueue<PageFetcher.Page> scanVertexIdPages(final List<HasContainer> hasContainers, final Long evaluationTimeout) {
         final P<?> predicate;
         final String binName;
         final String mapKey;
@@ -81,7 +81,7 @@ public interface GraphQuery {
                 hasContainers, FireflyVertex.class, true, true, evaluationTimeout);
     }
 
-    default BlockingQueue<PageFetcher.Page> partitionVertexIdPages(final List<HasContainer> hasContainers, Long evaluationTimeout) {
+    default BlockingQueue<PageFetcher.Page> partitionVertexIdPages(final List<HasContainer> hasContainers, final Long evaluationTimeout) {
         P<?> predicate = null;
         String binName = null;
         String mapKey = null;

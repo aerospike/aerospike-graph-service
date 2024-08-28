@@ -41,7 +41,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
     private final List<HasContainer> hasContainers = new ArrayList<>();
     private final List<Iterator> iterators = new ArrayList<>();
     private List<String> properties = null;
-    private Long evaluationTimeout;
+    private final Long evaluationTimeout;
 
     public FireflyGraphStep(final GraphStep<S, E> originalGraphStep) {
         super(originalGraphStep.getTraversal(), originalGraphStep.getReturnClass(), originalGraphStep.isStartStep(), originalGraphStep.getIds());

@@ -1,6 +1,6 @@
 package com.aerospike.firefly;
 
-import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.schema.EdgeSchema;
@@ -347,7 +347,7 @@ public class TestSizingToolAccuracy {
     public long getVertexRecordCount() {
         try (final AerospikeConnection connection = AerospikeConnection.connect(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             final AtomicLong count = new AtomicLong(0);
-            final AerospikeClient client = connection.getClient();
+            final IAerospikeClient client = connection.getClient();
             client.scanAll(null, connection.getNamespace(), connection.VERTEX_AERO_SET, (key, record) -> count.addAndGet(1));
             return count.get();
         }
@@ -356,7 +356,7 @@ public class TestSizingToolAccuracy {
     public long getVertexRecordTotalSize() {
         try (final AerospikeConnection connection = AerospikeConnection.connect(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             final AtomicLong totalSize = new AtomicLong(0);
-            final AerospikeClient client = connection.getClient();
+            final IAerospikeClient client = connection.getClient();
             client.scanAll(null, connection.getNamespace(), connection.VERTEX_AERO_SET, (key, record) -> {
                 record.bins.keySet().forEach(k -> {
                     if (DEBUG_BIN_SIZES) {
@@ -373,7 +373,7 @@ public class TestSizingToolAccuracy {
     public long getEdgeRecordCount() {
         try (final AerospikeConnection connection = AerospikeConnection.connect(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             final AtomicLong count = new AtomicLong(0);
-            final AerospikeClient client = connection.getClient();
+            final IAerospikeClient client = connection.getClient();
             client.scanAll(null, connection.getNamespace(), connection.EDGE_AERO_SET, (key, record) -> count.addAndGet(1));
             return count.get();
         }
@@ -382,7 +382,7 @@ public class TestSizingToolAccuracy {
     public long getEdgeRecordTotalSize() {
         try (final AerospikeConnection connection = AerospikeConnection.connect(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             final AtomicLong totalSize = new AtomicLong(0);
-            final AerospikeClient client = connection.getClient();
+            final IAerospikeClient client = connection.getClient();
             client.scanAll(null, connection.getNamespace(), connection.EDGE_AERO_SET, (key, record) -> {
                 record.bins.keySet().forEach(k -> {
                     if (DEBUG_BIN_SIZES) {

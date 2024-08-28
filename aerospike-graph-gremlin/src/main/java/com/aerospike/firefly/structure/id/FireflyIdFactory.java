@@ -88,7 +88,7 @@ public class FireflyIdFactory {
         if (id instanceof String) {
             try {
                 tempId = Long.parseLong((String) id);
-            } catch (NumberFormatException e) {
+            } catch (final NumberFormatException e) {
                 tempId = id;
             }
         } else {
@@ -301,5 +301,9 @@ public class FireflyIdFactory {
             labelEdgeIds.put(label, id);
         }
         return labelEdgeIds;
+    }
+
+    public long getTypeHint(final Object id) {
+        return TYPE_TO_HINT.get(id.getClass());
     }
 }

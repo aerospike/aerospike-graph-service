@@ -211,10 +211,7 @@ public final class ConfigurationHelper {
             BL_ROW_BIN(Pair.of((byte) 21, "BL_ROW")),
             BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE")),
             SUPERNODE_EDGE_PROPERTIES_BIN(Pair.of((byte) 23, "SUPERNODE_P")),
-            BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA")),
-            USER_VID_IN_BIN(Pair.of((byte) 25, "USER_VID_IN")),
-            USER_VID_OUT_BIN(Pair.of((byte) 26, "USER_VID_IN"));
-
+            BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA"));
 
             private final Pair value;
 

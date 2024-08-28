@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.policy.AuthMode;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -38,7 +39,7 @@ public class TestAerospikeClientProviderConfiguration {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(AUTH_MODE, "external_insecure");
         try (final FireflyGraph firefly = FireflyGraph.open(config)) {
-            final AerospikeClient client = firefly.getBaseGraph().getClient();
+            final IAerospikeClient client = firefly.getBaseGraph().getClient();
             Assert.assertEquals(AuthMode.EXTERNAL_INSECURE, client.getCluster().authMode);
         }
     }
@@ -48,7 +49,7 @@ public class TestAerospikeClientProviderConfiguration {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(CLIENT_SERVICES_ALTERNATE, "true");
         try (final FireflyGraph firefly = FireflyGraph.open(config)) {
-            final AerospikeClient client = firefly.getBaseGraph().getClient();
+            final IAerospikeClient client = firefly.getBaseGraph().getClient();
             // The flag is private so best we can do is check that the client is alive.
             Assert.assertTrue(client.getCluster().isActive());
         }
@@ -60,7 +61,7 @@ public class TestAerospikeClientProviderConfiguration {
         config.setProperty(CLUSTER_NAME, "test");
         config.setProperty(VALIDATE_CLUSTER_NAME, "false");
         try (final FireflyGraph firefly = FireflyGraph.open(config)) {
-            final AerospikeClient client = firefly.getBaseGraph().getClient();
+            final IAerospikeClient client = firefly.getBaseGraph().getClient();
             Assert.assertEquals("test", client.getCluster().getClusterName());
         }
     }

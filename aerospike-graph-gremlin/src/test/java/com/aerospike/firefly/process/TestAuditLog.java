@@ -1,10 +1,8 @@
 package com.aerospike.firefly.process;
 
-import com.aerospike.firefly.io.aerospike.admin.AuthenticationException;
 import com.aerospike.firefly.runtime.FireflyServer;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.google.common.collect.Iterators;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -47,7 +45,7 @@ public class TestAuditLog {
     private static final String auditLogWithJWT = "../conf/credentials-config/firefly-gremlin-server-audit-log-jwt.yaml";
     private static final String noAuditLogJWT = "../conf/credentials-config/firefly-gremlin-server-no-audit-log-jwt.yaml";
 
-    private void createServerWithAuth(final boolean auditLogEnabled) throws Exception {
+    private void createServerWithAuth(final boolean auditLogEnabled) {
         if (server != null) {
             server.stop().join();
         }
@@ -59,7 +57,7 @@ public class TestAuditLog {
     }
 
     @Test
-    public void testNotEnabled() throws Exception {
+    public void testNotEnabled() {
         PrintStream originalOut = System.out;
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -92,7 +90,7 @@ public class TestAuditLog {
             boolean foundMergeE = false;
             final List<String> logList = new ArrayList<>(Arrays.asList(baos.toString().split("\n")));
             for (String line : logList) {
-                if (line.contains("{lyndon_username}")) {
+                if (line.contains("[lyndon_username]")) {
                     if (line.contains("created vertex with id: foo1")) {
                         foundMergeV = true;
                     } else if (line.contains("created vertex with id:")) {
@@ -160,7 +158,7 @@ public class TestAuditLog {
             boolean foundMergeE = false;
             final List<String> logList = new ArrayList<>(Arrays.asList(baos.toString().split("\n")));
             for (String line : logList) {
-                if (line.contains("{lyndon_username}")) {
+                if (line.contains("[lyndon_username]")) {
                     if (line.contains("created vertex with id: foo1")) {
                         foundMergeV = true;
                     } else if (line.contains("created vertex with id:")) {
@@ -283,7 +281,7 @@ public class TestAuditLog {
 
             final List<String> logList = new ArrayList<>(Arrays.asList(baos.toString().split("\n")));
             for (String line : logList) {
-                if (line.contains("{lyndon_loser}")) {
+                if (line.contains("[lyndon_loser]")) {
                     if (line.contains("created vertex with id: foo1")) {
                         foundMergeV = true;
                     } else if (line.contains("created vertex with id:")) {

@@ -1,9 +1,11 @@
 package com.aerospike.firefly.util;
 
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.model.Container;
 import com.github.dockerjava.api.model.ExposedPort;
+import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.Image;
 import com.github.dockerjava.api.model.Ports;
@@ -19,9 +21,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class DockerUtil {
     private static final Logger LOG = LoggerFactory.getLogger(DockerUtil.class);
@@ -145,6 +150,80 @@ public class DockerUtil {
         return DEFAULT_PORT;
     }
 
+    public synchronized String startDockerImageCustom(final String dockerImage,
+                                                      final boolean expectException,
+                                                      final String ... environmentVariables) {
+        final List<Image> images = dockerClient.listImagesCmd().exec();
+        for (final Image image : images) {
+            // Check if image is already an image on the system of the same tag.
+            if (image.getRepoTags().length == 1 && image.getRepoTags()[0].equals(dockerImage)) {
+                // We want to try to kill the image and remove it.
+                try {
+                    dockerClient.killContainerCmd(image.getId()).exec();
+                } catch (Exception ignored) {
+                }
+                try {
+                    dockerClient.removeImageCmd(image.getId()).withForce(true).exec();
+                } catch (Exception ignored) {
+                }
+                break;
+            }
+        }
+
+        final String dockerImageName = "test-graph";
+        // If there is a container of the same name, remove it.
+        try {
+            dockerClient.removeContainerCmd(dockerImageName).withForce(true).exec();
+        } catch (Exception ignored) {
+        }
+
+        // Create port bindings and expose port 8182.
+        final ExposedPort tcp8182 = ExposedPort.tcp(DEFAULT_PORT);
+        final Ports portBindings = new Ports();
+        portBindings.bind(tcp8182, Ports.Binding.bindPort(DEFAULT_PORT));
+
+        // Create container with name, port, and environment set.
+        final String containerId = dockerClient.createContainerCmd(dockerImage)
+                .withName(dockerImageName)
+                .withExposedPorts(tcp8182)
+                .withHostConfig(new HostConfig().withPortBindings(portBindings))
+                .withEnv(environmentVariables)
+                .exec().getId();
+
+        // Start the container.
+        dockerClient.startContainerCmd(containerId).exec();
+        dockerImageTagToContainerId.put(containerId, new DockerInfo(dockerImageName, 8182));
+
+        // Wait 10 seconds for the container to have logs ready.
+        try {
+            Thread.sleep(10 * 1000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        // Need to check if the container is running.
+        InspectContainerResponse.ContainerState containerState = dockerClient.inspectContainerCmd(containerId).exec().getState();
+
+        if (Boolean.FALSE.equals(containerState.getRunning()) && !expectException) {
+            throw new RuntimeException("Error failed to start container " + dockerImage +
+                    " under image name '" + dockerImageName + "'. Container state: " + containerState.getStatus());
+        }
+
+        return containerId;
+    }
+
+    public Queue<String> getLogs(final String containerId) throws InterruptedException {
+        final Queue<String> log = new ConcurrentLinkedQueue<>();
+        final ResultCallback.Adapter<Frame> callback = dockerClient.logContainerCmd(containerId).withStdOut(true).withStdErr(true).exec(new ResultCallback.Adapter<Frame>() {
+            @Override
+            public void onNext(Frame frame) {
+                log.add(new String(frame.getPayload()).trim());
+            }
+        });
+        dockerClient.logContainerCmd(containerId).withStdOut(true).withStdErr(true).exec(callback).awaitCompletion();
+        return log;
+    }
+
     public synchronized boolean versionExists(final String dockerImage, final String tag) {
         try {
             dockerClient.pullImageCmd(dockerImage).withTag(tag).start().awaitCompletion();
@@ -159,7 +238,7 @@ public class DockerUtil {
             try {
                 for (int i = 0; i < container.getNames().length; i++) {
                     final String name = container.getNames()[i];
-                    if (name != null && name.startsWith("/test-graph-")) {
+                    if (name != null && name.startsWith("/test-graph")) {
                         dockerClient.killContainerCmd(container.getId()).exec();
                         dockerClient.removeContainerCmd(container.getId()).withForce(true).exec();
                     }

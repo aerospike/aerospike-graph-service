@@ -98,6 +98,6 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
 
     @Override
     protected void auditLog(final Map params) {
-        LOGGER.info("{" + getUser() + "} - " + getName() + " - Get graph configuration.");
+        LOGGER.info("[{}] - {} - Get graph configuration.", getUser(), getName());
     }
 }

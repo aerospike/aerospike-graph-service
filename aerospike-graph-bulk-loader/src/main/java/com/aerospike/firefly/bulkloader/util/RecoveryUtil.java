@@ -261,8 +261,8 @@ public class RecoveryUtil {
         db.configureScanPolicy(scanPolicy);
         scanPolicy.sendKey = true;
         final RecoveryRecordSequenceListener listener = new RecoveryRecordSequenceListener(db);
-        recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_BAD_EDGE_SET, RecoveryRecordSequenceListener.RecoveryMode.EDGE);
-        return listener.vertexPartitions;
+        recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_EDGE_SET, RecoveryRecordSequenceListener.RecoveryMode.EDGE);
+        return listener.edgePartitions;
     }
 
     static class RecoveryRecordSequenceListener implements RecordSequenceListener {

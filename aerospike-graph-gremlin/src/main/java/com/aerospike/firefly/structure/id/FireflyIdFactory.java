@@ -218,6 +218,19 @@ public class FireflyIdFactory {
         }
     }
 
+    /**
+     * Create a composite id from a byte array
+     * @param compositeIdBytes  the bytes that form a FireflyIdComposite
+     * @return a FireflyIdComposite representing an edge and an adjacent Vertex
+     */
+    public FireflyId createCompositeEdgeId(final byte[] compositeIdBytes) {
+        if (this.db.ENABLE_CACHED_ADJACENT_ID_STRATEGY) {
+            return new FireflyUserIdComposite(db, compositeIdBytes);
+        } else {
+            return new FireflyIdComposite(db, compositeIdBytes);
+        }
+    }
+
     public FireflyId createFromKeyValues(final Class<? extends FireflyElement> type, final Object... keyValues) {
         final Optional<Object> id = ElementHelper.getIdValue(keyValues);
         if (id.isEmpty()) {

@@ -126,9 +126,9 @@ public class GraphOperations {
 
     public static void dropDetachedEdges(final FireflyGraph graph, final Set<byte[]> invalidEdgeIds,
                                          final long allowedDetachedEdges) {
-        final Set<FireflyIdComposite> invalidEdges = new HashSet<>();
+        final Set<FireflyId> invalidEdges = new HashSet<>();
         invalidEdgeIds.forEach(idBytes -> {
-            final FireflyIdComposite id = new FireflyIdComposite(graph.getBaseGraph(), idBytes);
+            final FireflyId id = graph.getIdFactory().createCompositeEdgeId(idBytes);
             invalidEdges.add(id);
         });
 
@@ -162,7 +162,7 @@ public class GraphOperations {
 
         final GraphTraversalSource g = graph.traversal();
 
-        for (final FireflyIdComposite id : invalidEdges) {
+        for (final FireflyId id : invalidEdges) {
             int tryCount = 0;
             while (true) {
                 try {

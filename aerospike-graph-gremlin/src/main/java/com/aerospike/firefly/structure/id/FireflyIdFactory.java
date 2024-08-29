@@ -42,7 +42,7 @@ public class FireflyIdFactory {
         put(byte[].class, 4L);
         put(String.class, 5L);
     }};
-    static final Map<Long, Class<? extends Serializable>> HINT_TO_TYPE = new HashMap<>() {{
+    private static final Map<Long, Class<? extends Serializable>> HINT_TO_TYPE = new HashMap<>() {{
         put(null, null);
         put(0L, null);
         put(1L, Long.class);
@@ -158,6 +158,11 @@ public class FireflyIdFactory {
                 return FireflyIdPoly.fromObject((String) id, set);
             }
         } else if (byte[].class.isAssignableFrom(id.getClass())) {
+            // TODO GRAPH-1261: Dictating what type of ID we get here when both types can be used when the strategy is
+            //                  on is so frigged but this entire thing is frigged so it is what it is for now.
+            if (db.ENABLE_CACHED_ADJACENT_ID_STRATEGY) {
+                return new FireflyUserIdComposite(db, (byte[]) id);
+            }
             return new FireflyIdComposite(db, (byte[]) id);
         } else if (id instanceof LazyIdTransform) {
             return ((LazyIdTransform) id).transform();
@@ -201,12 +206,16 @@ public class FireflyIdFactory {
 
     /**
      * Create a composite id from an edge and a vertex id
-     * @param edgeId the edge id
-     * @param adjacentVertex the adjacent vertex id
+     * @param edgeId            the edge id
+     * @param adjacentVertex    the adjacent vertex id
      * @return a FireflyIdComposite representing an edge and an adjacent Vertex
      */
     public FireflyId createCompositeEdgeId(final FireflyId edgeId, final FireflyId adjacentVertex) {
-        return new FireflyIdComposite(db, edgeId, adjacentVertex);
+        if (this.db.ENABLE_CACHED_ADJACENT_ID_STRATEGY) {
+            return new FireflyUserIdComposite(db, edgeId, adjacentVertex);
+        } else {
+            return new FireflyIdComposite(db, edgeId, adjacentVertex);
+        }
     }
 
     public FireflyId createFromKeyValues(final Class<? extends FireflyElement> type, final Object... keyValues) {

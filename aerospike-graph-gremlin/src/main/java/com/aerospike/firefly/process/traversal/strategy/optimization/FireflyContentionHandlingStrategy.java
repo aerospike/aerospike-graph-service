@@ -99,7 +99,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         applyStrategy(traversal, fireflyGraphCountStrategy);
 
         // This step replaces out/in.id() with single step.
-        applyStrategy(traversal, fireflyAdjacentVertexIdStrategy);
+        //applyStrategy(traversal, fireflyAdjacentVertexIdStrategy);
 
         // Steps that are generally applicable to most all traversals.
         fireflyGraphStepStrategy.setSteps(internalStepClasses);

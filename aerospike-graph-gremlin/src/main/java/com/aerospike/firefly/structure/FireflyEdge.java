@@ -723,7 +723,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
             final FireflyVertex outVertex = this.graph.readVertex(this.outVid);
             if (outVertex != null) {
                 final FireflyIdFactory idFactory = this.graph.getIdFactory();
-                outVertex.removeEdge(Direction.OUT, idFactory.createCompositeEdgeId(this.id, this.inVid), this.label);
+                outVertex.removeEdge(Direction.OUT, (FireflyPhatEdgeId) this.id, this.label);
             }
         }
     }
@@ -739,7 +739,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
             final FireflyVertex inVertex = this.graph.readVertex(this.inVid);
             if (inVertex != null) {
                 final FireflyIdFactory idFactory = this.graph.getIdFactory();
-                inVertex.removeEdge(Direction.IN, idFactory.createCompositeEdgeId(this.id, this.outVid), this.label);
+                inVertex.removeEdge(Direction.IN, (FireflyPhatEdgeId) this.id, this.label);
             }
         }
     }

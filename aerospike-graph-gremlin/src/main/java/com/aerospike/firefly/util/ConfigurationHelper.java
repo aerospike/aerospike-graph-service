@@ -403,7 +403,7 @@ public final class ConfigurationHelper {
         put(Keys.MERGE_EDGE_TTL, "10000");
         put(Keys.MERGE_EDGE_POLL_INTERVAL, "10");
         put(Keys.MERGE_EDGE_STARVATION_PROTECTION, "false");
-        put(Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, "false");
+        put(Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, "true");
     }};
 
     private static final Map<Object, String> BULK_LOAD_DEFAULTS = new HashMap<>() {{

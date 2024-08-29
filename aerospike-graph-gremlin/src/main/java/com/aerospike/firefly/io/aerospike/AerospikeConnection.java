@@ -535,9 +535,9 @@ public class AerospikeConnection implements AutoCloseable {
             // If it was not manually configured, dynamically adjust it relative to the max-record-size configuration of Aerospike
             final long onRecordIdDefaultLimit = getRecordIdLimitFromAerospike(.45);
             onRecordIdLimit = onRecordIdDefaultLimit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) onRecordIdDefaultLimit;
-        }
-        if (ENABLE_CACHED_ADJACENT_ID_STRATEGY) {
-            onRecordIdLimit = (onRecordIdLimit * 2) / 3;
+            if (ENABLE_CACHED_ADJACENT_ID_STRATEGY) {
+                onRecordIdLimit = (onRecordIdLimit * 2) / 3;
+            }
         }
         LOG.info("{} configured to {}.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, onRecordIdLimit);
         ON_RECORD_ID_LIMIT = onRecordIdLimit;

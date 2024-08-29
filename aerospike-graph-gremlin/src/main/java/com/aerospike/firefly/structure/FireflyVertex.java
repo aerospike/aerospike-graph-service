@@ -44,6 +44,7 @@ import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
 import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
+import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.structure.id.LazyIdTransform;
 import com.aerospike.firefly.structure.iterator.FireflyBatchEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
@@ -350,11 +351,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     /**
      * Remove edge from vertex.
      *
-     * @param direction Direction of edge.
-     * @param edgeId    Id of edge.
-     * @param edgeLabel Label of edge.
+     * @param direction         Direction of edge.
+     * @param edgeId            Id of edge.
+     * @param edgeLabel         Label of edge.
      */
-    protected void removeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
+    protected void removeEdge(final Direction direction, final FireflyPhatEdgeId edgeId, final String edgeLabel) {
         // Get bin name for edge direction.
         final String cacheBinName = direction == Direction.IN ? db.IN_EDGES_BIN : db.OUT_EDGES_BIN;
 
@@ -371,7 +372,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             return;
         }
         final List<FireflyId> edgeIdsOfLabel = edgeCache.get(edgeLabel).stream().map(LazyIdTransform::transform).collect(Collectors.toList());
-        if (!edgeIdsOfLabel.contains(edgeId)) {
+        final int indexOfEdgeToRemove = edgeIdsOfLabel.indexOf(edgeId);
+        if (indexOfEdgeToRemove == -1) {
             if (!this.isEdgeCacheOverflowed) {
                 LOG.error("Could not find edge id {} in vertex {}. Vertex edge cache under label {} did not contain edge id {}.",
                         edgeId, this.id, edgeLabel, edgeId);
@@ -380,7 +382,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         }
 
         // Remove item from vertex property Map.
-        edgeIdsOfLabel.remove(edgeId);
+        final FireflyId compositeIdToRemove = edgeIdsOfLabel.remove(indexOfEdgeToRemove);
 
         // Remove key if IDs are empty.
         if (edgeIdsOfLabel.isEmpty()) {
@@ -393,7 +395,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Create operations for removing from edge cache.
         final Operation removeEdgeId = ListOperation.removeByValue(
                 cacheBinName,
-                Value.get(edgeId.getCachedId()),
+                Value.get(compositeIdToRemove.getCachedId()),
                 ListReturnType.NONE,
                 CTX.mapKey(Value.get(edgeLabel))
         );

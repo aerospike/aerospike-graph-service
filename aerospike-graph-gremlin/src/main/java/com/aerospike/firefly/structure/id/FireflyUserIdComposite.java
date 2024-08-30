@@ -58,19 +58,21 @@ public class FireflyUserIdComposite extends FireflyIdComposite {
     }
 
     private Object decodeBytesToUserId(final byte[] bytes) {
-        if (this.adjacentIdTypeHint == 4) {
+        final long typeHint = (long) adjacentIdTypeHint;
+        final FireflyIdFactory idFactory = this.db.getIdFactory();
+        if (typeHint == idFactory.getTypeHint(byte[].class)) {
             return bytes;
-        } else if (this.adjacentIdTypeHint == 5) {
+        } else if (typeHint == idFactory.getTypeHint(String.class)) {
             return new String(bytes, StandardCharsets.ISO_8859_1);
-        } else if (this.adjacentIdTypeHint == 1) {
+        } else if (typeHint == idFactory.getTypeHint(Long.class)) {
             return ByteBuffer.wrap(bytes).getLong();
-        } else if (this.adjacentIdTypeHint == 2) {
+        } else if (typeHint == idFactory.getTypeHint(Integer.class)) {
             return ByteBuffer.wrap(bytes).getInt();
-        } else if (this.adjacentIdTypeHint == 3) {
+        } else if (typeHint == idFactory.getTypeHint(Double.class)) {
             return ByteBuffer.wrap(bytes).getDouble();
         } else {
             // This should never happen.
-            throw new RuntimeException("Invalid type hint for user id: " + this.adjacentIdTypeHint);
+            throw new RuntimeException("Invalid type hint for user id: " + typeHint);
         }
     }
 

@@ -309,4 +309,8 @@ public class FireflyIdFactory {
     public long getTypeHint(final Object id) {
         return TYPE_TO_HINT.get(id.getClass());
     }
+
+    public long getTypeHint(final Class<?> objectClass) {
+        return TYPE_TO_HINT.get(objectClass);
+    }
 }

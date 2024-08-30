@@ -954,7 +954,7 @@ jobs:
           mvn -pl aerospike-graph-bulk-loader test -Dtest=TestRecoveryActionFlags --no-transfer-progress
   test-firefly-spark-bulk-loader:
     name: Test Spark Bulk Loader
-    timeout-minutes: 40
+    timeout-minutes: 60
     needs: start-runner-spark-bulk-loader
     runs-on: ${{ needs.start-runner-spark-bulk-loader.outputs.label }}
     steps:

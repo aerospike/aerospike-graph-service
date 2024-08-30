@@ -670,7 +670,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      * Important note about this function: It only returns ids that are NOT cached in the vertex.
      * To get an exhaustive list of all ids you must call this in conjunction with getSupernodeVertexIds.
      */
-    private Iterator<FireflyId> getSupernodeVertexIds(final Direction direction, final Set<String> labels) {
+    public Iterator<FireflyId> getSupernodeVertexIds(final Direction direction, final Set<String> labels) {
         return getSupernodeIds(direction, labels, FireflyPhatEdgeIdIteratorFromVertex.OutputType.VERTEX_ID, Collections.emptyList());
     }
 
@@ -708,25 +708,22 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         return getIdsFromVertexByIndex(direction, labels, outputType, hasContainers);
     }
 
-    // Only public for testing, if you use this function outside of testing, you're probably doing something wrong.
     public List<FireflyId> getCachedIds(final Direction direction, final Set<String> labels) {
         LOG.trace("Getting cached adjacent vertex ids from vertex {}.", id);
         // Get cached IDs
         final List<FireflyId> cachedIds = new ArrayList<>();
         if (direction == Direction.OUT || direction == Direction.BOTH) {
             for (final String key : outEdgeIds.keySet()) {
-                if (!labels.isEmpty() && !labels.contains(key)) {
-                    continue;
+                if (labels.isEmpty() || labels.contains(key)) {
+                    cachedIds.addAll(outEdgeIds.get(key).stream().map(LazyIdTransform::transform).collect(Collectors.toList()));
                 }
-                cachedIds.addAll(outEdgeIds.get(key).stream().map(LazyIdTransform::transform).collect(Collectors.toList()));
             }
         }
         if (direction == Direction.IN || direction == Direction.BOTH) {
             for (final String key : inEdgeIds.keySet()) {
-                if (!labels.isEmpty() && !labels.contains(key)) {
-                    continue;
+                if (labels.isEmpty() || labels.contains(key)) {
+                    cachedIds.addAll(inEdgeIds.get(key).stream().map(LazyIdTransform::transform).collect(Collectors.toList()));
                 }
-                cachedIds.addAll(inEdgeIds.get(key).stream().map(LazyIdTransform::transform).collect(Collectors.toList()));
             }
         }
         return cachedIds;

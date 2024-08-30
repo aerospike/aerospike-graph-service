@@ -262,25 +262,6 @@ public class FireflyIdFactory {
         return createId(origId, typeHint, type);
     }
 
-    public Map<String, List<FireflyId>> convertMapListObjectToFireflyIdMap(final Map<String, List<Object>> fireflyObjectIds) {
-        if (fireflyObjectIds == null) {
-            return new HashMap<>();
-        }
-        final Map<String, List<FireflyId>> labelEdgeIds = new HashMap<>();
-        for (final String label : fireflyObjectIds.keySet()) {
-            final List<FireflyId> fireflyIds = new ArrayList<>();
-            for (final Object edge : fireflyObjectIds.get(label)) {
-                if (edge instanceof byte[]) {
-                    fireflyIds.add(new FireflyIdComposite(db, (byte[]) edge));
-                } else {
-                    fireflyIds.add(createId(edge, FireflyEdge.class));
-                }
-            }
-            labelEdgeIds.put(label, fireflyIds);
-        }
-        return labelEdgeIds;
-    }
-
     public void convertMapToLazyIdsInPlace(final Map<String, ?> fireflyObjectIds,
                                            final FireflyGraph graph,
                                            final Class<? extends FireflyElement> type) {

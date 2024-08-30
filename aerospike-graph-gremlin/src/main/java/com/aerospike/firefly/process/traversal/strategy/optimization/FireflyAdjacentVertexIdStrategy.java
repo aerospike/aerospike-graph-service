@@ -5,6 +5,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GroupStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupSideEffectStep;
@@ -23,8 +24,7 @@ public class FireflyAdjacentVertexIdStrategy extends FireflyStrategyBase {
 
     @Override
     public String getStrategyEnabledKey() {
-        // TODO: Needs correct enable.
-        return ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY;
+        return ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY;
     }
 
     @Override
@@ -74,6 +74,8 @@ public class FireflyAdjacentVertexIdStrategy extends FireflyStrategyBase {
                 continue;
             }
             Set<String> labels = vertexStep.getLabels();
+            index++;
+
             while (labels.isEmpty()) {
                 if (index >= steps.size()) {
                     break;
@@ -90,11 +92,11 @@ public class FireflyAdjacentVertexIdStrategy extends FireflyStrategyBase {
 
                     // No labels in barrier so we can remove it without impact.
                     traversal.removeStep(steps.get(index));
-                } else if (steps.get(index) instanceof IdentityStep) {
+                } else if (steps.get(index) instanceof IdStep) {
                     // Grab any labels and remove the identity step.
-                    final IdentityStep<?> identityStep = (IdentityStep<?>) steps.get(index);
-                    labels = identityStep.getLabels();
-                    traversal.removeStep(identityStep);
+                    final IdStep<?> idStep = (IdStep<?>) steps.get(index);
+                    labels = idStep.getLabels();
+                    traversal.removeStep(idStep);
                     traversal.addStep(index,
                             new FireflyAdjacentVertexIdStep(traversal.asAdmin(),
                                     labels,

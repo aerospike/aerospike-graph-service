@@ -41,7 +41,7 @@ public class CompositeIdTest extends AbstractFireflySuite {
 
         Assert.assertTrue(fooInEdges.isEmpty());
         Assert.assertTrue(barOutEdges.isEmpty());
-        
+
         final FireflyId fooId = graph.getIdFactory().createId(foo.id(), FireflyVertex.class);
         final FireflyId barId = graph.getIdFactory().createId(bar.id(), FireflyVertex.class);
         final FireflyId bazId = graph.getIdFactory().createId(baz.id(), FireflyEdge.class);

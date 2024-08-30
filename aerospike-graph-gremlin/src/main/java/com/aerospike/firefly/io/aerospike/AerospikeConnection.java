@@ -224,6 +224,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY;
     public final boolean ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY;
     public final boolean ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY;
+    public final boolean ENABLE_CACHED_ADJACENT_ID_STRATEGY;
 
     // MergeEdge fields
     public final int MERGE_EDGE_EVAL_TIMEOUT;
@@ -392,6 +393,12 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf);
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf);
         ENABLE_BATCHED_REPEAT_STEP_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf);
+        ENABLE_CACHED_ADJACENT_ID_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, conf);
+
+        if (ENABLE_CACHED_ADJACENT_ID_STRATEGY && !ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY) {
+            throw new IllegalStateException("Cached adjacent ID strategy cannot be used when composite ID strategy is disabled.");
+        }
+
         TTL_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf);
         PAGINATION_PAGE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf);
         PAGINATION_PAGE_MAX_WAIT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, conf);

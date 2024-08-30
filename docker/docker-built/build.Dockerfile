@@ -57,11 +57,11 @@ RUN mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -pl aerospik
 
 # Move bulk-loader jar to /opt/bulk-loader.
 RUN mkdir /opt/bulk-loader &&\
-    mv /opt/aerospike-graph/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.3.0-SNAPSHOT.jar /opt/bulk-loader
+    mv /opt/aerospike-graph/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.3.0.jar /opt/bulk-loader
 
 # Move sizing-tool jar to /opt/sizing-tool.
 RUN mkdir /opt/sizing-tool &&\
-    mv /opt/aerospike-graph/aerospike-graph-sizing-tool/target/aerospike-graph-sizing-tool-2.3.0-SNAPSHOT.jar /opt/sizing-tool
+    mv /opt/aerospike-graph/aerospike-graph-sizing-tool/target/aerospike-graph-sizing-tool-2.3.0.jar /opt/sizing-tool
 
 # Build CLASSPATH before invoking gremlin-server. This is assigned in the gremlin-server script.
 # Note bulk-loader also needs to be in the classpath.
@@ -73,8 +73,8 @@ RUN mkdir -p $CONF_DIR && mv /opt/aerospike-graph/conf/docker-default/flattened-
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.3.0-SNAPSHOT' ;  \
-    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.3.0-SNAPSHOT' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.3.0' ;  \
+    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.3.0' ;  \
     fi
 
 # Remove source code.

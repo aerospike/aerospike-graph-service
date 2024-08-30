@@ -54,8 +54,8 @@ RUN mvn -pl aerospike-graph-gremlin -am -Dmaven.test.skip=true -DskipTests=true 
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.3.0-SNAPSHOT' ;  \
-    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.3.0-SNAPSHOT' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.3.0' ;  \
+    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.3.0' ;  \
     fi
 
 RUN mkdir -p $CONF_DIR && mv /opt/aerospike-graph/conf/docker-default/flattened-default-gremlin-server.yaml $CONF_DIR/flattened-default-gremlin-server.yaml

@@ -4,6 +4,7 @@ import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Host;
+import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
@@ -223,6 +224,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY;
     public final boolean ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY;
     public final boolean ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY;
+    public final boolean ENABLE_CACHED_ADJACENT_ID_STRATEGY;
 
     // MergeEdge fields
     public final int MERGE_EDGE_EVAL_TIMEOUT;
@@ -391,6 +393,12 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf);
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf);
         ENABLE_BATCHED_REPEAT_STEP_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf);
+        ENABLE_CACHED_ADJACENT_ID_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, conf);
+
+        if (ENABLE_CACHED_ADJACENT_ID_STRATEGY && !ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY) {
+            throw new IllegalStateException("Cached adjacent ID strategy cannot be used when composite ID strategy is disabled.");
+        }
+
         TTL_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf);
         PAGINATION_PAGE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf);
         PAGINATION_PAGE_MAX_WAIT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, conf);
@@ -807,7 +815,7 @@ public class AerospikeConnection implements AutoCloseable {
          * First item of map entry is index
          * Second item of map entry is set the index belongs to
          */
-        public static List<Map.Entry<String, String>> listExistingIndexes(final AerospikeClient client, final String namespace) {
+        public static List<Map.Entry<String, String>> listExistingIndexes(final IAerospikeClient client, final String namespace) {
             // Using client.getNodes()[0] is okay here since indexes exist across all nodes.
             LOG.debug("Info.request: {}", Keys.SINDEX);
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SINDEX);
@@ -818,7 +826,7 @@ public class AerospikeConnection implements AutoCloseable {
                     .collect(Collectors.toList());
         }
 
-        public static List<String> createSetIndex(final AerospikeClient client, final String namespace, final String set) {
+        public static List<String> createSetIndex(final IAerospikeClient client, final String namespace, final String set) {
             final String command = "set-config:context=namespace;id=" + namespace + ";set=" + set + ";enable-index=true";
             final List<String> results = new ArrayList<>();
             for (final Node node : client.getNodes()) {
@@ -1012,14 +1020,14 @@ public class AerospikeConnection implements AutoCloseable {
          * @param client AerospikeClient connection instance
          * @return enterprise or not
          */
-        public static boolean isEnterprise(final AerospikeClient client) {
+        public static boolean isEnterprise(final IAerospikeClient client) {
             // Using client.getNodes()[0] is okay here since if one is enterprise, the entire cluster is.
             LOG.debug("Info.request: {}", Keys.FEATURE_KEY);
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.FEATURE_KEY);
             return (infoResponse != null && !infoResponse.isEmpty());
         }
 
-        public static String getClusterName(final AerospikeClient client) {
+        public static String getClusterName(final IAerospikeClient client) {
             LOG.debug("Info.request: get-config");
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], "get-config");
             final String[] delimitedResponse = infoResponse.split(";");
@@ -1041,7 +1049,7 @@ public class AerospikeConnection implements AutoCloseable {
          * @param client    AerospikeClient instance
          * @return Set of namespaces
          */
-        public static Set<String> getNonEmptySetList(final String namespace, final AerospikeClient client) {
+        public static Set<String> getNonEmptySetList(final String namespace, final IAerospikeClient client) {
             final Set<String> allSets = new HashSet<>();
 
             // Need to loop all nodes here in case one of the sets only has data on a single node.
@@ -1153,7 +1161,7 @@ public class AerospikeConnection implements AutoCloseable {
 
         LOG.info("Creating graph indices.");
         List<String> existingIndexes =
-                InfoOps.listExistingIndexes(getClient(), getNamespace()).stream()
+                InfoOps.listExistingIndexes(client, getNamespace()).stream()
                         .map(Map.Entry::getKey).collect(Collectors.toList());
 
         // Blocking call for supernode indexes since graph doesn't function without.
@@ -1175,25 +1183,25 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         // Create set index on GRAPH_METADATA_SET for lock records.
-        List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(getClient(), getNamespace(), GRAPH_METADATA_SET);
+        List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(client, getNamespace(), GRAPH_METADATA_SET);
         for (final String index : setIndex) {
             if (!"ok".equals(index)) {
                 LOG.error("Error creating set index for metadata set: {}", index);
             }
         }
-        setIndex = AerospikeConnection.InfoOps.createSetIndex(getClient(), getNamespace(), BULK_LOAD_RECOVERY_VERTEX_SET);
+        setIndex = AerospikeConnection.InfoOps.createSetIndex(client, getNamespace(), BULK_LOAD_RECOVERY_VERTEX_SET);
         for (final String index : setIndex) {
             if (!"ok".equals(index)) {
                 LOG.error("Error creating set index for metadata set: {}", index);
             }
         }
-        setIndex = AerospikeConnection.InfoOps.createSetIndex(getClient(), getNamespace(), BULK_LOAD_RECOVERY_EDGE_SET);
+        setIndex = AerospikeConnection.InfoOps.createSetIndex(client, getNamespace(), BULK_LOAD_RECOVERY_EDGE_SET);
         for (final String index : setIndex) {
             if (!"ok".equals(index)) {
                 LOG.error("Error creating set index for metadata set: {}", index);
             }
         }
-        setIndex = AerospikeConnection.InfoOps.createSetIndex(getClient(), getNamespace(), BULK_LOAD_BAD_EDGE_SET);
+        setIndex = AerospikeConnection.InfoOps.createSetIndex(client, getNamespace(), BULK_LOAD_BAD_EDGE_SET);
         for (final String index : setIndex) {
             if (!"ok".equals(index)) {
                 LOG.error("Error creating set index for metadata set: {}", index);
@@ -1238,7 +1246,7 @@ public class AerospikeConnection implements AutoCloseable {
      *
      * @return AerospikeClient instance
      */
-    public AerospikeClient getClient() {
+    public IAerospikeClient getClient() {
         return this.client;
     }
 
@@ -1728,11 +1736,11 @@ public class AerospikeConnection implements AutoCloseable {
      * Delete all data from the namespace
      */
     public void clearNamespace() {
-        final Set<String> sets = InfoOps.getNonEmptySetList(getNamespace(), getClient());
+        final Set<String> sets = InfoOps.getNonEmptySetList(getNamespace(), client);
         for (final String set : sets) {
             client.truncate(null, namespace, set, null);
         }
-        final List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(getClient(), getNamespace());
+        final List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(client, getNamespace());
         for (final Map.Entry<String, String> entry : indexes) {
             dropIndex(entry.getValue(), entry.getKey());
         }

@@ -92,6 +92,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.Timer;
@@ -545,7 +546,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             errorInfo.put("id", keyRecord.key.userKey.getObject());
             errorInfo.put("count", keyRecord.record.getLong(db.COUNTER_BIN));
             return errorInfo;
-        });
+        }, settings().evaluationTimeout);
     }
 
     public void writeBadEntry(final String row, final String fileName) {
@@ -570,7 +571,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             errorInfo.put("row", keyRecord.record.getString(db.BL_ROW_BIN));
             errorInfo.put("file", keyRecord.record.getString(db.BL_FILE_BIN));
             return errorInfo;
-        });
+        }, settings().evaluationTimeout);
     }
 
     public void writeBadEdge(final Object badVertexId, final long count) {
@@ -595,7 +596,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             errorInfo.put("bad-vertex-id", keyRecord.key.userKey.getObject());
             errorInfo.put("count", keyRecord.record.getLong(db.COUNTER_BIN));
             return errorInfo;
-        });
+        }, settings().evaluationTimeout);
     }
 
     /**
@@ -710,7 +711,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final FireflyEdge edge = FireflyEdge.writeEdge(this, edgeId, label, properties, inVertex, outVertex, inVertexCacheWrite, outVertexCacheWrite);
         if (db.IS_AUDIT_LOG_ENABLED) {
             // Edge id is byte buffer so not useful.
-            LOG.info("{{}} created edge: [{}]-[{}]>[{}]", USER.get(), inVertex.id(), label, outVertex.id());
+            LOG.info("[{}] created edge: [{}]-[{}]>[{}].", USER.get(), inVertex.id(), label, outVertex.id());
         }
         return edge;
     }
@@ -917,12 +918,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return fireflyVertexProperty;
     }
 
-    public long getVertexCount(final List<HasContainer> hasContainers) {
-        return FireflyCloseableIteratorUtils.count(GraphQuery.create(this).scanVertexIds(hasContainers));
+    public long getVertexCount(final List<HasContainer> hasContainers, final Long evaluationTimeout) {
+        return FireflyCloseableIteratorUtils.count(GraphQuery.create(this).scanVertexIds(hasContainers, evaluationTimeout));
     }
 
-    public long getEdgeCount() {
-        return FireflyCloseableIteratorUtils.count(GraphQuery.create(this).scanEdgeIds());
+    public long getEdgeCount(final Long evaluationTimeout) {
+        return FireflyCloseableIteratorUtils.count(GraphQuery.create(this).scanEdgeIds(evaluationTimeout));
     }
 
     @Override
@@ -976,7 +977,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 }
             }
             if (db.IS_AUDIT_LOG_ENABLED) {
-                LOG.info("{{}} created vertex with id: {}", USER.get(), idValue.getUserId());
+                LOG.info("[{}] created vertex with id: {}", USER.get(), idValue.getUserId());
             }
             return v;
         } else {
@@ -989,7 +990,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             try {
                 final Vertex v = writeVertex(idValue, label, properties);
                 if (db.IS_AUDIT_LOG_ENABLED) {
-                    LOG.info("{{}} created vertex with id: {}", USER.get(), idValue.getUserId());
+                    LOG.info("[{}] created vertex with id: {}", USER.get(), idValue.getUserId());
                 }
                 return v;
             } catch (final AerospikeException e) {
@@ -1100,7 +1101,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
-        return new FireflyBatchElementIterator<>(this, idList.isEmpty() ? GraphQuery.create(this).scanVertexIds() : idList.iterator(), filters, this::readVertices, requiredProperties);
+        return new FireflyBatchElementIterator<>(this, idList.isEmpty() ? GraphQuery.create(this).scanVertexIds(settings().evaluationTimeout) : idList.iterator(),
+                filters, this::readVertices, requiredProperties);
     }
 
     @Override
@@ -1126,7 +1128,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
 
         if (idList.isEmpty()) {
-            return new FireflyBatchElementIterator<>(this, GraphQuery.create(this).scanEdgeIds(), filters, this::readEdges, null);
+            return new FireflyBatchElementIterator<>(this,
+                    GraphQuery.create(this).scanEdgeIds(settings().evaluationTimeout), filters,
+                    this::readEdges, null);
         } else {
             return FireflyEdge.readEdges(this, idList).stream().map(fireflyEdge -> (Edge) fireflyEdge).iterator();
         }
@@ -1197,6 +1201,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     @Override
     public Configuration configuration() {
         return configuration;
+    }
+
+    public Settings settings() {
+        return gremlinServerSettings;
     }
 
     @Override

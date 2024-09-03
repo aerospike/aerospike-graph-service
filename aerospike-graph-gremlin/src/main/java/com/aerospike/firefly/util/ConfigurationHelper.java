@@ -107,6 +107,7 @@ public final class ConfigurationHelper {
         public static final String ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.embedded.enabled";
         public static final String ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY = "aerospike.graph.strategy.batch.edge.read.sampling.enabled";
         public static final String ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY = "aerospike.graph.strategy.batch.edge.read.limit.enabled";
+        public static final String ENABLE_CACHED_ADJACENT_ID_STRATEGY = "aerospike.graph.strategy.cached.adjacent.id.enabled";
         public static final String GLOBAL_EDGE_CACHE_ENABLED = "aerospike.graph.global.edge.cache.enabled";
         public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
         public static final String EDGE_ID_BUFFER_SIZE = "aerospike.graph.edge.id.buffer.size";
@@ -212,7 +213,6 @@ public final class ConfigurationHelper {
             SUPERNODE_EDGE_PROPERTIES_BIN(Pair.of((byte) 23, "SUPERNODE_P")),
             BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA"));
 
-
             private final Pair value;
 
             Bins(final Pair b) {
@@ -297,7 +297,8 @@ public final class ConfigurationHelper {
     public static final Set<String> IMMUTABLE_CONFIG_KEYS = Set.of(
             Keys.PHAT_EDGE_SIZE, // Calculating the PK wouldn't work
             Keys.SUMMARY_ENABLED_FLAG, // Inaccurate and therefore useless if toggled
-            Keys.FIREFLY_DATA_MODEL
+            Keys.FIREFLY_DATA_MODEL,
+            Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY
     );
 
     private static final Map<Object, String> defaultValues = new HashMap<>() {{
@@ -402,6 +403,7 @@ public final class ConfigurationHelper {
         put(Keys.MERGE_EDGE_TTL, "10000");
         put(Keys.MERGE_EDGE_POLL_INTERVAL, "10");
         put(Keys.MERGE_EDGE_STARVATION_PROTECTION, "false");
+        put(Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, "false");
     }};
 
     private static final Map<Object, String> BULK_LOAD_DEFAULTS = new HashMap<>() {{

@@ -35,8 +35,8 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
     @Override
     protected boolean clearData() {
         graph.getBaseGraph().dropDatabase(graph, true);
-        assertEquals(0L, graph.getVertexCount(List.of()));
-        assertEquals(0L, graph.getEdgeCount());
+        assertEquals(0L, graph.getVertexCount(List.of(), 10000L));
+        assertEquals(0L, graph.getEdgeCount(10000L));
         return true;
     }
 

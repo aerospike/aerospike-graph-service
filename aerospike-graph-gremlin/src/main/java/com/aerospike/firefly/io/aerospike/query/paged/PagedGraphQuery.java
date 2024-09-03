@@ -39,10 +39,11 @@ public class PagedGraphQuery implements GraphQuery {
     public <E> Iterator<E> scanSet(final String mapKey, final String setName, final String binName, final P<?> predicate,
                                    final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
                                    final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
-                                   final String... binNames) {
+                                   final Long evaluationTimeout, final String... binNames) {
         final ScanPolicy policy = new ScanPolicy();
         policy.sendKey = sendKey;
         policy.includeBinData = includeBinData;
+        policy.setTimeout(evaluationTimeout.intValue());
         // Build expression using predicate.
         if (predicate != null) {
             final Exp exp = GraphQueryHelper.predicateToExpression(db, binName, mapKey, predicate);
@@ -77,10 +78,12 @@ public class PagedGraphQuery implements GraphQuery {
     public <E> BlockingQueue<PageFetcher.Page> scanSetPagesBlocking(final String mapKey, final String setName, final String binName, final P<?> predicate,
                                                             final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
                                                             final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
-                                                            final String... binNames) {
+                                                            final Long evaluationTimeout, final String... binNames) {
         final ScanPolicy policy = new ScanPolicy();
         policy.sendKey = sendKey;
         policy.includeBinData = includeBinData;
+        policy.setTimeout(evaluationTimeout.intValue());
+
         // Build expression using predicate.
         if (predicate != null) {
             final Exp exp = GraphQueryHelper.predicateToExpression(db, binName, mapKey, predicate);

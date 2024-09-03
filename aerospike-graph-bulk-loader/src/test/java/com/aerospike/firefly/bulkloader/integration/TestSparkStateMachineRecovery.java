@@ -36,6 +36,7 @@ public class TestSparkStateMachineRecovery {
     private final String FAIL_VERTEX_WRITE = "src/test/resources/conf/packed/config-recovery-fail-vertex-write.properties";
     private final String FAIL_VERTEX_VERIFY = "src/test/resources/conf/packed/config-recovery-fail-vertex-verify.properties";
     private final String FAIL_SUPERNODE = "src/test/resources/conf/packed/config-recovery-fail-supernodes.properties";
+    private final String SAMPLE_SUPERNODE = "src/test/resources/conf/packed/config-sampling-supernodes.properties";
 
     private Configuration getTestConfig() {
         return getConfig(Path.of(DEFAULT_CONFIG));
@@ -102,6 +103,24 @@ public class TestSparkStateMachineRecovery {
         final SparkBulkLoaderState nextState = state.transitionState();
         Assert.assertTrue(nextState instanceof SparkBulkLoaderStateDetectSupernodes);
 
+    }
+
+    @Test
+    public void testSampling() {
+        System.out.println("Testing testSampling");
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", SAMPLE_SUPERNODE}, DEFAULT_PARAMS));
+            Assert.fail("Should have thrown an exception");
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+            // Expected
+        }
+        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME});
+        SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
+        state.executeState();
+
+        // Should have loaded supernodes. Also should have loaded vertex and edge dataset.
+        Assert.assertFalse(stateMachine.supernodes.isEmpty());
     }
 
     @Test

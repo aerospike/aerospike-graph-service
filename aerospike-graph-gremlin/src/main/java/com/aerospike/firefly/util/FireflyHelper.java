@@ -100,10 +100,10 @@ public final class FireflyHelper {
         return new FireflyBatchEdgeIterator<>(graph, vertex.getEdgeIdsFromVertex(direction, labels, Collections.emptyList()));
     }
 
-    public static long countVertices(final FireflyGraph graph, final List<HasContainer> hasContainers) {
+    public static long countVertices(final FireflyGraph graph, final List<HasContainer> hasContainers, final Long evaluationTimeout) {
         final AerospikeConnection db = graph.getBaseGraph();
         if (hasContainers.isEmpty()) {
-            return graph.getVertexCount(new ArrayList<>());
+            return graph.getVertexCount(new ArrayList<>(), evaluationTimeout);
         }
 
         final Optional<FireflyIndexMetadata.IndexInfo> info = graph.fireflyIndexMetadata.getPropertyIndexInfo(
@@ -115,6 +115,7 @@ public final class FireflyHelper {
             final QueryPolicy queryPolicy = new QueryPolicy();
             queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, FireflyVertex.class);
             queryPolicy.includeBinData = false;
+            queryPolicy.setTimeout(evaluationTimeout.intValue());
 
             // Query index.
             final Iterator<KeyRecord> keyRecordIterator = GraphQuery.create(graph).querySIndex(
@@ -127,11 +128,11 @@ public final class FireflyHelper {
             return FireflyCloseableIteratorUtils.count(keyRecordIterator);
         } else {
             // Get vertex count.
-            return graph.getVertexCount(hasContainers);
+            return graph.getVertexCount(hasContainers, evaluationTimeout);
         }
     }
 
-    public static long countEdges(FireflyGraph graph) {
-        return graph.getEdgeCount();
+    public static long countEdges(final FireflyGraph graph, final Long evaluationTimeout) {
+        return graph.getEdgeCount(evaluationTimeout);
     }
 }

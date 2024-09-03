@@ -181,7 +181,7 @@ public class JWTAuthenticator implements Authenticator {
         return new JWTAuthenticatedUser(jwt);
     }
 
-    public class JWTAuthenticatedUser extends AuthenticatedUser implements UserContext {
+    public static class JWTAuthenticatedUser extends AuthenticatedUser implements UserContext {
 
         private final DecodedJWT decodedJWT;
 

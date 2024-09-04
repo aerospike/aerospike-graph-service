@@ -4,13 +4,9 @@ import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
-import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.spark.sql.Column;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
 
 public class SparkBulkLoaderStateReadVertices extends SparkBulkLoaderState {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderStateReadVertices.class);
@@ -31,13 +27,16 @@ public class SparkBulkLoaderStateReadVertices extends SparkBulkLoaderState {
                 VertexOperations.REQUIRED_VERTEX_HEADERS,
                 DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config));
         sparkBulkLoaderStateMachine.vertexPartitionCount = sparkBulkLoaderStateMachine.vertexDataset.rdd().partitions().length;
-        LOGGER.info("Vertex dataset has {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
+        LOGGER.info("Vertex dataset has {} partitions", sparkBulkLoaderStateMachine.vertexPartitionCount);
         sparkBulkLoaderStateMachine.progressBar.setVertexPartitionCount(sparkBulkLoaderStateMachine.vertexPartitionCount);
         RecoveryUtil.updateVertexRecovery(
                 sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
                 sparkBulkLoaderStateMachine.vertexPartitionCount);
-        sparkBulkLoaderStateMachine.vertexDataset.repartition(
-                sparkBulkLoaderStateMachine.vertexPartitionCount, new Column("~id"));
+
+        if (!sparkBulkLoaderStateMachine.readOnly) {
+            sparkBulkLoaderStateMachine.vertexDataset = sparkBulkLoaderStateMachine.vertexDataset.repartition(
+                    sparkBulkLoaderStateMachine.vertexPartitionCount, new Column("~id"));
+        }
     }
 
     @Override

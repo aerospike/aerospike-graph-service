@@ -116,7 +116,15 @@ public class SparkBulkLoaderStateMachine {
             isL2Mode = cmd.hasOption(LOCAL_MODE);
             Objects.requireNonNull(configPath);
             fileConfig = loadConfiguration(spark, cmd, configPath);
-            LOGGER.info("Config: " + fileConfig);
+            LOGGER.info("CONFIGURATION:");
+            fileConfig.keySet().forEach(key -> {
+                final String lowerKey = key.toLowerCase();
+                if (lowerKey.contains("password") || lowerKey.contains("secret") || lowerKey.contains("token") || lowerKey.contains("passkey")) {
+                    LOGGER.info("\tconfig: [{}]:[{}]", key, "********");
+                } else {
+                    LOGGER.info("\tconfig: [{}]:[{}]", key, fileConfig.get(key));
+                }
+            });
             config = new BulkLoaderConfigHelper(fileConfig, cmd);
 
             final String logLevel = config.getOrDefault(SPARK_LOG_LEVEL).toUpperCase();
@@ -201,7 +209,6 @@ public class SparkBulkLoaderStateMachine {
 
         final String fileContext = spark.read().option("wholetext", true).text(configPath).collectAsList().get(0)
                 .getString(0);
-        LOGGER.debug("Configuration content: " + fileContext);
 
         final Properties prop = new Properties();
         try (final StringReader reader = new StringReader(fileContext)) {

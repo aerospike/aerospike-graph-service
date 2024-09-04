@@ -1,20 +1,15 @@
 package com.aerospike.firefly.bulkloader.statemachine.states;
 
-import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.spark.sql.Column;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
 import org.apache.spark.storage.StorageLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 
-import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.EDGE_ID_COLUMN;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
 
@@ -57,7 +52,6 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
             // Now the order of ids in the partition should be preserved.
             sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.spark.read().option("header", "true").csv(edgeRecoveryDirectory);
             sparkBulkLoaderStateMachine.edgeDataset.persist(StorageLevel.DISK_ONLY());
-            sparkBulkLoaderStateMachine.edgeDataset.repartition(new Column("~edgeid"));
 
             // Latch recovery directory.
             RecoveryUtil.writeTempDirectory(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), edgeRecoveryDirectory);
@@ -70,6 +64,8 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
             RecoveryUtil.updateEdgeRecovery(
                     sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
                     sparkBulkLoaderStateMachine.edgePartitionCount);
+            sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartition(
+                    sparkBulkLoaderStateMachine.edgePartitionCount, new Column("~edgeid"));
         }
 
         LOGGER.info("EdgeId dataset have {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);

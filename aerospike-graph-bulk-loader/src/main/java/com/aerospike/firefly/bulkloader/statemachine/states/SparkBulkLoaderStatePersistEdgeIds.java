@@ -58,6 +58,7 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
         }
 
         sparkBulkLoaderStateMachine.edgePartitionCount = sparkBulkLoaderStateMachine.edgeDataset.rdd().getPartitions().length;
+        LOGGER.info("EdgeId dataset have {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
 
         if (!sparkBulkLoaderStateMachine.readOnly) {
             // Update edge recovery info.
@@ -66,10 +67,9 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
                     sparkBulkLoaderStateMachine.edgePartitionCount);
             sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartition(
                     sparkBulkLoaderStateMachine.edgePartitionCount, new Column("~edgeid"));
-        }
 
-        LOGGER.info("EdgeId dataset have {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
-        sparkBulkLoaderStateMachine.progressBar.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
+            sparkBulkLoaderStateMachine.progressBar.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
+        }
 
         sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();
     }

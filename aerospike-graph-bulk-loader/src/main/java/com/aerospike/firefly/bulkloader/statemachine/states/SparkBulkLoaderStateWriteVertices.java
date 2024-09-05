@@ -10,8 +10,10 @@ public class SparkBulkLoaderStateWriteVertices extends SparkBulkLoaderState {
 
     @Override
     public void executeState() {
-        RecoveryUtil.updateState(
-                sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.VERTEX_WRITE);
+        if (!sparkBulkLoaderStateMachine.readOnly) {
+            RecoveryUtil.updateState(
+                    sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.VERTEX_WRITE);
+        }
 
         // Write vertices to Aerospike.
         sparkBulkLoaderStateMachine.vertexOperations.writeVerticesToDB(

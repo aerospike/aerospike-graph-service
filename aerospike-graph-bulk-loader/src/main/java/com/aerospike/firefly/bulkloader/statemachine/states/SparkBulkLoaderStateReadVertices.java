@@ -28,12 +28,12 @@ public class SparkBulkLoaderStateReadVertices extends SparkBulkLoaderState {
                 DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config));
         sparkBulkLoaderStateMachine.vertexPartitionCount = sparkBulkLoaderStateMachine.vertexDataset.rdd().partitions().length;
         LOGGER.info("Vertex dataset has {} partitions", sparkBulkLoaderStateMachine.vertexPartitionCount);
-        sparkBulkLoaderStateMachine.progressBar.setVertexPartitionCount(sparkBulkLoaderStateMachine.vertexPartitionCount);
-        RecoveryUtil.updateVertexRecovery(
-                sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
-                sparkBulkLoaderStateMachine.vertexPartitionCount);
 
         if (!sparkBulkLoaderStateMachine.readOnly) {
+            sparkBulkLoaderStateMachine.progressBar.setVertexPartitionCount(sparkBulkLoaderStateMachine.vertexPartitionCount);
+            RecoveryUtil.updateVertexRecovery(
+                    sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
+                    sparkBulkLoaderStateMachine.vertexPartitionCount);
             sparkBulkLoaderStateMachine.vertexDataset = sparkBulkLoaderStateMachine.vertexDataset.repartition(
                     sparkBulkLoaderStateMachine.vertexPartitionCount, new Column("~id"));
         }

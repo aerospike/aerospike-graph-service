@@ -13,8 +13,10 @@ public class SparkBulkLoaderStateVerifyEdges extends SparkBulkLoaderState {
 
     @Override
     public void executeState() {
-        RecoveryUtil.updateState(
-                sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.EDGE_VERIFY);
+        if (!sparkBulkLoaderStateMachine.readOnly) {
+            RecoveryUtil.updateState(
+                    sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.EDGE_VERIFY);
+        }
 
         // This is a testing config, used to force failure in specific spots to allow us to test the recovery modes.
         final String recoveryFailure = sparkBulkLoaderStateMachine.config.getOrDefault(RECOVERY_FAILURE);

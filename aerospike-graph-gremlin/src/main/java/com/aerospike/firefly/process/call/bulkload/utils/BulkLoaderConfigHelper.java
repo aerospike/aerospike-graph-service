@@ -47,6 +47,7 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String PROVIDED_EDGE_ID_PROPERTY_NAME = "aerospike.graphloader.provided-edge-id-property-name";
     // Percentage of the provided Vertex and Edge data to sample to verify integrity of the bulk load after completion.
     public static final String SAMPLING_PERCENTAGE = "aerospike.graphloader.sampling-percentage";
+    public static final String SUPERNODE_SAMPLING_PERCENTAGE = "aerospike.graphloader.supernode.sampling-percentage";
     public static final String SPARK_LOG_LEVEL = "aerospike.graphloader.spark-log-level";
     // String value of what should be parsed as a literal null value for properties. The null character \0 is a good alternative choice for this.
     public static final String NULL_VALUE = "aerospike.graphloader.null-value";
@@ -59,6 +60,7 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String ALLOWED_DUPLICATE_VERTEX_ID_COUNT = "aerospike.graphloader.allowed-duplicate-vertex-id-count";
     public static final String ALLOWED_BAD_EDGES_COUNT = "aerospike.graphloader.allowed-bad-edges-count";
     public static final String ALLOWED_BAD_ENTRY_COUNT = "aerospike.graphloader.allowed-bad-entry-count";
+    public static final String RECOVERY_FAILURE = "aerospike.graphloader.reserved.recovery-failure";
 
     // ==Internal-only use configurations==
     public static final String S3_ENDPOINT = "aerospike.graphloader.s3-endpoint";
@@ -70,7 +72,8 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String DISABLE_EDGE_WRITE = "disable_edges";
     public static final String DISABLE_VERTEX_WRITE = "disable_vertices";
     public static final String READ_ONLY = "read_only";
-
+    public static final String RESUME = "resume";
+    public static final String CLEAR_EXISTING_DATA = "clear_existing_data";
 
     public static final Map<String, String> KEY_TO_CMD = Map.ofEntries(
             Map.entry(CONFIG_DIRECTORY_KEY, "c"),
@@ -87,6 +90,7 @@ public class BulkLoaderConfigHelper implements Serializable {
             Map.entry(PROVIDED_EDGE_ID_PROPERTY_NAME, "ep"),
             Map.entry(NULL_VALUE, "nv"),
             Map.entry(SAMPLING_PERCENTAGE, "sp"),
+            Map.entry(SUPERNODE_SAMPLING_PERCENTAGE, "ssp"),
             Map.entry(SPARK_LOG_LEVEL, "lv"),
             Map.entry(VERTEX_WRITE_BUFFER, "vb"),
             Map.entry(EDGE_WRITE_BUFFER, "eb"),
@@ -97,7 +101,8 @@ public class BulkLoaderConfigHelper implements Serializable {
             Map.entry(ALLOWED_BAD_EDGES_COUNT, "ade"),
             Map.entry(ALLOWED_BAD_ENTRY_COUNT, "abe"),
 
-            Map.entry(S3_ENDPOINT, "s3e")
+            Map.entry(S3_ENDPOINT, "s3e"),
+            Map.entry(RECOVERY_FAILURE, "rf")
     );
 
     private final Map<String, Object> fileConfig;
@@ -107,6 +112,7 @@ public class BulkLoaderConfigHelper implements Serializable {
         put(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, "false");
         put(PROVIDED_EDGE_ID_PROPERTY_NAME, "~providedId");
         put(SAMPLING_PERCENTAGE, "0");
+        put(SUPERNODE_SAMPLING_PERCENTAGE, "0");
         put(ENABLE_DATAFRAME_CACHING, "false");
         put(DATAFRAME_STORAGE_TYPE, "disk_only");
         put(SPARK_LOG_LEVEL, "INFO");
@@ -116,6 +122,7 @@ public class BulkLoaderConfigHelper implements Serializable {
         put(ALLOWED_DUPLICATE_VERTEX_ID_COUNT, String.valueOf(Integer.MAX_VALUE));
         put(ALLOWED_BAD_EDGES_COUNT, String.valueOf(Integer.MAX_VALUE));
         put(ALLOWED_BAD_ENTRY_COUNT, String.valueOf(Integer.MAX_VALUE));
+        put(RECOVERY_FAILURE, "false");
     }};
 
     static {

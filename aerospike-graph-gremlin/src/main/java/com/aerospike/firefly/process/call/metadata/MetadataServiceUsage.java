@@ -94,6 +94,6 @@ public class MetadataServiceUsage<I, R> extends MetadataServiceBase<I, R> {
 
     @Override
     protected void auditLog(final Map params) {
-        LOGGER.info(getName() + " Get graph usage.");
+        LOGGER.info("[{}] - {} - Get graph usage.", getUser(), getName());
     }
 }

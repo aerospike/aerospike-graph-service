@@ -83,7 +83,7 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
 
     private PartitionIterator(final Builder builder) {
         this.graph = builder.graph;
-        this.pageQueue = GraphQuery.create(graph).scanVertexIdPages(builder.filters);
+        this.pageQueue = GraphQuery.create(graph).partitionVertexIdPages(builder.filters, graph.settings().evaluationTimeout);
     }
 
     public boolean hasNext() {

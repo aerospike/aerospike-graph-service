@@ -24,7 +24,11 @@ public class FireflyServer {
         confPath = file;
     }
 
-    public static FireflyServer main(final String[] args) {
+    public static void main(final String[] args) {
+        start(args);
+    }
+
+    public static FireflyServer start(final String[] args) {
         if (args.length != 1) {
             System.err.println("Usage: Server <conf file>");
             System.exit(1);

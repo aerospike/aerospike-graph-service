@@ -28,6 +28,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
     private final FireflyStrategyBase fireflyVertexEdgeLocalCountStrategy;
     private final FireflyStrategyBase fireflyScanProfileStrategy;
     private final FireflyStrategyBase fireflyAuthenticationStrategy;
+    private final FireflyStrategyBase fireflyAdjacentVertexIdStrategy;
 
     /**
      * Default constructor for FireflyContentionHandlingStrategy.
@@ -43,6 +44,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         this.fireflyVertexEdgeLocalCountStrategy = new FireflyVertexEdgeLocalCountStrategy();
         this.fireflyScanProfileStrategy = new FireflyScanProfileStrategy();
         this.fireflyAuthenticationStrategy = new FireflyAuthenticationStrategy();
+        this.fireflyAdjacentVertexIdStrategy = new FireflyAdjacentVertexIdStrategy();
     }
 
     /**
@@ -95,6 +97,9 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         // Steps that override the entire step list first.
         applyStrategy(traversal, fireflyGraphDropStrategy);
         applyStrategy(traversal, fireflyGraphCountStrategy);
+
+        // This step replaces out/in.id() with single step.
+        applyStrategy(traversal, fireflyAdjacentVertexIdStrategy);
 
         // Steps that are generally applicable to most all traversals.
         fireflyGraphStepStrategy.setSteps(internalStepClasses);

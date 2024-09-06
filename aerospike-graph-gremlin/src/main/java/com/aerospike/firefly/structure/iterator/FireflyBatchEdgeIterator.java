@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 public class FireflyBatchEdgeIterator<E extends Edge> implements CloseableIterator<E> {
-    private Iterator<FireflyEdge> elementIterator;
-    private final Iterator<FireflyId> idIterator;
-    private final FireflyGraph graph;
+    protected Iterator<FireflyEdge> elementIterator;
+    protected final Iterator<FireflyId> idIterator;
+    protected final FireflyGraph graph;
 
     public FireflyBatchEdgeIterator(final FireflyGraph graph, final Iterator<FireflyId> ids) {
         this.idIterator = ids;

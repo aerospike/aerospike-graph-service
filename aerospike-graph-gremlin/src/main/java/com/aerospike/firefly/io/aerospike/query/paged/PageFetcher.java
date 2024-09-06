@@ -44,38 +44,25 @@ public abstract class PageFetcher<E> {
         this.indexName = indexName;
     }
 
+    protected boolean isDone() {
+        return filter.isDone();
+    }
+
     protected abstract void readPage();
 
     public Iterator<E> startQuery() {
         // Start loop.
-        readLoopExecutorService.submit(() -> {
-            while (true) {
-                try {
-                    if (readLoopExecutorService.isShutdown()) {
-                        try {
-                            pageQueue.put(new PoisonPill());
-                        } catch (final InterruptedException e) {
-                            LOG.error("Error adding poison pill.", e);
-                            Thread.currentThread().interrupt();
-                        }
-                        return;
-                    }
-
-                    if (filter.isDone()) {
-                        readLoopExecutorService.shutdown();
-                        continue;
-                    }
-                    readPage();
-                } catch (final Throwable e) {
-                    signalError("Unexpected error while reading " + e.getMessage(), e);
-                }
-            }
-        });
+        readPages();
         return new PageFetcher.PageIterator();
     }
 
     public BlockingQueue<Page> startQueryPagesDirect() {
         // Start loop.
+        readPages();
+        return this.pageQueue;
+    }
+
+    private void readPages() {
         readLoopExecutorService.submit(() -> {
             while (true) {
                 try {
@@ -88,7 +75,7 @@ public abstract class PageFetcher<E> {
                         }
                         return;
                     }
-                    if (filter.isDone()) {
+                    if (isDone()) {
                         readLoopExecutorService.shutdown();
                         continue;
                     }
@@ -98,7 +85,6 @@ public abstract class PageFetcher<E> {
                 }
             }
         });
-        return this.pageQueue;
     }
 
 
@@ -139,7 +125,8 @@ public abstract class PageFetcher<E> {
         private CloseableIterator<KeyRecord> currentIterator = FireflyCloseableIterator.EmptyCloseableIterator.instance();;
         private boolean isEmpty = false;
         private boolean isClosed = false;
-        private String error = NO_ERROR;
+        private String errorMessage = NO_ERROR;
+        private Throwable error = null;
 
         private void removePage() {
             // Check if possible.
@@ -158,7 +145,8 @@ public abstract class PageFetcher<E> {
                     return;
                 } else if (page instanceof ErrorPage) {
                     final ErrorPage errorPage = (ErrorPage) page;
-                    error = errorPage.isIndexDropError() ? INDEX_DROPPED : errorPage.errorMessage;
+                    errorMessage = errorPage.isIndexDropError() ? INDEX_DROPPED : errorPage.errorMessage;
+                    error = errorPage.exception;
                     return;
                 }
 
@@ -169,7 +157,7 @@ public abstract class PageFetcher<E> {
                 for (final StackTraceElement stackTraceElement : stackTraceElements) {
                     err.append("\t").append(stackTraceElement.toString()).append("\n");
                 }
-                error = err.toString();
+                errorMessage = err.toString();
             }
         }
 
@@ -185,7 +173,7 @@ public abstract class PageFetcher<E> {
 
             while (!currentIterator.hasNext()) {
                 removePage();
-                if (!NO_ERROR.equals(error)) {
+                if (!NO_ERROR.equals(errorMessage)) {
                     return true;
                 }
                 if (isEmpty) {
@@ -201,7 +189,7 @@ public abstract class PageFetcher<E> {
             if (!hasNext()) {
                 throw new NoSuchElementException();
             } else {
-                if (INDEX_DROPPED.equals(error)) {
+                if (INDEX_DROPPED.equals(errorMessage)) {
                     try {
                         graph.fireflyIndexMetadata.updateMetadata();
                     } catch (final Exception e) {
@@ -217,8 +205,8 @@ public abstract class PageFetcher<E> {
                     sb.append(" seconds and try again.");
                     throw new RuntimeException(sb.toString());
                 }
-                if (!NO_ERROR.equals(error)) {
-                    throw new RuntimeException(error);
+                if (!NO_ERROR.equals(errorMessage)) {
+                    throw new RuntimeException(errorMessage, error);
                 }
                 return transformKeyRecord.transform(currentIterator.next());
             }

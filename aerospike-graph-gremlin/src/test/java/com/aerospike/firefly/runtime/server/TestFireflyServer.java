@@ -36,7 +36,7 @@ public class TestFireflyServer {
 
     @Test
     public void testServer() throws Exception {
-        server = FireflyServer.main(new String[] {"../conf/firefly-gremlin-server-local.yaml"});
+        server = FireflyServer.start(new String[] {"../conf/firefly-gremlin-server-local.yaml"});
         HEAP_REPORTING_TIMER.schedule(new HeapReport(), 0, 5000);
         runManyQueries();
         uploadHeapUsage();

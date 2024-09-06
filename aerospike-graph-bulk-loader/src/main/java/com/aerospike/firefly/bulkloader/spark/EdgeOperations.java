@@ -7,6 +7,7 @@ import com.aerospike.firefly.bulkloader.spark.executorservice.EdgeWriteTask;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
@@ -81,9 +82,9 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.NULL_VALUE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RECOVERY_FAILURE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
-
 
 public class EdgeOperations implements Serializable {
     public static final List<String> REQUIRED_EDGE_HEADERS = List.of(FROM_VERTEX_HEADER, TO_VERTEX_HEADER);
@@ -106,9 +107,40 @@ public class EdgeOperations implements Serializable {
         this.usePersistedEdgeId = !config.hasAction(READ_ONLY);
     }
 
-    public void writeEdges(final Dataset<Row> persistedEdgeDS) {
+    public void writeEdges(final Dataset<Row> persistedEdgeDS,
+                           final Set<Long> completedEdgePartitions,
+                           final boolean readOnly) {
         persistedEdgeDS.foreachPartition(rowIterator -> {
             final int partitionId = TaskContext.getPartitionId();
+            if (!readOnly) {
+                final Long partitionIdLong = Long.valueOf(partitionId);
+                if (completedEdgePartitions.contains(partitionIdLong)) {
+                    LOGGER.info("Edges PartitionId " + partitionId + " is already written, skipping.");
+                    return;
+                }
+            }
+
+            // This is a testing config, used to force failure in specific spots to allow us to test the recovery modes.
+            final String recoveryFailure = config.getOrDefault(RECOVERY_FAILURE);
+            if (recoveryFailure != null && recoveryFailure.startsWith("EDGE_WRITE")) {
+                // The failure position is supplied as "EDGE_WRITE:<partition_id>".
+                final int partitionToFailOn = recoveryFailure.split(":", 2).length > 1 ? Integer.parseInt(recoveryFailure.split(":", 2)[1]) : -1;
+                if (partitionToFailOn == -1) {
+                    // If a specific partition was not supplied, fail instantly.
+                    throw new RuntimeException("Failed to get partition to fail on from recovery failure property, please contact support.");
+                } else {
+                    // Otherwise fail on the specific partition a few mins later to allow other partitions to complete.
+                    if (partitionId == partitionToFailOn) {
+                        // Wait so other partitions can complete before we fail this partition.
+                        try {
+                            Thread.sleep(180000);
+                        } catch (final InterruptedException ignored) {
+                        }
+                        throw new RuntimeException("Testing recovery failure, please contact support.");
+                    }
+                }
+            }
+
             LOGGER.info("Starting to write EdgeDataset in PartitionId: " + partitionId);
 
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
@@ -173,6 +205,10 @@ public class EdgeOperations implements Serializable {
                     }
                 }
                 final String taskName = String.format("Edge write in partition:{}", partitionId);
+                if (!readOnly) {
+                    LOGGER.info("Writing edge partition complete for partitionId: {}", partitionId);
+                    RecoveryUtil.writeEdgePartitionComplete(graph.getBaseGraph(), partitionId);
+                }
                 LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
             }
         });
@@ -214,7 +250,7 @@ public class EdgeOperations implements Serializable {
                         verifyEdge(metadataRow, keepProvidedId, providedIdPropertyName, nullValue, graph, g, hasEdgeID);
                         return null;
                     }, ses).exceptionally(e -> {
-                        LOGGER.error(String.format("Exception occurred in verifying Edge row"), e);  // Log the error when final failure happens
+                        LOGGER.error("Exception occurred in verifying Edge row", e);  // Log the error when final failure happens
                         throw new RuntimeException(e);
                     }));
                 }
@@ -314,7 +350,7 @@ public class EdgeOperations implements Serializable {
                                                            final Long onRecordIdLimit) {
         return input.mapPartitionsToPair(iterator -> {
             final List<Tuple2<Object, Long>> results = new ArrayList<>();
-            try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
+            try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
                 final int bufferSize = graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE;
                 final Map<Object, Long> idToEdgeCount = new ConcurrentHashMap<>();
                 while (iterator.hasNext()) {
@@ -383,6 +419,61 @@ public class EdgeOperations implements Serializable {
         idToEdgeCount.forEach((id, count) -> results.add(new Tuple2<>(id, count)));
     }
 
+    public void setSupernodes(final Set<Object> supernodes) {
+        this.supernodes = supernodes;
+    }
+
+    public Set<Object> extractSupernodesDirection(final Dataset<Row> edgeDataset,
+                                                  final Direction direction,
+                                                  final long onRecordIdLimit,
+                                                  final double sampleSize,
+                                                  final boolean incremental) {
+        LOGGER.info("Extracting supernodes for: " + direction);
+        final String column = direction.equals(Direction.IN) ? "~from" : "~to";
+        final JavaRDD<Row> edgeRDD = edgeDataset.javaRDD();
+
+        // Values in csv for ~from and ~to will return as strings but can be strings or longs.
+        final JavaPairRDD<Object, Long> pairRDD;
+        if (sampleSize != 0) {
+            LOGGER.info("Supernode pair mapping for: " + direction + " with sampling of " + sampleSize);
+            final Long value = ((Double) (1L / sampleSize)).longValue();
+            pairRDD = edgeRDD.sample(false, sampleSize, 1).
+                    mapToPair((PairFunction<Row, Object, Long>) row ->
+                            new Tuple2<>(PropertyValueParser.parseId(row.getAs(column)), value));
+        } else {
+            LOGGER.info("Supernode pair mapping for: " + direction + " without sampling");
+            pairRDD = edgeRDD.
+                    mapToPair((PairFunction<Row, Object, Long>) row ->
+                            new Tuple2<>(PropertyValueParser.parseId(row.getAs(column)), 1L));
+        }
+        edgeRDD.unpersist();
+
+        LOGGER.info("Supernode aggregation for: " + direction);
+        JavaPairRDD<Object, Long> countPairRDD =
+                pairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
+        pairRDD.unpersist();
+
+        if (incremental) {
+            LOGGER.info("Checking existing edge caches for: " + direction);
+            countPairRDD = readExistingVertices(countPairRDD, direction, onRecordIdLimit);
+        }
+
+        LOGGER.info("Filtering for edge cache size for: " + direction);
+        final JavaPairRDD<Object, Long> filteredCountPairRDD = countPairRDD.filter(
+                (Function<Tuple2<Object, Long>, Boolean>)
+                        longLongTuple2 -> longLongTuple2._2 >= onRecordIdLimit);
+        countPairRDD.unpersist();
+
+        LOGGER.info("Getting keys from filter output: " + direction);
+        final JavaRDD<Object> fromSupernodes = filteredCountPairRDD.keys();
+        filteredCountPairRDD.unpersist();
+
+        final Set<Object> localSupernodes = new HashSet<>(fromSupernodes.collect());
+        LOGGER.info("Obtained supernodes " + localSupernodes + " for: " + direction);
+        fromSupernodes.unpersist();
+        return localSupernodes;
+    }
+
     public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset, final long onRecordIdLimit, final boolean incremental) {
         final Configuration fireflyConfig = this.config.getFireflyConfig();
         // If the global edge cache flag is off, then all vertices written have their edge caches disabled upon
@@ -394,41 +485,9 @@ public class EdgeOperations implements Serializable {
                     .setJobGroup(taskName, "Compute Supernodes RDD operation", true);
             LOGGER.info("Supernode extraction starting...");
             // Csv format is: ~id, ~from, ~to, ...
-            final JavaRDD<Row> edgeRDD = edgeDataset.javaRDD();
-
-            // Values in csv for ~from and ~to will return as strings but can be strings or longs.
-            final JavaPairRDD<Object, Long> fromPairRDD = edgeRDD.mapToPair((PairFunction<Row, Object, Long>) row ->
-                    new Tuple2<>(PropertyValueParser.parseId(row.getAs("~from")), 1L));
-
-            final JavaPairRDD<Object, Long> toPairRDD = edgeRDD.mapToPair((PairFunction<Row, Object, Long>) row ->
-                    new Tuple2<>(PropertyValueParser.parseId(row.getAs("~to")), 1L));
-
-            // Aggregate together by keys (sum the count of how many times a vertex ID appeared).
-            JavaPairRDD<Object, Long> fromCountPairRDD =
-                    fromPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
-            JavaPairRDD<Object, Long> toCountPairRDD =
-                    toPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
-
-            // Go through ids of RDD and read the vertex to check the number of existing edges on the vertex and add this as a column to our RDD.
-            if (incremental) {
-                fromCountPairRDD = readExistingVertices(fromCountPairRDD, Direction.IN, onRecordIdLimit);
-                toCountPairRDD = readExistingVertices(toCountPairRDD, Direction.OUT, onRecordIdLimit);
-            }
-            // If so we can optimize the edge writes.
-
-            // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.
-            final JavaPairRDD<Object, Long> filteredFromCountPairRDD = fromCountPairRDD.filter(
-                    (Function<Tuple2<Object, Long>, Boolean>)
-                            longLongTuple2 -> longLongTuple2._2 >= onRecordIdLimit);
-
-            final JavaPairRDD<Object, Long> filteredToCountPairRDD = toCountPairRDD.filter(
-                    (Function<Tuple2<Object, Long>, Boolean>)
-                            longLongTuple2 -> longLongTuple2._2 >= onRecordIdLimit);
-
-            final JavaRDD<Object> fromSupernodes = filteredFromCountPairRDD.keys();
-            final JavaRDD<Object> toSupernodes = filteredToCountPairRDD.keys();
-            fromSupernodes.union(toSupernodes).collect().
-                    forEach(item -> supernodes.add(item));
+            final double supernodeSamplingPercentage = DatasetOperations.getSupernodeSamplingPercentage(this.config);
+            supernodes.addAll(extractSupernodesDirection(edgeDataset, Direction.IN, onRecordIdLimit, supernodeSamplingPercentage, incremental));
+            supernodes.addAll(extractSupernodesDirection(edgeDataset, Direction.OUT, onRecordIdLimit, supernodeSamplingPercentage, incremental));
             LOGGER.info("Final supernodes set: " + supernodes);
         }
         return this.supernodes;
@@ -448,7 +507,7 @@ public class EdgeOperations implements Serializable {
                 return;
             }
             final String taskName = "Verify Edges";
-            sampledEdgeDataset.sparkSession().sparkContext().setJobGroup(taskName,"Verify Edges task", true);
+            sampledEdgeDataset.sparkSession().sparkContext().setJobGroup(taskName, "Verify Edges task", true);
             LOGGER.info("verify_output_data is enabled, starting the Edge write verification.");
             verifySampleEdgesAfterWrite(sampledEdgeDataset);
             sampledEdgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
@@ -463,6 +522,7 @@ public class EdgeOperations implements Serializable {
             this.fileConfig = fileConfig;
             this.schema = writeSchema;
         }
+
         @Override
         public Iterator call(final Iterator input) {
             return new EdgeIDOutputIterator(fileConfig, input, schema);
@@ -479,11 +539,12 @@ public class EdgeOperations implements Serializable {
 
         private final Supplier<FireflyGraph> graphSupplier = new Supplier<>() {
             private FireflyGraph instance = null;
+
             @Override
             public FireflyGraph get() {
                 if (instance == null) {
                     synchronized (this) {
-                        if (instance == null ) {
+                        if (instance == null) {
                             instance = FireflyGraph.open(new MapConfiguration(config));
                         }
                     }
@@ -495,6 +556,7 @@ public class EdgeOperations implements Serializable {
         public FireflyGraph getFireflyGraph() {
             return graphSupplier.get();
         }
+
         public EdgeIDOutputIterator(final Map<String, Object> conf, final Iterator<Row> data, final StructType writeSchema) {
             start = Instant.now();
             this.config = conf;
@@ -505,7 +567,7 @@ public class EdgeOperations implements Serializable {
         @Override
         public boolean hasNext() {
             final boolean hasMore = data.hasNext();
-            if(!hasMore) {
+            if (!hasMore) {
                 ITER_LOGGER.info("Done processing edgeID write task in partition:{}, rows:{}, time taken(in seconds):{}", TaskContext.getPartitionId(), counter, Duration.between(start, Instant.now()).getSeconds());
                 getFireflyGraph().close();
             }
@@ -521,7 +583,7 @@ public class EdgeOperations implements Serializable {
                 outputRow.add(input.get(i));
             }
             //add the edgeID
-            final byte[] nextId =getFireflyGraph().edgeIdManager.getNextId(getFireflyGraph());
+            final byte[] nextId = getFireflyGraph().edgeIdManager.getNextId(getFireflyGraph());
             outputRow.add(encodeID(nextId)); //encode using our custom encoder
             return new GenericRowWithSchema(outputRow.toArray(), schema);
         }
@@ -541,8 +603,8 @@ public class EdgeOperations implements Serializable {
         edgeDataSet.sparkSession().sparkContext().setJobGroup(taskName,
                 "Edges ID write task", true);
         final ExpressionEncoder<Row> encoder = RowEncoder.apply(writeSchema);
-        final Dataset<Row> EdgeIdDF =  edgeDataSet.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), encoder);
-        EdgeIdDF.write().option("header",true).mode(SaveMode.Overwrite).option("compression","bzip2").csv(writeLocation);
+        final Dataset<Row> EdgeIdDF = edgeDataSet.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), encoder);
+        EdgeIdDF.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "bzip2").csv(writeLocation);
         edgeDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
         LOGGER.info("Execution time in seconds for Edge ID write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
     }
@@ -557,7 +619,7 @@ public class EdgeOperations implements Serializable {
         // Isolate bytes from both component
         final byte[] recycleBytes = new byte[8];
         final byte[] numericBytes = new byte[8];
-        System.arraycopy(arr, 0, recycleBytes,0, 8);
+        System.arraycopy(arr, 0, recycleBytes, 0, 8);
         System.arraycopy(arr, 8, numericBytes, 0, 8);
 
         // Extract numeric content from both components
@@ -567,11 +629,10 @@ public class EdgeOperations implements Serializable {
         final Long numericID = bb1.getLong();
 
         // Encode each number to string using a delimiter
-        final StringBuilder sb = new StringBuilder();
-        sb.append(recycleId);
-        sb.append(":");
-        sb.append(numericID);
-        return sb.toString();
+        final String sb = recycleId +
+                ":" +
+                numericID;
+        return sb;
     }
 
     /***
@@ -598,19 +659,21 @@ public class EdgeOperations implements Serializable {
         final byte[] numByte = Longs.toByteArray(numericID);
 
         final byte[] graphID = new byte[16];
-        System.arraycopy(recycleByte, 0, graphID,0, 8);
+        System.arraycopy(recycleByte, 0, graphID, 0, 8);
         System.arraycopy(numByte, 0, graphID, 8, 8);
 
-        return  graphID;
+        return graphID;
     }
 
-    public void writeEdgeToDB(final Dataset<Row> edgeIdDataSet) {
+    public void writeEdgeToDB(final Dataset<Row> edgeIdDataSet,
+                              final Set<Long> completedEdgePartitions,
+                              final boolean readOnly) {
         if (!this.config.hasAction(DISABLE_EDGE_WRITE)) {
             final Instant startWriteEdge = Instant.now();
             final String taskName = "Edges write to Aerospike Database";
             edgeIdDataSet.sparkSession().sparkContext().setJobGroup(taskName,
                     "Edges write task", true);
-            writeEdges(edgeIdDataSet);
+            writeEdges(edgeIdDataSet, completedEdgePartitions, readOnly);
             edgeIdDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
             LOGGER.info("Execution time in seconds for Edge write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
         }

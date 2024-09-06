@@ -2,13 +2,14 @@ package com.aerospike.firefly.bulkloader.integration;
 
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.spark.sql.AnalysisException;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -24,6 +25,14 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 
 public class TestBulkLoaderCallEntryPoint {
+
+    @Before
+    public void beforeEach() {
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+            RecoveryUtil.truncate(fireflyGraph.getBaseGraph());
+        }
+    }
+
     @Test
     public void invalidNoVerticesNoEdges() {
         // Right now calling the bulk loader here will fail with null config.
@@ -40,6 +49,45 @@ public class TestBulkLoaderCallEntryPoint {
     }
 
     @Test
+    public void testResumeThrows() {
+        // Right now calling the bulk loader here will fail with null config.
+        // Once the parameters are determined this test can be updated.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            try {
+                fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").
+                        with("vertices").
+                        with("edges").
+                        with("resume").
+                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
+                Assert.fail("Expected call to fail.");
+            } catch (final Exception e) {
+                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'."));
+            }
+        }
+    }
+
+    @Test
+    public void testClearExistingDataDoesntThrow() {
+        // Right now calling the bulk loader here will fail with null config.
+        // Once the parameters are determined this test can be updated.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            try {
+                fireflyGraph.traversal().V().drop().iterate();
+                fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").
+                        with("vertices").
+                        with("edges").
+                        with("clear_existing_data").
+                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
+                Assert.fail("Expected call to fail.");
+            } catch (final IllegalStateException e) {
+                Assert.assertTrue(e.getMessage().contains("Cannot clear existing data when database is empty and no recovery information is present."));
+            }
+        }
+    }
+
+    @Test
     public void invalidConfigPath() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
@@ -49,8 +97,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", "invalid path").iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertTrue(e instanceof AnalysisException);
-                Assert.assertTrue(e.getMessage().startsWith("[PATH_NOT_FOUND] Path does not exist:"));
+                Assert.assertTrue(e.getMessage().contains("[PATH_NOT_FOUND] Path does not exist:"));
             }
         }
     }
@@ -159,6 +206,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
             final long vertexCount = g.V().count().next().longValue();
+            RecoveryUtil.truncate(fireflyGraph.getBaseGraph());
             g.call("aerospike.graphloader.admin.bulk-load.load").with("edges").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             Assert.assertEquals(vertexCount, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -175,10 +223,12 @@ public class TestBulkLoaderCallEntryPoint {
             g.V().drop().iterate();
             Assert.assertEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
+            RecoveryUtil.truncate(fireflyGraph.getBaseGraph());
             g.call("aerospike.graphloader.admin.bulk-load.load").with("vertices", true).with("edges", false).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
             final long vertexCount = g.V().count().next().longValue();
+            RecoveryUtil.truncate(fireflyGraph.getBaseGraph());
             g.call("aerospike.graphloader.admin.bulk-load.load").with("vertices", false).with("edges", true).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             Assert.assertEquals(vertexCount, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -199,6 +249,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
             final long vertexCount = g.V().count().next().longValue();
+            RecoveryUtil.truncate(fireflyGraph.getBaseGraph());
             g.call("aerospike.graphloader.admin.bulk-load.load").with("vertices", false).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             Assert.assertEquals(vertexCount, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -219,6 +270,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
             final long vertexCount = g.V().count().next().longValue();
+            RecoveryUtil.truncate(fireflyGraph.getBaseGraph());
             g.call("aerospike.graphloader.admin.bulk-load.load").with("edges", true).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             Assert.assertEquals(vertexCount, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -339,6 +391,27 @@ public class TestBulkLoaderCallEntryPoint {
     }
 
     @Test
+    public void testEmptyPath() {
+        // Right now calling the bulk loader here will fail with null config.
+        // Once the parameters are determined this test can be updated.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            Assert.assertEquals(0, g.V().count().next().longValue());
+            Assert.assertEquals(0, g.E().count().next().longValue());
+            try {
+                g.call("aerospike.graphloader.admin.bulk-load.load").
+                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-empty.properties").iterate();
+                Assert.fail("Expected exception to be thrown.");
+            } catch (final Exception e) {
+                Assert.assertTrue(e.getMessage().contains("Failed to read directories from src/test/resources/sampledata-empty/vertices. " +
+                        "This is usually the result of an empty directory or missing headers. Look at the directory and ensure it is populated with valid csv files."));
+            }
+        }
+    }
+
+    @Test
     public void numericConfigAsString() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
@@ -411,6 +484,7 @@ public class TestBulkLoaderCallEntryPoint {
             Thread.sleep(5000);
             Assert.assertEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
+            RecoveryUtil.truncate(fireflyGraph.getBaseGraph());
             g.call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -482,6 +556,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals("GR86", simonDrives1.get(0));
 
             // Identical vertex merge.
+            RecoveryUtil.truncate(fireflyGraph.getBaseGraph());
             g.call("aerospike.graphloader.admin.bulk-load.load").
                     with(INCREMENTAL_LOAD, true).
                     with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-1.properties").iterate();
@@ -492,6 +567,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(2, simonDrives2.size());
             Assert.assertEquals(Set.of("GR86"), ((List) simonDrives2).stream().collect(Collectors.toSet()));
 
+            RecoveryUtil.truncate(fireflyGraph.getBaseGraph());
             g.call("aerospike.graphloader.admin.bulk-load.load").
                     with(INCREMENTAL_LOAD, true).
                     with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-2.properties").iterate();
@@ -531,6 +607,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(1, edgeCache.get("edge").size());
 
             // Only change we expect is that now this vertex is a supernode.
+            RecoveryUtil.truncate(fireflyGraph.getBaseGraph());
             g.call("aerospike.graphloader.admin.bulk-load.load").
                     with(INCREMENTAL_LOAD, true).
                     with("aerospike.graphloader.config",
@@ -565,6 +642,7 @@ public class TestBulkLoaderCallEntryPoint {
             final Long supernodeOutCount = g.V("supernode").out().count().next();
 
             // Only change we expect is that there is now an additional edge on the supernode.
+            RecoveryUtil.truncate(fireflyGraph.getBaseGraph());
             g.call("aerospike.graphloader.admin.bulk-load.load").
                     with(INCREMENTAL_LOAD, true).
                     with("aerospike.graphloader.config",

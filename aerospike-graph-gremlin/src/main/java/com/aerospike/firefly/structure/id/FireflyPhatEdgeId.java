@@ -85,6 +85,10 @@ public class FireflyPhatEdgeId extends FireflyIdPoly {
 
     @Override
     public boolean equals(final Object o) {
-        return this.getUserId().equals(((FireflyId) o).getUserId()) && super.equals(o);
+        if (o instanceof FireflyId) {
+            return this.getUserId().equals(((FireflyId) o).getUserId()) && super.equals(o);
+        } else{
+            return false;
+        }
     }
 }

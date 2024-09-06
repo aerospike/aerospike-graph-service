@@ -1,5 +1,7 @@
 package com.aerospike.firefly.util;
 
+import ch.qos.logback.classic.Level;
+import com.aerospike.client.async.EventLoopType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -105,6 +107,7 @@ public final class ConfigurationHelper {
         public static final String ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.embedded.enabled";
         public static final String ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY = "aerospike.graph.strategy.batch.edge.read.sampling.enabled";
         public static final String ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY = "aerospike.graph.strategy.batch.edge.read.limit.enabled";
+        public static final String ENABLE_CACHED_ADJACENT_ID_STRATEGY = "aerospike.graph.strategy.cached.adjacent.id.enabled";
         public static final String GLOBAL_EDGE_CACHE_ENABLED = "aerospike.graph.global.edge.cache.enabled";
         public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
         public static final String EDGE_ID_BUFFER_SIZE = "aerospike.graph.edge.id.buffer.size";
@@ -119,6 +122,11 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_MAX_RETRIES = "aerospike.client.policy.maxRetries";
         public static final String TIMEOUT_DELAY = "aerospike.client.policy.timeoutDelay";
         public static final String CONNECT_TIMEOUT = "aerospike.client.policy.connectTimeout";
+
+        public static final String MERGE_EDGE_TTL = "aerospike.graph.strategy.merge.edge.lock.timeout";
+        public static final String MERGE_EDGE_POLL_INTERVAL = "aerospike.graph.strategy.merge.edge.poll.interval";
+        public static final String MERGE_EDGE_EVAL_TIMEOUT = "aerospike.graph.strategy.merge.edge.eval.timeout";
+        public static final String MERGE_EDGE_STARVATION_PROTECTION  = "aerospike.graph.strategy.merge.edge.starvation.protection.enabled";
 
         // TODO: Figure out what scan policy settings can be shared with normal read policy settings and therefore removed
         public static final String SCAN_TOTAL_TIMEOUT = "aerospike.client.policy.scan.totalTimeout";
@@ -159,6 +167,12 @@ public final class ConfigurationHelper {
         public static final String JWT_ALGORITHM = "aerospike.graph-service.auth.jwt.algorithm";
         public static final String AUTHENTICATION_ENABLED = "aerospike.graph-service.auth.enabled";
         public static final String USAGE_STATS_SET_INDEX_ENABLED = "aerospike.graph.usage.index.enabled";
+        public static final String AUDIT_LOG_ENABLED = "aerospike.graph.audit.log.enabled";
+
+        public static final String EVENT_LOOP_TYPE = "aerospike.client.eventLoop.type";
+        public static final String EVENT_LOOP_COUNT = "aerospike.client.eventLoop.count";
+        public static final String COMMANDS_PER_EVENT_LOOP = "aerospike.client.eventLoop.commands";
+        public static final String DELAY_QUEUE_SIZE = "aerospike.client.delayQueue.size";
 
         public static class Pair {
             public final int numeric;
@@ -196,8 +210,8 @@ public final class ConfigurationHelper {
             EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
             BL_ROW_BIN(Pair.of((byte) 21, "BL_ROW")),
             BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE")),
-            SUPERNODE_EDGE_PROPERTIES_BIN(Pair.of((byte) 23, "SUPERNODE_P"));
-
+            SUPERNODE_EDGE_PROPERTIES_BIN(Pair.of((byte) 23, "SUPERNODE_P")),
+            BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA"));
 
             private final Pair value;
 
@@ -258,7 +272,11 @@ public final class ConfigurationHelper {
             BULK_LOAD_METADATA_SET(Pair.of((byte) 15, "BL_METADATA")),
             BULK_LOAD_DUPLICATE_VID_SET(Pair.of((byte) 16, "BL_DUPE_VID")),
             BULK_LOAD_BAD_EDGE_SET(Pair.of((byte) 17, "BL_BAD_EDGE")),
-            BULK_LOAD_BAD_ENTRY_SET(Pair.of((byte) 18, "BL_BAD_ENTRY"));
+            BULK_LOAD_BAD_ENTRY_SET(Pair.of((byte) 18, "BL_BAD_ENTRY")),
+            BULK_LOAD_RECOVERY_VERTEX_SET(Pair.of((byte) 19, "BL_RECOVERY_V")),
+            BULK_LOAD_RECOVERY_EDGE_SET(Pair.of((byte) 20, "BL_RECOVERY_E")),
+            BULK_LOAD_RECOVERY_SUPERNODE_SET(Pair.of((byte) 21, "BL_RECOVERY_SN")),
+            BULK_LOAD_RECOVERY_STATE_SET(Pair.of((byte) 22, "BL_RECOVERY_S"));
 
             private final Pair value;
 
@@ -279,7 +297,8 @@ public final class ConfigurationHelper {
     public static final Set<String> IMMUTABLE_CONFIG_KEYS = Set.of(
             Keys.PHAT_EDGE_SIZE, // Calculating the PK wouldn't work
             Keys.SUMMARY_ENABLED_FLAG, // Inaccurate and therefore useless if toggled
-            Keys.FIREFLY_DATA_MODEL
+            Keys.FIREFLY_DATA_MODEL,
+            Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY
     );
 
     private static final Map<Object, String> defaultValues = new HashMap<>() {{
@@ -371,10 +390,20 @@ public final class ConfigurationHelper {
         put(Keys.JWT_ALGORITHM, "HMAC256");
         put(Keys.AUTHENTICATION_ENABLED, "false");
         put(Keys.USAGE_STATS_SET_INDEX_ENABLED, "true");
+        put(Keys.AUDIT_LOG_ENABLED, "false");
         put(Keys.SCAN_TOTAL_TIMEOUT, "0");
         put(Keys.SCAN_SOCKET_TIMEOUT, "1200000");
         put(Keys.SCAN_CONNECT_TIMEOUT, "0");
         put(Keys.SCAN_TIMEOUT_DELAY, "0");
+        put(Keys.EVENT_LOOP_TYPE, EventLoopType.NETTY_NIO.name());
+        put(Keys.EVENT_LOOP_COUNT, "2");
+        put(Keys.COMMANDS_PER_EVENT_LOOP, "50");
+        put(Keys.DELAY_QUEUE_SIZE, "50");
+        put(Keys.MERGE_EDGE_EVAL_TIMEOUT, "10000");
+        put(Keys.MERGE_EDGE_TTL, "10000");
+        put(Keys.MERGE_EDGE_POLL_INTERVAL, "10");
+        put(Keys.MERGE_EDGE_STARVATION_PROTECTION, "false");
+        put(Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, "false");
     }};
 
     private static final Map<Object, String> BULK_LOAD_DEFAULTS = new HashMap<>() {{
@@ -417,6 +446,9 @@ public final class ConfigurationHelper {
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.USAGE_STATS_UPDATE_INTERVAL, 1);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MAX_CONNECTIONS_PER_NODE, 1);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MIN_CONNECTIONS_PER_NODE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.MERGE_EDGE_EVAL_TIMEOUT, 1, 60000);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.MERGE_EDGE_TTL, 1000, 60000);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MERGE_EDGE_POLL_INTERVAL, 1);
     }
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {
@@ -434,7 +466,15 @@ public final class ConfigurationHelper {
             props.keySet().forEach(it -> {
                 final String key = it.toString().toLowerCase();
                 final Object value = props.get(it.toString());
-                LOG.debug("config[{}:{}]", key, value);
+                if (LOG.isDebugEnabled()) {
+                    final Object maskedValue;
+                    if (key.contains("password") || key.contains("secret") || key.contains("token") || key.contains("passkey")) {
+                        maskedValue = "*******";
+                    } else {
+                        maskedValue = value;
+                    }
+                    LOG.debug("config: [{}:{}]", key, maskedValue);
+                }
                 configData.put(key, value);
             });
             return new MapConfiguration(configData);
@@ -626,7 +666,16 @@ public final class ConfigurationHelper {
             }
         }
         if (!invalidKeys.isEmpty()) {
-            throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
+            if (System.getenv("FIREFLY_TESTING") != null && System.getenv("FIREFLY_TESTING").equals("true")) {
+                throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
+            } else {
+                LOG.error("ERROR: Aerospike Graph Service was unable to initialize due to invalid configuration keys: {}. Please fix these keys and try again.", invalidKeys);
+
+                // This error comes out in a bunch of massive stack traces and ultimately the container hangs.
+                // Disable any more logging and force system to shut down. A bunch of logs come out after this system call which is why it is required.
+                LoggerUtil.setLogLevel(Level.OFF);
+                System.exit(1);
+            }
         }
     }
 

@@ -42,7 +42,7 @@ public class FireflyIdFactory {
         put(byte[].class, 4L);
         put(String.class, 5L);
     }};
-    static final Map<Long, Class<? extends Serializable>> HINT_TO_TYPE = new HashMap<>() {{
+    private static final Map<Long, Class<? extends Serializable>> HINT_TO_TYPE = new HashMap<>() {{
         put(null, null);
         put(0L, null);
         put(1L, Long.class);
@@ -88,7 +88,7 @@ public class FireflyIdFactory {
         if (id instanceof String) {
             try {
                 tempId = Long.parseLong((String) id);
-            } catch (NumberFormatException e) {
+            } catch (final NumberFormatException e) {
                 tempId = id;
             }
         } else {
@@ -158,6 +158,11 @@ public class FireflyIdFactory {
                 return FireflyIdPoly.fromObject((String) id, set);
             }
         } else if (byte[].class.isAssignableFrom(id.getClass())) {
+            // TODO GRAPH-1261: Dictating what type of ID we get here when both types can be used when the strategy is
+            //                  on is so frigged but this entire thing is frigged so it is what it is for now.
+            if (db.ENABLE_CACHED_ADJACENT_ID_STRATEGY) {
+                return new FireflyUserIdComposite(db, (byte[]) id);
+            }
             return new FireflyIdComposite(db, (byte[]) id);
         } else if (id instanceof LazyIdTransform) {
             return ((LazyIdTransform) id).transform();
@@ -201,12 +206,29 @@ public class FireflyIdFactory {
 
     /**
      * Create a composite id from an edge and a vertex id
-     * @param edgeId the edge id
-     * @param adjacentVertex the adjacent vertex id
+     * @param edgeId            the edge id
+     * @param adjacentVertex    the adjacent vertex id
      * @return a FireflyIdComposite representing an edge and an adjacent Vertex
      */
     public FireflyId createCompositeEdgeId(final FireflyId edgeId, final FireflyId adjacentVertex) {
-        return new FireflyIdComposite(db, edgeId, adjacentVertex);
+        if (this.db.ENABLE_CACHED_ADJACENT_ID_STRATEGY) {
+            return new FireflyUserIdComposite(db, edgeId, adjacentVertex);
+        } else {
+            return new FireflyIdComposite(db, edgeId, adjacentVertex);
+        }
+    }
+
+    /**
+     * Create a composite id from a byte array
+     * @param compositeIdBytes  the bytes that form a FireflyIdComposite
+     * @return a FireflyIdComposite representing an edge and an adjacent Vertex
+     */
+    public FireflyId createCompositeEdgeId(final byte[] compositeIdBytes) {
+        if (this.db.ENABLE_CACHED_ADJACENT_ID_STRATEGY) {
+            return new FireflyUserIdComposite(db, compositeIdBytes);
+        } else {
+            return new FireflyIdComposite(db, compositeIdBytes);
+        }
     }
 
     public FireflyId createFromKeyValues(final Class<? extends FireflyElement> type, final Object... keyValues) {
@@ -238,25 +260,6 @@ public class FireflyIdFactory {
         }
         typeHint = record.record().getLong(db.ID_TYPE_BIN) == 0 ? FireflyIdPoly.STORAGE_TYPE_HINTS.get(origId.getClass()) : record.record().getLong(db.ID_TYPE_BIN);
         return createId(origId, typeHint, type);
-    }
-
-    public Map<String, List<FireflyId>> convertMapListObjectToFireflyIdMap(final Map<String, List<Object>> fireflyObjectIds) {
-        if (fireflyObjectIds == null) {
-            return new HashMap<>();
-        }
-        final Map<String, List<FireflyId>> labelEdgeIds = new HashMap<>();
-        for (final String label : fireflyObjectIds.keySet()) {
-            final List<FireflyId> fireflyIds = new ArrayList<>();
-            for (final Object edge : fireflyObjectIds.get(label)) {
-                if (edge instanceof byte[]) {
-                    fireflyIds.add(new FireflyIdComposite(db, (byte[]) edge));
-                } else {
-                    fireflyIds.add(createId(edge, FireflyEdge.class));
-                }
-            }
-            labelEdgeIds.put(label, fireflyIds);
-        }
-        return labelEdgeIds;
     }
 
     public void convertMapToLazyIdsInPlace(final Map<String, ?> fireflyObjectIds,
@@ -301,5 +304,13 @@ public class FireflyIdFactory {
             labelEdgeIds.put(label, id);
         }
         return labelEdgeIds;
+    }
+
+    public long getTypeHint(final Object id) {
+        return TYPE_TO_HINT.get(id.getClass());
+    }
+
+    public long getTypeHint(final Class<?> objectClass) {
+        return TYPE_TO_HINT.get(objectClass);
     }
 }

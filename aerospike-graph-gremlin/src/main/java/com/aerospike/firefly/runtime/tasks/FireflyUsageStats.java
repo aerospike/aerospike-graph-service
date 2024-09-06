@@ -2,6 +2,7 @@ package com.aerospike.firefly.runtime.tasks;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
+import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.policy.ScanPolicy;
@@ -52,7 +53,7 @@ public class FireflyUsageStats {
             // Only create once.
             if (instance == null) {
                 final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(connection.getClient(), connection.getNamespace(), connection.USAGE_STATS_SET);
-                for (String index : setIndex) {
+                for (final String index : setIndex) {
                     if (!"ok".equals(index)) {
                         LOG.error("Error creating set index: {}", index);
                     }
@@ -146,7 +147,7 @@ public class FireflyUsageStats {
 
         public List<Map<String, Object>> getAllUsageStats() {
             final List<Map<String, Object>> usageStatsList = new ArrayList<>();
-            final AerospikeClient client = connection.getClient();
+            final IAerospikeClient client = connection.getClient();
             try {
                 // Vrtx only has 2 seconds max, we shouldn't take all of it.
                 final ScanPolicy scanPolicy = new ScanPolicy();

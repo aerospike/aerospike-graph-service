@@ -75,7 +75,6 @@ public class EdgeWriteTask {
     }
 
     public CompletionStage<Void> write(ScheduledExecutorService service) {
-
         final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
             this.graph.bulkWriteEdge((byte[]) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
                     inVertexId, outVertexId, inVertexSupernode, outVertexSupernode);

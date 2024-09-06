@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.TimerTask;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -23,18 +22,26 @@ public class ProgressBar extends TimerTask {
     private boolean edgeIdWriteComplete = false;
     private boolean edgeLoadComplete = false;
     private boolean edgeValidationComplete = false;
+    private boolean resumableLoad = false;
+    private boolean resumableLoadComplete = false;
     private long verticesWritten = 0L;
     private long edgesWritten = 0L;
+    private long edgesWrittenHighWatermark = 0L;
     private long edgesInitial = 0L;
     private long verticesInitial = 0L;
+    private int vertexPartitions = 0;
+    private int edgePartitions = 0;
 
     public ProgressBar(final int intervalMillis) {
         this.intervalMillis = intervalMillis;
     }
 
     public void close() {
-        if (graph != null) {
-            graph.close();
+        synchronized (ProgressBar.class) {
+            if (this.graph != null) {
+                this.graph.close();
+                this.graph = null;
+            }
         }
     }
 
@@ -59,6 +66,18 @@ public class ProgressBar extends TimerTask {
     public void setIsL2Mode(final boolean isL2Mode) {
         synchronized (ProgressBar.class) {
             this.isL2Mode = isL2Mode;
+        }
+    }
+
+    public void setResumeableLoad() {
+        synchronized (ProgressBar.class) {
+            this.resumableLoad = true;
+        }
+    }
+
+    public void setResumeableLoadComplete() {
+        synchronized (ProgressBar.class) {
+            this.resumableLoadComplete = true;
         }
     }
 
@@ -99,10 +118,45 @@ public class ProgressBar extends TimerTask {
     }
 
     private String getPreFlightCheckProgress() {
-        if (this.preflightCheckComplete) {
-            return "\t\tPreflight check complete\n";
+        if (!this.resumableLoad) {
+            if (this.preflightCheckComplete) {
+                return "\t\tPreflight check complete\n";
+            } else {
+                return "\t\tPreflight check in progress\n";
+            }
         } else {
-            return "\t\tPreflight check in progress\n";
+            if (resumableLoadComplete) {
+                return "\t\tPreflight check skipped\n";
+            } else {
+                return "\t\tPreflight check not started\n";
+            }
+        }
+    }
+
+    public void setEdgePartitionCount(final int edgePartitions) {
+        synchronized (ProgressBar.class) {
+            this.edgePartitions = edgePartitions;
+        }
+    }
+
+    public void setVertexPartitionCount(final int vertexPartitions) {
+        synchronized (ProgressBar.class) {
+            this.vertexPartitions = vertexPartitions;
+        }
+    }
+
+    private String getPartitionProgress(final int totalPartitions, final int completePartitions) {
+        if (graph == null || totalPartitions <= 0) {
+            return null;
+        } else {
+            final double percentComplete = (double) completePartitions / totalPartitions;
+            final int blocksComplete = (int) (percentComplete * 20);
+            final String partitionProgress = IntStream.range(0, 20)
+                    .mapToObj(i -> i < blocksComplete ? "■" : "□")
+                    .collect(Collectors.joining());
+            return "\t\t\t[" + partitionProgress + "]\n" +
+                    "\t\t\t" + completePartitions + " of " + totalPartitions + " partitions complete (" +
+                    String.format("%.2f", percentComplete * 100) + "%)\n";
         }
     }
 
@@ -116,9 +170,13 @@ public class ProgressBar extends TimerTask {
                 return "\t\tVertex writing in progress\n";
             } else {
                 final long delta = updateAndGetDeltaVertexCount(elementMetadata);
-                return "\t\tVertex writing in progress\n" +
+                final String output = "\t\tVertex writing in progress\n" +
                         "\t\t\tWriting " + delta / (intervalMillis / 1000) + " vertices per second\n" +
                         "\t\t\tTotal of " + verticesWritten + " vertices have been successfully written\n";
+                final int totalPartitions = vertexPartitions;
+                final int completePartitions = RecoveryUtil.completedVertexPartitions(graph.getBaseGraph()).size();
+                final String partitionProgress = getPartitionProgress(totalPartitions, completePartitions);
+                return output + (partitionProgress == null ? "" : partitionProgress);
             }
         } else {
             return "\t\tVertex writing not started\n";
@@ -142,9 +200,27 @@ public class ProgressBar extends TimerTask {
                 return "\t\tEdge writing in progress\n";
             } else {
                 final long delta = updateAndGetDeltaEdgeCount(elementMetadata);
-                return "\t\tEdge writing in progress\n" +
-                        "\t\t\tWriting " + delta / (intervalMillis / 1000) + " edges per second\n" +
-                        "\t\t\tTotal of " + edgesWritten + " edges have been successfully written\n";
+                final String output;
+                final int totalPartitions = edgePartitions;
+                if (delta >= 0) {
+                    output = "\t\tEdge writing in progress\n" +
+                            "\t\t\tWriting " + delta / (intervalMillis / 1000) + " edges per second\n" +
+                            "\t\t\tTotal of " + edgesWritten + " edges have been successfully written\n";
+                } else {
+                    final long badEdgeCount = this.graph.getBaseGraph().incrementAndGetBadEdgeCount(0);
+                    if (badEdgeCount >= edgesWrittenHighWatermark - edgesWritten) {
+                        output = "\t\tEdge writing in progress\n" +
+                                "\t\t\tTotal of " + badEdgeCount + " edges detected as invalid and scheduled for purging\n" +
+                                "\t\t\tTotal of " + edgesWritten + " valid edges currently persist\n";
+                    } else {
+                        output = "\t\tEdge writing in progress\n" +
+                                "\t\t\tError: Unexpected edge count decrease during a bulk load\n" +
+                                "\t\t\tEnsure that elements are not being concurrently removed via another source or contact support\n";
+                    }
+                }
+                final int completePartitions = RecoveryUtil.completedEdgePartitions(graph.getBaseGraph()).size();
+                final String partitionProgress = getPartitionProgress(totalPartitions, completePartitions);
+                return output + (partitionProgress == null ? "" : partitionProgress);
             }
         } else {
             return "\t\tEdge writing not started\n";
@@ -153,6 +229,7 @@ public class ProgressBar extends TimerTask {
 
     private long updateAndGetDeltaEdgeCount(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         final long totalEdgeCount = elementMetadata.totalEdgeCount() - edgesInitial;
+        edgesWrittenHighWatermark = Math.max(edgesWrittenHighWatermark, totalEdgeCount);
         final long delta = totalEdgeCount - edgesWritten;
         edgesWritten = totalEdgeCount;
         return delta;
@@ -189,6 +266,9 @@ public class ProgressBar extends TimerTask {
     }
 
     private String getEdgeIdProgress() {
+        if (resumableLoad && resumableLoadComplete) {
+            return "\t\tTemp data writing skipped\n";
+        }
         if (edgeIdWriteComplete) {
             return "\t\tTemp data writing complete\n";
         } else if (preflightCheckComplete) {
@@ -206,6 +286,7 @@ public class ProgressBar extends TimerTask {
                 }
                 final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata = graph.fireflySummaryUpdater.getFireflyStatistics();
                 LOGGER.info("\n\tBulk Loader Progress:\n" +
+                        getResumeableLoadProgress() +
                         getPreFlightCheckProgress() +
                         getEdgeIdProgress() +
                         getSuperNodeExtractionProgress() +
@@ -217,6 +298,18 @@ public class ProgressBar extends TimerTask {
             } catch (final Exception e) {
                 LOGGER.error("Error occurred when grabbing metadata information for progress bar: ", e);
             }
+        }
+    }
+
+    public String getResumeableLoadProgress() {
+        if (resumableLoad) {
+            if (resumableLoadComplete) {
+                return "\t\tResuming load complete\n";
+            } else {
+                return "\t\tResuming load in progress\n";
+            }
+        } else {
+            return "";
         }
     }
 

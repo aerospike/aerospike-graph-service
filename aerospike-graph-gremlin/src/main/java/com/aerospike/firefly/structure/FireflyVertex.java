@@ -44,19 +44,23 @@ import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
 import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
+import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.structure.id.LazyIdTransform;
 import com.aerospike.firefly.structure.iterator.FireflyBatchEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import com.aerospike.firefly.structure.iterator.FireflyFilteredBatchEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromIndexedVertex;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
 import com.aerospike.firefly.util.FireflyHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.empty.EmptyProperty;
@@ -347,11 +351,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     /**
      * Remove edge from vertex.
      *
-     * @param direction Direction of edge.
-     * @param edgeId    Id of edge.
-     * @param edgeLabel Label of edge.
+     * @param direction         Direction of edge.
+     * @param edgeId            Id of edge.
+     * @param edgeLabel         Label of edge.
      */
-    protected void removeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
+    protected void removeEdge(final Direction direction, final FireflyPhatEdgeId edgeId, final String edgeLabel) {
         // Get bin name for edge direction.
         final String cacheBinName = direction == Direction.IN ? db.IN_EDGES_BIN : db.OUT_EDGES_BIN;
 
@@ -368,7 +372,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             return;
         }
         final List<FireflyId> edgeIdsOfLabel = edgeCache.get(edgeLabel).stream().map(LazyIdTransform::transform).collect(Collectors.toList());
-        if (!edgeIdsOfLabel.contains(edgeId)) {
+        final int indexOfEdgeToRemove = edgeIdsOfLabel.indexOf(edgeId);
+        if (indexOfEdgeToRemove == -1) {
             if (!this.isEdgeCacheOverflowed) {
                 LOG.error("Could not find edge id {} in vertex {}. Vertex edge cache under label {} did not contain edge id {}.",
                         edgeId, this.id, edgeLabel, edgeId);
@@ -377,7 +382,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         }
 
         // Remove item from vertex property Map.
-        edgeIdsOfLabel.remove(edgeId);
+        final FireflyId compositeIdToRemove = edgeIdsOfLabel.remove(indexOfEdgeToRemove);
 
         // Remove key if IDs are empty.
         if (edgeIdsOfLabel.isEmpty()) {
@@ -390,7 +395,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Create operations for removing from edge cache.
         final Operation removeEdgeId = ListOperation.removeByValue(
                 cacheBinName,
-                Value.get(edgeId.getCachedId()),
+                Value.get(compositeIdToRemove.getCachedId()),
                 ListReturnType.NONE,
                 CTX.mapKey(Value.get(edgeLabel))
         );
@@ -439,6 +444,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      * @return was the edge written to this vertex's edge cache.
      */
     public boolean writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
+        LOG.debug("Writing Edge {} to ECACHE of Vertex {} with Direction {}.", edgeId, this, direction);
         // Edge cache is overflowed for this vertex - do nothing since writing to overflow bin is on the edge record.
         if (this.isEdgeCacheOverflowed) {
             return false;
@@ -534,6 +540,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
         // Set flags to indicate vertex has been removed.
         this.removed = true;
+        if (graph.getBaseGraph().IS_AUDIT_LOG_ENABLED) {
+            LOG.info("[{}] Dropped vertex with id: {}", graph.getUser(), id());
+        }
     }
 
     public Iterator<FireflyId> getEdgeIdsFromVertex(final Direction direction, final Set<String> labels, List<HasContainer> hasContainers) {
@@ -574,6 +583,63 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     }
 
     /**
+     * Used by FireflyMergeEdgeStep. Leverage adjacency sindex filtering to find any edges between this and a given
+     * vertex id.
+     *
+     * @param direction Direction to get edges for.
+     * @param adjacent Id of adjacent vertex to find edges between.
+     * @param label Label that edges must match.
+     * @param propertyEqFilters Property key-value pairs that edges must match.
+     * @return Iterator of edges between this vertex and adjacent that match all filters.
+     */
+    public CloseableIterator<Edge> getEdgesAdjacentToVertex(final Direction direction, final FireflyId adjacent,
+                                                            final String label,
+                                                            final Map<String, Object> propertyEqFilters) {
+        LOG.debug("Getting Edges from Vertex {} with direction {} and adjacent Vertex {}", this.id, direction, adjacent);
+        final Set<String> labels = label == null ? Collections.emptySet() : Collections.singleton(label);
+        final List<FireflyId> edgeIds = new ArrayList<>();
+        final List<FireflyId> cachedIds = getCachedIds(direction, labels);
+        for (final FireflyId id : cachedIds) {
+            final FireflyIdComposite composite = (FireflyIdComposite) id;
+            if (adjacent.equals(composite.getAdjacentId())) {
+                edgeIds.add(composite.getEdgeId());
+            }
+        }
+
+        final List<HasContainer> fireflyHasContainers = new ArrayList<>();
+        final List<HasContainer> aerospikeHasContainers = new ArrayList<>();
+        for (final Map.Entry<String, Object> property : propertyEqFilters.entrySet()) {
+            final Class valueClass = property.getValue().getClass();
+            final HasContainer hasContainer;
+            if (P.class.isAssignableFrom(valueClass)) {
+                // TODO: This is dumb but ensures that we replicate default Tinkerpop behavior. MergeEdge is functional
+                //       when a Predicate is passed in and a match is found, but breaks when a match isn't found because
+                //       it tries to write a Predicate as a value on creation of the new Edge. Fix this when, if ever,
+                //       Tinkerpop fixes it so that our behavior matches.
+                hasContainer = new HasContainer(property.getKey(), (P<?>) property.getValue());
+            } else {
+                hasContainer = new HasContainer(property.getKey(), P.eq(property.getValue()));
+            }
+            fireflyHasContainers.add(hasContainer);
+            if (Long.class.isAssignableFrom(valueClass) || Integer.class.isAssignableFrom(valueClass) ||
+                    String.class.isAssignableFrom(valueClass)) {
+                aerospikeHasContainers.add(hasContainer);
+            }
+        }
+        final Iterator<FireflyId> adjacentEdgeIds;
+        if (isEdgeCacheOverflowed) {
+            final Iterator<FireflyId> sindexEdgeIds = new FireflyPhatEdgeIdIteratorFromIndexedVertex(
+                    getEdgeKeyRecordsByIndex(direction, labels,
+                            FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, aerospikeHasContainers, adjacent),
+                    this.db, direction, this.id, labels, FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, adjacent);
+            adjacentEdgeIds = FireflyCloseableIteratorUtils.concat(edgeIds.iterator(), sindexEdgeIds);
+        } else {
+            adjacentEdgeIds = edgeIds.iterator();
+        }
+        return new FireflyFilteredBatchEdgeIterator<>(graph, adjacentEdgeIds, fireflyHasContainers);
+    }
+
+    /**
      * Get all edge ids from vertex for given Direction. This considers supernode ids and cached ids,
      * handling index/scanning under the hood.
      *
@@ -604,7 +670,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      * Important note about this function: It only returns ids that are NOT cached in the vertex.
      * To get an exhaustive list of all ids you must call this in conjunction with getSupernodeVertexIds.
      */
-    private Iterator<FireflyId> getSupernodeVertexIds(final Direction direction, final Set<String> labels) {
+    public Iterator<FireflyId> getSupernodeVertexIds(final Direction direction, final Set<String> labels) {
         return getSupernodeIds(direction, labels, FireflyPhatEdgeIdIteratorFromVertex.OutputType.VERTEX_ID, Collections.emptyList());
     }
 
@@ -642,25 +708,22 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         return getIdsFromVertexByIndex(direction, labels, outputType, hasContainers);
     }
 
-    // Only public for testing, if you use this function outside of testing, you're probably doing something wrong.
     public List<FireflyId> getCachedIds(final Direction direction, final Set<String> labels) {
         LOG.trace("Getting cached adjacent vertex ids from vertex {}.", id);
         // Get cached IDs
         final List<FireflyId> cachedIds = new ArrayList<>();
         if (direction == Direction.OUT || direction == Direction.BOTH) {
             for (final String key : outEdgeIds.keySet()) {
-                if (!labels.isEmpty() && !labels.contains(key)) {
-                    continue;
+                if (labels.isEmpty() || labels.contains(key)) {
+                    cachedIds.addAll(outEdgeIds.get(key).stream().map(LazyIdTransform::transform).collect(Collectors.toList()));
                 }
-                cachedIds.addAll(outEdgeIds.get(key).stream().map(LazyIdTransform::transform).collect(Collectors.toList()));
             }
         }
         if (direction == Direction.IN || direction == Direction.BOTH) {
             for (final String key : inEdgeIds.keySet()) {
-                if (!labels.isEmpty() && !labels.contains(key)) {
-                    continue;
+                if (labels.isEmpty() || labels.contains(key)) {
+                    cachedIds.addAll(inEdgeIds.get(key).stream().map(LazyIdTransform::transform).collect(Collectors.toList()));
                 }
-                cachedIds.addAll(inEdgeIds.get(key).stream().map(LazyIdTransform::transform).collect(Collectors.toList()));
             }
         }
         return cachedIds;
@@ -867,11 +930,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         if (direction == Direction.BOTH) {
             final Iterator<KeyRecord> inKeyRecordIterator = getEdgeKeyRecordsByIndex(Direction.IN, labels, outputType, hasContainers);
             final Iterator<KeyRecord> outKeyRecordIterator = getEdgeKeyRecordsByIndex(Direction.OUT, labels, outputType, hasContainers);
-            return FireflyCloseableIteratorUtils.concat(new FireflyPhatEdgeIdIteratorFromIndexedVertex(inKeyRecordIterator, this.db, Direction.IN, this.id, labels, outputType),
-                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(outKeyRecordIterator, this.db, Direction.OUT, this.id, labels, outputType));
+            return FireflyCloseableIteratorUtils.concat(new FireflyPhatEdgeIdIteratorFromIndexedVertex(inKeyRecordIterator, this.db, Direction.IN, this.id, labels, outputType, null),
+                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(outKeyRecordIterator, this.db, Direction.OUT, this.id, labels, outputType, null));
         } else {
             final Iterator<KeyRecord> keyRecordIterator = getEdgeKeyRecordsByIndex(direction, labels, outputType, hasContainers);
-            return new FireflyPhatEdgeIdIteratorFromIndexedVertex(keyRecordIterator, this.db, direction, this.id, labels, outputType);
+            return new FireflyPhatEdgeIdIteratorFromIndexedVertex(keyRecordIterator, this.db, direction, this.id, labels, outputType, null);
         }
     }
 
@@ -888,6 +951,14 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                                                         final Set<String> labels,
                                                         final FireflyPhatEdgeIdIteratorFromVertex.OutputType outputType,
                                                         final List<HasContainer> hasContainers) {
+        return getEdgeKeyRecordsByIndex(direction, labels, outputType, hasContainers, null);
+    }
+
+    private Iterator<KeyRecord> getEdgeKeyRecordsByIndex(final Direction direction,
+                                                         final Set<String> labels,
+                                                         final FireflyPhatEdgeIdIteratorFromVertex.OutputType outputType,
+                                                         final List<HasContainer> hasContainers,
+                                                         final FireflyId adjacentVertexId) {
         if (outputType == FireflyPhatEdgeIdIteratorFromVertex.OutputType.VERTEX_ID && !hasContainers.isEmpty()) {
             // This should never happen.
             throw new IllegalStateException("Pushdown filters are not supported for composite ID edge skipping.");
@@ -895,7 +966,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final QueryPolicy queryPolicy = new QueryPolicy();
         queryPolicy.sendKey = true;
         queryPolicy.includeBinData = true;
-        queryPolicy.filterExp = GraphQueryHelper.phatEdgeHasContainerListToExpression(db, hasContainers, labels, id.getKeyHashString());
+        queryPolicy.filterExp = GraphQueryHelper.phatEdgeHasContainerListToExpression(db, hasContainers, labels,
+                id.getKeyHashString(), adjacentVertexId, direction);
         if (direction == Direction.OUT) {
             return new CachedIterator(graph, GraphQuery.create(graph).querySIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME,
                     Filter.contains(db.SUPERNODES_OUT_BIN, IndexCollectionType.MAPVALUES, id.getKeyHashString()),

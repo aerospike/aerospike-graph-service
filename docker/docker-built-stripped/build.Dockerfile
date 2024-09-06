@@ -54,8 +54,8 @@ RUN mvn -pl aerospike-graph-gremlin -am -Dmaven.test.skip=true -DskipTests=true 
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.2.0' ;  \
-    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.2.0' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.3.0' ;  \
+    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.3.0' ;  \
     fi
 
 RUN mkdir -p $CONF_DIR && mv /opt/aerospike-graph/conf/docker-default/flattened-default-gremlin-server.yaml $CONF_DIR/flattened-default-gremlin-server.yaml
@@ -67,7 +67,7 @@ RUN cd .. && rm -rf /opt/aerospike-graph
 RUN yum remove -y vim-minimal vim-data unzip xz tar
 
 # Add scripts to container.
-ADD scripts /opt/aerospike-graph/scripts
+ADD docker-runtime-scripts /opt/aerospike-graph/scripts
 
 # Make gremlin-server-docker.sh runnable and make files in config dir read/write/executable.
 RUN chmod +x scripts/gremlin-server-docker.sh

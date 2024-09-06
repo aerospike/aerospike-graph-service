@@ -1,4 +1,4 @@
-name: Publish Aerospike Graph Release Candidate
+name: Publish Aerospike Graph Container for Dev to GHCR
 
 # Publish the container if a tag of 'vX.Y.Z-rcW' is made.
 # Example: v0.0.1-rc1, v0.1.0-rc2, v1.0.0-rc3, etc.
@@ -7,7 +7,7 @@ name: Publish Aerospike Graph Release Candidate
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+'
+      - 'dev-**'
 
 env:
   GITHUB_REPOSITORY_NAME: citrusleaf
@@ -50,7 +50,7 @@ jobs:
           path: aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar
 
   publish-github:
-    name: Publish Aerospike Graph Docker Image - GitHub - Release Candidate
+    name: Publish Firefly Docker Image - GitHub
     permissions:
       packages: write
       contents: read

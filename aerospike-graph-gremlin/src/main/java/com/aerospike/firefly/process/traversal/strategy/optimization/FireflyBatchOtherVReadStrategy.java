@@ -11,6 +11,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupSideE
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 
 import java.util.List;
+import java.util.Set;
 
 public class FireflyBatchOtherVReadStrategy extends FireflyStrategyBase {
 
@@ -50,6 +51,7 @@ public class FireflyBatchOtherVReadStrategy extends FireflyStrategyBase {
 
         if (TraversalHelper.onGraphComputer(traversal))
             return;
+
         final List<Step> steps = traversal.getSteps();
 
         if (traversal.isRoot()) {
@@ -66,11 +68,14 @@ public class FireflyBatchOtherVReadStrategy extends FireflyStrategyBase {
                 continue;
             }
 
-            traversal.removeStep(steps.get(index));
+            final Step original = steps.get(index);
 
-            traversal.addStep(index, new FireflyOtherVBatchReadStep(
+            final FireflyOtherVBatchReadStep optimizedStep = new FireflyOtherVBatchReadStep(
                     traversal,
-                    graph.getBaseGraph().MOVEMENT_BARRIER_SIZE));
+                    original.getLabels(),
+                    graph.getBaseGraph().MOVEMENT_BARRIER_SIZE);
+
+            TraversalHelper.replaceStep(original, optimizedStep, traversal);
         }
     }
 }

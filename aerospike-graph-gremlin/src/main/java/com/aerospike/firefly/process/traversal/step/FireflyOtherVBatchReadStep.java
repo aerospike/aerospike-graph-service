@@ -28,9 +28,12 @@ public class FireflyOtherVBatchReadStep extends CollectingBarrierStep<Edge> {
     private final int barrierSize;
 
     public FireflyOtherVBatchReadStep(final Traversal.Admin traversal,
+                                      final Set<String> labels,
                                       final int barrierSize) {
         super(traversal, barrierSize);
+
         this.barrierSize = barrierSize;
+        this.labels = new HashSet<>(labels);
 
         // OtherV don't care about following filters for now
         fireflyHasContainers = List.of();

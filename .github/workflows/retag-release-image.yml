@@ -1,4 +1,4 @@
-name: Publish Firefly Container
+name: Publish Aerospike Graph Container to Dockerhub and GCR
 
 # Publish the container if a full release is made.
 # See https://docs.github.com/en/webhooks/webhook-events-and-payloads?actionType=released#release
@@ -19,7 +19,7 @@ env:
 
 jobs:
   publish-dockerhub:
-    name: Publish Firefly Docker Image - Dockerhub
+    name: Publish Aerospike Graph Docker Image - Dockerhub
     permissions:
       packages: write
       contents: read

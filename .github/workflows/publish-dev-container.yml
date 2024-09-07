@@ -1,4 +1,4 @@
-name: Publish Firefly Container for Dev
+name: Publish Aerospike Graph Container for Dev to QE
 
 on:
   push:
@@ -12,7 +12,7 @@ env:
 
 jobs:
   publish-github:
-    name: Publish Firefly Docker Image - GitHub
+    name: Publish Firefly Docker Image - QE
     permissions:
       packages: write
       contents: read

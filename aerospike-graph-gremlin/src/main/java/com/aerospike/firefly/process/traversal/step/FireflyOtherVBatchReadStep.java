@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.step;
 
+import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -21,6 +22,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class FireflyOtherVBatchReadStep extends CollectingBarrierStep<Edge> {
     public final List<HasContainer> fireflyHasContainers;
@@ -28,16 +30,27 @@ public class FireflyOtherVBatchReadStep extends CollectingBarrierStep<Edge> {
     private final int barrierSize;
 
     public FireflyOtherVBatchReadStep(final Traversal.Admin traversal,
+                                      final List<HasContainer> hasContainers,
                                       final Set<String> labels,
                                       final int barrierSize) {
         super(traversal, barrierSize);
 
-        this.barrierSize = barrierSize;
         this.labels = new HashSet<>(labels);
+        this.barrierSize = barrierSize;
 
-        // OtherV don't care about following filters for now
-        fireflyHasContainers = List.of();
-        aerospikeHasContainers = List.of();
+        // piece of magic
+        if (hasContainers != null) {
+            final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
+                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);
+            // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
+            //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
+            //  matter what.
+            fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
+            aerospikeHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
+        } else {
+            fireflyHasContainers = List.of();
+            aerospikeHasContainers = List.of();
+        }
     }
 
     @Override

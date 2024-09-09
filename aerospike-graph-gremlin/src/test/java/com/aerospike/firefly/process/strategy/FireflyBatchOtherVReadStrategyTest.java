@@ -44,9 +44,28 @@ public class FireflyBatchOtherVReadStrategyTest {
     public void verifyResult() {
         final var g = graph.traversal();
 
+        // filter out everything
         List result = g.V().outE().not(__.hasLabel("knows")).otherV().hasLabel("test").toList();
         assertEquals(0, result.size());
 
+        // only part of results is valid
+        result = g.V().outE().not(__.hasLabel("knows")).otherV().has("name", "ripple").toList();
+        assertEquals(1, result.size());
+
+        // lets inject new vertex and check we captured right `a`
+        result = g.V().outE().not(__.hasLabel("knows")).otherV().as("a")
+                .has("name", "ripple")
+                .inject(null)
+                .select("a").toList();
+        assertEquals(1, result.size());
+
+        result = g.V().outE().not(__.hasLabel("knows")).otherV()
+                .has("name", "ripple").as("a")
+                .inject(null)
+                .select("a").toList();
+        assertEquals(1, result.size());
+
+        // no hasContainer
         result = g.V().outE().not(__.hasLabel("knows")).otherV().toList();
         assertEquals(4, result.size());
 

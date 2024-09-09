@@ -69,7 +69,7 @@
         <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>
         <build-helper.version>3.3.0</build-helper.version>
         <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
-        <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+        <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
         <!-- SOURCE ENCODINGS -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

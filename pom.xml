@@ -44,13 +44,12 @@
     <modules>
         <module>aerospike-graph-gremlin</module>
         <module>aerospike-graph-bulk-loader</module>
-        <module>aerospike-graph-sizing-tool</module>
         <module>aerospike-graph-api</module>
     </modules>
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->
     <properties>
         <firefly.version>2.4.0-SNAPSHOT</firefly.version>
-        <java.version>11</java.version>
+        <java.version>21</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <aerospike-client.version>7.2.1</aerospike-client.version>

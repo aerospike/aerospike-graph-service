@@ -43,7 +43,6 @@ public class FireflyBatchOtherVReadStrategy extends FireflyStrategyBase {
             if (rootGroup.get()) {
                 return;
             }
-            // todo: !!!
             if (!graph.getBaseGraph().ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY) {
                 return;
             }

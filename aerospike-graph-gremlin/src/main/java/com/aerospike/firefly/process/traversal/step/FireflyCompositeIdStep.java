@@ -11,7 +11,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.ProjectedTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -37,7 +36,6 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> implem
     public final List<HasContainer> aerospikeHasContainers;
     private final int barrierSize;
     private final List<String> requiredProperties;
-    private boolean barrierConsumed = false;
 
     public FireflyCompositeIdStep(final Traversal.Admin traversal,
                                   final Direction direction,
@@ -113,26 +111,5 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> implem
 
         set.addAll(output);
         output.clear(); // Force garbage collection.
-    }
-
-    @Override
-    public void addBarrier(final TraverserSet<Vertex> barrier) {
-        barrier.forEach(traverser -> traverser.setSideEffects(this.getTraversal().getSideEffects()));
-        this.traverserSet.addAll(barrier);
-        this.barrierConsumed = false;
-    }
-
-    @Override
-    public Traverser.Admin<Vertex> processNextStart() {
-        if (this.traverserSet.isEmpty() && this.starts.hasNext()) {
-            this.processAllStarts();
-            this.barrierConsumed = false;
-        }
-        //
-        if (!this.barrierConsumed) {
-            this.barrierConsumer(this.traverserSet);
-            this.barrierConsumed = true;
-        }
-        return ProjectedTraverser.tryUnwrap(this.traverserSet.remove());
     }
 }

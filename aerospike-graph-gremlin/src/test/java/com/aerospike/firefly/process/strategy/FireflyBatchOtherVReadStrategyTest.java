@@ -18,7 +18,9 @@ import org.junit.Test;
 import java.util.List;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class FireflyBatchOtherVReadStrategyTest {
     private static FireflyGraph graph;
@@ -26,7 +28,7 @@ public class FireflyBatchOtherVReadStrategyTest {
     @BeforeClass
     public static void beforeAll() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_STRATEGY, "true");
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY, "true");
         graph = FireflyGraph.open(config);
         graph.getBaseGraph().dropDatabase(graph, false);
 
@@ -89,6 +91,22 @@ public class FireflyBatchOtherVReadStrategyTest {
         t.asAdmin().applyStrategies();
         List<Step> steps = t.asAdmin().getSteps();
         assertTrue(containsCustomStep(steps));
+    }
+
+    @Test
+    public void testStrategyDisabledInConfiguration() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY, "false");
+
+        final FireflyGraph graph = FireflyGraph.open(config);
+        final var g = graph.traversal();
+
+        var t = g.V().outE().not(__.hasLabel("knows")).otherV().hasLabel("test");
+        t.asAdmin().applyStrategies();
+        List<Step> steps = t.asAdmin().getSteps();
+        assertFalse(containsCustomStep(steps));
+
+        graph.close();
     }
 
     @Test

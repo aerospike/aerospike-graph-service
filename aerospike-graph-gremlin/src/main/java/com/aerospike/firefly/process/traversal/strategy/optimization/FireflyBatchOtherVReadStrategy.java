@@ -7,9 +7,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.EdgeOtherVertexStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.GroupStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupSideEffectStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -19,13 +17,6 @@ import java.util.List;
 import java.util.Set;
 
 public class FireflyBatchOtherVReadStrategy extends FireflyStrategyBase {
-
-    final ThreadLocal<Boolean> rootGroup = new ThreadLocal<Boolean>() {
-        @Override
-        protected Boolean initialValue() {
-            return false;
-        }
-    };
 
     public FireflyBatchOtherVReadStrategy() {
     }
@@ -39,33 +30,14 @@ public class FireflyBatchOtherVReadStrategy extends FireflyStrategyBase {
     public void apply(final Traversal.Admin<?, ?> traversal) {
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
 
-        // Reset whenever root.
-        if (traversal.isRoot()) {
-            rootGroup.set(false);
-        }
-
-        if (!traversal.isRoot()) {
-            if (rootGroup.get()) {
-                return;
-            }
-            if (!graph.getBaseGraph().ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY) {
-                return;
-            }
+        if (!traversal.isRoot() && !graph.getBaseGraph().ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY) {
+            return;
         }
 
         if (TraversalHelper.onGraphComputer(traversal))
             return;
 
         final List<Step> steps = traversal.getSteps();
-
-        if (traversal.isRoot()) {
-            for (int i = 0; i < steps.size(); i++) {
-                if (steps.get(i) instanceof GroupStep || steps.get(i) instanceof GroupSideEffectStep) {
-                    rootGroup.set(true);
-                    break;
-                }
-            }
-        }
 
         for (int index = 0; index < steps.size(); index++) {
             if (!(steps.get(index) instanceof EdgeOtherVertexStep)) {
@@ -84,7 +56,7 @@ public class FireflyBatchOtherVReadStrategy extends FireflyStrategyBase {
                 }
                 if (steps.get(index + 1) instanceof NoOpBarrierStep) {
                     // Grab any labels and remove the barrier.
-                    final NoOpBarrierStep<?> noOpBarrierStep = (NoOpBarrierStep<?>) steps.get(index+1);
+                    final NoOpBarrierStep<?> noOpBarrierStep = (NoOpBarrierStep<?>) steps.get(index + 1);
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index + 1));
                 } else if (steps.get(index + 1) instanceof HasStep) {

@@ -8,8 +8,10 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.ProjectedTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -26,7 +28,7 @@ import java.util.stream.Collectors;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
+public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> implements LocalBarrier<Vertex> {
     private final Direction direction;
     private final Set<String> edgeLabels;
 
@@ -35,6 +37,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
     public final List<HasContainer> aerospikeHasContainers;
     private final int barrierSize;
     private final List<String> requiredProperties;
+    private boolean barrierConsumed = false;
 
     public FireflyCompositeIdStep(final Traversal.Admin traversal,
                                   final Direction direction,
@@ -110,5 +113,26 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
 
         set.addAll(output);
         output.clear(); // Force garbage collection.
+    }
+
+    @Override
+    public void addBarrier(final TraverserSet<Vertex> barrier) {
+        barrier.forEach(traverser -> traverser.setSideEffects(this.getTraversal().getSideEffects()));
+        this.traverserSet.addAll(barrier);
+        this.barrierConsumed = false;
+    }
+
+    @Override
+    public Traverser.Admin<Vertex> processNextStart() {
+        if (this.traverserSet.isEmpty() && this.starts.hasNext()) {
+            this.processAllStarts();
+            this.barrierConsumed = false;
+        }
+        //
+        if (!this.barrierConsumed) {
+            this.barrierConsumer(this.traverserSet);
+            this.barrierConsumed = true;
+        }
+        return ProjectedTraverser.tryUnwrap(this.traverserSet.remove());
     }
 }

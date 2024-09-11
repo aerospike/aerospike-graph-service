@@ -16,6 +16,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -67,12 +68,18 @@ public class QueryServiceAbortTest {
         final int scanCount = 4;
         final List<Thread> scanThreads = new ArrayList<>(scanCount);
         final List<AtomicBoolean> threadSuccesses = new ArrayList<>(scanCount);
+        final CyclicBarrier barrier = new CyclicBarrier(scanCount + 1);
         for (int i = 0; i < scanCount; i++) {
             final int finalI = i;
             final AtomicBoolean assertion = new AtomicBoolean(false);
             final Thread scanThread = new Thread(() -> {
-                final var scan = g.V().has("propertyKey", String.valueOf(finalI));
                 try {
+                    barrier.await();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    final var scan = g.V().has("propertyKey", String.valueOf(finalI));
                     while (scan.hasNext()) {
                         scan.next();
                     }
@@ -92,7 +99,8 @@ public class QueryServiceAbortTest {
             scanThreads.add(scanThread);
             threadSuccesses.add(assertion);
         }
-        Thread.sleep(200);
+        barrier.await();
+        Thread.sleep(100);
         Map<String, Integer> queryAbortResult = (Map<String, Integer>) g.call("aerospike.graph.admin.query.abort").next();
         Assert.assertEquals(scanCount, (int) queryAbortResult.get("found"));
         Assert.assertEquals(scanCount, (int) queryAbortResult.get("aborted"));

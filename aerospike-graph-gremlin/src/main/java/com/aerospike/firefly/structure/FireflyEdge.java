@@ -599,6 +599,14 @@ public class FireflyEdge extends FireflyElement implements Edge {
         typeHints.remove(key);
     }
 
+    public FireflyId outVertexId() {
+        return outVid;
+    }
+
+    public FireflyId inVertexId() {
+        return inVid;
+    }
+
     @Override
     public Vertex outVertex() {
         // TODO GRAPH-1145: Restore the following and handle skipping null returns.

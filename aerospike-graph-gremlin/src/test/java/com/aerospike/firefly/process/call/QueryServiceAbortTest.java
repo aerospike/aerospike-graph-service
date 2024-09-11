@@ -100,7 +100,7 @@ public class QueryServiceAbortTest {
             threadSuccesses.add(assertion);
         }
         barrier.await();
-        Thread.sleep(200);
+        Thread.sleep(100);
         Map<String, Integer> queryAbortResult = (Map<String, Integer>) g.call("aerospike.graph.admin.query.abort").next();
         Assert.assertEquals(scanCount, (int) queryAbortResult.get("found"));
         Assert.assertEquals(scanCount, (int) queryAbortResult.get("aborted"));

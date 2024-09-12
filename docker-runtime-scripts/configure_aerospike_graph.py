@@ -9,7 +9,6 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
     auth_jwt_secret = None
     auth_jwt_issuer = None
     auth_jwt_algorithm = None
-    performance_mode = None
 
     keys = []
     unified_config = []
@@ -31,8 +30,6 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
                     java_options_min_heap = line
                 elif line.startswith("aerospike.graph-service.auth.jwt.secret"):
                     auth_jwt_secret = line
-                elif line.startswith("aerospike.graph-service.performance-mode"):
-                    performance_mode = line
                 elif line.startswith("aerospike.graph-service.auth.jwt.issuer"):
                     auth_jwt_issuer = line
                 elif line.startswith("aerospike.graph-service.auth.jwt.algorithm"):
@@ -66,8 +63,6 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
             java_options_min_heap = f"{key}={value}"
         elif key.startswith("aerospike.graph-service.auth.jwt.secret"):
             auth_jwt_secret = f"{key}={value}"
-        elif key.startswith("aerospike.graph-service.performance-mode"):
-            performance_mode = f"{key}={value}"
         elif key.startswith("aerospike.graph-service.auth.jwt.issuer"):
             auth_jwt_issuer = f"{key}={value}"
         elif key.startswith("aerospike.graph-service.auth.jwt.algorithm"):
@@ -87,7 +82,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
                     "be in the format 'aerospike.key=value'")
 
     persist_unified_config(unified_config_file, unified_config)
-    generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, output_properties_file, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm, performance_mode)
+    generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, output_properties_file, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm)
     generate_properties(valid_properties, output_properties_file, auth_jwt_secret, auth_jwt_issuer)
     generate_java_options(output_java_options_file, java_options_max_heap, java_options_min_heap)
 
@@ -103,55 +98,41 @@ def persist_unified_config(unified_config_file, unified_config):
                 print("Persisting configuration: " + line)
 
 
-def set_performance_mode(performance_mode, yaml_properties):
-    # If performance mode is set, validate and assign values.
-    if performance_mode is None:
-        # If performance mode is not set and neither gremlinPool nor threadPoolWorker are set, default to throughput.
-        thread_pool_worker_or_gremlin_pool_set = False
-        for property in yaml_properties:
-            if "aerospike.graph-service.threadPoolWorker" in property or "aerospike.graph-service.gremlinPool" in property:
-                thread_pool_worker_or_gremlin_pool_set = True
-                break
-        if not thread_pool_worker_or_gremlin_pool_set:
-            print("Defaulting 'aerospike.graph-service.performance-mode' to 'throughput'.")
-            performance_mode = "aerospike.graph-service.performance-mode=throughput"
-    else:
-        for property in yaml_properties:
-            if "aerospike.graph-service.threadPoolWorker" in property or "aerospike.graph-service.gremlinPool" in property:
-                raise Exception("Error configuring Aerospike Graph Service.\n\t"
-                                "Cannot set 'aerospike.graph-service.threadPoolWorker' or 'aerospike.graph-service.gremlinPool' "
-                                "when using 'aerospike.graph-service.performance-mode'")
+def set_performance_mode(yaml_properties):
+    # Experiments show that throughput is best when gremlinPool=4*cpu_count and threadPoolWorker=cpu_count/2.
+    # Latency is best when gremlinPool=cpu_count and threadPoolWorker=cpu_count/4.
+    cpu_count = multiprocessing.cpu_count()
+    thread_pool_worker = cpu_count//2
+    if thread_pool_worker < 1:
+        thread_pool_worker = 1
+    gremlin_pool = 4*cpu_count
 
-    if performance_mode is not None:
-        performance_mode_value = performance_mode.split("=")[1]
-        if performance_mode_value not in ["throughput", "latency"]:
-            raise Exception("Error configuring Aerospike Graph Service.\n\t"
-                            "Invalid value for 'aerospike.graph-service.performance-mode'. "
-                            "Valid values are 'throughput' and 'latency'. "
-                            "Provided value is '" + performance_mode_value + "'.")
-        # Experiments show that throughput is best when gremlinPool=4*cpu_count and threadPoolWorker=cpu_count/2.
-        # Latency is best when gremlinPool=cpu_count and threadPoolWorker=cpu_count/4.
-        cpu_count = multiprocessing.cpu_count()
-        if performance_mode_value == "throughput":
-            thread_pool_worker = cpu_count//2
-            gremlin_pool = 4*cpu_count
-            if thread_pool_worker < 1:
-                thread_pool_worker = 1
-        else:
-            thread_pool_worker = cpu_count//4
-            if thread_pool_worker < 1:
-                thread_pool_worker = 1
-            gremlin_pool = cpu_count
-        print("'aerospike.graph-service.performance-mode' is set to " + performance_mode_value + \
-              ". Setting gremlinPool to " + str(gremlin_pool) + " and threadPoolWorker to " + str(thread_pool_worker) + ".")
-        yaml_properties.append(f"aerospike.graph-service.gremlinPool={gremlin_pool}")
+    # Shouldn't happen but it's unclear what would happen if someone allocates 1/8 of a CPU or something.
+    if gremlin_pool < 1:
+        gremlin_pool = 1
+
+    found_thread_pool_worker = False
+    found_gremlin_pool = False
+    for property in yaml_properties:
+        if "aerospike.graph-service.threadPoolWorker" in property:
+            found_thread_pool_worker = True
+            thread_pool_worker = int(property.split("=")[1])
+        if "aerospike.graph-service.gremlinPool" in property:
+            found_gremlin_pool = True
+            gremlin_pool = int(property.split("=")[1])
+
+    if not found_thread_pool_worker:
         yaml_properties.append(f"aerospike.graph-service.threadPoolWorker={thread_pool_worker}")
+    if not found_gremlin_pool:
+        yaml_properties.append(f"aerospike.graph-service.gremlinPool={gremlin_pool}")
+
+    print("Setting gremlinPool to " + str(gremlin_pool) + " and threadPoolWorker to " + str(thread_pool_worker) + ".")
 
 
-def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, output_properties_file, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm, performance_mode):
+def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, output_properties_file, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm):
     rewritten_lines = []
 
-    set_performance_mode(performance_mode, yaml_properties)
+    set_performance_mode(yaml_properties)
 
     # Read yaml lines.
     with open(default_yaml_file) as yaml:

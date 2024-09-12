@@ -6,6 +6,7 @@ import com.aerospike.client.Record;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
@@ -122,8 +123,8 @@ public class TestEdgeCacheIntegration {
             final FireflyVertex v2 = (FireflyVertex) g.addV("v2").next();
             final FireflyEdge e = (FireflyEdge) g.addE("pepperoni").property("toBeRemoved", "RIP" ).from(v1).to(v2).next();
             g.addE("pepperoni").from(v1).to(v2).iterate();
-            final FireflyId expectedOutId = idFactory.createCompositeEdgeId(e.id, v2.id);
-            final FireflyId expectedInId = idFactory.createCompositeEdgeId(e.id, v1.id);
+            final FireflyId expectedOutId = idFactory.createCompositeEdgeId((FireflyEdgeId) e.id, v2.id);
+            final FireflyId expectedInId = idFactory.createCompositeEdgeId((FireflyEdgeId) e.id, v1.id);
 
             final Key v1Key = getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v1.id);
             final Key v2Key = getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v2.id);

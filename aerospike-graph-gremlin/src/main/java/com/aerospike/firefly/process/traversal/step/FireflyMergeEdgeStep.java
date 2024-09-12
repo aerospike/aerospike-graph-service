@@ -235,8 +235,8 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         final Object toId = search.get(Direction.IN);
         LOG.debug("Using FireflyMergeEdgeStep to obtain Edges between FROM Vertex {} and TO Vertex {}", fromId, toId);
 
-        final FireflyId fromVId = fireflyGraph.getIdFactory().createId(fromId, FireflyVertex.class);
-        final FireflyId toVId = fireflyGraph.getIdFactory().createId(toId, FireflyVertex.class);
+        final FireflyId fromVId = fireflyGraph.getIdFactory().createVertexId(fromId);
+        final FireflyId toVId = fireflyGraph.getIdFactory().createVertexId(toId);
         final List<FireflyVertex> fromVAndToV = fireflyGraph.readVertices(Collections.emptyList(),
                 List.of(fromVId, toVId), Collections.emptyList());
         FireflyVertex fromV = null;

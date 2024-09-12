@@ -112,8 +112,8 @@ public class FireflyRecord {
     }
 
     public static Key getMergeEdgeKey(final FireflyGraph graph, final Object fromV, final Object toV) {
-        final FireflyId fromVId = graph.getIdFactory().createId(fromV, FireflyVertex.class);
-        final FireflyId toVId = graph.getIdFactory().createId(toV, FireflyVertex.class);
+        final FireflyId fromVId = graph.getIdFactory().createVertexId(fromV);
+        final FireflyId toVId = graph.getIdFactory().createVertexId(toV);
         final byte[] compoundKeyHash = ArrayUtils.addAll(fromVId.getKeyHash(), toVId.getKeyHash());
         final AerospikeConnection db = graph.getBaseGraph();
         return new Key(db.getNamespace(), db.GRAPH_METADATA_SET, Value.get(compoundKeyHash));

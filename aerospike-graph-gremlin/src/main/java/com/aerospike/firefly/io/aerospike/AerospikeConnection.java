@@ -217,7 +217,7 @@ public class AerospikeConnection implements AutoCloseable {
 
     public static final AtomicLong instanceCounter = new AtomicLong(0);
 
-    public final FireflyIdFactory idFactory;
+    private final FireflyIdFactory idFactory;
     public final boolean ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY;
     public final boolean ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY;
     public final boolean ENABLE_COMPOSITE_ID_LIMIT_STRATEGY;
@@ -513,7 +513,7 @@ public class AerospikeConnection implements AutoCloseable {
         QUERY_IMPL = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.QUERY_IMPL, conf);
 
         cacheTasks = new ArrayList<>();
-        idFactory = FireflyIdFactory.create(this);
+        idFactory = new FireflyIdFactory(this);
 
         vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_BIN); // 2
         vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN); // 3
@@ -541,7 +541,6 @@ public class AerospikeConnection implements AutoCloseable {
         }
         LOG.info("{} configured to {}.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, onRecordIdLimit);
         ON_RECORD_ID_LIMIT = onRecordIdLimit;
-
     }
 
     private long getRecordIdLimitFromAerospike(final double fillPercentage) {

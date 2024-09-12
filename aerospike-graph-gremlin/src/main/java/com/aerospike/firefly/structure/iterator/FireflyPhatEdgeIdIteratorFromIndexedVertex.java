@@ -9,11 +9,9 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_IN_KEY;
@@ -93,7 +91,7 @@ public class FireflyPhatEdgeIdIteratorFromIndexedVertex extends FireflyPhatEdgeI
                 if (adjacentVertexId == null) {
                     attachedEdgeIds.add(edgeIdToVertexId.getKey());
                 } else {
-                    final FireflyPhatEdgeId edgeId = new FireflyPhatEdgeId(edgeIdToVertexId.getKey(), this.db.PHAT_EDGE_SIZE, this.db.EDGE_AERO_SET);
+                    final FireflyPhatEdgeId edgeId = this.db.getIdFactory().createEdgeId(edgeIdToVertexId.getKey());
                     if (uniqueEdgeIdsAttachedToAdjacentVertex.contains(edgeId.getUniqueId())) {
                         attachedEdgeIds.add(edgeIdToVertexId.getKey());
                     }

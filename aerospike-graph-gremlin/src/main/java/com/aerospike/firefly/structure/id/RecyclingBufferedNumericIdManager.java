@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure.id;
 
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,16 +18,13 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
     private final BufferedNumericIdManager uniqueIdManager;
     private final BufferedNumericIdManager recyclingIdManager;
     private final ConcurrentLinkedQueue<Long> recycledIds = new ConcurrentLinkedQueue<>();
-    private final boolean allowUserSupplied;
 
-    public RecyclingBufferedNumericIdManager(final String recyclingIdCounterName,
+    protected RecyclingBufferedNumericIdManager(final String recyclingIdCounterName,
                                              final String uniqueIdCounterName,
-                                             final long bufferSize,
-                                             final boolean allowUserSuppliedIds) {
-        this.uniqueIdManager = new BufferedNumericIdManager(uniqueIdCounterName, bufferSize, allowUserSuppliedIds);
-        this.recyclingIdManager = new BufferedNumericIdManager(recyclingIdCounterName, bufferSize, allowUserSuppliedIds);
+                                             final long bufferSize) {
+        this.uniqueIdManager = new BufferedNumericIdManager(uniqueIdCounterName, bufferSize);
+        this.recyclingIdManager = new BufferedNumericIdManager(recyclingIdCounterName, bufferSize);
         this.bufferSize = bufferSize;
-        this.allowUserSupplied = allowUserSuppliedIds;
         if (bufferSize < 1) {
             throw new IllegalArgumentException("BufferedNumericIdManager bufferSize of '" + bufferSize + "' " +
                     "is not valid. The value must be greater than 0.");
@@ -55,11 +51,6 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
         System.arraycopy(longToBytes(getRecycledId(graph)), 0, id, 0, 8);
         System.arraycopy(longToBytes(uniqueId), 0, id, 8, 8);
         return id;
-    }
-
-    @Override
-    public boolean allow(final Class<?> id) {
-        return allowUserSupplied && AerospikeConnection.IdToDiskTypeMap.containsKey(id);
     }
 
     @Override

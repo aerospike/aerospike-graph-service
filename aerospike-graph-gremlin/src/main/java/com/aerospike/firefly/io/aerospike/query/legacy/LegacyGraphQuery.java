@@ -98,11 +98,10 @@ public class LegacyGraphQuery implements GraphQuery {
 
 
     @Override
-    public <E> BlockingQueue<PageFetcher.Page> batchReadSetPagesBlocking(final FireflyGraph graph, BatchPolicy policy,
-                                                                         final Class<? extends FireflyElement> type,
-                                                                         final Expression expression,
-                                                                         final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
-                                                                         final List<Object> idsToRead) {
+    public <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(final FireflyGraph graph, BatchPolicy policy,
+                                                                            final Expression expression,
+                                                                            final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
+                                                                            final List<Object> idsToRead) {
         throw new RuntimeException("The graph computer does not support legacy reading.");
     }
 

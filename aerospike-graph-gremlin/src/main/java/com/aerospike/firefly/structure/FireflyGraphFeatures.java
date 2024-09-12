@@ -1,10 +1,11 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+
+import static com.aerospike.firefly.structure.id.FireflyIdFactory.VERTEX_ID_TYPE_TO_HINT;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -21,9 +22,9 @@ public class FireflyGraphFeatures implements Graph.Features {
 
     FireflyGraphFeatures(FireflyGraph fireflyGraph) {
         this.fireflyGraph = fireflyGraph;
-        edgeFeatures = new FireflyEdgeFeatures(fireflyGraph.edgeIdManager);
-        vertexFeatures = new FireflyVertexFeatures(fireflyGraph.vertexIdManager);
-        vertexPropertyFeatures = new FireflyVertexPropertyFeatures(fireflyGraph.vertexPropertyIdManager);
+        edgeFeatures = new FireflyEdgeFeatures();
+        vertexPropertyFeatures = new FireflyVertexPropertyFeatures();
+        vertexFeatures = new FireflyVertexFeatures(vertexPropertyFeatures);
         graphFeatures = new FireflyGraphGraphFeatures();
     }
 
@@ -174,14 +175,11 @@ public class FireflyGraphFeatures implements Graph.Features {
     }
 
     public class FireflyVertexFeatures implements Graph.Features.VertexFeatures {
-        private final IdManager vertexIdManager;
-        private final FireflyVertexPropertyFeatures vertexPropertyFeatures =
-                new FireflyVertexPropertyFeatures(fireflyGraph.vertexPropertyIdManager);
+        private final FireflyVertexPropertyFeatures vertexPropertyFeatures;
 
-        public FireflyVertexFeatures(IdManager vertexIdManager) {
-            this.vertexIdManager = vertexIdManager;
+        public FireflyVertexFeatures(final FireflyVertexPropertyFeatures vertexPropertyFeatures) {
+            this.vertexPropertyFeatures = vertexPropertyFeatures;
         }
-
 
         @Override
         public boolean supportsNullPropertyValues() {
@@ -227,7 +225,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean willAllowId(final Object id) {
-            return supportsUserSuppliedIds() && vertexIdManager.allow(id.getClass());
+            return supportsUserSuppliedIds() && VERTEX_ID_TYPE_TO_HINT.containsKey(id.getClass());
         }
 
         @Override
@@ -239,10 +237,8 @@ public class FireflyGraphFeatures implements Graph.Features {
     public class FireflyEdgeFeatures implements Graph.Features.EdgeFeatures {
 
         private final Graph.Features.EdgePropertyFeatures edgePropertyFeatures = new FireflyEdgePropertyFeatures();
-        private final IdManager<?> edgeIdManager;
 
-        private FireflyEdgeFeatures(final IdManager<?> edgeIdManager) {
-            this.edgeIdManager = edgeIdManager;
+        private FireflyEdgeFeatures() {
         }
 
         @Override
@@ -287,7 +283,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean willAllowId(final Object id) {
-            return supportsUserSuppliedIds() && edgeIdManager.allow(id.getClass());
+            return supportsUserSuppliedIds();
         }
     }
 
@@ -369,10 +365,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
     public class FireflyVertexPropertyFeatures implements Graph.Features.VertexPropertyFeatures {
 
-        private final IdManager vertexPropertyIdManager;
-
-        private FireflyVertexPropertyFeatures(IdManager vertexPropertyIdManager) {
-            this.vertexPropertyIdManager = vertexPropertyIdManager;
+        private FireflyVertexPropertyFeatures() {
         }
 
         @Override
@@ -473,7 +466,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean willAllowId(final Object id) {
-            return supportsUserSuppliedIds() && vertexPropertyIdManager.allow(id.getClass());
+            return supportsUserSuppliedIds();
         }
     }
 }

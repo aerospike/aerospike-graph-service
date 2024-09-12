@@ -42,14 +42,14 @@ public class CompositeIdTest extends AbstractFireflySuite {
         Assert.assertTrue(fooInEdges.isEmpty());
         Assert.assertTrue(barOutEdges.isEmpty());
 
-        final FireflyId fooId = graph.getIdFactory().createId(foo.id(), FireflyVertex.class);
-        final FireflyId barId = graph.getIdFactory().createId(bar.id(), FireflyVertex.class);
-        final FireflyId bazId = graph.getIdFactory().createId(baz.id(), FireflyEdge.class);
+        final FireflyId fooId = graph.getIdFactory().createVertexId(foo.id());
+        final FireflyId barId = graph.getIdFactory().createVertexId(bar.id());
+        final FireflyEdgeId bazId = graph.getIdFactory().createEdgeId(baz.id());
         final FireflyId compositeFooId = graph.getIdFactory().createCompositeEdgeId(bazId, fooId);
         final FireflyId compositeBarId = graph.getIdFactory().createCompositeEdgeId(bazId, barId);
 
-        graph.getIdFactory().convertMapToLazyIdsInPlace(barInEdges, graph, FireflyVertex.class);
-        graph.getIdFactory().convertMapToLazyIdsInPlace(fooOutEdges, graph, FireflyVertex.class);
+        graph.getIdFactory().convertMapToLazyIdsInPlace(barInEdges, graph, LazyEdgeCacheIdTransform.class);
+        graph.getIdFactory().convertMapToLazyIdsInPlace(fooOutEdges, graph, LazyEdgeCacheIdTransform.class);
         final Map<String, List<LazyIdTransform>> barInFireflyIdMap = (Map) barInEdges;
         final Map<String, List<LazyIdTransform>> fooOutFireflyIdMap = (Map) fooOutEdges;
 

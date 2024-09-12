@@ -133,7 +133,7 @@ public class EdgeOperations implements Serializable {
                     if (partitionId == partitionToFailOn) {
                         // Wait so other partitions can complete before we fail this partition.
                         try {
-                            Thread.sleep(180000);
+                            Thread.sleep(300000);
                         } catch (final InterruptedException ignored) {
                         }
                         throw new RuntimeException("Testing recovery failure, please contact support.");

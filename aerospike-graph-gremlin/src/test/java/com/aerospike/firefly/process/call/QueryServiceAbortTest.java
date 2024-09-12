@@ -79,10 +79,12 @@ public class QueryServiceAbortTest {
                     throw new RuntimeException(e);
                 }
                 try {
+                    System.out.println("Scan " + finalI + " started.");
                     final var scan = g.V().has("propertyKey", String.valueOf(finalI));
                     while (scan.hasNext()) {
                         scan.next();
                     }
+                    System.out.println("Scan " + finalI + " finished.");
                     Assert.fail("Scan should have been aborted.");
                 } catch (final Exception e) {
                     if (e.getCause() instanceof AerospikeException) {
@@ -100,7 +102,8 @@ public class QueryServiceAbortTest {
             threadSuccesses.add(assertion);
         }
         barrier.await();
-        Thread.sleep(200);
+        Thread.sleep(400);
+        System.out.println("Aborting all scans.");
         Map<String, Integer> queryAbortResult = (Map<String, Integer>) g.call("aerospike.graph.admin.query.abort").next();
         Assert.assertEquals(scanCount, (int) queryAbortResult.get("found"));
         Assert.assertEquals(scanCount, (int) queryAbortResult.get("aborted"));

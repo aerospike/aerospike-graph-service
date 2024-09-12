@@ -43,7 +43,8 @@ public class TestFireflyBasicCall {
                     "aerospike.graph.admin.reserved.info",
                     "aerospike.graph.admin.metadata.version",
                     "aerospike.graph.admin.metadata.config",
-                    "aerospike.graph.admin.rbac-jwt.issue-token"
+                    "aerospike.graph.admin.rbac-jwt.issue-token",
+                    "aerospike.graph.admin.query.abort"
             ), new HashSet<>(normalOutput));
 
             // The verbose output is a list of strings that looks like, note the innards of the list is straight up string:
@@ -72,6 +73,7 @@ public class TestFireflyBasicCall {
                     case "{\"name\":\"aerospike.graph.admin.reserved.info\"":
                     case "{\"name\":\"aerospike.graph.admin.index.list\"":
                     case "{\"name\":\"aerospike.graph.admin.index.cardinality\"":
+                    case "{\"name\":\"aerospike.graph.admin.query.abort\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{}}");
                         break;

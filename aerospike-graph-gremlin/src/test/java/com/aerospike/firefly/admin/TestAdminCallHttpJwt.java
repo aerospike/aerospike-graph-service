@@ -342,7 +342,7 @@ public class TestAdminCallHttpJwt {
             final String adminToken = (String) g.call("aerospike.graph.admin.rbac-jwt.issue-token").with("username", "lyndon_admin").with("role", "ADMIN").with("expiry", 10).next();
             Assert.fail("Should not have been able to issue token with no role");
         } catch (final Exception e) {
-            Assert.assertEquals("org.apache.tinkerpop.gremlin.driver.exception.ResponseException: User does not have a valid role.", e.getMessage());
+            Assert.assertEquals("org.apache.tinkerpop.gremlin.driver.exception.ResponseException: Failed to authorize: Unknown error in gremlin-server", e.getMessage());
         }
     }
 
@@ -419,7 +419,7 @@ public class TestAdminCallHttpJwt {
 
     @BeforeClass
     public static void setup() {
-        server = FireflyServer.main(new String[]{"../conf/credentials-config/gremlin-server-authenticator.yaml"});
+        server = FireflyServer.start(new String[]{"../conf/credentials-config/gremlin-server-authenticator.yaml"});
     }
 
     @AfterClass

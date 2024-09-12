@@ -5,7 +5,6 @@ import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -60,7 +59,7 @@ public class GraphOperations {
         int tryCount = 0;
         while (true) {
             try {
-                graph.bulkWriteEdgesToVertexCache(graph.getIdFactory().createId(vertexId, FireflyVertex.class), direction, edgeIds, label);
+                graph.bulkWriteEdgesToVertexCache(graph.getIdFactory().createVertexId(vertexId), direction, edgeIds, label);
                 break;
             } catch (final FireflyLoadingException e) {
                 final AerospikeException cause = e.getCause();
@@ -70,8 +69,9 @@ public class GraphOperations {
                             LOGGER.warn("Failed to write edges with label " + label + " into " + direction +
                                     " edge cache for vertex ID " + vertexId + " due to vertex record key not found.");
                             for (final Value edgeId: edgeIds) {
-                                final byte[] edgeIdByte = (byte[]) edgeId.getObject();
-                                invalidEdgeIds.add(edgeIdByte);
+                                final byte[] edgeIdBytes = (byte[]) edgeId.getObject();
+                                final FireflyIdComposite compositeId = graph.getIdFactory().createCompositeEdgeId(edgeIdBytes);
+                                invalidEdgeIds.add(compositeId.getEdgeIdBytes().array());
                             }
                             graph.writeBadEdge(vertexId, edgeIds.size());
                             break;
@@ -126,16 +126,10 @@ public class GraphOperations {
 
     public static void dropDetachedEdges(final FireflyGraph graph, final Set<byte[]> invalidEdgeIds,
                                          final long allowedDetachedEdges) {
-        final Set<FireflyIdComposite> invalidEdges = new HashSet<>();
-        invalidEdgeIds.forEach(idBytes -> {
-            final FireflyIdComposite id = new FireflyIdComposite(graph.getBaseGraph(), idBytes);
-            invalidEdges.add(id);
-        });
-
         int counterTryCount = 0;
         while (true) {
             try {
-                final long badEdgeCount = graph.getBaseGraph().incrementAndGetBadEdgeCount(invalidEdges.size());
+                final long badEdgeCount = graph.getBaseGraph().incrementAndGetBadEdgeCount(invalidEdgeIds.size());
                 if (badEdgeCount > allowedDetachedEdges) {
                     throw new RuntimeException(BAD_EDGE_COUNT_EXCEEDED);
                 }
@@ -162,7 +156,7 @@ public class GraphOperations {
 
         final GraphTraversalSource g = graph.traversal();
 
-        for (final FireflyIdComposite id : invalidEdges) {
+        for (final byte[] id : invalidEdgeIds) {
             int tryCount = 0;
             while (true) {
                 try {

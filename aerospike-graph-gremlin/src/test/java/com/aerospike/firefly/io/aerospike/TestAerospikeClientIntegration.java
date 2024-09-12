@@ -97,13 +97,13 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
-        FireflyRecord.writeElement(db, db.TEST_SET, FireflyIdPoly.fromObject((String) id, db.TEST_SET), -1, bin1, bin2, bin3);
-        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, FireflyIdPoly.fromObject((String) id, db.TEST_SET))).record().getInt("age"), 32);
+        FireflyRecord.writeElement(db, db.TEST_SET, db.getIdFactory().getTestId(id), -1, bin1, bin2, bin3);
+        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, db.getIdFactory().getTestId(id))).record().getInt("age"), 32);
     }
 
     @Test
     public void testBasicDelete() {
-        FireflyId id = FireflyIdPoly.fromObject("1", db.TEST_SET);
+        FireflyId id = db.getIdFactory().getTestId("1");
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
@@ -155,7 +155,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void testFireflyRecordIntegerId() {
-        FireflyId intId = FireflyIdPoly.fromObject(1, db.TEST_SET);
+        FireflyId intId = db.getIdFactory().getTestId(1);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
         FireflyRecord.writeElement(db, db.TEST_SET, intId, -1, bin21, bin22);
@@ -165,7 +165,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void testFireflyRecordLongId() {
-        FireflyId fid = FireflyIdPoly.fromObject(1L, db.TEST_SET);
+        FireflyId fid = db.getIdFactory().getTestId(1L);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
         FireflyRecord.writeElement(db, db.TEST_SET, fid, -1, bin21, bin22);
@@ -337,8 +337,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
                     iterate();
             assertEquals(3L, g.V().count().next().longValue());
 
-            // "123", 1234, and 12345L were inserted and should be retrieved as such.
             final Set<Vertex> actualVertices = g.V().toSet();
+            // "123", 1234, and 12345L were inserted and should be retrieved as such.
             final Set<Object> expectedIds = ImmutableSet.of("123", 1234, 12345L);
             final Set<Object> actualIds = actualVertices.stream().map(Vertex::id).collect(Collectors.toSet());
             assertEquals(expectedIds, actualIds);
@@ -422,8 +422,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
             graph.traversal().V().drop().iterate();
             sleep(2000);
-            final Iterator<FireflyId> vertexKeys = GraphQuery.create(graph).scanVertexIds();
-            final Iterator<FireflyId> edgeKeys = GraphQuery.create(graph).scanEdgeIds();
+            final Iterator<FireflyId> vertexKeys = GraphQuery.create(graph).scanVertexIds(evaluationTimeout);
+            final Iterator<FireflyId> edgeKeys = GraphQuery.create(graph).scanEdgeIds(evaluationTimeout);
             assertFalse(vertexKeys.hasNext());
             assertFalse(edgeKeys.hasNext());
         } finally {
@@ -451,7 +451,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final long edgeRawId = 3L;
         final long additionalEdgeRawId = 4L;
         final long vertexRawId = 1L;
-        final FireflyId vertexFid = FireflyIdPoly.fromObject(vertexRawId, db.TEST_SET);
+        final FireflyId vertexFid = db.getIdFactory().getTestId(vertexRawId);
         final Map<String, List<Long>> labelEdges = new TreeMap<>();
         labelEdges.put(edgeLabel, new ArrayList<>() {{
             add(edgeRawId);
@@ -487,7 +487,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final long edgeRawId = 3L;
         final long additionalEdgeRawId = 4L;
         final long vertexRawId = 1L;
-        final FireflyId vertexFid = FireflyIdPoly.fromObject(vertexRawId, db.TEST_SET);
+        final FireflyId vertexFid = db.getIdFactory().getTestId(vertexRawId);
         final Map<String, List<Long>> labelEdges = new TreeMap<>();
 
         final Bin edgeDataBin = new Bin(edgeDirection, Value.get(labelEdges));

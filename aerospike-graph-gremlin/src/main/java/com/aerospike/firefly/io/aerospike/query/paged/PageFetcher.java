@@ -6,6 +6,7 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,7 +126,8 @@ public abstract class PageFetcher<E> {
         private CloseableIterator<KeyRecord> currentIterator = FireflyCloseableIterator.EmptyCloseableIterator.instance();;
         private boolean isEmpty = false;
         private boolean isClosed = false;
-        private String error = NO_ERROR;
+        private String errorMessage = NO_ERROR;
+        private Throwable error = null;
 
         private void removePage() {
             // Check if possible.
@@ -138,24 +140,25 @@ public abstract class PageFetcher<E> {
             }
 
             try {
+                if (Thread.currentThread().isInterrupted()) {
+                    close();
+                    throw new TraversalInterruptedException();
+                }
                 final Page page = pageQueue.take();
                 if (page instanceof PoisonPill) {
                     isEmpty = true;
                     return;
                 } else if (page instanceof ErrorPage) {
                     final ErrorPage errorPage = (ErrorPage) page;
-                    error = errorPage.isIndexDropError() ? INDEX_DROPPED : errorPage.errorMessage;
+                    errorMessage = errorPage.isIndexDropError() ? INDEX_DROPPED : errorPage.errorMessage;
+                    error = errorPage.exception;
                     return;
                 }
 
                 currentIterator = page.keyRecords;
             } catch (final InterruptedException e) {
-                final StringBuilder err = new StringBuilder("Error thread interrupted while removing page:\n");
-                final StackTraceElement[] stackTraceElements = e.getStackTrace();
-                for (final StackTraceElement stackTraceElement : stackTraceElements) {
-                    err.append("\t").append(stackTraceElement.toString()).append("\n");
-                }
-                error = err.toString();
+                close();
+                throw new TraversalInterruptedException();
             }
         }
 
@@ -171,7 +174,7 @@ public abstract class PageFetcher<E> {
 
             while (!currentIterator.hasNext()) {
                 removePage();
-                if (!NO_ERROR.equals(error)) {
+                if (!NO_ERROR.equals(errorMessage)) {
                     return true;
                 }
                 if (isEmpty) {
@@ -184,10 +187,14 @@ public abstract class PageFetcher<E> {
 
         @Override
         public E next() {
+            if (Thread.currentThread().isInterrupted()) {
+                close();
+                throw new TraversalInterruptedException();
+            }
             if (!hasNext()) {
                 throw new NoSuchElementException();
             } else {
-                if (INDEX_DROPPED.equals(error)) {
+                if (INDEX_DROPPED.equals(errorMessage)) {
                     try {
                         graph.fireflyIndexMetadata.updateMetadata();
                     } catch (final Exception e) {
@@ -203,8 +210,8 @@ public abstract class PageFetcher<E> {
                     sb.append(" seconds and try again.");
                     throw new RuntimeException(sb.toString());
                 }
-                if (!NO_ERROR.equals(error)) {
-                    throw new RuntimeException(error);
+                if (!NO_ERROR.equals(errorMessage)) {
+                    throw new RuntimeException(errorMessage, error);
                 }
                 return transformKeyRecord.transform(currentIterator.next());
             }

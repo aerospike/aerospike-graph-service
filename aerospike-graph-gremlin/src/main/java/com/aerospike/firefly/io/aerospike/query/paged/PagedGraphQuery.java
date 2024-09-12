@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io.aerospike.query.paged;
 
+import com.aerospike.client.Key;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.BatchPolicy;
@@ -19,6 +20,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.stream.Collectors;
+
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
 
 public class PagedGraphQuery implements GraphQuery {
     private static final Logger LOG = LoggerFactory.getLogger(PagedGraphQuery.class);
@@ -39,10 +43,11 @@ public class PagedGraphQuery implements GraphQuery {
     public <E> Iterator<E> scanSet(final String mapKey, final String setName, final String binName, final P<?> predicate,
                                    final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
                                    final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
-                                   final String... binNames) {
+                                   final Long evaluationTimeout, final String... binNames) {
         final ScanPolicy policy = new ScanPolicy();
         policy.sendKey = sendKey;
         policy.includeBinData = includeBinData;
+        policy.setTimeout(evaluationTimeout.intValue());
         // Build expression using predicate.
         if (predicate != null) {
             final Exp exp = GraphQueryHelper.predicateToExpression(db, binName, mapKey, predicate);
@@ -77,10 +82,12 @@ public class PagedGraphQuery implements GraphQuery {
     public <E> BlockingQueue<PageFetcher.Page> scanSetPagesBlocking(final String mapKey, final String setName, final String binName, final P<?> predicate,
                                                             final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
                                                             final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
-                                                            final String... binNames) {
+                                                            final Long evaluationTimeout, final String... binNames) {
         final ScanPolicy policy = new ScanPolicy();
         policy.sendKey = sendKey;
         policy.includeBinData = includeBinData;
+        policy.setTimeout(evaluationTimeout.intValue());
+
         // Build expression using predicate.
         if (predicate != null) {
             final Exp exp = GraphQueryHelper.predicateToExpression(db, binName, mapKey, predicate);
@@ -136,13 +143,32 @@ public class PagedGraphQuery implements GraphQuery {
     }
 
     @Override
-    public <E> BlockingQueue<PageFetcher.Page> batchReadSetPagesBlocking(final FireflyGraph graph, BatchPolicy policy,
-                                                                         final Class<? extends FireflyElement> type,
-                                                                         final Expression expression,
-                                                                         final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
-                                                                         final List<Object> idsToRead) {
-        final PageFetcher<E> pageFetcher = new BatchReadPageFetcher<>(graph, policy, type, db.PAGINATION_PAGE_SIZE,
-                db.PAGINATION_PAGE_SIZE, expression, transformKeyRecord, idsToRead);
+    public <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(final FireflyGraph graph, BatchPolicy policy,
+                                                                            final Expression expression,
+                                                                            final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
+                                                                            final List<Object> idsToRead) {
+
+        if (idsToRead.size() == 1 && idsToRead.get(0) instanceof P) {
+            // Passed in as P.within([id1, id2, ...])
+            final P p = (P) idsToRead.get(0);
+            if (!p.getBiPredicate().toString().equals("within")) {
+                throw new IllegalArgumentException("Batch read only supports within predicate");
+            }
+            if (!(p.getValue() instanceof List)) {
+                throw new IllegalArgumentException("Batch read only supports a single list of keys");
+            }
+            idsToRead.clear();
+            idsToRead.addAll((List) p.getValue());
+        }
+
+        final List<Key> keysToRead = idsToRead.stream().
+                map(id -> graph.getIdFactory().createVertexId(id)).
+                map(vertexId -> getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, vertexId)).
+                collect(Collectors.toList());
+
+        final PageFetcher<E> pageFetcher = new BatchReadPageFetcher<>(graph, policy, db.PAGINATION_PAGE_SIZE,
+                db.PAGINATION_PAGE_SIZE, expression, transformKeyRecord, keysToRead);
+
         return pageFetcher.startQueryPagesDirect();
     }
 }

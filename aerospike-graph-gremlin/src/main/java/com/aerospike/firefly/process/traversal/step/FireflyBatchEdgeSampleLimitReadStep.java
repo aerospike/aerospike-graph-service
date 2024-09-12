@@ -9,6 +9,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
@@ -34,7 +35,7 @@ import java.util.stream.LongStream;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyBatchEdgeSampleLimitReadStep extends CollectingBarrierStep<Edge> {
+public class FireflyBatchEdgeSampleLimitReadStep extends CollectingBarrierStep<Edge> implements LocalBarrier<Edge> {
     private final Direction direction;
     private final Set<String> edgeLabels;
     public final List<HasContainer> fireflyHasContainers;

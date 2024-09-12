@@ -1,4 +1,4 @@
-name: Publish Firefly Container
+name: Publish Aerospike Graph Release Candidate
 
 # Publish the container if a tag of 'vX.Y.Z-rcW' is made.
 # Example: v0.0.1-rc1, v0.1.0-rc2, v1.0.0-rc3, etc.
@@ -50,7 +50,7 @@ jobs:
           path: aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar
 
   publish-github:
-    name: Publish Firefly Docker Image - GitHub
+    name: Publish Aerospike Graph Docker Image - GitHub - Release Candidate
     permissions:
       packages: write
       contents: read

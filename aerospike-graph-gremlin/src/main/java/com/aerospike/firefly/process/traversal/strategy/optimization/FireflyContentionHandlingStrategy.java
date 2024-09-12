@@ -28,6 +28,8 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
     private final FireflyStrategyBase fireflyVertexEdgeLocalCountStrategy;
     private final FireflyStrategyBase fireflyScanProfileStrategy;
     private final FireflyStrategyBase fireflyAuthenticationStrategy;
+    private final FireflyStrategyBase fireflyAdjacentVertexIdStrategy;
+    private final FireflyStrategyBase fireflyBatchOtherVReadStrategy;
     private final FireflyStrategyBase fireflyCompositeEdgeIdLocalStrategy;
     private final FireflyStrategyBase fireflyBatchEdgeReadLocalStrategy;
     private final FireflyStrategyBase fireflyCountGlobalLocalStrategy;
@@ -49,6 +51,8 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         this.fireflyCompositeEdgeIdLocalStrategy = new FireflyCompositeEdgeIdLocalStrategy();
         this.fireflyBatchEdgeReadLocalStrategy = new FireflyBatchEdgeReadLocalStrategy();
         this.fireflyCountGlobalLocalStrategy = new FireflyCountGlobalLocalStrategy();
+        this.fireflyAdjacentVertexIdStrategy = new FireflyAdjacentVertexIdStrategy();
+        this.fireflyBatchOtherVReadStrategy = new FireflyBatchOtherVReadStrategy();
     }
 
     /**
@@ -103,6 +107,9 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         applyStrategy(traversal, fireflyGraphCountStrategy);
         applyStrategy(traversal, fireflyCountGlobalLocalStrategy);
 
+        // This step replaces out/in.id() with single step.
+        applyStrategy(traversal, fireflyAdjacentVertexIdStrategy);
+
         // Steps that are generally applicable to most all traversals.
         fireflyGraphStepStrategy.setSteps(internalStepClasses);
         applyStrategy(traversal, fireflyGraphStepStrategy);
@@ -118,6 +125,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         applyStrategy(traversal, fireflyCompositeEdgeIdLocalStrategy);
         fireflyCompositeEdgeIdLocalStrategy.setSteps(internalStepClasses);
         applyStrategy(traversal, fireflyBatchEdgeReadStrategy);
+        applyStrategy(traversal, fireflyBatchOtherVReadStrategy);
         applyStrategy(traversal, fireflyBatchEdgeReadLocalStrategy);
         applyStrategy(traversal, fireflyScanProfileStrategy);
     }

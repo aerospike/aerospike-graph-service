@@ -12,12 +12,10 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
-import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -43,7 +41,7 @@ public class FireflyTtlHandler implements Closeable {
 
     public FireflyTtlHandler(final FireflyGraph graph) {
         this.graph = graph;
-        this.isTtlEnabled = graph.getBaseGraph().TTL_ENABLED_FLAG;
+        this.isTtlEnabled = graph.getBaseGraph().TTL_ENABLED_FLAG && !graph.bulkLoaderFlag;
         this.ttlPurgeIntervalMillis = graph.getBaseGraph().TTL_PURGE_INTERVAL_SECONDS * 1000;
         this.thisRunTime = new AtomicLong();
         if (this.isTtlEnabled) {
@@ -145,8 +143,7 @@ public class FireflyTtlHandler implements Closeable {
                     final long expiryTime = edgeTtl.getValue();
                     // Need this check since phat edge TTL bin map can contain entries outside of index range
                     if (expiryTime <= currentEdgeDeleteTime) {
-                        final FireflyId edgeId = new FireflyPhatEdgeId((ByteBuffer) edgeTtl.getKey(),
-                                db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
+                        final FireflyId edgeId = db.getIdFactory().createEdgeId(edgeTtl.getKey());
                         final FireflyEdge edge = FireflyEdge.FireflyEdgeFactory.create(edgeId, edgeRecord, graph);
                         if (edge != null) {
                             try {

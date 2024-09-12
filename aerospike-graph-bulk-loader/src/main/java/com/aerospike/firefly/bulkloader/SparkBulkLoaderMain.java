@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -36,6 +37,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
         if (!RUNNING_JOBS.isEmpty()) {
             throw new IllegalStateException(JOB_ALREADY_RUNNING);
         }
+        System.setProperty("BULK_LOADING", "true");
 
         // Make as daemon so it doesn't hang L3.
         final ExecutorService executor = Executors.newSingleThreadExecutor(
@@ -75,6 +77,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             } catch (InterruptedException e) {
                 LOGGER.error("Failed to shutdown executor", e);
             }
+            System.clearProperty("BULK_LOADING");
             RUNNING_JOBS.remove(uuid);
         }
     }

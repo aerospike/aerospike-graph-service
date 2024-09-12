@@ -28,10 +28,10 @@ import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
 import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
+import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
-import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.FireflyHelper;
@@ -48,7 +48,6 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -61,7 +60,6 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.fromAddingEdge;
 import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.fromAddingProperty;
-import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.getUserIdString;
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
@@ -171,14 +169,15 @@ public class FireflyEdge extends FireflyElement implements Edge {
         edgeData.add(OUT_V_POSITION, Value.get(outVertex.id.getKeyHashString()));
 
         // Write to supernodes bin if vertex cache overflowed.
+        final Value edgeIdkey = Value.get(((FireflyEdgeId) edgeId).getEdgeIdBytes());
         if (!inVertexCacheWrite) {
             final Operation writeInVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_IN_BIN,
-                    Value.get(edgeId.getUserId()), Value.get(inVertex.id.getKeyHashString()));
+                    edgeIdkey, Value.get(inVertex.id.getKeyHashString()));
             operations.add(writeInVSupernode);
         }
         if (!outVertexCacheWrite) {
             final Operation writeOutVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_OUT_BIN,
-                    Value.get(edgeId.getUserId()), Value.get(outVertex.id.getKeyHashString()));
+                    edgeIdkey, Value.get(outVertex.id.getKeyHashString()));
             operations.add(writeOutVSupernode);
         }
 
@@ -193,7 +192,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
             if (Number.class.isAssignableFrom(ttlValue.getClass())) {
                 ttlValueLong = ((Number) ttlValue).longValue();
                 final long expirationTime = System.currentTimeMillis() + (ttlValueLong * 1000);
-                final Operation writeTtl = MapOperation.put(edgeMapPolicy, db.TTL_BIN, Value.get(edgeId.getUserId()),
+                final Operation writeTtl = MapOperation.put(edgeMapPolicy, db.TTL_BIN, edgeIdkey,
                         Value.get(expirationTime));
                 operations.add(writeTtl);
             } else {
@@ -213,7 +212,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
         // Create Operation for writing Edge data.
         final Operation createIndividualEdgeMap = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN,
-                Value.get(edgeId.getUserId()), Value.get(edgeData));
+                edgeIdkey, Value.get(edgeData));
         operations.add(createIndividualEdgeMap);
 
         final WritePolicy writePolicy = new WritePolicy();
@@ -416,12 +415,13 @@ public class FireflyEdge extends FireflyElement implements Edge {
         final AerospikeConnection db = graph.getBaseGraph();
         final Key key = getKey(db, db.EDGE_AERO_SET, id);
         final List<Operation> operations = new ArrayList<>();
+        final Value idKey = Value.get(((FireflyEdgeId) id).getEdgeIdBytes());
 
-        final Operation removeEdgeData = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(id.getUserId()), MapReturnType.VALUE);
+        final Operation removeEdgeData = MapOperation.removeByKey(db.EDGE_DATA_BIN, idKey, MapReturnType.VALUE);
         operations.add(removeEdgeData);
-        final Operation removeSupernodesIn = MapOperation.removeByKey(db.SUPERNODES_IN_BIN, Value.get(id.getUserId()), MapReturnType.NONE);
+        final Operation removeSupernodesIn = MapOperation.removeByKey(db.SUPERNODES_IN_BIN, idKey, MapReturnType.NONE);
         operations.add(removeSupernodesIn);
-        final Operation removeSupernodesOut = MapOperation.removeByKey(db.SUPERNODES_OUT_BIN, Value.get(id.getUserId()), MapReturnType.NONE);
+        final Operation removeSupernodesOut = MapOperation.removeByKey(db.SUPERNODES_OUT_BIN, idKey, MapReturnType.NONE);
         operations.add(removeSupernodesOut);
         if (db.isSupernodePushdownEnabled) {
             for (final Map.Entry<String, Object> property : this.properties.entrySet()) {
@@ -498,7 +498,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
             }
         }
         if (db.TTL_ENABLED_FLAG) {
-            final Operation removeTtl = MapOperation.removeByKey(db.TTL_BIN, Value.get(id.getUserId()), MapReturnType.NONE);
+            final Operation removeTtl = MapOperation.removeByKey(db.TTL_BIN, idKey, MapReturnType.NONE);
             operations.add(removeTtl);
         }
 
@@ -546,47 +546,38 @@ public class FireflyEdge extends FireflyElement implements Edge {
                 // Check edgeData value was returned to protect against concurrent deletes.
                 // If this Edge was already removed edgeData returns null and this check returns false.
                 if (edgeData instanceof List) {
-                    graph.edgeIdManager.recycleId(id);
+                    graph.getIdFactory().recycleEdgeId(id);
                     final String label = (String) ((List<?>) edgeData).get(LABEL_POSITION);
                     graph.fireflySummaryUpdater.addEdgeRemoveToQueue(label);
                 } else if (edgeData != null) {
                     // This should never happen.
                     throw new RuntimeException("Individual Edge data in Phat Edge returned as type that is of type: " + edgeData.getClass());
                 }
-                LOG.debug("Ignoring exception when deleting Edge with id " + getUserIdString(id.getUserId()) + " since it was not found.");
+                LOG.debug("Ignoring exception when deleting Edge with id {} since it was not found.", id.getUserId());
             }
         } catch (final ElementNotFoundException e) {
             // This tends to occur when deleting multiple vertices in a single traversal where the Edge lives in between
             // the to-be-deleted vertices.
-            LOG.debug("Ignoring exception when deleting Edge with id " + getUserIdString(id.getUserId()) + " since it was not found.");
+            LOG.debug("Ignoring exception when deleting Edge with id {} since it was not found.", id.getUserId());
         } catch (final AerospikeException e) {
             if (e.getResultCode() != ResultCode.GENERATION_ERROR) {
                 throw e;
             }
-            LOG.debug("Regenerating supernode Edge with id " + getUserIdString(id.getUserId()) + "to clean up supernode property bin.");
+            LOG.debug("Regenerating supernode Edge with id {} to clean up supernode property bin.", id.getUserId());
             final List<FireflyEdge> edges = readEdges(graph, List.of(this.id));
             // If no edges come back that's okay, because it means a different traversal has cleaned up this edge.
             if (!edges.isEmpty()) {
                 if (edges.size() > 1) {
                     // This should never happen.
-                    final String message = "Regeneration of supernode edge during delete returned multiple edges for a single id: " + getUserIdString(id.getUserId());
+                    final String message = "Regeneration of supernode edge during delete returned multiple edges for a single id: " + id.getUserId();
                     LOG.error(message);
                     throw new IllegalStateException(message);
                 }
                 edges.get(0).removeEdge();
             }
-            LOG.debug("Generation check retry failed when regenerating Edge with id " + getUserIdString(id.getUserId()) + " since it was not found.");
+            LOG.debug("Generation check retry failed when regenerating Edge with id {} since it was not found.", id.getUserId());
         }
         this.removed = true;
-    }
-
-    @Override
-    public Object id() {
-        return getBase64UserIdString(this.id);
-    }
-
-    static private String getBase64UserIdString(final FireflyId id) {
-        return Base64.getEncoder().encodeToString(((ByteBuffer) id.getUserId()).array());
     }
 
     /**
@@ -597,6 +588,14 @@ public class FireflyEdge extends FireflyElement implements Edge {
     public void removePropertyFromCache(final String key) {
         properties.remove(key);
         typeHints.remove(key);
+    }
+
+    public FireflyId outVertexId() {
+        return outVid;
+    }
+
+    public FireflyId inVertexId() {
+        return inVid;
     }
 
     @Override
@@ -707,6 +706,9 @@ public class FireflyEdge extends FireflyElement implements Edge {
         removeEdge();
         removeFromOut();
         removeFromIn();
+        if (graph.getBaseGraph().IS_AUDIT_LOG_ENABLED) {
+            LOG.info("[{}] Dropped edge [{}]-[{}]>[{}].", graph.getUser(), outVertex().id(), label, inVertex().id());
+        }
     }
 
     public void removeSelfAndFromOut() {
@@ -720,7 +722,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
             final FireflyVertex outVertex = this.graph.readVertex(this.outVid);
             if (outVertex != null) {
                 final FireflyIdFactory idFactory = this.graph.getIdFactory();
-                outVertex.removeEdge(Direction.OUT, idFactory.createCompositeEdgeId(this.id, this.inVid), this.label);
+                outVertex.removeEdge(Direction.OUT, (FireflyPhatEdgeId) this.id, this.label);
             }
         }
     }
@@ -736,7 +738,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
             final FireflyVertex inVertex = this.graph.readVertex(this.inVid);
             if (inVertex != null) {
                 final FireflyIdFactory idFactory = this.graph.getIdFactory();
-                inVertex.removeEdge(Direction.IN, idFactory.createCompositeEdgeId(this.id, this.outVid), this.label);
+                inVertex.removeEdge(Direction.IN, (FireflyPhatEdgeId) this.id, this.label);
             }
         }
     }
@@ -776,7 +778,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
                                                 final String propertyKey, final V value) {
         final AerospikeConnection db = graph.getBaseGraph();
         final Key key = getKey(db, db.EDGE_AERO_SET, edge.id);
-        final Value edgeIdMapKey = Value.get(edge.id.getUserId());
+        final Value edgeIdMapKey = Value.get(((FireflyEdgeId) edge.id).getEdgeIdBytes());
 
         final List<Operation> operations = new ArrayList<>();
 
@@ -828,7 +830,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
     private void setTtl(final long durationSeconds) {
         final Key key = getKey(this.db, this.db.EDGE_AERO_SET, this.id);
         final long expirationTime = System.currentTimeMillis() + (durationSeconds * 1000);
-        final Value edgeIdMapKey = Value.get(this.id.getUserId());
+        final Value edgeIdMapKey = Value.get(((FireflyEdgeId) this.id).getEdgeIdBytes());
 
         final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
         final Operation writeTtl = MapOperation.put(policy, db.TTL_BIN, edgeIdMapKey, Value.get(expirationTime));
@@ -885,7 +887,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
                 return null;
             }
             final AerospikeConnection db = graph.getBaseGraph();
-            final ByteBuffer edgeIdMapKey = (ByteBuffer) edgeId.getUserId();
+            final ByteBuffer edgeIdMapKey = ((FireflyEdgeId) edgeId).getEdgeIdBytes();
             final Map<ByteBuffer, List> edgeData = (Map<ByteBuffer, List>) record.getMap(db.EDGE_DATA_BIN);
             // Implicitly assume that if the key is found for label, which is required, then the key exists for the
             // other phat edge maps, since they are all written in the same operate.
@@ -895,18 +897,18 @@ public class FireflyEdge extends FireflyElement implements Edge {
             final String label = (String) edgeData.get(edgeIdMapKey).get(LABEL_POSITION);
 
             final String outV = (String) edgeData.get(edgeIdMapKey).get(OUT_V_POSITION);
-            final FireflyId outVertex = FireflyIdPoly.fromHashString(outV, db.VERTEX_AERO_SET);
+            final FireflyId outVertex = db.getIdFactory().createVertexIdFromHash(outV);
 
             final String inV = (String) edgeData.get(edgeIdMapKey).get(IN_V_POSITION);
-            final FireflyId inVertex = FireflyIdPoly.fromHashString(inV, db.VERTEX_AERO_SET);
+            final FireflyId inVertex = db.getIdFactory().createVertexIdFromHash(inV);
 
             final Map<String, Object> properties = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(PROPERTIES_POSITION);
             final Map<String, Object> typeHints = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(TYPE_HINTS_POSITION);
 
             final Map<ByteBuffer, String> outSupernodes = (Map<ByteBuffer, String>) record.getMap(graph.getBaseGraph().SUPERNODES_OUT_BIN);
             final Map<ByteBuffer, String> inSupernodes = (Map<ByteBuffer, String>) record.getMap(graph.getBaseGraph().SUPERNODES_IN_BIN);
-            final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(edgeId.getUserId());
-            final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(edgeId.getUserId());
+            final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(edgeIdMapKey);
+            final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(edgeIdMapKey);
 
             return create(edgeId, label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, record.generation);
         }

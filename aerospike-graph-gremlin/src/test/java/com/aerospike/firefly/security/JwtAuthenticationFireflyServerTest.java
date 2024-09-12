@@ -3,6 +3,7 @@ package com.aerospike.firefly.security;
 import com.aerospike.firefly.runtime.FireflyServer;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -73,7 +74,7 @@ public class JwtAuthenticationFireflyServerTest {
 
     @BeforeClass
     public static void setup() {
-        server = FireflyServer.main(new String[]{"../conf/credentials-config/gremlin-server-authenticator.yaml"});
+        server = FireflyServer.start(new String[]{"../conf/credentials-config/gremlin-server-authenticator.yaml"});
     }
 
     @AfterClass
@@ -90,8 +91,16 @@ public class JwtAuthenticationFireflyServerTest {
         return traversal().withRemote(drc);
     }
 
+    private static Client getClient(final String username, final String jwt) {
+        final Cluster cluster = Cluster.build()
+                .addContactPoint("localhost").port(8182)
+                .credentials(username, jwt)
+                .create();
+        return cluster.connect();
+    }
+
     @Test
-    public void testServerAuthInvalidUserMatch() {
+    public void testInvalidUserMatch() {
         final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", invalidUser);
         Assert.assertThrows(
                 "User does not match token subject",
@@ -99,7 +108,15 @@ public class JwtAuthenticationFireflyServerTest {
     }
 
     @Test
-    public void testServerAuthInvalidUserMismatch2() {
+    public void testScriptInvalidUserMatch() {
+        final Client client = getClient("lyndon_username", invalidUser);
+        Assert.assertThrows(
+                "User does not match token subject",
+                RuntimeException.class, () ->  readQuery(client));
+    }
+
+    @Test
+    public void testInvalidUserMismatch2() {
         final GraphTraversalSource g = getGraphTraversalSource("invalid_username", validRead);
         Assert.assertThrows(
                 "User does not match token subject",
@@ -107,7 +124,15 @@ public class JwtAuthenticationFireflyServerTest {
     }
 
     @Test
-    public void testServerAuthInvalidIssuer() {
+    public void testScriptInvalidUserMismatch2() {
+        final Client client = getClient("invalid_username", validRead);
+        Assert.assertThrows(
+                "User does not match token subject",
+                RuntimeException.class, () -> readQuery(client));
+    }
+
+    @Test
+    public void testInvalidIssuer() {
         final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", invalidIssuer);
         Assert.assertThrows(
                 "Failed to authenticate",
@@ -115,7 +140,15 @@ public class JwtAuthenticationFireflyServerTest {
     }
 
     @Test
-    public void testServerAuthInvalidSecret() {
+    public void testScriptInvalidIssuer() {
+        final Client client = getClient("lyndon_username", invalidIssuer);
+        Assert.assertThrows(
+                "Failed to authenticate",
+                CompletionException.class, () -> readQuery(client));
+    }
+
+    @Test
+    public void testInvalidSecret() {
         final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", invalidSecret);
         Assert.assertThrows(
                 "Failure to validate credentials: The Token's Signature resulted invalid when verified using the Algorithm: HmacSHA256",
@@ -123,7 +156,15 @@ public class JwtAuthenticationFireflyServerTest {
     }
 
     @Test
-    public void testServerAuthInvalidRole() {
+    public void testScriptInvalidSecret() {
+        final Client client = getClient("lyndon_username", invalidSecret);
+        Assert.assertThrows(
+                "Failure to validate credentials: The Token's Signature resulted invalid when verified using the Algorithm: HmacSHA256",
+                CompletionException.class, () -> readQuery(client));
+    }
+
+    @Test
+    public void testInvalidRole() {
         final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", invalidRole);
         Assert.assertThrows(
                 "User does not have write access.",
@@ -131,7 +172,15 @@ public class JwtAuthenticationFireflyServerTest {
     }
 
     @Test
-    public void testServerAuthNullUser() {
+    public void testScriptInvalidRole() {
+        final Client client = getClient("lyndon_username", invalidRole);
+        Assert.assertThrows(
+                "User does not have write access.",
+                RuntimeException.class, () -> readQuery(client));
+    }
+
+    @Test
+    public void testNullUser() {
         final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", nullUsername);
         Assert.assertThrows(
                 "User does not match token subject",
@@ -139,15 +188,30 @@ public class JwtAuthenticationFireflyServerTest {
     }
 
     @Test
-    public void testServerAuthNullIssuer() {
+    public void testScriptNullUser() {
+        final Client client = getClient("lyndon_username", nullUsername);
+        Assert.assertThrows(
+                "User does not match token subject",
+                CompletionException.class, () -> readQuery(client));
+    }
+
+    @Test
+    public void testNullIssuer() {
         final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", nullIssuer);
         Assert.assertThrows(
                 "Failure to validate credentials: The Claim 'iss' is not present in the JWT.",
                 CompletionException.class, () -> g.V().toList());
     }
+    @Test
+    public void testScriptNullIssuer() {
+        final Client client = getClient("lyndon_username", nullIssuer);
+        Assert.assertThrows(
+                "Failure to validate credentials: The Claim 'iss' is not present in the JWT.",
+                CompletionException.class, () -> readQuery(client));
+    }
 
     @Test
-    public void testServerAuthInvalidRole2() {
+    public void testInvalidRole2() {
         final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", invalidRole2);
         Assert.assertThrows(
                 "User does not have read access.",
@@ -155,11 +219,27 @@ public class JwtAuthenticationFireflyServerTest {
     }
 
     @Test
-    public void testServerAuthNullRole() {
+    public void testScriptInvalidRole2() {
+        final Client client = getClient("lyndon_username", invalidRole2);
+        Assert.assertThrows(
+                "User does not have read access.",
+                RuntimeException.class, () -> readQuery(client));
+    }
+
+    @Test
+    public void testNullRole() {
         final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", nullRole);
         Assert.assertThrows(
                 "User does not have read access.",
                 RuntimeException.class, () -> g.V().toList());
+    }
+
+    @Test
+    public void testScriptNullRole() {
+        final Client client = getClient("lyndon_username", nullRole);
+        Assert.assertThrows(
+                "User does not have read access.",
+                RuntimeException.class, () -> readQuery(client));
     }
 
     @Test
@@ -176,6 +256,18 @@ public class JwtAuthenticationFireflyServerTest {
     }
 
     @Test
+    public void testScriptReadOnly() {
+        final Client client = getClient("lyndon_username", validRead);
+        readQuery(client);
+        Assert.assertThrows(
+                "User does not have write access.",
+                RuntimeException.class, () -> writeQuery(client));
+        Assert.assertThrows(
+                "User does not have admin access.",
+                RuntimeException.class, () -> callQuery(client));
+    }
+
+    @Test
     public void testWriteOnly() {
         final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", validWrite);
         g.V().toList();
@@ -187,10 +279,47 @@ public class JwtAuthenticationFireflyServerTest {
     }
 
     @Test
+    public void testScriptWriteOnly() {
+        final Client client = getClient("lyndon_username", validWrite);
+        readQuery(client);
+        writeQuery(client);
+        Assert.assertThrows(
+                "User does not have admin access.",
+                RuntimeException.class, () -> callQuery(client));
+    }
+
+    @Test
     public void testAdminOnly() {
         final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", validAdmin);
         g.V().toList();
         g.addV().iterate();
         g.call("aerospike.graph.admin.index.drop").with("element_type", "vertex").with("property_key", "~label").next();
+    }
+
+    @Test
+    public void testScriptAdminOnly() {
+        final Client client = getClient("lyndon_username", validAdmin);
+        readQuery(client);
+        writeQuery(client);
+        callQuery(client);
+    }
+
+    private void readQuery(Client client) {
+        client.submit("g.V().toList()").all().join();
+        client.submit("g.V()").all().join();
+    }
+
+    private void writeQuery(Client client) {
+        client.submit("g.addV().iterate()").all().join();
+        client.submit("g.addV()").all().join();
+    }
+
+    private void callQuery(Client client) {
+        client.submit(
+                "g.call(\"aerospike.graph.admin.index.drop\").with(\"element_type\", \"vertex\").with(\"property_key\", \"~label\").next()"
+        ).all().join();
+        client.submit(
+                "g.call(\"aerospike.graph.admin.index.drop\").with(\"element_type\", \"vertex\").with(\"property_key\", \"~label\")"
+        ).all().join();
     }
 }

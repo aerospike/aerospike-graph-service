@@ -47,7 +47,7 @@ public class SindexServiceList<I, R> extends SindexServiceBase<I, R> {
 
     @Override
     protected void auditLog(final Map params) {
-        LOGGER.info(getName() + " List indexes.");
+        LOGGER.info("[{}] - {} - List indexes.", getUser(), getName());
     }
 
     protected UserContext.ROLE getRequiredRole() {

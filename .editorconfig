@@ -1165,5 +1165,5 @@ ij_yaml_spaces_within_braces = true
 ij_yaml_spaces_within_brackets = true
 
 # Ignores
-[/snyk/**]
+[{/snyk/**,.github/**,**/resources/recoverydata/**}]
 end_of_line = unset

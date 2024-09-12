@@ -3,8 +3,10 @@ package com.aerospike.firefly.io.aerospike.admin;
 import com.aerospike.firefly.process.call.AdministrativeInfoService;
 import com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceBase;
 import com.aerospike.firefly.process.call.metadata.MetadataServiceBase;
+import com.aerospike.firefly.process.call.query.QueryServiceBase;
 import com.aerospike.firefly.process.call.rbac.JwtServiceBase;
 import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAuthenticationStrategy;
 import com.aerospike.firefly.security.JWTAuthenticator;
 import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -30,6 +32,7 @@ import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
 public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
     protected FireflyGraph graph;
+    private String user = null;
     protected static final Logger LOGGER = LoggerFactory.getLogger(AdminServiceRegistry.class);
     public static final String RESERVED_USER_CONTEXT = "aerospike.graph.admin.reserved.user.context";
 
@@ -97,6 +100,7 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
         BulkLoaderServiceBase.registerBulkLoadServices(firefly);
         AdministrativeInfoService.registerAdministrativeService(firefly);
         JwtServiceBase.registerJwtServices(firefly);
+        QueryServiceBase.registerQueryServices(firefly);
     }
 
     public static void appendHandlers(final Router router) {
@@ -104,11 +108,13 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
         MetadataServiceBase.routeMetadataServices(router);
         BulkLoaderServiceBase.routeBulkLoadServices(router);
         JwtServiceBase.routeJwtServices(router);
+        QueryServiceBase.routeQueryServices(router);
     }
 
     @Override
     public CloseableIterator<R> execute(final ServiceCallContext ctx, final Map params) {
         if (!validateAdminContext(ctx, params)) {
+            LOGGER.info("[{}] - {} - Insufficient permissions to run service.", getUser(), getName());
             throw new IllegalArgumentException("Insufficient permissions for '" + getName() + "'.");
         }
         if (!sanitize(params)) {
@@ -123,11 +129,12 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
             return true;
         }
 
-        final JWTAuthenticator.JWTAuthenticatedUser userContext = (JWTAuthenticator.JWTAuthenticatedUser) params.remove(RESERVED_USER_CONTEXT);
+        final FireflyAuthenticationStrategy.UsernameRolePair userContext = (FireflyAuthenticationStrategy.UsernameRolePair) params.remove(RESERVED_USER_CONTEXT);
         if (userContext == null) {
             // This should never happen.
             throw AuthenticationException.invalidUserContext();
         }
+        user = userContext.getUsername();
 
         final UserContext.ROLE role = userContext.getRole();
         if (role == null) {
@@ -145,6 +152,10 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
                     role.equals(UserContext.ROLE.READ_WRITE) ||
                     role.equals(UserContext.ROLE.READ);
         }
+    }
+
+    protected String getUser() {
+        return user == null ? "anonymous" : user;
     }
 
     private static final int SUCCESS_CODE = 200;

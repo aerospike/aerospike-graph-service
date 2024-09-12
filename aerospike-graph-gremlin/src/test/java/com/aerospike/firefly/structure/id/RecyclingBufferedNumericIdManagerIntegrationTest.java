@@ -72,7 +72,7 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
     @Test
     public void testBufferedAndUnbufferedIdGet() {
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-            final RecyclingBufferedNumericIdManager idManager = (RecyclingBufferedNumericIdManager) graph.edgeIdManager;
+            final RecyclingBufferedNumericIdManager idManager = (RecyclingBufferedNumericIdManager) graph.getIdFactory().getEdgeIdManager();
             // Buffer -1, -2, -3
             Assert.assertArrayEquals(idManager.getNextId(graph), getBaselineId(-OFFSET_BASELINE - 1, -OFFSET_BASELINE - 1));
             Assert.assertArrayEquals(idManager.getNextId(graph), getBaselineId(-OFFSET_BASELINE - 2, -OFFSET_BASELINE - 2));
@@ -86,8 +86,8 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
     public void testIdsReservedProperly() {
         try (final FireflyGraph graph1 = FireflyGraph.open(CONFIG);
              final FireflyGraph graph2 = FireflyGraph.open(CONFIG)) {
-            final RecyclingBufferedNumericIdManager idManager1 = (RecyclingBufferedNumericIdManager) graph1.edgeIdManager;
-            final RecyclingBufferedNumericIdManager idManager2 = (RecyclingBufferedNumericIdManager) graph2.edgeIdManager;
+            final RecyclingBufferedNumericIdManager idManager1 = (RecyclingBufferedNumericIdManager) graph1.getIdFactory().getEdgeIdManager();
+            final RecyclingBufferedNumericIdManager idManager2 = (RecyclingBufferedNumericIdManager) graph2.getIdFactory().getEdgeIdManager();
 
             Assert.assertArrayEquals(idManager1.getNextId(graph1), getBaselineId(-OFFSET_BASELINE - 1, -OFFSET_BASELINE - 1));
             Assert.assertArrayEquals(idManager2.getNextId(graph2), getBaselineId(-OFFSET_BASELINE - BUFFER_SIZE - 1, -OFFSET_BASELINE - BUFFER_SIZE - 1));
@@ -195,7 +195,7 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
         final FireflyEdge e1 = (FireflyEdge) g.addE("e1").from(v1).to(v2).next();
         final FireflyEdge e2 = (FireflyEdge) g.addE("e2").from(v1).to(v2).next();
 
-        final RecyclingBufferedNumericIdManager edgeIdManager = (RecyclingBufferedNumericIdManager) graph.edgeIdManager;
+        final RecyclingBufferedNumericIdManager edgeIdManager = (RecyclingBufferedNumericIdManager) graph.getIdFactory().getEdgeIdManager();
         Assert.assertEquals(0, edgeIdManager.availableRecycledIds());
         // Test removal within phat edge (record persists after removal of edge)
         e1.removeEdge();
@@ -211,8 +211,8 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
 
     private static byte[] getBaselineId() {
         // Jog id manager to make sure it re-buffers.
-        SETUP_GRAPH.edgeIdManager.getNextId(SETUP_GRAPH);
-        return SETUP_GRAPH.edgeIdManager.getNextId(SETUP_GRAPH);
+        SETUP_GRAPH.getIdFactory().getEdgeIdManager().getNextId(SETUP_GRAPH);
+        return SETUP_GRAPH.getIdFactory().getEdgeIdManager().getNextId(SETUP_GRAPH);
     }
 
     private static Long edgeIdToPackingIdLong(final String edgeId) {

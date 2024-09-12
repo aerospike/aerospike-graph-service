@@ -2,6 +2,7 @@ package com.aerospike.firefly.process.traversal.step.map;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.FireflyHelper;
+import com.aerospike.firefly.util.TimeoutHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -14,6 +15,7 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -38,8 +40,10 @@ public class FireflyCountGlobalStep<S extends Element> extends AbstractStep<S, L
         if (!this.done) {
             this.done = true;
             final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
+            final long evaluationTimeout = TimeoutHelper.calculate(traversal);
             return this.getTraversal().getTraverserGenerator().generate(Vertex.class.isAssignableFrom(this.elementClass) ?
-                            FireflyHelper.countVertices(graph, aerospikeHasContainers) : FireflyHelper.countEdges(graph),
+                            FireflyHelper.countVertices(graph, aerospikeHasContainers, evaluationTimeout) :
+                            FireflyHelper.countEdges(graph, evaluationTimeout),
                     (Step) this, 1L);
         } else
             throw FastNoSuchElementException.instance();

@@ -7,10 +7,7 @@ import com.aerospike.client.Record;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyIdComposite;
 
-import java.nio.ByteBuffer;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -35,8 +32,7 @@ public class VertexRecordSizeExceededException extends RuntimeException {
                                                                           final AerospikeConnection db,
                                                                           final Record record, final FireflyId vertexId,
                                                                           final FireflyId edgeId) {
-        final String baseMessage = String.format(ADD_ECACHE_BASE_MESSAGE, vertexId.getUserId(),
-                Base64.getEncoder().encodeToString(((ByteBuffer) ((FireflyIdComposite) edgeId).getEdgeId().getUserId()).array()));
+        final String baseMessage = String.format(ADD_ECACHE_BASE_MESSAGE, vertexId.getUserId(), edgeId.getUserId());
         final VertexRecordMetrics metrics = new VertexRecordMetrics(record, db);
         final String message = buildMessage(baseMessage, metrics);
         return new VertexRecordSizeExceededException(cause, message, metrics);

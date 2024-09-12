@@ -171,10 +171,11 @@ public class Admin {
 
         public static Map<String, Long> getIndexStatus(final FireflyGraph firefly, final String indexName) {
             final String infoQueryFormat = "sindex/%s/%s"; // "sindex/<namespace>/<index name>
-            int lowestLoadPct = 100;
-            int totalEntries = 0;
-            int totalUsedBytes = 0;
-            int highestLoadTime = 0;
+            long lowestLoadPct = 100;
+            long totalEntries = 0;
+            long totalUsedBytes = 0;
+            long highestLoadTime = 0;
+            long highestMemoryUsed = 0;
             boolean valid = false;
             for (final Node node : firefly.getBaseGraph().getClient().getNodes()) {
                 final String infoVar = String.format(infoQueryFormat, firefly.getBaseGraph().getNamespace(), indexName);
@@ -183,27 +184,30 @@ public class Admin {
                 for (String s : infoResponse.split(";")) {
                     valid = true;
                     if (s.startsWith("load_pct=")) {
-                        final int loadPct = Integer.parseInt(s.split("=")[1]);
+                        final long loadPct = Long.parseLong(s.split("=")[1]);
                         lowestLoadPct = Math.min(loadPct, lowestLoadPct);
                     } else if (s.startsWith("entries=")) {
-                        final int entries = Integer.parseInt(s.split("=")[1]);
+                        final long entries = Long.parseLong(s.split("=")[1]);
                         totalEntries += entries;
                     } else if (s.startsWith("used_bytes=")) {
-                        final int usedBytes = Integer.parseInt(s.split("=")[1]);
+                        final long usedBytes = Long.parseLong(s.split("=")[1]);
                         totalUsedBytes += usedBytes;
                     } else if (s.startsWith("load_time=")) {
-                        final int loadTime = Integer.parseInt(s.split("=")[1]);
+                        final long loadTime = Long.parseLong(s.split("=")[1]);
                         highestLoadTime = Math.max(loadTime, highestLoadTime);
+                    } else if (s.startsWith("memory_used=")) {
+                        final long memoryUsed = Long.parseLong(s.split("=")[1]);
+                        highestMemoryUsed = Math.max(memoryUsed, highestMemoryUsed);
                     }
                 }
             }
             if (valid) {
                 // This is the case if the index is dropped.
-                if (totalUsedBytes != 0) {
-                    return Map.of("percent_complete", (long) lowestLoadPct,
-                            "total_entries", (long) totalEntries,
-                            "total_used_bytes", (long) totalUsedBytes,
-                            "load_time", (long) highestLoadTime);
+                if (totalUsedBytes != 0 || highestMemoryUsed != 0) {
+                    return Map.of("percent_complete", lowestLoadPct,
+                            "total_entries", totalEntries,
+                            "total_used_bytes", totalUsedBytes,
+                            "load_time", highestLoadTime);
                 }
             }
             throw new IllegalStateException("Index not found: " + indexName + ".");

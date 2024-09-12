@@ -3,14 +3,12 @@ package com.aerospike.firefly.structure.id;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.AbstractFireflySuite;
-import com.aerospike.client.util.Crypto;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Set;
 
@@ -61,7 +59,7 @@ public class PolyIdTest extends AbstractFireflySuite {
 
         List<FireflyId> edgeIds = vb.getCachedIds(Direction.OUT, Set.of());
         assertEquals(1, edgeIds.size());
-        assertEquals(eba.id(), Crypto.encodeBase64(((ByteBuffer)edgeIds.get(0).getUserId()).array()));
+        assertEquals(eba.id(), edgeIds.get(0).getUserId());
         FireflyIdComposite fidc = (FireflyIdComposite) edgeIds.get(0);
         FireflyId eidRecovered = fidc.getEdgeId();
         FireflyId aidRecovered = fidc.getAdjacentId();

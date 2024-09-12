@@ -81,6 +81,7 @@ public class TestRecordSizeExceeded {
 
     @After
     public void afterEach() {
+        System.out.println("===> Completed " + testName.getMethodName() + " <===");
         graph.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
         graph.close();
     }

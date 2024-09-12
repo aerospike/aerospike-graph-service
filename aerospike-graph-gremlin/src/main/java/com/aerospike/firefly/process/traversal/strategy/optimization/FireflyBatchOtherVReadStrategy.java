@@ -16,6 +16,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import static com.aerospike.firefly.process.computer.local.ComputerHelper.isComputerTraversal;
+
 public class FireflyBatchOtherVReadStrategy extends FireflyStrategyBase {
 
     public FireflyBatchOtherVReadStrategy() {
@@ -34,7 +36,7 @@ public class FireflyBatchOtherVReadStrategy extends FireflyStrategyBase {
             return;
         }
 
-        if (TraversalHelper.onGraphComputer(traversal))
+        if (isComputerTraversal(traversal))
             return;
 
         final List<Step> steps = traversal.getSteps();

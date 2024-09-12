@@ -15,6 +15,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import java.util.List;
 import java.util.Set;
 
+import static com.aerospike.firefly.process.computer.local.ComputerHelper.isComputerTraversal;
+
 public class FireflyAdjacentVertexIdStrategy extends FireflyStrategyBase {
 
 
@@ -28,7 +30,7 @@ public class FireflyAdjacentVertexIdStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
-        if (TraversalHelper.onGraphComputer(traversal))
+        if (isComputerTraversal(traversal))
             return;
 
         final List<Step> steps = traversal.getSteps();

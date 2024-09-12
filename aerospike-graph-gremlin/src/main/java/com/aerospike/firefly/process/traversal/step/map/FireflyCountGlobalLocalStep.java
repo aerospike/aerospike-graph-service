@@ -15,6 +15,8 @@ import org.apache.tinkerpop.gremlin.util.function.ConstantSupplier;
 import java.util.Set;
 import java.util.function.BinaryOperator;
 
+import static com.aerospike.firefly.process.computer.local.ComputerHelper.isComputerTraversal;
+
 public class FireflyCountGlobalLocalStep<S> extends ReducingBarrierStep<S, Long> {
     final boolean isComputer;
     final Direction direction;
@@ -23,7 +25,7 @@ public class FireflyCountGlobalLocalStep<S> extends ReducingBarrierStep<S, Long>
         super(traversal);
         this.setSeedSupplier(new ConstantSupplier<>(0L));
         this.setReducingBiOperator((BinaryOperator) Operator.sumLong);
-        this.isComputer = TraversalHelper.onGraphComputer(traversal);
+        this.isComputer = isComputerTraversal(traversal);
         this.direction = direction;
         super.labels = labels;
     }

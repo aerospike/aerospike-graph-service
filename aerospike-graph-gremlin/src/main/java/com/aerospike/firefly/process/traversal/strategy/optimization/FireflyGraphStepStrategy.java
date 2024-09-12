@@ -19,6 +19,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.aerospike.firefly.process.computer.local.ComputerHelper.isComputerTraversal;
+
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  * @author Grant Haywood <a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -34,7 +36,7 @@ public class FireflyGraphStepStrategy extends FireflyStrategyBase {
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
         // FireflyGraphStepStrategy is never disabled, no flag to set disabled.
-        if (TraversalHelper.onGraphComputer(traversal))
+        if (isComputerTraversal(traversal))
             return;
 
         boolean propertyRemovalValid = !(steps.contains(TreeStep.class) || steps.contains(TreeSideEffectStep.class) || steps.contains(PathStep.class));

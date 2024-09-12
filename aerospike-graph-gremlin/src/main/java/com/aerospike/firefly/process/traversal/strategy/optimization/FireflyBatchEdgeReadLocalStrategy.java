@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.process.computer.local.ComputerHelper.isComputerTraversal;
+
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
@@ -51,7 +53,7 @@ public class FireflyBatchEdgeReadLocalStrategy extends FireflyStrategyBase {
     public void apply(final Traversal.Admin<?, ?> traversal) {
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
 
-        if (!TraversalHelper.onGraphComputer(traversal))
+        if (!isComputerTraversal(traversal))
             return;
 
         // Reset whenever root.

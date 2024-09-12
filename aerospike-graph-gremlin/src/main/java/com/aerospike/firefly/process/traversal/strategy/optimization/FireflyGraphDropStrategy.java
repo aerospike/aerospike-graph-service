@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+import static com.aerospike.firefly.process.computer.local.ComputerHelper.isComputerTraversal;
+
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
@@ -99,7 +101,7 @@ public class FireflyGraphDropStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
-        if (!(traversal.isRoot()) || TraversalHelper.onGraphComputer(traversal))
+        if (!(traversal.isRoot()) || isComputerTraversal(traversal))
             return;
         final List<Step> steps = traversal.getSteps();
         if (matchesToListNextIterate(steps)) {

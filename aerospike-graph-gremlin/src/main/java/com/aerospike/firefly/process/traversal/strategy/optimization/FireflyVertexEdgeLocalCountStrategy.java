@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+import static com.aerospike.firefly.process.computer.local.ComputerHelper.isComputerTraversal;
+
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
@@ -58,7 +60,7 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
             TraversalHelper.replaceStep(
                     localStep,
                     new FireflyVertexEdgeLocalCountStep(
-                            traversal, vertexStep.getDirection(), localStep.getLabels(), TraversalHelper.onGraphComputer(traversal)),
+                            traversal, vertexStep.getDirection(), localStep.getLabels(), isComputerTraversal(traversal)),
                     traversal);
         }
     }

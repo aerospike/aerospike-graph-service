@@ -28,6 +28,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import static com.aerospike.firefly.process.computer.local.ComputerHelper.isComputerTraversal;
+
 public class FireflyCountGlobalLocalStrategy  extends FireflyStrategyBase {
     /**
      * Default constructor for FireflyGraphCountStrategy.
@@ -49,7 +51,7 @@ public class FireflyCountGlobalLocalStrategy  extends FireflyStrategyBase {
             }
         }
 
-        if (!TraversalHelper.onGraphComputer(traversal))
+        if (!isComputerTraversal(traversal))
             return;
         for (int i = 0; i < traversal.getSteps().size(); i++) {
             if (traversal.getSteps().get(i) instanceof CountGlobalStep) {

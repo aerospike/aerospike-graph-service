@@ -12,6 +12,8 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 
 import java.util.Optional;
 
+import static com.aerospike.firefly.process.computer.local.ComputerHelper.isComputerTraversal;
+
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
@@ -28,7 +30,7 @@ public class FireflyScanProfileStrategy extends FireflyStrategyBase {
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
 
-        if (TraversalHelper.onGraphComputer(traversal))
+        if (isComputerTraversal(traversal))
             return;
 
         final Optional<Graph> graphOptional = traversal.getGraph();

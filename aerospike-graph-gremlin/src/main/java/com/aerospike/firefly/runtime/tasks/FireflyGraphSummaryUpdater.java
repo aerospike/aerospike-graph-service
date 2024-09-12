@@ -53,6 +53,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     private static CountDownLatch COUNTDOWN_LATCH = new CountDownLatch(HIGH_WATERMARK);
     private static CountDownLatch SHUTDOWN_LATCH = new CountDownLatch(1);
     private static final AtomicBoolean SHUTDOWN = new AtomicBoolean(false);
+    private final AtomicBoolean completed = new AtomicBoolean(false);
 
     // Create as daemon so it exits with process.
     private static final ExecutorService EXECUTOR_SERVICE = Executors.newFixedThreadPool(1,
@@ -137,6 +138,13 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             vertexCounts.clear();
             edgeCounts.clear();
             TRUNCATION.set(false);
+        }
+    }
+
+    // Testing function to force flush the queue.
+    public void forceFlush() {
+        while (!completed.get()) {
+            COUNTDOWN_LATCH.countDown();
         }
     }
 
@@ -470,6 +478,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                         // Wait for the countdown latch to complete.
                         // We don't really care whether it completed because of a timeout or because the watermark
                         // was hit, either way we should continue on and check what's in our maps.
+                        completed.set(false);
                         COUNTDOWN_LATCH.await(LATCH_BREAK_TIME_MILLISECONDS, TimeUnit.MILLISECONDS);
                     }
                 } catch (final InterruptedException e) {
@@ -574,6 +583,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                         break;
                     }
                 }
+                completed.set(true);
             }
             EXITED.set(true);
 

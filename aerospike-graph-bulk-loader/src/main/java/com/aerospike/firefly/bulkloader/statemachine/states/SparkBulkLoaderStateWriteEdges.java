@@ -10,6 +10,7 @@ public class SparkBulkLoaderStateWriteEdges extends SparkBulkLoaderState {
 
     @Override
     public void executeState() {
+        System.out.println("Edge partition count: " + sparkBulkLoaderStateMachine.edgePartitionCount);
         if (!sparkBulkLoaderStateMachine.readOnly) {
             RecoveryUtil.updateState(
                     sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.EDGE_WRITE);

@@ -104,7 +104,6 @@ public class TestRecordSizeExceeded {
                 return;
             } catch (final Exception e) {
                 Assert.fail("Unexpected exception: " + e);
-                return;
             }
         }
     }

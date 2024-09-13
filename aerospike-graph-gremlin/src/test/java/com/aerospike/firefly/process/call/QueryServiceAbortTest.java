@@ -75,7 +75,7 @@ public class QueryServiceAbortTest {
             final Thread scanThread = new Thread(() -> {
                 try {
                     barrier.await();
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     throw new RuntimeException(e);
                 }
                 try {

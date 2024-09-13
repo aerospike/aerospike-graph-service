@@ -11,8 +11,6 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -78,7 +76,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
                 "Total edge count", 0L);
         Assert.assertEquals(expectedEmpty, summaryCallEmpty);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-        graph.fireflySummaryUpdater.forceFlush();
+        Thread.sleep(7500);
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
         final Map<Object, Object> vertexLabels = g.V().group().by(__.label()).by(__.count()).next();
@@ -127,7 +125,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
                 "Total edge count", 0L);
         Assert.assertEquals(expectedEmpty, summaryCallEmpty);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-        graph.fireflySummaryUpdater.forceFlush();
+        Thread.sleep(7500);
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
         final Map<Object, Object> vertexLabels = g.V().group().by(__.label()).by(__.count()).next();
@@ -170,7 +168,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
             Vertex v = graph.traversal().addV(String.format("%d", i)).property(String.format("%d", i), String.format("%d", i)).next();
             graph.traversal().addE(String.format("%d", i)).from(v).to(v).property(String.format("%d", i), String.format("%d", i)).iterate();
         }
-        graph.fireflySummaryUpdater.forceFlush();
+        Thread.sleep(7500);
 
         Assert.assertTrue(FireflyGraphSummaryUpdater.vertexCounts.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
         Assert.assertTrue(FireflyGraphSummaryUpdater.vertexProperties.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
@@ -183,7 +181,6 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
 
     @Test
     public void testPrettySummary() throws InterruptedException {
-        Instant instant = Instant.now();
         final GraphTraversalSource g = graph.traversal();
         g.V().drop().iterate();
         Thread.sleep(100);
@@ -191,7 +188,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         final String expectedOutputEmpty = String.format(PRETTY_PRINT_FORMAT_SYSTEM, 0L, "{}", "{}", 0L, "{}", "{}");
         Assert.assertEquals(expectedOutputEmpty, summaryCall);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-        graph.fireflySummaryUpdater.forceFlush();
+        Thread.sleep(7500);
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
 

@@ -188,8 +188,10 @@ public class TestRecordSizeExceeded {
             System.out.println("exceeder done");
             Assert.fail("Expected adding Edge to full packed record to fail");
         } catch (final EdgeRecordSizeExceededException e) {
+            System.out.println("Caught");
             Assert.assertEquals((baseEdgePropertyCount * 2) + addedProperties + 1, e.propertyCount);
             Assert.assertEquals(baseInEdgeCount + baseOutEdgeCount, e.edgePackCount);
+            System.out.println("done");
         } catch (final Exception e) {
             System.out.println("?????");
             Assert.fail("Unexpected exception: " + e);

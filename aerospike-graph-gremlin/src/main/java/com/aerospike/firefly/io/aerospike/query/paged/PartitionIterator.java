@@ -102,11 +102,12 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
         synchronized (this) {
             try {
                 if (shutdown.get()) {
+                    System.out.println("SHUTDOWN");
                     return Optional.empty();
                 }
-                // LOG.warn("GRABBING page on worker {}", index);
+                LOG.warn("GRABBING page on worker");
                 final PageFetcher.Page page = pageQueue.take();
-                // LOG.warn("GRABBED page on worker {}", index);
+                LOG.warn("GRABBED page on worker");
 
                 if (page instanceof PageFetcher.ErrorPage) {
                     // ERROR

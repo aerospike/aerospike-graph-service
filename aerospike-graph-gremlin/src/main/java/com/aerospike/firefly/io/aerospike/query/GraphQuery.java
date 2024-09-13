@@ -105,6 +105,7 @@ public interface GraphQuery {
                 final Expression expression = GraphQueryHelper.hasContainerListToExpression(db, aerospikeSideHasContainers, FireflyVertex.class);
                 final BatchPolicy policy = new BatchPolicy();
                 policy.setTimeout(evaluationTimeout.intValue());
+                System.out.println("Reading ids");
                 return batchReadVertexPagesBlocking(graph, policy, expression, graph::vertexFromRecord, ids);
             }
 
@@ -121,6 +122,7 @@ public interface GraphQuery {
                     policy.setTimeout(evaluationTimeout.intValue());
                     // Need to wrap with has container check
                     // If we have a property index, we can use it and read sindex pages.
+                    System.out.println("Reading sindex");
                     return indexSetPagesBlocking(db.VERTEX_AERO_SET, propertyIndexInfo.get().indexName,
                             GraphQueryHelper.predicateToFilter(db, topContainer.getPredicate(), propertyIndexInfo.get()),
                             policy, graph::vertexIdFromRecord);
@@ -137,6 +139,7 @@ public interface GraphQuery {
         }
 
         // Default to scan.
+        System.out.println("Reading scan");
         return scanSetPagesBlocking(mapKey, db.VERTEX_AERO_SET, binName, predicate, graph::vertexIdFromRecord,
                 hasContainers, FireflyVertex.class, true, true, evaluationTimeout);
     }

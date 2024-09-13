@@ -112,11 +112,14 @@ public interface GraphQuery {
             final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, hasContainers);
             final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
             final HasContainer topContainer = aerospikeSideHasContainers.isEmpty() ? null : aerospikeSideHasContainers.remove(0);
+
+            System.out.println("Top container : " + topContainer);
+
             if (topContainer != null) {
                 // Find index.
                 final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo =
                         graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, topContainer.getKey(), topContainer.getValue());
-
+                System.out.println("propertyIndexInfo " + propertyIndexInfo.isPresent());
                 if (propertyIndexInfo.isPresent()) {
                     final QueryPolicy policy = new QueryPolicy();
                     policy.setTimeout(evaluationTimeout.intValue());

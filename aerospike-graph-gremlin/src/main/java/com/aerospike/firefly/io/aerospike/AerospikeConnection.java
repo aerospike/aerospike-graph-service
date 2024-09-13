@@ -1889,7 +1889,7 @@ public class AerospikeConnection implements AutoCloseable {
         } catch (final AerospikeException ae) {
             switch (ae.getResultCode()) {
                 case ResultCode.RECORD_TOO_BIG:
-                    LOG.error("RECORD_TO_BIG error on key {}", key);
+                    LOG.error("RECORD_TOO_BIG error on key {}", key);
                     LOG.error(RECORD_TOO_BIG, ae);
                     throw new RecordTooBigException(ae);
                 case ResultCode.KEY_NOT_FOUND_ERROR:

@@ -190,6 +190,7 @@ public class TestRecordSizeExceeded {
             Assert.assertEquals((baseEdgePropertyCount * 2) + addedProperties + 1, e.propertyCount);
             Assert.assertEquals(baseInEdgeCount + baseOutEdgeCount, e.edgePackCount);
         }
+        System.out.println("Exit???");
     }
 
     private String getStringOfSize(final int kb) {

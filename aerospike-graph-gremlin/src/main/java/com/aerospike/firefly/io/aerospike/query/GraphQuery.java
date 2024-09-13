@@ -125,6 +125,7 @@ public interface GraphQuery {
                 System.out.println("propertyIndexInfo " + propertyIndexInfo.isPresent());
                 if (propertyIndexInfo.isPresent()) {
                     final QueryPolicy policy = new QueryPolicy();
+                    System.out.println("evaluation timeout " + evaluationTimeout.intValue());
                     policy.setTimeout(evaluationTimeout.intValue());
                     policy.setSocketTimeout(evaluationTimeout.intValue() / 3);
                     policy.setTotalTimeout(evaluationTimeout.intValue());

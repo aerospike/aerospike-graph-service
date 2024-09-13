@@ -277,6 +277,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             updateVertexPropertyJVMCache(vertexPropertyFireflyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyIdToProperties, vertexPropertyIdToTypeHints);
             graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(label, Set.of(vertexProperty.key()));
         } catch (final RecordTooBigException e) {
+            System.out.println("Loading VertexRecordSizeExceededException 1");
             final VertexRecordSizeExceededException sizeExceededException =
                     fromAddingVertexProperty((AerospikeException) e.getCause(), this.db,
                             getRelevantVertexBins(this.db, key), this.id, vertexProperty.key());
@@ -503,6 +504,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             this.isEdgeCacheOverflowed = (boolean) OperationReturnHandler.getValueAtIndex(results, this.db.EDGE_CACHE_DISABLED_BIN, 1);
             return true;
         } catch (final RecordTooBigException e) {
+            System.out.println("Loading VertexRecordSizeExceededException 2");
             final VertexRecordSizeExceededException sizeExceededException =
                     fromAddingToEdgeCache((AerospikeException) e.getCause(), this.db,
                             getRelevantVertexBins(this.db, key), this.id, edgeId);

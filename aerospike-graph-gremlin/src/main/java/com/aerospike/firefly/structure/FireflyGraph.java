@@ -502,6 +502,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 }
                 tryCount++;
             } catch (final VertexRecordSizeExceededException vrsee) {
+                System.out.println("Loading FireflyLoadingException 1");
                 throw new FireflyLoadingException((AerospikeException) vrsee.getCause(), vrsee.getMessage());
             } catch (final AerospikeException ae) {
                 throw new FireflyLoadingException(ae);
@@ -518,6 +519,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
             FireflyVertex.writeVertex(this, idValue, label, properties, getTypeHint(), false, supernode);
         } catch (final VertexRecordSizeExceededException vrsee) {
+            System.out.println("Loading FireflyLoadingException 2");
             throw new FireflyLoadingException((AerospikeException) vrsee.getCause(), vrsee.getMessage());
         } catch (final AerospikeException ae) {
             throw new FireflyLoadingException(ae);
@@ -631,6 +633,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } catch (final ElementNotFoundException enfe) {
             throw new FireflyLoadingException((AerospikeException) enfe.getCause());
         } catch (final VertexRecordSizeExceededException vrsee) {
+            System.out.println("Loading FireflyLoadingException 3");
             throw new FireflyLoadingException((AerospikeException) vrsee.getCause(), vrsee.getMessage());
         } catch (final AerospikeException ae) {
             throw new FireflyLoadingException(ae);

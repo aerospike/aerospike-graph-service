@@ -158,6 +158,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         try {
             db.writeOperate(writePolicy, opKey, operations.toArray(new Operation[0]));
         } catch (final RecordTooBigException rtbe) {
+            System.out.println("Loading VertexRecordSizeExceededException 4");
             final VertexRecordSizeExceededException sizeExceededException =
                     fromAddingVpProperty((AerospikeException) rtbe.getCause(), db, getRelevantVertexBins(db, opKey),
                     this.vertexId, this.key, propertyKey);

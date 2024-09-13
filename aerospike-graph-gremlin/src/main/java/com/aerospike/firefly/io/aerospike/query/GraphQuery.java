@@ -126,9 +126,11 @@ public interface GraphQuery {
                 if (propertyIndexInfo.isPresent()) {
                     final QueryPolicy policy = new QueryPolicy();
                     policy.setTimeout(evaluationTimeout.intValue());
+                    policy.setSocketTimeout(evaluationTimeout.intValue() / 3);
+                    policy.setTotalTimeout(evaluationTimeout.intValue());
                     // Need to wrap with has container check
                     // If we have a property index, we can use it and read sindex pages.
-                    System.out.println("Reading sindex");
+                    System.out.println("Reading sindex " + propertyIndexInfo.get().indexName);
                     return indexSetPagesBlocking(db.VERTEX_AERO_SET, propertyIndexInfo.get().indexName,
                             GraphQueryHelper.predicateToFilter(db, topContainer.getPredicate(), propertyIndexInfo.get()),
                             policy, graph::vertexIdFromRecord);

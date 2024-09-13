@@ -53,22 +53,4 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         }
         pi.close();
     }
-
-    class CloseRecordSet implements Runnable {
-        // Close if all iterators are closed
-        int count = 0;
-        final RecordSet recordSet;
-
-        CloseRecordSet(RecordSet recordSet) {
-            this.recordSet = recordSet;
-        }
-
-        @Override
-        public void run() {
-            count++;
-            if (count == 10) {
-                recordSet.close();
-            }
-        }
-    }
 }

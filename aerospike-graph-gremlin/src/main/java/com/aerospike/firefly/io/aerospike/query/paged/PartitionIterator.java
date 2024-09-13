@@ -91,6 +91,7 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     }
 
     public Optional<CloseableIterator<FireflyVertex>> next() {
+        System.out.println("NEXT");
         return this.getPage(pageQueue, shutdown).map(p -> FireflyCloseableIteratorUtils.map(p.keyRecords, graph::vertexFromRecord));
     }
 

@@ -42,7 +42,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
 
         final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
         List<PaginationIterator<KeyRecord>> pis = new ArrayList<>();
-        final CloseRecordSet closeRecordSet = new CloseRecordSet(recordSet);
+        final CloseRecordSet closeRecordSet = new CloseRecordSet();
         for (int i = 0; i < 10; i++) {
             pis.add(new PaginationIterator<>(graph, closeRecordSet));
         }
@@ -51,39 +51,22 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
             // Convert into multiple pages
             for (int i = 0; i < 10; i++) {
                 pageQueue.put(new Page(pis.get(i)));
+                for (int j = 0; j < this.statement.getMaxRecords() / 10; j++) {
+                    if (!recordSetIterator.hasNext()) {
+                        break;
+                    }
+                    pis.get(i).add(recordSetIterator.next());
+                }
             }
         } catch (final InterruptedException e) {
             signalError("Failed to add page to queue: " + e.getMessage(), e);
         }
-        int idx = 0;
-        int count = 0;
-        while (recordSetIterator.hasNext()) {
-            if (count > this.statement.getMaxRecords() / 10) {
-                count = 0;
-                idx++;
-            }
-            pis.get(idx).add(recordSetIterator.next());
-        }
-        for (int i = 0; i < 10; i++) {
-            pis.get(i).close();
-        }
+        recordSet.close();
     }
 
     class CloseRecordSet implements Runnable {
-        // Close if all iterators are closed
-        int count = 0;
-        final RecordSet recordSet;
-
-        CloseRecordSet(RecordSet recordSet) {
-            this.recordSet = recordSet;
-        }
-
         @Override
         public void run() {
-            count++;
-            if (count == 10) {
-                recordSet.close();
-            }
         }
     }
 }

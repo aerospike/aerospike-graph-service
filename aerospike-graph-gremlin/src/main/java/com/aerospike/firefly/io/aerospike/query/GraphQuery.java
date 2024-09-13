@@ -125,10 +125,13 @@ public interface GraphQuery {
                 System.out.println("propertyIndexInfo " + propertyIndexInfo.isPresent());
                 if (propertyIndexInfo.isPresent()) {
                     final QueryPolicy policy = new QueryPolicy();
-                    System.out.println("evaluation timeout " + evaluationTimeout.intValue());
                     policy.setTimeout(evaluationTimeout.intValue());
                     policy.setSocketTimeout(evaluationTimeout.intValue() / 3);
                     policy.setTotalTimeout(evaluationTimeout.intValue());
+                    policy.totalTimeout = evaluationTimeout.intValue();
+                    policy.socketTimeout = evaluationTimeout.intValue() / 3;
+                    System.out.println("evaluation timeout " + evaluationTimeout.intValue());
+
                     // Need to wrap with has container check
                     // If we have a property index, we can use it and read sindex pages.
                     System.out.println("Reading sindex " + propertyIndexInfo.get().indexName);

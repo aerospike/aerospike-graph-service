@@ -34,6 +34,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
     protected void readPage() {
         final RecordSet recordSet;
         try {
+            System.out.println("reading page");
             recordSet = graph.getBaseGraph().getClient().queryPartitions(policy, statement, filter);
         } catch (final AerospikeException e) {
             signalError("Failed to read index: " + e.getMessage(), e);
@@ -41,21 +42,21 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         }
 
         final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
-        List<PaginationIterator<KeyRecord>> pis = new ArrayList<>();
         final CloseRecordSet closeRecordSet = new CloseRecordSet();
-        for (int i = 0; i < 10; i++) {
-            pis.add(new PaginationIterator<>(graph, closeRecordSet));
-        }
 
         try {
             // Convert into multiple pages
             for (int i = 0; i < 10; i++) {
-                pageQueue.put(new Page(pis.get(i)));
+                final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, closeRecordSet);
+                pageQueue.put(new Page(pi));
                 for (int j = 0; j < this.statement.getMaxRecords() / 10; j++) {
                     if (!recordSetIterator.hasNext()) {
                         break;
                     }
-                    pis.get(i).add(recordSetIterator.next());
+                    pi.add(recordSetIterator.next());
+                }
+                if (!recordSetIterator.hasNext()) {
+                    break;
                 }
             }
         } catch (final InterruptedException e) {

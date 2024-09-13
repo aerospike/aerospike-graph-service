@@ -23,6 +23,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         super(graph, maxQueueSize, transformKeyRecord, indexName);
         graph.getBaseGraph().configureReadPolicy(policy);
         this.policy = policy;
+        System.out.println(" total timeout " + this.policy.totalTimeout);
         this.statement = new Statement();
         this.statement.setNamespace(namespace);
         this.statement.setSetName(setName);

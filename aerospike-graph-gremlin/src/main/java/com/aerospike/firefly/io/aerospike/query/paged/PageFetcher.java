@@ -80,7 +80,6 @@ public abstract class PageFetcher<E> {
                         readLoopExecutorService.shutdown();
                         continue;
                     }
-                    System.out.println("Reading page.");
                     readPage();
                 } catch (final Throwable e) {
                     signalError("Unexpected error while reading " + e.getMessage(), e);

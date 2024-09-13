@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
@@ -75,7 +76,7 @@ public class LocalWorkerPool implements AutoCloseable {
                 ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, this.graph.configuration()),
                 ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, this.graph.configuration()));
 
-
+        final AtomicLong counter = new AtomicLong(0);
         try (final PartitionIterator partitions = PartitionIterator.build(this.graph)
                 .filters(graphFilter)
                 .partitionSize(partitionSize)
@@ -90,9 +91,8 @@ public class LocalWorkerPool implements AutoCloseable {
                         Optional<CloseableIterator<FireflyVertex>> option = partitions.next();
                         if (option.isPresent()) {
                             try {
-                                LOG.warn("Worker {} retrieved new vertex page workload", index);
                                 count = worker.apply(option.get(), vp, workerMemory);
-                                LOG.warn("Worker {} processed {} vertices", index, count);
+                                LOG.warn("Worker {} processed {} vertices, total={}", index, count, counter.addAndGet(count));
                             } catch (final Exception e) {
                                 LOG.error("Worker {} failed on {} vertex of partition", index, count, e);
                             }

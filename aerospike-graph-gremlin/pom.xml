@@ -280,7 +280,7 @@
                         --add-opens java.base/java.net=ALL-UNNAMED
                         -Dbuild.dir=${project.build.directory}
                         -Dis.testing=true -Djava.net.preferIPv4Stack=true
-                        -Xmx10000m
+                        -Xmx700g
                         -Xms1000m
                     </argLine>
                 </configuration>

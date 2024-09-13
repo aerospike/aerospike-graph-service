@@ -227,7 +227,6 @@ public class FireflyEdge extends FireflyElement implements Edge {
                     propertyMap, typeHints, !outVertexCacheWrite, !inVertexCacheWrite, record.generation);
             return edge;
         } catch (final RecordTooBigException e) {
-            System.out.println("Throwing EdgeRecordSizeExceededException 1");
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingEdge((AerospikeException) e.getCause(), db, key, edgeId);
             LOG.error(sizeExceededException.getMessage());
@@ -822,7 +821,6 @@ public class FireflyEdge extends FireflyElement implements Edge {
             graph.fireflySummaryUpdater.addEdgePropertiesWriteToQueue(edge.label, Set.of(propertyKey));
             return new FireflyEdgeProperty<>(graph, edge, propertyKey, value);
         } catch (final RecordTooBigException e) {
-            System.out.println("Throwing EdgeRecordSizeExceededException 2");
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingProperty((AerospikeException) e.getCause(), db, key, edge.id, propertyKey);
             LOG.error(sizeExceededException.getMessage());
@@ -851,7 +849,6 @@ public class FireflyEdge extends FireflyElement implements Edge {
         try {
             db.writeOperate(writePolicy, key, writeTtl);
         } catch (final RecordTooBigException e) {
-            System.out.println("Throwing EdgeRecordSizeExceededException 3");
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingProperty((AerospikeException) e.getCause(), db, key, this.id, TTL_PROPERTY_KEY);
             LOG.error(sizeExceededException.getMessage());

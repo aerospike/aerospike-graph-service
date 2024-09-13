@@ -47,7 +47,6 @@ public class TestRecordSizeExceeded {
 
     @AfterClass
     public static void afterAll() {
-        System.out.println("final");
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
         SETUP_GRAPH.close();
     }
@@ -95,19 +94,15 @@ public class TestRecordSizeExceeded {
         int addedEdges = 0;
         while (true) {
             try {
-                System.out.println("Added " + addedEdges + " edges");
                 g.addE(String.valueOf(addedEdges)).from(v1).to(v2).iterate();
                 addedEdges++;
-                System.out.println("addded1");
             } catch (final VertexRecordSizeExceededException e) {
                 Assert.assertEquals(baseInEdgeCount, e.inEdgeCount);
                 Assert.assertEquals(baseOutEdgeCount + addedEdges, e.outEdgeCount);
                 Assert.assertEquals(baseVertexPropertyCount + 1, e.vertexPropertyCount);
                 Assert.assertEquals(baseVpPropertyCount, e.vpPropertyCount);
-                System.out.println("Exit4???");
                 return;
             } catch (final Exception e) {
-                System.out.println("caught 8");
                 Assert.fail("Unexpected exception: " + e);
                 return;
             }
@@ -122,20 +117,15 @@ public class TestRecordSizeExceeded {
         int addedVertexProperties = 0;
         while (true) {
             try {
-                System.out.println("Added " + addedVertexProperties + " vps");
                 g.V(v1.id()).property("added" + addedVertexProperties, "added" + addedVertexProperties).iterate();
                 addedVertexProperties++;
-                System.out.println("asdded 6");
             } catch (final VertexRecordSizeExceededException e) {
-                System.out.println("caught 1");
                 Assert.assertEquals(baseInEdgeCount, e.inEdgeCount);
                 Assert.assertEquals(baseOutEdgeCount, e.outEdgeCount);
                 Assert.assertEquals(baseVertexPropertyCount + addedVertexProperties + 1, e.vertexPropertyCount);
                 Assert.assertEquals(baseVpPropertyCount, e.vpPropertyCount);
-                System.out.println("Exit3???");
                 return;
             } catch (final Exception e) {
-                System.out.println("caught 7");
                 Assert.fail("Unexpected exception: " + e);
             }
         }
@@ -150,19 +140,15 @@ public class TestRecordSizeExceeded {
         final FireflyVertexProperty vp = (FireflyVertexProperty) g.V(v1.id()).properties("base0").next();
         while (true) {
             try {
-                System.out.println("Added " + addedVpProperties + " vpps");
                 vp.property("added" + addedVpProperties, "added" + addedVpProperties);
                 addedVpProperties++;
-                System.out.println("added2");
             } catch (final VertexRecordSizeExceededException e) {
                 Assert.assertEquals(baseInEdgeCount, e.inEdgeCount);
                 Assert.assertEquals(baseOutEdgeCount, e.outEdgeCount);
                 Assert.assertEquals(baseVertexPropertyCount + 1, e.vertexPropertyCount);
                 Assert.assertEquals(baseVpPropertyCount + addedVpProperties, e.vpPropertyCount);
-                System.out.println("Exit2???");
                 return;
             } catch (final Exception e) {
-                System.out.println("caught 6");
                 Assert.fail("Unexpected exception: " + e);
             }
         }
@@ -176,37 +162,25 @@ public class TestRecordSizeExceeded {
         int addedProperties = 0;
         while (true) {
             try {
-                if (addedProperties % 100 == 0) {
-                    System.out.println("Added " + addedProperties + " eps");
-                }
                 g.E(e0.id()).property("added" + addedProperties, "added"+ addedProperties).iterate();
                 addedProperties++;
-                System.out.println("added");
             } catch (final EdgeRecordSizeExceededException e) {
-                System.out.println("Caught4");
                 Assert.assertEquals((baseEdgePropertyCount * 2) + addedProperties + 1, e.propertyCount);
                 Assert.assertEquals(baseInEdgeCount + baseOutEdgeCount, e.edgePackCount);
                 break;
             } catch (final Exception e) {
-                System.out.println("caught 5");
                 Assert.fail("Unexpected exception: " + e);
             }
         }
         try {
-            System.out.println("exceeder");
             g.addE("exceeder").from(v1).to(v2).iterate();
-            System.out.println("exceeder done");
             Assert.fail("Expected adding Edge to full packed record to fail");
         } catch (final EdgeRecordSizeExceededException e) {
-            System.out.println("Caught3");
             Assert.assertEquals((baseEdgePropertyCount * 2) + addedProperties + 1, e.propertyCount);
             Assert.assertEquals(baseInEdgeCount + baseOutEdgeCount, e.edgePackCount);
-            System.out.println("done");
         } catch (final Exception e) {
-            System.out.println("?????");
             Assert.fail("Unexpected exception: " + e);
         }
-        System.out.println("Exit???");
     }
 
     private String getStringOfSize(final int kb) {

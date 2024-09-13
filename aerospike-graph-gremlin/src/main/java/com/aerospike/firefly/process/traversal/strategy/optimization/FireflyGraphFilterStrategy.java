@@ -70,8 +70,6 @@ public final class FireflyGraphFilterStrategy extends AbstractTraversalStrategy<
     }
 
     private static Traversal.Admin<Vertex, Vertex> getVertexFilter(final Traversal.Admin<?, ?> traversal) {
-        if (TraversalHelper.hasStepOfAssignableClassRecursively(VertexStep.class, traversal))
-            return null;
         GraphTraversal.Admin<Vertex, Vertex> hasTraversal = new DefaultGraphTraversal<>();
         if (traversal.getStartStep() instanceof GraphStep && ((GraphStep<Vertex, Vertex>) traversal.getStartStep()).returnsVertex()) {
             if (Stream.of(((GraphStep) traversal.getStartStep()).getIds()).count() > 0)

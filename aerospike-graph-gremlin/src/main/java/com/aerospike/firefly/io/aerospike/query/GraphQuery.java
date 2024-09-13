@@ -87,8 +87,11 @@ public interface GraphQuery {
         String mapKey = null;
         final FireflyGraph graph = getGraph();
         final AerospikeConnection db = graph.getBaseGraph();
+        for (HasContainer hasContainer : hasContainers) {
+            System.out.println("Has container : " + hasContainer.getKey() + " - " + hasContainer.getBiPredicate());
+        }
         final List<HasContainer> positiveFilters = hasContainers.stream().filter(it -> !it.getBiPredicate().equals(Contains.without)).collect(Collectors.toList());
-
+        System.out.println("Positive filters : " + positiveFilters.isEmpty());
         if (!positiveFilters.isEmpty()) {
             final List<Object> ids = positiveFilters
                     .stream()

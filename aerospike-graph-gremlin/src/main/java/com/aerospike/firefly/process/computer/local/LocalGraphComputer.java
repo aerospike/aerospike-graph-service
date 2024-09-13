@@ -258,68 +258,6 @@ public class LocalGraphComputer implements GraphComputer {
                         }
                         view.complete(); // drop all transient vertex compute keys (i.e. drop global state)
                     }
-
-                    // execute mapreduce jobs
-                    final int mapPartitionSize = Math.max(
-                            (vertexCount.get() > 0 ? ((int) Math.ceil((double) vertexCount.get() / (double) this.workers)) : this.previousPartitionSize),
-                            ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, this.graph.configuration()));
-                    LOG.warn("MAPREDUCE STAGE PARTITION CONFIGURATION:\n\t" +
-                            "Vertices in final vertex program iteration: {}\n\t" +
-                            "Number of available workers: {}\n\t" +
-                            "Computed partition size: {}", vertexCount.get(), this.workers, mapPartitionSize);
-                    for (final MapReduce mapReduce : mapReducers) {
-                        final LocalMapEmitter<?, ?> mapEmitter = new LocalMapEmitter<>(mapReduce.doStage(MapReduce.Stage.REDUCE));
-                        workers.setMapReduce(mapReduce);
-                        workers.executeMapReduce(workerMapReduce -> {
-                            workerMapReduce.workerStart(MapReduce.Stage.MAP);
-                            try (final PartitionIterator partitions = PartitionIterator.build(this.graph)
-                                    .filters(this.graphFilter)
-                                    .partitionSize(mapPartitionSize)
-                                    .create()) {
-                                while (partitions.hasNext()) {
-                                    final Optional<CloseableIterator<FireflyVertex>> optional = partitions.next();
-                                    if (optional.isEmpty())
-                                        break;
-                                    else {
-                                        try (final CloseableIterator<FireflyVertex> itty = optional.get()) {
-                                            while (itty.hasNext()) {
-                                                if (Thread.interrupted()) throw new TraversalInterruptedException();
-                                                final Vertex vertex = itty.next();
-                                                workerMapReduce.map(ComputerGraph.mapReduce(vertex), mapEmitter);
-                                            }
-                                        }
-                                    }
-
-                                }
-                                workerMapReduce.workerEnd(MapReduce.Stage.MAP);
-                            }
-                        });
-
-                        // sort results if a map output sort is defined
-                        mapEmitter.complete(mapReduce);
-
-                        // no need to run combiners as this is single machine
-                        if (mapReduce.doStage(MapReduce.Stage.REDUCE)) {
-                            final LocalReduceEmitter<?, ?> reduceEmitter = new LocalReduceEmitter<>();
-                            try (final SynchronizedIterator<Map.Entry<?, Queue<?>>> keyValues = new SynchronizedIterator<Map.Entry<?, Queue<?>>>((Iterator) mapEmitter.reduceMap.entrySet().iterator())) {
-                                workers.executeMapReduce(workerMapReduce -> {
-                                    workerMapReduce.workerStart(MapReduce.Stage.REDUCE);
-                                    while (true) {
-                                        if (Thread.interrupted()) throw new TraversalInterruptedException();
-                                        final Map.Entry<?, Queue<?>> entry = keyValues.next();
-                                        if (null == entry) break;
-                                        workerMapReduce.reduce(entry.getKey(), entry.getValue().iterator(), reduceEmitter);
-                                    }
-                                    workerMapReduce.workerEnd(MapReduce.Stage.REDUCE);
-                                });
-                            }
-                            reduceEmitter.complete(mapReduce); // sort results if a reduce output sort is defined
-                            mapReduce.addResultToMemory(this.memory, reduceEmitter.reduceQueue.iterator());
-                        } else {
-                            mapReduce.addResultToMemory(this.memory, mapEmitter.mapQueue.iterator());
-                        }
-
-                    }
                     // update runtime and return the newly computed graph
                     this.memory.setRuntime(System.currentTimeMillis() - time);
                     this.memory.complete(); // drop all transient properties and set iteration

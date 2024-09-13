@@ -27,14 +27,13 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         this.statement.setNamespace(namespace);
         this.statement.setSetName(setName);
         this.statement.setFilter(filter);
-        this.statement.setMaxRecords(maxPageSize * 10);
+        this.statement.setMaxRecords(maxPageSize);
     }
 
     @Override
     protected void readPage() {
         final RecordSet recordSet;
         try {
-            System.out.println("reading page");
             recordSet = graph.getBaseGraph().getClient().queryPartitions(policy, statement, filter);
         } catch (final AerospikeException e) {
             signalError("Failed to read index: " + e.getMessage(), e);
@@ -42,32 +41,34 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         }
 
         final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
-        final CloseRecordSet closeRecordSet = new CloseRecordSet();
+        PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close);
 
         try {
-            // Convert into multiple pages
-            for (int i = 0; i < 10; i++) {
-                final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, closeRecordSet);
-                pageQueue.put(new Page(pi));
-                for (int j = 0; j < this.statement.getMaxRecords() / 10; j++) {
-                    if (!recordSetIterator.hasNext()) {
-                        break;
-                    }
-                    pi.add(recordSetIterator.next());
-                }
-                if (!recordSetIterator.hasNext()) {
-                    break;
-                }
-            }
+            pageQueue.put(new Page(pi));
         } catch (final InterruptedException e) {
             signalError("Failed to add page to queue: " + e.getMessage(), e);
         }
-        recordSet.close();
+        while (recordSetIterator.hasNext()) {
+            pi.add(recordSetIterator.next());
+        }
+        pi.close();
     }
 
     class CloseRecordSet implements Runnable {
+        // Close if all iterators are closed
+        int count = 0;
+        final RecordSet recordSet;
+
+        CloseRecordSet(RecordSet recordSet) {
+            this.recordSet = recordSet;
+        }
+
         @Override
         public void run() {
+            count++;
+            if (count == 10) {
+                recordSet.close();
+            }
         }
     }
 }

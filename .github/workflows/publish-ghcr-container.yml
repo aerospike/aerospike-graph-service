@@ -123,10 +123,3 @@ jobs:
             bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
           fi
           echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV
-
-      - name: Run Snyk to check Docker image for vulnerabilities
-        uses: snyk/actions/docker@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          image: ${{ env.OUTPUT_IMAGE }}

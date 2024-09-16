@@ -189,6 +189,7 @@
                         <exclude>**/TestBulkLoaderRecovery</exclude>
                         <exclude>**/TestRecoveryActionFlags</exclude>
                         <exclude>**/QueryServiceAbortTest</exclude>
+                        <exclude>**/TestAerospikeClientConfigEventLoop</exclude>
                     </excludes>
                 </configuration>
             </plugin>

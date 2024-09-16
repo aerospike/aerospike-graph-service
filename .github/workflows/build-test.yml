@@ -556,6 +556,10 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           mvn install -DskipTests
+      - name: Test Client Event Loop Configuration
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeClientConfigEventLoop -DfailIfNoTests=false --no-transfer-progress
       - name: Test Small Memory Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts

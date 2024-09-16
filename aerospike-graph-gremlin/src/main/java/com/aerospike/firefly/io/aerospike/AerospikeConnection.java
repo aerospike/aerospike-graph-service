@@ -1260,40 +1260,25 @@ public class AerospikeConnection implements AutoCloseable {
         return this.namespace;
     }
 
-    /**
-     * Initialize the Aerospike event loops
-     *
-     * @param eventLoopType
-     * @param numLoops
-     * @param commandsPerEventLoop
-     * @param maxCommandsInQueue
-     * @return
-     */
-    public static EventLoops initializeEventLoops(
-            final EventLoopType eventLoopType,
-            final int numLoops,
-            final int commandsPerEventLoop,
-            final int maxCommandsInQueue) {
+    private static EventLoops initializeEventLoops(final EventLoopType eventLoopType,
+                                                   final int numLoops, final int commandsPerEventLoop,
+                                                   final int maxCommandsInQueue) {
         final EventPolicy eventPolicy = new EventPolicy();
         eventPolicy.maxCommandsInProcess = commandsPerEventLoop;
         eventPolicy.maxCommandsInQueue = maxCommandsInQueue;
-        EventLoops eventLoops = null;
         switch (eventLoopType) {
             case DIRECT_NIO:
-                eventLoops = new NioEventLoops(eventPolicy, numLoops);
-                break;
+                return new NioEventLoops(eventPolicy, numLoops);
             case NETTY_NIO:
-                NioEventLoopGroup nioGroup = new NioEventLoopGroup(numLoops);
-                eventLoops = new NettyEventLoops(eventPolicy, nioGroup);
-                break;
+                final NioEventLoopGroup nioGroup = new NioEventLoopGroup(numLoops);
+                return new NettyEventLoops(eventPolicy, nioGroup);
             case NETTY_EPOLL:
-                EpollEventLoopGroup epollGroup = new EpollEventLoopGroup(numLoops);
-                eventLoops = new NettyEventLoops(eventPolicy, epollGroup);
-                break;
+                final EpollEventLoopGroup epollGroup = new EpollEventLoopGroup(numLoops);
+                return new NettyEventLoops(eventPolicy, epollGroup);
             default:
-                LOG.error("Error: Invalid event loop type");
+                // This should never happen.
+                throw new IllegalArgumentException("Unsupported event loop type: " + eventLoopType);
         }
-        return eventLoops;
     }
 
     /**
@@ -2052,8 +2037,8 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public static class DefaultAerospikeClientProvider implements AerospikeClientProvider, AutoCloseable {
         public static final AtomicLong OPEN_COUNT = new AtomicLong(0);
-        public static AerospikeClient client;
-        public static EventLoops eventLoops;
+        public static AerospikeClient CLIENT;
+        public static EventLoops EVENT_LOOPS;
 
         public static final DefaultAerospikeClientProvider INSTANCE = new DefaultAerospikeClientProvider();
 
@@ -2064,15 +2049,20 @@ public class AerospikeConnection implements AutoCloseable {
             synchronized (DefaultAerospikeClientProvider.class) {
                 if (OPEN_COUNT.get() == 0) {
                     final String eventLoopTypeName = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.EVENT_LOOP_TYPE, conf);
-                    final EventLoopType eventLoopType = EventLoopType.valueOf(eventLoopTypeName);
+                    final EventLoopType eventLoopType;
+                    try {
+                        eventLoopType = EventLoopType.valueOf(eventLoopTypeName);
+                    } catch (final IllegalArgumentException e) {
+                        throw new IllegalArgumentException("Invalid event loop type provided: " + eventLoopTypeName);
+                    }
                     final int eventLoopCount = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.EVENT_LOOP_COUNT, conf);
                     final int commandsPerEventLoop = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.COMMANDS_PER_EVENT_LOOP, conf);
                     final int delayQueueSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.DELAY_QUEUE_SIZE, conf);
 
-                    eventLoops = initializeEventLoops(eventLoopType, eventLoopCount, commandsPerEventLoop, delayQueueSize);
+                    EVENT_LOOPS = initializeEventLoops(eventLoopType, eventLoopCount, commandsPerEventLoop, delayQueueSize);
                     final int threadPoolSize = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());
-                    final ClientPolicy clientPolicy = setupClientPolicy(conf, threadPoolSize, eventLoops);
-                    client = setupDefaultClient(conf, clientPolicy);
+                    final ClientPolicy clientPolicy = setupClientPolicy(conf, threadPoolSize, EVENT_LOOPS);
+                    CLIENT = setupDefaultClient(conf, clientPolicy);
                 }
                 OPEN_COUNT.incrementAndGet();
                 return INSTANCE;
@@ -2082,10 +2072,10 @@ public class AerospikeConnection implements AutoCloseable {
         @Override
         public AerospikeClient getAerospikeClient(final Configuration conf) {
             synchronized (DefaultAerospikeClientProvider.class) {
-                if (OPEN_COUNT.get() <= 0 || client == null || !client.isConnected()) {
+                if (OPEN_COUNT.get() <= 0 || CLIENT == null || !CLIENT.isConnected()) {
                     throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
                 }
-                return client;
+                return CLIENT;
             }
         }
 
@@ -2095,7 +2085,7 @@ public class AerospikeConnection implements AutoCloseable {
                 if (OPEN_COUNT.get() <= 0) {
                     throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
                 }
-                return eventLoops;
+                return EVENT_LOOPS;
             }
         }
 
@@ -2103,8 +2093,8 @@ public class AerospikeConnection implements AutoCloseable {
         public void close() throws Exception {
             synchronized (DefaultAerospikeClientProvider.class) {
                 if (OPEN_COUNT.decrementAndGet() == 0) {
-                    client.close();
-                    eventLoops.close();
+                    CLIENT.close();
+                    EVENT_LOOPS.close();
                 }
                 if (OPEN_COUNT.get() < 0) {
                     OPEN_COUNT.set(0);

@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.DefaultAerospikeClientProvider.client;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.DefaultAerospikeClientProvider.CLIENT;
 
 public class LegacyGraphQuery implements GraphQuery {
     private final FireflyGraph fireflyGraph;
@@ -81,7 +81,7 @@ public class LegacyGraphQuery implements GraphQuery {
         final ConcurrentScanRecordSequenceListener listener =
                 ConcurrentScanRecordSequenceListener.create(db, scanMonitor, scanId);
         listener.setStartTime();
-        client.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), setName, binNames);
+        CLIENT.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), setName, binNames);
 
         return new FireflyCloseableIterator<>(listener.iterator());
     }

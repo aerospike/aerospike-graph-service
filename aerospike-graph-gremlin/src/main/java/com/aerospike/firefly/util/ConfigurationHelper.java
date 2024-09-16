@@ -451,6 +451,8 @@ public final class ConfigurationHelper {
         NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.MERGE_EDGE_EVAL_TIMEOUT, 1, 60000);
         NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.MERGE_EDGE_TTL, 1000, 60000);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MERGE_EDGE_POLL_INTERVAL, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.EVENT_LOOP_COUNT, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.DELAY_QUEUE_SIZE, 0);
     }
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {

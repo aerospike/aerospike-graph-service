@@ -218,6 +218,18 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
     }
 
+    private final ThreadLocal<List<HasContainer>> olapHasContainers = ThreadLocal.withInitial(ArrayList::new);
+
+    public void setOlapHasContainers(List<HasContainer> olapHasContainers) {
+        this.olapHasContainers.get().clear();
+        this.olapHasContainers.get().addAll(olapHasContainers);
+        System.out.println("Has containers : " + olapHasContainers);
+    }
+
+    public List<HasContainer> getOlapHasContainers() {
+        return olapHasContainers.get();
+    }
+
     public FireflyGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
         this.gremlinServerSettings = gremlinServerSettings;
         this.configuration = conf;

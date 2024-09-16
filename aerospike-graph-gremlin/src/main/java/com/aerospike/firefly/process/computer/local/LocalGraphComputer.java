@@ -100,6 +100,7 @@ public class LocalGraphComputer implements GraphComputer {
 
     public LocalGraphComputer(final FireflyGraph graph) {
         this.graph = graph;
+        setInitialHasContainers(graph.getOlapHasContainers());
         this.previousPartitionSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, this.graph.configuration());
     }
 
@@ -142,6 +143,16 @@ public class LocalGraphComputer implements GraphComputer {
     public GraphComputer vertices(final Traversal<Vertex, Vertex> vertexFilter) {
         this.graphFilter.setVertexFilter(vertexFilter);
         return this;
+    }
+
+    private List<HasContainer> initialHasContainers = new ArrayList<>();
+
+    public void setInitialHasContainers(final List<HasContainer> initialHasContainers) {
+        this.initialHasContainers = initialHasContainers;
+    }
+
+    public List<HasContainer> getInitialHasContainers() {
+        return this.initialHasContainers;
     }
 
 
@@ -246,7 +257,7 @@ public class LocalGraphComputer implements GraphComputer {
                                         output.getRight().release();
                                     }
                                 }
-                            }, this.graphFilter);
+                            }, this.initialHasContainers);
                             this.messageBoard.completeIteration();
                             this.memory.completeSubRound();
                             if (this.vertexProgram.terminate(this.memory)) {

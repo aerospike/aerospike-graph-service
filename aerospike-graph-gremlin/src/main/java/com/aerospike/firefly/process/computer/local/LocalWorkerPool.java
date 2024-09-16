@@ -10,12 +10,14 @@ import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.util.MapReducePool;
 import org.apache.tinkerpop.gremlin.process.computer.util.VertexProgramPool;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.apache.tinkerpop.gremlin.util.function.TriFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
@@ -61,7 +63,7 @@ public class LocalWorkerPool implements AutoCloseable {
         this.mapReducePool = new MapReducePool(mapReduce, this.numberOfWorkers);
     }
 
-    public void executeVertexProgram(final TriFunction<Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Long> worker, final GraphFilter graphFilter) throws InterruptedException {
+    public void executeVertexProgram(final TriFunction<Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Long> worker, final List<HasContainer> hasContainers) throws InterruptedException {
         final long vertexCount = (long) ((Map<Object, Object>) this.graph.traversal().call("aerospike.graph.admin.metadata.summary").next()).get("Total vertex count");
         final int partitionSize = Math.max(
                 ((int) Math.ceil((double) vertexCount / (double) numberOfWorkers)),
@@ -75,10 +77,9 @@ public class LocalWorkerPool implements AutoCloseable {
                 partitionSize,
                 ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, this.graph.configuration()),
                 ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, this.graph.configuration()));
-
         final AtomicLong counter = new AtomicLong(0);
         try (final PartitionIterator partitions = PartitionIterator.build(this.graph)
-                .filters(graphFilter)
+                .containers(hasContainers)
                 .partitionSize(partitionSize)
                 .create()) {
             for (int i = 0; i < this.numberOfWorkers; i++) {

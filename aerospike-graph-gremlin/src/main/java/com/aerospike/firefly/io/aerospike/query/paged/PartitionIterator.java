@@ -57,6 +57,12 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
                     .collect(Collectors.toList())).orElse(null));
         }
 
+        public Builder containers(final List<HasContainer> containers) {
+            if (null != containers)
+                this.filters.addAll(containers);
+            return this;
+        }
+
         public Builder partitionSize(final int pageSize) {
             this.graph.configuration().setProperty(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, pageSize);
             return this;

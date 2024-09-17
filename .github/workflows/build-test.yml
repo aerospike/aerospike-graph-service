@@ -1296,10 +1296,11 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote -DfailIfNoTests=false --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
-      - name: Test Firefly Docker Image Performance Mode
+      - name: Test Firefly Docker Image
         run: |
           echo "Running performance mode tests"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestPerformanceModes -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerJavaOptions -DfailIfNoTests=false --no-transfer-progress
   test-aerospike-ttl:
     name: Test Aerospike TTL Fails
     timeout-minutes: 30

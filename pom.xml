@@ -44,7 +44,6 @@
     <modules>
         <module>aerospike-graph-gremlin</module>
         <module>aerospike-graph-bulk-loader</module>
-        <module>aerospike-graph-sizing-tool</module>
         <module>aerospike-graph-api</module>
     </modules>
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->

@@ -53,15 +53,11 @@ ADD . /opt/aerospike-graph
 WORKDIR /opt/aerospike-graph
 
 # Build Firefly.
-RUN mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -pl aerospike-graph-sizing-tool -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
+RUN mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
 
 # Move bulk-loader jar to /opt/bulk-loader.
 RUN mkdir /opt/bulk-loader &&\
     mv /opt/aerospike-graph/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.4.0-SNAPSHOT.jar /opt/bulk-loader
-
-# Move sizing-tool jar to /opt/sizing-tool.
-RUN mkdir /opt/sizing-tool &&\
-    mv /opt/aerospike-graph/aerospike-graph-sizing-tool/target/aerospike-graph-sizing-tool-2.4.0-SNAPSHOT.jar /opt/sizing-tool
 
 # Build CLASSPATH before invoking gremlin-server. This is assigned in the gremlin-server script.
 # Note bulk-loader also needs to be in the classpath.
@@ -97,7 +93,7 @@ RUN chmod -R 777 $CONF_DIR
 RUN useradd -m firefly
 
 # Copy maven repo to firefly user.
-RUN chown firefly:firefly -R /opt/spark && chown firefly:firefly -R /opt/bulk-loader && chown firefly:firefly -R /opt/sizing-tool
+RUN chown firefly:firefly -R /opt/spark && chown firefly:firefly -R /opt/bulk-loader
 
 # Make firefly owner of conf dir.
 RUN chown firefly:firefly -R $CONF_DIR

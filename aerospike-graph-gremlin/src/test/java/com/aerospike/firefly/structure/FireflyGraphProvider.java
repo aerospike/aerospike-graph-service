@@ -32,6 +32,8 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
         // config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_CLUSTER_PROPERTIES);
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 
+        config.setProperty(ConfigurationHelper.Keys.HTTP_DISABLED.toLowerCase(), "true");
+
         // Adjust here to test transition from caches to scans
         config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase(), "10000");
     }

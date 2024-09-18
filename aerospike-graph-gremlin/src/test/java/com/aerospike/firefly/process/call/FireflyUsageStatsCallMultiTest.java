@@ -1,6 +1,5 @@
 package com.aerospike.firefly.process.call;
 
-import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -27,7 +26,6 @@ public class FireflyUsageStatsCallMultiTest {
             graph.getBaseGraph().getClient().truncate(null,
                     graph.getBaseGraph().namespace, graph.getBaseGraph().USAGE_STATS_SET, null);
             Thread.sleep(1);
-            FireflyUsageStats.restartUsageStats(graph.getBaseGraph());
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -36,7 +34,7 @@ public class FireflyUsageStatsCallMultiTest {
     @AfterClass
     public static void cleanUp() {
         try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            FireflyUsageStats.restartUsageStats(graph.getBaseGraph());
+            graph.getUsageStats().restartUsageStats(graph.getBaseGraph());
         }
     }
 
@@ -76,7 +74,7 @@ public class FireflyUsageStatsCallMultiTest {
             }
 
             // Compare expected vcpu-yrs. We know lower bound since we know minimum time it could be but not upper.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > 2 * testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }

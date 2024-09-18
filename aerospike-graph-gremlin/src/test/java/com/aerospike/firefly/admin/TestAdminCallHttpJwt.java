@@ -24,24 +24,24 @@ public class TestAdminCallHttpJwt {
 
     private static FireflyServer server;
 
-    final String validRead = JWT.create()
+    final static String validRead = JWT.create()
             .withClaim("role", "READ")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
             .sign(Algorithm.HMAC256("lyndon_secret"));
 
-    final String noRole = JWT.create()
+    final static String noRole = JWT.create()
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
             .sign(Algorithm.HMAC256("lyndon_secret"));
 
-    final String validWrite = JWT.create()
+    final static String validWrite = JWT.create()
             .withClaim("role", "READ_WRITE")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
             .sign(Algorithm.HMAC256("lyndon_secret"));
 
-    final String validAdmin = JWT.create()
+    final static String validAdmin = JWT.create()
             .withClaim("role", "ADMIN")
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
@@ -135,7 +135,7 @@ public class TestAdminCallHttpJwt {
 
     public String adminIndexListHeaders(final String userCredentials) {
         try {
-            final URL url = new URL("http://localhost:9090/admin/index/list");
+            final URL url = new URL("http://localhost:9091/admin/index/list");
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
             // Send request to the server and read reply
@@ -161,7 +161,7 @@ public class TestAdminCallHttpJwt {
                     URLEncoder.encode("username", "UTF-8"),
                     URLEncoder.encode("ADMIN", "UTF-8"));
 
-            final URL url = new URL("http://localhost:9090/admin/rbac-jwt/issue-token?" + query);
+            final URL url = new URL("http://localhost:9091/admin/rbac-jwt/issue-token?" + query);
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
             // Send request to the server and read reply
@@ -186,7 +186,7 @@ public class TestAdminCallHttpJwt {
             final String query = String.format("property_key=%s&element_type=%s",
                     URLEncoder.encode(uuid.toString(), "UTF-8"),
                     URLEncoder.encode("vertex", "UTF-8"));
-            final URL url = new URL("http://localhost:9090/admin/index/create?" + query);
+            final URL url = new URL("http://localhost:9091/admin/index/create?" + query);
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
             // Send request to the server and read reply
@@ -213,7 +213,7 @@ public class TestAdminCallHttpJwt {
             final String query = String.format("property_key=%s&element_type=%s",
                     URLEncoder.encode(uuid.toString(), "UTF-8"),
                     URLEncoder.encode("vertex", "UTF-8"));
-            final URL url = new URL("http://localhost:9090/admin/index/drop?" + query);
+            final URL url = new URL("http://localhost:9091/admin/index/drop?" + query);
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
             // Send request to the server and read reply
@@ -239,7 +239,7 @@ public class TestAdminCallHttpJwt {
             final String query = String.format("property_key=%s&element_type=%s",
                     URLEncoder.encode("foo", "UTF-8"),
                     URLEncoder.encode("vertex", "UTF-8"));
-            final URL url = new URL("http://localhost:9090/admin/index/status?" + query);
+            final URL url = new URL("http://localhost:9091/admin/index/status?" + query);
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
             // Send request to the server and read reply
@@ -262,7 +262,7 @@ public class TestAdminCallHttpJwt {
 
     public String adminIndexCardinality(final String userCredentials) {
         try {
-            final URL url = new URL("http://localhost:9090/admin/index/cardinality");
+            final URL url = new URL("http://localhost:9091/admin/index/cardinality");
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
             // Send request to the server and read reply
@@ -283,7 +283,7 @@ public class TestAdminCallHttpJwt {
 
     public String adminMetadataSummary(final String userCredentials) {
         try {
-            final URL url = new URL("http://localhost:9090/admin/metadata/summary");
+            final URL url = new URL("http://localhost:9091/admin/metadata/summary");
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
             // Send request to the server and read reply
@@ -304,7 +304,7 @@ public class TestAdminCallHttpJwt {
 
     public String adminMetadataUsage(final String userCredentials) {
         try {
-            final URL url = new URL("http://localhost:9090/admin/metadata/usage");
+            final URL url = new URL("http://localhost:9091/admin/metadata/usage");
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
 
             // Send request to the server and read reply
@@ -329,7 +329,7 @@ public class TestAdminCallHttpJwt {
             adminIndexListHeaders(noRole);
             Assert.fail("Should not have been able to hit http endpoint no role");
         } catch (final Exception e) {
-            Assert.assertEquals("java.io.IOException: Server returned HTTP response code: 401 for URL: http://localhost:9090/admin/index/list", e.getMessage());
+            Assert.assertEquals("java.io.IOException: Server returned HTTP response code: 401 for URL: http://localhost:9091/admin/index/list", e.getMessage());
         }
         final Cluster cluster = Cluster.build()
                 .addContactPoint("localhost")
@@ -356,20 +356,20 @@ public class TestAdminCallHttpJwt {
             check.check(validWrite);
             try {
                 check.check(validRead);
-                Assert.fail("Should not have been able to read/write with admin permissions");
+                Assert.fail("Should not have been able to READ_WRITE with READ permissions");
             } catch (final Exception e) {
                 // Expected
             }
         } else if (requiredRole == UserContext.ROLE.ADMIN) {
             try {
                 check.check(validRead);
-                Assert.fail("Should not have been able to read/write with admin permissions");
+                Assert.fail("Should not have been able to ADMIN with READ permissions");
             } catch (final Exception e) {
                 // Expected
             }
             try {
                 check.check(validWrite);
-                Assert.fail("Should not have been able to read/write with admin permissions");
+                Assert.fail("Should not have been able to ADMIN with READ_WRITE permissions");
             } catch (final Exception e) {
                 // Expected
             }

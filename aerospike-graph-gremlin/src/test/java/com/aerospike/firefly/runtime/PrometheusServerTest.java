@@ -15,10 +15,12 @@ import java.net.URL;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
 public class PrometheusServerTest {
+    private static final int PORT = 9094;
 
     @Test
     public void testMetrics() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty("aerospike.graph.http.port", PORT);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final String output = queryPrometheus();
 
@@ -37,6 +39,7 @@ public class PrometheusServerTest {
     @Test
     public void testMetricsRenameDisabled() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty("aerospike.graph.http.port", PORT);
         config.setProperty("aerospike.graph.prometheus.rename.enabled", false);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final String output = queryPrometheus();
@@ -54,7 +57,7 @@ public class PrometheusServerTest {
     }
 
     private String queryPrometheus() throws IOException {
-        final URL url = new URL("http://localhost:9090/metrics");
+        final URL url = new URL("http://localhost:" + PORT + "/metrics");
         final HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("GET");
         final int response = con.getResponseCode();

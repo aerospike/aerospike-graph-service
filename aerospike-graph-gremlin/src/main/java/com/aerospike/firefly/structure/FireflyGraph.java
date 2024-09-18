@@ -29,11 +29,11 @@ import com.aerospike.firefly.io.aerospike.AerospikeLogger;
 import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
-import com.aerospike.firefly.jsr223.FireflyGremlinPlugin;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputer;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
+import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
@@ -195,6 +195,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final FireflyGraphSummaryUpdater fireflySummaryUpdater;
     private final FireflyRecordLockHandler fireflyRecordLockHandler;
     private final ServiceRegistry serviceRegistry = new ServiceRegistry();
+    private FireflyUsageStats usageStats;
+    private HttpServer httpServer;
+    private AdminServiceRegistry adminServiceRegistry;
     private static final String GREMLIN_SERVER_YAML_PATH = "GREMLIN_SERVER_YAML_PATH";
     private static final String UNIFIED_CONFIG_PROPERTIES_PATH = "UNIFIED_CONFIG_PROPERTIES_PATH";
     private final Settings gremlinServerSettings;
@@ -268,14 +271,26 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         if (!db.WARMUP_MODE) {
             // Create usage statistics background task.
-            FireflyUsageStats.startUsageStats(db);
-
-            // Start metrics.
-            FireflyGremlinPlugin.initializeGraphMetrics(this);
+            usageStats = new FireflyUsageStats(db);
 
             // Register admin services graph metrics since it will bootstrap the server.
-            AdminServiceRegistry.registerAdminServices(this);
+            adminServiceRegistry = new AdminServiceRegistry(this);
+
+            final boolean httpDisabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.HTTP_DISABLED, conf);
+            if (!httpDisabled) {
+                // Start metrics.
+                httpServer = HttpServer.create(this);
+                httpServer.start();
+            }
         }
+    }
+
+    public AdminServiceRegistry getAdminServiceRegistry() {
+        return adminServiceRegistry;
+    }
+
+    public FireflyUsageStats getUsageStats() {
+        return usageStats;
     }
 
     public String getUser() {
@@ -1163,6 +1178,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.fireflyCardinalityMetadataTask.cancel();
         this.fireflyIndexMetadataTask.cancel();
         this.fireflySummaryUpdater.close();
+        if (!db.WARMUP_MODE) {
+            this.usageStats.close();
+        }
+        if (httpServer != null) {
+            httpServer.close();
+            httpServer = null;
+        }
         this.ttlHandler.close();
         this.db.close();
     }

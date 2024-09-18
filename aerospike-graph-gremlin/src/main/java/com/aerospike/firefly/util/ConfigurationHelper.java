@@ -175,6 +175,9 @@ public final class ConfigurationHelper {
         public static final String COMMANDS_PER_EVENT_LOOP = "aerospike.client.eventLoop.commands";
         public static final String DELAY_QUEUE_SIZE = "aerospike.client.delayQueue.size";
 
+        // to speed up testing
+        public static final String HTTP_DISABLED = "aerospike.graph.http.disabled";
+
         public static class Pair {
             public final int numeric;
             public final String english;
@@ -347,6 +350,7 @@ public final class ConfigurationHelper {
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.GLOBAL_EDGE_CACHE_ENABLED, "true");
         put(Keys.HTTP_PORT, "9090");
+        put(Keys.HTTP_DISABLED, "false");
         put(Keys.PROMETHEUS_PATH, "/metrics");
         put(Keys.HEALTHCHECK_PATH, "/healthcheck");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");

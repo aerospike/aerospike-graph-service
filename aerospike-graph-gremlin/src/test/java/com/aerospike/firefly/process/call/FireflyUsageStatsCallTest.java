@@ -1,6 +1,5 @@
 package com.aerospike.firefly.process.call;
 
-import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -28,7 +27,6 @@ public class FireflyUsageStatsCallTest {
             graph.getBaseGraph().getClient().truncate(null,
                     graph.getBaseGraph().namespace, graph.getBaseGraph().USAGE_STATS_SET, null);
             Thread.sleep(1);
-            FireflyUsageStats.restartUsageStats(graph.getBaseGraph());
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -37,7 +35,7 @@ public class FireflyUsageStatsCallTest {
     @AfterClass
     public static void cleanUp() {
         try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            FireflyUsageStats.restartUsageStats(graph.getBaseGraph());
+            graph.getUsageStats().restartUsageStats(graph.getBaseGraph());
         }
     }
 
@@ -163,7 +161,6 @@ public class FireflyUsageStatsCallTest {
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         final String previousDay = "2020-01-01";
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-
             // Wait 11 seconds so we can update.
             Thread.sleep(11000);
 
@@ -231,7 +228,7 @@ public class FireflyUsageStatsCallTest {
     }
 
     @Test
-    public void testMultiLocalFireflyProduces1Result() {
+    public void testMultiLocalFireflyProducesSeveralResults() {
         FireflyGraph graph1 = null;
         FireflyGraph graph2 = null;
         FireflyGraph graph3 = null;
@@ -260,7 +257,8 @@ public class FireflyUsageStatsCallTest {
 
             // Raw should be list of map.
             Assert.assertTrue(usageStats.get("raw") instanceof List);
-            Assert.assertEquals(1, ((List<?>) usageStats.get("raw")).size());
+            // todo: 5 graphs, 5 usages
+            Assert.assertEquals(5, ((List<?>) usageStats.get("raw")).size());
 
             // Vcpu count of raw should be same of test vcpu count.
             Assert.assertEquals(testVcpuCount, rawUsageStats.get(0).get("vcpus"));
@@ -269,8 +267,9 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected vcpu-yrs.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
+            // todo: 5 graphs, 5 usages
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") / 5 > testVcpuCount * (8000f / MILLISECONDS_TO_HOURS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") / 5 < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
         } catch (final Exception e) {
             if (graph1 != null)
                 graph1.close();

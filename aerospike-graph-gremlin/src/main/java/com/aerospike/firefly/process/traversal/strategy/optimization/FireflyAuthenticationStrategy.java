@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry.RESERVED_USER_CONTEXT;
+import static com.aerospike.firefly.io.aerospike.admin.AdminService.RESERVED_USER_CONTEXT;
 import static com.aerospike.firefly.security.JWTAuthorizer.RESERVED_CALL_STRING;
 
 /**

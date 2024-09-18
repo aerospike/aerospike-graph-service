@@ -170,11 +170,11 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         }
         Thread.sleep(7500);
 
-        Assert.assertTrue(FireflyGraphSummaryUpdater.vertexCounts.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
-        Assert.assertTrue(FireflyGraphSummaryUpdater.vertexProperties.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
+        Assert.assertTrue(graph.fireflySummaryUpdater.vertexCounts.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
+        Assert.assertTrue(graph.fireflySummaryUpdater.vertexProperties.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
 
-        Assert.assertTrue(FireflyGraphSummaryUpdater.edgeCounts.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
-        Assert.assertTrue(FireflyGraphSummaryUpdater.edgeProperties.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
+        Assert.assertTrue(graph.fireflySummaryUpdater.edgeCounts.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
+        Assert.assertTrue(graph.fireflySummaryUpdater.edgeProperties.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
 
         graph.traversal().V().drop().iterate();
     }

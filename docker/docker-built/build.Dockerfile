@@ -1,4 +1,4 @@
-FROM amazoncorretto:21
+FROM amazoncorretto:17
 
 # Set input arguments.
 ARG RELEASE_BUILD

@@ -16,9 +16,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-public class FireflyBatchOtherVReadStrategy extends FireflyStrategyBase {
+public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
 
-    public FireflyBatchOtherVReadStrategy() {
+    public FireflyOtherVBatchReadStrategy() {
     }
 
     @Override

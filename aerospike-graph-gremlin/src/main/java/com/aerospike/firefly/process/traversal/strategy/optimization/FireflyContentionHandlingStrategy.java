@@ -32,6 +32,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
     private final FireflyStrategyBase fireflyAuthenticationStrategy;
     private final FireflyStrategyBase fireflyAdjacentVertexIdStrategy;
     private final FireflyStrategyBase fireflyBatchOtherVReadStrategy;
+    private final FireflyStrategyBase fireflyEdgeToVertexBatchReadStrategy;
 
     /**
      * Default constructor for FireflyContentionHandlingStrategy.
@@ -48,7 +49,8 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         this.fireflyScanProfileStrategy = new FireflyScanProfileStrategy();
         this.fireflyAuthenticationStrategy = new FireflyAuthenticationStrategy();
         this.fireflyAdjacentVertexIdStrategy = new FireflyAdjacentVertexIdStrategy();
-        this.fireflyBatchOtherVReadStrategy = new FireflyBatchOtherVReadStrategy();
+        this.fireflyBatchOtherVReadStrategy = new FireflyOtherVBatchReadStrategy();
+        this.fireflyEdgeToVertexBatchReadStrategy = new FireflyEdgeToVertexBatchReadStrategy();
     }
 
     /**
@@ -121,6 +123,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         applyStrategy(traversal, fireflyCompositeEdgeIdStrategy);
         applyStrategy(traversal, fireflyBatchEdgeReadStrategy);
         applyStrategy(traversal, fireflyBatchOtherVReadStrategy);
+        applyStrategy(traversal, fireflyEdgeToVertexBatchReadStrategy);
         applyStrategy(traversal, fireflyScanProfileStrategy);
     }
 }

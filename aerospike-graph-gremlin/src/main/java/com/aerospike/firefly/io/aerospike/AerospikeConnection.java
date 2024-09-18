@@ -223,6 +223,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean ENABLE_COMPOSITE_ID_LIMIT_STRATEGY;
     public final boolean ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY;
     public final boolean ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY;
+    public final boolean ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY;
     public final boolean ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY;
     public final boolean ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY;
     public final boolean ENABLE_CACHED_ADJACENT_ID_STRATEGY;
@@ -391,6 +392,7 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, conf);
         ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY, conf);
         ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY, conf);
+        ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY, conf);
         ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY, conf);
         ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf);
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf);

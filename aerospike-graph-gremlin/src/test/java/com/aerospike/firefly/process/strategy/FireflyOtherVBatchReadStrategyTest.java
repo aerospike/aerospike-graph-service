@@ -7,6 +7,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -22,7 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-public class FireflyBatchOtherVReadStrategyTest {
+public class FireflyOtherVBatchReadStrategyTest {
     private static FireflyGraph graph;
 
     @BeforeClass
@@ -87,10 +88,9 @@ public class FireflyBatchOtherVReadStrategyTest {
     public void testStrategyEnabled() {
         final var g = graph.traversal();
 
-        var t = g.V().outE().not(__.hasLabel("knows")).otherV().hasLabel("test");
-        t.asAdmin().applyStrategies();
-        List<Step> steps = t.asAdmin().getSteps();
-        assertTrue(containsCustomStep(steps));
+        final var t = g.V().outE().not(__.hasLabel("knows")).otherV().hasLabel("test");
+
+        assertTrue(containsCustomStep(t));
     }
 
     @Test
@@ -101,10 +101,9 @@ public class FireflyBatchOtherVReadStrategyTest {
         final FireflyGraph graph = FireflyGraph.open(config);
         final var g = graph.traversal();
 
-        var t = g.V().outE().not(__.hasLabel("knows")).otherV().hasLabel("test");
-        t.asAdmin().applyStrategies();
-        List<Step> steps = t.asAdmin().getSteps();
-        assertFalse(containsCustomStep(steps));
+        final var t = g.V().outE().not(__.hasLabel("knows")).otherV().hasLabel("test");
+
+        assertFalse(containsCustomStep(t));
 
         graph.close();
     }
@@ -114,13 +113,15 @@ public class FireflyBatchOtherVReadStrategyTest {
         final var g = graph.traversal();
 
         // outE().otherV() is same as out(), so replaced with FireflyCompositeIdStep
-        var t = g.V().outE().otherV().hasLabel("test");
-        t.asAdmin().applyStrategies();
-        List<Step> steps = t.asAdmin().getSteps();
-        assertFalse(containsCustomStep(steps));
+        final var t = g.V().outE().otherV().hasLabel("test");
+
+        assertFalse(containsCustomStep(t));
     }
 
-    private boolean containsCustomStep(final List<Step> steps) {
+    private boolean containsCustomStep(final GraphTraversal traversal) {
+        traversal.asAdmin().applyStrategies();
+        List<Step> steps = traversal.asAdmin().getSteps();
+
         for (final Step step : steps) {
             if (step instanceof FireflyOtherVBatchReadStep) {
                 return true;

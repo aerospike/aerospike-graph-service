@@ -87,6 +87,7 @@ import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
 import static com.aerospike.firefly.util.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.ConfigurationHelper.getOrDefaultString;
 
 /**
@@ -250,6 +251,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final List<String> vertexPropertyBins = new ArrayList<>();
 
     public final String QUERY_IMPL;
+
+    private final boolean bulkLoaderFlag;
 
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
@@ -513,6 +516,8 @@ public class AerospikeConnection implements AutoCloseable {
         PROMETHEUS_RENAME_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.PROMETHEUS_RENAME, conf);
 
         QUERY_IMPL = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.QUERY_IMPL, conf);
+
+        bulkLoaderFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf);
 
         cacheTasks = new ArrayList<>();
         idFactory = new FireflyIdFactory(this);
@@ -1002,12 +1007,20 @@ public class AerospikeConnection implements AutoCloseable {
             boolean success = false;
             for (final Node node : nodes) {
                 LOG.debug("Info.request: {}", requestKey);
+                String lastAbortResult = null;
                 final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
                 final List<Map<String, String>> queryAbortResponses = parseRaw(infoResponse);
                 for (final Map<String, String> abortResponse : queryAbortResponses) {
-                    if (abortResponse.containsKey(QUERY_ABORT_RESULT) &&
-                            QUERY_ABORT_SUCCESS.equals(abortResponse.get(QUERY_ABORT_RESULT))) {
-                        success = true;
+                    if (abortResponse.containsKey(QUERY_ABORT_RESULT)) {
+                        final String abortResult = abortResponse.get(QUERY_ABORT_RESULT);
+                        if (QUERY_ABORT_SUCCESS.equals(abortResult)) {
+                            success = true;
+                        } else {
+                            if (!abortResult.equals(lastAbortResult)) {
+                                LOG.error("Aborting query with trid {} failed with response: {}", trid, abortResult);
+                                lastAbortResult = abortResult;
+                            }
+                        }
                     }
                 }
             }
@@ -1994,6 +2007,10 @@ public class AerospikeConnection implements AutoCloseable {
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    public boolean getBulkLoaderFlag() {
+        return this.bulkLoaderFlag;
     }
 
     public long incrementAndGetBadEdgeCount(final long amount) {

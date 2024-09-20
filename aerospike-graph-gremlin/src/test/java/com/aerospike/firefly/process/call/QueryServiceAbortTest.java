@@ -34,7 +34,7 @@ public class QueryServiceAbortTest {
         for (int i = 0; i < 32; i++) {
             final Thread thread = new Thread(() -> {
                 final GraphTraversalSource g = SETUP_GRAPH.traversal();
-                for (int j = 0; j < 100000; j++) {
+                for (int j = 0; j < 200000; j++) {
                     g.addV().iterate();
                 }
             });

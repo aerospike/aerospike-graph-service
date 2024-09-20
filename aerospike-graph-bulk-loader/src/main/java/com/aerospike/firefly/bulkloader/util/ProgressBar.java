@@ -1,5 +1,6 @@
 package com.aerospike.firefly.bulkloader.util;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ public class ProgressBar extends TimerTask {
     private long verticesInitial = 0L;
     private int vertexPartitions = 0;
     private int edgePartitions = 0;
+    private AerospikeException lastException = null;
 
     public ProgressBar(final int intervalMillis) {
         this.intervalMillis = intervalMillis;
@@ -39,6 +41,7 @@ public class ProgressBar extends TimerTask {
     public void close() {
         synchronized (ProgressBar.class) {
             if (this.graph != null) {
+                FireflyGraphSummaryUpdater.clearSummaryTickerException(this.graph.getBaseGraph().GRAPH_ID);
                 this.graph.close();
                 this.graph = null;
             }
@@ -295,6 +298,14 @@ public class ProgressBar extends TimerTask {
                         getEdgeWritingProgress(elementMetadata) +
                         getEdgeValidationProgress() +
                         JVMMemoryStats());
+            } catch (final AerospikeException ae) {
+                if (this.lastException == null || ae.getResultCode() != this.lastException.getResultCode()) {
+                    this.lastException = ae;
+                    final AerospikeException summaryUpdaterFailure = FireflyGraphSummaryUpdater.getLastSummaryTickerException(graph.getBaseGraph().GRAPH_ID);
+                    if (summaryUpdaterFailure == null || ae.getResultCode() != summaryUpdaterFailure.getResultCode()) {
+                        LOGGER.error("Error occurred when grabbing metadata information for progress bar: ", ae);
+                    }
+                }
             } catch (final Exception e) {
                 LOGGER.error("Error occurred when grabbing metadata information for progress bar: ", e);
             }

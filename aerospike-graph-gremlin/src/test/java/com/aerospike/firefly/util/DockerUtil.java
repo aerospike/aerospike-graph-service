@@ -194,9 +194,9 @@ public class DockerUtil {
         dockerClient.startContainerCmd(containerId).exec();
         dockerImageTagToContainerId.put(containerId, new DockerInfo(dockerImageName, 8182));
 
-        // Wait 10 seconds for the container to have logs ready.
+        // Wait 20 seconds for the container to have logs ready.
         try {
-            Thread.sleep(10 * 1000);
+            Thread.sleep(20 * 1000);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }

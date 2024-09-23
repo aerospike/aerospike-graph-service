@@ -41,11 +41,13 @@ public abstract class TestSparkBulkLoaderBase {
     private static final String[] DEFAULT_PARAMS= {"-validate_input_data", "-verify_output_data"};
     protected FireflyGraph graph = null;
     static private final String EDGEID_TEST_DIRECTORIES = "src/test/resources/conf/packed/temp";
+    static private final String BASE_PROPERTIES = "src/test/resources/conf/base.properties";
 
     @Before
     public void beforeEach() {
         Configuration config = getTestConfig();
         graph = FireflyGraph.open(config);
+        graph.getBaseGraph().dropDatabase(graph, false);
     }
 
     @AfterClass
@@ -477,6 +479,45 @@ public abstract class TestSparkBulkLoaderBase {
         testEdges();
         testVertices();
         testVertexEdgeConnections();
+    }
+
+    @Test
+    public void testConfigValidation() {
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(
+                    new String[]{"-local", "-c", BASE_PROPERTIES,
+                            "-vd", "src/test/resources/sampledata/vertices",
+                            "-td", "src/test/resources/conf/packed/temp/eid1"},
+                    DEFAULT_PARAMS));
+            Assert.fail("Should fail when no Edge directory provided.");
+        } catch (final ConfigurationRuntimeException e) {
+            Assert.assertEquals("Invalid configuration provided - invalid value for property: aerospike.graphloader.edges",
+                    e.getMessage());
+        }
+
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(
+                    new String[]{"-local", "-c", BASE_PROPERTIES,
+                            "-ed", "src/test/resources/sampledata/edges",
+                            "-td", "src/test/resources/conf/packed/temp/eid1"},
+                    DEFAULT_PARAMS));
+            Assert.fail("Should fail when no Vertex directory provided.");
+        } catch (final ConfigurationRuntimeException e) {
+            Assert.assertEquals("Invalid configuration provided - invalid value for property: aerospike.graphloader.vertices",
+                    e.getMessage());
+        }
+
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(
+                    new String[]{"-local", "-c", BASE_PROPERTIES,
+                            "-vd", "src/test/resources/sampledata/vertices",
+                            "-ed", "src/test/resources/sampledata/edges"},
+                    DEFAULT_PARAMS));
+            Assert.fail("Should fail when no temp directory provided.");
+        } catch (final ConfigurationRuntimeException e) {
+            Assert.assertEquals("Invalid configuration provided - invalid value for property: aerospike.graphloader.temp-directory",
+                    e.getMessage());
+        }
     }
 
     private void testSupernodes() {

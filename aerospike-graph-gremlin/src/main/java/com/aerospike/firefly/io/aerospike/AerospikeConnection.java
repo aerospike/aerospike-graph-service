@@ -777,6 +777,7 @@ public class AerospikeConnection implements AutoCloseable {
         private static final String QUERY_TRID = "trid";
         private static final String QUERY_ABORT_RESULT = "result";
         private static final String QUERY_ABORT_SUCCESS = "OK";
+        private static final String QUERY_ABORT_TRID_INACTIVE = "trid-not-active";
 
         //Parse the whole infoResponse and return it as a List of Maps
         public static List<Map<String, String>> parseRaw(String infoResponse) {
@@ -1005,15 +1006,15 @@ public class AerospikeConnection implements AutoCloseable {
             final Node[] nodes = client.getNodes();
 
             boolean success = false;
+            String lastAbortResult = null;
             for (final Node node : nodes) {
                 LOG.debug("Info.request: {}", requestKey);
-                String lastAbortResult = null;
                 final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
                 final List<Map<String, String>> queryAbortResponses = parseRaw(infoResponse);
                 for (final Map<String, String> abortResponse : queryAbortResponses) {
                     if (abortResponse.containsKey(QUERY_ABORT_RESULT)) {
                         final String abortResult = abortResponse.get(QUERY_ABORT_RESULT);
-                        if (QUERY_ABORT_SUCCESS.equals(abortResult)) {
+                        if (QUERY_ABORT_SUCCESS.equals(abortResult) || QUERY_ABORT_TRID_INACTIVE.equals(abortResult)) {
                             success = true;
                         } else {
                             if (!abortResult.equals(lastAbortResult)) {

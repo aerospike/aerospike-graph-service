@@ -203,4 +203,29 @@ public class BulkLoaderConfigHelper implements Serializable {
     static public Configuration getConfig(Path path) {
         return ConfigurationHelper.loadFromFile(path);
     }
+
+    public void validateBulkLoadConfig() {
+        String currentKey = null;
+        try {
+            if (!hasAction(INCREMENTAL_LOAD)) {
+                if (!hasAction(DISABLE_VERTEX_WRITE)) {
+                    currentKey = VERTEX_DIRECTORY_KEY;
+                    getOrDefault(VERTEX_DIRECTORY_KEY);
+                }
+                if (!hasAction(DISABLE_EDGE_WRITE)) {
+                    currentKey = EDGE_DIRECTORY_KEY;
+                    getOrDefault(EDGE_DIRECTORY_KEY);
+                }
+            }
+            if (!hasAction(READ_ONLY)) {
+                currentKey = TEMP_DIRECTORY_KEY;
+                getOrDefault(TEMP_DIRECTORY_KEY);
+            }
+
+        } catch (final ConfigurationRuntimeException e) {
+            final String message = "Invalid configuration provided - invalid value for property: " + currentKey;
+            LOG.error(message);
+            throw new ConfigurationRuntimeException(message);
+        }
+    }
 }

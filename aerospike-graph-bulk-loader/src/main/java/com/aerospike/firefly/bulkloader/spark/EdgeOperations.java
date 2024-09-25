@@ -133,7 +133,7 @@ public class EdgeOperations implements Serializable {
                     if (partitionId == partitionToFailOn) {
                         // Wait so other partitions can complete before we fail this partition.
                         try {
-                            Thread.sleep(180000);
+                            Thread.sleep(300000);
                         } catch (final InterruptedException ignored) {
                         }
                         throw new RuntimeException("Testing recovery failure, please contact support.");
@@ -382,7 +382,7 @@ public class EdgeOperations implements Serializable {
                 // No has containers, also we are pushing down the ids to the graph to read in bulk omitting properties.
                 vertices = graph.readVertices(List.of(),
                         idToEdgeCount.keySet().stream().map(id ->
-                                graph.getIdFactory().createId(id, FireflyVertex.class)).collect(Collectors.toList()),
+                                graph.getIdFactory().createVertexId(id)).collect(Collectors.toList()),
                         List.of());
                 break;
             } catch (final AerospikeException ae) {
@@ -583,7 +583,7 @@ public class EdgeOperations implements Serializable {
                 outputRow.add(input.get(i));
             }
             //add the edgeID
-            final byte[] nextId = getFireflyGraph().edgeIdManager.getNextId(getFireflyGraph());
+            final byte[] nextId = getFireflyGraph().getIdFactory().generateRawEdgeId(getFireflyGraph());
             outputRow.add(encodeID(nextId)); //encode using our custom encoder
             return new GenericRowWithSchema(outputRow.toArray(), schema);
         }

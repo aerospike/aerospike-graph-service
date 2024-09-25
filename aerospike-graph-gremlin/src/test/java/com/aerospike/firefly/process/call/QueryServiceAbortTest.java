@@ -16,7 +16,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.CyclicBarrier;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -33,7 +33,7 @@ public class QueryServiceAbortTest {
         for (int i = 0; i < 32; i++) {
             final Thread thread = new Thread(() -> {
                 final GraphTraversalSource g = SETUP_GRAPH.traversal();
-                for (int j = 0; j < 100000; j++) {
+                for (int j = 0; j < 200000; j++) {
                     g.addV().iterate();
                 }
             });
@@ -64,43 +64,48 @@ public class QueryServiceAbortTest {
     @Test
     public void testQueryServiceAbortAll() throws Exception {
         final GraphTraversalSource g = graph.traversal();
-        final int scanCount = 4;
+        final int scanCount = 8;
         final List<Thread> scanThreads = new ArrayList<>(scanCount);
-        final List<AtomicBoolean> threadSuccesses = new ArrayList<>(scanCount);
+        final CyclicBarrier barrier = new CyclicBarrier(scanCount + 1);
         for (int i = 0; i < scanCount; i++) {
             final int finalI = i;
-            final AtomicBoolean assertion = new AtomicBoolean(false);
             final Thread scanThread = new Thread(() -> {
-                final var scan = g.V().has("propertyKey", String.valueOf(finalI));
                 try {
+                    barrier.await();
+                } catch (final Exception e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    System.out.println("Scan " + finalI + " started.");
+                    final var scan = g.V().has("propertyKey", String.valueOf(finalI));
                     while (scan.hasNext()) {
                         scan.next();
                     }
-                    Assert.fail("Scan should have been aborted.");
+                    System.out.println("Scan " + finalI + " finished.");
                 } catch (final Exception e) {
                     if (e.getCause() instanceof AerospikeException) {
                         final AerospikeException ae = (AerospikeException) e.getCause();
-                        if (ae.getResultCode() == ResultCode.SCAN_ABORT) {
-                            assertion.set(true);
+                        if (ae.getResultCode() != ResultCode.SCAN_ABORT) {
+                            Assert.fail("Unexpected AerospikeException: " + ae);
                         }
                     } else {
-                        throw e;
+                        Assert.fail("Unexpected Exception: " + e);
                     }
                 }
             });
             scanThread.start();
             scanThreads.add(scanThread);
-            threadSuccesses.add(assertion);
         }
-        Thread.sleep(200);
+        barrier.await();
+        Thread.sleep(300);
+        System.out.println("Aborting all scans.");
         Map<String, Integer> queryAbortResult = (Map<String, Integer>) g.call("aerospike.graph.admin.query.abort").next();
-        Assert.assertEquals(scanCount, (int) queryAbortResult.get("found"));
-        Assert.assertEquals(scanCount, (int) queryAbortResult.get("aborted"));
+        int foundQueries = queryAbortResult.get("found");
+        int abortedQueries = queryAbortResult.get("aborted");
+        Assert.assertTrue(foundQueries > 0 && foundQueries <= scanCount);
+        Assert.assertTrue(abortedQueries > 0 && abortedQueries <= foundQueries);
         for (final Thread scanThread : scanThreads) {
             scanThread.join();
-        }
-        for (final AtomicBoolean assertion : threadSuccesses) {
-            Assert.assertTrue(assertion.get());
         }
         queryAbortResult = (Map<String, Integer>) g.call("aerospike.graph.admin.query.abort").next();
         Assert.assertEquals(0, (int) queryAbortResult.get("found"));

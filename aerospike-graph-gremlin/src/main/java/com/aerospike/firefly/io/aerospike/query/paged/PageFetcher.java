@@ -6,6 +6,7 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -139,6 +140,10 @@ public abstract class PageFetcher<E> {
             }
 
             try {
+                if (Thread.currentThread().isInterrupted()) {
+                    close();
+                    throw new TraversalInterruptedException();
+                }
                 final Page page = pageQueue.take();
                 if (page instanceof PoisonPill) {
                     isEmpty = true;
@@ -152,12 +157,8 @@ public abstract class PageFetcher<E> {
 
                 currentIterator = page.keyRecords;
             } catch (final InterruptedException e) {
-                final StringBuilder err = new StringBuilder("Error thread interrupted while removing page:\n");
-                final StackTraceElement[] stackTraceElements = e.getStackTrace();
-                for (final StackTraceElement stackTraceElement : stackTraceElements) {
-                    err.append("\t").append(stackTraceElement.toString()).append("\n");
-                }
-                errorMessage = err.toString();
+                close();
+                throw new TraversalInterruptedException();
             }
         }
 
@@ -186,6 +187,10 @@ public abstract class PageFetcher<E> {
 
         @Override
         public E next() {
+            if (Thread.currentThread().isInterrupted()) {
+                close();
+                throw new TraversalInterruptedException();
+            }
             if (!hasNext()) {
                 throw new NoSuchElementException();
             } else {

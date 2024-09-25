@@ -86,7 +86,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
             edgeId = null;
         } else {
             try {
-                edgeId = edgeIdSupplied != null ? edgeIdSupplied : graph.edgeIdManager.getNextId(graph);
+                edgeId = edgeIdSupplied != null ? edgeIdSupplied : graph.getIdFactory().generateRawEdgeId(graph);
             } catch (final AerospikeException e) {
                 // Do this to trigger retries
                 throw new FireflyLoadingException(e);
@@ -105,7 +105,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
             // time this is null.
             throw new UnsupportedOperationException("Can't get SparkFireflyEdge in verification mode.");
         }
-        return new FireflyPhatEdgeId(ByteBuffer.wrap((byte[]) this.id), db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
+        return db.getIdFactory().createEdgeId(this.id);
     }
 
     public Object getInVertexId() {

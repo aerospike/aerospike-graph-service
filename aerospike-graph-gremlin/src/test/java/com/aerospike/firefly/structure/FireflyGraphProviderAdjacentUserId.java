@@ -29,6 +29,7 @@ public class FireflyGraphProviderAdjacentUserId extends AbstractGraphProvider {
     static {
         CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         CONFIG.setProperty(ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, "true");
+        CONFIG.setProperty(ConfigurationHelper.Keys.HTTP_DISABLED.toLowerCase(), "true");
     }
 
     @Override

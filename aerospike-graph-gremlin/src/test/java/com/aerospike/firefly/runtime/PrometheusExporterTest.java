@@ -71,7 +71,7 @@ public class PrometheusExporterTest {
         // Basic unit test to check that the prometheus server spins up and we can GET data from it. Prometheus is
         // not simple to parse ,so we are only checking existence.
         try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            HttpServer.create(9090, "/metrics", "/healthcheck").start();
+            HttpServer.create(graph).start();
             Assert.assertTrue(queryPrometheus().contains("aerospike_graph_service_jvm_memory_pool_bytes_used"));
         }
     }
@@ -83,7 +83,7 @@ public class PrometheusExporterTest {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.usage.update.interval", 500);
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            HttpServer.create(9090, "/metrics", "/healthcheck").start();
+            HttpServer.create(graph).start();
 
             String prometheus = queryPrometheus();
             String[] lines = prometheus.split("#");

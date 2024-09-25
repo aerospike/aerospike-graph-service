@@ -15,8 +15,6 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.contrib.java.lang.system.ExpectedSystemExit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.junit.Assert.fail;
@@ -28,7 +26,6 @@ public class TestDataModelVersioning {
     @Rule
     public final ExpectedSystemExit exit = ExpectedSystemExit.none();
     protected static Configuration config;
-    final private Logger LOG = LoggerFactory.getLogger(TestDataModelVersioning.class);
     protected static AerospikeConnection db;
     protected static FireflyGraph graph;
     private static GraphTraversalSource g;
@@ -102,7 +99,6 @@ public class TestDataModelVersioning {
     }
 
 
-
     @Test
     public void testMajorVersionMatch() throws Exception {
         // Start graph with version 0.0.1.
@@ -128,8 +124,6 @@ public class TestDataModelVersioning {
         Assert.assertFalse(DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db));
 
     }
-
-
 
     @Test
     public void TestFailOnLaterMajorVersion() throws Exception {
@@ -174,5 +168,4 @@ public class TestDataModelVersioning {
         if (!success)
             fail("should throw exception if on-disk model is greater then program model");
     }
-
 }

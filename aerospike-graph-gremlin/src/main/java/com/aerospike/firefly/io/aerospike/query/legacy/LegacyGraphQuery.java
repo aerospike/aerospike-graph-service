@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.DefaultAerospikeClientProvider.client;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.DefaultAerospikeClientProvider.CLIENT;
 
 public class LegacyGraphQuery implements GraphQuery {
     private final FireflyGraph fireflyGraph;
@@ -81,7 +81,7 @@ public class LegacyGraphQuery implements GraphQuery {
         final ConcurrentScanRecordSequenceListener listener =
                 ConcurrentScanRecordSequenceListener.create(db, scanMonitor, scanId);
         listener.setStartTime();
-        client.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), setName, binNames);
+        CLIENT.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), setName, binNames);
 
         return new FireflyCloseableIterator<>(listener.iterator());
     }
@@ -98,11 +98,10 @@ public class LegacyGraphQuery implements GraphQuery {
 
 
     @Override
-    public <E> BlockingQueue<PageFetcher.Page> batchReadSetPagesBlocking(final FireflyGraph graph, BatchPolicy policy,
-                                                                         final Class<? extends FireflyElement> type,
-                                                                         final Expression expression,
-                                                                         final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
-                                                                         final List<Object> idsToRead) {
+    public <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(final FireflyGraph graph, BatchPolicy policy,
+                                                                            final Expression expression,
+                                                                            final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
+                                                                            final List<Object> idsToRead) {
         throw new RuntimeException("The graph computer does not support legacy reading.");
     }
 

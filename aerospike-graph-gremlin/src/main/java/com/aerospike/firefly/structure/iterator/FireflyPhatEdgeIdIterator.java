@@ -49,7 +49,7 @@ public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
     public FireflyId next() {
         if (hasNext()) {
             final ByteBuffer edgeId = (ByteBuffer) this.currentRecordIds.next();
-            return new FireflyPhatEdgeId(edgeId, this.db.PHAT_EDGE_SIZE, this.db.EDGE_AERO_SET);
+            return this.db.getIdFactory().createEdgeId(edgeId);
         } else {
             throw FastNoSuchElementException.instance();
         }

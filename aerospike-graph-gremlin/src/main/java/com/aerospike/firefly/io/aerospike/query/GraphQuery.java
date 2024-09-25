@@ -105,7 +105,7 @@ public interface GraphQuery {
                 final Expression expression = GraphQueryHelper.hasContainerListToExpression(db, aerospikeSideHasContainers, FireflyVertex.class);
                 final BatchPolicy policy = new BatchPolicy();
                 policy.setTimeout(evaluationTimeout.intValue());
-                return batchReadSetPagesBlocking(graph, policy, FireflyVertex.class, expression, graph::vertexFromRecord, ids);
+                return batchReadVertexPagesBlocking(graph, policy, expression, graph::vertexFromRecord, ids);
             }
 
             final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, hasContainers);
@@ -218,11 +218,10 @@ public interface GraphQuery {
                                                              Long evaluationTimeout,
                                                              String... binNames);
 
-    <E> BlockingQueue<PageFetcher.Page> batchReadSetPagesBlocking(FireflyGraph graph, BatchPolicy policy,
-                                                                  Class<? extends FireflyElement> type,
-                                                                  Expression expression,
-                                                                  FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
-                                                                  List<Object> idsToRead);
+    <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(FireflyGraph graph, BatchPolicy policy,
+                                                                     Expression expression,
+                                                                     FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
+                                                                     List<Object> idsToRead);
 
     default <E> Iterator<E> queryVertexSIndex(FireflyIndexMetadata.IndexInfo indexInfo,
                                               P<?> predicate,

@@ -1,7 +1,6 @@
 package com.aerospike.firefly.structure.id;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.structure.FireflyVertex;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -11,19 +10,19 @@ public class FireflyUserIdComposite extends FireflyIdComposite {
     private Byte adjacentIdTypeHint;
     private int idSize;
 
-    public FireflyUserIdComposite(final AerospikeConnection db, final FireflyId edgeId, final FireflyId adjacentId) {
+    public FireflyUserIdComposite(final AerospikeConnection db, final FireflyEdgeId edgeId, final FireflyId adjacentId) {
         super(db, edgeId, adjacentId);
     }
 
     @Override
-    protected void initialize(final FireflyId edgeId, final FireflyId adjacentId) {
+    protected void initialize(final FireflyEdgeId edgeId, final FireflyId adjacentId) {
         this.adjacentUserId = adjacentId.getUserId();
         this.adjacentIdTypeHint = (byte) this.db.getIdFactory().getTypeHint(this.adjacentUserId);
         final byte[] encodedAdjacentUserId = encodeIdToBytes(this.adjacentUserId);
         // 17 comes from edge id (16) and type hint byte (1).
         this.idSize = 17 + encodedAdjacentUserId.length;
         this.id = new byte[this.idSize];
-        System.arraycopy(((ByteBuffer) edgeId.getUserId()).array(), 0, this.id, 0, 16);
+        System.arraycopy(edgeId.getEdgeIdBytes().array(), 0, this.id, 0, 16);
         this.id[16] = this.adjacentIdTypeHint;
         System.arraycopy(encodedAdjacentUserId, 0, this.id, 17, encodedAdjacentUserId.length);
     }
@@ -60,9 +59,7 @@ public class FireflyUserIdComposite extends FireflyIdComposite {
     private Object decodeBytesToUserId(final byte[] bytes) {
         final long typeHint = (long) adjacentIdTypeHint;
         final FireflyIdFactory idFactory = this.db.getIdFactory();
-        if (typeHint == idFactory.getTypeHint(byte[].class)) {
-            return bytes;
-        } else if (typeHint == idFactory.getTypeHint(String.class)) {
+        if (typeHint == idFactory.getTypeHint(String.class)) {
             return new String(bytes, StandardCharsets.ISO_8859_1);
         } else if (typeHint == idFactory.getTypeHint(Long.class)) {
             return ByteBuffer.wrap(bytes).getLong();
@@ -79,7 +76,7 @@ public class FireflyUserIdComposite extends FireflyIdComposite {
     @Override
     public FireflyId getAdjacentId() {
         if (this.adjacentId == null) {
-            this.adjacentId = this.db.getIdFactory().createId(getAdjacentUserId(), FireflyVertex.class);
+            this.adjacentId = this.db.getIdFactory().createVertexId(getAdjacentUserId());
         }
         return this.adjacentId;
     }

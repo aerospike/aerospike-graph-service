@@ -126,6 +126,7 @@ public class SparkBulkLoaderStateMachine {
                 }
             });
             config = new BulkLoaderConfigHelper(fileConfig, cmd);
+            config.validateBulkLoadConfig();
 
             final String logLevel = config.getOrDefault(SPARK_LOG_LEVEL).toUpperCase();
             // Set LOG LEVEL for spark logging to disable logging of each step during debugging purposes.

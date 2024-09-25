@@ -103,7 +103,7 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
             return Stream.empty();
         } else if (search.containsKey(T.id)) {
             final Object sid = search.get(T.id);
-            final FireflyId fid = FireflyIdFactory.create(graph.getBaseGraph()).createId(sid, FireflyVertex.class);
+            final FireflyId fid = graph.getIdFactory().createVertexId(sid);
             final Key askey = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, fid);
             if (graph.getBaseGraph().exists(askey)) {
                 stream = FireflyCloseableIteratorUtils.stream(graph.vertices(search.get(T.id)));

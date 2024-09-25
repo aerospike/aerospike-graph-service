@@ -64,9 +64,8 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
     @Test
     public void testSummary() throws InterruptedException {
         final GraphTraversalSource g = graph.traversal();
-        Thread.sleep(5000);
         g.V().drop().iterate();
-        Thread.sleep(5000);
+        Thread.sleep(100);
         final Map<Object, Object> summaryCallEmpty = (Map<Object, Object>) g.call("aerospike.graph.admin.metadata.summary").next();
         final Map<Object, Object> expectedEmpty = Map.of(
                 "Vertex count by label", Map.of(),
@@ -77,7 +76,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
                 "Total edge count", 0L);
         Assert.assertEquals(expectedEmpty, summaryCallEmpty);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-        Thread.sleep(3000);
+        Thread.sleep(7500);
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
         final Map<Object, Object> vertexLabels = g.V().group().by(__.label()).by(__.count()).next();
@@ -114,9 +113,8 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
     @Test
     public void testSummaryDeprecatedWorks() throws InterruptedException {
         final GraphTraversalSource g = graph.traversal();
-        Thread.sleep(5000);
         g.V().drop().iterate();
-        Thread.sleep(5000);
+        Thread.sleep(100);
         final Map<Object, Object> summaryCallEmpty = (Map<Object, Object>) g.call("summary").next();
         final Map<Object, Object> expectedEmpty = Map.of(
                 "Vertex count by label", Map.of(),
@@ -127,7 +125,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
                 "Total edge count", 0L);
         Assert.assertEquals(expectedEmpty, summaryCallEmpty);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-        Thread.sleep(3000);
+        Thread.sleep(7500);
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
         final Map<Object, Object> vertexLabels = g.V().group().by(__.label()).by(__.count()).next();
@@ -164,21 +162,19 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
     @Test
     public void testSummaryOverflow() throws InterruptedException {
         graph.traversal().V().drop().iterate();
-        Thread.sleep(5000);
+        Thread.sleep(100);
 
         for (int i = 0; i < 10000; i++) {
             Vertex v = graph.traversal().addV(String.format("%d", i)).property(String.format("%d", i), String.format("%d", i)).next();
             graph.traversal().addE(String.format("%d", i)).from(v).to(v).property(String.format("%d", i), String.format("%d", i)).iterate();
         }
+        Thread.sleep(7500);
 
-        // Sleep 5 seconds to allow recycle to trigger.
-        Thread.sleep(5000);
+        Assert.assertTrue(graph.fireflySummaryUpdater.vertexCounts.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
+        Assert.assertTrue(graph.fireflySummaryUpdater.vertexProperties.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
 
-        Assert.assertTrue(FireflyGraphSummaryUpdater.vertexCounts.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
-        Assert.assertTrue(FireflyGraphSummaryUpdater.vertexProperties.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
-
-        Assert.assertTrue(FireflyGraphSummaryUpdater.edgeCounts.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
-        Assert.assertTrue(FireflyGraphSummaryUpdater.edgeProperties.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
+        Assert.assertTrue(graph.fireflySummaryUpdater.edgeCounts.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
+        Assert.assertTrue(graph.fireflySummaryUpdater.edgeProperties.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
 
         graph.traversal().V().drop().iterate();
     }
@@ -186,14 +182,13 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
     @Test
     public void testPrettySummary() throws InterruptedException {
         final GraphTraversalSource g = graph.traversal();
-        Thread.sleep(5000);
         g.V().drop().iterate();
-        Thread.sleep(5000);
+        Thread.sleep(100);
         final String summaryCall = (String) g.call("aerospike.graph.admin.metadata.summary").with("pretty").next();
         final String expectedOutputEmpty = String.format(PRETTY_PRINT_FORMAT_SYSTEM, 0L, "{}", "{}", 0L, "{}", "{}");
         Assert.assertEquals(expectedOutputEmpty, summaryCall);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-        Thread.sleep(5000);
+        Thread.sleep(7500);
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
 

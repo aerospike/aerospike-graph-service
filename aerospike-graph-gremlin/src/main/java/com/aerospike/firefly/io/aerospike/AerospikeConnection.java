@@ -87,6 +87,7 @@ import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
 import static com.aerospike.firefly.util.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.ConfigurationHelper.getOrDefaultString;
 
 /**
@@ -217,11 +218,13 @@ public class AerospikeConnection implements AutoCloseable {
 
     public static final AtomicLong instanceCounter = new AtomicLong(0);
 
-    public final FireflyIdFactory idFactory;
+    private final FireflyIdFactory idFactory;
     public final boolean ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY;
     public final boolean ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY;
     public final boolean ENABLE_COMPOSITE_ID_LIMIT_STRATEGY;
     public final boolean ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY;
+    public final boolean ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY;
+    public final boolean ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY;
     public final boolean ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY;
     public final boolean ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY;
     public final boolean ENABLE_CACHED_ADJACENT_ID_STRATEGY;
@@ -248,6 +251,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final List<String> vertexPropertyBins = new ArrayList<>();
 
     public final String QUERY_IMPL;
+
+    private final boolean bulkLoaderFlag;
 
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
@@ -389,6 +394,8 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_COMPOSITE_ID_LIMIT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_LIMIT_STRATEGY, conf);
         ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, conf);
         ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY, conf);
+        ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY, conf);
+        ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY, conf);
         ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY, conf);
         ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf);
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf);
@@ -510,8 +517,10 @@ public class AerospikeConnection implements AutoCloseable {
 
         QUERY_IMPL = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.QUERY_IMPL, conf);
 
+        bulkLoaderFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf);
+
         cacheTasks = new ArrayList<>();
-        idFactory = FireflyIdFactory.create(this);
+        idFactory = new FireflyIdFactory(this);
 
         vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_BIN); // 2
         vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN); // 3
@@ -539,7 +548,6 @@ public class AerospikeConnection implements AutoCloseable {
         }
         LOG.info("{} configured to {}.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, onRecordIdLimit);
         ON_RECORD_ID_LIMIT = onRecordIdLimit;
-
     }
 
     private long getRecordIdLimitFromAerospike(final double fillPercentage) {
@@ -769,6 +777,7 @@ public class AerospikeConnection implements AutoCloseable {
         private static final String QUERY_TRID = "trid";
         private static final String QUERY_ABORT_RESULT = "result";
         private static final String QUERY_ABORT_SUCCESS = "OK";
+        private static final String QUERY_ABORT_TRID_INACTIVE = "trid-not-active";
 
         //Parse the whole infoResponse and return it as a List of Maps
         public static List<Map<String, String>> parseRaw(String infoResponse) {
@@ -997,14 +1006,22 @@ public class AerospikeConnection implements AutoCloseable {
             final Node[] nodes = client.getNodes();
 
             boolean success = false;
+            String lastAbortResult = null;
             for (final Node node : nodes) {
                 LOG.debug("Info.request: {}", requestKey);
                 final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
                 final List<Map<String, String>> queryAbortResponses = parseRaw(infoResponse);
                 for (final Map<String, String> abortResponse : queryAbortResponses) {
-                    if (abortResponse.containsKey(QUERY_ABORT_RESULT) &&
-                            QUERY_ABORT_SUCCESS.equals(abortResponse.get(QUERY_ABORT_RESULT))) {
-                        success = true;
+                    if (abortResponse.containsKey(QUERY_ABORT_RESULT)) {
+                        final String abortResult = abortResponse.get(QUERY_ABORT_RESULT);
+                        if (QUERY_ABORT_SUCCESS.equals(abortResult) || QUERY_ABORT_TRID_INACTIVE.equals(abortResult)) {
+                            success = true;
+                        } else {
+                            if (!abortResult.equals(lastAbortResult)) {
+                                LOG.error("Aborting query with trid {} failed with response: {}", trid, abortResult);
+                                lastAbortResult = abortResult;
+                            }
+                        }
                     }
                 }
             }
@@ -1259,40 +1276,25 @@ public class AerospikeConnection implements AutoCloseable {
         return this.namespace;
     }
 
-    /**
-     * Initialize the Aerospike event loops
-     *
-     * @param eventLoopType
-     * @param numLoops
-     * @param commandsPerEventLoop
-     * @param maxCommandsInQueue
-     * @return
-     */
-    public static EventLoops initializeEventLoops(
-            final EventLoopType eventLoopType,
-            final int numLoops,
-            final int commandsPerEventLoop,
-            final int maxCommandsInQueue) {
+    private static EventLoops initializeEventLoops(final EventLoopType eventLoopType,
+                                                   final int numLoops, final int commandsPerEventLoop,
+                                                   final int maxCommandsInQueue) {
         final EventPolicy eventPolicy = new EventPolicy();
         eventPolicy.maxCommandsInProcess = commandsPerEventLoop;
         eventPolicy.maxCommandsInQueue = maxCommandsInQueue;
-        EventLoops eventLoops = null;
         switch (eventLoopType) {
             case DIRECT_NIO:
-                eventLoops = new NioEventLoops(eventPolicy, numLoops);
-                break;
+                return new NioEventLoops(eventPolicy, numLoops);
             case NETTY_NIO:
-                NioEventLoopGroup nioGroup = new NioEventLoopGroup(numLoops);
-                eventLoops = new NettyEventLoops(eventPolicy, nioGroup);
-                break;
+                final NioEventLoopGroup nioGroup = new NioEventLoopGroup(numLoops);
+                return new NettyEventLoops(eventPolicy, nioGroup);
             case NETTY_EPOLL:
-                EpollEventLoopGroup epollGroup = new EpollEventLoopGroup(numLoops);
-                eventLoops = new NettyEventLoops(eventPolicy, epollGroup);
-                break;
+                final EpollEventLoopGroup epollGroup = new EpollEventLoopGroup(numLoops);
+                return new NettyEventLoops(eventPolicy, epollGroup);
             default:
-                LOG.error("Error: Invalid event loop type");
+                // This should never happen.
+                throw new IllegalArgumentException("Unsupported event loop type: " + eventLoopType);
         }
-        return eventLoops;
     }
 
     /**
@@ -1888,7 +1890,7 @@ public class AerospikeConnection implements AutoCloseable {
         } catch (final AerospikeException ae) {
             switch (ae.getResultCode()) {
                 case ResultCode.RECORD_TOO_BIG:
-                    LOG.error("RECORD_TO_BIG error on key {}", key);
+                    LOG.error("RECORD_TOO_BIG error on key {}", key);
                     LOG.error(RECORD_TOO_BIG, ae);
                     throw new RecordTooBigException(ae);
                 case ResultCode.KEY_NOT_FOUND_ERROR:
@@ -2008,6 +2010,10 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
+    public boolean getBulkLoaderFlag() {
+        return this.bulkLoaderFlag;
+    }
+
     public long incrementAndGetBadEdgeCount(final long amount) {
         final Key badEdgeCountKey = new Key(namespace, BULK_LOAD_METADATA_SET, Value.get(BL_BAD_EDGES_COUNT_KEY));
         final Bin addBin = new Bin(COUNTER_BIN, amount);
@@ -2051,8 +2057,8 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public static class DefaultAerospikeClientProvider implements AerospikeClientProvider, AutoCloseable {
         public static final AtomicLong OPEN_COUNT = new AtomicLong(0);
-        public static AerospikeClient client;
-        public static EventLoops eventLoops;
+        public static AerospikeClient CLIENT;
+        public static EventLoops EVENT_LOOPS;
 
         public static final DefaultAerospikeClientProvider INSTANCE = new DefaultAerospikeClientProvider();
 
@@ -2063,15 +2069,20 @@ public class AerospikeConnection implements AutoCloseable {
             synchronized (DefaultAerospikeClientProvider.class) {
                 if (OPEN_COUNT.get() == 0) {
                     final String eventLoopTypeName = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.EVENT_LOOP_TYPE, conf);
-                    final EventLoopType eventLoopType = EventLoopType.valueOf(eventLoopTypeName);
+                    final EventLoopType eventLoopType;
+                    try {
+                        eventLoopType = EventLoopType.valueOf(eventLoopTypeName);
+                    } catch (final IllegalArgumentException e) {
+                        throw new IllegalArgumentException("Invalid event loop type provided: " + eventLoopTypeName);
+                    }
                     final int eventLoopCount = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.EVENT_LOOP_COUNT, conf);
                     final int commandsPerEventLoop = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.COMMANDS_PER_EVENT_LOOP, conf);
                     final int delayQueueSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.DELAY_QUEUE_SIZE, conf);
 
-                    eventLoops = initializeEventLoops(eventLoopType, eventLoopCount, commandsPerEventLoop, delayQueueSize);
+                    EVENT_LOOPS = initializeEventLoops(eventLoopType, eventLoopCount, commandsPerEventLoop, delayQueueSize);
                     final int threadPoolSize = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());
-                    final ClientPolicy clientPolicy = setupClientPolicy(conf, threadPoolSize, eventLoops);
-                    client = setupDefaultClient(conf, clientPolicy);
+                    final ClientPolicy clientPolicy = setupClientPolicy(conf, threadPoolSize, EVENT_LOOPS);
+                    CLIENT = setupDefaultClient(conf, clientPolicy);
                 }
                 OPEN_COUNT.incrementAndGet();
                 return INSTANCE;
@@ -2081,10 +2092,10 @@ public class AerospikeConnection implements AutoCloseable {
         @Override
         public AerospikeClient getAerospikeClient(final Configuration conf) {
             synchronized (DefaultAerospikeClientProvider.class) {
-                if (OPEN_COUNT.get() <= 0 || client == null || !client.isConnected()) {
+                if (OPEN_COUNT.get() <= 0 || CLIENT == null || !CLIENT.isConnected()) {
                     throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
                 }
-                return client;
+                return CLIENT;
             }
         }
 
@@ -2094,7 +2105,7 @@ public class AerospikeConnection implements AutoCloseable {
                 if (OPEN_COUNT.get() <= 0) {
                     throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
                 }
-                return eventLoops;
+                return EVENT_LOOPS;
             }
         }
 
@@ -2102,8 +2113,8 @@ public class AerospikeConnection implements AutoCloseable {
         public void close() throws Exception {
             synchronized (DefaultAerospikeClientProvider.class) {
                 if (OPEN_COUNT.decrementAndGet() == 0) {
-                    client.close();
-                    eventLoops.close();
+                    CLIENT.close();
+                    EVENT_LOOPS.close();
                 }
                 if (OPEN_COUNT.get() < 0) {
                     OPEN_COUNT.set(0);

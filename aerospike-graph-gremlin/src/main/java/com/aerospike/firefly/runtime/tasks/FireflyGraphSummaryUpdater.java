@@ -1,5 +1,6 @@
 package com.aerospike.firefly.runtime.tasks;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
@@ -49,40 +50,41 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     private static final String SUMMARY_LABEL_BIN = "L_SUM_BIN";
     private static final String SUMMARY_PROPERTY_BIN = "P_SUM_BIN";
     private final AerospikeConnection db;
-    private static final AtomicBoolean EXITED = new AtomicBoolean(false);
-    private static CountDownLatch COUNTDOWN_LATCH = new CountDownLatch(HIGH_WATERMARK);
-    private static CountDownLatch SHUTDOWN_LATCH = new CountDownLatch(1);
-    private static final AtomicBoolean SHUTDOWN = new AtomicBoolean(false);
+    private final AtomicBoolean EXITED = new AtomicBoolean(false);
+    private CountDownLatch COUNTDOWN_LATCH = new CountDownLatch(HIGH_WATERMARK);
+    private CountDownLatch SHUTDOWN_LATCH = new CountDownLatch(1);
+    private final AtomicBoolean SHUTDOWN = new AtomicBoolean(false);
+    private static final Map<String, AerospikeException> LAST_SUMMARY_TICKER_EXCEPTION = new ConcurrentHashMap<>();
 
     // Create as daemon so it exits with process.
-    private static final ExecutorService EXECUTOR_SERVICE = Executors.newFixedThreadPool(1,
+    private final ExecutorService EXECUTOR_SERVICE = Executors.newFixedThreadPool(1,
             r -> {
                 Thread t = Executors.defaultThreadFactory().newThread(r);
                 t.setDaemon(true);
                 return t;
             });
-    private static final AtomicLong RUNNING_COUNT = new AtomicLong(0);
+    private final AtomicLong RUNNING_COUNT = new AtomicLong(0);
 
     // Store these locally so that we don't create any that we have already created.
-    private static final Map<String, Set<String>> vertexLabelToProperties = new HashMap<>();
-    private static final Map<String, Set<String>> edgeLabelToProperties = new HashMap<>();
-    private static final AtomicLong lastTickerOutputTime = new AtomicLong(0);
+    private final Map<String, Set<String>> vertexLabelToProperties = new HashMap<>();
+    private final Map<String, Set<String>> edgeLabelToProperties = new HashMap<>();
+    private final AtomicLong lastTickerOutputTime = new AtomicLong(0);
 
     public boolean exited() {
         return EXITED.get();
     }
 
     // These are public strictly for testing. Don't mess with them outside of this class.
-    public static Map<String, Set<String>> edgeProperties = new ConcurrentHashMap<>();
-    public static Map<String, Set<String>> vertexProperties = new ConcurrentHashMap<>();
-    public static Map<String, AtomicLong> edgeCounts = new ConcurrentHashMap<>();
-    public static Map<String, AtomicLong> vertexCounts = new ConcurrentHashMap<>();
+    public Map<String, Set<String>> edgeProperties = new ConcurrentHashMap<>();
+    public Map<String, Set<String>> vertexProperties = new ConcurrentHashMap<>();
+    public Map<String, AtomicLong> edgeCounts = new ConcurrentHashMap<>();
+    public Map<String, AtomicLong> vertexCounts = new ConcurrentHashMap<>();
 
     private final Key V_SUMMARY_KEY;
     private final Key E_SUMMARY_KEY;
     private final Key VP_SUMMARY_KEY;
     private final Key EP_SUMMARY_KEY;
-    private static final AtomicBoolean TRUNCATION = new AtomicBoolean(false);
+    private final AtomicBoolean TRUNCATION = new AtomicBoolean(false);
 
     public static class LabelCountInfo implements UpdateInfo {
         public final String label;
@@ -432,6 +434,25 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         return new FireflyElementMetadata(vertexMetadata, edgeMetadata);
     }
 
+    /**
+     * Get the last exception that caused updating the summary ticker to fail. Meant for use only by the bulk loader.
+     *
+     * @param graphName name of the graph bulk loading is running on
+     * @return the last AerospikeException that caused updating the ticker to fail or null
+     */
+    public static AerospikeException getLastSummaryTickerException(final String graphName) {
+        return LAST_SUMMARY_TICKER_EXCEPTION.get(graphName);
+    }
+
+    /**
+     * Clean up the summary updater exception map after bulk loading. Meant for use only by the bulk loader.
+     *
+     * @param graphName name of the graph bulk loading was running on
+     */
+    public static void clearSummaryTickerException(final String graphName) {
+        LAST_SUMMARY_TICKER_EXCEPTION.remove(graphName);
+    }
+
     private void printGraphSummaryTicker() {
         if (!db.SUMMARY_TICKER_ENABLED_FLAG) {
             return;
@@ -459,8 +480,22 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             while (true) {
                 try {
                     printGraphSummaryTicker();
-                } catch (final RuntimeException e) {
+                } catch (final AerospikeException e) {
                     // This should work but in case it doesn't, continue into standard operation.
+                    if (this.db.getBulkLoaderFlag()) {
+                        // This is okay for now since this is a failing edge case and the code within is fast, but
+                        // may need to add more complex logic to synchronize on unique graph names in the future.
+                        synchronized (LAST_SUMMARY_TICKER_EXCEPTION) {
+                            final AerospikeException lastException = LAST_SUMMARY_TICKER_EXCEPTION.get(this.db.GRAPH_ID);
+                            if (lastException == null || lastException.getResultCode() != e.getResultCode()) {
+                                LAST_SUMMARY_TICKER_EXCEPTION.put(this.db.GRAPH_ID, e);
+                                LOG.warn("Failed to print graph summary ticker.", e);
+                            }
+                        }
+                    } else {
+                        LOG.warn("Failed to print graph summary ticker.", e);
+                    }
+                } catch (final RuntimeException e) {
                     LOG.warn("Failed to print graph summary ticker.", e);
                 }
 

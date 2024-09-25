@@ -3,39 +3,31 @@ package com.aerospike.firefly.structure.id;
 import com.aerospike.client.Value;
 import com.aerospike.client.util.Crypto;
 
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
+
+import static com.aerospike.firefly.structure.id.FireflyIdFactory.VERTEX_ID_TYPE_TO_HINT;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyIdPoly extends FireflyId {
-    protected static Map<Class, GetUserId> CONVERT_TO_USER_CLASS = Map.of(
+public class FireflyIdPoly implements FireflyId {
+    private static Map<Class, GetUserId> CONVERT_TO_USER_CLASS = Map.of(
             Long.class, new GetLongId(),
             Integer.class, new GetIntegerId(),
             Double.class, new GetDoubleId(),
-            String.class, new GetStringId(),
-            ByteBuffer.class, new GetByteArrayId()
+            String.class, new GetStringId()
     );
-    protected static Map<Class, Long> STORAGE_TYPE_HINTS = Map.of(
-            Long.class, 1L,
-            Integer.class, 2L,
-            Double.class, 3L,
-            String.class, 5L,
-            ByteBuffer.class, 6L
-    );
-    protected final Object id;
-    public final Source source;
+
+    protected Object id;
+    protected Object userId = null;
     // Can be null.
     private final Class userClass;
     private final String setName;
     // Lazily instantiate this.
     private byte[] hash = null;
-    private Object userId = null;
-    private byte[] cryptoHash = null;
     private String toString = null;
 
     /**
@@ -43,30 +35,28 @@ public class FireflyIdPoly extends FireflyId {
      *
      * @param id Id to construct with.
      */
-    // Package private. Only the factory should be instantiating this.
     protected FireflyIdPoly(final Object id, final String setName) {
         this(id, id.getClass(), setName);
     }
 
     private FireflyIdPoly(final Object id, final Class<?> userClass, final String setName) {
         this.userClass = userClass;
+        this.setName = setName;
+        initialize(id);
+    }
+
+    protected void initialize(final Object id) {
         if (id == null) {
             throw new IllegalArgumentException("Id cannot be null.");
         } else if (Number.class.isAssignableFrom(id.getClass())) {
-            this.source = Source.NUMBER;
             this.id = ((Number) id).longValue();
         } else if (String.class.isAssignableFrom(id.getClass())) {
-            this.source = Source.STRING;
-            this.id = id;
-        } else if (ByteBuffer.class.isAssignableFrom(id.getClass())) {
-            this.source = Source.BYTE_ARRAY;
             this.id = id;
         } else {
-            throw new IllegalArgumentException("Id must be a String, Number, or byte array. Id provided was '" + id.getClass() + "'.");
+            throw new IllegalArgumentException("Id must be a String or Number. Id provided was '" + id.getClass() + "'.");
         }
-        this.setName = setName;
-        if (!STORAGE_TYPE_HINTS.containsKey(this.userClass) &&
-                !STORAGE_TYPE_HINTS.containsKey(this.userClass.getSuperclass())) {
+        if (!VERTEX_ID_TYPE_TO_HINT.containsKey(this.userClass) &&
+                !VERTEX_ID_TYPE_TO_HINT.containsKey(this.userClass.getSuperclass())) {
             // Should not happen in production, but add case for it anyway.
             throw new RuntimeException(String.format("Error, cannot create poly id with user class of %s.",
                     this.userClass.getName()));
@@ -74,7 +64,6 @@ public class FireflyIdPoly extends FireflyId {
     }
 
     private FireflyIdPoly(final byte[] hash, final String setName) {
-        this.source = Source.HASH;
         this.hash = hash;
         this.id = null;
         this.userClass = null;
@@ -88,7 +77,7 @@ public class FireflyIdPoly extends FireflyId {
      * @param setName the name of the Aerospike set this id belongs to
      * @return a FireflyId
      */
-    public static FireflyIdPoly fromObject(final Object id, final String setName) {
+    static FireflyIdPoly fromObject(final Object id, final String setName) {
         return new FireflyIdPoly(id, setName);
     }
 
@@ -100,7 +89,7 @@ public class FireflyIdPoly extends FireflyId {
      * @param setName   the name of the Aerospike set this id belongs to
      * @return a FireflyId
      */
-    public static FireflyIdPoly fromObject(final Object id, final Class userClass, final String setName) {
+    static FireflyIdPoly fromObject(final Object id, final Class userClass, final String setName) {
         return new FireflyIdPoly(id, userClass, setName);
     }
 
@@ -111,7 +100,7 @@ public class FireflyIdPoly extends FireflyId {
      * @param setName the name of the Aerospike Set this id belongs to
      * @return a FireflyId
      */
-    public static FireflyIdPoly fromHash(final byte[] bytes, final String setName) {
+    static FireflyIdPoly fromHash(final byte[] bytes, final String setName) {
         return new FireflyIdPoly(bytes, setName);
     }
 
@@ -122,7 +111,7 @@ public class FireflyIdPoly extends FireflyId {
      * @param setName the name of the Aerospike Set this id belongs to
      * @return a FireflyId
      */
-    public static FireflyIdPoly fromHashString(final String hash, final String setName) {
+    static FireflyIdPoly fromHashString(final String hash, final String setName) {
         return new FireflyIdPoly(hash.getBytes(StandardCharsets.ISO_8859_1), setName);
     }
 
@@ -133,7 +122,7 @@ public class FireflyIdPoly extends FireflyId {
      * @param setName    the name of the Aerospike Set this id belongs to
      * @return a FireflyId
      */
-    public static FireflyIdPoly fromBase64Hash(final String base64hash, final String setName) {
+    static FireflyIdPoly fromBase64Hash(final String base64hash, final String setName) {
         return new FireflyIdPoly(Crypto.decodeBase64(base64hash.getBytes(), 0, base64hash.getBytes().length), setName);
     }
 
@@ -147,7 +136,9 @@ public class FireflyIdPoly extends FireflyId {
         if (this.userId != null) {
             return this.userId;
         }
-        if (this.userClass == null) throw new RuntimeException("Error, cannot get user id for hash id.");
+        if (this.userClass == null) {
+            throw new RuntimeException("Error, cannot get user id for hash id.");
+        }
         if (CONVERT_TO_USER_CLASS.containsKey(userClass)) {
             this.userId = CONVERT_TO_USER_CLASS.get(userClass).getUserId(id);
         } else if (CONVERT_TO_USER_CLASS.containsKey(userClass.getSuperclass())) {
@@ -170,10 +161,10 @@ public class FireflyIdPoly extends FireflyId {
 
     @Override
     public Long getStorageTypeHint() {
-        if (STORAGE_TYPE_HINTS.containsKey(userClass)) {
-            return STORAGE_TYPE_HINTS.get(userClass);
+        if (VERTEX_ID_TYPE_TO_HINT.containsKey(userClass)) {
+            return VERTEX_ID_TYPE_TO_HINT.get(userClass);
         } else {
-            return STORAGE_TYPE_HINTS.get(userClass.getSuperclass());
+            return VERTEX_ID_TYPE_TO_HINT.get(userClass.getSuperclass());
         }
     }
 
@@ -207,11 +198,8 @@ public class FireflyIdPoly extends FireflyId {
      * @return the digest of the string
      */
     protected byte[] getIdHash(String setName) {
-        if (this.cryptoHash == null) {
-            final Value keyValue = Value.get(this.id);
-            this.cryptoHash = Crypto.computeDigest(setName, keyValue);
-        }
-        return this.cryptoHash;
+        final Value keyValue = Value.get(this.id);
+        return Crypto.computeDigest(setName, keyValue);
     }
 
     @Override
@@ -223,6 +211,11 @@ public class FireflyIdPoly extends FireflyId {
             this.toString = Crypto.encodeBase64(hash);
         }
         return toString;
+    }
+
+    @Override
+    public int hashCode() {
+        return this.getKeyHash() == null ? this.getStorageId().hashCode() : Arrays.hashCode(this.getKeyHash());
     }
 
     @Override
@@ -261,17 +254,6 @@ public class FireflyIdPoly extends FireflyId {
         @Override
         public Object getUserId(final Object id) {
             return id.toString();
-        }
-    }
-
-    public static byte[] decodeBase64(final String base64data) {
-        return Crypto.decodeBase64(base64data.getBytes(), 0, base64data.getBytes().length);
-    }
-
-    static class GetByteArrayId extends GetUserId {
-        @Override
-        public Object getUserId(final Object id) {
-            return id;
         }
     }
 }

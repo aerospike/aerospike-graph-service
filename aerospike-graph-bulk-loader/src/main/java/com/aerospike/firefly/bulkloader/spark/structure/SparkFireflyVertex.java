@@ -61,6 +61,6 @@ public class SparkFireflyVertex extends SparkFireflyElement {
 
     @Override
     public FireflyId getFireflyId(final AerospikeConnection db) {
-        return FireflyIdPoly.fromObject(this.id, db.VERTEX_AERO_SET);
+        return db.getIdFactory().createVertexId(this.id);
     }
 }

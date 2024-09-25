@@ -15,11 +15,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.MILLISECONDS_TO_HOURS;
 
@@ -30,14 +30,23 @@ import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.M
 public class FireflyUsageStats {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyUsageStats.class);
 
-    private static FireflyUsageStats instance;
-    private final FireflyUsageStatsTask task;
+    private FireflyUsageStatsTask task;
 
     // Does not need to be closed because it is a daemon thread.
-    private final Timer taskTimer = new Timer(true);
-    private static boolean errorPrinted = false;
+    private Timer taskTimer = new Timer(true);
 
-    private FireflyUsageStats(final AerospikeConnection connection) {
+    public FireflyUsageStats(final AerospikeConnection connection) {
+        init(connection);
+    }
+
+    private void init(final AerospikeConnection connection) {
+        final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(connection.getClient(), connection.getNamespace(), connection.USAGE_STATS_SET);
+        for (final String index : setIndex) {
+            if (!"ok".equals(index)) {
+                LOG.error("Error creating set index: {}", index);
+            }
+        }
+
         this.task = new FireflyUsageStatsTask(connection);
 
         // Schedule to run every USAGE_STATS_UPDATE_INTERVAL milliseconds.
@@ -48,46 +57,33 @@ public class FireflyUsageStats {
                 connection.USAGE_STATS_UPDATE_INTERVAL);
     }
 
-    public static void startUsageStats(final AerospikeConnection connection) {
-        synchronized (FireflyUsageStats.class) {
-            // Only create once.
-            if (instance == null) {
-                final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(connection.getClient(), connection.getNamespace(), connection.USAGE_STATS_SET);
-                for (final String index : setIndex) {
-                    if (!"ok".equals(index)) {
-                        LOG.error("Error creating set index: {}", index);
-                    }
-                }
-                instance = new FireflyUsageStats(connection);
-            } else {
-                // Update connection. Multiple open and closes can invalidate previous connection.
-                instance.task.connection = connection;
-            }
-        }
-    }
 
     // THIS IS A TEST ONLY FUNCTION.
     // Without this the test cannot reset the usage stats with a lower update interval.
-    public static void restartUsageStats(final AerospikeConnection connection) {
-        synchronized (FireflyUsageStats.class) {
-            // Only create once.
-            if (instance != null) {
-                instance.taskTimer.cancel();
-                instance = new FireflyUsageStats(connection);
-            }
-        }
+    public void restartUsageStats(final AerospikeConnection connection) {
+        taskTimer.cancel();
+        taskTimer = new Timer(true);
+        init(connection);
     }
 
-    public static List<Map<String, Object>> readMetadata() {
-        synchronized (FireflyUsageStats.class) {
-            if (instance == null) {
-                throw new RuntimeException("Error, cannot read usage stats before starting usage stats.");
-            }
-            return instance.task.getAllUsageStats();
+    //let's help GC a bit
+    public void close() {
+        if (taskTimer != null) {
+            taskTimer.cancel();
+            taskTimer = null;
         }
+        task = null;
     }
 
-    public static double getTotalVcpuHours(final List<Map<String, Object>> usageStats, final Long epochOffsetMilliseconds) {
+    public List<Map<String, Object>> readMetadata() {
+        // shutdown started
+        if (task == null) {
+            return List.of();
+        }
+        return task.getAllUsageStats();
+    }
+
+    public double getTotalVcpuHours(final List<Map<String, Object>> usageStats, final Long epochOffsetMilliseconds) {
         double totalVcpuHrs = 0.0;
         for (Map<String, Object> usageStat : usageStats) {
             Long start = (Long) usageStat.get("epoch-ms-start");
@@ -146,7 +142,7 @@ public class FireflyUsageStats {
         }
 
         public List<Map<String, Object>> getAllUsageStats() {
-            final List<Map<String, Object>> usageStatsList = new ArrayList<>();
+            final Queue<Map<String, Object>> usageStatsList = new ConcurrentLinkedQueue<>();
             final IAerospikeClient client = connection.getClient();
             try {
                 // Vrtx only has 2 seconds max, we shouldn't take all of it.
@@ -154,16 +150,16 @@ public class FireflyUsageStats {
                 connection.configureScanPolicy(scanPolicy);
                 scanPolicy.totalTimeout = 1000;
                 client.scanAll(scanPolicy, connection.getNamespace(), connection.USAGE_STATS_SET, (key, record) -> {
-                    final Map<String, Object> map = (Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN);
-                    final Long epochDelta = (Long) map.get("epoch-ms-final") - (Long) map.get("epoch-ms-start");
+                    final Map<String, Object> originalMap = (Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN);
+                    final Long epochDelta = (Long) originalMap.get("epoch-ms-final") - (Long) originalMap.get("epoch-ms-start");
                     if (epochDelta > 60 * 60 * 1000) {
-                        map.put("epoch-delta-hrs", epochDelta / (60 * 60 * 1000));
-                    } else if (epochDelta > 60 * 1000){
-                        map.put("epoch-delta-mins", epochDelta / (60 * 1000));
+                        originalMap.put("epoch-delta-hrs", epochDelta / (60 * 60 * 1000));
+                    } else if (epochDelta > 60 * 1000) {
+                        originalMap.put("epoch-delta-mins", epochDelta / (60 * 1000));
                     } else {
-                        map.put("epoch-delta-secs", epochDelta / 1000);
+                        originalMap.put("epoch-delta-secs", epochDelta / 1000);
                     }
-                    usageStatsList.add((Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN));
+                    usageStatsList.add(originalMap);
                 });
                 errorPrinted = false;
             } catch (final Exception ex) {
@@ -172,7 +168,7 @@ public class FireflyUsageStats {
                 }
                 errorPrinted = true;
             }
-            return usageStatsList;
+            return new ArrayList<>(usageStatsList);
         }
     }
 }

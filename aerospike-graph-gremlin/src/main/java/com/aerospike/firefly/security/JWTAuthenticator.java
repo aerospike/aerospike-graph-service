@@ -77,7 +77,7 @@ public class JWTAuthenticator implements Authenticator {
         if (INSTANCE == null) {
             // Should never happen.
             // Full name b/c of the ambiguity with the other AuthenticationException.
-            throw com.aerospike.firefly.io.aerospike.admin.AuthenticationException.authNotInitialized();
+            throw com.aerospike.firefly.util.exceptions.AuthenticationException.authNotInitialized();
         }
         return INSTANCE;
     }

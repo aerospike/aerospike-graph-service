@@ -25,9 +25,9 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
-import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
-import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
-import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.ElementNotFoundException;
+import com.aerospike.firefly.util.exceptions.RecordTooBigException;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
@@ -35,6 +35,7 @@ import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.FireflyHelper;
+import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -185,7 +186,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
         long ttlValueLong = 0;
         if (propertyMap.containsKey(TTL_PROPERTY_KEY)) {
             if (!db.TTL_ENABLED_FLAG) {
-                throw new TtlNotEnabledException();
+                throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
             }
             final Object ttlValue = propertyMap.remove(TTL_PROPERTY_KEY);
             typeHints.remove(TTL_PROPERTY_KEY);
@@ -667,7 +668,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
         // Handle TTL.
         if (TTL_PROPERTY_KEY.equals(key)) {
             if (!db.TTL_ENABLED_FLAG) {
-                throw new TtlNotEnabledException();
+                throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
             }
             if (Number.class.isAssignableFrom(value.getClass())) {
                 setTtl(((Number) value).longValue());
@@ -820,7 +821,8 @@ public class FireflyEdge extends FireflyElement implements Edge {
             if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Edge has been removed from the Phat Edge since in this case
                 // the key is the Phat Edge key and thus the key still exists.
-                throw new ElementNotFoundException(edge, ae);
+                LOG.error("Edge with ID {} no longer exists.", edge.id());
+                throw new ElementNotFoundException(ae);
             } else {
                 throw ae;
             }
@@ -844,11 +846,12 @@ public class FireflyEdge extends FireflyElement implements Edge {
                     fromAddingProperty((AerospikeException) e.getCause(), db, key, this.id, TTL_PROPERTY_KEY);
             LOG.error(sizeExceededException.getMessage());
             throw sizeExceededException;
-        } catch (AerospikeException ae) {
+        } catch (final AerospikeException ae) {
             if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Edge has been removed from the Phat Edge since in this case
                 // the key is the Phat Edge key and thus the key still exists.
-                throw new ElementNotFoundException(this, ae);
+                LOG.error("Edge with ID {} no longer exists.", this.id());
+                throw new ElementNotFoundException(ae);
             } else {
                 throw ae;
             }

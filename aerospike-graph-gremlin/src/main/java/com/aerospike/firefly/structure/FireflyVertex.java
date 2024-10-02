@@ -38,9 +38,9 @@ import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
-import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
-import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
-import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.ElementNotFoundException;
+import com.aerospike.firefly.util.exceptions.RecordTooBigException;
 import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -56,6 +56,7 @@ import com.aerospike.firefly.structure.iterator.FireflyFilteredBatchEdgeIterator
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromIndexedVertex;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
 import com.aerospike.firefly.util.FireflyHelper;
+import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -838,7 +839,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Handle TTL.
         if (TTL_PROPERTY_KEY.equals(key)) {
             if (!db.TTL_ENABLED_FLAG) {
-                throw new TtlNotEnabledException();
+                throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
             }
             if (Number.class.isAssignableFrom(value.getClass())) {
                 setTtl(((Number) value).longValue());
@@ -1166,7 +1167,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             // Handle special TTL property if flag is enabled.
             if (propertyValueIdMaps.valueMap.containsKey(TTL_PROPERTY_KEY)) {
                 if (!db.TTL_ENABLED_FLAG) {
-                    throw new TtlNotEnabledException();
+                    throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
                 }
                 final Object ttlValue = propertyValueIdMaps.valueMap.remove(TTL_PROPERTY_KEY);
                 propertyValueIdMaps.idMap.remove(TTL_PROPERTY_KEY);

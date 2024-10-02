@@ -14,8 +14,8 @@ import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
-import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
+import com.aerospike.firefly.util.exceptions.ElementNotFoundException;
+import com.aerospike.firefly.util.exceptions.RecordTooBigException;
 import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
@@ -167,7 +167,8 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
             if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Vertex Property has been removed from the Vertex since in this case
                 // the key is the Vertex key due to Vertex Properties being packed and thus the key still exists.
-                throw new ElementNotFoundException(this, ae);
+                LOG.error("Vertex Property with ID {} no longer exists.", this.id());
+                throw new ElementNotFoundException(ae);
             } else {
                 throw ae;
             }

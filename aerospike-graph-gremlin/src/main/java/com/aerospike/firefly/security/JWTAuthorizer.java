@@ -1,6 +1,6 @@
 package com.aerospike.firefly.security;
 
-import com.aerospike.firefly.io.aerospike.admin.AuthenticationException;
+import com.aerospike.firefly.util.exceptions.AuthenticationException;
 
 import org.apache.commons.text.StringEscapeUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;

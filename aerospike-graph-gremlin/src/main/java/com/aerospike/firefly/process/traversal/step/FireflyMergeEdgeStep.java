@@ -13,7 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
+import com.aerospike.firefly.util.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;

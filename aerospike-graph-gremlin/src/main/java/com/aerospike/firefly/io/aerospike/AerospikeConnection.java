@@ -40,8 +40,8 @@ import com.aerospike.client.query.IndexType;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
-import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
+import com.aerospike.firefly.util.exceptions.ElementNotFoundException;
+import com.aerospike.firefly.util.exceptions.RecordTooBigException;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -81,8 +81,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.runtime.exceptions.ElementNotFoundException.ELEMENT_NOT_FOUND;
-import static com.aerospike.firefly.runtime.exceptions.RecordTooBigException.RECORD_TOO_BIG;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
@@ -1891,10 +1889,9 @@ public class AerospikeConnection implements AutoCloseable {
             switch (ae.getResultCode()) {
                 case ResultCode.RECORD_TOO_BIG:
                     LOG.error("RECORD_TOO_BIG error on key {}", key);
-                    LOG.error(RECORD_TOO_BIG, ae);
                     throw new RecordTooBigException(ae);
                 case ResultCode.KEY_NOT_FOUND_ERROR:
-                    LOG.debug(ELEMENT_NOT_FOUND, ae);
+                    LOG.debug("KEY_NOT_FOUND error on key {}", key);
                     throw new ElementNotFoundException(ae);
                 case ResultCode.GENERATION_ERROR:
                     LOG.debug("GENERATION_ERROR error on key {}", key);

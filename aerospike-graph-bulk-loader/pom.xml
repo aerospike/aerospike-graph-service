@@ -78,6 +78,12 @@
             <artifactId>commons-compress</artifactId>
             <version>1.26.2</version>
         </dependency>
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-7569538 in avro@1.11.4 -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>2.15.4</version>
+        </dependency>
         <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEAVRO-8161188 in spark-core_2.12@3.4.3 -->
         <dependency>
             <groupId>org.apache.avro</groupId>

@@ -1,4 +1,4 @@
-package com.aerospike.firefly.runtime.exceptions;
+package com.aerospike.firefly.util.exceptions;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
@@ -14,16 +14,24 @@ import java.util.Map;
 
 import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
 
-public class EdgeRecordSizeExceededException extends RuntimeException {
+public class EdgeRecordSizeExceededException extends AerospikeGraphRecordSizeExceededException {
     private static final String ADD_EDGE_BASE_MESSAGE = "Record size exceeded for Edge pack when attempting to add Edge with ID %s";
     private static final String ADD_PROPERTY_BASE_MESSAGE = "Record size exceeded for Edge pack when writing Property key %s for Edge with ID %s";
+    private final String message;
     public final long edgePackCount;
     public final long propertyCount;
+
     private EdgeRecordSizeExceededException(final String message, final AerospikeException cause,
                                             final long edgePackCount, final long propertyCount) {
-        super(message, cause);
+        super(cause);
+        this.message = message;
         this.edgePackCount = edgePackCount;
         this.propertyCount = propertyCount;
+    }
+
+    @Override
+    public String getMessage() {
+        return this.message;
     }
 
     public static EdgeRecordSizeExceededException fromAddingEdge(final AerospikeException cause,

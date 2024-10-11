@@ -46,7 +46,7 @@ public abstract class TestFireflyIndexes extends AbstractFireflySuite {
 
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final List<String> existingIndexes =
-                    AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace()).stream()
+                    AerospikeConnection.InfoOps.listExistingIndexes(db).stream()
                             .map(Map.Entry::getKey).collect(Collectors.toList());
 
             Assert.assertTrue(existingIndexes.contains(getIndexPrefix() + "_" + "name" + "_" + IndexType.NUMERIC));
@@ -69,7 +69,7 @@ public abstract class TestFireflyIndexes extends AbstractFireflySuite {
         setProperty("birthplace");
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final List<String> existingIndexes =
-                    AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace()).stream()
+                    AerospikeConnection.InfoOps.listExistingIndexes(db).stream()
                             .map(Map.Entry::getKey).collect(Collectors.toList());
 
             Assert.assertTrue(existingIndexes.contains(getIndexPrefix() + "_" + "name" + "_" + IndexType.NUMERIC));

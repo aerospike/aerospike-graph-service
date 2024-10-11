@@ -64,6 +64,7 @@ import com.aerospike.client.task.ExecuteTask;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.client.task.RegisterTask;
 import com.aerospike.client.util.Util;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Calendar;
@@ -132,7 +133,7 @@ public class FailingAerospikeClient implements IAerospikeClient {
 
         public <R> R invoke(Invoker<T> invoker) {
             Log.debug("Pre call");
-            AerospikeException exception = null;
+            AerospikeGraphException exception = null;
             R result = null;
             while (true) {
                 try {
@@ -141,9 +142,9 @@ public class FailingAerospikeClient implements IAerospikeClient {
                     result = (R) invoker.invoke(this.policy);
                     Log.debug("post call - successful");
                     return result;
-                } catch (AerospikeException ae) {
+                } catch (final AerospikeGraphException ae) {
                     exception = ae;
-                    if (ae.getResultCode() != ResultCode.TIMEOUT && ae.getResultCode() != ResultCode.DEVICE_OVERLOAD) {
+                    if (ae.errorCode != ResultCode.TIMEOUT && ae.errorCode != ResultCode.DEVICE_OVERLOAD) {
                         Log.debug("post call - failed with " + ae.getClass().getCanonicalName());
                         throw ae;
                     }

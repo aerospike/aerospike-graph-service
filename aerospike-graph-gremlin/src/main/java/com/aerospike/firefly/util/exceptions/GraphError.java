@@ -52,9 +52,13 @@ public enum GraphError {
     AUTH_USER_ADMIN_REQUIRED(1107),
     AUTH_USER_READ_REQUIRED(1108),
     TTL_NOT_ENABLED(1109),
+    DEFAULT_TTL_EXISTS(1110),
+    NO_ACTIVE_NODES(1111),
+    DROP_INDEX_UNAUTHORIZED(1112),
 
     ELEMENT_NOT_FOUND(ResultCode.KEY_NOT_FOUND_ERROR),
-    RECORD_SIZE_EXCEEDED(ResultCode.RECORD_TOO_BIG);
+    RECORD_SIZE_EXCEEDED(ResultCode.RECORD_TOO_BIG),
+    OUT_OF_MEMORY(ResultCode.SERVER_MEM_ERROR);
 
     public final int code;
 
@@ -79,11 +83,18 @@ public enum GraphError {
         ERROR_MESSAGES.put(AUTH_USER_ADMIN_REQUIRED.code, "User does not have admin access.");
         ERROR_MESSAGES.put(AUTH_USER_READ_REQUIRED.code, "User does not have read access.");
         ERROR_MESSAGES.put(TTL_NOT_ENABLED.code, "TTL must be enabled to set '" + TTL_PROPERTY_KEY + "'.");
+        ERROR_MESSAGES.put(DEFAULT_TTL_EXISTS.code, "Graph cannot run in a namespace that has a 'default-ttl'. " +
+                        "Aerospike has a non-zero 'default-ttl' in one or more nodes. " +
+                        "Please disable it for all nodes in namespace.");
+        ERROR_MESSAGES.put(NO_ACTIVE_NODES.code, "No active server nodes found in cluster.");
+        ERROR_MESSAGES.put(DROP_INDEX_UNAUTHORIZED.code, "Failed to drop index due to role violation. Please check the permissions of the role assigned.");
 
         // Server
         ERROR_MESSAGES.put(ELEMENT_NOT_FOUND.code, "Element was dropped and no longer exists.");
         ERROR_MESSAGES.put(RECORD_SIZE_EXCEEDED.code, "Max record size exceeded. This is typically caused by too many " +
                 "Properties / Edges added to an Element. Consider breaking this Element into more Elements.");
+        ERROR_MESSAGES.put(OUT_OF_MEMORY.code, "Aerospike server side memory error detected. " +
+                "Check index memory usage and/or increase server memory in Aerospike configuration.");
 
         // Client
 

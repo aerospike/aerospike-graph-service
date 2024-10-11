@@ -6,7 +6,6 @@ import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.util.ProgressBar;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
-import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
@@ -214,7 +213,7 @@ public class SparkBulkLoaderStateMachine {
         final Properties prop = new Properties();
         try (final StringReader reader = new StringReader(fileContext)) {
             prop.load(reader);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             LOGGER.error(e.getMessage());
             throw new RuntimeException(e);
         }
@@ -287,7 +286,7 @@ public class SparkBulkLoaderStateMachine {
                                 GCS_EMAIL+ "', '" + REMOTE_USERNAME + "', and '" + REMOTE_PASSKEY +
                                 "' must be specified to read from GCS.";
                         LOGGER.error(gcsCredentialError);
-                        throw new FireflyBulkLoaderException(gcsCredentialError);
+                        throw new RuntimeException(gcsCredentialError);
                     }
                 }
             }
@@ -320,7 +319,7 @@ public class SparkBulkLoaderStateMachine {
 
         try {
             Thread.sleep(exponentialTime);
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }

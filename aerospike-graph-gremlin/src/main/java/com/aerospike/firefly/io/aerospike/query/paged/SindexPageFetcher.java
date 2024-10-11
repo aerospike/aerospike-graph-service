@@ -1,13 +1,13 @@
 package com.aerospike.firefly.io.aerospike.query.paged;
 
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 
 import java.util.Iterator;
 
@@ -32,8 +32,8 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
     protected void readPage() {
         final RecordSet recordSet;
         try {
-            recordSet = graph.getBaseGraph().getClient().queryPartitions(policy, statement, filter);
-        } catch (final AerospikeException e) {
+            recordSet = graph.getBaseGraph().queryPartitions(policy, statement, filter);
+        } catch (final AerospikeGraphException e) {
             signalError("Failed to read index: " + e.getMessage(), e);
             return;
         }

@@ -3,8 +3,6 @@ package com.aerospike.firefly.bulkloader.integration;
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
-import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
-import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderPreflightException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -191,8 +189,7 @@ public abstract class TestSparkBulkLoaderBase {
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "0", "-c", getPreflightCheckVertex()}, DEFAULT_PARAMS));
             Assert.fail("Bad Vertex entries were not allowed but did not fail.");
-        } catch (final FireflyBulkLoaderPreflightException e) {
-            Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
+        } catch (final RuntimeException e) {
             Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
         }
         final GraphTraversalSource g = graph.traversal();
@@ -205,8 +202,7 @@ public abstract class TestSparkBulkLoaderBase {
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "0", "-c", getPreflightCheckEdge()}, DEFAULT_PARAMS));
             Assert.fail("Bad Edge entries were not allowed but did not fail.");
-        } catch (final FireflyBulkLoaderPreflightException e) {
-            Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
+        } catch (final RuntimeException e) {
             Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
         }
         final GraphTraversalSource g = graph.traversal();
@@ -221,8 +217,7 @@ public abstract class TestSparkBulkLoaderBase {
             // Test failing on Vertex
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "1", "-c", getBadEntries()}, DEFAULT_PARAMS));
             Assert.fail("Bad Edge Vertex were not allowed but did not fail.");
-        } catch (final FireflyBulkLoaderPreflightException e) {
-            Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
+        } catch (final RuntimeException e) {
             Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
         }
         final GraphTraversalSource g = graph.traversal();
@@ -232,8 +227,7 @@ public abstract class TestSparkBulkLoaderBase {
             // Test failing on Edge
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "2", "-c", getBadEntries()}, DEFAULT_PARAMS));
             Assert.fail("Bad Edge entries were not allowed but did not fail.");
-        } catch (final FireflyBulkLoaderPreflightException e) {
-            Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
+        } catch (final RuntimeException e) {
             Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
         }
         Assert.assertFalse(g.V().hasNext());
@@ -276,7 +270,6 @@ public abstract class TestSparkBulkLoaderBase {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-adv", "0", "-c", getDuplicateVertexId()}, DEFAULT_PARAMS));
             Assert.fail("Duplicate Vertex ID did not fail when it should have.");
         } catch (final Exception e) {
-            Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
             Assert.assertEquals(DUPLICATE_VERTEX_ID_COUNT_EXCEEDED, e.getMessage());
         }
         graph.getBaseGraph().dropDatabase(graph, false);
@@ -285,7 +278,6 @@ public abstract class TestSparkBulkLoaderBase {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-adv", "2", "-c", getDuplicateVertexId()}, DEFAULT_PARAMS));
             Assert.fail("Duplicate Vertex ID did not fail when it should have.");
         } catch (final Exception e) {
-            Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
             Assert.assertEquals(DUPLICATE_VERTEX_ID_COUNT_EXCEEDED, e.getMessage());
         }
     }
@@ -331,7 +323,7 @@ public abstract class TestSparkBulkLoaderBase {
                             System.getenv("GCS_CLIENT_EMAIL")},
                     DEFAULT_PARAMS));
                 Assert.fail("No user for GCS mode should fail.");
-        } catch (final FireflyBulkLoaderException e) {
+        } catch (final RuntimeException e) {
             Assert.assertEquals("Either 'aerospike.graphloader.gcs-keyfile' or all of 'aerospike.graphloader.gcs-email', 'aerospike.graphloader.remote-user', and 'aerospike.graphloader.remote-passkey' must be specified to read from GCS.", e.getMessage());
         }
     }
@@ -344,7 +336,7 @@ public abstract class TestSparkBulkLoaderBase {
                             "-gem", System.getenv("GCS_CLIENT_EMAIL")},
                     DEFAULT_PARAMS));
             Assert.fail("No passkey for GCS mode should fail.");
-        } catch (final FireflyBulkLoaderException e) {
+        } catch (final RuntimeException e) {
             Assert.assertEquals("Either 'aerospike.graphloader.gcs-keyfile' or all of 'aerospike.graphloader.gcs-email', 'aerospike.graphloader.remote-user', and 'aerospike.graphloader.remote-passkey' must be specified to read from GCS.", e.getMessage());
         }
     }
@@ -357,7 +349,7 @@ public abstract class TestSparkBulkLoaderBase {
                             "-p", System.getenv("GCS_PRIVATE_KEY")},
                     DEFAULT_PARAMS));
             Assert.fail("No email for GCS mode should fail.");
-        } catch (final FireflyBulkLoaderException e) {
+        } catch (final RuntimeException e) {
             Assert.assertEquals("Either 'aerospike.graphloader.gcs-keyfile' or all of 'aerospike.graphloader.gcs-email', 'aerospike.graphloader.remote-user', and 'aerospike.graphloader.remote-passkey' must be specified to read from GCS.", e.getMessage());
         }
     }

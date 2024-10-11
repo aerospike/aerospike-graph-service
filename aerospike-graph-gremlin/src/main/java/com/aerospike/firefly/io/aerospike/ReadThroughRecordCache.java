@@ -95,7 +95,7 @@ public class ReadThroughRecordCache extends FireflyCache {
             missCounter.incrementAndGet();
             final Policy policy = new Policy();
             policy.sendKey = false;
-            final Record record = db.getClient().get(policy, key);
+            final Record record = db.skipCacheRead(key, policy);
             insert(key, record);
             return record;
         }
@@ -103,7 +103,6 @@ public class ReadThroughRecordCache extends FireflyCache {
 
     @Override
     public Record[] read(final Key[] keys, final BatchPolicy policy) {
-        db.configureReadPolicy(policy);
         final List<Key> allKeys = List.of(keys);
         final Map<Key, Record> results = new HashMap<>(cache.getAllPresent(new HashSet<>(allKeys)));
         final List<Key> missingKeys = allKeys.stream().filter(key -> !results.containsKey(key)).collect(Collectors.toList());
@@ -115,7 +114,7 @@ public class ReadThroughRecordCache extends FireflyCache {
             final List<Key> subList = missingKeySet.stream().skip(i).limit(db.AEROSPIKE_BATCH_READ_SIZE).collect(Collectors.toList());
 
             // Execute batch read. subList ids are read from the database.
-            final Record[] records = db.getClient().get(policy, subList.toArray(new Key[0]));
+            final Record[] records = db.skipCacheRead(subList.toArray(new Key[0]), policy);
             for (int j = 0; j < records.length; j++) {
                 results.put(subList.get(j), records[j]);
 
@@ -152,7 +151,7 @@ public class ReadThroughRecordCache extends FireflyCache {
             final List<Key> subList = missingKeySet.stream().skip(i).limit(db.AEROSPIKE_BATCH_READ_SIZE).collect(Collectors.toList());
 
             // Execute batch read. subList ids are read from the database.
-            final Record[] records = db.getClient().get(policy, subList.toArray(new Key[0]), operations);
+            final Record[] records = db.skipCacheRead(subList.toArray(new Key[0]), policy, operations);
             for (int j = 0; j < records.length; j++) {
                 results.put(subList.get(j), records[j]);
 
@@ -196,7 +195,7 @@ public class ReadThroughRecordCache extends FireflyCache {
     @Override
     public void remove(final Key key) {
         cache.invalidate(key);
-        db.getClient().delete(null, key);
+        db.delete(key);
     }
 
     /**

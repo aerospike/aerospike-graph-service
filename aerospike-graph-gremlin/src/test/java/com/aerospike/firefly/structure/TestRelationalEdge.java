@@ -54,10 +54,10 @@ public class TestRelationalEdge {
 
         // Check that removing the last edge from a phat edge record deletes the record and we can write to it after too
         g.addE("edge").from(this.from).to(this.to).iterate();
-        Set<String> nonEmptySets = AerospikeConnection.InfoOps.getNonEmptySetList(graph.getBaseGraph().getNamespace(), graph.getBaseGraph().getClient());
+        Set<String> nonEmptySets = AerospikeConnection.InfoOps.getNonEmptySetList(graph.getBaseGraph());
         Assert.assertTrue(nonEmptySets.contains(graph.getBaseGraph().EDGE_AERO_SET));
         g.E().hasLabel("edge").drop().iterate();
-        nonEmptySets = AerospikeConnection.InfoOps.getNonEmptySetList(graph.getBaseGraph().getNamespace(), graph.getBaseGraph().getClient());
+        nonEmptySets = AerospikeConnection.InfoOps.getNonEmptySetList(graph.getBaseGraph());
         Assert.assertFalse(nonEmptySets.contains(graph.getBaseGraph().EDGE_AERO_SET));
         g.addE("edge").from(this.from).to(this.to).iterate();
         Assert.assertTrue(g.E().hasLabel("edge").hasNext());

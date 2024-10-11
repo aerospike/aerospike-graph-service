@@ -1,4 +1,4 @@
-package com.aerospike.firefly.runtime.exceptions;
+package com.aerospike.firefly.util.exceptions;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
@@ -11,21 +11,29 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import java.util.List;
 import java.util.Map;
 
-public class VertexRecordSizeExceededException extends RuntimeException {
+public class VertexRecordSizeExceededException extends AerospikeGraphRecordSizeExceededException {
     private static final String ADD_ECACHE_BASE_MESSAGE = "Record size exceeded for Vertex with ID %s when writing to Edge Cache with Edge ID %s";
     private static final String ADD_VERTEX_PROPERTY_BASE_MESSAGE = "Record size exceeded for Vertex with ID %s when writing Vertex Property key %s";
     private static final String ADD_VP_PROPERTY_BASE_MESSAGE = "Record size exceeded for Vertex with ID %s when writing Property key %s for Vertex Property %s";
+    private final String message;
     public final long inEdgeCount;
     public final long outEdgeCount;
     public final long vertexPropertyCount;
     public final long vpPropertyCount;
+
     private VertexRecordSizeExceededException(final AerospikeException cause, final String message,
                                               final VertexRecordMetrics metrics) {
-        super(message, cause);
+        super(cause);
+        this.message = message;
         this.inEdgeCount = metrics.inEdgeCount;
         this.outEdgeCount = metrics.outEdgeCount;
         this.vertexPropertyCount = metrics.vertexPropertyCount;
         this.vpPropertyCount = metrics.vpPropertyCount;
+    }
+
+    @Override
+    public String getMessage() {
+        return this.message;
     }
 
     public static VertexRecordSizeExceededException fromAddingToEdgeCache(final AerospikeException cause,

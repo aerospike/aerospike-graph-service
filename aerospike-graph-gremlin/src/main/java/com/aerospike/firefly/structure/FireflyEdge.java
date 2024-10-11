@@ -24,10 +24,10 @@ import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
+import com.aerospike.firefly.util.exceptions.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
-import com.aerospike.firefly.util.exceptions.ElementNotFoundException;
-import com.aerospike.firefly.util.exceptions.RecordTooBigException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphRecordSizeExceededException;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
@@ -59,8 +59,8 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
-import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.fromAddingEdge;
-import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.fromAddingProperty;
+import static com.aerospike.firefly.util.exceptions.EdgeRecordSizeExceededException.fromAddingEdge;
+import static com.aerospike.firefly.util.exceptions.EdgeRecordSizeExceededException.fromAddingProperty;
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
@@ -226,7 +226,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
             final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id,
                     propertyMap, typeHints, !outVertexCacheWrite, !inVertexCacheWrite, record.generation);
             return edge;
-        } catch (final RecordTooBigException e) {
+        } catch (final AerospikeGraphRecordSizeExceededException e) {
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingEdge((AerospikeException) e.getCause(), db, key, edgeId);
             LOG.error(sizeExceededException.getMessage());
@@ -556,12 +556,12 @@ public class FireflyEdge extends FireflyElement implements Edge {
                 }
                 LOG.debug("Ignoring exception when deleting Edge with id {} since it was not found.", id.getUserId());
             }
-        } catch (final ElementNotFoundException e) {
+        } catch (final AerospikeGraphElementNotFoundException e) {
             // This tends to occur when deleting multiple vertices in a single traversal where the Edge lives in between
             // the to-be-deleted vertices.
             LOG.debug("Ignoring exception when deleting Edge with id {} since it was not found.", id.getUserId());
-        } catch (final AerospikeException e) {
-            if (e.getResultCode() != ResultCode.GENERATION_ERROR) {
+        } catch (final AerospikeGraphException e) {
+            if (e.errorCode != ResultCode.GENERATION_ERROR) {
                 throw e;
             }
             LOG.debug("Regenerating supernode Edge with id {} to clean up supernode property bin.", id.getUserId());
@@ -812,17 +812,17 @@ public class FireflyEdge extends FireflyElement implements Edge {
             }
             graph.fireflySummaryUpdater.addEdgePropertiesWriteToQueue(edge.label, Set.of(propertyKey));
             return new FireflyEdgeProperty<>(graph, edge, propertyKey, value);
-        } catch (final RecordTooBigException e) {
+        } catch (final AerospikeGraphRecordSizeExceededException e) {
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingProperty((AerospikeException) e.getCause(), db, key, edge.id, propertyKey);
             LOG.error(sizeExceededException.getMessage());
             throw sizeExceededException;
-        } catch (final AerospikeException ae) {
-            if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
+        } catch (final AerospikeGraphException ae) {
+            if (ae.errorCode == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Edge has been removed from the Phat Edge since in this case
                 // the key is the Phat Edge key and thus the key still exists.
                 LOG.error("Edge with ID {} no longer exists.", edge.id());
-                throw new ElementNotFoundException(ae);
+                throw new AerospikeGraphElementNotFoundException();
             } else {
                 throw ae;
             }
@@ -841,17 +841,17 @@ public class FireflyEdge extends FireflyElement implements Edge {
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
             db.writeOperate(writePolicy, key, writeTtl);
-        } catch (final RecordTooBigException e) {
+        } catch (final AerospikeGraphRecordSizeExceededException e) {
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingProperty((AerospikeException) e.getCause(), db, key, this.id, TTL_PROPERTY_KEY);
             LOG.error(sizeExceededException.getMessage());
             throw sizeExceededException;
-        } catch (final AerospikeException ae) {
-            if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
+        } catch (final AerospikeGraphException ae) {
+            if (ae.errorCode == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Edge has been removed from the Phat Edge since in this case
                 // the key is the Phat Edge key and thus the key still exists.
                 LOG.error("Edge with ID {} no longer exists.", this.id());
-                throw new ElementNotFoundException(ae);
+                throw new AerospikeGraphElementNotFoundException();
             } else {
                 throw ae;
             }

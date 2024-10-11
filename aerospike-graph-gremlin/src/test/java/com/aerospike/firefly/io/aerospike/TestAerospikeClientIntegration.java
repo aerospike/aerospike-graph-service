@@ -32,6 +32,7 @@ import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.commons.configuration2.Configuration;
@@ -180,15 +181,11 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         db.dropIndex(db.TEST_SET, "testIndex");
     }
 
-    private long countQueryResults(final String binName, final String testIndex, final Statement stmt) {
-        QueryPolicy p = new QueryPolicy();
-        RecordSet rs = db.getClient().query(p, stmt);
+    private long countQueryResults(final Statement stmt) {
+        final RecordSet rs = db.query(null, stmt);
         int count = 0;
-        try {
-            while (rs.next())
-                count++;
-        } catch (AerospikeException e) {
-            throw e;
+        while (rs.next()) {
+            count++;
         }
         return count;
     }
@@ -226,7 +223,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         stringQuery.setFilter(Filter.contains(binName, IndexCollectionType.MAPVALUES, "a"));
         stringQuery.setIndexName(stringIndex);
 
-        long stringCount = countQueryResults(binName, stringIndex, stringQuery);
+        long stringCount = countQueryResults(stringQuery);
         assertEquals(50, stringCount);
 
         final Statement numberQuery = new Statement();
@@ -234,7 +231,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         numberQuery.setSetName(db.TEST_SET);
         numberQuery.setFilter(Filter.contains(binName, IndexCollectionType.MAPVALUES, 1));
         numberQuery.setIndexName(numberIndex);
-        long numberCount = countQueryResults(binName, stringIndex, numberQuery);
+        long numberCount = countQueryResults(numberQuery);
         assertEquals(25, numberCount);
 
         db.dropIndex(db.TEST_SET, numberIndex);
@@ -259,7 +256,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         stmt.setSetName(db.TEST_SET);
         stmt.setFilter(Filter.range("age", 34, 99));
         QueryPolicy p = new QueryPolicy();
-        RecordSet rs = db.getClient().query(null, stmt);
+        RecordSet rs = db.query(null, stmt);
         Iterator<KeyRecord> i = rs.iterator();
         int count = 0;
         while (i.hasNext()) {
@@ -268,18 +265,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         }
         System.out.println(count);
         db.dropIndex(db.TEST_SET, "testIndex");
-    }
-
-    @Test
-    public void testParseRaw() {
-        final String infoResponse = Info.request(new InfoPolicy(), db.getClient().getNodes()[0], "namespaces");
-        final List<Map<String, String>> data = AerospikeConnection.InfoOps.parseRaw(infoResponse);
-        final AtomicBoolean pass = new AtomicBoolean(false);
-        data.forEach(it -> {
-            if (it.containsKey(AerospikeConnection.InfoOps.Keys.RESULT) && Objects.equals(it.get(AerospikeConnection.InfoOps.Keys.RESULT), "test"))
-                pass.set(true);
-        });
-        assertTrue(pass.get());
     }
 
     @Ignore
@@ -296,7 +281,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         });
 
         String infoQuery = "sets/" + db.getNamespace() + "/" + db.TEST_SET;
-        String infoResponse = Info.request(new InfoPolicy(), db.getClient().getNodes()[0], infoQuery);
+        String infoResponse = AerospikeConnection.InfoOps.singleNodeInfoRequest(db, infoQuery);
         Long reportedObjectCount = Arrays.stream(infoResponse.split(":"))
                 .filter(str -> str.startsWith("objects"))
                 .map(str -> Long.valueOf(str.split("=")[1]))
@@ -319,7 +304,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         PerfUtil.Results results = PerfUtil.runTestBatch(100, () -> {
             ThreadLocalRandom tlr = ThreadLocalRandom.current();
             final Key key = new Key(db.getNamespace(), db.TEST_SET, tlr.nextInt(0, 100));
-            final Record data = db.getClient().get(null, key);
+            final Record data = db.read(key, null);
             assert data.getLong("age") == 32;
         });
         LOG.info(results.toString());
@@ -357,24 +342,24 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void testIsEnterprise() {
-        assertTrue(AerospikeConnection.InfoOps.isEnterprise(db.getClient()));
+        assertTrue(AerospikeConnection.InfoOps.isEnterprise(db));
     }
 
     @Test
     public void testListEmptySets() {
-        Set<String> res = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
+        Set<String> res = AerospikeConnection.InfoOps.getNonEmptySetList(db);
         System.out.println(res);
     }
 
     @Test
     public void testClearNamespace() throws InterruptedException {
-        Set<String> res = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
+        Set<String> res = AerospikeConnection.InfoOps.getNonEmptySetList(db);
         System.out.println(res);
         db.clearNamespace();
         final int max = 30;
         int retry = 0;
         while (true) {
-            Set<String> res2 = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
+            Set<String> res2 = AerospikeConnection.InfoOps.getNonEmptySetList(db);
             try {
                 // for GHA we can have "USAGE_STATS_SET", locally can be empty
                 assertTrue(res2.size() < 2);
@@ -397,15 +382,15 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     @Test
     public void shouldRemoveAllData() throws InterruptedException {
         graph.getBaseGraph().dropDatabase(graph, false);
-        AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).forEach(nonEmptySet -> {
-            db.getClient().truncate(null, db.getNamespace(), nonEmptySet, null);
+        AerospikeConnection.InfoOps.getNonEmptySetList(db).forEach(nonEmptySet -> {
+            db.truncate(null, nonEmptySet, null);
         });
 
         // Disable drop strategy to test this
         config.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "false");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
-            while (AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size() == 0)
+            while (AerospikeConnection.InfoOps.getNonEmptySetList(db).size() == 0)
                 sleep(1000);
             // Add extra long sleep since metadata task sometimes is busy or sleeping and comes in late
             // and isn't removed.
@@ -414,7 +399,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             sleep(10000);
 
             // ID_MGR_SET  id manager set and G_META graph metadata are not removed by removing all vertices
-            Set<String> x = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
+            Set<String> x = AerospikeConnection.InfoOps.getNonEmptySetList(db);
             // todo: double check about USAGE_STATS_SET
             assertEquals(Set.of(db.GRAPH_METADATA_SET, db.ID_MANAGER_SET, db.SUMMARY_SET, db.USAGE_STATS_SET), x);
 
@@ -423,7 +408,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             Vertex a = graph.addVertex();
             Vertex b = graph.addVertex();
             Edge e = a.addEdge("edge", b);
-            assertEquals(6, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
+            assertEquals(6, AerospikeConnection.InfoOps.getNonEmptySetList(db).size());
 
             graph.traversal().V().drop().iterate();
             sleep(2000);
@@ -444,7 +429,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         db.write(aKey, new Bin("bin", 1));
         db.write(bKey, new Bin("bin", 1));
         db.write(cKey, new Bin("bin", 1));
-        Record[] data = db.read(new Key[]{aKey, bKey, cKey});
+        Record[] data = db.read(new Key[]{aKey, bKey, cKey}, null);
         assertEquals(3, data.length);
     }
 
@@ -469,7 +454,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
                 ListOperation.append(edgeDirection, Value.get(additionalEdgeRawId), CTX.mapKey(Value.get(edgeLabel))),
                 Operation.get(edgeDirection)
         );
-        Record record = db.getClient().get(null, vertexAeroKey);
+        Record record = db.read(vertexAeroKey, null);
         Map<String, List<Long>> labelEdgesRetrieved = (Map<String, List<Long>>) record.getMap(edgeDirection);
         assertEquals(2, labelEdgesRetrieved.get(edgeLabel).size());
 
@@ -478,7 +463,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
                 Operation.get(edgeDirection)
         );
 
-        record = db.getClient().get(null, vertexAeroKey);
+        record = db.read(vertexAeroKey, null);
         labelEdgesRetrieved = (Map<String, List<Long>>) record.getMap(edgeDirection);
         assertEquals(1, labelEdgesRetrieved.get(edgeLabel).size());
         assertEquals(additionalEdgeRawId, labelEdgesRetrieved.get(edgeLabel).get(0).longValue());
@@ -503,7 +488,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
                 ListOperation.append(edgeDirection, Value.get(additionalEdgeRawId), CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.KEY_ORDERED)),
                 Operation.get(edgeDirection)
         );
-        Record record = db.getClient().get(null, vertexAeroKey);
+        Record record = db.read(vertexAeroKey, null);
         Map<String, List<Long>> labelEdgesRetrieved = (Map<String, List<Long>>) record.getMap(edgeDirection);
         assertEquals(1, labelEdgesRetrieved.get(edgeLabel).size());
 
@@ -512,7 +497,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
                 Operation.get(edgeDirection)
         );
 
-        record = db.getClient().get(null, vertexAeroKey);
+        record = db.read(vertexAeroKey, null);
         labelEdgesRetrieved = (Map<String, List<Long>>) record.getMap(edgeDirection);
         assertEquals(0, labelEdgesRetrieved.get(edgeLabel).size());
     }
@@ -575,7 +560,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         TestRL testRL = new TestRL();
         final BatchPolicy batchPolicy = new BatchPolicy();
         batchPolicy.sendKey = false;
-        db.getClient().get(db.getEventLoops().get(0), testRL, batchPolicy, key);
+        db.readWithListener(testRL, batchPolicy, key);
         KeyRecord keyRecord = testRL.get();
         assertEquals(1, keyRecord.record.getInt("bin"));
         //Cant recover the original key. Seems strange since Scan will send the original key
@@ -592,12 +577,12 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Key keybObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(vb.id()));
         BatchPolicy batchPolicy = new BatchPolicy();
         batchPolicy.sendKey = false;
-        final Record[] records = db.getClient().get(batchPolicy, new Key[]{keyaObj, keybObj});
+        final Record[] records = db.read(new Key[]{keyaObj, keybObj}, batchPolicy);
         assertEquals(2, records.length);
 
         Key keyaHash = new Key(db.getNamespace(), va.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL);
         Key keybHash = new Key(db.getNamespace(), vb.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL);
-        final Record[] hashRecords = db.getClient().get(batchPolicy, new Key[]{keyaHash, keybHash});
+        final Record[] hashRecords = db.read(new Key[]{keyaHash, keybHash}, batchPolicy);
         assertEquals(2, hashRecords.length);
     }
 

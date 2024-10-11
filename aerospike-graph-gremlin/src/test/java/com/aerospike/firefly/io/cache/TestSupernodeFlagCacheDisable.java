@@ -25,7 +25,7 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
 
         // Validate vertex supernode flag is not set.
         final Key key = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v.id);
-        Record r = graph.getBaseGraph().getClient().get(null, key);
+        Record r = graph.getBaseGraph().read(key, null);
         Assert.assertFalse(v.isEdgeCacheOverflowed());
         Assert.assertFalse(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
 
@@ -34,7 +34,7 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
 
         // Validate cache overflowed flag is set.
         Assert.assertTrue(v.isEdgeCacheOverflowed());
-        r = graph.getBaseGraph().getClient().get(null, key);
+        r = graph.getBaseGraph().read(key, null);
         Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
 
         // Grab vertex through id.
@@ -42,7 +42,7 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
 
         // Validate cache overflowed flag is set.
         Assert.assertTrue(v.isEdgeCacheOverflowed());
-        r = graph.getBaseGraph().getClient().get(null, key);
+        r = graph.getBaseGraph().read(key, null);
         Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
     }
 
@@ -55,14 +55,14 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
 
         // Validate vertex supernode flag is set.
         final Key key = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v.id);
-        Record r = graph.getBaseGraph().getClient().get(null, key);
+        Record r = graph.getBaseGraph().read(key, null);
         Assert.assertTrue(v.isEdgeCacheOverflowed());
         Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
 
         v = (FireflyVertex) g.V().hasLabel("test").next();
 
         // Validate vertex supernode flag is set.
-        r = graph.getBaseGraph().getClient().get(null, key);
+        r = graph.getBaseGraph().read(key, null);
         Assert.assertTrue(v.isEdgeCacheOverflowed());
         Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
     }

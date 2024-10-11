@@ -1,8 +1,5 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.client.Info;
-import com.aerospike.client.cluster.Node;
-import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import org.slf4j.Logger;
@@ -46,12 +43,6 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
 
     @Override
     public void updateMetadata() throws Exception {
-        // Get Nodes.
-        final Node[] nodes = db.getClient().getNodes();
-        if (nodes.length < 1) {
-            throw new Exception("Error, there are " + nodes.length + " nodes available. Expected at least 1.");
-        }
-
         // Get current list of numeric and string indexes.
         final List<FireflyIndexMetadata.IndexInfo> indexes = indexMetadata.getPropertyIndexInfos();
         final List<FireflyIndexMetadata.IndexInfo> vertexLabelIndexes = indexes.stream().
@@ -69,29 +60,26 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
         final List<FireflyIndexMetadata.IndexInfo> edgeNumericIndexes = indexes.stream().
                 filter(index -> index.setName.equals(db.EDGE_AERO_SET) && index.indexType == IndexType.NUMERIC && !db.LABEL_BIN.equals(index.key)).collect(Collectors.toList());
 
-        // We can assume that data is relatively evenly distributed across nodes.
-        final Node node = nodes[0];
-
         // Lock while we are changing a list that we iterate over in a different thread.
         synchronized (FireflyCardinalityMetadata.class) {
             if (!vertexLabelIndexes.isEmpty()) {
-                vertexLabelCardinalityInfo = getCardinalityInfo(node, vertexLabelIndex, nodes.length, null);
+                vertexLabelCardinalityInfo = getCardinalityInfo(vertexLabelIndex, null);
             } else {
                 vertexLabelCardinalityInfo = null;
             }
             if (!edgeLabelIndexes.isEmpty()) {
-                edgeLabelCardinalityInfo = getCardinalityInfo(node, edgeLabelIndex, nodes.length, null);
+                edgeLabelCardinalityInfo = getCardinalityInfo(edgeLabelIndex, null);
             } else {
                 edgeLabelCardinalityInfo = null;
             }
             vertexStringPropertyCardinalityInfo = vertexStringIndexes.stream().map(idx ->
-                getCardinalityInfo(node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName), nodes.length, idx.key)).collect(Collectors.toList());
+                getCardinalityInfo(String.format(infoQueryFormat, db.getNamespace(), idx.indexName), idx.key)).collect(Collectors.toList());
             vertexNumericPropertyCardinalityInfo = vertexNumericIndexes.stream().map(idx ->
-                getCardinalityInfo(node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName), nodes.length, idx.key)).collect(Collectors.toList());
+                getCardinalityInfo(String.format(infoQueryFormat, db.getNamespace(), idx.indexName), idx.key)).collect(Collectors.toList());
             edgeStringPropertyCardinalityInfo = edgeStringIndexes.stream().map(idx ->
-                    getCardinalityInfo(node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName), nodes.length, idx.key)).collect(Collectors.toList());
+                    getCardinalityInfo(String.format(infoQueryFormat, db.getNamespace(), idx.indexName), idx.key)).collect(Collectors.toList());
             edgeNumericPropertyCardinalityInfo = edgeNumericIndexes.stream().map(idx ->
-                    getCardinalityInfo(node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName), nodes.length, idx.key)).collect(Collectors.toList());
+                    getCardinalityInfo(String.format(infoQueryFormat, db.getNamespace(), idx.indexName), idx.key)).collect(Collectors.toList());
         }
     }
 
@@ -168,10 +156,9 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
         }
     }
 
-    private CardinalityInfo getCardinalityInfo(final Node node, final String infoVar, final int nodeCount,
-                                               final String indexName) {
-        LOG.debug("Info.request: {}", infoVar);
-        final String info = Info.request(new InfoPolicy(), node, infoVar);
+    private CardinalityInfo getCardinalityInfo(final String infoVar, final String indexName) {
+        final int nodeCount = this.db.getNodeCount();
+        final String info = AerospikeConnection.InfoOps.singleNodeInfoRequest(this.db, infoVar);
         try {
             // Use previous failure flag to make sure we don't spam the log. If it fails, print it once, then if it starts working and failing again, print it again.
             final CardinalityInfo cardinalityInfo = new CardinalityInfo(getValue(info, ENTRIES) * nodeCount, getValue(info, ENTRIES_PER_BVAL) * nodeCount, indexName);

@@ -488,7 +488,7 @@ public final class ConfigurationHelper {
                 configData.put(key, value);
             });
             return new MapConfiguration(configData);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -510,7 +510,7 @@ public final class ConfigurationHelper {
                 });
                 return new MapConfiguration(configData);
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -637,7 +637,7 @@ public final class ConfigurationHelper {
         final StringWriter sw = new StringWriter();
         try {
             props.store(sw, "FireflyGraph Configuration Defaults");
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
         return sw.toString();

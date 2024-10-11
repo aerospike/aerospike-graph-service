@@ -39,9 +39,9 @@ import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
-import com.aerospike.firefly.util.exceptions.ElementNotFoundException;
-import com.aerospike.firefly.util.exceptions.RecordTooBigException;
-import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphRecordSizeExceededException;
+import com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
@@ -88,9 +88,9 @@ import java.util.stream.Collectors;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.aerospike.OperationReturnHandler.getValueAtIndex;
-import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.fromAddingToEdgeCache;
-import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.fromAddingVertexProperty;
-import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.getRelevantVertexBins;
+import static com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException.fromAddingToEdgeCache;
+import static com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException.fromAddingVertexProperty;
+import static com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException.getRelevantVertexBins;
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
@@ -279,7 +279,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             // Update this FireflyVertex in JVM cache
             updateVertexPropertyJVMCache(vertexPropertyFireflyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyIdToProperties, vertexPropertyIdToTypeHints);
             graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(label, Set.of(vertexProperty.key()));
-        } catch (final RecordTooBigException e) {
+        } catch (final AerospikeGraphRecordSizeExceededException e) {
             final VertexRecordSizeExceededException sizeExceededException =
                     fromAddingVertexProperty((AerospikeException) e.getCause(), this.db,
                             getRelevantVertexBins(this.db, key), this.id, vertexProperty.key());
@@ -421,12 +421,12 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                     this.db.writeOperate(null, key, removeEdgeId, removeEmptyEdgeCacheKeys, getCacheDisabled);
 
             this.isEdgeCacheOverflowed = results.getBoolean(this.db.EDGE_CACHE_DISABLED_BIN);
-        } catch (final ElementNotFoundException enfe) {
+        } catch (final AerospikeGraphElementNotFoundException enfe) {
             // This Vertex's record was deleted concurrently and thus the record does not exist.
             LOG.debug("Error removing edge id {} from edge cache of vertex {}; the vertex was deleted.",
                     edgeId.getUserId(), this.id.getUserId());
-        } catch (final AerospikeException ae) {
-            if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
+        } catch (final AerospikeGraphException ae) {
+            if (ae.errorCode == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when concurrent traversals remove the same Edge ID from the ECACHE and the 
                 // Edge is the last of its Label category, meaning the later traversal will fail due to an operation
                 // working under the assumption that the Label exists.
@@ -505,7 +505,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
             this.isEdgeCacheOverflowed = (boolean) OperationReturnHandler.getValueAtIndex(results, this.db.EDGE_CACHE_DISABLED_BIN, 1);
             return true;
-        } catch (final RecordTooBigException e) {
+        } catch (final AerospikeGraphRecordSizeExceededException e) {
             final VertexRecordSizeExceededException sizeExceededException =
                     fromAddingToEdgeCache((AerospikeException) e.getCause(), this.db,
                             getRelevantVertexBins(this.db, key), this.id, edgeId);

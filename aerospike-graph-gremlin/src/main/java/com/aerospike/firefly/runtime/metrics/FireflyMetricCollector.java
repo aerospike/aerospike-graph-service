@@ -1,7 +1,6 @@
 package com.aerospike.firefly.runtime.metrics;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import com.aerospike.firefly.structure.FireflyGraph;
 import io.prometheus.client.Collector;
 
@@ -15,7 +14,7 @@ public class FireflyMetricCollector extends Collector {
     private final FireflyGraph graph;
 
     public FireflyMetricCollector(final FireflyGraph graph) {
-        this.clusterName = AerospikeConnection.InfoOps.getClusterName(graph.getBaseGraph().getClient());
+        this.clusterName = AerospikeConnection.InfoOps.getClusterName(graph.getBaseGraph());
         this.graph = graph;
     }
 

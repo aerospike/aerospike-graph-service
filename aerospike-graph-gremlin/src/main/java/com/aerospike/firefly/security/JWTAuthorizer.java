@@ -1,6 +1,6 @@
 package com.aerospike.firefly.security;
 
-import com.aerospike.firefly.util.exceptions.AuthenticationException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphAuthException;
 
 import org.apache.commons.text.StringEscapeUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
@@ -28,7 +28,7 @@ public class JWTAuthorizer implements Authorizer {
     public Bytecode authorize(final AuthenticatedUser user, final Bytecode bytecode, final Map<String, String> aliases) {
         final JWTAuthenticator.JWTAuthenticatedUser jwtUser = (JWTAuthenticator.JWTAuthenticatedUser) user;
         if (!jwtUser.valid()) {
-            throw AuthenticationException.tokenExpired();
+            throw AerospikeGraphAuthException.tokenExpired();
         }
 
         bytecode.addStep(GraphTraversal.Symbols.call, RESERVED_CALL_STRING);
@@ -41,7 +41,7 @@ public class JWTAuthorizer implements Authorizer {
     public void authorize(final AuthenticatedUser user, final RequestMessage msg) {
         final JWTAuthenticator.JWTAuthenticatedUser jwtUser = (JWTAuthenticator.JWTAuthenticatedUser) user;
         if (!jwtUser.valid()) {
-            throw AuthenticationException.tokenExpired();
+            throw AerospikeGraphAuthException.tokenExpired();
         }
         final Map<String, Object> arguments = msg.getArgs();
         final String gremlin = ((String) arguments.get("gremlin"));

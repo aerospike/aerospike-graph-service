@@ -13,7 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.util.exceptions.ElementNotFoundException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -366,7 +366,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
                         }
                         edge.property(key, value);
                     });
-                } catch (final ElementNotFoundException ignored) {
+                } catch (final AerospikeGraphElementNotFoundException ignored) {
                     continue;
                 }
                 validEdge = edge;
@@ -424,7 +424,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
                         e.property(key, value);
                     });
                     return e;
-                } catch (final ElementNotFoundException enfe) {
+                } catch (final AerospikeGraphElementNotFoundException enfe) {
                     return null;
                 }
             });

@@ -31,7 +31,7 @@ public class BatchReadPageFetcher<R> extends PageFetcher<R> {
     @Override
     protected void readPage() {
         final List<Key> keysToRead = this.keysToRead.subList(idx, Math.min(this.keysToRead.size(), idx + maxPageSize));
-        final Record[] records = graph.getBaseGraph().getClient().get(policy, keysToRead.toArray(new Key[0]));
+        final Record[] records = graph.getBaseGraph().read(keysToRead.toArray(new Key[0]), policy);
         final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, () -> {
         });
         try {

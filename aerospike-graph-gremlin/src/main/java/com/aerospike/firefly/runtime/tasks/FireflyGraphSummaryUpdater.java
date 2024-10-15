@@ -16,6 +16,7 @@ import com.aerospike.client.cdt.MapPolicy;
 import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +55,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     private CountDownLatch COUNTDOWN_LATCH = new CountDownLatch(HIGH_WATERMARK);
     private CountDownLatch SHUTDOWN_LATCH = new CountDownLatch(1);
     private final AtomicBoolean SHUTDOWN = new AtomicBoolean(false);
-    private static final Map<String, AerospikeException> LAST_SUMMARY_TICKER_EXCEPTION = new ConcurrentHashMap<>();
+    private static final Map<String, AerospikeGraphException> LAST_SUMMARY_TICKER_EXCEPTION = new ConcurrentHashMap<>();
 
     // Create as daemon so it exits with process.
     private final ExecutorService EXECUTOR_SERVICE = Executors.newFixedThreadPool(1,
@@ -376,8 +377,8 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
     public FireflyElementMetadata getFireflyStatistics() {
         // Grab vertex metadata.
-        final Record vertexLabelSummaryRecord = db.getClient().get(null, V_SUMMARY_KEY);
-        final Record vertexPropertySummaryRecord = db.getClient().get(null, VP_SUMMARY_KEY);
+        final Record vertexLabelSummaryRecord = db.read(V_SUMMARY_KEY, null);
+        final Record vertexPropertySummaryRecord = db.read(VP_SUMMARY_KEY, null);
         final Map<String, FireflyPropertiesAndCount> vertexMetadata = new HashMap<>();
         if (vertexLabelSummaryRecord != null && vertexLabelSummaryRecord.bins.containsKey(SUMMARY_LABEL_BIN)) {
             final Map<String, Long> vertexCountByLabel = (Map<String, Long>) vertexLabelSummaryRecord.bins.get(SUMMARY_LABEL_BIN);
@@ -404,8 +405,8 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         }
 
         // Grab edge metadata.
-        final Record edgeLabelSummaryRecord = db.getClient().get(null, E_SUMMARY_KEY);
-        final Record edgePropertySummaryRecord = db.getClient().get(null, EP_SUMMARY_KEY);
+        final Record edgeLabelSummaryRecord = db.read(E_SUMMARY_KEY, null);
+        final Record edgePropertySummaryRecord = db.read(EP_SUMMARY_KEY, null);
         final Map<String, FireflyPropertiesAndCount> edgeMetadata = new HashMap<>();
         if (edgeLabelSummaryRecord != null && edgeLabelSummaryRecord.bins.containsKey(SUMMARY_LABEL_BIN)) {
             final Map<String, Long> edgeCountByLabel = (Map<String, Long>) edgeLabelSummaryRecord.bins.get(SUMMARY_LABEL_BIN);
@@ -440,7 +441,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param graphName name of the graph bulk loading is running on
      * @return the last AerospikeException that caused updating the ticker to fail or null
      */
-    public static AerospikeException getLastSummaryTickerException(final String graphName) {
+    public static AerospikeGraphException getLastSummaryTickerException(final String graphName) {
         return LAST_SUMMARY_TICKER_EXCEPTION.get(graphName);
     }
 
@@ -480,14 +481,14 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             while (true) {
                 try {
                     printGraphSummaryTicker();
-                } catch (final AerospikeException e) {
+                } catch (final AerospikeGraphException e) {
                     // This should work but in case it doesn't, continue into standard operation.
                     if (this.db.getBulkLoaderFlag()) {
                         // This is okay for now since this is a failing edge case and the code within is fast, but
                         // may need to add more complex logic to synchronize on unique graph names in the future.
                         synchronized (LAST_SUMMARY_TICKER_EXCEPTION) {
-                            final AerospikeException lastException = LAST_SUMMARY_TICKER_EXCEPTION.get(this.db.GRAPH_ID);
-                            if (lastException == null || lastException.getResultCode() != e.getResultCode()) {
+                            final AerospikeGraphException lastException = LAST_SUMMARY_TICKER_EXCEPTION.get(this.db.GRAPH_ID);
+                            if (lastException == null || lastException.errorCode != e.errorCode) {
                                 LAST_SUMMARY_TICKER_EXCEPTION.put(this.db.GRAPH_ID, e);
                                 LOG.warn("Failed to print graph summary ticker.", e);
                             }

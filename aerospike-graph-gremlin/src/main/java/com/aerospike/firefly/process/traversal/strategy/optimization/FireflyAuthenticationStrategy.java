@@ -1,6 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.util.exceptions.AuthenticationException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphAuthException;
 import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
@@ -79,7 +79,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 }
 
                 if (RESERVED_CALL_STRING.equals(serviceName)) {
-                    throw AuthenticationException.credentialsProvidedAuthenticationDisabled();
+                    throw AerospikeGraphAuthException.credentialsProvidedAuthenticationDisabled();
                 }
             }
             return;
@@ -110,7 +110,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
             final Map<Object, List<Object>> params = parameters.getRaw();
             if (!params.containsKey("name") || !params.containsKey("role") ||
                     params.get("name").size() != 1 || params.get("role").size() != 1) {
-                throw AuthenticationException.userNotFoundInParameters();
+                throw AerospikeGraphAuthException.userNotFoundInParameters();
             }
             final String username = (String) params.get("name").get(0);
             final UserContext.ROLE role = UserContext.ROLE.valueOf((String) params.get("role").get(0));
@@ -127,11 +127,11 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
         }
 
         if (usernameRolePair.get() == null) {
-            throw AuthenticationException.userNotFoundInParameters();
+            throw AerospikeGraphAuthException.userNotFoundInParameters();
         } else {
             final UserContext.ROLE role = usernameRolePair.get().getRole();
             if (role == null) {
-                throw AuthenticationException.userDoesNotHaveValidRole();
+                throw AerospikeGraphAuthException.userDoesNotHaveValidRole();
             }
             // Admin steps are call steps. These have internal auth checks.
             if (hasMutateStep.get()) {
@@ -157,14 +157,14 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                         LOG.info("[{}] - " + " Insufficient permissions to execute mutating step. Query: 'g{}'.", usernameRolePair.get().getUsername(),
                                 GroovyTranslator.of("").translate(copy.asAdmin().getBytecode()).getScript());
                     }
-                    throw AuthenticationException.userDoesNotHaveWriteAccess();
+                    throw AerospikeGraphAuthException.userDoesNotHaveWriteAccess();
                 }
             }
             if (!hasMutateStep.get()) {
                 if (!role.equals(UserContext.ROLE.READ) &&
                         !role.equals(UserContext.ROLE.READ_WRITE) &&
                         !role.equals(UserContext.ROLE.ADMIN)) {
-                    throw AuthenticationException.userDoesNotHaveReadAccess();
+                    throw AerospikeGraphAuthException.userDoesNotHaveReadAccess();
                 }
             }
         }

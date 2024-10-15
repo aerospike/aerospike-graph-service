@@ -1,7 +1,6 @@
 package com.aerospike.firefly.io.query;
 
-import com.aerospike.client.IAerospikeClient;
-import com.aerospike.client.async.EventLoops;
+import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
@@ -24,7 +23,8 @@ import java.util.function.Function;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -52,29 +52,21 @@ public class TestTimeout {
     }
 
     private long getUsedTimeoutFromScan(Function<GraphTraversalSource, GraphTraversal> traversalFunc) throws NoSuchFieldException, IllegalAccessException {
-        final EventLoops eventLoops = mock(EventLoops.class);
-        final IAerospikeClient aerospikeClient = mock(IAerospikeClient.class);
-
-        final AtomicReference<ScanPolicy> scanPolicy = new AtomicReference<>();
-        doAnswer((Answer<Void>) invocation -> {
-            scanPolicy.set(invocation.getArgument(2));
-            return null;
-        }).when(aerospikeClient).scanPartitions(isNull(),
-                anyObject(),
-                any(ScanPolicy.class),
-                any(PartitionFilter.class),
-                isNull(),
-                isNull());
-
         final AerospikeConnection connection = mock(AerospikeConnection.class);
         setFieldValue(AerospikeConnection.class, connection, "QUERY_IMPL", ConfigurationHelper.Keys.QUERY_PAGED);
         setFieldValue(AerospikeConnection.class, connection, "LABEL_BIN", "LABEL_BIN");
         setFieldValue(AerospikeConnection.class, connection, "PAGINATION_PAGE_QUEUE_SIZE", 100);
-        setFieldValue(AerospikeConnection.class, connection, "PAGINATION_PAGE_SIZE", 100);
-        setFieldValue(AerospikeConnection.class, connection, "eventLoops", eventLoops);
 
         when(connection.getScanHitCounter()).thenReturn(new ScanHitCounter());
-        when(connection.getClient()).thenReturn(aerospikeClient);
+
+        final AtomicReference<ScanPolicy> scanPolicy = new AtomicReference<>();
+        doAnswer((Answer<Void>) invocation -> {
+            scanPolicy.set(invocation.getArgument(1));
+            return null;
+        }).when(connection).scanPartitions(any(RecordSequenceListener.class),
+                any(ScanPolicy.class),
+                any(PartitionFilter.class),
+                isNull());
 
         final FireflyGraph graph = mock(FireflyGraph.class);
         setFieldValue(FireflyGraph.class, graph, "fireflyIndexMetadata", new FireflyIndexMetadata(connection));
@@ -98,11 +90,9 @@ public class TestTimeout {
             // ignore not mocked path
         }
 
-        verify(aerospikeClient, times(1)).scanPartitions(isNull(),
-                anyObject(),
+        verify(connection, times(1)).scanPartitions(any(RecordSequenceListener.class),
                 any(ScanPolicy.class),
                 any(PartitionFilter.class),
-                isNull(),
                 isNull());
 
         assertNotNull(scanPolicy.get());

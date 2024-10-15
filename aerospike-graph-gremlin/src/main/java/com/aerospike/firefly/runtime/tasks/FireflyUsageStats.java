@@ -40,7 +40,7 @@ public class FireflyUsageStats {
     }
 
     private void init(final AerospikeConnection connection) {
-        final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(connection.getClient(), connection.getNamespace(), connection.USAGE_STATS_SET);
+        final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(connection, connection.USAGE_STATS_SET);
         for (final String index : setIndex) {
             if (!"ok".equals(index)) {
                 LOG.error("Error creating set index: {}", index);
@@ -123,7 +123,7 @@ public class FireflyUsageStats {
             map.put("epoch-ms-start", Instant.now().toEpochMilli());
             map.put("epoch-ms-final", Instant.now().toEpochMilli());
             final Bin bin = new Bin(connection.USAGE_STATS_BIN, map);
-            connection.getClient().put(null, key, bin);
+            connection.checkedPut(null, key, bin);
         }
 
         @Override
@@ -143,13 +143,8 @@ public class FireflyUsageStats {
 
         public List<Map<String, Object>> getAllUsageStats() {
             final Queue<Map<String, Object>> usageStatsList = new ConcurrentLinkedQueue<>();
-            final IAerospikeClient client = connection.getClient();
             try {
-                // Vrtx only has 2 seconds max, we shouldn't take all of it.
-                final ScanPolicy scanPolicy = new ScanPolicy();
-                connection.configureScanPolicy(scanPolicy);
-                scanPolicy.totalTimeout = 1000;
-                client.scanAll(scanPolicy, connection.getNamespace(), connection.USAGE_STATS_SET, (key, record) -> {
+                this.connection.scanAll(null, connection.USAGE_STATS_SET, (key, record) -> {
                     final Map<String, Object> originalMap = (Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN);
                     final Long epochDelta = (Long) originalMap.get("epoch-ms-final") - (Long) originalMap.get("epoch-ms-start");
                     if (epochDelta > 60 * 60 * 1000) {

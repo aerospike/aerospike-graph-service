@@ -1,7 +1,6 @@
 package com.aerospike.firefly.structure;
 
 import ch.qos.logback.classic.Level;
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Log;
@@ -34,9 +33,10 @@ import com.aerospike.firefly.process.computer.local.LocalGraphComputer;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.runtime.HttpServer;
-import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
-import com.aerospike.firefly.util.exceptions.ElementNotFoundException;
-import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.EdgeRecordSizeExceededException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
+import com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.runtime.tasks.FireflyMetadataTask;
 import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
@@ -475,7 +475,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return FireflyVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
     }
 
-    public void mergeVertex(final Object id, final String label, final List<Map.Entry<String, Object>> properties) {
+    public void bulkWriteMergeVertex(final Object id, final String label, final List<Map.Entry<String, Object>> properties) {
         int tryCount = 0;
         while (true) {
             try {
@@ -503,10 +503,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                     throw e;
                 }
                 tryCount++;
-            } catch (final VertexRecordSizeExceededException vrsee) {
-                throw new FireflyLoadingException((AerospikeException) vrsee.getCause(), vrsee.getMessage());
-            } catch (final AerospikeException ae) {
-                throw new FireflyLoadingException(ae);
+            } catch (final AerospikeGraphException age) {
+                throw new FireflyLoadingException(age);
             }
         }
     }
@@ -519,10 +517,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
             // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
             FireflyVertex.writeVertex(this, idValue, label, properties, getTypeHint(), false, supernode);
-        } catch (final VertexRecordSizeExceededException vrsee) {
-            throw new FireflyLoadingException((AerospikeException) vrsee.getCause(), vrsee.getMessage());
-        } catch (final AerospikeException ae) {
-            throw new FireflyLoadingException(ae);
+        } catch (final AerospikeGraphException e) {
+            throw new FireflyLoadingException(e);
         }
     }
 
@@ -535,7 +531,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         policy.sendKey = true;
         try {
             this.db.writeOperate(policy, key, Operation.add(addBin));
-        } catch (final AerospikeException e) {
+        } catch (final AerospikeGraphException e) {
             // Do not retry this or fail because this list being slightly incorrect is inconsequential and will reduce
             // bulk load speed
             LOG.warn("Error recording duplicate Vertex ID details ID: " + vertexId);
@@ -560,7 +556,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         policy.sendKey = false;
         try {
             this.db.writeOperate(policy, key, Operation.put(rowBin), Operation.put(fileBin));
-        } catch (final AerospikeException e) {
+        } catch (final AerospikeGraphException e) {
             // Do not retry this or fail because this list being slightly incorrect is inconsequential and will reduce
             // bulk load speed
             LOG.warn("Error recording bad entry row \"" + row + "\" in file \"" + fileName + "\"");
@@ -585,7 +581,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         policy.sendKey = true;
         try {
             this.db.writeOperate(policy, key, Operation.add(addBin));
-        } catch (final AerospikeException e) {
+        } catch (final AerospikeGraphException e) {
             // Do not retry this or fail because this list being slightly incorrect is inconsequential and will reduce
             // bulk load speed
             LOG.warn("Error recording bad Edge data with failed Vertex ID: " + badVertexId);
@@ -630,12 +626,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
             this.db.writeOperate(writePolicy, key, appendEdgeId);
-        } catch (final ElementNotFoundException enfe) {
-            throw new FireflyLoadingException((AerospikeException) enfe.getCause());
-        } catch (final VertexRecordSizeExceededException vrsee) {
-            throw new FireflyLoadingException((AerospikeException) vrsee.getCause(), vrsee.getMessage());
-        } catch (final AerospikeException ae) {
-            throw new FireflyLoadingException(ae);
+        } catch (final AerospikeGraphException e) {
+            throw new FireflyLoadingException(e);
         }
     }
 
@@ -783,10 +775,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final Key key = getKey(db, db.EDGE_AERO_SET, id);
         try {
             db.writeOperate(writePolicy, key, operations.toArray(new Operation[0]));
-        } catch (final EdgeRecordSizeExceededException ersee) {
-            throw new FireflyLoadingException((AerospikeException) ersee.getCause(), ersee.getMessage());
-        } catch (final AerospikeException ae) {
-            throw new FireflyLoadingException(ae);
+        } catch (final AerospikeGraphException e) {
+            throw new FireflyLoadingException(e);
         }
         fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
     }
@@ -967,8 +957,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             while (v == null) {
                 try {
                     v = writeVertex(idValue, label, properties);
-                } catch (final AerospikeException e) {
-                    if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                } catch (final AerospikeGraphException e) {
+                    if (e.errorCode == ResultCode.KEY_EXISTS_ERROR) {
                         idValue = getIdFactory().generateId(this, FireflyVertex.class);
                     } else {
                         throw e;
@@ -987,8 +977,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                     LOG.info("[{}] created vertex with id: {}", USER.get(), idValue.getUserId());
                 }
                 return v;
-            } catch (final AerospikeException e) {
-                if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+            } catch (final AerospikeGraphException e) {
+                if (e.errorCode == ResultCode.KEY_EXISTS_ERROR) {
                     throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.getUserId());
                 } else {
                     throw e;
@@ -1142,7 +1132,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
      */
     private void createIndexes(final Class<? extends FireflyElement> elementClass, final String binName, final String prefix, final List<String> vertexPropertyIndexes) {
         final List<String> existingIndexes =
-                AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace()).stream()
+                AerospikeConnection.InfoOps.listExistingIndexes(db).stream()
                         .map(Map.Entry::getKey).collect(Collectors.toList());
 
         // Add indexes specified in properties file.

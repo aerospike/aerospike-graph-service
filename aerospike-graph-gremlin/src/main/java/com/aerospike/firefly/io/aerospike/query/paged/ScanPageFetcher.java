@@ -55,7 +55,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
         final CountDownLatch latch = new CountDownLatch(1);
         final ScanPageFetcherRecordSequenceListener listener = new ScanPageFetcherRecordSequenceListener(done, latch);
 
-        graph.getBaseGraph().getClient().scanPartitions(graph.getBaseGraph().eventLoops.next(), listener, policy, filter, namespace, set);
+        graph.getBaseGraph().scanPartitions(listener, policy, filter, set);
         metricsCallback.apply(startTime, System.currentTimeMillis());
         try {
             pageQueue.put(new Page(listener.paginationIterator));

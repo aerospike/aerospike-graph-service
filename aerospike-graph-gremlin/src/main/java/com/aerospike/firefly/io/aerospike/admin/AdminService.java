@@ -5,7 +5,7 @@ import com.aerospike.firefly.security.JWTAuthenticator;
 import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
-import com.aerospike.firefly.util.exceptions.AuthenticationException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphAuthException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import io.vertx.core.Handler;
@@ -109,14 +109,14 @@ public abstract class AdminService<I, R> implements Service.ServiceFactory<I, R>
         final FireflyAuthenticationStrategy.UsernameRolePair userContext = (FireflyAuthenticationStrategy.UsernameRolePair) params.remove(RESERVED_USER_CONTEXT);
         if (userContext == null) {
             // This should never happen.
-            throw AuthenticationException.invalidUserContext();
+            throw AerospikeGraphAuthException.invalidUserContext();
         }
         user = userContext.getUsername();
 
         final UserContext.ROLE role = userContext.getRole();
         if (role == null) {
             // This can happen.
-            throw AuthenticationException.userDoesNotHaveValidRole();
+            throw AerospikeGraphAuthException.userDoesNotHaveValidRole();
         }
         final UserContext.ROLE requiredRole = getRequiredRole();
         if (requiredRole.equals(UserContext.ROLE.ADMIN)) {

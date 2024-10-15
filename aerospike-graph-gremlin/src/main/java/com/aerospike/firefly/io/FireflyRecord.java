@@ -168,23 +168,21 @@ public class FireflyRecord {
 
         final Record[] records;
         if (readInfo.requiredProperties == null) {
-            final FireflyCache cache = db.transactionCache.get();
-            records = (cache != null) ? cache.read(keyList.toArray(Key[]::new), batchReadPolicy) :
-                    db.getClient().get(batchReadPolicy, keyList.toArray(Key[]::new));
+            records = db.read(keyList.toArray(Key[]::new), batchReadPolicy);
+
         } else if (!readInfo.requiredProperties.isEmpty()) {
             // No cache for partial property reads.
             final List<Operation> operations = new ArrayList<>();
             final List<Value> properties = readInfo.requiredProperties.stream().map(Value::get).collect(Collectors.toList());
             db.vertexNonPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
             db.vertexPropertyBins.forEach(bin -> operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP)));
-            records = db.getClient().get(batchReadPolicy, keyList.toArray(Key[]::new), operations.toArray(Operation[]::new));
+            records = db.read(keyList.toArray(Key[]::new), batchReadPolicy, operations.toArray(Operation[]::new));
         } else {
             final FireflyCache cache = db.emptyPropsTransactionCache.get();
             final List<Operation> operations = new ArrayList<>();
             db.vertexNonPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
             db.vertexPropertyBins.forEach(bin -> operations.add(MapOperation.getByKeyList(bin, List.of(), MapReturnType.UNORDERED_MAP)));
-            records = (cache != null) ? cache.read(keyList.toArray(Key[]::new), batchReadPolicy, operations.toArray(Operation[]::new)) :
-                    db.getClient().get(batchReadPolicy, keyList.toArray(Key[]::new), operations.toArray(Operation[]::new));
+            records = db.read(keyList.toArray(Key[]::new), batchReadPolicy, operations.toArray(Operation[]::new));
         }
         for (int i = 0; i < records.length; i++) {
             if (records[i] != null) {
@@ -246,7 +244,7 @@ public class FireflyRecord {
     private static void executeBatchReadPhatEdges(final AerospikeConnection db,
                                                  final Map<Long, FireflyRecord> phatEdgeStorageIdToRecord,
                                                  final List<Key> keysToRead) {
-        final Record[] records = db.read(keysToRead.toArray(Key[]::new));
+        final Record[] records = db.read(keysToRead.toArray(Key[]::new), null);
         for (int i = 0; i < records.length; i++) {
             if (records[i] != null) {
                 // Add storage id to record pair to the map.

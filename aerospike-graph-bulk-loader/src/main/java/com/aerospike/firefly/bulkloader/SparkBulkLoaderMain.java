@@ -74,7 +74,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
                 if (!shutdownSucceeded) {
                     LOGGER.error("Failed to shutdown executor.");
                 }
-            } catch (InterruptedException e) {
+            } catch (final InterruptedException e) {
                 LOGGER.error("Failed to shutdown executor", e);
             }
             System.clearProperty("BULK_LOADING");
@@ -93,7 +93,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
 
         try {
             Thread.sleep(exponentialTime);
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }

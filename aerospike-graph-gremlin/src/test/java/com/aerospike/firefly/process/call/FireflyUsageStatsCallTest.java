@@ -24,8 +24,7 @@ public class FireflyUsageStatsCallTest {
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             Thread.sleep(1);
-            graph.getBaseGraph().getClient().truncate(null,
-                    graph.getBaseGraph().namespace, graph.getBaseGraph().USAGE_STATS_SET, null);
+            graph.getBaseGraph().truncate(null, graph.getBaseGraph().USAGE_STATS_SET, null);
             Thread.sleep(1);
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);

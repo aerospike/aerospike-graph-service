@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.strategy;
 
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.traversal.step.FireflyOtherVBatchReadStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -10,12 +11,14 @@ import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.lang.reflect.Field;
 import java.util.List;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -41,6 +44,31 @@ public class FireflyOtherVBatchReadStrategyTest {
     public static void cleanUp() {
         graph.getBaseGraph().dropDatabase(graph, false);
         graph.close();
+    }
+
+    @Test
+    public void batchReadingTest() throws NoSuchFieldException, IllegalAccessException {
+        final var g = graph.traversal();
+
+        final Field field = AerospikeConnection.class.getDeclaredField("MOVEMENT_BARRIER_SIZE");
+        field.setAccessible(true);
+        field.set(graph.getBaseGraph(), 2);
+
+        g.V().drop().iterate();
+        var v0 = g.addV("test").property(T.id, 100).next();
+        for (int i = 0; i < 10; i++) {
+            var v = g.addV("test").property("k", i).property(T.id, i).next();
+            var v100 = g.addV("test").property("k", i).property(T.id, i + 101).next();
+
+            g.V(v0.id()).addE("edge").to(v).property("k", i).iterate();
+            g.V(v0.id()).addE("edge").to(v100).property("k", i).iterate();
+        }
+
+        for (int j = 0; j < 10; j++) {
+            var vertices = g.V().order().out("edge").toList();
+
+            assertEquals(20, vertices.size());
+        }
     }
 
     @Test

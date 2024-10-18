@@ -11,6 +11,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.EmptyTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -93,8 +94,12 @@ public abstract class VertexBatchReadStep extends CollectingBarrierStep<Edge> im
         FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                 fireflyVertexMap, fireflyBatchEdgeReadStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, null);
 
-        set.addAll(output);
-        output.clear(); // Force garbage collection.
+        if (output.isEmpty()) {
+            set.add(EmptyTraverser.instance());
+        } else {
+            set.addAll(output);
+            output.clear(); // Force garbage collection.
+        }
     }
 
     protected abstract List<FireflyId> getVertexIds(final Traverser.Admin traverser);

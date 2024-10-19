@@ -342,9 +342,8 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public static int getDefaultThreadPoolSize(final Settings gremlinServerSettings) {
-        // Max and min connections per node should be the thread pool size.
+        // Min connections per node should be at least the thread pool size.
         // In batching we may use up to 1 connection per node per thread at a time.
-        // Also, we don't want connections recycled, so keep min == max true.
         // We must add 2 because both the metadata updater thread and the cardinality metadata threads using the connection.
         //
         // The bulk loader uses 2 * availableProcessors + 4 for buffer + 10 for:

@@ -376,7 +376,7 @@ public final class ConfigurationHelper {
         put(Keys.SUMMARY_ENABLED_FLAG, "true");
         put(Keys.BULK_LOADER_FLAG, "false");
         put(Keys.MAX_ERROR_RATE, "100");
-        put(Keys.MAX_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
+        put(Keys.MAX_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings()) * 2));
         put(Keys.MIN_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
         put(Keys.CONNECT_TIMEOUT, "0");
         put(Keys.TIMEOUT_DELAY, "2000");
@@ -418,6 +418,7 @@ public final class ConfigurationHelper {
         put(Keys.WRITE_SOCKET_TIMEOUT, "5000");
         put(Keys.WRITE_TOTAL_TIMEOUT, "25000");
         put(Keys.WRITE_SLEEP_BETWEEN_RETRY, "5000");
+        put(Keys.MAX_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
     }};
 
     static {

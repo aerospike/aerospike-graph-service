@@ -31,13 +31,6 @@ public class FireflyUsageStatsCallTest {
         }
     }
 
-    @AfterClass
-    public static void cleanUp() {
-        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            graph.getUsageStats().restartUsageStats(graph.getBaseGraph());
-        }
-    }
-
     @Test
     public void testSingleFirefly() {
         // 5 seconds to update
@@ -256,8 +249,7 @@ public class FireflyUsageStatsCallTest {
 
             // Raw should be list of map.
             Assert.assertTrue(usageStats.get("raw") instanceof List);
-            // todo: 5 graphs, 5 usages
-            Assert.assertEquals(5, ((List<?>) usageStats.get("raw")).size());
+            Assert.assertEquals(1, ((List<?>) usageStats.get("raw")).size());
 
             // Vcpu count of raw should be same of test vcpu count.
             Assert.assertEquals(testVcpuCount, rawUsageStats.get(0).get("vcpus"));
@@ -266,10 +258,11 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected vcpu-yrs.
-            // todo: 5 graphs, 5 usages
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") / 5 > testVcpuCount * (8000f / MILLISECONDS_TO_HOURS));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") / 5 < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / MILLISECONDS_TO_HOURS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
         } catch (final Exception e) {
+            throw new RuntimeException(e);
+        } finally {
             if (graph1 != null)
                 graph1.close();
             if (graph2 != null)
@@ -280,7 +273,6 @@ public class FireflyUsageStatsCallTest {
                 graph4.close();
             if (graph5 != null)
                 graph5.close();
-            throw new RuntimeException(e);
         }
     }
 }

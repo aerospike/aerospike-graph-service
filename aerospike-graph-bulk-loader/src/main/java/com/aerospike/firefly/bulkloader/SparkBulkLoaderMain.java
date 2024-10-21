@@ -62,6 +62,11 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             while (ee.getCause() != null) {
                 ee = ee.getCause();
             }
+            if (ee instanceof ClassNotFoundException) {
+                throw new IllegalStateException("ERROR: To use the bulk loader via the call API, " +
+                        "use the docker image with bulk loader support.", e);
+            }
+
             LOGGER.error("Failed to bootstrap SparkBulkLoaderStateMachine", ee);
             throw (ee instanceof RuntimeException) ? (RuntimeException) ee : new RuntimeException(ee);
         } finally {

@@ -34,9 +34,6 @@ import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
-import com.aerospike.firefly.util.exceptions.EdgeRecordSizeExceededException;
-import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
-import com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.runtime.tasks.FireflyMetadataTask;
 import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
@@ -113,6 +110,7 @@ import static com.aerospike.firefly.structure.FireflyGraphSummaryVertex.GRAPH_SU
 import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_PROPERTY_KEY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOAD_ID_BUFFER_SIZE;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.HTTP_DISABLED;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 
 /**
@@ -195,11 +193,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final FireflyGraphSummaryUpdater fireflySummaryUpdater;
     private final FireflyRecordLockHandler fireflyRecordLockHandler;
     private final ServiceRegistry serviceRegistry = new ServiceRegistry();
-    private FireflyUsageStats usageStats;
-    private HttpServer httpServer;
+    private static volatile FireflyUsageStats usageStats;
     private AdminServiceRegistry adminServiceRegistry;
+    private boolean httpStarted = false;
     private static final String GREMLIN_SERVER_YAML_PATH = "GREMLIN_SERVER_YAML_PATH";
-    private static final String UNIFIED_CONFIG_PROPERTIES_PATH = "UNIFIED_CONFIG_PROPERTIES_PATH";
     private final Settings gremlinServerSettings;
     public static ExitManager EXIT_MANAGER = new ExitManager();
 
@@ -270,17 +267,24 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
 
         if (!db.WARMUP_MODE) {
-            // Create usage statistics background task.
-            usageStats = new FireflyUsageStats(db);
+            // Create usage statistics background task. Only one per server
+            if (usageStats == null) {
+                synchronized (this) {
+                    if (usageStats == null) {
+                        usageStats = new FireflyUsageStats(db);
+                    }
+                }
+            }
 
             // Register admin services graph metrics since it will bootstrap the server.
             adminServiceRegistry = new AdminServiceRegistry(this);
 
-            final boolean httpDisabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.HTTP_DISABLED, conf);
+            // do not start http server if disabled in config or for bulk loader
+            final boolean httpDisabled = ConfigurationHelper.getOrDefaultBool(HTTP_DISABLED, conf) ||
+                ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf);
             if (!httpDisabled) {
-                // Start metrics.
-                httpServer = HttpServer.create(this);
-                httpServer.start();
+                HttpServer.getInstance().start(this);
+                httpStarted = true;
             }
         }
     }
@@ -408,16 +412,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                     "must be running docker image to read the gremlin-server yaml.");
         }
         return gremlinServerYamlPath;
-    }
-
-    public static synchronized String getUnifiedConfigFile() {
-        final String unifiedConfigPath = System.getenv(UNIFIED_CONFIG_PROPERTIES_PATH);
-        if ((unifiedConfigPath == null || unifiedConfigPath.isEmpty()) ||
-                !(new File(unifiedConfigPath).exists())) {
-            throw new RuntimeException("Failed to load docker settings file, " +
-                    "must be running docker image to read the gremlin-server yaml.");
-        }
-        return unifiedConfigPath;
     }
 
     public static synchronized Settings getGremlinServerSettings() {
@@ -1164,17 +1158,26 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     @Override
     public void close() {
         LOG.info("Closing FireflyGraph.");
-        this.closed.set(true);
+        if (this.closed.getAndSet(true))
+            return;
+
         this.fireflyCardinalityMetadataTask.cancel();
         this.fireflyIndexMetadataTask.cancel();
         this.fireflySummaryUpdater.close();
-        if (!db.WARMUP_MODE) {
-            this.usageStats.close();
+
+        if (this.usageStats != null) {
+            synchronized (this) {
+                if (this.usageStats != null) {
+                    this.usageStats.close();
+                    this.usageStats = null;
+                }
+            }
         }
-        if (httpServer != null) {
-            httpServer.close();
-            httpServer = null;
+
+        if (httpStarted) {
+            HttpServer.getInstance().close();
         }
+
         this.ttlHandler.close();
         this.db.close();
     }

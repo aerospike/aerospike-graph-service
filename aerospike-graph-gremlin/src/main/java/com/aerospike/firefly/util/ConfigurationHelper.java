@@ -75,6 +75,7 @@ public final class ConfigurationHelper {
         public static final String VERTEX_PROPERTY_INDEXES = "aerospike.graph.index.vertex.properties";
         public static final String EDGE_PROPERTY_INDEXES = "aerospike.graph.index.edge.properties";
         public static final String GRAPH_ID = "aerospike.graph.id";
+        public static final String TRAVERSAL_NAME = "aerospike.graph.traversal";
         public static final String HTTP_PORT = "aerospike.graph.http.port";
         public static final String PROMETHEUS_PATH = "aerospike.graph.prometheus.path";
         public static final String HEALTHCHECK_PATH = "aerospike.graph.healthcheck.path";

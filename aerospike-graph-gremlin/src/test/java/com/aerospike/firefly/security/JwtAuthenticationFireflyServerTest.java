@@ -12,6 +12,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Map;
 import java.util.concurrent.CompletionException;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
@@ -24,6 +25,28 @@ public class JwtAuthenticationFireflyServerTest {
             .withSubject("lyndon_username")
             .withIssuer("aerospike")
             .sign(Algorithm.HMAC256("lyndon_secret"));
+
+    final String validGraph0Admin = JWT.create()
+            // admin for graph0 and no role for graph1
+            .withClaim("role", Map.of("0","ADMIN"))
+            .withSubject("lyndon_username")
+            .withIssuer("aerospike")
+            .sign(Algorithm.HMAC256("lyndon_secret"));
+
+    final String validGraph0ReadGraph1Admin = JWT.create()
+            // read for graph0 and admin for graph1
+            .withClaim("role", Map.of("0","READ", "1", "ADMIN"))
+            .withSubject("lyndon_username")
+            .withIssuer("aerospike")
+            .sign(Algorithm.HMAC256("lyndon_secret"));
+
+    final String validGraph1Admin = JWT.create()
+            // read for graph0 and admin for graph1
+            .withClaim("role", Map.of("1", "ADMIN"))
+            .withSubject("lyndon_username")
+            .withIssuer("aerospike")
+            .sign(Algorithm.HMAC256("lyndon_secret"));
+
     final String validWrite = JWT.create()
             .withClaim("role", "READ_WRITE")
             .withSubject("lyndon_username")
@@ -256,11 +279,65 @@ public class JwtAuthenticationFireflyServerTest {
     }
 
     @Test
+    public void testReadOnlyMultiTenant() {
+        final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", validGraph0ReadGraph1Admin);
+        g.V().toList();
+        Assert.assertThrows(
+                "User does not have write access.",
+                RuntimeException.class, () -> g.addV().iterate());
+        Assert.assertThrows(
+                "User does not have admin access.",
+                RuntimeException.class, () -> g.call("aerospike.graph.admin.index.drop").
+                        with("element_type", "vertex").with("property_key", "~label").next());
+    }
+
+    @Test
+    public void testReadOnlyNoRoleMultiTenant() {
+        final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", validGraph1Admin);
+        Assert.assertThrows(
+                "User does not have a valid role.",
+                RuntimeException.class, () -> g.V().toList());
+        Assert.assertThrows(
+                "User does not have a valid role.",
+                RuntimeException.class, () -> g.addV().iterate());
+        Assert.assertThrows(
+                "User does not have a valid role.",
+                RuntimeException.class, () -> g.call("aerospike.graph.admin.index.drop").
+                        with("element_type", "vertex").with("property_key", "~label").next());
+    }
+
+    @Test
     public void testScriptReadOnly() {
         final Client client = getClient("lyndon_username", validRead);
         readQuery(client);
         Assert.assertThrows(
                 "User does not have write access.",
+                RuntimeException.class, () -> writeQuery(client));
+        Assert.assertThrows(
+                "User does not have admin access.",
+                RuntimeException.class, () -> callQuery(client));
+    }
+
+    @Test
+    public void testScriptReadOnlyMultiTenant() {
+        final Client client = getClient("lyndon_username", validGraph0ReadGraph1Admin);
+        readQuery(client);
+        Assert.assertThrows(
+                "User does not have write access.",
+                RuntimeException.class, () -> writeQuery(client));
+        Assert.assertThrows(
+                "User does not have admin access.",
+                RuntimeException.class, () -> callQuery(client));
+    }
+
+    @Test
+    public void testScriptReadOnlyNoRoleMultiTenant() {
+        final Client client = getClient("lyndon_username", validGraph1Admin);
+        Assert.assertThrows(
+                "User does not have a valid role.",
+                RuntimeException.class, () -> readQuery(client));
+        Assert.assertThrows(
+                "User does not have a valid role.",
                 RuntimeException.class, () -> writeQuery(client));
         Assert.assertThrows(
                 "User does not have admin access.",
@@ -297,8 +374,25 @@ public class JwtAuthenticationFireflyServerTest {
     }
 
     @Test
+    public void testAdminMultiTenant() {
+        final GraphTraversalSource g = getGraphTraversalSource("lyndon_username", validGraph0Admin);
+        g.V().toList();
+        g.addV().iterate();
+        g.call("aerospike.graph.admin.index.drop").with("element_type", "vertex").with("property_key", "~label").next();
+    }
+
+
+    @Test
     public void testScriptAdminOnly() {
         final Client client = getClient("lyndon_username", validAdmin);
+        readQuery(client);
+        writeQuery(client);
+        callQuery(client);
+    }
+
+    @Test
+    public void testScriptAdminOnlyMultiTenant() {
+        final Client client = getClient("lyndon_username", validGraph0Admin);
         readQuery(client);
         writeQuery(client);
         callQuery(client);

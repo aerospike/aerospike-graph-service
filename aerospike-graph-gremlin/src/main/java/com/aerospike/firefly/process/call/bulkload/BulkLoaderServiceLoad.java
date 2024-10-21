@@ -40,7 +40,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 
 public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
     public static final String BULK_LOAD_SUCCESS = "Success";
-    private static final String DEFAULT_CONFIG_PATH = "/opt/conf/aerospike-graph.properties";
+    private static final String DEFAULT_CONFIG_PATH = "/opt/conf/aerospike-graph-graph.properties";
     private static final String VERTICES = "vertices";
     private static final String EDGES = "edges";
     private static final Map<String, String> KEY_TO_ARG = new HashMap<>();
@@ -285,7 +285,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
             return (R) output;
         } catch (final ClassNotFoundException | InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
-            throw new IllegalStateException("Error, to use the bulk loader via the call API, " +
+            throw new IllegalStateException("ERROR: To use the bulk loader via the call API, " +
                     "use the docker image with bulk loader support.", e);
         }
     }

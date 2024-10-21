@@ -33,8 +33,12 @@ public class JWTAuthorizer implements Authorizer {
 
         bytecode.addStep(GraphTraversal.Symbols.call, RESERVED_CALL_STRING);
         bytecode.addStep(GraphTraversal.Symbols.with, "name", jwtUser.getName());
-        bytecode.addStep(GraphTraversal.Symbols.with, "role", jwtUser.getRole().toString());
+        bytecode.addStep(GraphTraversal.Symbols.with, "role", asBytecodeValue(jwtUser.getRoles()));
         return bytecode;
+    }
+
+    private Object asBytecodeValue(final Object role) {
+        return role instanceof UserContext.ROLE ? role.toString() : role;
     }
 
     @Override
@@ -45,8 +49,8 @@ public class JWTAuthorizer implements Authorizer {
         }
         final Map<String, Object> arguments = msg.getArgs();
         final String gremlin = ((String) arguments.get("gremlin"));
-        final String injection = String.format(".call('aerospike.graph.admin.reserved.info').with('name', '%s').with('role', '%s')",
-                StringEscapeUtils.escapeJava(jwtUser.getName()), StringEscapeUtils.escapeJava(jwtUser.getRole().toString()));
+        final String injection = String.format(".call('aerospike.graph.admin.reserved.info').with('name', '%s').with('role', %s)",
+                StringEscapeUtils.escapeJava(jwtUser.getName()), asStringValue(jwtUser.getRoles()));
 
         String updatedGremlin = gremlin;
 
@@ -63,5 +67,18 @@ public class JWTAuthorizer implements Authorizer {
         }
 
         arguments.put("gremlin", updatedGremlin);
+    }
+
+    private String asStringValue(final Object role) {
+        if (role instanceof UserContext.ROLE) {
+            return String.format("'%s'", StringEscapeUtils.escapeJava(role.toString()));
+        }
+
+        final StringBuilder sb = new StringBuilder().append("[");
+        for (var entry : ((Map<String, String>) role).entrySet()) {
+            sb.append(String.format("'%s':'%s',",
+                    StringEscapeUtils.escapeJava(entry.getKey()), StringEscapeUtils.escapeJava(entry.getValue())));
+        }
+        return sb.append("]").toString();
     }
 }

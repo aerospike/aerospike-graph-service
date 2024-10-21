@@ -39,6 +39,7 @@ public abstract class AbstractFireflySuite {
 
     static {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.HTTP_DISABLED.toLowerCase(), "true");
     }
 
     @BeforeClass
@@ -77,7 +78,6 @@ public abstract class AbstractFireflySuite {
         Util.cleanAndVerifyGraph(graph);
         db.clearNamespace();
         graph.close();
-        db.close();
     }
 
 }

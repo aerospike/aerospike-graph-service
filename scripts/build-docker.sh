@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e
 set -o pipefail
-DOCKERFILE_A=${DOCKERFILE_A:-"docker/docker-built/build.Dockerfile"}
-DOCKERFILE_B=${DOCKERFILE_B:-"docker/docker-built/prod.Dockerfile"}
+GRAPH_JAR=aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.4.0-SNAPSHOT.jar
+BULK_LOADER_JAR=aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.4.0-SNAPSHOT.jar
 
 OUTPUT_TAG="$1"
 if [[ -z "$OUTPUT_TAG" ]]; then
@@ -20,21 +20,13 @@ if [[ -z "$PUSH_FLAG" ]]; then
     PUSH_FLAG=""
 fi
 
-BUILD_IMAGE="aerospike-graph-build:latest"
-SQUASH_IMAGE="aerospike-graph-squash:latest"
+mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -DskipTests=true clean install --no-transfer-progress
 
-#do the initial build
-docker buildx build $EXTRA_BUILD_ARGS --platform "$PLATFORM" --tag $BUILD_IMAGE --output=type=docker -f $DOCKERFILE_A .
+docker buildx build $EXTRA_BUILD_ARGS --output=type=docker -f "docker/Dockerfile" . \
+  --platform "$PLATFORM" \
+  --tag "$OUTPUT_TAG" \
+  --build-arg FIREFLY_GRAPH="$GRAPH_JAR" --build-arg BULKLOADER="$BULK_LOADER_JAR"
 
-#instantiate container and get container id
-CTR_ID=$(docker run -d -t -i --entrypoint=/bin/echo $BUILD_IMAGE)
-
-#export container filesystem to new image stripping historic layers
-NEW_IMAGE=$(docker export "$CTR_ID" | docker import -)
-docker tag "$NEW_IMAGE" "$SQUASH_IMAGE"
-docker images
-#add the runtime configuration to the stripped image
-docker build $EXTRA_BUILD_ARGS -f $DOCKERFILE_B --tag "$OUTPUT_TAG" .
 if [[ -n "$PUSH_FLAG" ]]; then
   docker push $OUTPUT_TAG
 fi

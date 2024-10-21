@@ -524,6 +524,9 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Edge cie = cacheGraph.traversal().V(cgVb).inE().next();
         LOG.info("noCacheGraph edge: {}", ncie);
         LOG.info("cacheGraph edge: {}", cie);
+
+        noCacheGraph.close();
+        cacheGraph.close();
     }
 
 
@@ -757,6 +760,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
         Assert.assertEquals(FireflyCloseableIteratorUtils.count(source.vertices()), FireflyCloseableIteratorUtils.count(targetGraph.vertices()));
         Assert.assertEquals(FireflyCloseableIteratorUtils.count(source.edges()), FireflyCloseableIteratorUtils.count(targetGraph.edges()));
+
+        targetGraph.close();
     }
 
     private static <A> boolean internalCheckList(final List<A> expectedList, final List<A> actualList) {
@@ -1072,6 +1077,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void testModelAndVersion() {
+        graph.close();
         //This initializes the metadata for version and model, if drop database is called, its cleared
         graph = GraphFactory.createGraph(db, config);
 

@@ -1,7 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.util.exceptions.AerospikeGraphAuthException;
-import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -20,30 +19,43 @@ import java.util.Map;
 
 import static com.aerospike.firefly.io.aerospike.admin.AdminService.RESERVED_USER_CONTEXT;
 import static com.aerospike.firefly.security.JWTAuthorizer.RESERVED_CALL_STRING;
+import static com.aerospike.firefly.security.UserContext.*;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyAuthenticationStrategy.class);
-    final ThreadLocal<UsernameRolePair> usernameRolePair = ThreadLocal.withInitial(() -> null);
+    final ThreadLocal<UserClaims> userClaims = ThreadLocal.withInitial(() -> null);
     final ThreadLocal<Boolean> hasMutateStep = ThreadLocal.withInitial(() -> false);
 
-    public static class UsernameRolePair {
+    public static class UserClaims {
         private final String username;
-        private final UserContext.ROLE role;
+        private final ROLE role;
+        private final Map<String, String> allRoles;
 
-        private UsernameRolePair(String username, UserContext.ROLE role) {
+        private UserClaims(final String username, final ROLE graphRole, final Map<String, String> allRoles) {
             this.username = username;
-            this.role = role;
+            this.role = graphRole;
+            this.allRoles = allRoles;
         }
 
         public String getUsername() {
             return username;
         }
 
-        public UserContext.ROLE getRole() {
+        public ROLE getRole() {
             return role;
+        }
+
+        public ROLE getRole(final String graphId) {
+            if (allRoles == null) {
+                return role;
+            }
+            if (allRoles.containsKey(graphId)) {
+                return ROLE.valueOf(allRoles.get(graphId));
+            }
+            return null;
         }
     }
 
@@ -113,29 +125,30 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 throw AerospikeGraphAuthException.userNotFoundInParameters();
             }
             final String username = (String) params.get("name").get(0);
-            final UserContext.ROLE role = UserContext.ROLE.valueOf((String) params.get("role").get(0));
-            usernameRolePair.set(new UsernameRolePair(username, role));
+            final ROLE role = getRole(params.get("role").get(0), graph.getBaseGraph().GRAPH_ID);
+            final Map allRoles = params.get("role").get(0) instanceof Map? (Map) params.get("role").get(0) : null;
+            userClaims.set(new UserClaims(username, role, allRoles));
             adminStep = callStep;
         }
 
         // Add token.
-        callSteps.forEach(callStep -> callStep.configure(RESERVED_USER_CONTEXT, usernameRolePair.get()));
+        callSteps.forEach(callStep -> callStep.configure(RESERVED_USER_CONTEXT, userClaims.get()));
 
         // Remove admin step.
         if (adminStep != null) {
             traversal.removeStep(adminStep);
         }
 
-        if (usernameRolePair.get() == null) {
+        if (userClaims.get() == null) {
             throw AerospikeGraphAuthException.userNotFoundInParameters();
         } else {
-            final UserContext.ROLE role = usernameRolePair.get().getRole();
+            final ROLE role = userClaims.get().getRole();
             if (role == null) {
                 throw AerospikeGraphAuthException.userDoesNotHaveValidRole();
             }
             // Admin steps are call steps. These have internal auth checks.
             if (hasMutateStep.get()) {
-                if (!role.equals(UserContext.ROLE.READ_WRITE) && !role.equals(UserContext.ROLE.ADMIN)) {
+                if (!role.equals(ROLE.READ_WRITE) && !role.equals(ROLE.ADMIN)) {
                     if (graph.getBaseGraph().IS_AUDIT_LOG_ENABLED) {
                         // The clone doesn't take the reserved step.
                         final Traversal copy = traversal.clone();
@@ -154,26 +167,43 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                             }
                         }
                         toRemove.forEach(instructions::remove);
-                        LOG.info("[{}] - " + " Insufficient permissions to execute mutating step. Query: 'g{}'.", usernameRolePair.get().getUsername(),
+                        LOG.info("[{}] - " + " Insufficient permissions to execute mutating step. Query: 'g{}'.", userClaims.get().getUsername(),
                                 GroovyTranslator.of("").translate(copy.asAdmin().getBytecode()).getScript());
                     }
                     throw AerospikeGraphAuthException.userDoesNotHaveWriteAccess();
                 }
             }
             if (!hasMutateStep.get()) {
-                if (!role.equals(UserContext.ROLE.READ) &&
-                        !role.equals(UserContext.ROLE.READ_WRITE) &&
-                        !role.equals(UserContext.ROLE.ADMIN)) {
+                if (!role.equals(ROLE.READ) &&
+                        !role.equals(ROLE.READ_WRITE) &&
+                        !role.equals(ROLE.ADMIN)) {
                     throw AerospikeGraphAuthException.userDoesNotHaveReadAccess();
                 }
             }
         }
-        graph.setUser(usernameRolePair.get().username);
+        graph.setUser(userClaims.get().username);
     }
 
     @Override
     public void reset() {
-        usernameRolePair.remove();
+        userClaims.remove();
         hasMutateStep.remove();
+    }
+
+    private static ROLE getRole(final Object claim, final String graphId) {
+        if (claim == null) {
+            return null;
+        }
+
+        if (claim instanceof String) {
+            return ROLE.valueOf((String) claim);
+        }
+
+        final Object graphRole = ((Map) claim).get(graphId);
+        // no role defined for this Graph
+        if (graphRole == null) {
+            return null;
+        }
+        return ROLE.valueOf((String) graphRole);
     }
 }

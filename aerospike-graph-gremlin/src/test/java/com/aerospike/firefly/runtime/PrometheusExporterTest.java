@@ -27,6 +27,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 public class PrometheusExporterTest {
     private static final String HOST = "localhost";
     private static final int PORT = 8182;
+    private static final int HTTP_PORT = 9090;
 
     @Test
     public void testGremlinServerPrometheusExporter() throws Exception {
@@ -41,7 +42,7 @@ public class PrometheusExporterTest {
     }
 
     public int getCountOfTraversals() throws IOException {
-        String output = queryPrometheus();
+        String output = queryPrometheus(HTTP_PORT);
         Assert.assertTrue(output.contains("aerospike_graph_service_GremlinServer_op_traversal_count "));
         output = output.split("aerospike_graph_service_GremlinServer_op_traversal_count ")[1];
         output = output.split("# HELP")[0];
@@ -49,8 +50,8 @@ public class PrometheusExporterTest {
         return Integer.parseInt(output);
     }
 
-    private String queryPrometheus() throws IOException {
-        final URL url = new URL("http://" + HOST + ":9090/metrics");
+    private String queryPrometheus(final int port) throws IOException {
+        final URL url = new URL("http://" + HOST + ":" + port + "/metrics");
         final HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("GET");
         final int response = con.getResponseCode();
@@ -70,9 +71,10 @@ public class PrometheusExporterTest {
     public void testSimplePrometheusExporter() throws Exception {
         // Basic unit test to check that the prometheus server spins up and we can GET data from it. Prometheus is
         // not simple to parse ,so we are only checking existence.
-        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            HttpServer.create(graph).start();
-            Assert.assertTrue(queryPrometheus().contains("aerospike_graph_service_jvm_memory_pool_bytes_used"));
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty("aerospike.graph.http.port", HTTP_PORT);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            Assert.assertTrue(queryPrometheus(HTTP_PORT).contains("aerospike_graph_service_jvm_memory_pool_bytes_used"));
         }
     }
 
@@ -82,10 +84,9 @@ public class PrometheusExporterTest {
         // not simple to parse ,so we are only checking existence.
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.usage.update.interval", 500);
+        config.setProperty("aerospike.graph.http.port", HTTP_PORT);
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            HttpServer.create(graph).start();
-
-            String prometheus = queryPrometheus();
+            String prometheus = queryPrometheus(HTTP_PORT);
             String[] lines = prometheus.split("#");
             List<String> usageLines = Arrays.stream(lines).
                     filter(l -> l.contains("usage")).
@@ -100,7 +101,7 @@ public class PrometheusExporterTest {
 
             Thread.sleep(5000);
 
-            prometheus = queryPrometheus();
+            prometheus = queryPrometheus(HTTP_PORT);
             lines = prometheus.split("#");
             usageLines = Arrays.stream(lines).
                     filter(l -> l.contains("usage")).

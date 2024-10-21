@@ -1,10 +1,15 @@
 package com.aerospike.firefly.runtime;
 
+import org.apache.tinkerpop.gremlin.groovy.engine.GremlinExecutor;
+import org.apache.tinkerpop.gremlin.server.GraphManager;
 import org.apache.tinkerpop.gremlin.server.GremlinServer;
 import org.apache.tinkerpop.gremlin.server.Settings;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -53,6 +58,29 @@ public class FireflyServer {
             Settings settings = Settings.read(confPath);
             gremlinServer = new GremlinServer(settings);
             serverStarted = CompletableFuture.allOf(gremlinServer.start());
+
+            // need to add TraversalSource's to GraphManager
+            final GraphManager graphManager = gremlinServer.getServerGremlinExecutor().getGraphManager();
+
+            final Set<String> graphs = graphManager.getGraphNames();
+            for (final String graphName : graphs) {
+                final Graph graph = graphManager.getGraph(graphName);
+                String gts = graph.configuration().getString("aerospike.graph.traversal");
+                if (gts == null) {
+                    // default gts for default graph
+                    if (graphName.equals("graph"))
+                        gts = "g";
+                    else
+                        gts = "g" + graphName;
+                }
+                graphManager.putTraversalSource(gts, graph.traversal());
+            }
+
+            // workaround to set TraversalSource's for script engines
+            final GremlinExecutor gremlinExecutor = gremlinServer.getServerGremlinExecutor().getGremlinExecutor();
+            final Field globalBindings = GremlinExecutor.class.getDeclaredField("globalBindings");
+            globalBindings.setAccessible(true);
+            globalBindings.set(gremlinExecutor, graphManager.getAsBindings());
         } catch (Exception ex) {
             serverStarted.completeExceptionally(ex);
         }

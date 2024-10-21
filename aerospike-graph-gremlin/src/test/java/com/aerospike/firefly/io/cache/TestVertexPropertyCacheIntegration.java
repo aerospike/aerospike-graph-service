@@ -25,6 +25,7 @@ public class TestVertexPropertyCacheIntegration {
     @AfterClass
     public static void afterAll() {
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
+        SETUP_GRAPH.close();
     }
 
     @Before

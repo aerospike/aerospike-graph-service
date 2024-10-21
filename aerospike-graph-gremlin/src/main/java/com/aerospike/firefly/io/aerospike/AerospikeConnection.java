@@ -1307,6 +1307,12 @@ public class AerospikeConnection implements AutoCloseable {
                     LOG.error("Error creating set index for metadata set: {}", index);
                 }
             }
+            setIndex = AerospikeConnection.InfoOps.createSetIndex(this, BULK_LOAD_RECOVERY_SUPERNODE_SET);
+            for (final String index : setIndex) {
+                if (!"ok".equals(index)) {
+                    LOG.error("Error creating set index for metadata set: {}", index);
+                }
+            }
 
             // Create label index in background.
             if (V_LABEL_INDEX_ENABLED_FLAG) {

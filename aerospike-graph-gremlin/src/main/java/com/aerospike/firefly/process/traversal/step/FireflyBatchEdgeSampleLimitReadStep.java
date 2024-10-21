@@ -12,6 +12,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.EmptyTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -188,7 +189,11 @@ public class FireflyBatchEdgeSampleLimitReadStep extends CollectingBarrierStep<E
             }
         }
 
-        set.addAll(output);
-        output.clear(); // Force garbage collection.
+        if (output.isEmpty()) {
+            set.add(EmptyTraverser.instance());
+        } else {
+            set.addAll(output);
+            output.clear(); // Force garbage collection.
+        }
     }
 }

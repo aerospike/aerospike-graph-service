@@ -19,6 +19,7 @@ import static com.aerospike.client.ResultCode.SCAN_TERMINATED;
 import static com.aerospike.client.ResultCode.SERIALIZE_ERROR;
 import static com.aerospike.client.ResultCode.SERVER_NOT_AVAILABLE;
 import static com.aerospike.firefly.structure.FireflyElement.TTL_PROPERTY_KEY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE;
 
 /**
  * Client codes are absolute value of ResultCode + 1000
@@ -97,6 +98,8 @@ public enum GraphError {
                 "Check index memory usage and/or increase server memory in Aerospike configuration.");
 
         // Client
+        ERROR_MESSAGES.put(GRAPH_NO_MORE_CONNECTIONS.code, "There are no more available connections. Consider increasing the maximum allowable amount via the '" +
+                MAX_CONNECTIONS_PER_NODE + "' configuration key or contact support if problem persists.");
 
         // TODO GRAPH-1307: Add more error messages
     }

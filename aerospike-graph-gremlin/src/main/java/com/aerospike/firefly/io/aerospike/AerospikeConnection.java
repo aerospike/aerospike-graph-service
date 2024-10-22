@@ -267,6 +267,13 @@ public class AerospikeConnection implements AutoCloseable {
 
         clientPolicy.maxConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf);
         clientPolicy.minConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE, conf);
+        if (clientPolicy.maxConnsPerNode < clientPolicy.minConnsPerNode) {
+            throw new IllegalStateException("Error: 'aerospike.client.clientPolicy.minConnsPerNode' is set to '" +
+                    clientPolicy.minConnsPerNode
+                    + "' which is greater than 'aerospike.client.clientPolicy.maxConnsPerNode' set to '" +
+                    clientPolicy.maxConnsPerNode + "'. 'aerospike.client.clientPolicy.minConnsPerNode' must be less " +
+                    "than or equal to 'aerospike.client.clientPolicy.maxConnsPerNode'.");
+        }
         clientPolicy.timeout = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf);
         clientPolicy.eventLoops = eventLoops;
 

@@ -1273,6 +1273,7 @@ jobs:
           echo "Running performance mode tests"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestPerformanceModes -DfailIfNoTests=false --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerJavaOptions -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerConfigs -DfailIfNoTests=false --no-transfer-progress
   test-aerospike-ttl:
     name: Test Aerospike TTL Fails
     timeout-minutes: 30

@@ -48,6 +48,7 @@ import com.aerospike.client.query.Statement;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -57,7 +58,6 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.DiagnosticUtil;
-import com.aerospike.firefly.util.Tokens;
 import com.aerospike.firefly.util.WarmupUtil;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.GraphError;
@@ -66,6 +66,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.maven.artifact.versioning.ComparableVersion;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.server.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,8 +85,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -182,6 +187,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final ThreadLocal<FireflyCache> emptyPropsTransactionCache = new ThreadLocal<>();
     public final ThreadLocal<ScanHitCounter> scanHitCounterThreadLocal = new ThreadLocal<>();
     public final int AEROSPIKE_BATCH_READ_SIZE;
+    public final int AEROSPIKE_BATCH_THRESHOLD;
     public final long FIREFLY_READ_THROUGH_CACHE_WEIGHT;
     public final int PHAT_EDGE_SIZE;
     public final int MOVEMENT_BARRIER_SIZE;
@@ -357,7 +363,7 @@ public class AerospikeConnection implements AutoCloseable {
         // - TTL thread background worker
         //
         // Because of this, we need to use the greatest of either what the bulk loader would use or what gremlin-server would use.
-        return Math.max(2 * Runtime.getRuntime().availableProcessors() + 14, gremlinServerSettings.gremlinPool + 14);
+        return Math.max(2 * Runtime.getRuntime().availableProcessors() + 14, 2 * gremlinServerSettings.gremlinPool + 14);
     }
 
 
@@ -506,6 +512,8 @@ public class AerospikeConnection implements AutoCloseable {
         BULK_LOAD_RECOVERY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.BL_RECOVERY_BIN.name(), conf);
 
         AEROSPIKE_BATCH_READ_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf);
+        AEROSPIKE_BATCH_THRESHOLD = this.client.getNodes().length *
+                ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, conf);
         FIREFLY_READ_THROUGH_CACHE_WEIGHT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf);
         PHAT_EDGE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PHAT_EDGE_SIZE, conf);
         MOVEMENT_BARRIER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MOVEMENT_BARRIER_SIZE, conf);
@@ -1395,7 +1403,33 @@ public class AerospikeConnection implements AutoCloseable {
         configureReadPolicy(readPolicy);
         final FireflyCache cache = transactionCache.get();
         try {
-            return (cache != null) ? cache.read(key) : client.get(readPolicy, key);
+            return (cache != null) ? cache.read(readPolicy, key) : client.get(readPolicy, key);
+        } catch (final AerospikeException e) {
+            LOG.error("Error: AerospikeException in read {}", e.getMessage());
+            throw fromAerospikeException(e);
+        }
+    }
+
+    /**
+     * Perform an Aerospike read by Key
+     *
+     * @param key           Aerospike Key to read
+     * @param policy        Aerospike WritePolicy to use
+     * @param operations    Read operations
+     * @return Aerospike Record
+     */
+    public Record read(final Key key, final WritePolicy policy, final Operation[] operations) {
+        final WritePolicy writePolicy;
+        if (policy == null) {
+            writePolicy = new WritePolicy();
+        } else {
+            writePolicy = policy;
+        }
+        // Operations require a WritePolicy but we only use this function to read.
+        configureReadPolicy(writePolicy);
+        final FireflyCache cache = transactionCache.get();
+        try {
+            return (cache != null) ? cache.read(writePolicy, key, operations) : client.operate(writePolicy, key, operations);
         } catch (final AerospikeException e) {
             LOG.error("Error: AerospikeException in read {}", e.getMessage());
             throw fromAerospikeException(e);
@@ -1410,7 +1444,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param operations    Read operations
      * @return Array of Record
      */
-    public Record[] read(final Key[] keys, final BatchPolicy policy, Operation[] operations) {
+    private Record[] batchRead(final Key[] keys, final BatchPolicy policy, Operation[] operations) {
         final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
         batchPolicy.sendKey = false;
         configureReadPolicy(batchPolicy);
@@ -1430,7 +1464,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param policy    BatchPolicy to use
      * @return Array of Record
      */
-    public Record[] read(final Key[] keys, final BatchPolicy policy) {
+    private Record[] batchRead(final Key[] keys, final BatchPolicy policy) {
         final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
         batchPolicy.sendKey = false;
         configureReadPolicy(batchPolicy);
@@ -1465,6 +1499,23 @@ public class AerospikeConnection implements AutoCloseable {
         configureReadPolicy(readPolicy);
         try {
             return client.get(readPolicy, key);
+        } catch (final AerospikeException e) {
+            throw fromAerospikeException(e);
+        }
+    }
+
+    /**
+     * Perform an Aerospike read by Key and bypass the transaction cache. Should only be called by the cache.
+     *
+     * @param key    Aerospike Key to read
+     * @param policy Aerospike WritePolicy to use
+     * @return Aerospike Record
+     */
+    Record skipCacheRead(final Key key, final WritePolicy policy, final Operation[] operations) {
+        final WritePolicy writePolicy = policy ==  null ? new WritePolicy() : policy;
+        configureReadPolicy(writePolicy);
+        try {
+            return client.operate(writePolicy, key, operations);
         } catch (final AerospikeException e) {
             throw fromAerospikeException(e);
         }
@@ -1506,6 +1557,58 @@ public class AerospikeConnection implements AutoCloseable {
             return client.get(batchPolicy, keys);
         } catch (final AerospikeException e) {
             throw fromAerospikeException(e);
+        }
+    }
+
+    public Record[] dynamicBatchRead(final ReadInfo readInfo, final Key[] keys, final Operation... operations) {
+        return dynamicBatchRead(keys, readInfo.expression, operations);
+    }
+
+    public Record[] dynamicBatchRead(final Key[] keys, final Expression filterExp, final Operation... operations) {
+        if (keys.length > this.AEROSPIKE_BATCH_THRESHOLD) {
+            // Default batch read used by read.
+            final BatchPolicy batchReadPolicy = new BatchPolicy();
+            batchReadPolicy.filterExp = filterExp;
+            return operations.length == 0 ? this.batchRead(keys, batchReadPolicy) : this.batchRead(keys, batchReadPolicy, operations);
+        } else {
+            final ExecutorService executor = Executors.newFixedThreadPool(keys.length);
+            final WritePolicy policy = new WritePolicy();
+            policy.filterExp = filterExp;
+            final List<Future<Record>> futures = new ArrayList<>();
+            for (final Key key : keys) {
+                futures.add(CompletableFuture.supplyAsync(() -> {
+                    if (operations.length == 0) {
+                        return this.read(key, policy);
+                    } else {
+                        return this.read(key, policy, operations);
+                    }
+                }));
+            }
+
+            final Record[] results = new Record[keys.length];
+            for (int i = 0; i < keys.length; i++) {
+                try {
+                    results[i] = futures.get(i).get();
+                } catch (final InterruptedException e) {
+                    // Should only happen if we are interrupted by TinkerPop.
+                    LOG.error("Error: Exception in read {}", e.getMessage());
+                    throw new TraversalInterruptedException();
+                } catch (final ExecutionException e) {
+                    // Should never happen.
+                    LOG.error("Error: Exception in read {}", e.getMessage());
+                    throw new RuntimeException(e);
+                }
+            }
+            try {
+                executor.shutdown();
+                executor.awaitTermination(1, TimeUnit.SECONDS);
+            } catch (final InterruptedException e) {
+                // Should never happen since futures are complete at this point.
+                LOG.error("Error: Exception in read {}", e.getMessage());
+                throw new TraversalInterruptedException();
+            }
+
+            return results;
         }
     }
 

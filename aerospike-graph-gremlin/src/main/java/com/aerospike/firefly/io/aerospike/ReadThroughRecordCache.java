@@ -86,16 +86,28 @@ public class ReadThroughRecordCache extends FireflyCache {
     }
 
     @Override
-    public Record read(final Key key) {
+    public Record read(final Policy policy, final Key key) {
         final Record or = cache.getIfPresent(key);
         if (or != null) {
             hitCounter.incrementAndGet();
             return or;
         } else {
             missCounter.incrementAndGet();
-            final Policy policy = new Policy();
-            policy.sendKey = false;
             final Record record = db.skipCacheRead(key, policy);
+            insert(key, record);
+            return record;
+        }
+    }
+
+    @Override
+    public Record read(final WritePolicy policy, final Key key, final Operation[] operations) {
+        final Record cachedRecord = cache.getIfPresent(key);
+        if (cachedRecord != null) {
+            this.hitCounter.incrementAndGet();
+            return cachedRecord;
+        } else {
+            missCounter.incrementAndGet();
+            final Record record = db.skipCacheRead(key, policy, operations);
             insert(key, record);
             return record;
         }

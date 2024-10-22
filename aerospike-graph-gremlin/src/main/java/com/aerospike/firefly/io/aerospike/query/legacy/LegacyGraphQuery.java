@@ -3,7 +3,6 @@ package com.aerospike.firefly.io.aerospike.query.legacy;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
-import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
@@ -94,7 +93,7 @@ public class LegacyGraphQuery implements GraphQuery {
 
 
     @Override
-    public <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(final FireflyGraph graph, BatchPolicy policy,
+    public <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(final FireflyGraph graph,
                                                                             final Expression expression,
                                                                             final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
                                                                             final List<Object> idsToRead) {

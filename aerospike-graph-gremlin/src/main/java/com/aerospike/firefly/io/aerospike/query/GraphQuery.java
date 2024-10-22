@@ -1,7 +1,6 @@
 package com.aerospike.firefly.io.aerospike.query;
 
 import com.aerospike.client.exp.Expression;
-import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
@@ -103,9 +102,7 @@ public interface GraphQuery {
                 final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, nonIdContainers);
                 final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
                 final Expression expression = GraphQueryHelper.hasContainerListToExpression(db, aerospikeSideHasContainers, FireflyVertex.class);
-                final BatchPolicy policy = new BatchPolicy();
-                policy.setTimeout(evaluationTimeout.intValue());
-                return batchReadVertexPagesBlocking(graph, policy, expression, graph::vertexFromRecord, ids);
+                return batchReadVertexPagesBlocking(graph, expression, graph::vertexFromRecord, ids);
             }
 
             final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, hasContainers);
@@ -218,7 +215,7 @@ public interface GraphQuery {
                                                              Long evaluationTimeout,
                                                              String... binNames);
 
-    <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(FireflyGraph graph, BatchPolicy policy,
+    <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(FireflyGraph graph,
                                                                      Expression expression,
                                                                      FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
                                                                      List<Object> idsToRead);

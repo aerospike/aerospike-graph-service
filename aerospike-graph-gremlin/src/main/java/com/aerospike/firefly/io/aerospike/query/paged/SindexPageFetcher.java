@@ -49,9 +49,9 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
                 pi.add(recordSetIterator.next());
             }
         } catch (final InterruptedException e) {
-            signalError("Failed to add page to queue, thread was interrupted.", e);
+            signalError("Failed to add page to queue; thread was interrupted.", e);
         } catch (final Exception e) {
-            signalError("Failed to read index, thread was interrupted: " + e.getMessage(), e);
+            signalError("Failed to read index; thread was interrupted.", e);
         } finally {
             if (pi != null) {
                 pi.close();

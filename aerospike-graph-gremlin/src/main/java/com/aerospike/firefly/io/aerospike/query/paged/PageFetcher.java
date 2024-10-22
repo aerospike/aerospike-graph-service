@@ -72,7 +72,7 @@ public abstract class PageFetcher<E> {
                             pageQueue.put(new PoisonPill());
                         } catch (final InterruptedException e) {
                             LOG.error("Error adding poison pill.", e);
-                            Thread.currentThread().interrupt();
+                            throw new TraversalInterruptedException();
                         }
                         return;
                     }
@@ -267,7 +267,7 @@ public abstract class PageFetcher<E> {
             shutdown();
             pageQueue.put(new ErrorPage(error, exception));
         } catch (final InterruptedException e2) {
-            LOG.error("Error adding signalling error to iterator.", e2);
+            LOG.error("Error signalling error to iterator.", e2);
         }
     }
 }

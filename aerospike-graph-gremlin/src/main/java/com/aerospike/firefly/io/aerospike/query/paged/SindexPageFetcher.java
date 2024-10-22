@@ -10,6 +10,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 
 import java.util.Iterator;
+import java.util.Random;
 
 public class SindexPageFetcher<R> extends PageFetcher<R> {
     private final QueryPolicy policy;
@@ -38,17 +39,23 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
             return;
         }
 
-        final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
-        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close);
-
+        PaginationIterator<KeyRecord> pi = null;
         try {
+            final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
+            pi = new PaginationIterator<>(graph, recordSet::close);
+
             pageQueue.put(new Page(pi));
+            while (recordSetIterator.hasNext()) {
+                pi.add(recordSetIterator.next());
+            }
         } catch (final InterruptedException e) {
-            signalError("Failed to add page to queue: " + e.getMessage(), e);
+            signalError("Failed to add page to queue, thread was interrupted.", e);
+        } catch (final Exception e) {
+            signalError("Failed to read index, thread was interrupted: " + e.getMessage(), e);
+        } finally {
+            if (pi != null) {
+                pi.close();
+            }
         }
-        while (recordSetIterator.hasNext()) {
-            pi.add(recordSetIterator.next());
-        }
-        pi.close();
     }
 }

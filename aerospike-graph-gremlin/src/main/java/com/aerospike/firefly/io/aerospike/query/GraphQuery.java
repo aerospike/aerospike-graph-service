@@ -237,8 +237,18 @@ public interface GraphQuery {
                                               Long evaluationTimeout) {
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
+        getGraph().getBaseGraph().configureIndexPolicy(queryPolicy);
         queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(getGraph().getBaseGraph(), hasContainers, FireflyVertex.class);
-        queryPolicy.setTimeout(evaluationTimeout.intValue());
+
+        // Override default with evaluationTimeout if < default.
+        if (evaluationTimeout != null) {
+            if (evaluationTimeout < queryPolicy.totalTimeout) {
+                queryPolicy.totalTimeout = evaluationTimeout.intValue();
+            }
+            if (evaluationTimeout < queryPolicy.socketTimeout) {
+                queryPolicy.socketTimeout = evaluationTimeout.intValue();
+            }
+        }
 
         // Query index.
         return querySIndex(indexInfo.setName, indexInfo.indexName,

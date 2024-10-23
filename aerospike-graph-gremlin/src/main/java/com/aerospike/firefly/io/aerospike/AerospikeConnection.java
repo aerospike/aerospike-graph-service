@@ -212,6 +212,11 @@ public class AerospikeConnection implements AutoCloseable {
     private final int SCAN_CONNECT_TIMEOUT;
     private final int SCAN_TIMEOUT_DELAY;
 
+    private final int INDEX_TOTAL_TIMEOUT;
+    private final int INDEX_SOCKET_TIMEOUT;
+    private final int INDEX_CONNECT_TIMEOUT;
+    private final int INDEX_TIMEOUT_DELAY;
+
     public final long PROPERTY_ID_BUFFER_SIZE;
     public final long VERTEX_ID_BUFFER_SIZE;
     public final long EDGE_ID_BUFFER_SIZE;
@@ -454,6 +459,11 @@ public class AerospikeConnection implements AutoCloseable {
         SCAN_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_SOCKET_TIMEOUT, conf);
         SCAN_CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_CONNECT_TIMEOUT, conf);
         SCAN_TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_TIMEOUT_DELAY, conf);
+
+        INDEX_TOTAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_TOTAL_TIMEOUT, conf);
+        INDEX_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_SOCKET_TIMEOUT, conf);
+        INDEX_CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_CONNECT_TIMEOUT, conf);
+        INDEX_TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_TIMEOUT_DELAY, conf);
 
         CARDINALITY_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf);
         INDEX_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf);
@@ -2219,6 +2229,15 @@ public class AerospikeConnection implements AutoCloseable {
         policy.socketTimeout = SCAN_SOCKET_TIMEOUT;
         policy.connectTimeout = SCAN_CONNECT_TIMEOUT;
         policy.timeoutDelay = SCAN_TIMEOUT_DELAY;
+    }
+
+    public void configureIndexPolicy(final Policy policy) {
+        policy.maxRetries = AEROSPIKE_MAX_RETRIES;
+        policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
+        policy.totalTimeout = INDEX_TOTAL_TIMEOUT;
+        policy.socketTimeout = INDEX_SOCKET_TIMEOUT;
+        policy.connectTimeout = INDEX_CONNECT_TIMEOUT;
+        policy.timeoutDelay = INDEX_TIMEOUT_DELAY;
     }
 
     /**

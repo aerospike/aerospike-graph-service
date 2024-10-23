@@ -8,9 +8,9 @@ import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 
 import java.util.Iterator;
-import java.util.Random;
 
 public class SindexPageFetcher<R> extends PageFetcher<R> {
     private final QueryPolicy policy;
@@ -20,7 +20,6 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
                              final String namespace, final Filter filter, final int maxQueueSize, final int maxPageSize,
                              final FireflyGraph.TransformKeyRecord<R> transformKeyRecord, final String indexName) {
         super(graph, maxQueueSize, transformKeyRecord, indexName);
-        graph.getBaseGraph().configureReadPolicy(policy);
         this.policy = policy;
         this.statement = new Statement();
         this.statement.setNamespace(namespace);
@@ -39,23 +38,19 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
             return;
         }
 
-        PaginationIterator<KeyRecord> pi = null;
-        try {
-            final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
-            pi = new PaginationIterator<>(graph, recordSet::close);
-
+        final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
+        try (final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close, this.policy.totalTimeout)) {
             pageQueue.put(new Page(pi));
             while (recordSetIterator.hasNext()) {
                 pi.add(recordSetIterator.next());
             }
         } catch (final InterruptedException e) {
-            signalError("Failed to add page to queue, thread was interrupted.", e);
+            throw new TraversalInterruptedException();
         } catch (final Exception e) {
-            signalError("Failed to read index, thread was interrupted: " + e.getMessage(), e);
-        } finally {
-            if (pi != null) {
-                pi.close();
+            if (e instanceof TraversalInterruptedException) {
+                throw (TraversalInterruptedException) e;
             }
+            signalError("Encountered exception while attempting to read index: " + e.getMessage(), e);
         }
     }
 }

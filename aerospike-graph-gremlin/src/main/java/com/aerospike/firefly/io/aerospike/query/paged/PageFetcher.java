@@ -152,6 +152,9 @@ public abstract class PageFetcher<E> {
                     final ErrorPage errorPage = (ErrorPage) page;
                     errorMessage = errorPage.isIndexDropError() ? INDEX_DROPPED : errorPage.errorMessage;
                     error = errorPage.exception;
+                    if (error instanceof TraversalInterruptedException) {
+                        throw new TraversalInterruptedException();
+                    }
                     return;
                 }
 
@@ -262,12 +265,20 @@ public abstract class PageFetcher<E> {
     }
 
     protected void signalError(final String error, final Throwable exception) {
-        try {
-            LOG.error(error);
-            shutdown();
-            pageQueue.put(new ErrorPage(error, exception));
-        } catch (final InterruptedException e2) {
-            LOG.error("Error signalling error to iterator.", e2);
+        LOG.error("{} attempting to signal error to iterator.", error);
+        shutdown();
+        boolean success = false;
+        for (int attemptCount = 0; attemptCount < 3; attemptCount++) {
+            pageQueue.clear();
+            if (!pageQueue.offer(new ErrorPage(error, exception))) {
+                success = true;
+                break;
+            } else {
+                LOG.warn("Failed to send error signal to iterator. Attempting to send again.");
+            }
+        }
+        if (!success) {
+            LOG.error("Failed to send error signal to iterator.");
         }
     }
 }

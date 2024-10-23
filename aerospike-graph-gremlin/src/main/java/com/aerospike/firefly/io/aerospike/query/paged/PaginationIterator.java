@@ -16,10 +16,12 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
     private final Object lock = new Object();
     private final FireflyGraph graph;
     private final Runnable closeCallback;
+    private final long timeout;
 
-    public PaginationIterator(final FireflyGraph graph, final Runnable closeCallback) {
+    public PaginationIterator(final FireflyGraph graph, final Runnable closeCallback, final long timeout) {
         this.graph = graph;
         this.closeCallback = closeCallback;
+        this.timeout = timeout;
     }
 
     @Override
@@ -34,7 +36,7 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
                 }
             }
             try {
-                boolean succeeded = latch.await(graph.getBaseGraph().PAGINATION_PAGE_MAX_WAIT, TimeUnit.MILLISECONDS);
+                boolean succeeded = latch.await(Math.min(timeout, graph.getBaseGraph().PAGINATION_PAGE_MAX_WAIT), TimeUnit.MILLISECONDS);
                 if (!succeeded) {
                     throw new RuntimeException("Timeout waiting for more records in PaginationIterator. " +
                             "State: " + isClosed + " " + queue.isEmpty() + ".");

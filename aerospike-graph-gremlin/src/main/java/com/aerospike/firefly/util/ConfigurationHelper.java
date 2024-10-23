@@ -136,6 +136,10 @@ public final class ConfigurationHelper {
         public static final String SCAN_SOCKET_TIMEOUT = "aerospike.client.policy.scan.socketTimeout";
         public static final String SCAN_CONNECT_TIMEOUT = "aerospike.client.policy.scan.connectTimeout";
         public static final String SCAN_TIMEOUT_DELAY = "aerospike.client.policy.scan.timeoutDelay";
+        public static final String INDEX_TOTAL_TIMEOUT = "aerospike.client.policy.index.totalTimeout";
+        public static final String INDEX_SOCKET_TIMEOUT = "aerospike.client.policy.index.socketTimeout";
+        public static final String INDEX_CONNECT_TIMEOUT = "aerospike.client.policy.index.connectTimeout";
+        public static final String INDEX_TIMEOUT_DELAY = "aerospike.client.policy.index.timeoutDelay";
 
         // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
         public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
@@ -319,8 +323,8 @@ public final class ConfigurationHelper {
         put(Keys.E_LABEL_INDEX_ENABLED_FLAG, "false");
         put(Keys.SCAN_MAX_WAIT, "2000");
         put(Keys.AEROSPIKE_MAX_RETRIES, "2");
-        put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
-        put(Keys.PAGINATION_PAGE_SIZE, "2048");
+        put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "1");
+        put(Keys.PAGINATION_PAGE_SIZE, "128");
         put(Keys.PAGINATION_PAGE_MAX_WAIT, "1200000"); // 20 minutes.
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_READ_THROUGH_CACHE, "true");
@@ -404,6 +408,10 @@ public final class ConfigurationHelper {
         put(Keys.SCAN_SOCKET_TIMEOUT, "1200000");
         put(Keys.SCAN_CONNECT_TIMEOUT, "0");
         put(Keys.SCAN_TIMEOUT_DELAY, "0");
+        put(Keys.INDEX_TOTAL_TIMEOUT, "0");
+        put(Keys.INDEX_SOCKET_TIMEOUT, "1200000");
+        put(Keys.INDEX_CONNECT_TIMEOUT, "0");
+        put(Keys.INDEX_TIMEOUT_DELAY, "0");
         put(Keys.EVENT_LOOP_TYPE, EventLoopType.NETTY_NIO.name());
         put(Keys.EVENT_LOOP_COUNT, "2");
         put(Keys.COMMANDS_PER_EVENT_LOOP, "50");

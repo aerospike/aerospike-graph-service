@@ -145,6 +145,17 @@ public class SparkBulkLoaderStateMachine {
             // Initialize bulk loader metadata.
             initializerGraph.getBaseGraph().initializeBulkLoadMetadata();
 
+            final String vertexDirectory = config.getOrDefault(VERTEX_DIRECTORY_KEY);
+            final String edgeDirectory = config.getOrDefault(EDGE_DIRECTORY_KEY);
+            if (vertexDirectory.equals(edgeDirectory)) {
+                throw new IllegalArgumentException(String.format("Vertex and edge directories cannot be the same. Configs %s=%s and %s=%s.",
+                        VERTEX_DIRECTORY_KEY, vertexDirectory, EDGE_DIRECTORY_KEY, edgeDirectory));
+            } else if (vertexDirectory.endsWith(".csv")) {
+                throw new IllegalArgumentException("Config " + VERTEX_DIRECTORY_KEY + " must be a directory and cannot be a single file, current value is " + vertexDirectory + ".");
+            } else if (edgeDirectory.endsWith(".csv")) {
+                throw new IllegalArgumentException("Config " + EDGE_DIRECTORY_KEY + " must be a directory and cannot be a single file, current value is " + edgeDirectory + ".");
+            }
+
             // Pre-processing
             vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
 

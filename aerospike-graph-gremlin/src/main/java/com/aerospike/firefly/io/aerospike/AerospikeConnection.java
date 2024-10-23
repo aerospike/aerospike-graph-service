@@ -1467,8 +1467,6 @@ public class AerospikeConnection implements AutoCloseable {
      * @param operations    Read operations
      * @return Array of Record
      */
-
-
     private Record[] batchRead(final Key[] keys, final BatchPolicy policy, final Operation[] operations, final FireflyCache cache) {
         final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
         batchPolicy.sendKey = false;

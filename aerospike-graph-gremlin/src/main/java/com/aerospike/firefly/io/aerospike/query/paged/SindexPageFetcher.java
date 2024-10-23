@@ -44,12 +44,9 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
             while (recordSetIterator.hasNext()) {
                 pi.add(recordSetIterator.next());
             }
-        } catch (final InterruptedException e) {
+        } catch (final InterruptedException | TraversalInterruptedException e) {
             throw new TraversalInterruptedException();
         } catch (final Exception e) {
-            if (e instanceof TraversalInterruptedException) {
-                throw (TraversalInterruptedException) e;
-            }
             signalError("Encountered exception while attempting to read index: " + e.getMessage(), e);
         }
     }

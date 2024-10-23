@@ -2,7 +2,6 @@ package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
-import com.aerospike.client.Info;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
@@ -13,7 +12,6 @@ import com.aerospike.client.cdt.ListReturnType;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.listener.RecordListener;
 import com.aerospike.client.policy.BatchPolicy;
-import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.Filter;
@@ -28,11 +26,9 @@ import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
-import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.commons.configuration2.Configuration;
@@ -57,7 +53,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -429,7 +424,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         db.write(aKey, new Bin("bin", 1));
         db.write(bKey, new Bin("bin", 1));
         db.write(cKey, new Bin("bin", 1));
-        Record[] data = db.read(new Key[]{aKey, bKey, cKey}, null);
+        Record[] data = db.dynamicBatchRead(new Key[]{aKey, bKey, cKey}, null);
         assertEquals(3, data.length);
     }
 
@@ -575,14 +570,12 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
         Key keyaObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(va.id()));
         Key keybObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(vb.id()));
-        BatchPolicy batchPolicy = new BatchPolicy();
-        batchPolicy.sendKey = false;
-        final Record[] records = db.read(new Key[]{keyaObj, keybObj}, batchPolicy);
+        final Record[] records = db.dynamicBatchRead(new Key[]{keyaObj, keybObj}, null);
         assertEquals(2, records.length);
 
         Key keyaHash = new Key(db.getNamespace(), va.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL);
         Key keybHash = new Key(db.getNamespace(), vb.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL);
-        final Record[] hashRecords = db.read(new Key[]{keyaHash, keybHash}, batchPolicy);
+        final Record[] hashRecords = db.dynamicBatchRead(new Key[]{keyaHash, keybHash}, null);
         assertEquals(2, hashRecords.length);
     }
 

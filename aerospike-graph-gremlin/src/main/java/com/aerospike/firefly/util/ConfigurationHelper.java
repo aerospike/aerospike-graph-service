@@ -93,6 +93,7 @@ public final class ConfigurationHelper {
         public static final String READ_SLEEP_BETWEEN_RETRY = "aerospike.client.policy.read.sleepBetweenRetry";
 
         // Semi internal semi external configs
+        public static final String AEROSPIKE_BATCH_PER_NODE_THRESHOLD = "aerospike.client.batch-threshold.per-node";
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
         public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.index.update.frequency";
         public static final String CARDINALITY_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.cardinality.update.frequency";
@@ -358,6 +359,7 @@ public final class ConfigurationHelper {
         put(Keys.HEALTHCHECK_PATH, "/healthcheck");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
+        put(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, "4");
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
         put(Keys.EDGE_PROPERTY_INDEXES, "");
         put(Keys.PHAT_EDGE_SIZE, "10");
@@ -461,6 +463,7 @@ public final class ConfigurationHelper {
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MERGE_EDGE_POLL_INTERVAL, 1);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.EVENT_LOOP_COUNT, 0);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.DELAY_QUEUE_SIZE, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, 2);
     }
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {

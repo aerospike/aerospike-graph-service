@@ -161,22 +161,20 @@ public class FireflyRecord {
 
         final Record[] records;
         if (readInfo.requiredProperties == null) {
+            // All property reads uses transaction cache.
             records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), db.transactionCache.get());
-        } else if (!readInfo.requiredProperties.isEmpty()){
-            final List<Operation> operations = new ArrayList<>();
-            db.vertexNonPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
-            final List<Value> properties;
-            if (!readInfo.requiredProperties.isEmpty()) {
-                properties = readInfo.requiredProperties.stream().map(Value::get).collect(Collectors.toList());
-            } else {
-                properties = Collections.emptyList();
-            }
-            db.vertexPropertyBins.forEach(bin -> operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP)));
-            records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
         } else {
             final List<Operation> operations = new ArrayList<>();
             db.vertexNonPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
-            records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), db.emptyPropsTransactionCache.get(), operations.toArray(Operation[]::new));
+            if (!readInfo.requiredProperties.isEmpty()) {
+                // No cache for non-empty required properties.
+                final List<Value> properties = readInfo.requiredProperties.stream().map(Value::get).collect(Collectors.toList());
+                db.vertexPropertyBins.forEach(bin -> operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP)));
+                records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
+            } else {
+                // No property read uses empty property transaction cache.
+                records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), db.emptyPropsTransactionCache.get(), operations.toArray(Operation[]::new));
+            }
         }
         for (int i = 0; i < records.length; i++) {
             if (records[i] != null) {

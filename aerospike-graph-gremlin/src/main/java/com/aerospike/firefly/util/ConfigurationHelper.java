@@ -324,8 +324,8 @@ public final class ConfigurationHelper {
         put(Keys.E_LABEL_INDEX_ENABLED_FLAG, "false");
         put(Keys.SCAN_MAX_WAIT, "2000");
         put(Keys.AEROSPIKE_MAX_RETRIES, "2");
-        put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "1");
-        put(Keys.PAGINATION_PAGE_SIZE, "128");
+        put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
+        put(Keys.PAGINATION_PAGE_SIZE, "2048");
         put(Keys.PAGINATION_PAGE_MAX_WAIT, "1200000"); // 20 minutes.
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_READ_THROUGH_CACHE, "true");

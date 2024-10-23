@@ -3,7 +3,6 @@ package com.aerospike.firefly.io.aerospike.query.paged;
 import com.aerospike.client.Key;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
-import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
@@ -142,10 +141,11 @@ public class PagedGraphQuery implements GraphQuery {
     }
 
     @Override
-    public <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(final FireflyGraph graph, BatchPolicy policy,
+    public <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(final FireflyGraph graph,
                                                                             final Expression expression,
                                                                             final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
-                                                                            final List<Object> idsToRead) {
+                                                                            final List<Object> idsToRead,
+                                                                            final Long evaluationTimeout) {
 
         if (idsToRead.size() == 1 && idsToRead.get(0) instanceof P) {
             // Passed in as P.within([id1, id2, ...])
@@ -165,8 +165,8 @@ public class PagedGraphQuery implements GraphQuery {
                 map(vertexId -> getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, vertexId)).
                 collect(Collectors.toList());
 
-        final PageFetcher<E> pageFetcher = new BatchReadPageFetcher<>(graph, policy, db.PAGINATION_PAGE_SIZE,
-                db.PAGINATION_PAGE_SIZE, expression, transformKeyRecord, keysToRead);
+        final PageFetcher<E> pageFetcher = new BatchReadPageFetcher<>(graph, db.PAGINATION_PAGE_SIZE,
+                db.PAGINATION_PAGE_SIZE, expression, transformKeyRecord, keysToRead, evaluationTimeout);
 
         return pageFetcher.startQueryPagesDirect();
     }

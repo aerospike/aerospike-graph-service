@@ -564,6 +564,28 @@ public class TestBulkLoaderCallEntryPoint {
     }
 
     @Test
+    public void testLoadWithCsvFileDirectlyFails() {
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            try {
+                g.call("aerospike.graphloader.admin.bulk-load.load").
+                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-direct-csv-vertices.properties").iterate();
+                Assert.fail("Expected call to fail with direct csv of vertices.");
+            } catch (final RuntimeException e) {
+                Assert.assertTrue(e.getMessage().contains("Config aerospike.graphloader.vertices must be a directory and cannot be a single file, current value is src/test/resources/sampledata-incremental-1/vertices.csv"));
+            }
+            try {
+                g.call("aerospike.graphloader.admin.bulk-load.load").
+                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-direct-csv-edges.properties").iterate();
+                Assert.fail("Expected call to fail with direct csv of edges.");
+            } catch (final RuntimeException e) {
+                Assert.assertTrue(e.getMessage().contains("Config aerospike.graphloader.edges must be a directory and cannot be a single file, current value is src/test/resources/sampledata-incremental-1/edges.csv"));
+            }
+        }
+    }
+
+    @Test
     public void testIncrementalLoadNewSupernode() {
         // This test will test a dataset where there was previously not a supernode and we are adding to it such that it will
         // become a supernode from the combination of the previous cache plus the new data.

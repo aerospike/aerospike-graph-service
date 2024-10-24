@@ -424,7 +424,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         db.write(aKey, new Bin("bin", 1));
         db.write(bKey, new Bin("bin", 1));
         db.write(cKey, new Bin("bin", 1));
-        Record[] data = db.dynamicBatchRead(new Key[]{aKey, bKey, cKey}, null);
+        Record[] data = db.dynamicBatchRead(new Key[]{aKey, bKey, cKey}, null, null);
         assertEquals(3, data.length);
     }
 
@@ -570,12 +570,12 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
         Key keyaObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(va.id()));
         Key keybObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(vb.id()));
-        final Record[] records = db.dynamicBatchRead(new Key[]{keyaObj, keybObj}, null);
+        final Record[] records = db.dynamicBatchRead(new Key[]{keyaObj, keybObj}, null, null);
         assertEquals(2, records.length);
 
         Key keyaHash = new Key(db.getNamespace(), va.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL);
         Key keybHash = new Key(db.getNamespace(), vb.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL);
-        final Record[] hashRecords = db.dynamicBatchRead(new Key[]{keyaHash, keybHash}, null);
+        final Record[] hashRecords = db.dynamicBatchRead(new Key[]{keyaHash, keybHash}, null, null);
         assertEquals(2, hashRecords.length);
     }
 

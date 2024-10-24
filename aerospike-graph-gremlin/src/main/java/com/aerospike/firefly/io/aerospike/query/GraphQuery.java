@@ -54,7 +54,8 @@ public interface GraphQuery {
         return scanElementIds(FireflyVertex.class, List.of(), evaluationTimeout);
     }
 
-    default BlockingQueue<PageFetcher.Page> scanVertexIdPages(final List<HasContainer> hasContainers, final Long evaluationTimeout) {
+    default BlockingQueue<PageFetcher.Page> scanVertexIdPages(final List<HasContainer> hasContainers,
+                                                              final Long evaluationTimeout) {
         final P<?> predicate;
         final String binName;
         final String mapKey;
@@ -80,6 +81,10 @@ public interface GraphQuery {
                 hasContainers, FireflyVertex.class, true, true, evaluationTimeout);
     }
 
+    default Iterator<FireflyId> scanEdgeIds(final Long evaluationTimeout) {
+        return scanElementIds(FireflyEdge.class, List.of(), evaluationTimeout);
+    }
+
     default BlockingQueue<PageFetcher.Page> partitionVertexIdPages(final List<HasContainer> hasContainers, final Long evaluationTimeout) {
         P<?> predicate = null;
         String binName = null;
@@ -102,7 +107,7 @@ public interface GraphQuery {
                 final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, nonIdContainers);
                 final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
                 final Expression expression = GraphQueryHelper.hasContainerListToExpression(db, aerospikeSideHasContainers, FireflyVertex.class);
-                return batchReadVertexPagesBlocking(graph, expression, graph::vertexFromRecord, ids);
+                return batchReadVertexPagesBlocking(graph, expression, graph::vertexFromRecord, ids, evaluationTimeout);
             }
 
             final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, hasContainers);
@@ -136,10 +141,6 @@ public interface GraphQuery {
         // Default to scan.
         return scanSetPagesBlocking(mapKey, db.VERTEX_AERO_SET, binName, predicate, graph::vertexIdFromRecord,
                 hasContainers, FireflyVertex.class, true, true, evaluationTimeout);
-    }
-
-    default Iterator<FireflyId> scanEdgeIds(Long evaluationTimeout) {
-        return scanElementIds(FireflyEdge.class, List.of(), evaluationTimeout);
     }
 
     default Iterator<FireflyId> scanVertexIds(List<HasContainer> hasContainers, Long evaluationTimeout) {
@@ -218,7 +219,8 @@ public interface GraphQuery {
     <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(FireflyGraph graph,
                                                                      Expression expression,
                                                                      FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
-                                                                     List<Object> idsToRead);
+                                                                     List<Object> idsToRead,
+                                                                     Long evaluationTimeout);
 
     default <E> Iterator<E> queryVertexSIndex(FireflyIndexMetadata.IndexInfo indexInfo,
                                               P<?> predicate,
@@ -234,8 +236,18 @@ public interface GraphQuery {
                                               Long evaluationTimeout) {
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
+        getGraph().getBaseGraph().configureIndexPolicy(queryPolicy);
         queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(getGraph().getBaseGraph(), hasContainers, FireflyVertex.class);
-        queryPolicy.setTimeout(evaluationTimeout.intValue());
+
+        // Override default with evaluationTimeout if < default.
+        if (evaluationTimeout != null) {
+            if (evaluationTimeout < queryPolicy.totalTimeout) {
+                queryPolicy.totalTimeout = evaluationTimeout.intValue();
+            }
+            if (evaluationTimeout < queryPolicy.socketTimeout) {
+                queryPolicy.socketTimeout = evaluationTimeout.intValue();
+            }
+        }
 
         // Query index.
         return querySIndex(indexInfo.setName, indexInfo.indexName,

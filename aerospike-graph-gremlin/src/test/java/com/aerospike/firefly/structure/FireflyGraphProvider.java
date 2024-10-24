@@ -20,6 +20,7 @@ import java.util.Set;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 
 /**
@@ -61,6 +62,7 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
         if (test.equals(IncidentToAdjacentStrategyProcessTest.class) && testMethodName.equals("shouldGenerateCorrectTraversers")) {
             configMap.put(ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY, "false");
             configMap.put(ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY, "false");
+            configMap.put(ENABLE_COMPOSITE_ID_STRATEGY, "false");
         }
 
         return configMap;

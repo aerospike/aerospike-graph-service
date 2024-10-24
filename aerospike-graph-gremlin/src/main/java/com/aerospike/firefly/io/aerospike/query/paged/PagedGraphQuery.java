@@ -135,7 +135,6 @@ public class PagedGraphQuery implements GraphQuery {
                                        final Filter filter,
                                        final QueryPolicy policy,
                                        final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
-        graph.getBaseGraph().configureScanPolicy(policy);
         final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(graph, policy, setName, db.getNamespace(), filter,
                 db.PAGINATION_PAGE_QUEUE_SIZE, db.PAGINATION_PAGE_SIZE, transformKeyRecord, indexName);
         return pageFetcher.startQuery();
@@ -145,7 +144,8 @@ public class PagedGraphQuery implements GraphQuery {
     public <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(final FireflyGraph graph,
                                                                             final Expression expression,
                                                                             final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
-                                                                            final List<Object> idsToRead) {
+                                                                            final List<Object> idsToRead,
+                                                                            final Long evaluationTimeout) {
 
         if (idsToRead.size() == 1 && idsToRead.get(0) instanceof P) {
             // Passed in as P.within([id1, id2, ...])
@@ -166,7 +166,7 @@ public class PagedGraphQuery implements GraphQuery {
                 collect(Collectors.toList());
 
         final PageFetcher<E> pageFetcher = new BatchReadPageFetcher<>(graph, db.PAGINATION_PAGE_SIZE,
-                db.PAGINATION_PAGE_SIZE, expression, transformKeyRecord, keysToRead);
+                db.PAGINATION_PAGE_SIZE, expression, transformKeyRecord, keysToRead, evaluationTimeout);
 
         return pageFetcher.startQueryPagesDirect();
     }

@@ -13,23 +13,27 @@ public class BatchReadPageFetcher<R> extends PageFetcher<R> {
     private final List<Key> keysToRead;
     private final int maxPageSize;
     private int idx;
+    private Long evaluationTimeout;
 
     public BatchReadPageFetcher(final FireflyGraph graph, final int maxQueueSize,
                                 final int maxPageSize, final Expression expression,
-                                final FireflyGraph.TransformKeyRecord<R> transformKeyRecord, final List<Key> keysToRead) {
+                                final FireflyGraph.TransformKeyRecord<R> transformKeyRecord,
+                                final List<Key> keysToRead,
+                                final Long evaluationTimeout) {
         super(graph, maxQueueSize, transformKeyRecord);
         this.filterExp = expression;
         this.keysToRead = keysToRead;
         this.idx = 0;
         this.maxPageSize = maxPageSize;
+        this.evaluationTimeout = evaluationTimeout == 0 ? Long.MAX_VALUE : evaluationTimeout;
     }
 
     @Override
     protected void readPage() {
         final List<Key> keysToRead = this.keysToRead.subList(idx, Math.min(this.keysToRead.size(), idx + maxPageSize));
-        final Record[] records = graph.getBaseGraph().dynamicBatchRead(keysToRead.toArray(new Key[0]), filterExp);
-        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, () -> {
-        });
+        final Record[] records = graph.getBaseGraph().dynamicBatchRead(
+                keysToRead.toArray(new Key[0]), filterExp, graph.getBaseGraph().transactionCache.get());
+        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, () -> {}, evaluationTimeout);
         try {
             pageQueue.put(new Page(pi));
         } catch (final InterruptedException e) {

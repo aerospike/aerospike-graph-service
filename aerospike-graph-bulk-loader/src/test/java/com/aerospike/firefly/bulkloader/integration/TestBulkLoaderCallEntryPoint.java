@@ -53,24 +53,6 @@ public class TestBulkLoaderCallEntryPoint {
     }
 
     @Test
-    public void testResumeThrows() {
-        // Right now calling the bulk loader here will fail with null config.
-        // Once the parameters are determined this test can be updated.
-        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
-            try {
-                fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").
-                        with("vertices").
-                        with("edges").
-                        with("resume").
-                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
-                Assert.fail("Expected call to fail.");
-            } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'."));
-            }
-        }
-    }
-
-    @Test
     public void testClearExistingDataDoesntThrow() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.

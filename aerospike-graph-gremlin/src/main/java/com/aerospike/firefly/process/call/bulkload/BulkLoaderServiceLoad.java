@@ -21,6 +21,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.FORCE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_EMAIL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_KEYFILE_DIRECTORY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
@@ -61,8 +62,10 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
     private static final Set<String> BOOLEAN_KEYS = Set.of(
             KEEP_PROVIDED_EDGE_ID_AS_PROPERTY,
             ENABLE_DATAFRAME_CACHING,
+            RESUME,
             INCREMENTAL_LOAD,
-            CLEAR_EXISTING_DATA
+            CLEAR_EXISTING_DATA,
+            FORCE
     );
 
     private static final Set<String> NUMBER_KEYS = Set.of(
@@ -80,7 +83,9 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
         KEY_TO_ARG.put(EDGES, null);
         KEY_TO_ARG.put(VALIDATE_INPUT_DATA, null);
         KEY_TO_ARG.put(INCREMENTAL_LOAD, null);
+        KEY_TO_ARG.put(RESUME, null);
         KEY_TO_ARG.put(CLEAR_EXISTING_DATA, null);
+        KEY_TO_ARG.put(FORCE, null);
         KEY_TO_ARG.putAll(KEY_TO_CMD);
     }
 
@@ -169,7 +174,9 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                         key.equals(EDGES) ||
                         key.equals(VALIDATE_INPUT_DATA) ||
                         key.equals(INCREMENTAL_LOAD) ||
-                        key.equals(CLEAR_EXISTING_DATA)) {
+                        key.equals(RESUME) ||
+                        key.equals(CLEAR_EXISTING_DATA) ||
+                        key.equals(FORCE)) {
                     // Actions are handled elsewhere
                     continue;
                 }
@@ -202,6 +209,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
         boolean validateInputData = true;
         boolean incrementalLoad = false;
         boolean clearExistingData = false;
+        boolean force = false;
 
         // The way specifying vertices or edges is that:
         // If you specify neither, both are loaded.
@@ -228,6 +236,10 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
             incrementalLoad = getBooleanFromObject(mutableParams.get(INCREMENTAL_LOAD), INCREMENTAL_LOAD);
         }
 
+        if (mutableParams.containsKey(FORCE)) {
+            force = getBooleanFromObject(mutableParams.get(FORCE), FORCE);
+        }
+
         if (mutableParams.containsKey(CLEAR_EXISTING_DATA)) {
             clearExistingData = getBooleanFromObject(mutableParams.get(CLEAR_EXISTING_DATA), CLEAR_EXISTING_DATA);
         }
@@ -243,7 +255,8 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                     key.equals(VALIDATE_INPUT_DATA) ||
                     key.equals(INCREMENTAL_LOAD) ||
                     key.equals(RESUME) ||
-                    key.equals(CLEAR_EXISTING_DATA)) {
+                    key.equals(CLEAR_EXISTING_DATA) ||
+                    key.equals(FORCE)) {
                 // Actions are handled elsewhere
                 continue;
             }
@@ -264,6 +277,9 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
         }
         if (clearExistingData) {
             args.add(formatArg(CLEAR_EXISTING_DATA));
+        }
+        if (force) {
+            args.add(formatArg(FORCE));
         }
 
         // These won't be simultaneously false due to check above.

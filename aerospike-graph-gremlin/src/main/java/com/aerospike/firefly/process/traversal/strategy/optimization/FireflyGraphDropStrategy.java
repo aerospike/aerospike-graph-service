@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.computer.local.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.process.traversal.step.FireflyDropStep;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
@@ -99,7 +100,7 @@ public class FireflyGraphDropStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
-        if (!(traversal.isRoot()) || TraversalHelper.onGraphComputer(traversal))
+        if (!(traversal.isRoot()) || ComputerHelper.onGraphComputer(traversal))
             return;
         final List<Step> steps = traversal.getSteps();
         if (matchesToListNextIterate(steps)) {

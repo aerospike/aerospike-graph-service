@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.computer.local.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.map.FireflyAdjacentVertexIdStep;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -28,7 +29,7 @@ public class FireflyAdjacentVertexIdStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
-        if (TraversalHelper.onGraphComputer(traversal))
+        if (ComputerHelper.onGraphComputer(traversal))
             return;
 
         final List<Step> steps = traversal.getSteps();

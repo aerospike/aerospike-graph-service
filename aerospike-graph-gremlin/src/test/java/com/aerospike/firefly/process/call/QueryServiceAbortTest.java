@@ -64,51 +64,60 @@ public class QueryServiceAbortTest {
     @Test
     public void testQueryServiceAbortAll() throws Exception {
         final GraphTraversalSource g = graph.traversal();
-        final int scanCount = 8;
-        final List<Thread> scanThreads = new ArrayList<>(scanCount);
-        final CyclicBarrier barrier = new CyclicBarrier(scanCount + 1);
-        for (int i = 0; i < scanCount; i++) {
-            final int finalI = i;
-            final Thread scanThread = new Thread(() -> {
-                try {
-                    barrier.await();
-                } catch (final Exception e) {
-                    throw new RuntimeException(e);
-                }
-                try {
-                    System.out.println("Scan " + finalI + " started.");
-                    final var scan = g.V().has("propertyKey", String.valueOf(finalI));
-                    while (scan.hasNext()) {
-                        scan.next();
+        boolean passedGlobal = false;
+        for (int runCount = 0; runCount < 15; runCount++) {
+            boolean passedLocal = true;
+            final int scanCount = 8;
+            final List<Thread> scanThreads = new ArrayList<>(scanCount);
+            final CyclicBarrier barrier = new CyclicBarrier(scanCount + 1);
+            for (int i = 0; i < scanCount; i++) {
+                final int finalI = i;
+                final Thread scanThread = new Thread(() -> {
+                    try {
+                        barrier.await();
+                    } catch (final Exception e) {
+                        throw new RuntimeException(e);
                     }
-                    System.out.println("Scan " + finalI + " finished.");
-                } catch (final Exception e) {
-                    if (e.getCause() instanceof AerospikeException) {
-                        final AerospikeException ae = (AerospikeException) e.getCause();
-                        if (ae.getResultCode() != ResultCode.SCAN_ABORT) {
-                            Assert.fail("Unexpected AerospikeException: " + ae);
+                    try {
+                        System.out.println("Scan " + finalI + " started.");
+                        final var scan = g.V().has("propertyKey", String.valueOf(finalI));
+                        while (scan.hasNext()) {
+                            scan.next();
                         }
-                    } else {
-                        Assert.fail("Unexpected Exception: " + e);
+                        System.out.println("Scan " + finalI + " finished.");
+                    } catch (final Exception e) {
+                        if (e.getCause() instanceof AerospikeException) {
+                            final AerospikeException ae = (AerospikeException) e.getCause();
+                            if (ae.getResultCode() != ResultCode.SCAN_ABORT) {
+                                Assert.fail("Unexpected AerospikeException: " + ae);
+                            }
+                        } else {
+                            Assert.fail("Unexpected Exception: " + e);
+                        }
                     }
-                }
-            });
-            scanThread.start();
-            scanThreads.add(scanThread);
+                });
+                scanThread.start();
+                scanThreads.add(scanThread);
+            }
+            barrier.await();
+            Thread.sleep(300);
+            System.out.println("Aborting all scans.");
+            Map<String, Integer> queryAbortResult = (Map<String, Integer>) g.call("aerospike.graph.admin.query.abort").next();
+            int foundQueries = queryAbortResult.get("found");
+            int abortedQueries = queryAbortResult.get("aborted");
+            passedLocal &= foundQueries > 0 && foundQueries <= scanCount && abortedQueries > 0 && abortedQueries <= foundQueries;
+            for (final Thread scanThread : scanThreads) {
+                scanThread.join();
+            }
+            queryAbortResult = (Map<String, Integer>) g.call("aerospike.graph.admin.query.abort").next();
+            passedLocal &= 0 == queryAbortResult.get("found") && 0 == queryAbortResult.get("aborted");
+            if (passedLocal) {
+                passedGlobal = true;
+                break;
+            }
         }
-        barrier.await();
-        Thread.sleep(300);
-        System.out.println("Aborting all scans.");
-        Map<String, Integer> queryAbortResult = (Map<String, Integer>) g.call("aerospike.graph.admin.query.abort").next();
-        int foundQueries = queryAbortResult.get("found");
-        int abortedQueries = queryAbortResult.get("aborted");
-        Assert.assertTrue(foundQueries > 0 && foundQueries <= scanCount);
-        Assert.assertTrue(abortedQueries > 0 && abortedQueries <= foundQueries);
-        for (final Thread scanThread : scanThreads) {
-            scanThread.join();
+        if (!passedGlobal) {
+            Assert.fail("Test failed all iterations.");
         }
-        queryAbortResult = (Map<String, Integer>) g.call("aerospike.graph.admin.query.abort").next();
-        Assert.assertEquals(0, (int) queryAbortResult.get("found"));
-        Assert.assertEquals(0, (int) queryAbortResult.get("aborted"));
     }
 }

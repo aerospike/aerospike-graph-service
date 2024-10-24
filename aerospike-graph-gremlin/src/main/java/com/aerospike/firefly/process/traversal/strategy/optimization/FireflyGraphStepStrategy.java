@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.computer.local.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -34,7 +35,7 @@ public class FireflyGraphStepStrategy extends FireflyStrategyBase {
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
         // FireflyGraphStepStrategy is never disabled, no flag to set disabled.
-        if (TraversalHelper.onGraphComputer(traversal))
+        if (ComputerHelper.onGraphComputer(traversal))
             return;
 
         boolean propertyRemovalValid = !(steps.contains(TreeStep.class) || steps.contains(TreeSideEffectStep.class) || steps.contains(PathStep.class));

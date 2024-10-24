@@ -183,6 +183,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                 args.add(getStringFromObject(config.getValue(), key));
             }
         } catch (final IllegalArgumentException e) {
+            LOGGER.error("Failed to start bulk load: {}", e.getMessage());
             return false;
         }
         return true;

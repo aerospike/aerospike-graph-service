@@ -81,7 +81,7 @@ public interface GraphQuery {
                 hasContainers, FireflyVertex.class, true, true, evaluationTimeout);
     }
 
-    default Iterator<FireflyId> scanEdgeIds(Long evaluationTimeout) {
+    default Iterator<FireflyId> scanEdgeIds(final Long evaluationTimeout) {
         return scanElementIds(FireflyEdge.class, List.of(), evaluationTimeout);
     }
 

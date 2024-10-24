@@ -84,7 +84,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
                 if (!done.get()) {
                     closeCallback();
                 }
-            }, policy.totalTimeout);
+            }, policy.totalTimeout == 0 ? policy.socketTimeout : policy.totalTimeout);
         }
 
         @Override

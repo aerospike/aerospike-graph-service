@@ -39,7 +39,8 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         }
 
         final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
-        try (final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close, this.policy.totalTimeout)) {
+        try (final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close,
+                policy.totalTimeout == 0 ? policy.socketTimeout : policy.totalTimeout)) {
             pageQueue.put(new Page(pi));
             while (recordSetIterator.hasNext()) {
                 pi.add(recordSetIterator.next());

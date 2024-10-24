@@ -25,7 +25,7 @@ public class BatchReadPageFetcher<R> extends PageFetcher<R> {
         this.keysToRead = keysToRead;
         this.idx = 0;
         this.maxPageSize = maxPageSize;
-        this.evaluationTimeout = evaluationTimeout;
+        this.evaluationTimeout = evaluationTimeout == 0 ? Long.MAX_VALUE : evaluationTimeout;
     }
 
     @Override

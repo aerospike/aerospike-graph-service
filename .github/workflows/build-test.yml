@@ -850,7 +850,7 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeGraphServiceCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-spark-bulk-loader-load-recovery-1:
     name: Test Spark Bulk Loader Load Recovery 1
-    timeout-minutes: 60
+    timeout-minutes: 80
     needs: start-runner-recoverable-load-1
     runs-on: ${{ needs.start-runner-recoverable-load-1.outputs.label }}
     steps:

@@ -16,7 +16,7 @@ public class TestDockerConfigs {
         boolean foundErrorMsg = false;
         for (final String line : log) {
             System.out.println(line);
-            if (line.contains("java.lang.IllegalStateException: Error: 'aerospike.client.clientPolicy.minConnsPerNode' is set to '2' which is greater than 'aerospike.client.clientPolicy.maxConnsPerNode' set to '1'. 'aerospike.client.clientPolicy.minConnsPerNode' must be less than or equal to 'aerospike.client.clientPolicy.maxConnsPerNode'.")) {
+            if (line.contains("Error: 'aerospike.client.clientPolicy.minConnsPerNode' is set to '2' which is greater than 'aerospike.client.clientPolicy.maxConnsPerNode' set to '1'. 'aerospike.client.clientPolicy.minConnsPerNode' must be less than or equal to 'aerospike.client.clientPolicy.maxConnsPerNode'.")) {
                 foundErrorMsg = true;
                 break;
             }

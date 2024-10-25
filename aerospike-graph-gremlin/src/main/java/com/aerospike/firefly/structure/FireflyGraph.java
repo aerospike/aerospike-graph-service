@@ -367,7 +367,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
             INFO_PRINTED.set(true);
             if (ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf)) {
-                // If we are in bulk load mode, sleep between 0 and 1 second to allow Aerospike time between spark
+                // If we are in bulk load mode, sleep between 0 and 5 seconds to allow Aerospike time between spark
                 // works initializing.
                 final Random random = new Random();
                 try {
@@ -384,8 +384,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } catch (final Exception e) {
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");
             LOG.error("========== Aerospike Graph Service failing to start is usually a result of an incorrect configuration.");
-            LOG.error("========== Verify that the Aerospike IP and port are correct.");
-            LOG.error("========== See Error message for more details:", e);
+            LOG.error("========== See Error message for more details: {}", e.getMessage());
 
             // Signal to gremlin-server to shut down.
             EXIT_MANAGER.exit(1);
@@ -394,9 +393,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             return null;
         }
     }
-
-    public static final String GETDATAMODELNAME = "getDataModelName";
-    public static final String DATAMODELVERSION = "dataModelVersion";
 
     public static ComparableVersion dataModelVersion() {
         return new ComparableVersion(FIREFLY_VERSION);

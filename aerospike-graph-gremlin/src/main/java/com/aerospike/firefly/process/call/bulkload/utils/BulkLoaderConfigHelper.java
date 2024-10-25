@@ -74,6 +74,7 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String READ_ONLY = "read_only";
     public static final String RESUME = "resume";
     public static final String CLEAR_EXISTING_DATA = "clear_existing_data";
+    public static final String FORCE = "force";
 
     public static final Map<String, String> KEY_TO_CMD = Map.ofEntries(
             Map.entry(CONFIG_DIRECTORY_KEY, "c"),

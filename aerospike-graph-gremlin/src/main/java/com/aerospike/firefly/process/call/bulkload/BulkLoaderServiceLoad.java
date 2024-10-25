@@ -21,6 +21,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.FORCE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_EMAIL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_KEYFILE_DIRECTORY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
@@ -165,6 +166,11 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                             "The '" + RESUME + "' parameter is not supported in the call API. " +
                                     "Use the distributed bulk loader for resume functionality.");
                 }
+                if (key.equals(FORCE)) {
+                    throw new IllegalArgumentException(
+                            "The '" + FORCE + "' parameter is not supported in the call API. " +
+                                    "Use the distributed bulk loader for force functionality.");
+                }
                 if (key.equals(VERTICES) ||
                         key.equals(EDGES) ||
                         key.equals(VALIDATE_INPUT_DATA) ||
@@ -177,6 +183,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                 args.add(getStringFromObject(config.getValue(), key));
             }
         } catch (final IllegalArgumentException e) {
+            LOGGER.error("Failed to start bulk load: {}", e.getMessage());
             return false;
         }
         return true;
@@ -242,7 +249,6 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                     key.equals(EDGES) ||
                     key.equals(VALIDATE_INPUT_DATA) ||
                     key.equals(INCREMENTAL_LOAD) ||
-                    key.equals(RESUME) ||
                     key.equals(CLEAR_EXISTING_DATA)) {
                 // Actions are handled elsewhere
                 continue;

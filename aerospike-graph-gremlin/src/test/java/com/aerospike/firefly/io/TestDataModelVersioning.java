@@ -3,169 +3,115 @@ package com.aerospike.firefly.io;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.DataModelVersioning;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.FireflyVertexProperty;
-import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.maven.artifact.versioning.ComparableVersion;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Rule;
+import org.junit.Before;
 import org.junit.Test;
-import org.junit.contrib.java.lang.system.ExpectedSystemExit;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static org.junit.Assert.fail;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class TestDataModelVersioning {
-    @Rule
-    public final ExpectedSystemExit exit = ExpectedSystemExit.none();
-    protected static Configuration config;
-    protected static AerospikeConnection db;
-    protected static FireflyGraph graph;
-    private static GraphTraversalSource g;
+    private static Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+    private AerospikeConnection db;
 
-    static {
-        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.ENABLE_READ_THROUGH_CACHE.toLowerCase(), "false");
-        config.setProperty(ConfigurationHelper.Keys.ENABLE_PREFETCH_STRATEGY.toLowerCase(), "false");
+    @Before
+    public void beforeEach() {
+        // Set graph to current version.
+        db = AerospikeConnection.connect(CONFIG);
+        db.dropDatabase(null, false);
+        db.setGraphMetadata(FireflyGraph.getDataModelName(), FireflyGraph.dataModelVersion().toString());
+        DataModelVersioning.checkVersionCompatibility(db);
     }
 
     @After
-    public void cleanDataModelTest() {
+    public void afterEach() {
         // This can cause failures later if you don't clean it up.
-        db = AerospikeConnection.connect(config);
-        db.dropDatabase(graph, false);
-    }
-
-    public static void openGraphLinkedNewVersion() {
-        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), FireflyGraph.getDataModelName());
-        db = AerospikeConnection.connect(config);
-        graph = FireflyGraph.open(config);
-        g = graph.traversal();
-    }
-
-    public static void openGraphPacked() {
-        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), FireflyGraph.getDataModelName());
-        db = AerospikeConnection.connect(config);
-        graph = FireflyGraph.open(config);
-        g = graph.traversal();
-    }
-
-    public static class FakeGraph extends FireflyGraph {
-
-        private static final String DATA_MODEL = "FAKE";
-        private static String version = "0.0.1";
-
-        /**
-         * Constructor for PackedGraph.
-         *
-         * @param db   AerospikeConnection.
-         * @param conf Configuration.
-         */
-        public FakeGraph(AerospikeConnection db, Configuration conf) {
-            super(db, conf, getGremlinServerSettings());
-        }
-
-        @Override
-        protected int getTypeHint() {
-            return 0;
-        }
-
-        public static ComparableVersion dataModelVersion() {
-            return new ComparableVersion(FakeGraph.version);
-        }
-
-        @Override
-        public String getDataModel() {
-            return getDataModelName();
-        }
-
-        public static String getDataModelName() {
-            return DATA_MODEL;
-        }
-
-        @Override
-        public <V> FireflyVertexProperty<V> writeVertexProperty(FireflyId vertexPropertyId, FireflyVertex vertex, String key, V value, Object... args) {
-            return null;
-        }
-    }
-
-
-    @Test
-    public void testMajorVersionMatch() throws Exception {
-        // Start graph with version 0.0.1.
-        db = AerospikeConnection.connect(config);
-        db.dropDatabase(graph, false);
-        FakeGraph.version = "0.0.1";
-        Assert.assertFalse(DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db));
-
-        // Now try to open version 0.0.2, this should return no issue since the major version matches.
+        db.dropDatabase(null, false);
         db.close();
-        FakeGraph.version = "0.0.2";
-        db = AerospikeConnection.connect(config);
-        Assert.assertFalse(DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db));
+    }
 
-        // Now knock out the current data and place it to version 0.0.2.
-        db.dropDatabase(graph, false);
-        Assert.assertFalse(DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db));
-
-        // Try to open version 0.1.1, this should do nothing since the major version matches.
-        FakeGraph.version = "0.1.1";
-        db.close();
-        db = AerospikeConnection.connect(config);
-        Assert.assertFalse(DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db));
-
+    @AfterClass
+    static public void afterAll() {
+        try (final AerospikeConnection db = AerospikeConnection.connect(CONFIG)) {
+            db.dropDatabase(null, false);
+        }
     }
 
     @Test
-    public void TestFailOnLaterMajorVersion() throws Exception {
-        db = AerospikeConnection.connect(config);
-        db.dropDatabase(graph, false);
-        FakeGraph.version = "1.0.2";
-        if (DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db))
-            DataModelVersioning.errorNeedsUpgrade(FakeGraph.class, db);
-        db.close();
+    public void testMajorVersionMatch() {
+        // Now try to open with disk patch version being older. This should return no issue since the major version matches.
+        db.setGraphMetadata(FireflyGraph.getDataModelName(), getAdjustedPatchVersion(-1));
+        DataModelVersioning.checkVersionCompatibility(db);
 
-        boolean success = false;
-        FakeGraph.version = "0.0.1";
+        // Now try to open with disk patch version being newer. This should return no issue since the major version matches.
+        db.setGraphMetadata(FireflyGraph.getDataModelName(), getAdjustedPatchVersion(1));
+        DataModelVersioning.checkVersionCompatibility(db);
+    }
+
+    @Test
+    public void TestFailOnLaterMajorVersion() {
+        db.setGraphMetadata(FireflyGraph.getDataModelName(), getAdjustedMajorVersion(-1));
         try {
-            db = AerospikeConnection.connect(config);
-            if (DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db))
-                DataModelVersioning.errorNeedsUpgrade(FakeGraph.class, db);
-        } catch (Exception e) {
-            success = true;
+            DataModelVersioning.checkVersionCompatibility(db);
+            Assert.fail("Should not have passed check when AGS major version > disk version.");
+        } catch (final AerospikeGraphException e) {
+            Assert.assertEquals(GraphError.DATA_MODEL_VERSION_MISMATCH.code, e.errorCode);
         }
-        if (!success)
-            fail("should throw exception if on-disk model is greater then program model");
     }
 
     @Test
-    public void TestFailOnEarlierMajorVersion() throws Exception {
-        db = AerospikeConnection.connect(config);
-        db.dropDatabase(graph, false);
-        FakeGraph.version = "0.0.2";
-        if (DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db))
-            DataModelVersioning.errorNeedsUpgrade(FakeGraph.class, db);
-        db.close();
-
-        boolean success = false;
-        FakeGraph.version = "1.0.1";
+    public void TestFailOnEarlierMajorVersion() {
+        db.setGraphMetadata(FireflyGraph.getDataModelName(), getAdjustedMajorVersion(1));
         try {
-            db = AerospikeConnection.connect(config);
-            if (DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db))
-                DataModelVersioning.errorNeedsUpgrade(FakeGraph.class, db);
-        } catch (Exception e) {
-            success = true;
+            DataModelVersioning.checkVersionCompatibility(db);
+            Assert.fail("Should not have passed check when AGS major version < disk version.");
+        } catch (final AerospikeGraphException e) {
+            Assert.assertEquals(GraphError.DATA_MODEL_VERSION_MISMATCH.code, e.errorCode);
         }
-        if (!success)
-            fail("should throw exception if on-disk model is greater then program model");
+    }
+
+    @Test
+    public void TestFailOnEarlierMinorVersion() {
+        db.setGraphMetadata(FireflyGraph.getDataModelName(), getAdjustedMinorVersion(1));
+        try {
+            DataModelVersioning.checkVersionCompatibility(db);
+            Assert.fail("Should not have passed check when AGS minor version < disk version.");
+        } catch (final AerospikeGraphException e) {
+            Assert.assertEquals(GraphError.DATA_MODEL_VERSION_MISMATCH.code, e.errorCode);
+        }
+    }
+
+    private static String getAdjustedVersion(final int versionIndex, final int delta) {
+        String fireflyVersion = FireflyGraph.FIREFLY_VERSION.toUpperCase();
+        if (fireflyVersion.endsWith("-SNAPSHOT")) {
+            fireflyVersion = fireflyVersion.replace("-SNAPSHOT", "");
+        }
+        String[] splitVersion = fireflyVersion.split("\\.");
+        // This isn't a problem since major version at time of writing is >= 2.
+        // For minor version, we only test by adjusting this positively.
+        // For patch version, this is the only time this can become negative when on x.x.0, but it doesn't matter since it doesn't affect compatibility.
+        splitVersion[versionIndex] = String.valueOf(Math.abs(Integer.parseInt(splitVersion[versionIndex]) + delta));
+        return StringUtils.join(splitVersion, '.');
+    }
+
+    private static String getAdjustedMajorVersion(final int delta) {
+        return getAdjustedVersion(0, delta);
+    }
+
+    private static String getAdjustedMinorVersion(final int delta) {
+        return getAdjustedVersion(1, delta);
+    }
+
+    private static String getAdjustedPatchVersion(final int delta) {
+        return getAdjustedVersion(2, delta);
     }
 }

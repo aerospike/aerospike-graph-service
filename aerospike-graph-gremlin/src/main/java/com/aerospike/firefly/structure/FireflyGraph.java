@@ -49,7 +49,6 @@ import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.PluginUtil;
-import com.aerospike.firefly.util.WarmupUtil;
 import com.aerospike.firefly.util.concurrency.FireflyRecordLockHandler;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
@@ -106,7 +105,6 @@ import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.createFilterableSupernodeOperations;
-import static com.aerospike.firefly.structure.FireflyGraphSummaryVertex.GRAPH_SUMMARY_VERTEX;
 import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_PROPERTY_KEY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOAD_ID_BUFFER_SIZE;
@@ -164,7 +162,6 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 
 public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static final String FIREFLY_CONFIGURATION_VARIABLE_NAME = "FIREFLY_CONFIGURATION";
-    public static final String FIREFLY_WARMUP_VARIABLE_NAME = "FIREFLY_WARMUP";
     public static final String DATA_MODEL = "packed";
 
     // AerospikeGraphService is a dummy class that allows us to instantiate a logger in FireflyGraph that says
@@ -321,7 +318,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             logLevel = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.LOG_LEVEL, conf);
         }
         final boolean clientLogging = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, conf);
-        final boolean preheat = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf);
         try {
             // Prevent warmup from disabling the logger for Aerospike Client.
             if (clientLogging && !ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf)) {
@@ -378,8 +374,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 }
             }
 
-            if (preheat)
-                WarmupUtil.create(conf).preheat(WarmupUtil.passes);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (final Exception e) {
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");
@@ -1056,19 +1050,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public Iterator<Vertex> vertices(final List<HasContainer> filters, final List<String> requiredProperties, final Object... vertexIdsOrVertices) {
-        if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String) {
-            if (vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
-                return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
-            }
-            if (vertexIdsOrVertices[0].equals(GRAPH_SUMMARY_VERTEX)) {
-                return FireflyCloseableIteratorUtils.of(new FireflyGraphSummaryVertex(this));
-            }
-            if (vertexIdsOrVertices[0].equals(FIREFLY_WARMUP_VARIABLE_NAME)) {
-                WarmupUtil.create(configuration).preheat(48);
-                return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
-            }
-        }
-
         final List<FireflyId> idList = getIds(Arrays.asList(vertexIdsOrVertices)).stream()
                 .map(id -> getIdFactory().createVertexId(id))
                 .collect(Collectors.toList());
@@ -1161,11 +1142,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.fireflyIndexMetadataTask.cancel();
         this.fireflySummaryUpdater.close();
 
-        if (this.usageStats != null) {
-            synchronized (this) {
-                if (this.usageStats != null) {
-                    this.usageStats.close();
-                    this.usageStats = null;
+        if (!db.WARMUP_MODE) {
+            if (this.usageStats != null) {
+                synchronized (this) {
+                    if (this.usageStats != null) {
+                        this.usageStats.close();
+                        this.usageStats = null;
+                    }
                 }
             }
         }
@@ -1175,6 +1158,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
 
         this.ttlHandler.close();
+
         this.db.close();
     }
 

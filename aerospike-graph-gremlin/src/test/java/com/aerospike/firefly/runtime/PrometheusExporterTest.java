@@ -27,22 +27,24 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 public class PrometheusExporterTest {
     private static final String HOST = "localhost";
     private static final int PORT = 8182;
-    private static final int HTTP_PORT = 9090;
+    private static final int HTTP_PORT1 = 9098;
+    private static final int HTTP_PORT2 = 9099;
+    private static final int DOCKER_HTTP_PORT = 9090;
 
     @Test
     public void testGremlinServerPrometheusExporter() throws Exception {
         final Cluster.Builder BUILDER = Cluster.build().addContactPoint(HOST).port(PORT).enableSsl(false);
         final DriverRemoteConnection drc = DriverRemoteConnection.using(BUILDER.create(), "g");
         final GraphTraversalSource g = traversal().withRemote(drc);
-        final int traversalCount = getCountOfTraversals();
+        final int traversalCount = getCountOfTraversals(DOCKER_HTTP_PORT);
         for (int i = 0; i < 1000; i++) {
             g.V().count().next();
         }
-        Assert.assertEquals(traversalCount + 1000, getCountOfTraversals());
+        Assert.assertEquals(traversalCount + 1000, getCountOfTraversals(DOCKER_HTTP_PORT));
     }
 
-    public int getCountOfTraversals() throws IOException {
-        String output = queryPrometheus(HTTP_PORT);
+    private int getCountOfTraversals(final int port) throws IOException {
+        String output = queryPrometheus(port);
         Assert.assertTrue(output.contains("aerospike_graph_service_GremlinServer_op_traversal_count "));
         output = output.split("aerospike_graph_service_GremlinServer_op_traversal_count ")[1];
         output = output.split("# HELP")[0];
@@ -66,15 +68,14 @@ public class PrometheusExporterTest {
         return content.toString();
     }
 
-
     @Test
     public void testSimplePrometheusExporter() throws Exception {
         // Basic unit test to check that the prometheus server spins up and we can GET data from it. Prometheus is
         // not simple to parse ,so we are only checking existence.
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty("aerospike.graph.http.port", HTTP_PORT);
+        config.setProperty("aerospike.graph.http.port", HTTP_PORT1);
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            Assert.assertTrue(queryPrometheus(HTTP_PORT).contains("aerospike_graph_service_jvm_memory_pool_bytes_used"));
+            Assert.assertTrue(queryPrometheus(HTTP_PORT1).contains("aerospike_graph_service_jvm_memory_pool_bytes_used"));
         }
     }
 
@@ -84,9 +85,10 @@ public class PrometheusExporterTest {
         // not simple to parse ,so we are only checking existence.
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.usage.update.interval", 500);
-        config.setProperty("aerospike.graph.http.port", HTTP_PORT);
+        config.setProperty("aerospike.graph.http.port", HTTP_PORT2);
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            String prometheus = queryPrometheus(HTTP_PORT);
+            Thread.sleep(500);
+            String prometheus = queryPrometheus(HTTP_PORT2);
             String[] lines = prometheus.split("#");
             List<String> usageLines = Arrays.stream(lines).
                     filter(l -> l.contains("usage")).
@@ -101,7 +103,7 @@ public class PrometheusExporterTest {
 
             Thread.sleep(5000);
 
-            prometheus = queryPrometheus(HTTP_PORT);
+            prometheus = queryPrometheus(HTTP_PORT2);
             lines = prometheus.split("#");
             usageLines = Arrays.stream(lines).
                     filter(l -> l.contains("usage")).

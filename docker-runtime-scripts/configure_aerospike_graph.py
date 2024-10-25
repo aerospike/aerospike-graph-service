@@ -11,23 +11,34 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
     auth_jwt_issuer = None
     auth_jwt_algorithm = None
 
-    keys = []
     named_graphs = []
     # configuration specific to each graph
     graph_config = {}
+
+    # handle graph names before everything.
+    for key, value in os.environ.items():
+        if key.lower() == "aerospike.graph-service.named-graphs":
+            named_graphs = list(map(str.strip, value.split(",")))
+
     try:
         # May not be provided so try catch this block.
         with open(input_properties_file) as c:
             print("Reading properties file: " + input_properties_file)
             lines = [line.rstrip() for line in c]
+
+            # no named graphs from environment variables, so let's try to search in properties file.
+            if len(named_graphs) == 0:
+                for line in lines:
+                    if line.startswith("aerospike.graph-service.named-graphs") and "=" in line:
+                        named_graphs = list(map(str.strip, (line.split("=")[1]).split(",")))
+
             for line in lines:
                 if line == "" or line.startswith("#"):
                     continue
                 if not "=" in line:
                     invalid.append(line)
-                keys.append(line.split("=")[0])
-                if line.startswith("aerospike.graph-service.named-graphs"):
-                    named_graphs = list(map(str.strip, (line.split("=")[1]).split(",")))
+                elif line.startswith("aerospike.graph-service.named-graphs"):
+                    continue
                 elif line.startswith("aerospike.graph-service.heap.max"):
                     java_options_max_heap = line
                 elif line.startswith("aerospike.graph-service.heap.min"):
@@ -58,8 +69,12 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
             raise e
         pass
 
+    print("Found named graphs: " + str(named_graphs))
+
     for key, value in os.environ.items():
-        if key.startswith("aerospike.graph-service.heap.max"):
+        if key.lower() == "aerospike.graph-service.named-graphs":
+            continue
+        elif key.startswith("aerospike.graph-service.heap.max"):
             java_options_max_heap = f"{key}={value}"
         elif key.startswith("aerospike.graph-service.heap.min"):
             java_options_min_heap = f"{key}={value}"
@@ -84,12 +99,16 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
                     "be in the format 'aerospike.key=value'")
 
     # add default graph unless otherwise explicitly stated
-    if len(graph_config) == 0:
-        graph_config["graph"] = []
+    if len(named_graphs) == 0:
+        named_graphs = ["graph"]
+
+    for key in named_graphs:
+        if key not in graph_config:
+            graph_config[key] = []
 
     generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm)
 
-    for key in graph_config:
+    for key in named_graphs:
         merged_properties = valid_properties
         for p in graph_config[key]:
             merged_properties.append(p[p.index(".")+1:])

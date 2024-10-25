@@ -14,7 +14,8 @@ RUN apk add --no-cache --update \
     curl \
     xz \
     tar \
-    bash
+    bash \
+    dos2unix
 
 COPY ${FIREFLY_GRAPH} /opt/firefly-graph.jar
 COPY ${BULKLOADER} /opt/bulk-loader.jar
@@ -28,27 +29,17 @@ RUN rm -f /opt/spark.tgz && rm -rf /opt/spark-$SPARK_VERSION-bin-hadoop3
 # Remove additional conflicting logger jars from spark.
 RUN rm -f /opt/spark/slf4j-* && rm -f /opt/spark/commons-logging*
 
-RUN apk del xz tar curl
-
 # Add scripts to container.
 COPY docker-runtime-scripts /opt/scripts
+# For Windows users fix for line endings
+RUN dos2unix /opt/scripts/gremlin-server-docker.sh /opt/scripts/firefly-server.sh
+
+RUN apk del xz tar curl dos2unix
 
 COPY conf/docker-default/flattened-default-gremlin-server.yaml $CONF_DIR/flattened-default-gremlin-server.yaml
 
 # Add firefly logback config to container.
 COPY conf/logback.xml $CONF_DIR/logback.xml
-
-WORKDIR /opt
-
-# Make gremlin-server-docker.sh runnable and make files in config dir read/write/executable.
-RUN chmod +x scripts/gremlin-server-docker.sh
-RUN chmod +x scripts/firefly-server.sh
-RUN chmod -R 777 $CONF_DIR
-
-# Add user firefly.
-RUN addgroup -S firefly && adduser -S -s /bin/false -G firefly firefly
-RUN chown firefly:firefly -R /opt
-
 
 FROM eclipse-temurin:17-jre-alpine AS main
 
@@ -63,6 +54,11 @@ RUN apk add --no-cache --update \
     python3
 
 WORKDIR /opt
+
+# Make gremlin-server-docker.sh runnable and make files in config dir read/write/executable.
+RUN chmod +x scripts/gremlin-server-docker.sh
+RUN chmod +x scripts/firefly-server.sh
+RUN chmod -R 777 $CONF_DIR
 
 HEALTHCHECK CMD ls /tmp/firefly-ready
 

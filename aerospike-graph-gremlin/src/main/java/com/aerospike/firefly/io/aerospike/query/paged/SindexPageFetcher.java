@@ -8,6 +8,7 @@ import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 
 import java.util.Iterator;
 
@@ -19,7 +20,6 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
                              final String namespace, final Filter filter, final int maxQueueSize, final int maxPageSize,
                              final FireflyGraph.TransformKeyRecord<R> transformKeyRecord, final String indexName) {
         super(graph, maxQueueSize, transformKeyRecord, indexName);
-        graph.getBaseGraph().configureReadPolicy(policy);
         this.policy = policy;
         this.statement = new Statement();
         this.statement.setNamespace(namespace);
@@ -39,16 +39,16 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         }
 
         final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
-        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close);
-
-        try {
+        try (final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close,
+                policy.totalTimeout == 0 ? policy.socketTimeout : policy.totalTimeout)) {
             pageQueue.put(new Page(pi));
-        } catch (final InterruptedException e) {
-            signalError("Failed to add page to queue: " + e.getMessage(), e);
+            while (recordSetIterator.hasNext()) {
+                pi.add(recordSetIterator.next());
+            }
+        } catch (final InterruptedException | TraversalInterruptedException e) {
+            throw new TraversalInterruptedException();
+        } catch (final Exception e) {
+            signalError("Encountered exception while attempting to read index: " + e.getMessage(), e);
         }
-        while (recordSetIterator.hasNext()) {
-            pi.add(recordSetIterator.next());
-        }
-        pi.close();
     }
 }

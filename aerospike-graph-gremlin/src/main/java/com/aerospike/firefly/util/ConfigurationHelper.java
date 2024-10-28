@@ -75,6 +75,7 @@ public final class ConfigurationHelper {
         public static final String VERTEX_PROPERTY_INDEXES = "aerospike.graph.index.vertex.properties";
         public static final String EDGE_PROPERTY_INDEXES = "aerospike.graph.index.edge.properties";
         public static final String GRAPH_ID = "aerospike.graph.id";
+        public static final String TRAVERSAL_NAME = "aerospike.graph.traversal";
         public static final String HTTP_PORT = "aerospike.graph.http.port";
         public static final String PROMETHEUS_PATH = "aerospike.graph.prometheus.path";
         public static final String HEALTHCHECK_PATH = "aerospike.graph.healthcheck.path";
@@ -92,6 +93,7 @@ public final class ConfigurationHelper {
         public static final String READ_SLEEP_BETWEEN_RETRY = "aerospike.client.policy.read.sleepBetweenRetry";
 
         // Semi internal semi external configs
+        public static final String AEROSPIKE_BATCH_PER_NODE_THRESHOLD = "aerospike.client.batch-threshold.per-node";
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
         public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.index.update.frequency";
         public static final String CARDINALITY_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.cardinality.update.frequency";
@@ -135,6 +137,10 @@ public final class ConfigurationHelper {
         public static final String SCAN_SOCKET_TIMEOUT = "aerospike.client.policy.scan.socketTimeout";
         public static final String SCAN_CONNECT_TIMEOUT = "aerospike.client.policy.scan.connectTimeout";
         public static final String SCAN_TIMEOUT_DELAY = "aerospike.client.policy.scan.timeoutDelay";
+        public static final String INDEX_TOTAL_TIMEOUT = "aerospike.client.policy.index.totalTimeout";
+        public static final String INDEX_SOCKET_TIMEOUT = "aerospike.client.policy.index.socketTimeout";
+        public static final String INDEX_CONNECT_TIMEOUT = "aerospike.client.policy.index.connectTimeout";
+        public static final String INDEX_TIMEOUT_DELAY = "aerospike.client.policy.index.timeoutDelay";
 
         // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
         public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
@@ -357,6 +363,7 @@ public final class ConfigurationHelper {
         put(Keys.HEALTHCHECK_PATH, "/healthcheck");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
+        put(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, "4");
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
         put(Keys.EDGE_PROPERTY_INDEXES, "");
         put(Keys.PHAT_EDGE_SIZE, "10");
@@ -364,7 +371,7 @@ public final class ConfigurationHelper {
         put(Keys.LOG_LEVEL, "INFO");
         put(Keys.SUPERNODE_TRAVERSAL_LOG_WARNING, "true");
         put(Keys.TLS, "false");
-        put(Keys.AUTO_PRE_HEAT, "false");
+        put(Keys.AUTO_PRE_HEAT, "true");
         put(Keys.WARMUP_ENABLED, "true");
         put(Keys.WARMUP_MODE, "false");
         put(Keys.ENABLE_CUSTOM_PROFILE, "true");
@@ -403,6 +410,10 @@ public final class ConfigurationHelper {
         put(Keys.SCAN_SOCKET_TIMEOUT, "1200000");
         put(Keys.SCAN_CONNECT_TIMEOUT, "0");
         put(Keys.SCAN_TIMEOUT_DELAY, "0");
+        put(Keys.INDEX_TOTAL_TIMEOUT, "0");
+        put(Keys.INDEX_SOCKET_TIMEOUT, "1200000");
+        put(Keys.INDEX_CONNECT_TIMEOUT, "0");
+        put(Keys.INDEX_TIMEOUT_DELAY, "0");
         put(Keys.EVENT_LOOP_TYPE, EventLoopType.NETTY_NIO.name());
         put(Keys.EVENT_LOOP_COUNT, "2");
         put(Keys.COMMANDS_PER_EVENT_LOOP, "50");
@@ -460,6 +471,7 @@ public final class ConfigurationHelper {
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MERGE_EDGE_POLL_INTERVAL, 1);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.EVENT_LOOP_COUNT, 0);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.DELAY_QUEUE_SIZE, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, 2);
     }
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {

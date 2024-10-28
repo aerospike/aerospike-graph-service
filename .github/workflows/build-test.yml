@@ -491,28 +491,19 @@ jobs:
         uses: stCarolas/setup-maven@v4.5
         with:
           maven-version: 3.9.5
-      - name: Launch Firefly in Gremlin-Server and Run Benchmark
+      - name: Launch Firefly and Run Benchmark
         env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          echo "Downloading gremlin-server"
-          cd ..
-          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.7.1/apache-tinkerpop-gremlin-server-3.7.1-bin.zip --quiet
-          echo "Unzipping gremlin-server"
-          unzip -qq gremlin-server
           
           echo "Build Firefly"
-          cd firefly
-          mvn clean install -DskipTests --no-transfer-progress
+          mvn clean install -DskipTests --no-transfer-progress                    
           
-          echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.4.0-SNAPSHOT'
+          echo "Starting firefly-server"
+          java -cp "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.4.0-SNAPSHOT.jar:aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.4.0-SNAPSHOT.jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
           
-          echo "Starting gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
-          
-          echo "Sleeping for 30 seconds while gremlin-server starts"
+          echo "Sleeping for 30 seconds while firefly-server starts"
           sleep 30
           
           echo "Running benchmark"
@@ -859,7 +850,7 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeGraphServiceCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-spark-bulk-loader-load-recovery-1:
     name: Test Spark Bulk Loader Load Recovery 1
-    timeout-minutes: 60
+    timeout-minutes: 80
     needs: start-runner-recoverable-load-1
     runs-on: ${{ needs.start-runner-recoverable-load-1.outputs.label }}
     steps:
@@ -1058,23 +1049,14 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          echo "Downloading gremlin-server"
-          cd ..
-          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.7.1/apache-tinkerpop-gremlin-server-3.7.1-bin.zip --quiet
-          echo "Unzipping gremlin-server"
-          unzip -qq gremlin-server
 
           echo "Build Firefly"
-          cd firefly
           mvn clean install -DskipTests --no-transfer-progress
 
-          echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.4.0-SNAPSHOT'
-
-          echo "Starting gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
-
-          echo "Sleeping for 30 seconds while gremlin-server starts"
+          echo "Starting firefly-server"
+          java -cp "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.4.0-SNAPSHOT.jar:aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.4.0-SNAPSHOT.jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+          
+          echo "Sleeping for 30 seconds while firefly-server starts"
           sleep 30
 
           echo "Running benchmark"
@@ -1118,23 +1100,13 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
 
-          echo "Downloading gremlin-server"
-          cd ..
-          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.7.1/apache-tinkerpop-gremlin-server-3.7.1-bin.zip --quiet
-          echo "Unzipping gremlin-server"
-          unzip -qq gremlin-server
-
           echo "Build Firefly"
-          cd firefly
           mvn clean install -DskipTests --no-transfer-progress
 
-          echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.4.0-SNAPSHOT'
-
-          echo "Starting gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
-
-          echo "Sleeping for 30 seconds while gremlin-server starts"
+          echo "Starting firefly-server"
+          java -cp "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.4.0-SNAPSHOT.jar:aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.4.0-SNAPSHOT.jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+          
+          echo "Sleeping for 30 seconds while firefly-server starts"
           sleep 30
 
           echo "Running benchmark"
@@ -1301,6 +1273,7 @@ jobs:
           echo "Running performance mode tests"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestPerformanceModes -DfailIfNoTests=false --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerJavaOptions -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerConfigs -DfailIfNoTests=false --no-transfer-progress
   test-aerospike-ttl:
     name: Test Aerospike TTL Fails
     timeout-minutes: 30

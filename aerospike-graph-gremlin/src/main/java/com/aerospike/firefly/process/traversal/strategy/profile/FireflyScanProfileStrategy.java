@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.profile;
 
+import com.aerospike.firefly.process.computer.local.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyProfileStep;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -28,7 +29,7 @@ public class FireflyScanProfileStrategy extends FireflyStrategyBase {
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
 
-        if (TraversalHelper.onGraphComputer(traversal))
+        if (ComputerHelper.onGraphComputer(traversal))
             return;
 
         final Optional<Graph> graphOptional = traversal.getGraph();

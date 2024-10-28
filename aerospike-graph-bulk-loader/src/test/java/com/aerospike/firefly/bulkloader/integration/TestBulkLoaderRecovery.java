@@ -19,6 +19,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
 
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.FORCE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RESUME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.getConfig;
 
@@ -157,5 +159,26 @@ public class TestBulkLoaderRecovery {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME}, DEFAULT_PARAMS));
         Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
         Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
+    }
+
+    @Test
+    public void testResume() {
+        System.out.println("Testing testResume");
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_VERIFY}, DEFAULT_PARAMS));
+            Assert.fail("Should have thrown an exception");
+        } catch (Exception ignored) {
+            // Expected
+        }
+
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+            Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
+            Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
+            Assert.fail("Should have thrown an exception");
+        } catch (Exception e) {
+            Assert.assertTrue(e.getMessage().contains("Cannot resume load without '" + RESUME + "' flag"));
+        }
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig(), "-" + FORCE, "-" + INCREMENTAL_LOAD}, DEFAULT_PARAMS));
     }
 }

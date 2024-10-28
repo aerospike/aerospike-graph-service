@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.computer.local.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.map.FireflyVertexEdgeLocalCountStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -34,7 +35,7 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
             }
         }
 
-        if (TraversalHelper.onGraphComputer(traversal))
+        if (ComputerHelper.onGraphComputer(traversal))
             return;
 
         for (final LocalStep localStep : TraversalHelper.getStepsOfClass(LocalStep.class, traversal)) {

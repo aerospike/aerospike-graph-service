@@ -1,6 +1,9 @@
 import os, sys, multiprocessing
+import re
 
-def main(input_properties_file, default_yaml_file, output_yaml_file, output_properties_file, output_java_options_file, unified_config_file):
+
+def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, output_java_options_file):
+
     valid_properties = []
     valid_yaml = []
     invalid = []
@@ -10,21 +13,35 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
     auth_jwt_issuer = None
     auth_jwt_algorithm = None
 
-    keys = []
-    unified_config = []
+    named_graphs = []
+    # configuration specific to each graph
+    graph_config = {}
+
+    # handle graph names before everything.
+    for key, value in os.environ.items():
+        if key.lower() == "aerospike.graph-service.named-graphs":
+            named_graphs = list(map(str.strip, value.split(",")))
+
     try:
         # May not be provided so try catch this block.
         with open(input_properties_file) as c:
             print("Reading properties file: " + input_properties_file)
             lines = [line.rstrip() for line in c]
+
+            # no named graphs from environment variables, so let's try to search in properties file.
+            if len(named_graphs) == 0:
+                for line in lines:
+                    if line.startswith("aerospike.graph-service.named-graphs") and "=" in line:
+                        named_graphs = list(map(str.strip, (line.split("=")[1]).split(",")))
+
             for line in lines:
-                if line == "":
+                if line == "" or line.startswith("#"):
                     continue
-                unified_config.append(line)
                 if not "=" in line:
                     invalid.append(line)
-                keys.append(line.split("=")[0])
-                if line.startswith("aerospike.graph-service.heap.max"):
+                elif line.startswith("aerospike.graph-service.named-graphs"):
+                    continue
+                elif line.startswith("aerospike.graph-service.heap.max"):
                     java_options_max_heap = line
                 elif line.startswith("aerospike.graph-service.heap.min"):
                     java_options_min_heap = line
@@ -41,6 +58,11 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
                     valid_yaml.append(line)
                 elif line.startswith("aerospike"):
                     valid_properties.append(line)
+                elif line.split(".")[0] in named_graphs:
+                    k = line.split(".")[0]
+                    if not k in graph_config:
+                        graph_config[k] = []
+                    graph_config[k].append(line)
                 elif not line.startswith("gremlin.graph"):
                     invalid.append(line)
     except Exception as e:
@@ -49,15 +71,12 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
             raise e
         pass
 
-    keys_in_both_properties_and_environment = []
+    print("Found named graphs: " + str(named_graphs))
+
     for key, value in os.environ.items():
-        if key in keys:
-            keys_in_both_properties_and_environment.append(key)
-
-        if key.startswith("aerospike"):
-            unified_config.append(f"{key}={value}")
-
-        if key.startswith("aerospike.graph-service.heap.max"):
+        if key.lower() == "aerospike.graph-service.named-graphs":
+            continue
+        elif key.startswith("aerospike.graph-service.heap.max"):
             java_options_max_heap = f"{key}={value}"
         elif key.startswith("aerospike.graph-service.heap.min"):
             java_options_min_heap = f"{key}={value}"
@@ -69,34 +88,49 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
             auth_jwt_algorithm = f"{key}={value}"
         elif key.startswith("aerospike.graph-service"):
             valid_yaml.append(f"{key}={value}")
+        elif key.split(".")[0] in named_graphs:
+            k = key.split(".")[0]
+            if not k in graph_config:
+                graph_config[k] = []
+            graph_config[k].append(f"{key}={value}")
         elif key.startswith("aerospike"):
             valid_properties.append(f"{key}={value}")
-
-    if len(keys_in_both_properties_and_environment) > 0:
-        raise Exception("Error configuring Aerospike Graph Service.\n\tThe following keys were found in both the properties file and the environment: " + \
-                        str(keys_in_both_properties_and_environment) + \
-                        ". Please remove them from either the properties file or the environment.")
 
     if len(invalid) > 0:
         raise Exception("Error configuring Aerospike Graph Service.\n\tInvalid properties found: " + str(invalid) + ". Properties must start with 'aerospike' and " + \
                     "be in the format 'aerospike.key=value'")
 
-    persist_unified_config(unified_config_file, unified_config)
-    generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, output_properties_file, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm)
-    generate_properties(valid_properties, output_properties_file, auth_jwt_secret, auth_jwt_issuer)
+    # add default graph unless otherwise explicitly stated
+    if len(named_graphs) == 0:
+        named_graphs = ["graph"]
+
+    # graph name validation
+    for graph_name in named_graphs:
+        if not re.match('[A-Za-z0-9_-]+$', graph_name):
+            raise Exception(f"Graph name should be within [a-z][A-Z][0-9][-_], but found {graph_name}")
+        if len(graph_name) > 32:
+            raise Exception(f"Length of graph name shall be less then 32 characters, but found {graph_name}")
+
+    for key in named_graphs:
+        if key not in graph_config:
+            graph_config[key] = []
+
+    generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm)
+
+    for key in named_graphs:
+        merged_properties = valid_properties
+        for p in graph_config[key]:
+            merged_properties.append(p[p.index(".")+1:])
+
+        # let's check default graph_ID
+        no_graph_id_provided = not any(s.startswith("aerospike.graph.id") for s in merged_properties)
+        # but not for default `graph`
+        if key != "graph" and no_graph_id_provided:
+            merged_properties.append("aerospike.graph.id=" + key)
+
+        generate_properties(merged_properties, f"{conf_dir}/aerospike-graph-{key}.properties", auth_jwt_secret, auth_jwt_issuer)
+
     generate_java_options(output_java_options_file, java_options_max_heap, java_options_min_heap)
-
-
-def persist_unified_config(unified_config_file, unified_config):
-    print("Persisting configuration to " + unified_config_file)
-    with open(unified_config_file, "w") as unified_config_file:
-        for line in unified_config:
-            unified_config_file.write(line + "\n")
-            if any(masked_keyword in line.split("=")[0].casefold() for masked_keyword in ['token', 'secret', 'password', 'passkey']):
-                print("Persisting configuration: " + line.split("=")[0] + "=********")
-            else :
-                print("Persisting configuration: " + line)
-
 
 def set_performance_mode(yaml_properties):
     # Experiments show that throughput is best when gremlinPool=4*cpu_count and threadPoolWorker=cpu_count/2.
@@ -129,7 +163,7 @@ def set_performance_mode(yaml_properties):
     print("Setting gremlinPool to " + str(gremlin_pool) + " and threadPoolWorker to " + str(thread_pool_worker) + ".")
 
 
-def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, output_properties_file, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm):
+def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm):
     rewritten_lines = []
 
     set_performance_mode(yaml_properties)
@@ -152,10 +186,14 @@ def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, output_p
         lines = [i for i in lines if not i.startswith(key)]
         rewritten_lines.append(f"{key}: {value}")
 
+    rewritten_lines.append("graphs: { ")
+    for key in graph_config:
+        rewritten_lines.append(f"  {key}: conf/aerospike-graph-{key}.properties,")
+    rewritten_lines.append("}")
+
     # Pop serializers in here since we can't flatten them.
     rewritten_lines.append(
-"""graphs: { graph: """ + output_properties_file + """}
-serializers:
+"""serializers:
   - { className: org.apache.tinkerpop.gremlin.util.ser.GraphSONMessageSerializerV3, config: { ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3] }}            # application/json
   - { className: org.apache.tinkerpop.gremlin.util.ser.GraphBinaryMessageSerializerV1 }                                                                                                           # application/vnd.graphbinary-v1.0
   - { className: org.apache.tinkerpop.gremlin.util.ser.GraphBinaryMessageSerializerV1, config: { serializeResultToString: true }}                                                                 # application/vnd.graphbinary-v1.0-stringd
@@ -248,8 +286,14 @@ def generate_properties(properties, output_properties_file, auth_jwt_secret, aut
     with open(output_properties_file, "w") as prop:
         if "gremlin.graph=com.aerospike.firefly.structure.FireflyGraph" not in properties:
             prop.write("gremlin.graph=com.aerospike.firefly.structure.FireflyGraph\n")
-        for property in properties:
-            prop.write(property + "\n")
+
+        added_properties = []
+        for property in reversed(properties):
+            prop_name = property[:property.index("=")]
+            if not prop_name in added_properties:
+                prop.write(property + "\n")
+                added_properties.append(prop_name)
+
         if auth_jwt_secret is not None and auth_jwt_issuer is not None:
             prop.write("aerospike.graph-service.auth.enabled=true\n")
 
@@ -262,7 +306,11 @@ def generate_java_options(java_options_file_path, max_heap, min_heap):
         print("aerospike.graph-service.heap.max was set to " + max_heap + ". Using this value for -Xmx.")
         java_options += f" -Xmx{max_heap.split('=')[1]} "
     else:
-        mem_mib = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / (1024. ** 2)
+        try:
+            mem_mib = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / (1024. ** 2)
+        except Exception as e:
+            # to run script on windows
+            mem_mib = 1024.
         max_memory = int(mem_mib * 0.8)  # 80% of system memory
         java_options += f" -Xmx{max_memory}m "
     if min_heap is not None:
@@ -284,11 +332,11 @@ if __name__ == "__main__":
     input_properties_file = sys.argv[1]
     default_yaml_file = sys.argv[2]
     output_yaml_file = sys.argv[3]
-    output_properties_file = sys.argv[4]
+    output_conf_dir = sys.argv[4]
     output_java_options_file = sys.argv[5]
-    unified_config_file = sys.argv[6]
+
     try:
-        main(input_properties_file, default_yaml_file, output_yaml_file, output_properties_file, output_java_options_file, unified_config_file)
+        main(input_properties_file, default_yaml_file, output_yaml_file, output_conf_dir, output_java_options_file)
         sys.exit(0)
     except Exception as e:
         print(e)

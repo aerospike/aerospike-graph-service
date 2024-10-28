@@ -34,9 +34,6 @@ import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
-import com.aerospike.firefly.util.exceptions.EdgeRecordSizeExceededException;
-import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
-import com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.runtime.tasks.FireflyMetadataTask;
 import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
@@ -52,7 +49,6 @@ import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.PluginUtil;
-import com.aerospike.firefly.util.WarmupUtil;
 import com.aerospike.firefly.util.concurrency.FireflyRecordLockHandler;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
@@ -109,10 +105,10 @@ import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.createFilterableSupernodeOperations;
-import static com.aerospike.firefly.structure.FireflyGraphSummaryVertex.GRAPH_SUMMARY_VERTEX;
 import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_PROPERTY_KEY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOAD_ID_BUFFER_SIZE;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.HTTP_DISABLED;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 
 /**
@@ -166,7 +162,6 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 
 public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static final String FIREFLY_CONFIGURATION_VARIABLE_NAME = "FIREFLY_CONFIGURATION";
-    public static final String FIREFLY_WARMUP_VARIABLE_NAME = "FIREFLY_WARMUP";
     public static final String DATA_MODEL = "packed";
 
     // AerospikeGraphService is a dummy class that allows us to instantiate a logger in FireflyGraph that says
@@ -195,11 +190,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final FireflyGraphSummaryUpdater fireflySummaryUpdater;
     private final FireflyRecordLockHandler fireflyRecordLockHandler;
     private final ServiceRegistry serviceRegistry = new ServiceRegistry();
-    private FireflyUsageStats usageStats;
-    private HttpServer httpServer;
+    private static volatile FireflyUsageStats usageStats;
     private AdminServiceRegistry adminServiceRegistry;
+    private boolean httpStarted = false;
     private static final String GREMLIN_SERVER_YAML_PATH = "GREMLIN_SERVER_YAML_PATH";
-    private static final String UNIFIED_CONFIG_PROPERTIES_PATH = "UNIFIED_CONFIG_PROPERTIES_PATH";
     private final Settings gremlinServerSettings;
     public static ExitManager EXIT_MANAGER = new ExitManager();
 
@@ -270,17 +264,24 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
 
         if (!db.WARMUP_MODE) {
-            // Create usage statistics background task.
-            usageStats = new FireflyUsageStats(db);
+            // Create usage statistics background task. Only one per server
+            if (usageStats == null) {
+                synchronized (this) {
+                    if (usageStats == null) {
+                        usageStats = new FireflyUsageStats(db);
+                    }
+                }
+            }
 
             // Register admin services graph metrics since it will bootstrap the server.
             adminServiceRegistry = new AdminServiceRegistry(this);
 
-            final boolean httpDisabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.HTTP_DISABLED, conf);
+            // do not start http server if disabled in config or for bulk loader
+            final boolean httpDisabled = ConfigurationHelper.getOrDefaultBool(HTTP_DISABLED, conf) ||
+                ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf);
             if (!httpDisabled) {
-                // Start metrics.
-                httpServer = HttpServer.create(this);
-                httpServer.start();
+                HttpServer.getInstance().start(this);
+                httpStarted = true;
             }
         }
     }
@@ -317,7 +318,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             logLevel = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.LOG_LEVEL, conf);
         }
         final boolean clientLogging = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, conf);
-        final boolean preheat = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf);
         try {
             // Prevent warmup from disabling the logger for Aerospike Client.
             if (clientLogging && !ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf)) {
@@ -363,7 +363,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
             INFO_PRINTED.set(true);
             if (ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf)) {
-                // If we are in bulk load mode, sleep between 0 and 1 second to allow Aerospike time between spark
+                // If we are in bulk load mode, sleep between 0 and 5 seconds to allow Aerospike time between spark
                 // works initializing.
                 final Random random = new Random();
                 try {
@@ -374,14 +374,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 }
             }
 
-            if (preheat)
-                WarmupUtil.create(conf).preheat(WarmupUtil.passes);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (final Exception e) {
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");
             LOG.error("========== Aerospike Graph Service failing to start is usually a result of an incorrect configuration.");
-            LOG.error("========== Verify that the Aerospike IP and port are correct.");
-            LOG.error("========== See Error message for more details:", e);
+            LOG.error("========== See Error message for more details: {}", e.getMessage());
 
             // Signal to gremlin-server to shut down.
             EXIT_MANAGER.exit(1);
@@ -390,9 +387,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             return null;
         }
     }
-
-    public static final String GETDATAMODELNAME = "getDataModelName";
-    public static final String DATAMODELVERSION = "dataModelVersion";
 
     public static ComparableVersion dataModelVersion() {
         return new ComparableVersion(FIREFLY_VERSION);
@@ -408,16 +402,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                     "must be running docker image to read the gremlin-server yaml.");
         }
         return gremlinServerYamlPath;
-    }
-
-    public static synchronized String getUnifiedConfigFile() {
-        final String unifiedConfigPath = System.getenv(UNIFIED_CONFIG_PROPERTIES_PATH);
-        if ((unifiedConfigPath == null || unifiedConfigPath.isEmpty()) ||
-                !(new File(unifiedConfigPath).exists())) {
-            throw new RuntimeException("Failed to load docker settings file, " +
-                    "must be running docker image to read the gremlin-server yaml.");
-        }
-        return unifiedConfigPath;
     }
 
     public static synchronized Settings getGremlinServerSettings() {
@@ -1066,19 +1050,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public Iterator<Vertex> vertices(final List<HasContainer> filters, final List<String> requiredProperties, final Object... vertexIdsOrVertices) {
-        if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String) {
-            if (vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
-                return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
-            }
-            if (vertexIdsOrVertices[0].equals(GRAPH_SUMMARY_VERTEX)) {
-                return FireflyCloseableIteratorUtils.of(new FireflyGraphSummaryVertex(this));
-            }
-            if (vertexIdsOrVertices[0].equals(FIREFLY_WARMUP_VARIABLE_NAME)) {
-                WarmupUtil.create(configuration).preheat(48);
-                return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
-            }
-        }
-
         final List<FireflyId> idList = getIds(Arrays.asList(vertexIdsOrVertices)).stream()
                 .map(id -> getIdFactory().createVertexId(id))
                 .collect(Collectors.toList());
@@ -1164,18 +1135,30 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     @Override
     public void close() {
         LOG.info("Closing FireflyGraph.");
-        this.closed.set(true);
+        if (this.closed.getAndSet(true))
+            return;
+
         this.fireflyCardinalityMetadataTask.cancel();
         this.fireflyIndexMetadataTask.cancel();
         this.fireflySummaryUpdater.close();
+
         if (!db.WARMUP_MODE) {
-            this.usageStats.close();
+            if (this.usageStats != null) {
+                synchronized (this) {
+                    if (this.usageStats != null) {
+                        this.usageStats.close();
+                        this.usageStats = null;
+                    }
+                }
+            }
         }
-        if (httpServer != null) {
-            httpServer.close();
-            httpServer = null;
+
+        if (httpStarted) {
+            HttpServer.getInstance().close();
         }
+
         this.ttlHandler.close();
+
         this.db.close();
     }
 

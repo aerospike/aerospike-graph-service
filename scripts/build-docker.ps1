@@ -1,0 +1,3 @@
+mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -DskipTests=true clean install --no-transfer-progress
+
+docker buildx build --platform "linux/amd64" --tag "aerospike-graph-build:latest"  --output=type=docker -f "docker/Dockerfile" . --build-arg FIREFLY_GRAPH=aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.4.0-SNAPSHOT.jar --build-arg BULKLOADER=aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.4.0-SNAPSHOT.jar

@@ -53,24 +53,6 @@ public class TestBulkLoaderCallEntryPoint {
     }
 
     @Test
-    public void testResumeThrows() {
-        // Right now calling the bulk loader here will fail with null config.
-        // Once the parameters are determined this test can be updated.
-        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
-            try {
-                fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").
-                        with("vertices").
-                        with("edges").
-                        with("resume").
-                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
-                Assert.fail("Expected call to fail.");
-            } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'."));
-            }
-        }
-    }
-
-    @Test
     public void testClearExistingDataDoesntThrow() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
@@ -560,6 +542,28 @@ public class TestBulkLoaderCallEntryPoint {
                     ((List) lyndon2.get(0).get("companies")).stream().collect(Collectors.toSet()));
             Assert.assertTrue(g.V().has("name", "Lyndon").toList().isEmpty());
             g.V("simon").properties("isDope").toList().forEach(p -> Assert.assertEquals("true", p.value()));
+        }
+    }
+
+    @Test
+    public void testLoadWithCsvFileDirectlyFails() {
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            try {
+                g.call("aerospike.graphloader.admin.bulk-load.load").
+                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-direct-csv-vertices.properties").iterate();
+                Assert.fail("Expected call to fail with direct csv of vertices.");
+            } catch (final RuntimeException e) {
+                Assert.assertTrue(e.getMessage().contains("Config aerospike.graphloader.vertices must be a directory and cannot be a single file, current value is src/test/resources/sampledata-incremental-1/vertices.csv"));
+            }
+            try {
+                g.call("aerospike.graphloader.admin.bulk-load.load").
+                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-direct-csv-edges.properties").iterate();
+                Assert.fail("Expected call to fail with direct csv of edges.");
+            } catch (final RuntimeException e) {
+                Assert.assertTrue(e.getMessage().contains("Config aerospike.graphloader.edges must be a directory and cannot be a single file, current value is src/test/resources/sampledata-incremental-1/edges.csv"));
+            }
         }
     }
 

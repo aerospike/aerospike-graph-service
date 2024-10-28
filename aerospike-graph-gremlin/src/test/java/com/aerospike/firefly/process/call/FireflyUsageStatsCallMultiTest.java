@@ -57,6 +57,8 @@ public class FireflyUsageStatsCallMultiTest {
 
             // Raw should be list of map.
             Assert.assertTrue(usageStats.get("raw") instanceof List);
+            // this test on GHA runs with an additional FireFly server running in docker,
+            // so expected result is 1 for local and 2 for GHA
             Assert.assertEquals(2, ((List<?>) usageStats.get("raw")).size());
 
             // Vcpu count of raw should be same of test vcpu count.

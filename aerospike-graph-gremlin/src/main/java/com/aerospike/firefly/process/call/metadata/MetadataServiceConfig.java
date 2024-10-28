@@ -13,9 +13,7 @@ import java.util.Map;
 public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
 
     public static final String GREMLIN_SERVER_CONFIG = "Gremlin Server Configuration";
-    public static final String UNIFIED_CONFIG = "Unified Configuration";
     public static final String GRAPH_PROPERTIES = "Graph Properties";
-
 
     public MetadataServiceConfig(final FireflyGraph graph) {
         super(graph);
@@ -65,13 +63,6 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
             completeConfig.put(GREMLIN_SERVER_CONFIG, "Not available");
         }
 
-        try {
-            final String unifiedConfig = FireflyGraph.getUnifiedConfigFile();
-            completeConfig.put(UNIFIED_CONFIG, serializeFile(unifiedConfig));
-        } catch (final Exception e) {
-            LOGGER.error("Could not read unified config file: " + e.getMessage());
-            completeConfig.put(UNIFIED_CONFIG, "Not available");
-        }
         return (R) completeConfig;
     }
 

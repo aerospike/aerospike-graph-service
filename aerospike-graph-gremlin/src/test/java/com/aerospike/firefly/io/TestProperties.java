@@ -43,6 +43,7 @@ public class TestProperties {
 
     @BeforeClass
     static public void beforeAll() {
+        CONFIG.setProperty(ConfigurationHelper.Keys.HTTP_DISABLED.toLowerCase(), "true");
         SETUP_GRAPH = FireflyGraph.open(CONFIG);
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
     }
@@ -74,6 +75,7 @@ public class TestProperties {
     public void afterEach() {
         System.out.println("===> Completed " + testName.getMethodName() + " <===");
         graph.getBaseGraph().dropDatabase(graph, false);
+        graph.close();
     }
 
     @Test

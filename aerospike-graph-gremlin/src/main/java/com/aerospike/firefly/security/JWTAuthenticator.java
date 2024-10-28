@@ -3,7 +3,9 @@ package com.aerospike.firefly.security;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphAuthException;
 import com.auth0.jwt.JWT;
+import com.auth0.jwt.JWTCreator;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.JWTVerifier;
 import java.util.Base64;
@@ -49,29 +51,28 @@ public class JWTAuthenticator implements Authenticator {
         return true;
     }
 
-    public String createToken(final String username, final String role) {
+    public String createToken(final String username, final Object role, final Number expiry) {
         if (algo == null || issuer == null) {
             // Should never happen since we got an instance.
             throw new IllegalStateException("Cannot issue JWT token; JWTAuthenticator is not initialized.");
         }
-        return JWT.create()
-                .withSubject(username)
-                .withClaim("role", role)
-                .withIssuer(issuer)
-                .sign(algo);
-    }
 
-    public String createToken(final String username, final String role, final Number expiry) {
-        if (algo == null || issuer == null) {
-            // Should never happen since we got an instance.
-            throw new IllegalStateException("Cannot issue JWT token; JWTAuthenticator is not initialized.");
+        if (!(role instanceof String) && !(role instanceof Map)) {
+            throw new IllegalStateException("Cannot issue JWT token; User role must be Map or String.");
         }
-        return JWT.create()
-                .withSubject(username)
-                .withClaim("role", role)
-                .withIssuer(issuer)
-                .withExpiresAt(Instant.now().plusSeconds(expiry.longValue()))
-                .sign(algo);
+
+        final JWTCreator.Builder builder = JWT.create().withSubject(username).withIssuer(issuer);
+        if (expiry != null) {
+            builder.withExpiresAt(Instant.now().plusSeconds(expiry.longValue()));
+        }
+
+        if (role instanceof Map) {
+            builder.withClaim("role", (Map) role);
+        } else {
+            builder.withClaim("role", (String) role);
+        }
+
+        return builder.sign(algo);
     }
 
     public static JWTAuthenticator getInstance() {
@@ -193,12 +194,48 @@ public class JWTAuthenticator implements Authenticator {
 
         @Override
         public ROLE getRole() {
+            throw new IllegalStateException("Role should always be used with Graph");
+        }
+
+        public Object getRoles() {
             // remove '"' from each side
             try {
-                if (decodedJWT.getClaims().get("role") == null) {
+                final Claim role = decodedJWT.getClaims().get("role");
+
+                if (role == null) {
                     return null;
                 }
-                return ROLE.valueOf(decodedJWT.getClaims().get("role").toString().replaceAll("\"", ""));
+
+                if (role.asMap() != null) {
+                    return role.asMap();
+                }
+
+                return ROLE.valueOf(role.toString().replaceAll("\"", ""));
+            } catch (final IllegalArgumentException e) {
+                // This is used to bubble up appropriate exceptions.
+                return null;
+            }
+        }
+
+        public ROLE getRole(final String graphId) {
+            // remove '"' from each side
+            try {
+                final Claim role = decodedJWT.getClaims().get("role");
+
+                if (role == null) {
+                    return null;
+                }
+
+                if (role.asMap() != null) {
+                    final Object graphRole = role.asMap().get(graphId);
+                    // no role defined for this Graph
+                    if (graphRole == null) {
+                        return null;
+                    }
+                    return ROLE.valueOf(graphRole.toString().replaceAll("\"", ""));
+                }
+
+                return ROLE.valueOf(role.toString().replaceAll("\"", ""));
             } catch (final IllegalArgumentException e) {
                 // This is used to bubble up appropriate exceptions.
                 return null;

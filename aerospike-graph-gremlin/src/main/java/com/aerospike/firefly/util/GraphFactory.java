@@ -28,14 +28,9 @@ final public class GraphFactory {
             throw new IllegalArgumentException("Unknown graph type: " + dataModel);
         } else {
             LOG.info("Constructing Graph for {} data model.", dataModel);
-            try {
-                if (DataModelVersioning.checkNeedsUpgrade(FireflyGraph.class, db))
-                    DataModelVersioning.errorNeedsUpgrade(FireflyGraph.class, db);
-                db.checkConfigurationCompatibility(config);
-                return new FireflyGraph(db, config, getGremlinServerSettings());
-            } catch (Exception e) {
-                throw new RuntimeException("Error constructing graph", e);
-            }
+            DataModelVersioning.checkVersionCompatibility(db);
+            db.checkConfigurationCompatibility(config);
+            return new FireflyGraph(db, config, getGremlinServerSettings());
         }
     }
 }

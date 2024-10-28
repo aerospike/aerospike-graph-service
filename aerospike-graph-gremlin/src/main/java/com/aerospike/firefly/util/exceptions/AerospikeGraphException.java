@@ -27,6 +27,11 @@ public class AerospikeGraphException extends RuntimeException {
         this.errorCode = error.code;
     }
 
+    protected AerospikeGraphException(final GraphError error, final String message) {
+        super(message);
+        this.errorCode = error.code;
+    }
+
     static public AerospikeGraphException fromAerospikeException(final AerospikeException ae) {
         switch (ae.getResultCode()) {
             case ResultCode.RECORD_TOO_BIG:

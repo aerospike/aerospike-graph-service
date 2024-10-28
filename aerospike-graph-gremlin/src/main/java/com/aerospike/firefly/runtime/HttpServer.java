@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -38,56 +39,42 @@ import java.util.stream.Collectors;
  */
 public class HttpServer {
     private final Logger LOG = LoggerFactory.getLogger(HttpServer.class);
-    private final int port;
-    private final String prometheusPath;
-    private final String healthcheckPath;
     private static final int DEFAULT_HTTP_PORT = 9090;
     private static final String DEFAULT_PROMETHEUS_PATH = "/metrics";
     private static final String DEFAULT_HEALTHCHECK_PATH = "/healthcheck";
     private static final int HEALTHCHECK_SUCCESS_CODE = 200;
     private static final int HEALTHCHECK_ERROR_CODE = 503;
-    private boolean prometheusRenameEnabled = true;
-    private final FireflyGraph graph;
-    private final AtomicBoolean started = new AtomicBoolean(false);
+    private final AtomicInteger started = new AtomicInteger();
     private final static Vertx vertx = Vertx.vertx(new VertxOptions().setUseDaemonThread(true));
     private io.vertx.core.http.HttpServer vertxHttpServer;
+    private Router router;
+    private static FireflyMetricCollector fireflyMetricCollector;
 
-    private HttpServer(final FireflyGraph graph) {
+    private static HttpServer INSTANCE;
+
+    private HttpServer() {
+    }
+
+    public synchronized static HttpServer getInstance() {
+        if (INSTANCE == null) {
+            INSTANCE = new HttpServer();
+        }
+        return INSTANCE;
+    }
+
+    private synchronized void init(final FireflyGraph graph) {
         final Configuration configuration = graph.configuration();
-        final Object port = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.HTTP_PORT, configuration);
-        this.port = port == null ? DEFAULT_HTTP_PORT : Integer.parseInt(port.toString());
-        this.prometheusPath = Optional.ofNullable(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROMETHEUS_PATH, configuration)).orElse(DEFAULT_PROMETHEUS_PATH);
-        this.healthcheckPath = Optional.ofNullable(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.HEALTHCHECK_PATH, configuration)).orElse(DEFAULT_HEALTHCHECK_PATH);
-        this.graph = graph;
+        final Object portConfig = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.HTTP_PORT, configuration);
+        final int port = portConfig == null ? DEFAULT_HTTP_PORT : Integer.parseInt(portConfig.toString());
+        final String prometheusPath = Optional.ofNullable(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROMETHEUS_PATH, configuration)).orElse(DEFAULT_PROMETHEUS_PATH);
 
-        prometheusRenameEnabled = graph.getBaseGraph().PROMETHEUS_RENAME_ENABLED;
-
-        // same connection can be used for different Graph's
-        try {
-            CollectorRegistry.defaultRegistry.register(new FireflyMetricCollector(graph));
-        } catch (IllegalArgumentException ignored) {
-        }
-    }
-
-    public static HttpServer create(final FireflyGraph fireflyGraph) {
-        return new HttpServer(fireflyGraph);
-    }
-
-    // Not required except for bulk loader which hangs if it does not close this.
-    public void close() {
-        if (vertxHttpServer != null) {
-            vertxHttpServer.close();
-            vertxHttpServer = null;
-        }
-    }
-
-    public void start() {
-        // If this is started, do not start twice. This shouldn't happen.
         LOG.info("Starting HttpServer on port {}.", port);
 
-        if (started.getAndSet(true)) {
-            LOG.warn("HttpServer already started.");
-            return;
+        // register metrics only for first graph
+        if (fireflyMetricCollector == null) {
+            // should be only one FireflyMetricCollector
+            fireflyMetricCollector = new FireflyMetricCollector(graph);
+            CollectorRegistry.defaultRegistry.register(fireflyMetricCollector);
         }
 
         // Register TinkerPop metrics with the default registry.
@@ -96,21 +83,10 @@ public class HttpServer {
         DefaultExports.initialize();
 
         // Create a router to handle requests.
-        final Router router = Router.router(vertx);
+        router = Router.router(vertx);
 
         // Add a handler for the metrics endpoint - this picks up the default registry.
-        router.get(prometheusPath).handler(new FireflyMetricRewiter(prometheusRenameEnabled));
-        router.get(healthcheckPath).handler(routingContext -> {
-            if (graph != null && graph.getBaseGraph() != null && graph.getBaseGraph().getClusterIsConnected()) {
-                routingContext.response().setStatusCode(HEALTHCHECK_SUCCESS_CODE).putHeader("content-type", "text/html").
-                        end(String.valueOf(List.of(Map.of("status", "true"))));
-            } else {
-                routingContext.response().setStatusCode(HEALTHCHECK_ERROR_CODE).putHeader("content-type", "text/html").
-                        end(String.valueOf(List.of(Map.of("status", "false"))));
-            }
-        });
-
-        graph.getAdminServiceRegistry().appendHandlers(router);
+        router.get(prometheusPath).handler(new FireflyMetricRewiter(graph.getBaseGraph().PROMETHEUS_RENAME_ENABLED));
 
         // Bootstrap http server with request handler on provided port.
         vertxHttpServer = vertx.createHttpServer();
@@ -124,6 +100,52 @@ public class HttpServer {
                         LOG.error("HttpServer failed to bind with error {}.", res.cause().getMessage());
                     }
                 });
+    }
+
+    // Not required except for bulk loader which hangs if it does not close this.
+    public void close() {
+        // let's wait for other graphs
+        if (started.decrementAndGet() != 0) {
+            return;
+        }
+
+        if (vertxHttpServer != null) {
+            vertxHttpServer.close();
+            vertxHttpServer = null;
+        }
+    }
+
+    public void start(final FireflyGraph graph) {
+        if (started.incrementAndGet() == 1) {
+            init(graph);
+        }
+
+        LOG.info("Configuring HttpServer for graph {}.", graph.getBaseGraph().GRAPH_ID);
+
+        final Configuration configuration = graph.configuration();
+        String healthcheckPath =
+                Optional.ofNullable(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.HEALTHCHECK_PATH, configuration))
+                        .orElse(DEFAULT_HEALTHCHECK_PATH);
+        healthcheckPath = "/" + graph.getBaseGraph().GRAPH_ID + healthcheckPath;
+
+        try {
+            // wait for router
+            while (router == null) Thread.sleep(1);
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        router.get(healthcheckPath).handler(routingContext -> {
+            if (graph != null && graph.getBaseGraph() != null && graph.getBaseGraph().getClusterIsConnected()) {
+                routingContext.response().setStatusCode(HEALTHCHECK_SUCCESS_CODE).putHeader("content-type", "text/html").
+                        end(String.valueOf(List.of(Map.of("status", "true"))));
+            } else {
+                routingContext.response().setStatusCode(HEALTHCHECK_ERROR_CODE).putHeader("content-type", "text/html").
+                        end(String.valueOf(List.of(Map.of("status", "false"))));
+            }
+        });
+
+        graph.getAdminServiceRegistry().appendHandlers(router);
     }
 
     private static class FireflyMetricRewiter implements Handler<RoutingContext> {

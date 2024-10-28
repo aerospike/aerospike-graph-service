@@ -12,7 +12,8 @@ public class TestDockerJavaOptions {
 
     private static final String[] DEFAULT_ENV_VARIABLES = new String[]{
             "aerospike.client.host=172.17.0.1:3000",
-            "JAVA_OPTIONS=-DtestProp"};
+            "aerospike.graph.auto.preheat.enabled=false",
+            "JAVA_OPTIONS=-DtestProp" };
 
     public void testDockerImageSettings(final String[] environmentVariables) throws InterruptedException {
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);

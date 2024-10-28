@@ -294,6 +294,7 @@ public class TestPerformance extends AbstractFireflySuite {
         System.out.println(PerfUtil.runTestBatch(5, () -> {
             g.V().count().next();
         }));
+        graph.close();
 
         config.setProperty(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY.toLowerCase(), "true");
         graph = FireflyGraph.open(config);
@@ -306,6 +307,7 @@ public class TestPerformance extends AbstractFireflySuite {
         System.out.println(PerfUtil.runTestBatch(5, () -> {
             g.V().count().next();
         }));
+        graph.close();
     }
 
     @Override

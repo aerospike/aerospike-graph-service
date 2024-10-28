@@ -1,6 +1,5 @@
 package com.aerospike.firefly.security;
 
-import com.aerospike.firefly.runtime.FireflyServer;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
@@ -14,8 +13,6 @@ import java.util.concurrent.CompletionException;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
 public class JwtAuthenticationDockerTest {
-    private static FireflyServer server;
-
     final String validAdmin = JWT.create()
             .withClaim("role", "ADMIN")
             .withSubject("lyndon_username")

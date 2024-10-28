@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io.aerospike.admin;
 
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAuthenticationStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAuthenticationStrategy.UserClaims;
 import com.aerospike.firefly.security.JWTAuthenticator;
 import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -22,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.security.UserContext.ROLE;
 import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
 public abstract class AdminService<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
@@ -69,10 +71,12 @@ public abstract class AdminService<I, R> implements Service.ServiceFactory<I, R>
     }
 
     public String getPath() {
+        final String graphPrefix = "/" + graph.getBaseGraph().GRAPH_ID;
+
         if (getAdminNamespace() != null) {
-            return "/admin/" + getAdminNamespace() + "/" + getAdminServiceName();
+            return graphPrefix + "/admin/" + getAdminNamespace() + "/" + getAdminServiceName();
         } else {
-            return "/admin/" + getAdminServiceName();
+            return graphPrefix + "/admin/" + getAdminServiceName();
         }
     }
 
@@ -86,7 +90,7 @@ public abstract class AdminService<I, R> implements Service.ServiceFactory<I, R>
     protected abstract boolean sanitize(final Map params);
     protected abstract R execute(final Map params);
     protected abstract void auditLog(final Map params);
-    protected abstract UserContext.ROLE getRequiredRole();
+    protected abstract ROLE getRequiredRole();
 
     @Override
     public CloseableIterator<R> execute(final ServiceCallContext ctx, final Map params) {
@@ -101,33 +105,45 @@ public abstract class AdminService<I, R> implements Service.ServiceFactory<I, R>
         return FireflyCloseableIteratorUtils.of(execute(params));
     }
 
+    // service specific additional permissions validation
+    protected boolean isValidPermissions(final Map params, final UserClaims userContext) {
+        return true;
+    }
+
     private boolean validateAdminContext(final ServiceCallContext ctx, final Map params) {
         if (!graph.getBaseGraph().AUTHENTICATION_ENABLED) {
             return true;
         }
 
-        final FireflyAuthenticationStrategy.UsernameRolePair userContext = (FireflyAuthenticationStrategy.UsernameRolePair) params.remove(RESERVED_USER_CONTEXT);
+        final UserClaims userContext = (UserClaims) params.remove(RESERVED_USER_CONTEXT);
         if (userContext == null) {
             // This should never happen.
             throw AerospikeGraphAuthException.invalidUserContext();
         }
         user = userContext.getUsername();
 
-        final UserContext.ROLE role = userContext.getRole();
+        final ROLE role = userContext.getRole(graph.getBaseGraph().GRAPH_ID);
         if (role == null) {
             // This can happen.
             throw AerospikeGraphAuthException.userDoesNotHaveValidRole();
         }
-        final UserContext.ROLE requiredRole = getRequiredRole();
-        if (requiredRole.equals(UserContext.ROLE.ADMIN)) {
-            return role.equals(UserContext.ROLE.ADMIN);
-        } else if (requiredRole.equals(UserContext.ROLE.READ_WRITE)) {
-            return role.equals(UserContext.ROLE.ADMIN) ||
-                    role.equals(UserContext.ROLE.READ_WRITE);
+        if (!isValidPermissions(params, userContext)) {
+            return false;
+        }
+
+        return isRoleHigher(getRequiredRole(), role);
+    }
+
+    protected boolean isRoleHigher(final ROLE requested, final ROLE available) {
+        if (requested.equals(ROLE.ADMIN)) {
+            return available.equals(ROLE.ADMIN);
+        } else if (requested.equals(ROLE.READ_WRITE)) {
+            return available.equals(ROLE.ADMIN) ||
+                    available.equals(ROLE.READ_WRITE);
         } else {
-            return role.equals(UserContext.ROLE.ADMIN) ||
-                    role.equals(UserContext.ROLE.READ_WRITE) ||
-                    role.equals(UserContext.ROLE.READ);
+            return available.equals(ROLE.ADMIN) ||
+                    available.equals(ROLE.READ_WRITE) ||
+                    available.equals(ROLE.READ);
         }
     }
 
@@ -172,29 +188,18 @@ public abstract class AdminService<I, R> implements Service.ServiceFactory<I, R>
                     }
 
                     final JWTAuthenticator.JWTAuthenticatedUser jwtUser = (JWTAuthenticator.JWTAuthenticatedUser) authenticatedUser;
-                    final UserContext.ROLE role = jwtUser.getRole();
-                    final UserContext.ROLE requiredRole = getRequiredRole();
+                    final ROLE role = jwtUser.getRole(graph.getBaseGraph().GRAPH_ID);
+                    final ROLE requiredRole = getRequiredRole();
 
                     if (role == null) {
                         // Should never happen.
                         routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("User does not have a valid role."));
                         return;
                     }
-                    if (requiredRole.equals(UserContext.ROLE.READ)) {
-                        if (!role.equals(UserContext.ROLE.READ) && !role.equals(UserContext.ROLE.ADMIN) && !role.equals(UserContext.ROLE.READ_WRITE)) {
-                            routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("Insufficient permissions to perform operation."));
-                            return;
-                        }
-                    } else if (requiredRole.equals(UserContext.ROLE.READ_WRITE)) {
-                        if (!role.equals(UserContext.ROLE.ADMIN) && !role.equals(UserContext.ROLE.READ_WRITE)) {
-                            routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("Insufficient permissions to perform operation."));
-                            return;
-                        }
-                    } else if (requiredRole.equals(UserContext.ROLE.ADMIN)) {
-                        if (!role.equals(UserContext.ROLE.ADMIN)) {
-                            routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("Insufficient permissions to perform operation."));
-                            return;
-                        }
+
+                    if (!isRoleHigher(requiredRole, role)) {
+                        routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("Insufficient permissions to perform operation."));
+                        return;
                     }
                 } catch (final org.apache.tinkerpop.gremlin.server.auth.AuthenticationException e) { // Full name b/c we use other AuthenticationException in this file.
                     routerContext.fail(UNAUTHORIZED_CODE, e);

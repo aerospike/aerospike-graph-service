@@ -63,6 +63,8 @@ public class TestUtil {
         assertEquals(3, graph_two.traversal().V().count().next().longValue());
         assertEquals(2, graph_two.traversal().E().count().next().longValue());
 
+        g1.close();
+        g2.close();
         graph_one.traversal().V().drop().iterate();
         graph_two.traversal().V().drop().iterate();
         graph_one.close();

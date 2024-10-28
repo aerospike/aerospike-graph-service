@@ -1,4 +1,6 @@
 import os, sys, multiprocessing
+import re
+
 
 def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, output_java_options_file):
 
@@ -101,6 +103,13 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
     # add default graph unless otherwise explicitly stated
     if len(named_graphs) == 0:
         named_graphs = ["graph"]
+
+    # graph name validation
+    for graph_name in named_graphs:
+        if not re.match('[A-Za-z0-9_-]+$', graph_name):
+            raise Exception(f"Graph name should be within [a-z][A-Z][0-9][-_], but found {graph_name}")
+        if len(graph_name) > 32:
+            raise Exception(f"Length of graph name shall be less then 32 characters, but found {graph_name}")
 
     for key in named_graphs:
         if key not in graph_config:

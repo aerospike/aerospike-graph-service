@@ -80,6 +80,23 @@ public class TestDockerConfigs {
         Assert.assertTrue(foundMsg0 && foundMsg1 && foundMsg2);
     }
 
+    @Test
+    public void testGraphNameValidation() throws InterruptedException {
+        final String[] environmentVariables = new String[]{
+                "aerospike.client.host=172.17.0.1:3000",
+                "aerospike.graph-service.named-graphs=graph,modern!"};
+        final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
+        final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
+        boolean foundMsg = false;
+        for (final String line : log) {
+            if (line.contains("Graph name should be within [a-z][A-Z][0-9][-_], but found modern!")) {
+                foundMsg = true;
+                break;
+            }
+        }
+        Assert.assertTrue(foundMsg);
+    }
+
     @After
     public void afterEachTest() {
         // Cleanup any dangling containers (catch all for test issues).

@@ -85,6 +85,8 @@ jobs:
 
       - name: Publish Container
         run: |
+          pip3 install python_on_whales
+          
           # Make output directories.
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
@@ -111,15 +113,15 @@ jobs:
   
             # Switch back to 1.
             export EXTRA_BUILD_ARGS="--build-arg RELEASE_BUILD=0"
-            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
-            bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
+            python3 scripts/build-docker.py $OUTPUT_IMAGE --platforms linux/amd64 --push
+            python3 scripts/build-docker.py $DOCKER_IMAGE --platforms linux/amd64 --push
           else
             DOCKER_IMAGE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME:unstable
             DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
             # Build and tag latest/unstable docker image. Note, we must push here since we cannot store the image in the cache since it isn't for our arch.
             echo "Building and tagging docker image for linux/amd64 $DOCKER_IMAGE $OUTPUT_IMAGE"
 
-            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
-            bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
+            python3 scripts/build-docker.py --tag $DOCKER_IMAGE --platforms linux/amd64 --push
+            python3 scripts/build-docker.py --tag $OUTPUT_IMAGE --platforms linux/amd64 --push
           fi
           echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV

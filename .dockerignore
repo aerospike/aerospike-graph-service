@@ -2,3 +2,4 @@
 target/
 docker/
 scripts/build-docker.sh
+scrips/build-docker.py

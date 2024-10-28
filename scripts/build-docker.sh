@@ -20,7 +20,7 @@ if [[ -z "$PUSH_FLAG" ]]; then
     PUSH_FLAG=""
 fi
 
-mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -DskipTests=true clean install --no-transfer-progress
+
 
 docker buildx build $EXTRA_BUILD_ARGS --output=type=docker -f "docker/Dockerfile" . \
   --platform "$PLATFORM" \

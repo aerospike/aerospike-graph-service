@@ -1157,8 +1157,9 @@ jobs:
           maven-version: 3.9.5
       - name: Build docker
         run: |
+          pip3 install python_on_whales
           echo "Building docker image"
-          bash -x scripts/build-docker.sh firefly linux/amd64
+          bash -x scripts/build-docker.py --tag firefly --platforms linux/amd64
       # Due to the nature of the multi usage stats test, it MUST come first. Otherwise it will have problems.
       - name: Run multi Firefly usage test
         env:

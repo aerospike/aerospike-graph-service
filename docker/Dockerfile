@@ -1,42 +1,39 @@
-FROM eclipse-temurin:17-jre-alpine AS build
+FROM alpine AS build
 
 # Set input arguments.
 ARG FIREFLY_GRAPH
 ARG BULKLOADER
-
-ENV SPARK_VERSION='3.4.1'
-ENV SPARK_URL="https://archive.apache.org/dist/spark/spark-$SPARK_VERSION/spark-$SPARK_VERSION-bin-hadoop3.tgz"
+ARG SPARK_ZIP
+ARG SPARK_VERSION
 
 # Set environment variables.
 ENV CONF_DIR="/opt/conf"
 
 RUN apk add --no-cache --update \
-    curl \
     xz \
     tar \
-    bash
+    bash \
+    openjdk11-jdk
 
 COPY ${FIREFLY_GRAPH} /opt/firefly-graph.jar
 COPY ${BULKLOADER} /opt/bulk-loader.jar
-RUN curl -L -o /opt/spark.tgz $SPARK_URL &&\
-    tar zxvf /opt/spark.tgz -C /opt/ &&\
-    mv /opt/spark-$SPARK_VERSION-bin-hadoop3/jars /opt/spark
+COPY ${SPARK_ZIP} /opt/spark.zip
+COPY conf/logback.xml ${CONF_DIR}/logback.xml
+COPY conf/docker-default/flattened-default-gremlin-server.yaml ${CONF_DIR}/flattened-default-gremlin-server.yaml
+COPY docker-runtime-scripts /opt/scripts
+
+
+RUN echo "extracting spark archives"
+RUN tar zxvf /opt/spark.zip -C /opt/ &&\
+    mv /opt/spark-${SPARK_VERSION}-bin-hadoop3/jars /opt/spark
 
 # remove spark archive and unused pieces
-RUN rm -f /opt/spark.tgz && rm -rf /opt/spark-$SPARK_VERSION-bin-hadoop3
+RUN rm -f /opt/spark.tgz && rm -rf /opt/spark-${SPARK_VERSION}-bin-hadoop3
 
 # Remove additional conflicting logger jars from spark.
 RUN rm -f /opt/spark/slf4j-* && rm -f /opt/spark/commons-logging*
 
-RUN apk del xz tar curl
-
-# Add scripts to container.
-COPY docker-runtime-scripts /opt/scripts
-
-COPY conf/docker-default/flattened-default-gremlin-server.yaml $CONF_DIR/flattened-default-gremlin-server.yaml
-
-# Add firefly logback config to container.
-COPY conf/logback.xml $CONF_DIR/logback.xml
+RUN apk del xz tar
 
 WORKDIR /opt
 
@@ -50,7 +47,7 @@ RUN addgroup -S firefly && adduser -S -s /bin/false -G firefly firefly
 RUN chown firefly:firefly -R /opt
 
 
-FROM eclipse-temurin:17-jre-alpine AS main
+FROM alpine AS main
 
 # Set environment variables.
 ENV CONF_DIR="/opt/conf"

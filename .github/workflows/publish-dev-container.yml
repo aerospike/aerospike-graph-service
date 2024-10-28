@@ -42,6 +42,8 @@ jobs:
 
       - name: Publish Container
         run: |
+          pip3 install python_on_whales
+          
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(git rev-parse --short "$GITHUB_SHA")
   
@@ -53,7 +55,7 @@ jobs:
           DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
           
           echo "Building and tagging docker image for linux/amd64 $DOCKER_IMAGE $OUTPUT_IMAGE"
-          bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
-          bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
+          python3 scripts/build-docker.py --tag $DOCKER_IMAGE --platform linux/amd64 --push
+          python3 scripts/build-docker.py --tag $OUTPUT_IMAGE --platform linux/amd64 --push
           
           echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV

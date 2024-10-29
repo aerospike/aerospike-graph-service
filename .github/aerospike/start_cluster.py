@@ -18,7 +18,7 @@ def parse_cluster_cli():
                         help="jinja config template name")
     parser.add_argument('--features_file', type=str, help="base64 encoded features file")
     parser.add_argument('--repo_path', type=str, help="repo path")
-    parser.add_argument('--node_count', help="number of nodes", type=int, default=1)
+    parser.add_argument('--node_count', help="number of nodes", type=int, default=3)
     parser.add_argument('--debug', help="debug logging", action="store_true", default=False)
     parser.add_argument('--test', help="test", action="store_true", default=False)
     parser.add_argument('--default_ttl', help="Default ttl for Aerospike nodes", default=0, type=str)

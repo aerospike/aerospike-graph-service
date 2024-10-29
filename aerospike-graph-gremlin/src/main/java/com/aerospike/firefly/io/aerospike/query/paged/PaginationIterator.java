@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io.aerospike.query.paged;
 
 import com.aerospike.firefly.structure.FireflyGraph;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.NoSuchElementException;
@@ -42,7 +43,7 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
                             "State: " + isClosed + " " + queue.isEmpty() + ".");
                 }
             } catch (final InterruptedException e) {
-                // Unexpected interrupt, just go back to waiting.
+                throw new TraversalInterruptedException();
             }
         }
         return true;

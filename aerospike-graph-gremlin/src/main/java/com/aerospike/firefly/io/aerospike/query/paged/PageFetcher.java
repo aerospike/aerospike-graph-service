@@ -6,6 +6,7 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
@@ -83,6 +84,7 @@ public abstract class PageFetcher<E> {
                     readPage();
                 } catch (final Throwable e) {
                     signalError("Unexpected error while reading " + e.getMessage(), e);
+                    return;
                 }
             }
         });
@@ -107,8 +109,8 @@ public abstract class PageFetcher<E> {
         }
 
         private boolean isIndexDropError() {
-            return this.exception instanceof AerospikeException
-                    && ((AerospikeException) this.exception).getResultCode() == ResultCode.INDEX_NOTFOUND;
+            return this.exception instanceof AerospikeGraphException
+                    && ((AerospikeGraphException) this.exception).errorCode == ResultCode.INDEX_NOTFOUND;
         }
     }
 
@@ -266,19 +268,23 @@ public abstract class PageFetcher<E> {
 
     protected void signalError(final String error, final Throwable exception) {
         LOG.error("{} attempting to signal error to iterator.", error);
-        shutdown();
-        boolean success = false;
-        for (int attemptCount = 0; attemptCount < 3; attemptCount++) {
-            pageQueue.clear();
-            if (!pageQueue.offer(new ErrorPage(error, exception))) {
-                success = true;
-                break;
-            } else {
-                LOG.warn("Failed to send error signal to iterator. Attempting to send again.");
+        try {
+            shutdown();
+            boolean success = false;
+            for (int attemptCount = 0; attemptCount < 3; attemptCount++) {
+                pageQueue.clear();
+                if (pageQueue.offer(new ErrorPage(error, exception))) {
+                    success = true;
+                    break;
+                } else {
+                    LOG.warn("Failed to send error signal to iterator. Attempting to send again.");
+                }
             }
-        }
-        if (!success) {
-            LOG.error("Failed to send error signal to iterator.");
+            if (!success) {
+                LOG.error("Failed to send error signal to iterator.");
+            }
+        } catch (final Exception e) {
+            LOG.error("Failed to signal error to iterator. Please contact support.", e);
         }
     }
 }

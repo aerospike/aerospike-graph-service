@@ -63,10 +63,10 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
         synchronized (lock) {
             if (!isClosed) {
                 isClosed = true;
+                closeCallback.run();
             }
             latch.countDown();
         }
-        closeCallback.run();
     }
 
     public void add(final E e) {

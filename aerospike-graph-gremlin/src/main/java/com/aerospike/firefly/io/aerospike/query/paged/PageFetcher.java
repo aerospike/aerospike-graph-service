@@ -50,7 +50,7 @@ public abstract class PageFetcher<E> {
         return filter.isDone();
     }
 
-    protected abstract void readPage();
+    protected abstract void readPage() throws InterruptedException;
 
     public Iterator<E> startQuery() {
         // Start loop.
@@ -72,8 +72,7 @@ public abstract class PageFetcher<E> {
                         try {
                             pageQueue.put(new PoisonPill());
                         } catch (final InterruptedException e) {
-                            LOG.error("Error adding poison pill.", e);
-                            throw new TraversalInterruptedException();
+                            signalError("Interrupted while attempting to add poison pill.", e);
                         }
                         return;
                     }

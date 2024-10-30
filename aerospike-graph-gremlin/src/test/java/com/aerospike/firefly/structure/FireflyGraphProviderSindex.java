@@ -28,7 +28,7 @@ public class FireflyGraphProviderSindex extends AbstractGraphProvider {
 
     static {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES_SINDEX);
-        config.setProperty(ConfigurationHelper.Keys.HTTP_DISABLED.toLowerCase(), "true");
+        config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
     }
 
     @Override

@@ -28,7 +28,7 @@ public class TestBulkLoaderCallEntryPoint {
 
     public TestBulkLoaderCallEntryPoint() {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.HTTP_DISABLED.toLowerCase(), "true");
+        config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
     }
 
     @Before

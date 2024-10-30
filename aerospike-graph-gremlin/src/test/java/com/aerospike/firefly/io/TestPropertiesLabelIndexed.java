@@ -19,7 +19,7 @@ public class TestPropertiesLabelIndexed extends TestProperties {
     @BeforeClass
     static public void beforeAll() {
         CONFIG.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), true);
-        CONFIG.setProperty(ConfigurationHelper.Keys.HTTP_DISABLED.toLowerCase(), "true");
+        CONFIG.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
         SETUP_GRAPH = FireflyGraph.open(CONFIG);
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
     }

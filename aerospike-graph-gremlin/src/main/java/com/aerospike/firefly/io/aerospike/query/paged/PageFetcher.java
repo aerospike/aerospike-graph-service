@@ -18,6 +18,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class PageFetcher<E> {
     private static final Logger LOG = LoggerFactory.getLogger(PageFetcher.class);
@@ -27,6 +28,7 @@ public abstract class PageFetcher<E> {
     private final FireflyGraph.TransformKeyRecord<E> transformKeyRecord;
     protected final PartitionFilter filter;
     protected final String indexName;
+    protected AtomicBoolean isClosing = new AtomicBoolean(false);
 
     public PageFetcher(final FireflyGraph graph,
                        final int maxQueueSize,
@@ -82,7 +84,11 @@ public abstract class PageFetcher<E> {
                     }
                     readPage();
                 } catch (final Throwable e) {
-                    signalError("Unexpected error while reading " + e.getMessage(), e);
+                    if (e.getMessage() == null) {
+                        signalError("Unexpected error while reading.", e);
+                    } else {
+                        signalError("Unexpected error while reading " + e.getMessage(), e);
+                    }
                     return;
                 }
             }
@@ -125,7 +131,6 @@ public abstract class PageFetcher<E> {
         private static final String NO_ERROR = "";
         private static final String INDEX_DROPPED = "INDEX_DROPPED";
         private CloseableIterator<KeyRecord> currentIterator = FireflyCloseableIterator.EmptyCloseableIterator.instance();
-        ;
         private boolean isEmpty = false;
         private boolean isClosed = false;
         private String errorMessage = NO_ERROR;
@@ -224,6 +229,7 @@ public abstract class PageFetcher<E> {
 
         @Override
         public void close() {
+            isClosing.set(true);
             if (!isClosed) {
                 isClosed = true;
                 pageQueue.forEach(page -> {
@@ -283,24 +289,28 @@ public abstract class PageFetcher<E> {
     }
 
     protected void signalError(final String error, final Throwable exception) {
-        LOG.error("{} attempting to signal error to iterator.", error);
+        if (!isClosing.get()) {
+            LOG.error("{} attempting to signal error to iterator.", error);
+        }
         try {
-            shutdown();
+            if (!isClosing.get()) {
+                shutdown();
+            }
             boolean success = false;
             for (int attemptCount = 0; attemptCount < 3; attemptCount++) {
                 pageQueue.clear();
                 if (pageQueue.offer(new ErrorPage(error, exception))) {
                     success = true;
                     break;
-                } else {
-                    LOG.warn("Failed to send error signal to iterator. Attempting to send again.");
                 }
             }
-            if (!success) {
+            if (!success && !isClosing.get()) {
                 LOG.error("Failed to send error signal to iterator.");
             }
         } catch (final Exception e) {
-            LOG.error("Failed to signal error to iterator. Please contact support.", e);
+            if (!isClosing.get()) {
+                LOG.error("Failed to signal error to iterator. Please contact support.", e);
+            }
         }
     }
 }

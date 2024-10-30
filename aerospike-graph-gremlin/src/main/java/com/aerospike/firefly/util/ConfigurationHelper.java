@@ -371,7 +371,7 @@ public final class ConfigurationHelper {
         put(Keys.LOG_LEVEL, "INFO");
         put(Keys.SUPERNODE_TRAVERSAL_LOG_WARNING, "true");
         put(Keys.TLS, "false");
-        put(Keys.AUTO_PRE_HEAT, "false");
+        put(Keys.AUTO_PRE_HEAT, "true");
         put(Keys.WARMUP_ENABLED, "true");
         put(Keys.WARMUP_MODE, "false");
         put(Keys.ENABLE_CUSTOM_PROFILE, "true");

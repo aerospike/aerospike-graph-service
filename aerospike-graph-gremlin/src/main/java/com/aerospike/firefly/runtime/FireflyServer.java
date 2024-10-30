@@ -1,5 +1,7 @@
 package com.aerospike.firefly.runtime;
 
+import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.WarmupUtil;
 import org.apache.tinkerpop.gremlin.groovy.engine.GremlinExecutor;
 import org.apache.tinkerpop.gremlin.server.GraphManager;
 import org.apache.tinkerpop.gremlin.server.GremlinServer;
@@ -62,6 +64,7 @@ public class FireflyServer {
             // need to add TraversalSource's to GraphManager
             final GraphManager graphManager = gremlinServer.getServerGremlinExecutor().getGraphManager();
 
+            boolean isWarmedUp = false;
             final Set<String> graphs = graphManager.getGraphNames();
             for (final String graphName : graphs) {
                 final Graph graph = graphManager.getGraph(graphName);
@@ -74,6 +77,15 @@ public class FireflyServer {
                         gts = "g" + graphName;
                 }
                 graphManager.putTraversalSource(gts, graph.traversal());
+
+                if (!isWarmedUp) {
+                    final boolean needPreheat = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, graph.configuration());
+                    if (needPreheat) {
+                        WarmupUtil.create(graph.configuration()).preheat(WarmupUtil.passes);
+                        isWarmedUp = true;
+                        logger.info("Warmup is complete.");
+                    }
+                }
             }
 
             // workaround to set TraversalSource's for script engines

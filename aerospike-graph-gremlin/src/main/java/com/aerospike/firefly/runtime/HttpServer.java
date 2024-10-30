@@ -48,7 +48,7 @@ public class HttpServer {
     private final static Vertx vertx = Vertx.vertx(new VertxOptions().setUseDaemonThread(true));
     private io.vertx.core.http.HttpServer vertxHttpServer;
     private Router router;
-    private FireflyMetricCollector fireflyMetricCollector;
+    private static FireflyMetricCollector fireflyMetricCollector;
 
     private static HttpServer INSTANCE;
 
@@ -70,9 +70,12 @@ public class HttpServer {
 
         LOG.info("Starting HttpServer on port {}.", port);
 
-        // should be only one FireflyMetricCollector
-        fireflyMetricCollector = new FireflyMetricCollector(graph);
-        CollectorRegistry.defaultRegistry.register(fireflyMetricCollector);
+        // register metrics only for first graph
+        if (fireflyMetricCollector == null) {
+            // should be only one FireflyMetricCollector
+            fireflyMetricCollector = new FireflyMetricCollector(graph);
+            CollectorRegistry.defaultRegistry.register(fireflyMetricCollector);
+        }
 
         // Register TinkerPop metrics with the default registry.
         CollectorRegistry.defaultRegistry.register(new DropwizardExports(MetricManager.INSTANCE.getRegistry()));
@@ -105,8 +108,6 @@ public class HttpServer {
         if (started.decrementAndGet() != 0) {
             return;
         }
-
-        CollectorRegistry.defaultRegistry.unregister(fireflyMetricCollector);
 
         if (vertxHttpServer != null) {
             vertxHttpServer.close();

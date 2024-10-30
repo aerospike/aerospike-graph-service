@@ -15,6 +15,7 @@ import java.util.Iterator;
 public class SindexPageFetcher<R> extends PageFetcher<R> {
     private final QueryPolicy policy;
     private final Statement statement;
+    private final int timeout;
 
     public SindexPageFetcher(final FireflyGraph graph, final QueryPolicy policy, final String setName,
                              final String namespace, final Filter filter, final int maxQueueSize, final int maxPageSize,
@@ -26,29 +27,18 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         this.statement.setSetName(setName);
         this.statement.setFilter(filter);
         this.statement.setMaxRecords(maxPageSize);
+        this.timeout = policy.totalTimeout == 0 ? policy.socketTimeout : policy.totalTimeout;
     }
 
     @Override
-    protected void readPage() {
-        final RecordSet recordSet;
-        try {
-            recordSet = graph.getBaseGraph().queryPartitions(policy, statement, filter);
-        } catch (final AerospikeGraphException e) {
-            signalError("Failed to read index: " + e.getMessage(), e);
-            return;
-        }
-
+    protected void readPage() throws InterruptedException {
+        final RecordSet recordSet = graph.getBaseGraph().queryPartitions(policy, statement, filter);
         final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
-        try (final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close,
-                policy.totalTimeout == 0 ? policy.socketTimeout : policy.totalTimeout)) {
+        try (final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close, timeout)) {
             pageQueue.put(new Page(pi));
             while (recordSetIterator.hasNext()) {
                 pi.add(recordSetIterator.next());
             }
-        } catch (final InterruptedException | TraversalInterruptedException e) {
-            throw new TraversalInterruptedException();
-        } catch (final Exception e) {
-            signalError("Encountered exception while attempting to read index: " + e.getMessage(), e);
         }
     }
 }

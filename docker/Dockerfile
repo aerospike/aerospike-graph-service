@@ -13,7 +13,8 @@ RUN apk add --no-cache --update \
     xz \
     tar \
     bash \
-    openjdk11-jdk
+    openjdk11-jdk \
+    dos2unix
 
 COPY ${FIREFLY_GRAPH} /opt/firefly-graph.jar
 COPY ${BULKLOADER} /opt/bulk-loader.jar
@@ -37,15 +38,8 @@ RUN apk del xz tar
 
 WORKDIR /opt
 
-# Make gremlin-server-docker.sh runnable and make files in config dir read/write/executable.
-RUN chmod +x scripts/gremlin-server-docker.sh
-RUN chmod +x scripts/firefly-server.sh
-RUN chmod -R 777 $CONF_DIR
-
-# Add user firefly.
-RUN addgroup -S firefly && adduser -S -s /bin/false -G firefly firefly
-RUN chown firefly:firefly -R /opt
-
+# For Windows users fix for line endings
+RUN dos2unix /opt/scripts/gremlin-server-docker.sh /opt/scripts/firefly-server.sh
 
 FROM alpine AS main
 
@@ -60,6 +54,11 @@ RUN apk add --no-cache --update \
     python3
 
 WORKDIR /opt
+
+# Make gremlin-server-docker.sh runnable and make files in config dir read/write/executable.
+RUN chmod +x scripts/gremlin-server-docker.sh
+RUN chmod +x scripts/firefly-server.sh
+RUN chmod -R 777 $CONF_DIR
 
 HEALTHCHECK CMD ls /tmp/firefly-ready
 

@@ -258,6 +258,12 @@ public abstract class PageFetcher<E> {
     public void shutdown() {
         // Signal to readLoopExecutor that it needs to shut down.
         readLoopExecutorService.shutdown();
+        try {
+            if (!readLoopExecutorService.awaitTermination(25, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                readLoopExecutorService.shutdownNow();
+            }
+        } catch (final InterruptedException e) {
+        }
     }
 
     protected void signalError(final String error) {

@@ -97,7 +97,8 @@ def fetch_dependencies():
 
 def build_jars(build_args):
     if not build_args.stripped:
-        run_command("mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -DskipTests=true clean install "
+        run_command(
+            "mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -DskipTests=true clean install "
             "--no-transfer-progress")
     else:
         run_command("mvn -pl aerospike-graph-gremlin -am -DskipTests=true clean install --no-transfer-progress")
@@ -117,8 +118,10 @@ def build_docker(build_args):
     # See https://gabrieldemarmiesse.github.io/python-on-whales/sub-commands/buildx/ for help.
     docker_file = "docker/Dockerfile" if not build_args.stripped else "docker/Dockerfile-stripped"
     docker.buildx.build(".", build_args=docker_build_args, build_contexts={}, builder=None,
-                        cache=True, cache_from=None, cache_to=None, file="docker/Dockerfile", labels={}, load=False, network=None,
-                        output={}, platforms=build_args.platforms, progress='auto', provenance=None, pull=False, push=build_args.push, sbom=None,
+                        cache=True, cache_from=None, cache_to=None, file="docker/Dockerfile", labels={}, load=False,
+                        network=None,
+                        output={}, platforms=build_args.platforms, progress='auto', provenance=None, pull=False,
+                        push=build_args.push, sbom=None,
                         secrets=[], ssh=None, tags=[build_args.output_tag], target=None, stream_logs=False)
 
 

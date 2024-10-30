@@ -123,7 +123,8 @@ public abstract class PageFetcher<E> {
     public class PageIterator implements CloseableIterator<E> {
         private static final String NO_ERROR = "";
         private static final String INDEX_DROPPED = "INDEX_DROPPED";
-        private CloseableIterator<KeyRecord> currentIterator = FireflyCloseableIterator.EmptyCloseableIterator.instance();;
+        private CloseableIterator<KeyRecord> currentIterator = FireflyCloseableIterator.EmptyCloseableIterator.instance();
+        ;
         private boolean isEmpty = false;
         private boolean isClosed = false;
         private String errorMessage = NO_ERROR;
@@ -258,11 +259,14 @@ public abstract class PageFetcher<E> {
     public void shutdown() {
         // Signal to readLoopExecutor that it needs to shut down.
         readLoopExecutorService.shutdown();
-        try {
-            if (!readLoopExecutorService.awaitTermination(25, java.util.concurrent.TimeUnit.MILLISECONDS)) {
-                readLoopExecutorService.shutdownNow();
+        if (graph.getBaseGraph().PAGINATION_SHUTDOWN_WAIT != 0) {
+            try {
+                if (!readLoopExecutorService.awaitTermination(graph.getBaseGraph().PAGINATION_SHUTDOWN_WAIT,
+                        java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                    readLoopExecutorService.shutdownNow();
+                }
+            } catch (final InterruptedException e) {
             }
-        } catch (final InterruptedException e) {
         }
     }
 

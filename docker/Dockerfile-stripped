@@ -1,8 +1,7 @@
-FROM eclipse-temurin:17-jre-alpine AS build
+FROM alpine AS build
 
 # Set input arguments.
 ARG FIREFLY_GRAPH
-ARG BULKLOADER
 
 # Set environment variables.
 ENV CONF_DIR="/opt/conf"
@@ -10,19 +9,18 @@ ENV CONF_DIR="/opt/conf"
 RUN apk add --no-cache --update bash dos2unix
 
 COPY ${FIREFLY_GRAPH} /opt/firefly-graph.jar
-COPY ${BULKLOADER} /opt/bulk-loader.jar
-
-# Add scripts to container.
+COPY conf/docker-default/flattened-default-gremlin-server.yaml $CONF_DIR/flattened-default-gremlin-server.yaml
 COPY docker-runtime-scripts /opt/scripts
+
+WORKDIR /opt
+
 # For Windows users fix for line endings
 RUN dos2unix /opt/scripts/gremlin-server-docker.sh /opt/scripts/firefly-server.sh && apk del dos2unix
-
-COPY conf/docker-default/flattened-default-gremlin-server.yaml $CONF_DIR/flattened-default-gremlin-server.yaml
 
 # Add firefly logback config to container.
 COPY conf/logback.xml $CONF_DIR/logback.xml
 
-FROM eclipse-temurin:17-jre-alpine AS main
+FROM alpine AS build
 
 # Set environment variables.
 ENV CONF_DIR="/opt/conf"

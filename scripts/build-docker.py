@@ -16,6 +16,7 @@ class BuildArguments:
         self.output_tag = None
         self.platforms = []
         self.push = False
+        self.stripped = False
 
     def set_output_tag(self, output_tag):
         self.output_tag = output_tag
@@ -26,13 +27,17 @@ class BuildArguments:
     def set_push(self, push):
         self.push = push
 
+    def set_stripped(self, stripped):
+        self.stripped = stripped
+
     def __str__(self):
-        return f"output_tag: {self.output_tag}, platforms: {self.platforms}, push: {self.push}"
+        return f"output_tag: {self.output_tag}, platforms: {self.platforms}, push: {self.push}, stripped: {self.stripped}"
 
 
 def main():
     build_args = parse_args()
-    fetch_dependencies()
+    if not build_args.stripped:
+        fetch_dependencies()
     build_jars()
     build_docker(build_args)
 
@@ -41,7 +46,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_tag", help="The tag to apply to the output image")
     parser.add_argument("--platforms", nargs="*", help="The platforms to build the image for")
-    parser.add_argument("--push", action="store_true", help="Push the image to the registry")
+    parser.add_argument("--push", action="push", help="Push the image to the registry")
+    parser.add_argument("--stripped", action="stripped", help="Strip the image")
     build_args = BuildArguments()
     args = parser.parse_args()
     if args.output_tag is None or len(args.output_tag) == 0:
@@ -56,6 +62,7 @@ def parse_args():
         print("No platform provided, defaulting to linux/arm64 build.")
         build_args.add_platform("linux/amd64")
     build_args.set_push(args.push)
+    build_args.set_stripped(args.stripped)
     print(build_args)
     for platform in build_args.platforms:
         if platform not in ["linux/amd64", "linux/arm64"]:
@@ -89,9 +96,12 @@ def fetch_dependencies():
         print(f"{SPARK_ZIP} already exists, skipping download.")
 
 
-def build_jars():
-    run_command("mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -DskipTests=true clean install "
-       "--no-transfer-progress")
+def build_jars(build_args):
+    if not build_args.stripped:
+        run_command("mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -DskipTests=true clean install "
+            "--no-transfer-progress")
+    else:
+        run_command("mvn -pl aerospike-graph-gremlin -am -DskipTests=true clean install --no-transfer-progress")
     pass
 
 
@@ -102,8 +112,11 @@ def build_docker(build_args):
         "BULKLOADER": BULK_LOADER_JAR,
         "SPARK_ZIP": SPARK_ZIP,
         "SPARK_VERSION": SPARK_VERSION
+    } if not build_args.stripped else {
+        "FIREFLY_GRAPH": GRAPH_JAR
     }
     # See https://gabrieldemarmiesse.github.io/python-on-whales/sub-commands/buildx/ for help.
+    docker_file = "docker/Dockerfile" if not build_args.stripped else "docker/Dockerfile-stripped
     docker.buildx.build(".", build_args=docker_build_args, build_contexts={}, builder=None,
                         cache=True, cache_from=None, cache_to=None, file="docker/Dockerfile", labels={}, load=False, network=None,
                         output={}, platforms=build_args.platforms, progress='auto', provenance=None, pull=False, push=build_args.push, sbom=None,

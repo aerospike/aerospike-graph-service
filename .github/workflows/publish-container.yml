@@ -113,8 +113,8 @@ jobs:
   
             # Switch back to 1.
             export EXTRA_BUILD_ARGS="--build-arg RELEASE_BUILD=0"
-            python3 scripts/build-docker.py $OUTPUT_IMAGE --platforms linux/amd64 --push
-            python3 scripts/build-docker.py $DOCKER_IMAGE --platforms linux/amd64 --push
+            python3 scripts/build-docker.py --tag $OUTPUT_IMAGE --platforms linux/amd64 --push
+            python3 scripts/build-docker.py --tag $DOCKER_IMAGE --platforms linux/amd64 --push
           else
             DOCKER_IMAGE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME:unstable
             DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')

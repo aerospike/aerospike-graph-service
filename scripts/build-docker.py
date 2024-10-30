@@ -12,13 +12,13 @@ SPARK_ZIP = "spark-{}.tgz".format(SPARK_VERSION)
 
 class BuildArguments:
     def __init__(self):
-        self.output_tag = None
+        self.tag = None
         self.platforms = []
         self.push = False
         self.stripped = False
 
-    def set_output_tag(self, output_tag):
-        self.output_tag = output_tag
+    def set_tag(self, tag):
+        self.tag = tag
 
     def add_platform(self, platform):
         self.platforms.append(platform)
@@ -30,30 +30,30 @@ class BuildArguments:
         self.stripped = stripped
 
     def __str__(self):
-        return f"output_tag: {self.output_tag}, platforms: {self.platforms}, push: {self.push}, stripped: {self.stripped}"
+        return f"tag: {self.tag}, platforms: {self.platforms}, push: {self.push}, stripped: {self.stripped}"
 
 
 def main():
     build_args = parse_args()
     if not build_args.stripped:
         fetch_dependencies()
-    build_jars()
+    build_jars(build_args)
     build_docker(build_args)
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output_tag", help="The tag to apply to the output image")
+    parser.add_argument("--tag", help="The tag to apply to the output image")
     parser.add_argument("--platforms", nargs="*", help="The platforms to build the image for")
     parser.add_argument("--push", action="store_true", help="Push the image to the registry")
     parser.add_argument("--stripped", action="store_true", help="Strip the image")
     build_args = BuildArguments()
     args = parser.parse_args()
-    if args.output_tag is None or len(args.output_tag) == 0:
-        print("Output tag is required")
+    if args.tag is None or len(args.tag) == 0:
+        print("tag is required")
         parser.print_help()
         sys.exit(1)
-    build_args.set_output_tag(args.output_tag)
+    build_args.set_tag(args.tag)
     if args.platforms is not None:
         for platform in args.platforms:
             build_args.add_platform(platform)
@@ -116,13 +116,13 @@ def build_docker(build_args):
         "FIREFLY_GRAPH": GRAPH_JAR
     }
     # See https://gabrieldemarmiesse.github.io/python-on-whales/sub-commands/buildx/ for help.
-    docker_file = "docker/Dockerfile" if not build_args.stripped else "docker/Dockerfile-stripped"
+    docker_file = "docker/Dockerfile-stripped" if build_args.stripped else "docker/Dockerfile"
     docker.buildx.build(".", build_args=docker_build_args, build_contexts={}, builder=None,
-                        cache=True, cache_from=None, cache_to=None, file="docker/Dockerfile", labels={}, load=False,
+                        cache=True, cache_from=None, cache_to=None, file=docker_file, labels={}, load=False,
                         network=None,
                         output={}, platforms=build_args.platforms, progress='auto', provenance=None, pull=False,
                         push=build_args.push, sbom=None,
-                        secrets=[], ssh=None, tags=[build_args.output_tag], target=None, stream_logs=False)
+                        secrets=[], ssh=None, tags=[build_args.tag], target=None, stream_logs=False)
 
 
 if __name__ == "__main__":

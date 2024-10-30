@@ -6,7 +6,7 @@ ARG FIREFLY_GRAPH
 # Set environment variables.
 ENV CONF_DIR="/opt/conf"
 
-RUN apk add --no-cache --update bash dos2unix
+RUN apk add --no-cache --update bash dos2unix openjdk11-jdk
 
 COPY ${FIREFLY_GRAPH} /opt/firefly-graph.jar
 COPY conf/docker-default/flattened-default-gremlin-server.yaml $CONF_DIR/flattened-default-gremlin-server.yaml

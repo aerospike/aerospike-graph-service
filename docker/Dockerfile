@@ -18,14 +18,14 @@ RUN apk add --no-cache --update \
 
 COPY ${FIREFLY_GRAPH} /opt/firefly-graph.jar
 COPY ${BULKLOADER} /opt/bulk-loader.jar
-COPY ${SPARK_ZIP} /opt/spark.zip
+COPY ${SPARK_ZIP} /opt/spark.tgz
 COPY conf/logback.xml ${CONF_DIR}/logback.xml
 COPY conf/docker-default/flattened-default-gremlin-server.yaml ${CONF_DIR}/flattened-default-gremlin-server.yaml
 COPY docker-runtime-scripts /opt/scripts
 
 
 RUN echo "extracting spark archives"
-RUN tar zxvf /opt/spark.zip -C /opt/ &&\
+RUN tar zxvf /opt/spark.tgz -C /opt/ &&\
     mv /opt/spark-${SPARK_VERSION}-bin-hadoop3/jars /opt/spark
 
 # remove spark archive and unused pieces

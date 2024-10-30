@@ -34,8 +34,7 @@ public class TestDockerConfigs {
 
     @Test
     public void testMultiTenantSettingsEmpty() throws InterruptedException {
-        final String[] environmentVariables = new String[]{
-                "aerospike.client.host=172.17.0.1:3000"};
+        final String[] environmentVariables = new String[]{"aerospike.client.host=172.17.0.1:3000"};
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundMsg0 = false;
@@ -95,6 +94,78 @@ public class TestDockerConfigs {
             }
         }
         Assert.assertTrue(foundMsg);
+    }
+
+    @Test
+    public void testValidMetricConfiguration() throws InterruptedException {
+        final String[] environmentVariables = new String[]{
+                "aerospike.client.host=172.17.0.1:3000",
+                "aerospike.graph-service.metrics.slf4jReporter.interval=170000",
+                "aerospike.graph-service.metrics.csvReporter.enabled=false"
+        };
+        final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
+        final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
+        // Maybe there's a better way to do this, but for now this will suffice...
+        int linesUntilEnableCheck = Integer.MAX_VALUE;
+        int linesUntilIntervalCheck = Integer.MAX_VALUE;
+        boolean foundEnable = false;
+        boolean foundInterval = false;
+        for (final String line : log) {
+            System.out.println(line);
+            if (line.contains("csvReporter: {")) {
+                linesUntilEnableCheck = 1;
+            } else if (line.contains("slf4jReporter: {")) {
+                linesUntilIntervalCheck = 2;
+            }
+
+            if (linesUntilEnableCheck == 0 && line.contains("enabled: false")) {
+                foundEnable = true;
+            }
+            if (linesUntilIntervalCheck == 0 && line.contains("interval: 170000")) {
+                foundInterval = true;
+            }
+            linesUntilEnableCheck--;
+            linesUntilIntervalCheck--;
+        }
+        Assert.assertTrue(foundEnable && foundInterval);
+    }
+
+    @Test
+    public void testInvalidMetricType() throws InterruptedException {
+        final String[] environmentVariables = new String[]{
+                "aerospike.client.host=172.17.0.1:3000",
+                "aerospike.graph-service.metrics.simonReporter.interval=170000"
+        };
+        final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
+        final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
+        boolean foundErrorMsg = false;
+        for (final String line : log) {
+            System.out.println(line);
+            if (line.contains("simonReporter is not a valid metrics type.")) {
+                foundErrorMsg = true;
+                break;
+            }
+        }
+        Assert.assertTrue(foundErrorMsg);
+    }
+
+    @Test
+    public void testInvalidMetricConfigKey() throws InterruptedException {
+        final String[] environmentVariables = new String[]{
+                "aerospike.client.host=172.17.0.1:3000",
+                "aerospike.graph-service.metrics.slf4jReporter.simon=over9000"
+        };
+        final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
+        final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
+        boolean foundErrorMsg = false;
+        for (final String line : log) {
+            System.out.println(line);
+            if (line.contains("simon is not a valid configuration for metrics of type slf4jReporter.")) {
+                foundErrorMsg = true;
+                break;
+            }
+        }
+        Assert.assertTrue(foundErrorMsg);
     }
 
     @After

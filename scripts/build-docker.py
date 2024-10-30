@@ -35,9 +35,9 @@ class BuildArguments:
 
 def main():
     build_args = parse_args()
+    build_jars(build_args)
     if not build_args.stripped:
         fetch_dependencies()
-    build_jars(build_args)
     build_docker(build_args)
 
 

@@ -415,7 +415,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          bash -x scripts/build-docker-stripped.sh aerospike/firefly linux/amd64
+          python3 ./scripts/build-docker.py --tags aerospike/firefly --stripped
           
           docker run -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/custom/ \

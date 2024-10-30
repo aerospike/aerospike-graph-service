@@ -1,6 +1,5 @@
 import os, sys, subprocess
 import argparse
-import requests
 from python_on_whales import docker
 
 GRAPH_JAR = "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.4.0-SNAPSHOT.jar"
@@ -46,8 +45,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_tag", help="The tag to apply to the output image")
     parser.add_argument("--platforms", nargs="*", help="The platforms to build the image for")
-    parser.add_argument("--push", action="push", help="Push the image to the registry")
-    parser.add_argument("--stripped", action="stripped", help="Strip the image")
+    parser.add_argument("--push", action="store_true", help="Push the image to the registry")
+    parser.add_argument("--stripped", action="store_true", help="Strip the image")
     build_args = BuildArguments()
     args = parser.parse_args()
     if args.output_tag is None or len(args.output_tag) == 0:
@@ -116,7 +115,7 @@ def build_docker(build_args):
         "FIREFLY_GRAPH": GRAPH_JAR
     }
     # See https://gabrieldemarmiesse.github.io/python-on-whales/sub-commands/buildx/ for help.
-    docker_file = "docker/Dockerfile" if not build_args.stripped else "docker/Dockerfile-stripped
+    docker_file = "docker/Dockerfile" if not build_args.stripped else "docker/Dockerfile-stripped"
     docker.buildx.build(".", build_args=docker_build_args, build_contexts={}, builder=None,
                         cache=True, cache_from=None, cache_to=None, file="docker/Dockerfile", labels={}, load=False, network=None,
                         output={}, platforms=build_args.platforms, progress='auto', provenance=None, pull=False, push=build_args.push, sbom=None,

@@ -309,8 +309,7 @@ public final class ConfigurationHelper {
             Keys.PHAT_EDGE_SIZE, // Calculating the PK wouldn't work
             Keys.FIREFLY_DATA_MODEL,
             Keys.SUMMARY_ENABLED_FLAG, // Inaccurate and therefore useless if toggled
-            Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY,
-            Keys.GLOBAL_EDGE_CACHE_ENABLED
+            Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY
     );
 
     private static final Map<Object, String> defaultValues = new HashMap<>() {{

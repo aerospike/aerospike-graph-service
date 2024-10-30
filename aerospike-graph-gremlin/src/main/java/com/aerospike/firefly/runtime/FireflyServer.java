@@ -1,6 +1,8 @@
 package com.aerospike.firefly.runtime;
 
+import com.aerospike.firefly.runtime.metrics.ServerMetrics;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.ReflectionHelper;
 import com.aerospike.firefly.util.WarmupUtil;
 import org.apache.tinkerpop.gremlin.groovy.engine.GremlinExecutor;
 import org.apache.tinkerpop.gremlin.server.GraphManager;
@@ -10,7 +12,6 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Field;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -26,6 +27,7 @@ public class FireflyServer {
     private final String confPath;
     private CompletableFuture<Void> serverStarted = null;
     private CompletableFuture<Void> serverStopped = null;
+    private ServerMetrics serverMetrics;
 
     public FireflyServer(final String file) {
         confPath = file;
@@ -57,7 +59,8 @@ public class FireflyServer {
         }
         serverStarted = new CompletableFuture<>();
         try {
-            Settings settings = Settings.read(confPath);
+            final Settings settings = Settings.read(confPath);
+
             gremlinServer = new GremlinServer(settings);
             serverStarted = CompletableFuture.allOf(gremlinServer.start());
 
@@ -90,9 +93,10 @@ public class FireflyServer {
 
             // workaround to set TraversalSource's for script engines
             final GremlinExecutor gremlinExecutor = gremlinServer.getServerGremlinExecutor().getGremlinExecutor();
-            final Field globalBindings = GremlinExecutor.class.getDeclaredField("globalBindings");
-            globalBindings.setAccessible(true);
-            globalBindings.set(gremlinExecutor, graphManager.getAsBindings());
+            ReflectionHelper.setFieldValue(gremlinExecutor, "globalBindings", graphManager.getAsBindings());
+
+            serverMetrics = new ServerMetrics(gremlinServer);
+            serverMetrics.start();
         } catch (Exception ex) {
             serverStarted.completeExceptionally(ex);
         }
@@ -106,6 +110,11 @@ public class FireflyServer {
         if (serverStopped != null) {
             return serverStopped;
         }
+        if (serverMetrics != null) {
+            serverMetrics.shutDown();
+            serverMetrics = null;
+        }
+
         serverStopped = gremlinServer.stop();
         return serverStopped;
     }

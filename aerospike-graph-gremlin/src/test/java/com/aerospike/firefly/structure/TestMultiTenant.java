@@ -1,6 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.runtime.FireflyServer;
+import com.aerospike.firefly.util.ReflectionHelper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
@@ -19,7 +20,6 @@ import org.junit.Test;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
@@ -36,9 +36,7 @@ public class TestMultiTenant {
         server = FireflyServer.start(new String[]{"../conf/firefly-gremlin-server-multi-tenant.yaml"});
 
         // temporary solution to init modern graph
-        final Field f = FireflyServer.class.getDeclaredField("gremlinServer");
-        f.setAccessible(true);
-        final GremlinServer gremlinServer = (GremlinServer) f.get(server);
+        final GremlinServer gremlinServer = (GremlinServer) ReflectionHelper.getFieldValue(server, "gremlinServer");
         final GraphManager graphManager = gremlinServer.getServerGremlinExecutor().getGraphManager();
         final Graph graph = graphManager.getGraph("modern");
 

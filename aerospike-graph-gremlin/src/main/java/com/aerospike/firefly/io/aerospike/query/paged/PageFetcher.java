@@ -226,7 +226,23 @@ public abstract class PageFetcher<E> {
         public void close() {
             if (!isClosed) {
                 isClosed = true;
+                pageQueue.forEach(page -> {
+                    if (!(page instanceof ErrorPage || page instanceof PoisonPill)) {
+                        if (page.keyRecords != null) {
+                            page.keyRecords.close();
+                        }
+                    }
+                });
                 shutdown();
+                if (graph.getBaseGraph().PAGINATION_SHUTDOWN_WAIT != 0) {
+                    try {
+                        if (!readLoopExecutorService.awaitTermination(graph.getBaseGraph().PAGINATION_SHUTDOWN_WAIT,
+                                java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                            readLoopExecutorService.shutdownNow();
+                        }
+                    } catch (final InterruptedException e) {
+                    }
+                }
 
                 // Clean up any remaining pages.
                 if (currentIterator != null) {
@@ -260,15 +276,6 @@ public abstract class PageFetcher<E> {
     public void shutdown() {
         // Signal to readLoopExecutor that it needs to shut down.
         readLoopExecutorService.shutdown();
-        if (graph.getBaseGraph().PAGINATION_SHUTDOWN_WAIT != 0) {
-            try {
-                if (!readLoopExecutorService.awaitTermination(graph.getBaseGraph().PAGINATION_SHUTDOWN_WAIT,
-                        java.util.concurrent.TimeUnit.MILLISECONDS)) {
-                    readLoopExecutorService.shutdownNow();
-                }
-            } catch (final InterruptedException e) {
-            }
-        }
     }
 
     protected void signalError(final String error) {

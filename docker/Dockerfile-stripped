@@ -20,7 +20,7 @@ RUN dos2unix /opt/scripts/gremlin-server-docker.sh /opt/scripts/firefly-server.s
 # Add firefly logback config to container.
 COPY conf/logback.xml $CONF_DIR/logback.xml
 
-FROM alpine AS build
+FROM alpine AS main
 
 # Set environment variables.
 ENV CONF_DIR="/opt/conf"

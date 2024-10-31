@@ -2,6 +2,7 @@ import os, sys, subprocess
 import argparse
 from python_on_whales import docker
 
+# TODO: These need to be dynamic.
 GRAPH_JAR = "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.4.0-SNAPSHOT.jar"
 BULK_LOADER_JAR = "aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.4.0-SNAPSHOT.jar"
 SPARK_VERSION = "3.4.1"
@@ -16,6 +17,10 @@ class BuildArguments:
         self.platforms = []
         self.push = False
         self.slim = False
+        self.use_local = False
+
+    def set_use_local(self, use_local):
+        self.use_local = use_local
 
     def set_tags(self, tags):
         self.tags = tags
@@ -30,12 +35,13 @@ class BuildArguments:
         self.slim = slim
 
     def __str__(self):
-        return f"tags: {self.tags}, platforms: {self.platforms}, push: {self.push}, slim: {self.slim}"
+        return f"tags: {self.tags}, platforms: {self.platforms}, push: {self.push}, slim: {self.slim}, use_local: {self.use_local}"
 
 
 def main():
     build_args = parse_args()
-    build_jars(build_args)
+    if not build_args.use_local:
+        build_jars(build_args)
     if not build_args.slim:
         fetch_dependencies()
     build_docker(build_args)
@@ -47,6 +53,7 @@ def parse_args():
     parser.add_argument("--platforms", nargs="*", help="The platforms to build the image for")
     parser.add_argument("--push", action="store_true", help="Push the image to the registry")
     parser.add_argument("--slim", action="store_true", help="Slim image")
+    parser.add_argument("--use_local", action="store_true", help="Use local jars")
     build_args = BuildArguments()
     args = parser.parse_args()
     if args.tags is None or len(args.tags) == 0:
@@ -62,6 +69,7 @@ def parse_args():
         build_args.add_platform("linux/amd64")
     build_args.set_push(args.push)
     build_args.set_slim(args.slim)
+    build_args.set_use_local(args.use_local)
     print(build_args)
     for platform in build_args.platforms:
         if platform not in ["linux/amd64", "linux/arm64"]:

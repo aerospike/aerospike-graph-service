@@ -35,7 +35,7 @@ jobs:
         with:
           maven-version: 3.9.5
 
-      - name: Build Bulk Loader
+      - name: Build Firefly and Bulk Loader
         run: |
           mvn clean install -DskipTests
 
@@ -96,6 +96,10 @@ jobs:
           mv artifact/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
           mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
           
+          # Copy
+          cp aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar aerospike-graph-gremlin/target/
+          cp aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
   
@@ -112,5 +116,5 @@ jobs:
           DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
           
           echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
-          python3 scripts/build-docker.py --tags $DOCKER_IMAGE $OUTPUT_IMAGE --platforms linux/amd64 --push
+          python3 scripts/build-docker.py --tags $DOCKER_IMAGE $OUTPUT_IMAGE --platforms linux/amd64 --push --use_local
           echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV

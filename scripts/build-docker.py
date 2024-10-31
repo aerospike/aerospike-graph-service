@@ -122,8 +122,10 @@ def build_docker(build_args):
                         file=docker_file,
                         output={"type" : "oci"},
                         platforms=build_args.platforms,
+                        load=True,
                         push=build_args.push,
                         tags=build_args.tags)
+    docker.load
 
 
 if __name__ == "__main__":

@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TRAVERSAL_NAME;
+
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  *
@@ -71,7 +73,7 @@ public class FireflyServer {
             final Set<String> graphs = graphManager.getGraphNames();
             for (final String graphName : graphs) {
                 final Graph graph = graphManager.getGraph(graphName);
-                String gts = graph.configuration().getString("aerospike.graph.traversal");
+                String gts = graph.configuration().getString(TRAVERSAL_NAME);
                 if (gts == null) {
                     // default gts for default graph
                     if (graphName.equals("graph"))

@@ -13,7 +13,6 @@ RUN apk add --no-cache --update \
     xz \
     tar \
     bash \
-    openjdk11-jdk \
     dos2unix
 
 COPY ${FIREFLY_GRAPH} /opt/firefly-graph.jar
@@ -22,7 +21,6 @@ COPY ${SPARK_ZIP} /opt/spark.tgz
 COPY conf/logback.xml ${CONF_DIR}/logback.xml
 COPY conf/docker-default/flattened-default-gremlin-server.yaml ${CONF_DIR}/flattened-default-gremlin-server.yaml
 COPY docker-runtime-scripts /opt/scripts
-
 
 RUN echo "extracting spark archives"
 RUN tar zxvf /opt/spark.tgz -C /opt/ &&\
@@ -51,6 +49,7 @@ COPY --from=build /opt /opt
 
 RUN apk add --no-cache --update \
     bash \
+    openjdk11-jdk \
     python3
 
 WORKDIR /opt

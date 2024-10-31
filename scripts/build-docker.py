@@ -12,13 +12,13 @@ SPARK_ZIP = "spark-{}.tgz".format(SPARK_VERSION)
 
 class BuildArguments:
     def __init__(self):
-        self.tag = None
+        self.tags = None
         self.platforms = []
         self.push = False
         self.stripped = False
 
-    def set_tag(self, tag):
-        self.tag = tag
+    def set_tags(self, tags):
+        self.tags = tags
 
     def add_platform(self, platform):
         self.platforms.append(platform)
@@ -30,7 +30,7 @@ class BuildArguments:
         self.stripped = stripped
 
     def __str__(self):
-        return f"tag: {self.tag}, platforms: {self.platforms}, push: {self.push}, stripped: {self.stripped}"
+        return f"tags: {self.tags}, platforms: {self.platforms}, push: {self.push}, stripped: {self.stripped}"
 
 
 def main():
@@ -43,17 +43,17 @@ def main():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--tag", help="The tag to apply to the output image")
+    parser.add_argument("--tags", nargs="*", help="The tags to apply to the output image")
     parser.add_argument("--platforms", nargs="*", help="The platforms to build the image for")
     parser.add_argument("--push", action="store_true", help="Push the image to the registry")
     parser.add_argument("--stripped", action="store_true", help="Strip the image")
     build_args = BuildArguments()
     args = parser.parse_args()
-    if args.tag is None or len(args.tag) == 0:
-        print("tag is required")
+    if args.tags is None or len(args.tags) == 0:
+        print("tags is required")
         parser.print_help()
         sys.exit(1)
-    build_args.set_tag(args.tag)
+    build_args.set_tags(args.tags)
     if args.platforms is not None:
         for platform in args.platforms:
             build_args.add_platform(platform)
@@ -117,12 +117,14 @@ def build_docker(build_args):
     }
     # See https://gabrieldemarmiesse.github.io/python-on-whales/sub-commands/buildx/ for help.
     docker_file = "docker/Dockerfile-stripped" if build_args.stripped else "docker/Dockerfile"
-    docker.buildx.build(".", build_args=docker_build_args, build_contexts={}, builder=None,
-                        cache=True, cache_from=None, cache_to=None, file=docker_file, labels={}, load=False,
-                        network=None,
-                        output={}, platforms=build_args.platforms, progress='auto', provenance=None, pull=False,
-                        push=build_args.push, sbom=None,
-                        secrets=[], ssh=None, tags=[build_args.tag], target=None, stream_logs=False)
+    docker.buildx.build(".",
+                        build_args=docker_build_args,
+                        build_contexts={},
+                        file=docker_file,
+                        output={"type" : "docker"},
+                        platforms=build_args.platforms,
+                        push=build_args.push,
+                        tags=build_args.tags)
 
 
 if __name__ == "__main__":

@@ -49,7 +49,7 @@ COPY --from=build /opt /opt
 
 RUN apk add --no-cache --update \
     bash \
-    openjdk11-jdk \
+    openjdk17-jdk \
     python3
 
 WORKDIR /opt

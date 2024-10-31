@@ -19,7 +19,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
 
     # handle graph names before everything.
     for key, value in os.environ.items():
-        if key.lower() == "aerospike.graph-service.named-graphs":
+        if key.lower() == "aerospike.graph-service.graphs":
             named_graphs = list(map(str.strip, value.split(",")))
 
     try:
@@ -31,7 +31,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
             # no named graphs from environment variables, so let's try to search in properties file.
             if len(named_graphs) == 0:
                 for line in lines:
-                    if line.startswith("aerospike.graph-service.named-graphs") and "=" in line:
+                    if line.startswith("aerospike.graph-service.graphs") and "=" in line:
                         named_graphs = list(map(str.strip, (line.split("=")[1]).split(",")))
 
             for line in lines:
@@ -39,7 +39,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
                     continue
                 if not "=" in line:
                     invalid.append(line)
-                elif line.startswith("aerospike.graph-service.named-graphs"):
+                elif line.startswith("aerospike.graph-service.graphs"):
                     continue
                 elif line.startswith("aerospike.graph-service.heap.max"):
                     java_options_max_heap = line
@@ -74,7 +74,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
     print("Found named graphs: " + str(named_graphs))
 
     for key, value in os.environ.items():
-        if key.lower() == "aerospike.graph-service.named-graphs":
+        if key.lower() == "aerospike.graph-service.graphs":
             continue
         elif key.startswith("aerospike.graph-service.heap.max"):
             java_options_max_heap = f"{key}={value}"

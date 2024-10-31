@@ -465,7 +465,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         }
 
         final FireflyElementMetadata fireflyElementMetadata = getFireflyStatistics();
-        LOG.info("Graph summary ticker:\n" + PRETTY_PRINT_FORMAT_LOG,
+        LOG.info("Graph summary ticker for " + db.GRAPH_ID + ":\n" + PRETTY_PRINT_FORMAT_LOG,
                 fireflyElementMetadata.totalVertexCount(),
                 fireflyElementMetadata.vertexCountByLabel(),
                 fireflyElementMetadata.vertexPropertiesByLabel(),

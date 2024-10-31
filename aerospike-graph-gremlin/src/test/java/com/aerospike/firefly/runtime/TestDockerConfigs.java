@@ -57,7 +57,7 @@ public class TestDockerConfigs {
     public void testMultiTenantSettingsWithEnvVariables() throws InterruptedException {
         final String[] environmentVariables = new String[]{
                 "aerospike.client.host=172.17.0.1:3000",
-                "aerospike.graph-service.named-graphs=graph,modern"};
+                "aerospike.graph-service.graphs=graph,modern"};
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundMsg0 = false;
@@ -83,7 +83,7 @@ public class TestDockerConfigs {
     public void testGraphNameValidation() throws InterruptedException {
         final String[] environmentVariables = new String[]{
                 "aerospike.client.host=172.17.0.1:3000",
-                "aerospike.graph-service.named-graphs=graph,modern!"};
+                "aerospike.graph-service.graphs=graph,modern!"};
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundMsg = false;

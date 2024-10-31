@@ -125,7 +125,6 @@ def build_docker(build_args):
                         load=True,
                         push=build_args.push,
                         tags=build_args.tags)
-    docker.load
 
 
 if __name__ == "__main__":

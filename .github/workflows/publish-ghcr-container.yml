@@ -113,4 +113,5 @@ jobs:
           
           echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
           python3 scripts/build-docker.py --tags $DOCKER_IMAGE $OUTPUT_IMAGE --platforms linux/arm64 linux/amd64 linux/arm64 --push
+          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-slim ${OUTPUT_IMAGE}-slim --platforms linux/arm64 linux/amd64 linux/arm64 --push --slim
           echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV

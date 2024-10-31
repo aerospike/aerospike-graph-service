@@ -416,7 +416,7 @@ jobs:
         run: |
           pip3 install python_on_whales
           bash -x scripts/start_aerospike.sh
-          python3 ./scripts/build-docker.py --tags aerospike/firefly --stripped
+          python3 ./scripts/build-docker.py --tags aerospike/firefly --slim
           
           docker run -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/custom/ \

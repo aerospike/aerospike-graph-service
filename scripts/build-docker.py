@@ -102,7 +102,6 @@ def build_jars(build_args):
             "--no-transfer-progress")
     else:
         run_command("mvn -pl aerospike-graph-gremlin -am -DskipTests=true clean install --no-transfer-progress")
-    pass
 
 
 def build_docker(build_args):
@@ -121,7 +120,7 @@ def build_docker(build_args):
                         build_args=docker_build_args,
                         build_contexts={},
                         file=docker_file,
-                        output={"type" : "docker"},
+                        output={"type" : "oci"},
                         platforms=build_args.platforms,
                         push=build_args.push,
                         tags=build_args.tags)

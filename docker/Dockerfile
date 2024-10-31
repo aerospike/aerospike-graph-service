@@ -47,10 +47,7 @@ ENV OUTPUT_SERVER_YAML="$CONF_DIR/aerospike-graph-service.yaml"
 
 COPY --from=build /opt /opt
 
-RUN apk add --no-cache --update \
-    bash \
-    openjdk17-jdk \
-    python3
+RUN apk add --no-cache --update bash openjdk17-jdk python3
 
 WORKDIR /opt
 

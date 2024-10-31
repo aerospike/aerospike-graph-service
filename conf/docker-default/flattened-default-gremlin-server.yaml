@@ -15,4 +15,3 @@ resultIterationBatchSize: 64
 writeBufferLowWaterMark: 32768
 writeBufferHighWaterMark: 65536
 ssl: { enabled: false }
-metrics: { consoleReporter: {enabled: true, interval: 180000}, csvReporter: {enabled: true, interval: 180000, fileName: /tmp/gremlin-server-metrics.csv}, jmxReporter: {enabled: true}, slf4jReporter: {enabled: true, interval: 180000}}

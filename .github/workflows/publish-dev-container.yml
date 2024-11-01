@@ -57,16 +57,11 @@ jobs:
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           
-          # Strip prefixed v if it is a tag.
-          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
-          
           # Get registry URL and convert to lower case.
-          OUTPUT_IMAGE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME:$VERSION
+          OUTPUT_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev-$VERSION
           OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
-          UNSTABLE_INDICATOR="-"
-          DOCKER_IMAGE=$(if [[ $( echo $VERSION | grep -c -i $UNSTABLE_INDICATOR ) -eq 0 ]]; \
-                        then echo $GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME:latest; \
-                        else echo $GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME:unstable; fi)
+          
+          DOCKER_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev
           DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
           
           echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"

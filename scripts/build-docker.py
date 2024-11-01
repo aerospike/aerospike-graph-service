@@ -40,8 +40,8 @@ class BuildArguments:
 
 def main():
     build_args = parse_args()
-    #if not build_args.use_local:
-    #    build_jars(build_args)
+    if not build_args.use_local:
+        build_jars(build_args)
     if not build_args.slim:
         fetch_dependencies()
     graph_jar, bulk_loader_jar = find_jars()

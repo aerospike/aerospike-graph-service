@@ -80,7 +80,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Download a Jar File
+      - name: Download Jar Files
         uses: actions/download-artifact@v3
 
       - name: Publish Container

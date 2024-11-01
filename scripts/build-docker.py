@@ -6,9 +6,9 @@ from python_on_whales import docker
 GRAPH_JAR_DIRECTORY = "aerospike-graph-gremlin/target/"
 BULK_LOADER_JAR_DIRECTORY = "aerospike-graph-bulk-loader/target/"
 SPARK_VERSION = "3.4.1"
+SPARK_ZIP = "spark-{}.tgz".format(SPARK_VERSION)
 SPARK_URL = "https://archive.apache.org/dist/spark/spark-{}/spark-{}-bin-hadoop3.tgz".format(SPARK_VERSION,
                                                                                              SPARK_VERSION)
-SPARK_ZIP = "spark-{}.tgz".format(SPARK_VERSION)
 
 
 class BuildArguments:

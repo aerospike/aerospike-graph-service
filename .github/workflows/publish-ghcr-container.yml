@@ -80,7 +80,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Download a Jar File
+      - name: Download Jar Files
         uses: actions/download-artifact@v3
 
       - name: Publish Container
@@ -113,6 +113,8 @@ jobs:
           
           echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
           docker buildx create --use --driver docker-container
-          python3 scripts/build-docker.py --tags $DOCKER_IMAGE $OUTPUT_IMAGE --platforms linux/amd64 linux/arm64 --push --use_local
-          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-slim ${OUTPUT_IMAGE}-slim --platforms linux/amd64 linux/arm64 --push --slim --use_local
+          python3 scripts/build-docker.py --tags $DOCKER_IMAGE $OUTPUT_IMAGE --platforms linux/arm64 --push --use_local
+          python3 scripts/build-docker.py --tags $DOCKER_IMAGE $OUTPUT_IMAGE --platforms linux/amd64 --push --use_local
+          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-slim ${OUTPUT_IMAGE}-slim --platforms linux/arm64 --push --slim --use_local
+          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-slim ${OUTPUT_IMAGE}-slim --platforms linux/amd64 --push --slim --use_local
           echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV

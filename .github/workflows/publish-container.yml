@@ -116,5 +116,6 @@ jobs:
           DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
           
           echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
-          python3 scripts/build-docker.py --tags $DOCKER_IMAGE $OUTPUT_IMAGE --platforms linux/amd64 --push --use_local
+          docker buildx create --use --driver docker-container
+          python3 scripts/build-docker.py --tags $DOCKER_IMAGE $OUTPUT_IMAGE --platforms linux/arm64 linux/amd64 --push --use_local
           echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV

@@ -83,6 +83,10 @@ jobs:
       - name: Download Jar Files
         uses: actions/download-artifact@v3
 
+        # For multiarch builds, we need to set up QEMU.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
       - name: Publish Container
         run: |
           # Install python_on_whales.

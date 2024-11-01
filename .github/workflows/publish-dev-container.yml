@@ -40,6 +40,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
+        # For multiarch builds, we need to set up QEMU.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
       - name: Publish Container
         run: |
           pip3 install python_on_whales

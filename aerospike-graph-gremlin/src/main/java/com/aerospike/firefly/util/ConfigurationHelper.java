@@ -178,10 +178,10 @@ public final class ConfigurationHelper {
         public static final String USAGE_STATS_SET_INDEX_ENABLED = "aerospike.graph.usage.index.enabled";
         public static final String AUDIT_LOG_ENABLED = "aerospike.graph.audit.log.enabled";
 
-        public static final String EVENT_LOOP_TYPE = "aerospike.client.eventLoop.type";
-        public static final String EVENT_LOOP_COUNT = "aerospike.client.eventLoop.count";
-        public static final String COMMANDS_PER_EVENT_LOOP = "aerospike.client.eventLoop.commands";
-        public static final String DELAY_QUEUE_SIZE = "aerospike.client.delayQueue.size";
+        public static final String EVENT_LOOP_TYPE = "aerospike.client.clientPolicy.eventLoops.type";
+        public static final String EVENT_LOOP_COUNT = "aerospike.client.clientPolicy.eventLoops.size";
+        public static final String COMMANDS_PER_EVENT_LOOP = "aerospike.client.eventPolicy.maxCommandsInProcess";
+        public static final String DELAY_QUEUE_SIZE = "aerospike.client.eventPolicy.maxCommandsInQueue";
 
         // to speed up testing
         public static final String HTTP_ENABLED = "aerospike.graph.http.enabled";

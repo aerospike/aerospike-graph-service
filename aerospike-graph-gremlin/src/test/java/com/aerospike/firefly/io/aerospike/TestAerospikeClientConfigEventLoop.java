@@ -27,13 +27,13 @@ public class TestAerospikeClientConfigEventLoop {
         final Class provider = Class.forName("com.aerospike.firefly.io.aerospike.AerospikeConnection$DefaultAerospikeClientProvider");
         final Field clientField = provider.getDeclaredField("CLIENT");
 
-        config.setProperty("aerospike.client.eventLoop.type", "DIRECT_NIO");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.type", "DIRECT_NIO");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final AerospikeClient client = (AerospikeClient) clientField.get(null);
             Assert.assertTrue(client.getCluster().eventLoops instanceof NioEventLoops);
         }
 
-        config.setProperty("aerospike.client.eventLoop.type", "NETTY_NIO");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.type", "NETTY_NIO");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final AerospikeClient client = (AerospikeClient) clientField.get(null);
             Assert.assertTrue(client.getCluster().eventLoops instanceof NettyEventLoops);
@@ -42,7 +42,7 @@ public class TestAerospikeClientConfigEventLoop {
             Assert.assertEquals("NETTY_NIO", loopType.name());
         }
 
-        config.setProperty("aerospike.client.eventLoop.type", "NETTY_EPOLL");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.type", "NETTY_EPOLL");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final AerospikeClient client = (AerospikeClient) clientField.get(null);
             Assert.assertTrue(client.getCluster().eventLoops instanceof NettyEventLoops);
@@ -51,7 +51,7 @@ public class TestAerospikeClientConfigEventLoop {
             Assert.assertEquals("NETTY_EPOLL", loopType.name());
         }
 
-        config.setProperty("aerospike.client.eventLoop.type", "invalid");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.type", "invalid");
         try {
             final Method method = provider.getDeclaredMethod("connect", Configuration.class);
             method.invoke(null, config);
@@ -69,35 +69,35 @@ public class TestAerospikeClientConfigEventLoop {
         final Class provider = Class.forName("com.aerospike.firefly.io.aerospike.AerospikeConnection$DefaultAerospikeClientProvider");
         final Field clientField = provider.getDeclaredField("CLIENT");
 
-        config.setProperty("aerospike.client.eventLoop.count", "3");
-        config.setProperty("aerospike.client.eventLoop.type", "DIRECT_NIO");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.size", "3");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.type", "DIRECT_NIO");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final AerospikeClient client = (AerospikeClient) clientField.get(null);
             Assert.assertEquals(3, client.getCluster().eventLoops.getSize());
         }
 
-        config.setProperty("aerospike.client.eventLoop.count", "4");
-        config.setProperty("aerospike.client.eventLoop.type", "NETTY_NIO");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.size", "4");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.type", "NETTY_NIO");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final AerospikeClient client = (AerospikeClient) clientField.get(null);
             Assert.assertEquals(4, client.getCluster().eventLoops.getSize());
         }
 
-        config.setProperty("aerospike.client.eventLoop.count", "5");
-        config.setProperty("aerospike.client.eventLoop.type", "NETTY_EPOLL");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.size", "5");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.type", "NETTY_EPOLL");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final AerospikeClient client = (AerospikeClient) clientField.get(null);
             Assert.assertEquals(5, client.getCluster().eventLoops.getSize());
         }
 
-        config.setProperty("aerospike.client.eventLoop.count", "-1");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.size", "-1");
         try {
             final Method method = provider.getDeclaredMethod("connect", Configuration.class);
             method.invoke(null, config);
             Assert.fail("Should have failed when trying to connect with an invalid event loop count.");
         } catch (final Exception wrapper) {
             final Throwable e = wrapper.getCause();
-            Assert.assertEquals("Value provided, \"-1\", for configuration key, \"aerospike.client.eventLoop.count\", is below the minimum acceptable value, \"0\".", e.getMessage());
+            Assert.assertEquals("Value provided, \"-1\", for configuration key, \"aerospike.client.clientPolicy.eventLoops.size\", is below the minimum acceptable value, \"0\".", e.getMessage());
         }
     }
 
@@ -109,24 +109,24 @@ public class TestAerospikeClientConfigEventLoop {
         final Class provider = Class.forName("com.aerospike.firefly.io.aerospike.AerospikeConnection$DefaultAerospikeClientProvider");
         final Field clientField = provider.getDeclaredField("CLIENT");
 
-        config.setProperty("aerospike.client.eventLoop.commands", "10");
-        config.setProperty("aerospike.client.eventLoop.type", "DIRECT_NIO");
+        config.setProperty("aerospike.client.eventPolicy.maxCommandsInProcess", "10");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.type", "DIRECT_NIO");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final AerospikeClient client = (AerospikeClient) clientField.get(null);
             final EventLoopBase eventLoop = (EventLoopBase) client.getCluster().eventLoops.get(0);
             Assert.assertEquals(10, field.get(eventLoop));
         }
 
-        config.setProperty("aerospike.client.eventLoop.commands", "20");
-        config.setProperty("aerospike.client.eventLoop.type", "NETTY_NIO");
+        config.setProperty("aerospike.client.eventPolicy.maxCommandsInProcess", "20");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.type", "NETTY_NIO");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final AerospikeClient client = (AerospikeClient) clientField.get(null);
             final EventLoopBase eventLoop = (EventLoopBase) client.getCluster().eventLoops.get(0);
             Assert.assertEquals(20, field.get(eventLoop));
         }
 
-        config.setProperty("aerospike.client.eventLoop.commands", "30");
-        config.setProperty("aerospike.client.eventLoop.type", "NETTY_EPOLL");
+        config.setProperty("aerospike.client.eventPolicy.maxCommandsInProcess", "30");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.type", "NETTY_EPOLL");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final AerospikeClient client = (AerospikeClient) clientField.get(null);
             final EventLoopBase eventLoop = (EventLoopBase) client.getCluster().eventLoops.get(0);
@@ -142,38 +142,38 @@ public class TestAerospikeClientConfigEventLoop {
         final Class provider = Class.forName("com.aerospike.firefly.io.aerospike.AerospikeConnection$DefaultAerospikeClientProvider");
         final Field clientField = provider.getDeclaredField("CLIENT");
 
-        config.setProperty("aerospike.client.delayQueue.size", "10");
-        config.setProperty("aerospike.client.eventLoop.type", "DIRECT_NIO");
+        config.setProperty("aerospike.client.eventPolicy.maxCommandsInQueue", "10");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.type", "DIRECT_NIO");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final AerospikeClient client = (AerospikeClient) clientField.get(null);
             final EventLoopBase eventLoop = (EventLoopBase) client.getCluster().eventLoops.get(0);
             Assert.assertEquals(10, field.get(eventLoop));
         }
 
-        config.setProperty("aerospike.client.delayQueue.size", "20");
-        config.setProperty("aerospike.client.eventLoop.type", "NETTY_NIO");
+        config.setProperty("aerospike.client.eventPolicy.maxCommandsInQueue", "20");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.type", "NETTY_NIO");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final AerospikeClient client = (AerospikeClient) clientField.get(null);
             final EventLoopBase eventLoop = (EventLoopBase) client.getCluster().eventLoops.get(0);
             Assert.assertEquals(20, field.get(eventLoop));
         }
 
-        config.setProperty("aerospike.client.delayQueue.size", "30");
-        config.setProperty("aerospike.client.eventLoop.type", "NETTY_EPOLL");
+        config.setProperty("aerospike.client.eventPolicy.maxCommandsInQueue", "30");
+        config.setProperty("aerospike.client.clientPolicy.eventLoops.type", "NETTY_EPOLL");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final AerospikeClient client = (AerospikeClient) clientField.get(null);
             final EventLoopBase eventLoop = (EventLoopBase) client.getCluster().eventLoops.get(0);
             Assert.assertEquals(30, field.get(eventLoop));
         }
 
-        config.setProperty("aerospike.client.delayQueue.size", "-1");
+        config.setProperty("aerospike.client.eventPolicy.maxCommandsInQueue", "-1");
         try {
             final Method method = provider.getDeclaredMethod("connect", Configuration.class);
             method.invoke(null, config);
             Assert.fail("Should have failed when trying to connect with an invalid max command queue count.");
         } catch (final Exception wrapper) {
             final Throwable e = wrapper.getCause();
-            Assert.assertEquals("Value provided, \"-1\", for configuration key, \"aerospike.client.delayQueue.size\", is below the minimum acceptable value, \"0\".", e.getMessage());
+            Assert.assertEquals("Value provided, \"-1\", for configuration key, \"aerospike.client.eventPolicy.maxCommandsInQueue\", is below the minimum acceptable value, \"0\".", e.getMessage());
         }
     }
 }

@@ -20,6 +20,7 @@ import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.firefly.features.FireflyFeatures;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
@@ -174,7 +175,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final Timer fireflyIndexMetadataTask = new Timer(true);
-    private final FireflyGraphFeatures features;
+    private final FireflyFeatures features;
     private final Configuration configuration;
     public static String VP_INDEX_PREFIX = "VP";
     public static String EP_INDEX_PREFIX = "EP";
@@ -225,7 +226,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.bulkLoadIdBufferSize = ConfigurationHelper.getOrDefaultInt(BULK_LOAD_ID_BUFFER_SIZE, conf);
 
         this.variables = new FireflyGraphVariables(this);
-        this.features = new FireflyGraphFeatures(this);
+        this.features = new FireflyFeatures();
 
         // Create index metadata background task that will populate indexes for the named graph on the fly.
         fireflyIndexMetadata = new FireflyIndexMetadata(db);

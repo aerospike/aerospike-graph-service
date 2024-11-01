@@ -3,8 +3,8 @@ import argparse
 from python_on_whales import docker
 
 # TODO: These need to be dynamic.
-GRAPH_JAR = "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.4.0-SNAPSHOT.jar"
-BULK_LOADER_JAR = "aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.4.0-SNAPSHOT.jar"
+GRAPH_JAR_DIRECTORY = "aerospike-graph-gremlin/target/"
+BULK_LOADER_JAR_DIRECTORY = "aerospike-graph-bulk-loader/target/"
 SPARK_VERSION = "3.4.1"
 SPARK_URL = "https://archive.apache.org/dist/spark/spark-{}/spark-{}-bin-hadoop3.tgz".format(SPARK_VERSION,
                                                                                              SPARK_VERSION)
@@ -40,11 +40,36 @@ class BuildArguments:
 
 def main():
     build_args = parse_args()
-    if not build_args.use_local:
-        build_jars(build_args)
+    #if not build_args.use_local:
+    #    build_jars(build_args)
     if not build_args.slim:
         fetch_dependencies()
-    build_docker(build_args)
+    graph_jar, bulk_loader_jar = find_jars()
+    build_docker(build_args, graph_jar, bulk_loader_jar)
+
+
+def find_jars():
+    graph_jar = None
+    for path, dirs, files in os.walk(os.path.abspath(GRAPH_JAR_DIRECTORY)):
+        for filename in files:
+            if filename.startswith("aerospike-graph-gremlin") and filename.endswith(".jar"):
+                graph_jar = os.path.join(path, filename)
+                graph_jar = os.path.relpath(graph_jar, os.getcwd())
+    if graph_jar is None:
+        print("Could not find graph jar in directory: {}".format(GRAPH_JAR_DIRECTORY))
+        sys.exit(1)
+
+    bulk_loader_jar = None
+    for path, dirs, files in os.walk(os.path.abspath(BULK_LOADER_JAR_DIRECTORY)):
+        for filename in files:
+            if filename.startswith("aerospike-graph-bulk-loader") and filename.endswith(".jar"):
+                bulk_loader_jar = os.path.join(path, filename)
+                bulk_loader_jar = os.path.relpath(bulk_loader_jar, os.getcwd())
+    if bulk_loader_jar is None:
+        print("Could not find bulk loader jar in directory: {}".format(BULK_LOADER_JAR_DIRECTORY))
+        sys.exit(1)
+
+    return graph_jar, bulk_loader_jar
 
 
 def parse_args():
@@ -112,27 +137,33 @@ def build_jars(build_args):
         run_command("mvn -pl aerospike-graph-gremlin -am -DskipTests=true clean install --no-transfer-progress")
 
 
-def build_docker(build_args):
+def build_docker(build_args, graph_jar, bulk_loader_jar):
     print(f"Building for platforms: {build_args.platforms}")
     docker_build_args = {
-        "FIREFLY_GRAPH": GRAPH_JAR,
-        "BULKLOADER": BULK_LOADER_JAR,
+        "FIREFLY_GRAPH": graph_jar,
+        "BULKLOADER": bulk_loader_jar,
         "SPARK_ZIP": SPARK_ZIP,
         "SPARK_VERSION": SPARK_VERSION
     } if not build_args.slim else {
-        "FIREFLY_GRAPH": GRAPH_JAR
+        "FIREFLY_GRAPH": graph_jar
     }
     # See https://gabrieldemarmiesse.github.io/python-on-whales/sub-commands/buildx/ for help.
     docker_file = "docker/Dockerfile-slim" if build_args.slim else "docker/Dockerfile"
-    docker.buildx.build(".",
-                        build_args=docker_build_args,
-                        build_contexts={},
-                        file=docker_file,
-                        output={"type" : "oci"},
-                        platforms=build_args.platforms,
-                        load=True,
-                        push=build_args.push,
-                        tags=build_args.tags)
+    try:
+        docker.buildx.build(".",
+                            build_args=docker_build_args,
+                            build_contexts={},
+                            file=docker_file,
+                            output={"type" : "oci"},
+                            platforms=build_args.platforms,
+                            load=True,
+                            push=build_args.push,
+                            tags=build_args.tags)
+    except Exception as e:
+        if "OCI exporter is not supported for the docker driver" in str(e):
+            print("Failed to build. This is probably due to a missing dependency, try running " +\
+                  "'docker buildx create --use --driver docker-container' before running the script.")
+        raise e
 
 
 if __name__ == "__main__":

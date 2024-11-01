@@ -19,7 +19,7 @@ jobs:
   publish-artifacts:
     name: Publish Artifacts
     timeout-minutes: 120
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-xl
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3

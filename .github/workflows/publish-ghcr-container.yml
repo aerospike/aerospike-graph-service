@@ -74,8 +74,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         run: |
-          # Login to ghcr.io.
-          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $GITHUB_REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -112,10 +111,10 @@ jobs:
           DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
           
           echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
-          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-amd64 ${OUTPUT_IMAGE}-amd64 --platforms linux/amd64 --push --
+          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-amd64 ${OUTPUT_IMAGE}-amd64 --platforms linux/amd64 --push --use_local
 
   publish-github-arm:
-    name: Publish Firefly Docker Image - ARM - slim - GitHub
+    name: Publish Firefly Docker Image - ARM - GitHub
     permissions:
       packages: write
       contents: read
@@ -139,8 +138,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         run: |
-          # Login to ghcr.io.
-          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $GITHUB_REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -204,8 +202,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         run: |
-          # Login to ghcr.io.
-          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $GITHUB_REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -268,8 +265,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         run: |
-          # Login to ghcr.io.
-          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $GITHUB_REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -332,8 +328,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         run: |
-          # Login to ghcr.io.
-          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $GITHUB_REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -397,8 +392,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         run: |
-          # Login to ghcr.io.
-          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $GITHUB_REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2

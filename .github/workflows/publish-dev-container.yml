@@ -47,7 +47,7 @@ jobs:
           pip3 install python_on_whales
           
           # Strip git ref prefix (refs/tags or ref/heads).
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=$(git rev-parse --short "$GITHUB_SHA")
           
           # Get registry URL and convert to lower case.
           OUTPUT_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev-$VERSION
@@ -88,9 +88,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Download Jar Files
-        uses: actions/download-artifact@v3
 
       - name: Publish Container
         run: |
@@ -140,9 +137,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Download Jar Files
-        uses: actions/download-artifact@v3
-
       - name: Publish Container
         run: |
           # Install python_on_whales.
@@ -189,9 +183,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Download Jar Files
-        uses: actions/download-artifact@v3
 
       - name: Publish Container
         run: |
@@ -241,9 +232,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Download Jar Files
-        uses: actions/download-artifact@v3
-
       - name: Publish Container
         run: |
           # Install python_on_whales.
@@ -292,9 +280,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Download Jar Files
-        uses: actions/download-artifact@v3
 
       - name: Publish Container
         run: |

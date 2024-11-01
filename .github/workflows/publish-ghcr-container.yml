@@ -19,7 +19,7 @@ jobs:
   publish-artifacts:
     name: Publish Artifacts
     timeout-minutes: 120
-    runs-on: ubuntu-20.04-16core
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -116,6 +116,20 @@ jobs:
           DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
           
           echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
-          python3 scripts/build-docker.py --tags $DOCKER_IMAGE $OUTPUT_IMAGE --platforms linux/arm64  linux/amd64 --push --use_local
-          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-slim ${OUTPUT_IMAGE}-slim --platforms linux/arm64 linux/amd64 --push --slim --use_local
+          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-amd64 ${OUTPUT_IMAGE}-amd64 --platforms linux/amd64 --push --use_local
+          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-arm64 ${OUTPUT_IMAGE}-arm64 --platforms linux/arm64 --push --use_local
+          
+          docker manifest create ${DOCKER_IMAGE} --amend ${DOCKER_IMAGE}-amd64 --amend ${DOCKER_IMAGE}-arm64
+          docker manifest push {DOCKER_IMAGE}
+          docker manifest create ${OUTPUT_IMAGE} --amend ${OUTPUT_IMAGE}-amd64 --amend ${OUTPUT_IMAGE}-arm64
+          docker manifest push {OUTPUT_IMAGE}
+          
+          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-slim-amd64 ${OUTPUT_IMAGE}-slim-amd64 --platforms linux/amd64 --push --slim --use_local
+          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-slim-arm64 ${OUTPUT_IMAGE}-slim-arm64 --platforms linux/arm64 --push --slim --use_local
+          
+          docker manifest create ${DOCKER_IMAGE}-slim --amend ${DOCKER_IMAGE}-slim-amd64 --amend ${DOCKER_IMAGE}-slim-arm64
+          docker manifest push {DOCKER_IMAGE}-slim
+          docker manifest create ${OUTPUT_IMAGE} --amend ${OUTPUT_IMAGE}-slim-amd64 --amend ${OUTPUT_IMAGE}-slim-arm64
+          docker manifest push {OUTPUT_IMAGE}-slim
+          
           echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV

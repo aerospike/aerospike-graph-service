@@ -2,9 +2,9 @@ name: Build and Test Firefly
 
 on:
   push:
-    branches: [main,2.x-dev]
+    branches: [2.a]
   pull_request:
-    branches: [main,2.x-dev]
+    branches: [2.a]
 
 jobs:
   build-firefly-maven:

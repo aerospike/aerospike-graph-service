@@ -156,7 +156,7 @@ def build_docker(build_args, graph_jar, bulk_loader_jar):
                             file=docker_file,
                             output={"type" : "oci"},
                             platforms=build_args.platforms,
-                            load=True,
+                            load=not build_args.push, # Only load if not pushing. Cannot load multi-arch.
                             push=build_args.push,
                             tags=build_args.tags)
     except Exception as e:

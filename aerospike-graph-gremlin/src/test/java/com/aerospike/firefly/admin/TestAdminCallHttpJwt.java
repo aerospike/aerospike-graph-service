@@ -359,7 +359,7 @@ public class TestAdminCallHttpJwt {
     @Test
     public void testBothRoleAndRoleGraphInHttpRequest() {
         try {
-            final String query = String.format("username=%s&role=%s&graph=%s",
+            final String query = String.format("username=%s&role=%s&modern=%s",
                     URLEncoder.encode("username", "UTF-8"),
                     URLEncoder.encode("ADMIN", "UTF-8"),
                     URLEncoder.encode("ADMIN", "UTF-8"));
@@ -497,6 +497,27 @@ public class TestAdminCallHttpJwt {
         try {
             final String token = (String) g.call("aerospike.graph.admin.rbac-jwt.issue-token")
                     .with("username", "lyndon_admin").with("role", Map.of("1", "READ"))
+                    .with("expiry", 10).next();
+            fail("Should not have been able to issue token for other Graph");
+        } catch (final Exception e) {
+            assertEquals("org.apache.tinkerpop.gremlin.driver.exception.ResponseException: Insufficient permissions for 'aerospike.graph.admin.rbac-jwt.issue-token'.",
+                    e.getMessage());
+        }
+    }
+
+    @Test
+    public void jwtIssueToken_graphAdminCantMakeTokenForOtherGraph_simplifiedSyntax() {
+        final Cluster cluster = Cluster.build()
+                .addContactPoint("localhost")
+                .port(8182)
+                .credentials("lyndon_username", validGraph0AdminGraph1Read)
+                .create();
+        final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
+        final GraphTraversalSource g = traversal().withRemote(connection);
+
+        try {
+            final String token = (String) g.call("aerospike.graph.admin.rbac-jwt.issue-token")
+                    .with("username", "lyndon_admin").with("1", "READ")
                     .with("expiry", 10).next();
             fail("Should not have been able to issue token for other Graph");
         } catch (final Exception e) {

@@ -6,10 +6,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.google.common.collect.Sets;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.commons.configuration2.builder.fluent.Configurations;
-import org.apache.commons.configuration2.ex.ConfigurationException;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -121,7 +118,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
             FireflyGraph bulkLoadGraph = null;
             try {
                 // only need when customer provide custom config
-                final Configuration config = (new Configurations()).properties(new File((String) mutableParams.get(CONFIG_DIRECTORY_KEY)));
+                final Configuration config = ConfigurationHelper.loadFromFile((String) mutableParams.get(CONFIG_DIRECTORY_KEY));
                 config.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "OFF");
                 config.setProperty(ConfigurationHelper.Keys.AUTO_PRE_HEAT.toLowerCase(), "false");
                 config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
@@ -131,7 +128,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                 if (!bulkLoadGraph.getBaseGraph().GRAPH_ID.equals(graph.getBaseGraph().GRAPH_ID)) {
                     throw new IllegalStateException("Incorrect GRAPH_ID to use with bulk loader.");
                 }
-            } catch (ConfigurationException e) {
+            } catch (Exception e) {
                 throw new RuntimeException("Invalid CONFIG_DIRECTORY_KEY, please contact support.");
             } finally {
                 if (bulkLoadGraph != null) {

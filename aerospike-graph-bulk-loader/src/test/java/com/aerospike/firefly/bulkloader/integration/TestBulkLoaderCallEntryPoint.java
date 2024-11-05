@@ -497,6 +497,22 @@ public class TestBulkLoaderCallEntryPoint {
     }
 
     @Test
+    public void testDifferentConfigFile() {
+        final Configuration differentConfig = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        differentConfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID, "somethingdifferent");
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(differentConfig)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            try {
+                g.call("aerospike.graphloader.admin.bulk-load.load").
+                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-1.properties").iterate();
+            } catch (final IllegalStateException e) {
+                Assert.assertEquals("Error, attempting to load graph id '0' through call step on graph id 'somethingdifferent'.", e.getMessage());
+            }
+        }
+    }
+
+    @Test
     public void testIncrementalLoad() {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();

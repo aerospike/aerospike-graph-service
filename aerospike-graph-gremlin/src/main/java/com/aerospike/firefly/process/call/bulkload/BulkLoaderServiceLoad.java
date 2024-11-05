@@ -130,7 +130,9 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                             + bulkLoadGraph.getBaseGraph().GRAPH_ID
                             + "' through call step on graph id '" + graph.getBaseGraph().GRAPH_ID + "'.");
                 }
-            } catch (Exception e) {
+            } catch (final IllegalStateException e) {
+                throw e;
+            } catch (final Exception e) {
                 // This should never happen.
                 throw new RuntimeException("Invalid CONFIG_DIRECTORY_KEY, please contact support.");
             } finally {

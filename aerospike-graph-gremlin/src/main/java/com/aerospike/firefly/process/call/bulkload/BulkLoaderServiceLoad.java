@@ -126,7 +126,9 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
 
                 bulkLoadGraph = FireflyGraph.open(config);
                 if (!bulkLoadGraph.getBaseGraph().GRAPH_ID.equals(graph.getBaseGraph().GRAPH_ID)) {
-                    throw new IllegalStateException("Error, attempting to load graph id '" bulkLoadGraph.getBaseGraph().GRAPH_ID + "' through call step on graph id '" + graph.getBaseGraph().GRAPH_ID + "'.");
+                    throw new IllegalStateException("Error, attempting to load graph id '"
+                            + bulkLoadGraph.getBaseGraph().GRAPH_ID
+                            + "' through call step on graph id '" + graph.getBaseGraph().GRAPH_ID + "'.");
                 }
             } catch (Exception e) {
                 // This should never happen.

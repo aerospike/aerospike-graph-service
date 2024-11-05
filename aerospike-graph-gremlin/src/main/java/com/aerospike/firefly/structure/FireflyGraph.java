@@ -420,6 +420,16 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return GREMLIN_SERVER_SETTINGS;
     }
 
+    private String configFilePath = "/opt/conf/aerospike-graph-graph.properties";
+
+    public String getConfigFilePath() {
+        return configFilePath;
+    }
+
+    public void setConfigFilePath(final String configFilePath) {
+        this.configFilePath = configFilePath;
+    }
+
     /**
      * Return the FireflyIdFactory
      *

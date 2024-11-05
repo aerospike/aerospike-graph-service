@@ -129,9 +129,10 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
 
                 bulkLoadGraph = FireflyGraph.open(config);
                 if (!bulkLoadGraph.getBaseGraph().GRAPH_ID.equals(graph.getBaseGraph().GRAPH_ID)) {
-                    throw new IllegalStateException("Incorrect GRAPH_ID to use with bulk loader.");
+                    throw new IllegalStateException("Error, attempting to load graph id '" bulkLoadGraph.getBaseGraph().GRAPH_ID + "' through call step on graph id '" + graph.getBaseGraph().GRAPH_ID + "'.");
                 }
             } catch (ConfigurationException e) {
+                // This should never happen.
                 throw new RuntimeException("Invalid CONFIG_DIRECTORY_KEY, please contact support.");
             } finally {
                 if (bulkLoadGraph != null) {

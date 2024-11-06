@@ -80,7 +80,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", "invalid path").iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().contains("[PATH_NOT_FOUND] Path does not exist:"));
+                Assert.assertEquals("Error, failed to find the configuration file at 'invalid path'.", e.getMessage());
             }
         }
     }
@@ -94,7 +94,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", null).iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'"));
+                Assert.assertEquals("Error, 'aerospike.graphloader.config' cannot be null, but null was passed in.", e.getMessage());
             }
         }
     }
@@ -493,6 +493,22 @@ public class TestBulkLoaderCallEntryPoint {
                     .iterate();
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
+        }
+    }
+
+    @Test
+    public void testDifferentConfigFile() {
+        final Configuration differentConfig = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        differentConfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID, "somethingdifferent");
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(differentConfig)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            try {
+                g.call("aerospike.graphloader.admin.bulk-load.load").
+                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-1.properties").iterate();
+            } catch (final IllegalStateException e) {
+                Assert.assertEquals("Error, attempting to load graph id '0' through call step on graph id 'somethingdifferent'.", e.getMessage());
+            }
         }
     }
 

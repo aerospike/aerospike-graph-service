@@ -74,7 +74,7 @@ public class PrometheusServerTest {
 
             // initial should be 0
             String output = queryPrometheus(9089);
-            assertTrue(output.contains("aerospike_graph_service_com_aerospike_firefly_runtime_FireflyServer_gremlin_queue_size 0.0"));
+            assertTrue(output.contains("aerospike_graph_service_gremlin_queue_size 0.0"));
 
             // lets create simple loop for infinite traversal
             final Cluster cluster = Cluster.build("localhost").maxInProcessPerConnection(100).port(8181).create();
@@ -109,8 +109,8 @@ public class PrometheusServerTest {
                 output = queryPrometheus(9089);
 
                 // contains metric, but queue is not empty. Usually queue_size is 8.0, but not always
-                success = output.contains("aerospike_graph_service_com_aerospike_firefly_runtime_FireflyServer_gremlin_queue_size")
-                        && !output.contains("aerospike_graph_service_com_aerospike_firefly_runtime_FireflyServer_gremlin_queue_size 0.0");
+                success = output.contains("aerospike_graph_service_gremlin_queue_size")
+                        && !output.contains("aerospike_graph_service_gremlin_queue_size 0.0");
             } while (tryCount++ < 5 && !success);
             assertTrue(success);
 
@@ -123,7 +123,7 @@ public class PrometheusServerTest {
 
             // now should be 0 in queue again
             output = queryPrometheus(9089);
-            assertTrue(output.contains("aerospike_graph_service_com_aerospike_firefly_runtime_FireflyServer_gremlin_queue_size 0.0"));
+            assertTrue(output.contains("aerospike_graph_service_gremlin_queue_size 0.0"));
         } catch (InterruptedException | IOException e) {
             throw new RuntimeException(e);
         } finally {

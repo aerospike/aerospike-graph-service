@@ -3,8 +3,11 @@ package com.aerospike.firefly.process.call.bulkload;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import com.google.common.collect.Sets;
+import org.apache.commons.configuration2.Configuration;
 
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -41,7 +44,6 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 
 public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
     public static final String BULK_LOAD_SUCCESS = "Success";
-    private static final String DEFAULT_CONFIG_PATH = "/opt/conf/aerospike-graph-graph.properties";
     private static final String VERTICES = "vertices";
     private static final String EDGES = "edges";
     private static final Map<String, String> KEY_TO_ARG = new HashMap<>();
@@ -106,6 +108,47 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                 getName(), PUBLIC_PARAMS, BOOLEAN_KEYS, params, getName());
     }
 
+    private void validateConfig(final Map<String, Object> mutableParams) {
+        if (!mutableParams.containsKey(CONFIG_DIRECTORY_KEY)) {
+            mutableParams.put(CONFIG_DIRECTORY_KEY, graph.getConfigFilePath());
+        } else if (mutableParams.get(CONFIG_DIRECTORY_KEY) == null) {
+            throw new RuntimeException("Error, '" + CONFIG_DIRECTORY_KEY + "' cannot be null, but null was passed in.");
+        } else {
+            // shortcut when we run validateConfig second time
+            if (mutableParams.get(CONFIG_DIRECTORY_KEY).equals(graph.getConfigFilePath())) {
+                return;
+            }
+            FireflyGraph bulkLoadGraph = null;
+            try {
+                // only need when customer provide custom config
+                final Configuration config = ConfigurationHelper.loadFromFile((String) mutableParams.get(CONFIG_DIRECTORY_KEY));
+                config.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "OFF");
+                config.setProperty(ConfigurationHelper.Keys.AUTO_PRE_HEAT.toLowerCase(), "false");
+                config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
+                config.setProperty(ConfigurationHelper.Keys.WARMUP_MODE, "true");
+
+                bulkLoadGraph = FireflyGraph.open(config);
+                if (!bulkLoadGraph.getBaseGraph().GRAPH_ID.equals(graph.getBaseGraph().GRAPH_ID)) {
+                    throw new IllegalStateException("Error, attempting to load graph id '"
+                            + bulkLoadGraph.getBaseGraph().GRAPH_ID
+                            + "' through call step on graph id '" + graph.getBaseGraph().GRAPH_ID + "'.");
+                }
+            } catch (final IllegalStateException e) {
+                throw e;
+            } catch (final Exception e) {
+                if (e.getCause() instanceof NoSuchFileException) {
+                    throw new RuntimeException("Error, failed to find the configuration file at '" + mutableParams.get(CONFIG_DIRECTORY_KEY) + "'.");
+                }
+                // This should never happen.
+                throw new RuntimeException("Invalid CONFIG_DIRECTORY_KEY, please contact support.");
+            } finally {
+                if (bulkLoadGraph != null) {
+                    bulkLoadGraph.close();
+                }
+            }
+        }
+    }
+
     @Override
     protected boolean sanitize(final Map params) {
         // To sanitize, dry run of parameter collection is used since the inputs are complicated and interrelated.
@@ -120,9 +163,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
             final List<String> args = new ArrayList<>();
             final Map<String, Object> mutableParams = new HashMap();
             mutableParams.putAll(params);
-            if (!mutableParams.containsKey(CONFIG_DIRECTORY_KEY)) {
-                mutableParams.put(CONFIG_DIRECTORY_KEY, DEFAULT_CONFIG_PATH);
-            }
+            validateConfig(mutableParams);
             boolean vertices = true;
             boolean edges = true;
 
@@ -201,9 +242,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
         final List<String> args = new ArrayList<>();
         final Map<String, Object> mutableParams = new HashMap();
         mutableParams.putAll(params);
-        if (!mutableParams.containsKey(CONFIG_DIRECTORY_KEY)) {
-            mutableParams.put(CONFIG_DIRECTORY_KEY, DEFAULT_CONFIG_PATH);
-        }
+        validateConfig(mutableParams);
         boolean vertices = true;
         boolean edges = true;
         boolean validateInputData = true;

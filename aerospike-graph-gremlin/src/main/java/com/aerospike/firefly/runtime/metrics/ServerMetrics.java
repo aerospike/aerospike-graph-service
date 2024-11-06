@@ -15,8 +15,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 
 public class ServerMetrics {
-    private final String nettyQueueSizeMetricName = MetricRegistry.name(FireflyServer.class, "server_queue_size");
-    private final String gremlinQueueSizeMetricName = MetricRegistry.name(FireflyServer.class, "gremlin_queue_size");
+    private final String nettyQueueSizeMetricName = MetricRegistry.name("aerospike_graph_service_server_queue_size");
+    private final String gremlinQueueSizeMetricName = MetricRegistry.name("aerospike_graph_service_gremlin_queue_size");
     private final GremlinServer gremlinServer;
 
     public ServerMetrics(final GremlinServer gremlinServer) {

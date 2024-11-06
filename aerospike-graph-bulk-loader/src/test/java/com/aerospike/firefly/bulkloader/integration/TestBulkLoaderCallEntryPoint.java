@@ -80,7 +80,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", "invalid path").iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().contains("[PATH_NOT_FOUND] Path does not exist:"));
+                Assert.assertEquals("Error, failed to find the configuration file at 'invalid path'.", e.getMessage());
             }
         }
     }
@@ -94,7 +94,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", null).iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'"));
+                Assert.assertEquals("Error, 'aerospike.graphloader.config' cannot be null, but null was passed in.", e.getMessage());
             }
         }
     }

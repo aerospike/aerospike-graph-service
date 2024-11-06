@@ -7,6 +7,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import com.google.common.collect.Sets;
 import org.apache.commons.configuration2.Configuration;
 
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -110,6 +111,8 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
     private void validateConfig(final Map<String, Object> mutableParams) {
         if (!mutableParams.containsKey(CONFIG_DIRECTORY_KEY)) {
             mutableParams.put(CONFIG_DIRECTORY_KEY, graph.getConfigFilePath());
+        } else if (mutableParams.get(CONFIG_DIRECTORY_KEY) == null) {
+            throw new RuntimeException("Error, '" + CONFIG_DIRECTORY_KEY + "' cannot be null, but null was passed in.");
         } else {
             // shortcut when we run validateConfig second time
             if (mutableParams.get(CONFIG_DIRECTORY_KEY).equals(graph.getConfigFilePath())) {
@@ -133,6 +136,9 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
             } catch (final IllegalStateException e) {
                 throw e;
             } catch (final Exception e) {
+                if (e.getCause() instanceof NoSuchFileException) {
+                    throw new RuntimeException("Error, failed to find the configuration file at '" + mutableParams.get(CONFIG_DIRECTORY_KEY) + "'.");
+                }
                 // This should never happen.
                 throw new RuntimeException("Invalid CONFIG_DIRECTORY_KEY, please contact support.");
             } finally {

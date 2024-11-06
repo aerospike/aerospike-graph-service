@@ -217,8 +217,8 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
             return Property.empty();
         }
 
-        FireflyHelper.validatePropertyValue(value);
-        return writeProperty(key, value);
+        final U validatedValue = (U) FireflyHelper.validatePropertyValue(value);
+        return writeProperty(key, validatedValue);
     }
 
     @Override

@@ -68,6 +68,7 @@ import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.server.Settings;
+import org.apache.tinkerpop.gremlin.structure.Property;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1192,14 +1193,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
-
-    public static final Map<Class<? extends Serializable>, Class<? extends Serializable>> IdToDiskTypeMap = new HashMap<>() {{
-        put(Long.class, Long.class);
-        put(Integer.class, Long.class);
-        put(Double.class, Double.class);
-        put(String.class, Long.class);
-    }};
-    public static final Map<Class<? extends Serializable>, Long> SupportedValueTypes = new HashMap<>() {{
+    public static final Map<Class<? extends Serializable>, Long> SUPPORTED_VALUE_TYPES = new HashMap<>() {{
         put(Long.class, 1L);
         put(Integer.class, 2L);
         put(Double.class, 3L);
@@ -1209,7 +1203,7 @@ public class AerospikeConnection implements AutoCloseable {
         put(Boolean.class, 6L);
         put(ArrayList.class, 7L);
     }};
-    public static final Map<Long, Class<? extends Serializable>> SupportedTypeValues = new HashMap<>() {{
+    public static final Map<Long, Class<? extends Serializable>> SUPPORTED_TYPE_VALUES = new HashMap<>() {{
         put(1L, Long.class);
         put(2L, Integer.class);
         put(3L, Double.class);
@@ -1217,6 +1211,17 @@ public class AerospikeConnection implements AutoCloseable {
         put(5L, String.class);
         put(6L, Boolean.class);
         put(7L, ArrayList.class);
+    }};
+    public static final Set<Class<? extends Serializable>> SUPPORTED_ARR_TYPES = new HashSet<>() {{
+        add(boolean[].class);
+        add(Boolean[].class);
+        add(double[].class);
+        add(Double[].class);
+        add(int[].class);
+        add(Integer[].class);
+        add(String[].class);
+        add(long[].class);
+        add(Long[].class);
     }};
 
     static AtomicLong readMetric = new AtomicLong(0);
@@ -1249,9 +1254,9 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public static Object getTypeHintOf(final Object value) {
         final Class clazz = value.getClass();
-        if (!SupportedValueTypes.containsKey(clazz)) {
-            throw new UnsupportedOperationException(clazz.getName() + " is not a supported value type");
-        } else if (SupportedValueTypes.get(clazz).equals(SupportedValueTypes.get(ArrayList.class))) {
+        if (!SUPPORTED_VALUE_TYPES.containsKey(clazz)) {
+            throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(value);
+        } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(ArrayList.class))) {
             // Values within a list for our supported types are stored on disk as expected except for Integers which get
             // stored as a Long. We need to keep track of which indexes within the list were inputted as Integers to
             // properly cast them back upon a read.
@@ -1261,9 +1266,9 @@ public class AerospikeConnection implements AutoCloseable {
                 final Object valueInList = valueList.get(i);
                 if (valueInList != null) {
                     final Class valueClass = valueInList.getClass();
-                    if (!SupportedValueTypes.containsKey(valueClass) ||
-                            SupportedValueTypes.get(valueClass).equals(SupportedValueTypes.get(ArrayList.class))) {
-                        throw new UnsupportedOperationException(valueClass.getName()
+                    if (!SUPPORTED_VALUE_TYPES.containsKey(valueClass) ||
+                            SUPPORTED_VALUE_TYPES.get(valueClass).equals(SUPPORTED_VALUE_TYPES.get(ArrayList.class))) {
+                        throw new IllegalArgumentException(valueClass.getName()
                                 + " within a List is not a supported value type");
                     }
                     if (valueList.get(i).getClass().equals(Integer.class)) {
@@ -1273,7 +1278,7 @@ public class AerospikeConnection implements AutoCloseable {
             }
             return integerIndices.isEmpty() ? null : integerIndices;
         }
-        return Objects.equals(SupportedValueTypes.get(clazz), SupportedValueTypes.get(Integer.class)) ? SupportedValueTypes.get(Integer.class) : null;
+        return Objects.equals(SUPPORTED_VALUE_TYPES.get(clazz), SUPPORTED_VALUE_TYPES.get(Integer.class)) ? SUPPORTED_VALUE_TYPES.get(Integer.class) : null;
     }
 
     /**
@@ -1849,7 +1854,7 @@ public class AerospikeConnection implements AutoCloseable {
             }
             return valueList;
         }
-        final Class clazz = SupportedTypeValues.get(typeHint);
+        final Class clazz = SUPPORTED_TYPE_VALUES.get(typeHint);
         return (clazz == null) ? value : typeCast(clazz, value);
     }
 

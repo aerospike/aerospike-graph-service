@@ -702,8 +702,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final Map<String, Object> typeHints = new TreeMap<>();
         properties.forEach(property -> {
             final String key = property.getKey();
-            final Object value = property.getValue();
-            FireflyHelper.validatePropertyValue(value);
+            final Object value = FireflyHelper.validatePropertyValue(property.getValue());
 
             if (value == null) {
                 propertyMap.remove(key);
@@ -916,13 +915,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public Vertex addVertex(Object... keyValues) {
         // Validate key value pairs are valid for TinkerPop.
         ElementHelper.legalPropertyKeyValueArray(keyValues);
-
-        // Validate key value pairs are valid for Firefly.
-        final Iterator i = FireflyCloseableIteratorUtils.asIterator(keyValues);
-        while (i.hasNext()) {
-            i.next();
-            FireflyHelper.validatePropertyValue(i.next());
-        }
 
         // If a user-supplied id is provided and it is not supported, throw exception.
         if (ElementHelper.getIdValue(keyValues).isPresent() && !features.vertex().supportsUserSuppliedIds())

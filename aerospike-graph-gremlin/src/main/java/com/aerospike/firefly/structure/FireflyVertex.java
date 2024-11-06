@@ -88,6 +88,7 @@ import java.util.stream.Collectors;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.aerospike.OperationReturnHandler.getValueAtIndex;
+import static com.aerospike.firefly.util.FireflyHelper.validatePropertyValue;
 import static com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException.fromAddingToEdgeCache;
 import static com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException.fromAddingVertexProperty;
 import static com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException.getRelevantVertexBins;
@@ -785,23 +786,26 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     @Override
     public <V> VertexProperty<V> property(final String key) {
-        if (this.removed )
+        if (this.removed) {
             return VertexProperty.empty();
+        }
         if (FireflyHelper.inComputerMode(this.graph)) {
             final List<VertexProperty> list = (List) this.graph.graphComputerView.getProperty(this, key);
-            if (list.size() == 0)
-                return VertexProperty.<V>empty();
-            else if (list.size() == 1)
-                return list.get(0);
-            else
-                throw Vertex.Exceptions.multiplePropertiesExistForProvidedKey(key);
-        } else {
-            if(super.property(key) instanceof EmptyProperty)
+            if (list.size() == 0) {
                 return VertexProperty.empty();
+            } else if (list.size() == 1) {
+                return list.get(0);
+            } else {
+                throw Vertex.Exceptions.multiplePropertiesExistForProvidedKey(key);
+            }
+        } else {
+
+            if (super.property(key) instanceof EmptyProperty) {
+                return VertexProperty.empty();
+            }
             return (VertexProperty<V>) super.property(key);
         }
     }
-
 
     /**
      * Create a new vertex property. If the cardinality is {@link VertexProperty.Cardinality#single}, then set the key
@@ -1156,7 +1160,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             // If there is no instance of a null value with this key we can add it safely.
             // If there is an instance of a null valid, it is safe to add as long as it exists past the last found index.
             if (!lastNullIndexes.containsKey(property.getKey()) || i > lastNullIndexes.get(property.getKey())) {
-                validProperties.add(property);
+                validProperties.add(new AbstractMap.SimpleEntry<>(property.getKey(), validatePropertyValue(property.getValue())));
             }
         }
 

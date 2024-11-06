@@ -125,7 +125,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                 config.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "OFF");
                 config.setProperty(ConfigurationHelper.Keys.AUTO_PRE_HEAT.toLowerCase(), "false");
                 config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
-                config.setProperty(ConfigurationHelper.Keys.BULK_LOADER_FLAG, "true");
+                config.setProperty(ConfigurationHelper.Keys.WARMUP_MODE, "true");
 
                 bulkLoadGraph = FireflyGraph.open(config);
                 if (!bulkLoadGraph.getBaseGraph().GRAPH_ID.equals(graph.getBaseGraph().GRAPH_ID)) {

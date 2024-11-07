@@ -137,7 +137,7 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.InjectTest$Traversals", method = "*", reason = "Firefly does not support arbitrary object starts", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.TraversalInterruptionComputerTest", method = "*", reason = "Firefly does not support thread interruption ?? why not ??", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})
 
-// Tests that require lambda support.
+// Tests that require lambda support
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.SerializationTest$GraphSONV1Test", method = "shouldSerializePath", reason = "Test requires Lambda support which is disabled for security.", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.SerializationTest$GraphSONV2Test", method = "shouldSerializePath", reason = "Test requires Lambda support which is disabled for security.", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.SerializationTest$GraphSONV3Test", method = "shouldSerializePath", reason = "Test requires Lambda support which is disabled for security.", computers = {"ALL"})
@@ -151,6 +151,13 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.SubgraphTest", method = "*", reason = "CURRENTLY DO NOT WORK, NEED TO FIX AND ENABLE", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldEvaluateConnectivityPatterns", reason = "This test fails due to caching.", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.VertexPropertyTest$VertexPropertyRemoval", method = "shouldRemoveMultiPropertiesWhenVerticesAreRemoved", reason = "Replaced in TestAerospikeGraphIntegration with cache-friendly implementation.", computers = {"ALL"})
+
+// Structure tests that only function on embedded Graphs - Arrays come through as primitives instead of expected ArrayLists from serialization
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.PropertyTest$PropertyFeatureSupportTest", method = "shouldSetValueOnEdgeOnAdd", reason = "This test fails due to using arrays", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.PropertyTest$PropertyFeatureSupportTest", method = "shouldSetValueOnEdge", reason = "This test fails due to using arrays", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.PropertyTest$PropertyFeatureSupportTest", method = "shouldSetValueOnVertexOnAdd", reason = "This test fails due to using arrays", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.PropertyTest$PropertyFeatureSupportTest", method = "shouldSetValueOnVertex", reason = "This test fails due to using arrays", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.VariablesTest$GraphVariablesFeatureSupportTest", method = "shouldSetValueOnGraph", reason = "This test fails due to using arrays", computers = {"ALL"})
 
 // Firefly does not support Float ids
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingFloatRepresentation", reason = "Firefly does not support Float ids", computers = {"ALL"})

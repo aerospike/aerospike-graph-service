@@ -1850,7 +1850,13 @@ public class AerospikeConnection implements AutoCloseable {
             final ArrayList<Object> valueList = new ArrayList<>((ArrayList<Object>) value);
             final ArrayList<Long> integerIndices = (ArrayList<Long>) typeHint;
             for (final Long index : integerIndices) {
-                valueList.set(index.intValue(), ((Long) valueList.get(index.intValue())).intValue());
+                final Object valueListValue = valueList.get(index.intValue());
+                if (valueListValue instanceof Long) {
+                    valueList.set(index.intValue(), ((Long) valueListValue).intValue());
+                } else if (!(valueListValue instanceof Integer)) {
+                    // This should never happen.
+                    throw new IllegalStateException("A type hint for a list contains items that aren't int or long.");
+                }
             }
             return valueList;
         }

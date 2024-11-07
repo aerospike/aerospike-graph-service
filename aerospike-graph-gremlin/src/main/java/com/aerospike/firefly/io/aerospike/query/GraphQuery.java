@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io.aerospike.query;
 
 import com.aerospike.client.exp.Expression;
+import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.firefly.io.FireflyIndexMetadata;

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.computer.local.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.computer.FireflyCompositeIdStepLocal;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -7,24 +8,15 @@ import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GroupStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.PathStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertiesStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.TreeStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupSideEffectStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.TreeSideEffectStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-
-import static com.aerospike.firefly.process.computer.local.ComputerHelper.isComputerTraversal;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -53,7 +45,7 @@ public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
     public void apply(final Traversal.Admin<?, ?> traversal) {
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
 
-        if (!isComputerTraversal(traversal))
+        if (!ComputerHelper.onGraphComputer(traversal))
             return;
 
         // Reset whenever root.

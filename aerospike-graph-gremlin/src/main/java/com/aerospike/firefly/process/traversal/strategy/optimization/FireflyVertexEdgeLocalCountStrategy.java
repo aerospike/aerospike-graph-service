@@ -62,7 +62,7 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
             TraversalHelper.replaceStep(
                     localStep,
                     new FireflyVertexEdgeLocalCountStep(
-                            traversal, vertexStep.getDirection(), localStep.getLabels(), isComputerTraversal(traversal)),
+                            traversal, vertexStep.getDirection(), localStep.getLabels(), ComputerHelper.onGraphComputer(traversal)),
                     traversal);
         }
     }

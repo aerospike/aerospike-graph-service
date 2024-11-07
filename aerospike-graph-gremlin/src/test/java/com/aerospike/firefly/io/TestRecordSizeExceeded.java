@@ -130,7 +130,6 @@ public class TestRecordSizeExceeded {
                 Assert.assertEquals(baseVertexPropertyCount + addedVertexProperties + 1, e.vertexPropertyCount);
                 Assert.assertEquals(baseVpPropertyCount, e.vpPropertyCount);
                 return;
-            } catch (Exception e){
             } catch (final Exception e) {
                 Assert.fail("Unexpected exception: " + e);
             }

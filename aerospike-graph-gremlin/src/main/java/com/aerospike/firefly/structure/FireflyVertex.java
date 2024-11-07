@@ -855,18 +855,19 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             }
         }
 
+        final V verifiedValue = (V) FireflyHelper.validatePropertyValue(value);
         ElementHelper.legalPropertyKeyValueArray(keyValues);
-        ElementHelper.validateProperty(key, value);
+        ElementHelper.validateProperty(key, verifiedValue);
 
         // If we do not support null and the value is null, we should return empty.
-        if (!allowNullPropertyValues && null == value) {
+        if (!allowNullPropertyValues && null == verifiedValue) {
             final VertexProperty.Cardinality card = null == cardinality ? graph.features().vertex().getCardinality(key) : cardinality;
             if (VertexProperty.Cardinality.single == card)
                 properties(key).forEachRemaining(VertexProperty::remove);
             return VertexProperty.empty();
         }
 
-        final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
+        final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, verifiedValue, keyValues);
         if (optionalVertexProperty.isPresent()) {
             return optionalVertexProperty.get();
         }
@@ -884,7 +885,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
         // Write vertex property to graph.
 
-        final VertexProperty<V> vertexProperty = graph.writeVertexProperty(vertexPropertyId, this, key, value, keyValues);
+        final VertexProperty<V> vertexProperty = graph.writeVertexProperty(vertexPropertyId, this, key, verifiedValue, keyValues);
 
         // Return vertex property.
         return vertexProperty;

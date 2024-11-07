@@ -118,7 +118,8 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
     generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm)
 
     for key in named_graphs:
-        merged_properties = valid_properties
+        # copy of original array
+        merged_properties = [i for i in valid_properties]
         for p in graph_config[key]:
             merged_properties.append(p[p.index(".")+1:])
 

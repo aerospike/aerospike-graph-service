@@ -13,4 +13,9 @@ public class LoggerUtil {
         final Logger root = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
         root.setLevel(level);
     }
+
+    public static Level getLogLevel() {
+        final Logger root = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+        return root.getLevel();
+    }
 }

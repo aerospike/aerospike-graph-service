@@ -1,10 +1,10 @@
 package com.aerospike.firefly.util.concurrency;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -155,8 +155,8 @@ public class FireflyRecordLockHandler {
                     this.lockRecord.hotKeyCount.set(0);
                     this.lockRecord.hotKeyBackoff.set(0);
                     this.cancel();
-                } catch (final AerospikeException e) {
-                    if (e.getResultCode() == ResultCode.KEY_BUSY) {
+                } catch (final AerospikeGraphException e) {
+                    if (e.errorCode == ResultCode.KEY_BUSY) {
                         // Hot key.
                         LOG.warn("Hot key on record lock with Key {}. Exponentially backing off before next grab attempt.",
                                 this.lockRecord.key);
@@ -166,7 +166,7 @@ public class FireflyRecordLockHandler {
                             hotKeyCount = 15;
                         }
                         this.lockRecord.hotKeyBackoff.set(Math.max(1, 2 << hotKeyCount));
-                    } else if (e.getResultCode() != ResultCode.KEY_EXISTS_ERROR) {
+                    } else if (e.errorCode != ResultCode.KEY_EXISTS_ERROR) {
                         if (this.lockRecord.printErrorToLog.getAndSet(false)) {
                             LOG.error("Unexpected error when attempting to acquire record lock.", e);
                         }

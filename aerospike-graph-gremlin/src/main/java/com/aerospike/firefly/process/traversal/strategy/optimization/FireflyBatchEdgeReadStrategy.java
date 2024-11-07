@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.computer.local.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeSampleLimitReadStep;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -19,8 +20,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Set;
-
-import static com.aerospike.firefly.process.computer.local.ComputerHelper.isComputerTraversal;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -48,7 +47,7 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
             }
         }
 
-        if (isComputerTraversal(traversal))
+        if (ComputerHelper.onGraphComputer(traversal))
             return;
 
         final List<Step> steps = traversal.getSteps();

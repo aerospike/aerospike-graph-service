@@ -102,7 +102,7 @@ public class FireflyIndexMetadata implements FireflyMetadata {
      */
     public List<String> getIndexesInProgress() {
         // Return copy.
-        return AerospikeConnection.InfoOps.listExistingIndexes(db.client, db.namespace).stream().
+        return AerospikeConnection.InfoOps.listExistingIndexes(db).stream().
                 map(Map.Entry::getKey).filter(s ->
                         s.startsWith(db.getVpIndexPrefix()) ||
                                 s.startsWith(db.getEpIndexPrefix()) ||

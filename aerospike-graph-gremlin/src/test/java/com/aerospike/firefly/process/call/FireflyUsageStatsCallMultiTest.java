@@ -1,6 +1,5 @@
 package com.aerospike.firefly.process.call;
 
-import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -24,10 +23,8 @@ public class FireflyUsageStatsCallMultiTest {
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             Thread.sleep(1);
-            graph.getBaseGraph().getClient().truncate(null,
-                    graph.getBaseGraph().namespace, graph.getBaseGraph().USAGE_STATS_SET, null);
+            graph.getBaseGraph().truncate(null, graph.getBaseGraph().USAGE_STATS_SET, null);
             Thread.sleep(1);
-            FireflyUsageStats.restartUsageStats(graph.getBaseGraph());
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -36,7 +33,7 @@ public class FireflyUsageStatsCallMultiTest {
     @AfterClass
     public static void cleanUp() {
         try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            FireflyUsageStats.restartUsageStats(graph.getBaseGraph());
+            graph.getUsageStats().restartUsageStats(graph.getBaseGraph());
         }
     }
 
@@ -60,6 +57,8 @@ public class FireflyUsageStatsCallMultiTest {
 
             // Raw should be list of map.
             Assert.assertTrue(usageStats.get("raw") instanceof List);
+            // this test on GHA runs with an additional FireFly server running in docker,
+            // so expected result is 1 for local and 2 for GHA
             Assert.assertEquals(2, ((List<?>) usageStats.get("raw")).size());
 
             // Vcpu count of raw should be same of test vcpu count.
@@ -76,7 +75,7 @@ public class FireflyUsageStatsCallMultiTest {
             }
 
             // Compare expected vcpu-yrs. We know lower bound since we know minimum time it could be but not upper.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > 2 * testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }

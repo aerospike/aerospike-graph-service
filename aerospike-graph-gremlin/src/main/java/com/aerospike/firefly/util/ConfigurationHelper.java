@@ -75,6 +75,7 @@ public final class ConfigurationHelper {
         public static final String VERTEX_PROPERTY_INDEXES = "aerospike.graph.index.vertex.properties";
         public static final String EDGE_PROPERTY_INDEXES = "aerospike.graph.index.edge.properties";
         public static final String GRAPH_ID = "aerospike.graph.id";
+        public static final String TRAVERSAL_NAME = "aerospike.graph.traversal";
         public static final String HTTP_PORT = "aerospike.graph.http.port";
         public static final String PROMETHEUS_PATH = "aerospike.graph.prometheus.path";
         public static final String HEALTHCHECK_PATH = "aerospike.graph.healthcheck.path";
@@ -92,6 +93,7 @@ public final class ConfigurationHelper {
         public static final String READ_SLEEP_BETWEEN_RETRY = "aerospike.client.policy.read.sleepBetweenRetry";
 
         // Semi internal semi external configs
+        public static final String AEROSPIKE_BATCH_PER_NODE_THRESHOLD = "aerospike.client.batch-threshold.per-node";
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
         public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.index.update.frequency";
         public static final String CARDINALITY_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.cardinality.update.frequency";
@@ -105,16 +107,21 @@ public final class ConfigurationHelper {
         public static final String ENABLE_COMPOSITE_ID_LIMIT_STRATEGY = "aerospike.graph.strategy.composite.id.limit.enabled";
         public static final String ENABLE_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.enabled";
         public static final String ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY = "aerospike.graph.strategy.batch.otherV.read.enabled";
+        public static final String ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.to.vertex.read.enabled";
         public static final String ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.embedded.enabled";
         public static final String ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY = "aerospike.graph.strategy.batch.edge.read.sampling.enabled";
         public static final String ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY = "aerospike.graph.strategy.batch.edge.read.limit.enabled";
         public static final String ENABLE_CACHED_ADJACENT_ID_STRATEGY = "aerospike.graph.strategy.cached.adjacent.id.enabled";
+        public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
+        public static final String ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = "aerospike.graph.strategy.local.fast.count.embedded.enabled";
+        public static final String ENABLE_BATCHED_REPEAT_STEP_STRATEGY = "aerospike.graph.strategy.batched.repeat.step.enabled";
         public static final String GLOBAL_EDGE_CACHE_ENABLED = "aerospike.graph.global.edge.cache.enabled";
+
+        // Id buffer configs.
         public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
         public static final String EDGE_ID_BUFFER_SIZE = "aerospike.graph.edge.id.buffer.size";
         public static final String PROPERTY_ID_BUFFER_SIZE = "aerospike.graph.property.id.buffer.size";
         public static final String BULK_LOAD_ID_BUFFER_SIZE = "aerospike.graph.bulk.load.id.buffer.size";
-        public static final String STORAGE_DEBUGGER_FLAG = "aerospike.graph.storage.debug";
 
         public static final String MAX_ERROR_RATE = "aerospike.client.clientPolicy.maxErrorRate";
         public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.clientPolicy.minConnsPerNode";
@@ -134,14 +141,16 @@ public final class ConfigurationHelper {
         public static final String SCAN_SOCKET_TIMEOUT = "aerospike.client.policy.scan.socketTimeout";
         public static final String SCAN_CONNECT_TIMEOUT = "aerospike.client.policy.scan.connectTimeout";
         public static final String SCAN_TIMEOUT_DELAY = "aerospike.client.policy.scan.timeoutDelay";
+        public static final String INDEX_TOTAL_TIMEOUT = "aerospike.client.policy.index.totalTimeout";
+        public static final String INDEX_SOCKET_TIMEOUT = "aerospike.client.policy.index.socketTimeout";
+        public static final String INDEX_CONNECT_TIMEOUT = "aerospike.client.policy.index.connectTimeout";
+        public static final String INDEX_TIMEOUT_DELAY = "aerospike.client.policy.index.timeoutDelay";
 
-        // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
-        public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
-        public static final String ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = "aerospike.graph.strategy.local.fast.count.embedded.enabled";
-        public static final String ENABLE_BATCHED_REPEAT_STEP_STRATEGY = "aerospike.graph.strategy.batched.repeat.step.enabled";
+        // Pagination flags.
         public static final String PAGINATION_PAGE_QUEUE_SIZE = "aerospike.graph.pagination.page.queue.size";
         public static final String PAGINATION_PAGE_SIZE = "aerospike.graph.pagination.page.size";
         public static final String PAGINATION_PAGE_MAX_WAIT = "aerospike.graph.pagination.max.wait";
+        public static final String PAGINATION_SHUTDOWN_WAIT = "aerospike.graph.pagination.shutdown.wait";
 
         // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "aerospike.graph.auto.preheat.enabled";
@@ -150,7 +159,6 @@ public final class ConfigurationHelper {
         public static final String FAULT_TEST = "aerospike.graph.warmup.mode.fault.test.enabled";
         public static final String ENABLE_CUSTOM_PROFILE = "aerospike.graph.strategy.profile.custom.enabled";
         public static final String ASCLIENT_LOG_ENABLED = "aerospike.client.logging.enabled";
-        public static final String ASYNC_SUBGRAPH_CACHE = "aerospike.graph.async.subgraph.cache.enabled";
         public static final String ON_RECORD_ID_LIMIT = "aerospike.graph.vertex.edge.cache.size";
         public static final String DEBUG_MODE_FLAG = "aerospike.graph.debug.mode.enabled";
         public static final String BULK_LOADER_FLAG = "aerospike.graph.bulk.loading.enabled";
@@ -170,10 +178,13 @@ public final class ConfigurationHelper {
         public static final String USAGE_STATS_SET_INDEX_ENABLED = "aerospike.graph.usage.index.enabled";
         public static final String AUDIT_LOG_ENABLED = "aerospike.graph.audit.log.enabled";
 
-        public static final String EVENT_LOOP_TYPE = "aerospike.client.eventLoop.type";
-        public static final String EVENT_LOOP_COUNT = "aerospike.client.eventLoop.count";
-        public static final String COMMANDS_PER_EVENT_LOOP = "aerospike.client.eventLoop.commands";
-        public static final String DELAY_QUEUE_SIZE = "aerospike.client.delayQueue.size";
+        public static final String EVENT_LOOP_TYPE = "aerospike.client.clientPolicy.eventLoops.type";
+        public static final String EVENT_LOOP_COUNT = "aerospike.client.clientPolicy.eventLoops.size";
+        public static final String COMMANDS_PER_EVENT_LOOP = "aerospike.client.eventPolicy.maxCommandsInProcess";
+        public static final String DELAY_QUEUE_SIZE = "aerospike.client.eventPolicy.maxCommandsInQueue";
+
+        // to speed up testing
+        public static final String HTTP_ENABLED = "aerospike.graph.http.enabled";
 
         public static class Pair {
             public final int numeric;
@@ -297,8 +308,8 @@ public final class ConfigurationHelper {
 
     public static final Set<String> IMMUTABLE_CONFIG_KEYS = Set.of(
             Keys.PHAT_EDGE_SIZE, // Calculating the PK wouldn't work
-            Keys.SUMMARY_ENABLED_FLAG, // Inaccurate and therefore useless if toggled
             Keys.FIREFLY_DATA_MODEL,
+            Keys.SUMMARY_ENABLED_FLAG, // Inaccurate and therefore useless if toggled
             Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY
     );
 
@@ -308,7 +319,6 @@ public final class ConfigurationHelper {
         put(Keys.AEROSPIKE_USER, "");
         put(Keys.AEROSPIKE_PASSWORD, "");
         put(Keys.GRAPH_ID, "0");
-        put(Keys.STORAGE_DEBUGGER_FLAG, "false");
         put(Keys.FIREFLY_DATA_MODEL, "packed");
         put(Keys.V_LABEL_INDEX_ENABLED_FLAG, "false");
         put(Keys.E_LABEL_INDEX_ENABLED_FLAG, "false");
@@ -317,6 +327,7 @@ public final class ConfigurationHelper {
         put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
         put(Keys.PAGINATION_PAGE_SIZE, "2048");
         put(Keys.PAGINATION_PAGE_MAX_WAIT, "1200000"); // 20 minutes.
+        put(Keys.PAGINATION_SHUTDOWN_WAIT, "0");
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_READ_THROUGH_CACHE, "true");
         put(Keys.ENABLE_PREFETCH_STRATEGY, "true");
@@ -327,13 +338,13 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_COMPOSITE_ID_LIMIT_STRATEGY, "true");
         put(Keys.ENABLE_BATCH_EDGE_READ_STRATEGY, "true");
         put(Keys.ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY, "true");
+        put(Keys.ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY, "true");
         put(Keys.ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY, "true");
         put(Keys.ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, "true");
-        put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
         put(Keys.AEROSPIKE_TIMEOUT, "2000");
         put(Keys.WRITE_SOCKET_TIMEOUT, "500");
@@ -347,10 +358,12 @@ public final class ConfigurationHelper {
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.GLOBAL_EDGE_CACHE_ENABLED, "true");
         put(Keys.HTTP_PORT, "9090");
+        put(Keys.HTTP_ENABLED, "true");
         put(Keys.PROMETHEUS_PATH, "/metrics");
         put(Keys.HEALTHCHECK_PATH, "/healthcheck");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
+        put(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, "4");
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
         put(Keys.EDGE_PROPERTY_INDEXES, "");
         put(Keys.PHAT_EDGE_SIZE, "10");
@@ -358,7 +371,7 @@ public final class ConfigurationHelper {
         put(Keys.LOG_LEVEL, "INFO");
         put(Keys.SUPERNODE_TRAVERSAL_LOG_WARNING, "true");
         put(Keys.TLS, "false");
-        put(Keys.AUTO_PRE_HEAT, "false");
+        put(Keys.AUTO_PRE_HEAT, "true");
         put(Keys.WARMUP_ENABLED, "true");
         put(Keys.WARMUP_MODE, "false");
         put(Keys.ENABLE_CUSTOM_PROFILE, "true");
@@ -370,7 +383,7 @@ public final class ConfigurationHelper {
         put(Keys.SUMMARY_ENABLED_FLAG, "true");
         put(Keys.BULK_LOADER_FLAG, "false");
         put(Keys.MAX_ERROR_RATE, "100");
-        put(Keys.MAX_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
+        put(Keys.MAX_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings()) * 2));
         put(Keys.MIN_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
         put(Keys.CONNECT_TIMEOUT, "0");
         put(Keys.TIMEOUT_DELAY, "2000");
@@ -397,6 +410,10 @@ public final class ConfigurationHelper {
         put(Keys.SCAN_SOCKET_TIMEOUT, "1200000");
         put(Keys.SCAN_CONNECT_TIMEOUT, "0");
         put(Keys.SCAN_TIMEOUT_DELAY, "0");
+        put(Keys.INDEX_TOTAL_TIMEOUT, "0");
+        put(Keys.INDEX_SOCKET_TIMEOUT, "1200000");
+        put(Keys.INDEX_CONNECT_TIMEOUT, "0");
+        put(Keys.INDEX_TIMEOUT_DELAY, "0");
         put(Keys.EVENT_LOOP_TYPE, EventLoopType.NETTY_NIO.name());
         put(Keys.EVENT_LOOP_COUNT, "2");
         put(Keys.COMMANDS_PER_EVENT_LOOP, "50");
@@ -412,6 +429,7 @@ public final class ConfigurationHelper {
         put(Keys.WRITE_SOCKET_TIMEOUT, "5000");
         put(Keys.WRITE_TOTAL_TIMEOUT, "25000");
         put(Keys.WRITE_SLEEP_BETWEEN_RETRY, "5000");
+        put(Keys.MAX_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
     }};
 
     static {
@@ -451,6 +469,9 @@ public final class ConfigurationHelper {
         NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.MERGE_EDGE_EVAL_TIMEOUT, 1, 60000);
         NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.MERGE_EDGE_TTL, 1000, 60000);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MERGE_EDGE_POLL_INTERVAL, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.EVENT_LOOP_COUNT, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.DELAY_QUEUE_SIZE, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, 2);
     }
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {
@@ -480,7 +501,7 @@ public final class ConfigurationHelper {
                 configData.put(key, value);
             });
             return new MapConfiguration(configData);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -502,7 +523,7 @@ public final class ConfigurationHelper {
                 });
                 return new MapConfiguration(configData);
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -629,7 +650,7 @@ public final class ConfigurationHelper {
         final StringWriter sw = new StringWriter();
         try {
             props.store(sw, "FireflyGraph Configuration Defaults");
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
         return sw.toString();

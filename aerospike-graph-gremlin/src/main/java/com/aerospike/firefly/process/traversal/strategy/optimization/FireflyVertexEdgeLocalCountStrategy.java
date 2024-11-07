@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.computer.local.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalStep;
 import com.aerospike.firefly.process.traversal.step.map.FireflyVertexEdgeLocalCountStep;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -13,8 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-
-import static com.aerospike.firefly.process.computer.local.ComputerHelper.isComputerTraversal;
 
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
@@ -36,6 +35,9 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
                 return;
             }
         }
+
+        if (ComputerHelper.onGraphComputer(traversal))
+            return;
 
         for (final LocalStep localStep : TraversalHelper.getStepsOfClass(LocalStep.class, traversal)) {
             final List<Traversal.Admin> localTraversal = localStep.getLocalChildren();

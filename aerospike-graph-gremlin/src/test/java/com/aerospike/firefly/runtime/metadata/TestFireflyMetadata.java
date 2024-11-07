@@ -1,6 +1,5 @@
 package com.aerospike.firefly.runtime.metadata;
 
-import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
@@ -38,7 +37,7 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
     @Override
     protected boolean runTest() {
         // This test is only valid on one node clusters due to how the calculations for cardinality work.
-        return db.getClient().getNodes().length == 1;
+        return db.getNodeCount() == 1;
     }
 
     @Before
@@ -104,8 +103,8 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
         final FireflyIndexMetadata.IndexInfo index1InfoLong = graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index1", 1L).get();
         final FireflyIndexMetadata.IndexInfo index1InfoString = graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index1", "1").get();
 
-        db.getClient().dropIndex(new QueryPolicy(), db.getNamespace(), db.VERTEX_AERO_SET, index1InfoLong.indexName);
-        db.getClient().dropIndex(new QueryPolicy(), db.getNamespace(), db.VERTEX_AERO_SET, index1InfoString.indexName);
+        db.dropIndex(db.VERTEX_AERO_SET, index1InfoLong.indexName);
+        db.dropIndex(db.VERTEX_AERO_SET, index1InfoString.indexName);
 
         // Check for 'index1' (should be removed), 'index2', and 'index3'. Need to check for both string and numeric existence.
         Thread.sleep(10);
@@ -123,10 +122,10 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
         final FireflyIndexMetadata.IndexInfo index3InfoLong = graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index3", 1L).get();
         final FireflyIndexMetadata.IndexInfo index3InfoString = graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index3", "1").get();
 
-        db.getClient().dropIndex(new QueryPolicy(), db.getNamespace(), db.VERTEX_AERO_SET, index2InfoLong.indexName);
-        db.getClient().dropIndex(new QueryPolicy(), db.getNamespace(), db.VERTEX_AERO_SET, index2InfoString.indexName);
-        db.getClient().dropIndex(new QueryPolicy(), db.getNamespace(), db.VERTEX_AERO_SET, index3InfoLong.indexName);
-        db.getClient().dropIndex(new QueryPolicy(), db.getNamespace(), db.VERTEX_AERO_SET, index3InfoString.indexName);
+        db.dropIndex(db.VERTEX_AERO_SET, index2InfoLong.indexName);
+        db.dropIndex(db.VERTEX_AERO_SET, index2InfoString.indexName);
+        db.dropIndex(db.VERTEX_AERO_SET, index3InfoLong.indexName);
+        db.dropIndex(db.VERTEX_AERO_SET, index3InfoString.indexName);
 
         // Verify all indexes are removed.
         Thread.sleep(10);

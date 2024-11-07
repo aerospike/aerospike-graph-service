@@ -6,6 +6,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.AdjacentToIncidentStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.IncidentToAdjacentStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.LambdaRestrictionStrategy;
 
 import java.util.HashSet;
@@ -30,6 +32,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
     private final FireflyStrategyBase fireflyAuthenticationStrategy;
     private final FireflyStrategyBase fireflyAdjacentVertexIdStrategy;
     private final FireflyStrategyBase fireflyBatchOtherVReadStrategy;
+    private final FireflyStrategyBase fireflyEdgeToVertexBatchReadStrategy;
     private final FireflyStrategyBase fireflyCompositeEdgeIdLocalStrategy;
     private final FireflyStrategyBase fireflyBatchEdgeReadLocalStrategy;
     private final FireflyStrategyBase fireflyCountGlobalLocalStrategy;
@@ -52,7 +55,8 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         this.fireflyBatchEdgeReadLocalStrategy = new FireflyBatchEdgeReadLocalStrategy();
         this.fireflyCountGlobalLocalStrategy = new FireflyCountGlobalLocalStrategy();
         this.fireflyAdjacentVertexIdStrategy = new FireflyAdjacentVertexIdStrategy();
-        this.fireflyBatchOtherVReadStrategy = new FireflyBatchOtherVReadStrategy();
+        this.fireflyBatchOtherVReadStrategy = new FireflyOtherVBatchReadStrategy();
+        this.fireflyEdgeToVertexBatchReadStrategy = new FireflyEdgeToVertexBatchReadStrategy();
     }
 
     /**
@@ -108,6 +112,8 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         applyStrategy(traversal, fireflyCountGlobalLocalStrategy);
 
         // This step replaces out/in.id() with single step.
+        applyTinkerPopStrategy(traversal, AdjacentToIncidentStrategy.instance());
+        applyTinkerPopStrategy(traversal, IncidentToAdjacentStrategy.instance());
         applyStrategy(traversal, fireflyAdjacentVertexIdStrategy);
 
         // Steps that are generally applicable to most all traversals.
@@ -127,6 +133,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         applyStrategy(traversal, fireflyBatchEdgeReadStrategy);
         applyStrategy(traversal, fireflyBatchOtherVReadStrategy);
         applyStrategy(traversal, fireflyBatchEdgeReadLocalStrategy);
+        applyStrategy(traversal, fireflyEdgeToVertexBatchReadStrategy);
         applyStrategy(traversal, fireflyScanProfileStrategy);
     }
 }

@@ -129,22 +129,22 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
             }
         }
 
-        // Get statistics vertex.
+        // Get statistics.
         wait5Seconds();
-        final Vertex v = g.V("~graph_summary").next();
+        final Map<Object, Object> summary = (Map<Object, Object>) g.call("aerospike.graph.admin.metadata.summary").next();
 
         // Check vertex properties.
-        final Map<String, Set<String>> vertexProperties = v.value("vertex_properties_per_label");
+        final Map<String, Set<String>> vertexProperties = (Map<String, Set<String>>)summary.get("Vertex properties by label");
         Assert.assertEquals(expectedVertexLabelToProperties, vertexProperties);
 
         // Check vertex total count.
-        final long vertexCount = v.value("vertex_count");
+        final long vertexCount = (long)summary.get("Total vertex count");
         final AtomicLong vertexCountSum = new AtomicLong(0);
         expectedVertexLabelToCount.values().forEach(vertexCountSum::addAndGet);
         Assert.assertEquals(vertexCountSum.get(), vertexCount);
 
         // Check vertex count per label.
-        final Map<String, Long> vertexCountPerLabel = v.value("vertex_count_per_label");
+        final Map<String, Long> vertexCountPerLabel = (Map<String, Long>)summary.get("Vertex count by label");
         for (final Map.Entry<String, Long> entry : expectedVertexLabelToCount.entrySet()) {
             final String label = entry.getKey();
             Assert.assertTrue(vertexCountPerLabel.containsKey(label));
@@ -154,17 +154,17 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
 
         // Check edge properties.
-        final Map<String, Set<String>> edgeProperties = v.value("edge_properties_per_label");
+        final Map<String, Set<String>> edgeProperties = (Map<String, Set<String>>)summary.get("Edge properties by label");
         assertEquals(expectedEdgeLabelToProperties, edgeProperties);
 
         // Check total edge count.
-        final Long edgeCount = v.value("edge_count");
+        final Long edgeCount = (Long)summary.get("Total edge count");
         AtomicLong expectedEdgeCount = new AtomicLong(0);
         expectedEdgeLabelToVertexLabelPairToCount.forEach((k, v1) -> expectedEdgeCount.addAndGet(v1.count));
         assertEquals(expectedEdgeCount.get(), edgeCount.longValue());
 
         // Check edge count per label.
-        final Map<String, Long> edgeCountPerLabel = v.value("edge_count_per_label");
+        final Map<String, Long> edgeCountPerLabel = (Map<String, Long>)summary.get("Edge count by label");
         final Map<String, Long> expectedEdgeCountPerLabel = new HashMap<>();
         expectedEdgeLabelToVertexLabelPairToCount.forEach((k, v1) -> expectedEdgeCountPerLabel.put(k, v1.count));
         assertEquals(expectedEdgeCountPerLabel, edgeCountPerLabel);
@@ -198,22 +198,22 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
             }
         }
 
-        // Get statistics vertex.
+        // Get statistics.
         wait5Seconds();
-        final Vertex v = g.V("~graph_summary").next();
+        final Map<Object, Object> summary = (Map<Object, Object>) g.call("aerospike.graph.admin.metadata.summary").next();
 
         // Check vertex properties per label.
-        final Map<String, Set<String>> vertexPropertiesPerLabel = v.value("vertex_properties_per_label");
+        final Map<String, Set<String>> vertexPropertiesPerLabel = (Map<String, Set<String>> )summary.get("Vertex properties by label");
         Assert.assertEquals(expectedVertexLabelToProperties, vertexPropertiesPerLabel);
 
         // Check vertex total count.
-        final long vertexCount = v.value("vertex_count");
+        final Long vertexCount = (Long)summary.get("Total vertex count");
         final AtomicLong vertexCountSum = new AtomicLong(0);
         expectedVertexLabelToCount.values().forEach(vertexCountSum::addAndGet);
-        Assert.assertEquals(vertexCountSum.get(), vertexCount);
+        Assert.assertEquals(vertexCountSum.get(), vertexCount.longValue());
 
         // Check vertex count per label.
-        final Map<String, Long> vertexCountPerLabel = v.value("vertex_count_per_label");
+        final Map<String, Long> vertexCountPerLabel = (Map<String, Long>)summary.get("Vertex count by label");
         for (final Map.Entry<String, Long> entry : expectedVertexLabelToCount.entrySet()) {
             final String label = entry.getKey();
             Assert.assertTrue(vertexCountPerLabel.containsKey(label));
@@ -223,9 +223,9 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
 
         // Validate all edge related fields are empty/zero.
-        final Map<String, Set<String>> edgePropertiesPerLabel = v.value("edge_properties_per_label");
-        final Map<String, Long> edgeCountPerLabel = v.value("edge_count_per_label");
-        final Long edgeCount = v.value("edge_count");
+        final Map<String, Set<String>> edgePropertiesPerLabel = (Map<String, Set<String>>) summary.get("Edge properties by label");
+        final Map<String, Long> edgeCountPerLabel = (Map<String, Long>) summary.get("Edge count by label");
+        final Long edgeCount = (Long) summary.get("Total edge count");
         assertEquals(Map.of(), edgePropertiesPerLabel);
         assertEquals(Map.of(), edgeCountPerLabel);
         assertEquals(0L, edgeCount.longValue());
@@ -298,25 +298,25 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
             }
         }
 
-        // Get statistics vertex.
+        // Get statistics.
         wait5Seconds();
-        final Vertex v = g.V("~graph_summary").next();
+        final Map<Object, Object> summary = (Map<Object, Object>) g.call("aerospike.graph.admin.metadata.summary").next();
 
         // Check vertex properties.
-        final Map<String, Set<String>> vertexProperties = v.value("vertex_properties_per_label");
+        final Map<String, Set<String>> vertexProperties = (Map<String, Set<String>>) summary.get("Vertex properties by label");
         final Map<String, Set<String>> expectedVertexProperties = expectedVertexLabelToCount.keySet().
                 stream().map(label -> Map.entry(label, new HashSet<String>())).
                 collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         Assert.assertEquals(expectedVertexProperties, vertexProperties);
 
         // Check vertex total count.
-        final long vertexCount = v.value("vertex_count");
+        final long vertexCount = (long) summary.get("Total vertex count");
         final AtomicLong vertexCountSum = new AtomicLong(0);
         expectedVertexLabelToCount.values().forEach(vertexCountSum::addAndGet);
         Assert.assertEquals(vertexCountSum.get(), vertexCount);
 
         // Check vertex count per label.
-        final Map<String, Long> vertexCountPerLabel = v.value("vertex_count_per_label");
+        final Map<String, Long> vertexCountPerLabel = (Map<String, Long>) summary.get("Vertex count by label");
         for (final Map.Entry<String, Long> entry : expectedVertexLabelToCount.entrySet()) {
             final String label = entry.getKey();
             Assert.assertTrue(vertexCountPerLabel.containsKey(label));
@@ -326,20 +326,20 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
 
         // Check edge properties.
-        final Map<String, Set<String>> edgeProperties = v.value("edge_properties_per_label");
+        final Map<String, Set<String>> edgeProperties = (Map<String, Set<String>>) summary.get("Edge properties by label");
         final Map<String, Set<String>> expectedEdgeProperties = expectedEdgeLabelToVertexLabelPairToCount.keySet().
                 stream().map(label -> Map.entry(label, new HashSet<String>())).
                 collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         assertEquals(expectedEdgeProperties, edgeProperties);
 
         // Check total edge count.
-        final Long edgeCount = v.value("edge_count");
+        final Long edgeCount = (Long) summary.get("Total edge count");
         AtomicLong expectedEdgeCount = new AtomicLong(0);
         expectedEdgeLabelToVertexLabelPairToCount.forEach((k, v1) -> expectedEdgeCount.addAndGet(v1.count));
         assertEquals(expectedEdgeCount.get(), edgeCount.longValue());
 
         // Check edge count per label.
-        final Map<String, Long> edgeCountPerLabel = v.value("edge_count_per_label");
+        final Map<String, Long> edgeCountPerLabel = (Map<String, Long>) summary.get("Edge count by label");
         final Map<String, Long> expectedEdgeCountPerLabel = new HashMap<>();
         expectedEdgeLabelToVertexLabelPairToCount.forEach((k, v1) -> expectedEdgeCountPerLabel.put(k, v1.count));
         assertEquals(expectedEdgeCountPerLabel, edgeCountPerLabel);
@@ -362,25 +362,25 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
             }
         }
 
-        // Get statistics vertex.
+        // Get statistics.
         wait5Seconds();
-        final Vertex v = g.V("~graph_summary").next();
+        final Map<Object, Object> summary = (Map<Object, Object>) g.call("aerospike.graph.admin.metadata.summary").next();
 
         // Check vertex properties per label.
-        final Map<String, Set<String>> vertexPropertiesPerLabel = v.value("vertex_properties_per_label");
+        final Map<String, Set<String>> vertexPropertiesPerLabel = (Map<String, Set<String>>) summary.get("Vertex properties by label");
         final Map<String, Set<String>> expectedVertexPropertiesPerLabel = expectedVertexLabelToCount.keySet().
                 stream().map(label -> Map.entry(label, new HashSet<String>())).
                 collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         Assert.assertEquals(expectedVertexPropertiesPerLabel, vertexPropertiesPerLabel);
 
         // Check vertex total count.
-        final long vertexCount = v.value("vertex_count");
+        final Long vertexCount = (Long) summary.get("Total vertex count");
         final AtomicLong vertexCountSum = new AtomicLong(0);
         expectedVertexLabelToCount.values().forEach(vertexCountSum::addAndGet);
-        Assert.assertEquals(vertexCountSum.get(), vertexCount);
+        Assert.assertEquals(vertexCountSum.get(), vertexCount.longValue());
 
         // Check vertex count per label.
-        final Map<String, Long> vertexCountPerLabel = v.value("vertex_count_per_label");
+        final Map<String, Long> vertexCountPerLabel = (Map<String, Long>) summary.get("Vertex count by label");
         for (final Map.Entry<String, Long> entry : expectedVertexLabelToCount.entrySet()) {
             final String label = entry.getKey();
             Assert.assertTrue(vertexCountPerLabel.containsKey(label));
@@ -389,9 +389,9 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
         }
 
         // Validate all edge related fields are empty/zero.
-        final Map<String, Set<String>> edgePropertiesPerLabel = v.value("edge_properties_per_label");
-        final Map<String, Long> edgeCountPerLabel = v.value("edge_count_per_label");
-        final Long edgeCount = v.value("edge_count");
+        final Map<String, Set<String>> edgePropertiesPerLabel = (Map<String, Set<String>>) summary.get("Edge properties by label");
+        final Map<String, Long> edgeCountPerLabel = (Map<String, Long>) summary.get("Edge count by label");
+        final Long edgeCount = (Long) summary.get("Total edge count");
         assertEquals(Map.of(), edgePropertiesPerLabel);
         assertEquals(Map.of(), edgeCountPerLabel);
         assertEquals(0L, edgeCount.longValue());
@@ -399,21 +399,20 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
     @Test
     public void testEmpty() {
-        // Get statistics vertex.
-        final Vertex v = g.V("~graph_summary").next();
+        final Map<Object, Object> summary = (Map<Object, Object>) g.call("aerospike.graph.admin.metadata.summary").next();
 
         // Validate all vertex related fields are empty/zero.
-        final Map<String, Set<String>> vertexPropertiesPerLabel = v.value("vertex_properties_per_label");
-        final Map<String, Long> vertexCountPerLabel = v.value("vertex_count_per_label");
-        final long vertexCount = v.value("vertex_count");
+        final Map<String, Set<String>> vertexPropertiesPerLabel = (Map<String, Set<String>>)summary.get("Vertex properties by label");
+        final Map<String, Long> vertexCountPerLabel = (Map<String, Long>)summary.get("Vertex count by label");
+        final Long vertexCount = (Long)summary.get("Total vertex count");
         assertEquals(Map.of(), vertexPropertiesPerLabel);
         assertEquals(Map.of(), vertexCountPerLabel);
-        assertEquals(0L, vertexCount);
+        assertEquals(0L, vertexCount.longValue());
 
         // Validate all edge related fields are empty/zero.
-        final Map<String, Set<String>> edgePropertiesPerLabel = v.value("edge_properties_per_label");
-        final Map<String, Long> edgeCountPerLabel = v.value("edge_count_per_label");
-        final Long edgeCount = v.value("edge_count");
+        final Map<String, Set<String>> edgePropertiesPerLabel = (Map<String, Set<String>>)summary.get("Edge properties by label");
+        final Map<String, Long> edgeCountPerLabel = (Map<String, Long>)summary.get("Edge count by label");
+        final Long edgeCount = (Long)summary.get("Total edge count");
         assertEquals(Map.of(), edgePropertiesPerLabel);
         assertEquals(Map.of(), edgeCountPerLabel);
         assertEquals(0L, edgeCount.longValue());
@@ -421,44 +420,44 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
     @Test
     public void testIncrementalVertexPropertyAdditions() {
-        // Get statistics vertex.
+        // Get statistics.
         wait5Seconds();
-        Vertex v = g.V("~graph_summary").next();
+        Map<Object, Object> summary = (Map<Object, Object>) g.call("aerospike.graph.admin.metadata.summary").next();
 
         // Validate all vertex related fields are empty/zero.
-        Map<String, Set<String>> vertexPropertiesPerLabel = v.value("vertex_properties_per_label");
-        Map<String, Long> vertexCountPerLabel = v.value("vertex_count_per_label");
-        long vertexCount = v.value("vertex_count");
+        Map<String, Set<String>> vertexPropertiesPerLabel = (Map<String, Set<String>>) summary.get("Vertex properties by label");
+        Map<String, Long> vertexCountPerLabel = (Map<String, Long>) summary.get("Vertex count by label");
+        Long vertexCount = (Long) summary.get("Total vertex count");
         assertEquals(Map.of(), vertexPropertiesPerLabel);
         assertEquals(Map.of(), vertexCountPerLabel);
-        assertEquals(0L, vertexCount);
+        assertEquals(0L, vertexCount.longValue());
 
         // Validate all edge related fields are empty/zero.
-        Map<String, Set<String>> edgePropertiesPerLabel = v.value("edge_properties_per_label");
-        Map<String, Long> edgeCountPerLabel = v.value("edge_count_per_label");
-        Long edgeCount = v.value("edge_count");
+        Map<String, Set<String>> edgePropertiesPerLabel = (Map<String, Set<String>>) summary.get("Edge properties by label");
+        Map<String, Long> edgeCountPerLabel = (Map<String, Long>) summary.get("Edge count by label");
+        Long edgeCount = (Long) summary.get("Total edge count");
         assertEquals(Map.of(), edgePropertiesPerLabel);
         assertEquals(Map.of(), edgeCountPerLabel);
         assertEquals(0L, edgeCount.longValue());
 
         g.addV("person").iterate();
 
-        // Get statistics vertex.
+        // Get statistics.
         wait5Seconds();
-        v = g.V("~graph_summary").next();
+        summary = (Map<Object, Object>) g.call("aerospike.graph.admin.metadata.summary").next();
 
         // Validate all vertex related fields are empty/zero.
-        vertexPropertiesPerLabel = v.value("vertex_properties_per_label");
-        vertexCountPerLabel = v.value("vertex_count_per_label");
-        vertexCount = v.value("vertex_count");
+        vertexPropertiesPerLabel = (Map<String, Set<String>>) summary.get("Vertex properties by label");
+        vertexCountPerLabel = (Map<String, Long>) summary.get("Vertex count by label");
+        vertexCount = (Long) summary.get("Total vertex count");
         assertEquals(Map.of("person", new HashSet<String>()), vertexPropertiesPerLabel);
         assertEquals(Map.of("person", 1L), vertexCountPerLabel);
-        assertEquals(1L, vertexCount);
+        assertEquals(1L, vertexCount.longValue());
 
         // Validate all edge related fields are empty/zero.
-        edgePropertiesPerLabel = v.value("edge_properties_per_label");
-        edgeCountPerLabel = v.value("edge_count_per_label");
-        edgeCount = v.value("edge_count");
+        edgePropertiesPerLabel = (Map<String, Set<String>>) summary.get("Edge properties by label");
+        edgeCountPerLabel = (Map<String, Long>) summary.get("Edge count by label");
+        edgeCount = (Long) summary.get("Total edge count");
         assertEquals(Map.of(), edgePropertiesPerLabel);
         assertEquals(Map.of(), edgeCountPerLabel);
         assertEquals(0L, edgeCount.longValue());
@@ -469,20 +468,20 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
         // Get statistics vertex.
         wait5Seconds();
-        v = g.V("~graph_summary").next();
+        summary = (Map<Object, Object>) g.call("aerospike.graph.admin.metadata.summary").next();
 
         // Validate all vertex related fields are empty/zero.
-        vertexPropertiesPerLabel = v.value("vertex_properties_per_label");
-        vertexCountPerLabel = v.value("vertex_count_per_label");
-        vertexCount = v.value("vertex_count");
+        vertexPropertiesPerLabel = (Map<String, Set<String>>) summary.get("Vertex properties by label");
+        vertexCountPerLabel = (Map<String, Long>) summary.get("Vertex count by label");
+        vertexCount = (Long) summary.get("Total vertex count");
         assertEquals(Map.of("person", Set.of("name", "age"), "dog", Set.of()), vertexPropertiesPerLabel);
         assertEquals(Map.of("person", 2L, "dog", 1L), vertexCountPerLabel);
-        assertEquals(3L, vertexCount);
+        assertEquals(3L, vertexCount.longValue());
 
         // Validate all edge related fields are empty/zero.
-        edgePropertiesPerLabel = v.value("edge_properties_per_label");
-        edgeCountPerLabel = v.value("edge_count_per_label");
-        edgeCount = v.value("edge_count");
+        edgePropertiesPerLabel = (Map<String, Set<String>>) summary.get("Edge properties by label");
+        edgeCountPerLabel = (Map<String, Long>) summary.get("Edge count by label");
+        edgeCount = (Long) summary.get("Total edge count");
         assertEquals(Map.of(), edgePropertiesPerLabel);
         assertEquals(Map.of(), edgeCountPerLabel);
         assertEquals(0L, edgeCount.longValue());
@@ -506,20 +505,20 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
         // Get statistics vertex.
         wait5Seconds();
-        v = g.V("~graph_summary").next();
+        summary = (Map<Object, Object>) g.call("aerospike.graph.admin.metadata.summary").next();
 
         // Validate all vertex related fields are empty/zero.
-        vertexPropertiesPerLabel = v.value("vertex_properties_per_label");
-        vertexCountPerLabel = v.value("vertex_count_per_label");
-        vertexCount = v.value("vertex_count");
+        vertexPropertiesPerLabel = (Map<String, Set<String>>) summary.get("Vertex properties by label");
+        vertexCountPerLabel = (Map<String, Long>) summary.get("Vertex count by label");
+        vertexCount = (Long) summary.get("Total vertex count");
         assertEquals(Map.of("person", Set.of("name", "age"), "dog", Set.of()), vertexPropertiesPerLabel);
         assertEquals(Map.of("person", 2L, "dog", 1L), vertexCountPerLabel);
-        assertEquals(3L, vertexCount);
+        assertEquals(3L, vertexCount.longValue());
 
         // Validate all edge related fields are empty/zero.
-        edgePropertiesPerLabel = v.value("edge_properties_per_label");
-        edgeCountPerLabel = v.value("edge_count_per_label");
-        edgeCount = v.value("edge_count");
+        edgePropertiesPerLabel = (Map<String, Set<String>>) summary.get("Edge properties by label");
+        edgeCountPerLabel = (Map<String, Long>) summary.get("Edge count by label");
+        edgeCount = (Long) summary.get("Total edge count");
         assertEquals(Map.of("OWNS", Set.of("since", "foo"), "OWNED_BY", Set.of("baz")), edgePropertiesPerLabel);
         assertEquals(Map.of("OWNS", 2L, "OWNED_BY", 1L), edgeCountPerLabel);
         assertEquals(3L, edgeCount.longValue());

@@ -1,21 +1,16 @@
 package com.aerospike.firefly.process.call;
 
-import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
+import com.aerospike.firefly.io.aerospike.admin.AdminService;
 import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.structure.service.Service;
 
 import java.util.Map;
 
-public class AdministrativeInfoService extends AdminServiceRegistry {
+public class AdministrativeInfoService extends AdminService {
     public AdministrativeInfoService(final FireflyGraph graph) {
         super(graph);
-    }
-
-    public static void registerAdministrativeService(final FireflyGraph graph) {
-        synchronized (AdministrativeInfoService.class) {
-            graph.getServiceRegistry().registerService(new AdministrativeInfoService(graph));
-        }
+        graph.getServiceRegistry().registerService(this);
     }
 
     @Override

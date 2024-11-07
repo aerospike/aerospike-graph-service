@@ -5,14 +5,16 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 
 public class ComputerHelper {
-    public static boolean isComputerTraversal(final Traversal.Admin<?, ?> traversal) {
-        Traversal.Admin<?, ?> t = traversal;
-        while (!(t.getParent() instanceof EmptyStep)) {
-            t = t.getParent().asStep().getTraversal();
+    public static boolean onGraphComputer(Traversal.Admin<?, ?> traversal) {
+        while (!(traversal.isRoot())) {
+            if (traversal.getParent() instanceof TraversalVertexProgramStep)
+                return true;
+            traversal = traversal.getParent().asStep().getTraversal();
         }
-        if (!t.getSteps().isEmpty()) {
-            return t.getSteps().get(0) instanceof TraversalVertexProgramStep;
+        if (traversal.getSteps().size() > 0) {
+            return traversal.getSteps().get(0) instanceof TraversalVertexProgramStep;
+        } else {
+            return false;
         }
-        return false;
     }
 }

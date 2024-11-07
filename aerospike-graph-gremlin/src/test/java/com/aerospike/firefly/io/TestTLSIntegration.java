@@ -5,6 +5,7 @@ import com.aerospike.client.cluster.Cluster;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Ignore;
@@ -41,23 +42,22 @@ public class TestTLSIntegration {
         config.setProperty(ConfigurationHelper.Keys.TLS_NAMES, "172.17.0.1:aerospike.test.aerospike.dev");
         config.setProperty(AEROSPIKE_PORT.toLowerCase(), 4303);
         AerospikeConnection db = AerospikeConnection.connect(config);
-        final Cluster c = db.getClient().getCluster();
         FireflyGraph graph = FireflyGraph.open(config);
         Vertex v = graph.addVertex();
     }
 
     @Test
     public void testTLSNameNegative() {
-        Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(TLS.toLowerCase(), "true");
         config.setProperty(AEROSPIKE_HOST.toLowerCase(), "172.17.0.1");
         config.setProperty(ConfigurationHelper.Keys.TLS_NAMES, "172.17.0.1:aerospike-ker.test.aerospike.dev");
         config.setProperty(AEROSPIKE_PORT.toLowerCase(), 4303);
         boolean success = false;
-        try{
-            AerospikeConnection db = AerospikeConnection.connect(config);
-        }catch (AerospikeException aerospikeException){
-            if(aerospikeException.getMessage().contains("Invalid TLS"))
+        try {
+            final AerospikeConnection db = AerospikeConnection.connect(config);
+        } catch (final AerospikeGraphException e) {
+            if (e.getMessage().contains("Invalid TLS"))
                 success = true;
         }
         assertTrue(success);

@@ -3,6 +3,7 @@ package com.aerospike.firefly.ttl;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -11,6 +12,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -296,8 +298,11 @@ public class TestFireflyTtl {
 
     @Test
     public void testLazyEvaluationFromEdge() throws InterruptedException {
+        final Configuration config = getConfig(1000);
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY, "false");
+
         this.graph.close();
-        this.graph = FireflyGraph.open(getConfig(1000));
+        this.graph = FireflyGraph.open(config);
         GraphTraversalSource g = this.graph.traversal();
         final Vertex v1 = g.addV("v1").property("~ttl", 1).next();
         final Vertex v2 = g.addV("v2").next();

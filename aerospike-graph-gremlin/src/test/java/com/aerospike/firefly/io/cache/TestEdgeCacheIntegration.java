@@ -46,6 +46,7 @@ public class TestEdgeCacheIntegration {
     @AfterClass
     public static void afterAll() {
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
+        SETUP_GRAPH.close();
     }
 
     @Test

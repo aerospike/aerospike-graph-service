@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.computer.local.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdLimitSampleStep;
 import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -28,8 +29,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.process.computer.local.ComputerHelper.isComputerTraversal;
-
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
@@ -56,7 +55,7 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
             }
         }
 
-        if (isComputerTraversal(traversal))
+        if (ComputerHelper.onGraphComputer(traversal))
             return;
         final List<Step> steps = traversal.getSteps();
 

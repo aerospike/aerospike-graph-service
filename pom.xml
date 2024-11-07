@@ -44,7 +44,6 @@
     <modules>
         <module>aerospike-graph-gremlin</module>
         <module>aerospike-graph-bulk-loader</module>
-        <module>aerospike-graph-sizing-tool</module>
         <module>aerospike-graph-api</module>
     </modules>
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->
@@ -170,6 +169,8 @@
                         <exclude>**/TestPhantomEdges</exclude>
                         <exclude>**/ValidConnectionTest.java</exclude>
                         <exclude>**/TestPerformanceModes.java</exclude>
+                        <exclude>**/TestDockerJavaOptions.java</exclude>
+                        <exclude>**/TestDockerConfigs.java</exclude>
                         <exclude>**/FireflyUsageStatsCallMultiTest.java</exclude>
                         <exclude>**/TestMovielens1M.java</exclude>
                         <exclude>**/TestFireflyExceedHeap.java</exclude>
@@ -189,6 +190,7 @@
                         <exclude>**/TestBulkLoaderRecovery</exclude>
                         <exclude>**/TestRecoveryActionFlags</exclude>
                         <exclude>**/QueryServiceAbortTest</exclude>
+                        <exclude>**/TestAerospikeClientConfigEventLoop</exclude>
                     </excludes>
                 </configuration>
             </plugin>

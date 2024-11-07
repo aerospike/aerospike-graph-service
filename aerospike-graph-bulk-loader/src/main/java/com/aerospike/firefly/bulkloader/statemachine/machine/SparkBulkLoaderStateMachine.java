@@ -6,7 +6,6 @@ import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.util.ProgressBar;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
-import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
@@ -126,6 +125,7 @@ public class SparkBulkLoaderStateMachine {
                 }
             });
             config = new BulkLoaderConfigHelper(fileConfig, cmd);
+            config.validateBulkLoadConfig();
 
             final String logLevel = config.getOrDefault(SPARK_LOG_LEVEL).toUpperCase();
             // Set LOG LEVEL for spark logging to disable logging of each step during debugging purposes.
@@ -144,6 +144,17 @@ public class SparkBulkLoaderStateMachine {
 
             // Initialize bulk loader metadata.
             initializerGraph.getBaseGraph().initializeBulkLoadMetadata();
+
+            final String vertexDirectory = config.getOrDefault(VERTEX_DIRECTORY_KEY);
+            final String edgeDirectory = config.getOrDefault(EDGE_DIRECTORY_KEY);
+            if (vertexDirectory.equals(edgeDirectory)) {
+                throw new IllegalArgumentException(String.format("Vertex and edge directories cannot be the same. Configs %s=%s and %s=%s.",
+                        VERTEX_DIRECTORY_KEY, vertexDirectory, EDGE_DIRECTORY_KEY, edgeDirectory));
+            } else if (vertexDirectory.endsWith(".csv")) {
+                throw new IllegalArgumentException("Config " + VERTEX_DIRECTORY_KEY + " must be a directory and cannot be a single file, current value is " + vertexDirectory + ".");
+            } else if (edgeDirectory.endsWith(".csv")) {
+                throw new IllegalArgumentException("Config " + EDGE_DIRECTORY_KEY + " must be a directory and cannot be a single file, current value is " + edgeDirectory + ".");
+            }
 
             // Pre-processing
             vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
@@ -213,7 +224,7 @@ public class SparkBulkLoaderStateMachine {
         final Properties prop = new Properties();
         try (final StringReader reader = new StringReader(fileContext)) {
             prop.load(reader);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             LOGGER.error(e.getMessage());
             throw new RuntimeException(e);
         }
@@ -286,7 +297,7 @@ public class SparkBulkLoaderStateMachine {
                                 GCS_EMAIL+ "', '" + REMOTE_USERNAME + "', and '" + REMOTE_PASSKEY +
                                 "' must be specified to read from GCS.";
                         LOGGER.error(gcsCredentialError);
-                        throw new FireflyBulkLoaderException(gcsCredentialError);
+                        throw new RuntimeException(gcsCredentialError);
                     }
                 }
             }
@@ -319,7 +330,7 @@ public class SparkBulkLoaderStateMachine {
 
         try {
             Thread.sleep(exponentialTime);
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }

@@ -17,6 +17,7 @@ import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine.exponentialBackoff;
+import static com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException.isRetryable;
 
 public class RecoveryUtil {
     private static final Logger LOGGER = LoggerFactory.getLogger(RecoveryUtil.class);
@@ -43,10 +45,10 @@ public class RecoveryUtil {
 
     public static void truncate(final AerospikeConnection db) {
         try {
-            db.getClient().truncate(null, db.getNamespace(), db.BULK_LOAD_RECOVERY_VERTEX_SET, null);
-            db.getClient().truncate(null, db.getNamespace(), db.BULK_LOAD_RECOVERY_EDGE_SET, null);
-            db.getClient().truncate(null, db.getNamespace(), db.BULK_LOAD_RECOVERY_SUPERNODE_SET, null);
-            db.getClient().truncate(null, db.getNamespace(), db.BULK_LOAD_RECOVERY_STATE_SET, null);
+            db.truncate(null, db.BULK_LOAD_RECOVERY_VERTEX_SET, null);
+            db.truncate(null, db.BULK_LOAD_RECOVERY_EDGE_SET, null);
+            db.truncate(null, db.BULK_LOAD_RECOVERY_SUPERNODE_SET, null);
+            db.truncate(null, db.BULK_LOAD_RECOVERY_STATE_SET, null);
             Thread.sleep(1);
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -104,15 +106,15 @@ public class RecoveryUtil {
             try {
                 db.writeOperate(writePolicy, key, createOp, updateOp);
                 return;
-            } catch (final AerospikeException e) {
+            } catch (final AerospikeGraphException e) {
+                if (!isRetryable(e)) {
+                    throw e;
+                }
                 tryCount++;
                 exponentialBackoff(tryCount);
-                if (!new FireflyLoadingException(e).isRetryable()) {
-                    throw new FireflyLoadingException(e);
-                }
             }
         }
-        throw new FireflyLoadingException(new AerospikeException(ResultCode.TIMEOUT, "Failed to write to Aerospike for recovery operations"));
+        throw new RuntimeException("Failed to write to Aerospike for recovery operations");
     }
 
     public static void updateState(final AerospikeConnection db, final RecoveryState state) {
@@ -170,7 +172,7 @@ public class RecoveryUtil {
         listener.mode = mode;
         listener.latch = new CountDownLatch(1);
         listener.reset();
-        db.getClient().scanAll(db.getEventLoops().next(), listener, scanPolicy, db.getNamespace(), set);
+        db.scanAll(listener, scanPolicy, set);
         try {
             // Wait up to 5 minutes for the scan to complete.
             listener.latch.await(5 * 60 * 1000, java.util.concurrent.TimeUnit.MILLISECONDS);
@@ -185,16 +187,16 @@ public class RecoveryUtil {
         int tryCount = 0;
         while (tryCount < 3) {
             try {
-                return db.client.get(readPolicy, key);
-            } catch (final AerospikeException e) {
+                return db.read(key, readPolicy);
+            } catch (final AerospikeGraphException e) {
+                if (!isRetryable(e)) {
+                    throw e;
+                }
                 tryCount++;
                 exponentialBackoff(tryCount);
-                if (!new FireflyLoadingException(e).isRetryable()) {
-                    throw new FireflyLoadingException(e);
-                }
             }
         }
-        throw new FireflyLoadingException(new AerospikeException(ResultCode.TIMEOUT, "Failed to read from Aerospike for recovery operations"));
+        throw new RuntimeException("Failed to read from Aerospike for recovery operations");
     }
 
     private static String recoverState(final AerospikeConnection db) {

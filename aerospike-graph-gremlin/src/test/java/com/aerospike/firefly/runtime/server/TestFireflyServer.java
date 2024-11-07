@@ -31,6 +31,4 @@ public class TestFireflyServer {
         FireflyServer server = FireflyServer.start(new String[] {"../conf/firefly-gremlin-server-local.yaml"});
         Thread.sleep(60 * 1000 * 1000);
     }
-
-    // REDACTED_GH_TOKEN
 }

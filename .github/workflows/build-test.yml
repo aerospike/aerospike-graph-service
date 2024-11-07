@@ -61,7 +61,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: t3.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-structure:
@@ -86,7 +86,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: t3.xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-process-1:
@@ -111,7 +111,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: t3.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-process-2:
@@ -136,7 +136,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: t3.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-process-3:
@@ -161,7 +161,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: t3.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-local-computer-process-1:
@@ -186,7 +186,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: t3.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly:
@@ -211,7 +211,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: t3.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-movielens:
@@ -234,7 +234,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: t3.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-recoverable-load-1:
@@ -257,7 +257,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: t3.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-recoverable-load-2:
@@ -280,7 +280,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: t3.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-benchmark:
@@ -303,7 +303,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: t3.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-benchmark-internal dataset:
@@ -326,7 +326,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: t3.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-benchmark-identifies:
@@ -349,7 +349,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: t3.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-spark-bulk-loader:
@@ -372,7 +372,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: t3.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   negative-test-bulk-loader-call-docker:
@@ -414,8 +414,9 @@ jobs:
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
+          pip3 install python_on_whales
           bash -x scripts/start_aerospike.sh
-          bash -x scripts/build-docker-stripped.sh aerospike/firefly linux/amd64
+          python3 ./scripts/build-docker.py --tags aerospike/firefly --slim
           
           docker run -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/custom/ \
@@ -491,28 +492,19 @@ jobs:
         uses: stCarolas/setup-maven@v4.5
         with:
           maven-version: 3.9.5
-      - name: Launch Firefly in Gremlin-Server and Run Benchmark
+      - name: Launch Firefly and Run Benchmark
         env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          echo "Downloading gremlin-server"
-          cd ..
-          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.7.1/apache-tinkerpop-gremlin-server-3.7.1-bin.zip --quiet
-          echo "Unzipping gremlin-server"
-          unzip -qq gremlin-server
           
           echo "Build Firefly"
-          cd firefly
-          mvn clean install -DskipTests --no-transfer-progress
+          mvn clean install -DskipTests --no-transfer-progress                    
           
-          echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.4.0-SNAPSHOT'
+          echo "Starting firefly-server"
+          java -cp "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.4.0-SNAPSHOT.jar:aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.4.0-SNAPSHOT.jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
           
-          echo "Starting gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
-          
-          echo "Sleeping for 30 seconds while gremlin-server starts"
+          echo "Sleeping for 30 seconds while firefly-server starts"
           sleep 30
           
           echo "Running benchmark"
@@ -556,6 +548,10 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           mvn install -DskipTests
+      - name: Test Client Event Loop Configuration
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeClientConfigEventLoop -DfailIfNoTests=false --no-transfer-progress
       - name: Test Small Memory Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
@@ -855,7 +851,7 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeGraphServiceCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-spark-bulk-loader-load-recovery-1:
     name: Test Spark Bulk Loader Load Recovery 1
-    timeout-minutes: 60
+    timeout-minutes: 80
     needs: start-runner-recoverable-load-1
     runs-on: ${{ needs.start-runner-recoverable-load-1.outputs.label }}
     steps:
@@ -1054,23 +1050,14 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          echo "Downloading gremlin-server"
-          cd ..
-          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.7.1/apache-tinkerpop-gremlin-server-3.7.1-bin.zip --quiet
-          echo "Unzipping gremlin-server"
-          unzip -qq gremlin-server
 
           echo "Build Firefly"
-          cd firefly
           mvn clean install -DskipTests --no-transfer-progress
 
-          echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.4.0-SNAPSHOT'
-
-          echo "Starting gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
-
-          echo "Sleeping for 30 seconds while gremlin-server starts"
+          echo "Starting firefly-server"
+          java -cp "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.4.0-SNAPSHOT.jar:aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.4.0-SNAPSHOT.jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+          
+          echo "Sleeping for 30 seconds while firefly-server starts"
           sleep 30
 
           echo "Running benchmark"
@@ -1114,23 +1101,13 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
 
-          echo "Downloading gremlin-server"
-          cd ..
-          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.7.1/apache-tinkerpop-gremlin-server-3.7.1-bin.zip --quiet
-          echo "Unzipping gremlin-server"
-          unzip -qq gremlin-server
-
           echo "Build Firefly"
-          cd firefly
           mvn clean install -DskipTests --no-transfer-progress
 
-          echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.4.0-SNAPSHOT'
-
-          echo "Starting gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
-
-          echo "Sleeping for 30 seconds while gremlin-server starts"
+          echo "Starting firefly-server"
+          java -cp "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.4.0-SNAPSHOT.jar:aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.4.0-SNAPSHOT.jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+          
+          echo "Sleeping for 30 seconds while firefly-server starts"
           sleep 30
 
           echo "Running benchmark"
@@ -1181,8 +1158,9 @@ jobs:
           maven-version: 3.9.5
       - name: Build docker
         run: |
+          pip3 install python_on_whales
           echo "Building docker image"
-          bash -x scripts/build-docker.sh firefly linux/amd64
+          python3 scripts/build-docker.py --tags firefly --platforms linux/amd64
       # Due to the nature of the multi usage stats test, it MUST come first. Otherwise it will have problems.
       - name: Run multi Firefly usage test
         env:
@@ -1292,10 +1270,12 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote -DfailIfNoTests=false --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
-      - name: Test Firefly Docker Image Performance Mode
+      - name: Test Firefly Docker Image
         run: |
           echo "Running performance mode tests"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestPerformanceModes -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerJavaOptions -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerConfigs -DfailIfNoTests=false --no-transfer-progress
   test-aerospike-ttl:
     name: Test Aerospike TTL Fails
     timeout-minutes: 30

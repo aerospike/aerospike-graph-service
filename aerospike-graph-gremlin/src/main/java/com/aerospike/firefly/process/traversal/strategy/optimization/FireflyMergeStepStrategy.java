@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.computer.local.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyMergeEdgeStep;
 import com.aerospike.firefly.process.traversal.step.FireflyMergeVertexStep;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -7,8 +8,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeEdgeStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeVertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
-
-import static com.aerospike.firefly.process.computer.local.ComputerHelper.isComputerTraversal;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -22,7 +21,7 @@ public class FireflyMergeStepStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
-        if (isComputerTraversal(traversal))
+        if (ComputerHelper.onGraphComputer(traversal))
             return;
 
         for (final MergeVertexStep originalMergeVertexStep : TraversalHelper.getStepsOfClass(MergeVertexStep.class, traversal)) {

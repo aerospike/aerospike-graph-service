@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure.util;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Record;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.Filter;
@@ -12,6 +11,7 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -116,12 +116,12 @@ public class FireflyTtlHandler implements Closeable {
                     try {
                         vertex.remove();
                         removalCount++;
-                    } catch (final AerospikeException e) {
+                    } catch (final AerospikeGraphException e) {
                         LOG.error("Unexpected error occurred when removing TTL Vertex ID {}: {}", vertex.id(), e);
                     }
                 }
             }
-        } catch (final AerospikeException e) {
+        } catch (final AerospikeGraphException e) {
             LOG.error("Unexpected error occurred when running index to grab TTL expired Vertices.", e);
         }
         LOG.debug("TTL purge removed " + removalCount + " expired Vertices.");
@@ -150,14 +150,14 @@ public class FireflyTtlHandler implements Closeable {
                                 edge.remove();
                                 currentEdgeDeleteTime = System.currentTimeMillis();
                                 removalCount++;
-                            } catch (final AerospikeException e) {
+                            } catch (final AerospikeGraphException e) {
                                 LOG.error("Unexpected error occurred when removing TTL Edge ID {}: {}", edge.id(), e);
                             }
                         }
                     }
                 }
             }
-        } catch (final AerospikeException e) {
+        } catch (final AerospikeGraphException e) {
             LOG.error("Unexpected error occurred when running index to grab TTL expired Edges.", e);
         }
         LOG.debug("TTL purge removed " + removalCount + " expired Edges.");

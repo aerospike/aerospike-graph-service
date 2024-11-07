@@ -52,12 +52,12 @@ public class CacheInterationTest extends AbstractFireflySuite {
         final Bin bin = new Bin("test", "test");
         db.checkedPut(null, key, bin);
         final FireflyCache cache = new ReadThroughRecordCache(db, uuid);
-        final Record miss = cache.read(key);
+        final Record miss = cache.read(null, key);
         Assert.assertNotNull(miss);
         Assert.assertEquals("test", miss.getString("test"));
         Assert.assertEquals(0, cache.getHitCount());
         Assert.assertEquals(1, cache.getMissCount());
-        final Record hit = cache.read(key);
+        final Record hit = cache.read(null, key);
         Assert.assertNotNull(hit);
         Assert.assertEquals("test", hit.getString("test"));
         Assert.assertEquals(1, cache.getHitCount());

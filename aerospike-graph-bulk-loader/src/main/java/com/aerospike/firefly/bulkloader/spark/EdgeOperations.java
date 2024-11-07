@@ -1,6 +1,5 @@
 package com.aerospike.firefly.bulkloader.spark;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.bulkloader.graph.GraphOperations;
 import com.aerospike.firefly.bulkloader.spark.executorservice.EdgeWriteTask;
@@ -9,11 +8,11 @@ import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
-import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
-import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.BadCsvEntryException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Longs;
 import org.apache.commons.configuration2.Configuration;
@@ -84,6 +83,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RECOVERY_FAILURE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
+import static com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException.isRetryable;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 
 public class EdgeOperations implements Serializable {
@@ -133,7 +133,7 @@ public class EdgeOperations implements Serializable {
                     if (partitionId == partitionToFailOn) {
                         // Wait so other partitions can complete before we fail this partition.
                         try {
-                            Thread.sleep(180000);
+                            Thread.sleep(300000);
                         } catch (final InterruptedException ignored) {
                         }
                         throw new RuntimeException("Testing recovery failure, please contact support.");
@@ -181,7 +181,7 @@ public class EdgeOperations implements Serializable {
                                 providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
                                 metadataRow, usePersistedEdgeId);
                         futures.add(ewt.write(executor).thenRunAsync(() -> ewt.updateCacheMap(), executor));
-                    } catch (final FireflyBulkLoaderException e) {
+                    } catch (final BadCsvEntryException e) {
                         if (allowBadEntryCount == 0) {
                             throw e;
                         }
@@ -318,16 +318,15 @@ public class EdgeOperations implements Serializable {
                             + sparkEdge.getLabel() + " from Vertex ID " + sparkEdge.getOutVertexId() + " to Vertex ID "
                             + sparkEdge.getInVertexId() + " with properties " + sparkEdge.getProperties());
                 }
-            } catch (final AerospikeException ae) {
-                final FireflyLoadingException fle = new FireflyLoadingException(ae);
-                if (!fle.isRetryable()) {
-                    LOGGER.error("Failed to verify loaded Edge due to non-retryable error: " + metadataRow, ae);
-                    throw ae;
+            } catch (final AerospikeGraphException e) {
+                if (!isRetryable(e)) {
+                    LOGGER.error("Failed to verify loaded Edge due to non-retryable error: " + metadataRow, e);
+                    throw e;
                 } else if (++tryCount > RETRY_LIMIT) {
-                    LOGGER.error("Failed to verify loaded Edge after " + tryCount + " attempts: " + metadataRow, ae);
-                    throw ae;
+                    LOGGER.error("Failed to verify loaded Edge after " + tryCount + " attempts: " + metadataRow, e);
+                    throw e;
                 } else {
-                    LOGGER.warn("Failed to verify loaded Edge: " + metadataRow + ". Attempt count: " + tryCount, ae);
+                    LOGGER.warn("Failed to verify loaded Edge: " + metadataRow + ". Attempt count: " + tryCount, e);
                     exponentialBackoff(tryCount);
                 }
             }
@@ -385,16 +384,15 @@ public class EdgeOperations implements Serializable {
                                 graph.getIdFactory().createVertexId(id)).collect(Collectors.toList()),
                         List.of());
                 break;
-            } catch (final AerospikeException ae) {
-                final FireflyLoadingException fle = new FireflyLoadingException(ae);
-                if (!fle.isRetryable()) {
-                    LOGGER.error("Failed to batch read vertices for supernode detection.", ae);
-                    throw ae;
+            } catch (final AerospikeGraphException e) {
+                if (!isRetryable(e)) {
+                    LOGGER.error("Failed to batch read vertices for supernode detection.", e);
+                    throw e;
                 } else if (++tryCount > RETRY_LIMIT) {
-                    LOGGER.error("Failed to batch read vertices for supernode detection. " + tryCount + " attempts.", ae);
-                    throw ae;
+                    LOGGER.error("Failed to batch read vertices for supernode detection. " + tryCount + " attempts.", e);
+                    throw e;
                 } else {
-                    LOGGER.warn("Failed to batch read vertices for supernode detection. Attempt count: " + tryCount + ".", ae);
+                    LOGGER.warn("Failed to batch read vertices for supernode detection. Attempt count: " + tryCount + ".", e);
                     exponentialBackoff(tryCount);
                 }
             }

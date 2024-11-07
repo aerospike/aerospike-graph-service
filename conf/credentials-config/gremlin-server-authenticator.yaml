@@ -3,15 +3,15 @@ port: 8182
 evaluationTimeout: 10000
 channelizer: org.apache.tinkerpop.gremlin.server.channel.WebSocketChannelizer
 graphs: {
-  graph: /actions-runner/_work/firefly/firefly/conf/credentials-config/aerospike-graph.properties}
+  graph: /actions-runner/_work/firefly/firefly/conf/credentials-config/aerospike-graph.properties,
+  graph1: /actions-runner/_work/firefly/firefly/conf/credentials-config/aerospike-graph.properties}
 scriptEngines: {
   gremlin-groovy: {
     plugins: {
       com.aerospike.firefly.jsr223.FireflyGremlinPlugin: {},
       org.apache.tinkerpop.gremlin.server.jsr223.GremlinServerGremlinPlugin: {},
       org.apache.tinkerpop.gremlin.tinkergraph.jsr223.TinkerGraphGremlinPlugin: {},
-      org.apache.tinkerpop.gremlin.jsr223.ImportGremlinPlugin: {classImports: [java.lang.Math], methodImports: [java.lang.Math#*]},
-      org.apache.tinkerpop.gremlin.jsr223.ScriptFileGremlinPlugin: {files: [../docker-runtime-scripts/empty-sample.groovy]}}
+      org.apache.tinkerpop.gremlin.jsr223.ImportGremlinPlugin: {classImports: [java.lang.Math], methodImports: [java.lang.Math#*]}}
   }}
 serializers:
   - { className: org.apache.tinkerpop.gremlin.util.ser.GraphSONMessageSerializerV3, config: { ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3] }}          # application/json

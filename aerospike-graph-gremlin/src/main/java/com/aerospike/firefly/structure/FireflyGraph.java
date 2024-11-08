@@ -20,6 +20,7 @@ import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.firefly.features.FireflyFeatures;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
@@ -136,7 +137,7 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.InjectTest$Traversals", method = "*", reason = "Firefly does not support arbitrary object starts", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.TraversalInterruptionComputerTest", method = "*", reason = "Firefly does not support thread interruption ?? why not ??", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})
 
-// Tests that require lambda support.
+// Tests that require lambda support
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.SerializationTest$GraphSONV1Test", method = "shouldSerializePath", reason = "Test requires Lambda support which is disabled for security.", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.SerializationTest$GraphSONV2Test", method = "shouldSerializePath", reason = "Test requires Lambda support which is disabled for security.", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.SerializationTest$GraphSONV3Test", method = "shouldSerializePath", reason = "Test requires Lambda support which is disabled for security.", computers = {"ALL"})
@@ -150,6 +151,11 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.SubgraphTest", method = "*", reason = "CURRENTLY DO NOT WORK, NEED TO FIX AND ENABLE", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldEvaluateConnectivityPatterns", reason = "This test fails due to caching.", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.VertexPropertyTest$VertexPropertyRemoval", method = "shouldRemoveMultiPropertiesWhenVerticesAreRemoved", reason = "Replaced in TestAerospikeGraphIntegration with cache-friendly implementation.", computers = {"ALL"})
+
+// Structure tests that only function on embedded Graphs - Arrays come through as primitives instead of expected ArrayLists from serialization
+// Have to ignore the entire test suite for now due to a current issue in Tinkerpop where opting out of this parameterized test doesn't work
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.PropertyTest$PropertyFeatureSupportTest", method = "*", reason = "This test fails due to using arrays", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.VariablesTest$GraphVariablesFeatureSupportTest", method = "*", reason = "This test fails due to using arrays", computers = {"ALL"})
 
 // Firefly does not support Float ids
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingFloatRepresentation", reason = "Firefly does not support Float ids", computers = {"ALL"})
@@ -174,7 +180,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final Timer fireflyIndexMetadataTask = new Timer(true);
-    private final FireflyGraphFeatures features;
+    private final FireflyFeatures features;
     private final Configuration configuration;
     public static String VP_INDEX_PREFIX = "VP";
     public static String EP_INDEX_PREFIX = "EP";
@@ -225,7 +231,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.bulkLoadIdBufferSize = ConfigurationHelper.getOrDefaultInt(BULK_LOAD_ID_BUFFER_SIZE, conf);
 
         this.variables = new FireflyGraphVariables(this);
-        this.features = new FireflyGraphFeatures(this);
+        this.features = new FireflyFeatures();
 
         // Create index metadata background task that will populate indexes for the named graph on the fly.
         fireflyIndexMetadata = new FireflyIndexMetadata(db);
@@ -711,8 +717,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final Map<String, Object> typeHints = new TreeMap<>();
         properties.forEach(property -> {
             final String key = property.getKey();
-            final Object value = property.getValue();
-            FireflyHelper.validatePropertyValue(value);
+            final Object value = FireflyHelper.validatePropertyValue(property.getValue());
 
             if (value == null) {
                 propertyMap.remove(key);
@@ -925,13 +930,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public Vertex addVertex(Object... keyValues) {
         // Validate key value pairs are valid for TinkerPop.
         ElementHelper.legalPropertyKeyValueArray(keyValues);
-
-        // Validate key value pairs are valid for Firefly.
-        final Iterator i = FireflyCloseableIteratorUtils.asIterator(keyValues);
-        while (i.hasNext()) {
-            i.next();
-            FireflyHelper.validatePropertyValue(i.next());
-        }
 
         // If a user-supplied id is provided and it is not supported, throw exception.
         if (ElementHelper.getIdValue(keyValues).isPresent() && !features.vertex().supportsUserSuppliedIds())

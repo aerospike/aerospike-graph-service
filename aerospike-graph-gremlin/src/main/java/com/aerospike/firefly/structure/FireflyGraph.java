@@ -153,11 +153,9 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.VertexPropertyTest$VertexPropertyRemoval", method = "shouldRemoveMultiPropertiesWhenVerticesAreRemoved", reason = "Replaced in TestAerospikeGraphIntegration with cache-friendly implementation.", computers = {"ALL"})
 
 // Structure tests that only function on embedded Graphs - Arrays come through as primitives instead of expected ArrayLists from serialization
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.PropertyTest$PropertyFeatureSupportTest", method = "shouldSetValueOnEdgeOnAdd", specific = "*", reason = "This test fails due to using arrays", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.PropertyTest$PropertyFeatureSupportTest", method = "shouldSetValueOnEdge", specific = "*", reason = "This test fails due to using arrays", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.PropertyTest$PropertyFeatureSupportTest", method = "shouldSetValueOnVertexOnAdd", specific = "*", reason = "This test fails due to using arrays", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.PropertyTest$PropertyFeatureSupportTest", method = "shouldSetValueOnVertex", specific = "*", reason = "This test fails due to using arrays", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.VariablesTest$GraphVariablesFeatureSupportTest", method = "shouldSetValueOnGraph", specific = "*", reason = "This test fails due to using arrays", computers = {"ALL"})
+// Have to ignore the entire test suite for now due to a current issue in Tinkerpop where opting out of this parameterized test doesn't work
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.PropertyTest$PropertyFeatureSupportTest", method = "*", reason = "This test fails due to using arrays", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.VariablesTest$GraphVariablesFeatureSupportTest", method = "*", reason = "This test fails due to using arrays", computers = {"ALL"})
 
 // Firefly does not support Float ids
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingFloatRepresentation", reason = "Firefly does not support Float ids", computers = {"ALL"})

@@ -11,7 +11,6 @@ import io.vertx.ext.web.Router;
 
 public class AdminServiceRegistry {
 
-    private final FireflyGraph firefly;
     private final SindexServiceRegistry sindexServiceRegistry;
     private final MetadataServiceRegistry metadataServiceRegistry;
     private final BulkLoaderServiceRegistry bulkLoaderServiceRegistry;
@@ -20,8 +19,6 @@ public class AdminServiceRegistry {
     private final QueryServiceRegistry queryServiceRegistry;
 
     public AdminServiceRegistry(final FireflyGraph firefly) {
-        this.firefly = firefly;
-
         sindexServiceRegistry = new SindexServiceRegistry(firefly);
         metadataServiceRegistry = new MetadataServiceRegistry(firefly);
         bulkLoaderServiceRegistry = new BulkLoaderServiceRegistry(firefly);

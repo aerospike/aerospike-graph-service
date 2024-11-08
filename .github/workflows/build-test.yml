@@ -414,8 +414,9 @@ jobs:
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
+          pip3 install python_on_whales
           bash -x scripts/start_aerospike.sh
-          bash -x scripts/build-docker-stripped.sh aerospike/firefly linux/amd64
+          python3 ./scripts/build-docker.py --tags aerospike/firefly --slim
           
           docker run -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/custom/ \
@@ -1157,8 +1158,9 @@ jobs:
           maven-version: 3.9.5
       - name: Build docker
         run: |
+          pip3 install python_on_whales
           echo "Building docker image"
-          bash -x scripts/build-docker.sh firefly linux/amd64
+          python3 scripts/build-docker.py --tags firefly --platforms linux/amd64
       # Due to the nature of the multi usage stats test, it MUST come first. Otherwise it will have problems.
       - name: Run multi Firefly usage test
         env:

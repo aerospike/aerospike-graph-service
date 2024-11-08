@@ -19,7 +19,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
 
     # handle graph names before everything.
     for key, value in os.environ.items():
-        if key.lower() == "aerospike.graph-service.named-graphs":
+        if key.lower() == "aerospike.graph-service.graphs":
             named_graphs = list(map(str.strip, value.split(",")))
 
     try:
@@ -31,7 +31,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
             # no named graphs from environment variables, so let's try to search in properties file.
             if len(named_graphs) == 0:
                 for line in lines:
-                    if line.startswith("aerospike.graph-service.named-graphs") and "=" in line:
+                    if line.startswith("aerospike.graph-service.graphs") and "=" in line:
                         named_graphs = list(map(str.strip, (line.split("=")[1]).split(",")))
 
             for line in lines:
@@ -39,7 +39,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
                     continue
                 if not "=" in line:
                     invalid.append(line)
-                elif line.startswith("aerospike.graph-service.named-graphs"):
+                elif line.startswith("aerospike.graph-service.graphs"):
                     continue
                 elif line.startswith("aerospike.graph-service.heap.max"):
                     java_options_max_heap = line
@@ -74,7 +74,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
     print("Found named graphs: " + str(named_graphs))
 
     for key, value in os.environ.items():
-        if key.lower() == "aerospike.graph-service.named-graphs":
+        if key.lower() == "aerospike.graph-service.graphs":
             continue
         elif key.startswith("aerospike.graph-service.heap.max"):
             java_options_max_heap = f"{key}={value}"
@@ -118,7 +118,8 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
     generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm)
 
     for key in named_graphs:
-        merged_properties = valid_properties
+        # copy of common properties
+        merged_properties = valid_properties.copy()
         for p in graph_config[key]:
             merged_properties.append(p[p.index(".")+1:])
 
@@ -166,6 +167,29 @@ def set_performance_mode(yaml_properties):
 def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm):
     rewritten_lines = []
 
+    console_reporter = {
+        "enabled": "true",
+        "interval": "180000"
+    }
+    csv_reporter = {
+        "enabled": "true",
+        "interval": "180000",
+        "fileName": "/tmp/gremlin-server-metrics.csv"
+    }
+    jmx_reporter = {
+        "enabled": "true"
+    }
+    slf4j_reporter = {
+        "enabled": "true",
+        "interval": "180000"
+    }
+    metrics = {
+        "consoleReporter": console_reporter,
+        "csvReporter": csv_reporter,
+        "jmxReporter": jmx_reporter,
+        "slf4jReporter": slf4j_reporter
+    }
+
     set_performance_mode(yaml_properties)
 
     # Read yaml lines.
@@ -183,8 +207,45 @@ def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_co
             raise Exception("Error configuring Aerospike Graph Service.\n\t'serializers', 'processors', and 'graphs' " + \
                     "of gremlin-server config cannot be overwritten by properties file, contact support if you need " + \
                     "to override these configurations.")
-        lines = [i for i in lines if not i.startswith(key)]
-        rewritten_lines.append(f"{key}: {value}")
+        if key.startswith("metrics."):
+            key = key.replace("metrics.", "")
+            if key.split(".")[0] in metrics:
+                metrics_key = key.split(".")[0]
+                reporter = metrics.get(metrics_key)
+                key = key.replace(metrics_key + ".", "")
+                if key in reporter:
+                    reporter[key] = value
+                else:
+                    raise Exception("Error configuring Aerospike Graph Service.\n\t" + key +
+                                    " is not a valid configuration for metrics of type " + metrics_key + ".")
+            else:
+                raise Exception(
+                    "Error configuring Aerospike Graph Service.\n\t" + key.split(".")[0] + \
+                    " is not a valid metrics type.")
+        else:
+            lines = [i for i in lines if not i.startswith(key)]
+            rewritten_lines.append(f"{key}: {value}")
+
+    # Metrics
+    rewritten_lines.append("metrics: { ")
+    metrics_count = len(metrics)
+    metrics_position = 1
+    for reporter_name, reporter in metrics.items():
+        rewritten_lines.append(f"  {reporter_name}:" + " { ")
+        reporter_count = len(reporter)
+        reporter_position = 1
+        for setting_name, setting_value in reporter.items():
+            if reporter_position == reporter_count:
+                rewritten_lines.append(f"    {setting_name}: {setting_value}")
+            else:
+                rewritten_lines.append(f"    {setting_name}: {setting_value},")
+            reporter_position += 1
+        if metrics_position == metrics_count:
+            rewritten_lines.append("  }")
+        else:
+            rewritten_lines.append("  },")
+        metrics_position += 1
+    rewritten_lines.append("}")
 
     rewritten_lines.append("graphs: { ")
     for key in graph_config:

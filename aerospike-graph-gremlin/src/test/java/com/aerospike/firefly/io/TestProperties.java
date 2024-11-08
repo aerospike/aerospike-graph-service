@@ -43,7 +43,7 @@ public class TestProperties {
 
     @BeforeClass
     static public void beforeAll() {
-        CONFIG.setProperty(ConfigurationHelper.Keys.HTTP_DISABLED.toLowerCase(), "true");
+        CONFIG.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
         SETUP_GRAPH = FireflyGraph.open(CONFIG);
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
     }

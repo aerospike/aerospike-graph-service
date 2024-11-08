@@ -498,10 +498,8 @@ public class FireflyEdge extends FireflyElement implements Edge {
                 operations.add(removePropertyKey);
             }
         }
-        if (db.TTL_ENABLED_FLAG) {
-            final Operation removeTtl = MapOperation.removeByKey(db.TTL_BIN, idKey, MapReturnType.NONE);
-            operations.add(removeTtl);
-        }
+        final Operation removeTtl = MapOperation.removeByKey(db.TTL_BIN, idKey, MapReturnType.NONE);
+        operations.add(removeTtl);
 
         // Logic for deleting the entire phat edge record if it no longer contains individual edges.
         final Expression removeEmptyPhatEdgeExp = Exp.build(
@@ -523,10 +521,8 @@ public class FireflyEdge extends FireflyElement implements Edge {
             final Operation removeSupernodePropertiesBin = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
             operations.add(removeSupernodePropertiesBin);
         }
-        if (db.TTL_ENABLED_FLAG) {
-            final Operation removeTtlBin = ExpOperation.write(db.TTL_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
-            operations.add(removeTtlBin);
-        }
+        final Operation removeTtlBin = ExpOperation.write(db.TTL_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+        operations.add(removeTtlBin);
 
         // This operation must be last since the expression checks the map in the edge data bin.
         final Operation removeEdgeDataBin = ExpOperation.write(db.EDGE_DATA_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);

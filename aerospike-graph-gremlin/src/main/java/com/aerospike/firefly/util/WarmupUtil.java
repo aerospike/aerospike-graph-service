@@ -69,7 +69,7 @@ public class WarmupUtil {
                 warmupConfig.setProperty(ConfigurationHelper.Keys.TTL_ENABLED_FLAG.toLowerCase(), "false");
                 warmupConfig.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "OFF");
                 warmupConfig.setProperty(ConfigurationHelper.Keys.AUTO_PRE_HEAT.toLowerCase(), "false");
-                warmupConfig.setProperty(ConfigurationHelper.Keys.HTTP_DISABLED.toLowerCase(), "true");
+                warmupConfig.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
                 graph = FireflyGraph.open(warmupConfig);
             }
             IntStream.range(0, passes).forEach(i -> {

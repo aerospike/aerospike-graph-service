@@ -108,7 +108,7 @@ import static com.aerospike.firefly.structure.FireflyEdge.createFilterableSupern
 import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_PROPERTY_KEY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOAD_ID_BUFFER_SIZE;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.HTTP_DISABLED;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.HTTP_ENABLED;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 
 /**
@@ -263,7 +263,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             }
         }
 
-        if (!db.WARMUP_MODE) {
+        if (!db.WARMUP_MODE && !db.getBulkLoaderFlag()) {
             // Create usage statistics background task. Only one per server
             if (usageStats == null) {
                 synchronized (this) {
@@ -277,9 +277,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             adminServiceRegistry = new AdminServiceRegistry(this);
 
             // do not start http server if disabled in config or for bulk loader
-            final boolean httpDisabled = ConfigurationHelper.getOrDefaultBool(HTTP_DISABLED, conf) ||
-                ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf);
-            if (!httpDisabled) {
+            final boolean httpEnabled = ConfigurationHelper.getOrDefaultBool(HTTP_ENABLED, conf);
+            if (httpEnabled) {
                 HttpServer.getInstance().start(this);
                 httpStarted = true;
             }
@@ -419,6 +418,16 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             }
         }
         return GREMLIN_SERVER_SETTINGS;
+    }
+
+    private String configFilePath = "/opt/conf/aerospike-graph-graph.properties";
+
+    public String getConfigFilePath() {
+        return configFilePath;
+    }
+
+    public void setConfigFilePath(final String configFilePath) {
+        this.configFilePath = configFilePath;
     }
 
     /**
@@ -1142,16 +1151,14 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.fireflyIndexMetadataTask.cancel();
         this.fireflySummaryUpdater.close();
 
-        if (!db.WARMUP_MODE) {
-            if (this.usageStats != null) {
-                synchronized (this) {
-                    if (this.usageStats != null) {
-                        this.usageStats.close();
-                        this.usageStats = null;
-                    }
-                }
-            }
-        }
+       if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && this.usageStats != null) {
+           synchronized (this) {
+               if (this.usageStats != null) {
+                   this.usageStats.close();
+                   this.usageStats = null;
+               }
+           }
+       }
 
         if (httpStarted) {
             HttpServer.getInstance().close();

@@ -32,7 +32,7 @@ public class JwtServiceIssueToken<I, R> extends JwtServiceBase<I, R> {
                         "\t\tg.call(\"%s\").with(\"username\", \"lyndon\").with(\"role\", [\"Graph1\": \"ADMIN\"]).next();\n" +
                         "\tor to set a token that expires in 1 day:\n" +
                         "\t\tg.call(\"%s\").with(\"username\", \"lyndon\").with(\"role\", \"ADMIN\").with(\"expiry\", 24 * 60 * 60).next();",
-                getName(), params, getName(), getName(), getName());
+                getName(), params, getName(), getName(), getName(), getName());
     }
 
     @Override
@@ -62,9 +62,12 @@ public class JwtServiceIssueToken<I, R> extends JwtServiceBase<I, R> {
                 throw new IllegalStateException("Cannot issue JWT token. The role must be global or assigned per graph.");
             }
             params.put("role", additionalParams);
+            additionalParams.forEach((k, v) -> params.remove(k));
         }
     }
 
+    // for HTTP we call sanitize, then execute
+    // for call we first isValidPermissions, then sanitize
     @Override
     protected boolean sanitize(final Map params) {
         extractRoles(params);
@@ -134,8 +137,11 @@ public class JwtServiceIssueToken<I, R> extends JwtServiceBase<I, R> {
         LOGGER.info("[{}] - {} - Creating a new JWT token for user '{}'.", getUser(), getName(), username);
     }
 
+    // not for HTTP
     @Override
     protected boolean isValidPermissions(final Map params, final UserClaims userContext) {
+        extractRoles(params);
+
         final Object role = params.get("role");
         if (!(role instanceof Map)) {
             return true;

@@ -16,7 +16,6 @@ import org.junit.Test;
 import org.mockito.stubbing.Answer;
 
 import java.lang.reflect.Field;
-import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
@@ -79,7 +78,6 @@ public class TestTimeout {
 
         final GraphTraversalSource g = new GraphTraversalSource(graph);
         final FireflyGraphStepStrategy graphStepStrategy = new FireflyGraphStepStrategy();
-        graphStepStrategy.setSteps(new HashSet<>());
 
         final GraphTraversal traversal = traversalFunc.apply(g);
         graphStepStrategy.apply(traversal.asAdmin());

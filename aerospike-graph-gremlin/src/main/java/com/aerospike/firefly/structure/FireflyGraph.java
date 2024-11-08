@@ -79,6 +79,7 @@ import java.io.File;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -1035,7 +1036,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
      */
     private List<Object> getIds(final List<Object> elements) {
         return elements.stream().map(e -> {
-            if (Element.class.isAssignableFrom(e.getClass())) {
+            if (e != null && Element.class.isAssignableFrom(e.getClass())) {
                 return ((Element) e).id();
             } else {
                 return e;
@@ -1057,14 +1058,18 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public Iterator<Vertex> vertices(final List<HasContainer> filters, final List<String> requiredProperties, final Object... vertexIdsOrVertices) {
-        final List<FireflyId> idList = getIds(Arrays.asList(vertexIdsOrVertices)).stream()
-                .map(id -> getIdFactory().createVertexId(id))
-                .collect(Collectors.toList());
+        final Iterator<FireflyId> idsIterator;
+        if (vertexIdsOrVertices.length == 0) {
+            idsIterator = GraphQuery.create(this).scanVertexIds(settings().evaluationTimeout);
+        } else {
+            idsIterator = getIds(Arrays.asList(vertexIdsOrVertices)).stream()
+                    .filter(Objects::nonNull)
+                    .map(id -> getIdFactory().createVertexId(id)).iterator();
+        }
 
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
-        return new FireflyBatchElementIterator<>(this, idList.isEmpty() ? GraphQuery.create(this).scanVertexIds(settings().evaluationTimeout) : idList.iterator(),
-                filters, this::readVertices, requiredProperties);
+        return new FireflyBatchElementIterator<>(this, idsIterator, filters, this::readVertices, requiredProperties);
     }
 
     @Override
@@ -1079,18 +1084,18 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private Iterator<Edge> edges(final List<HasContainer> filters, final Object... edgeIds) {
         // Create edge iterator with graph and edge id iterator.
         // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
-        final List<Object> ids = getIds(List.of(edgeIds));
-        final List<FireflyId> idList = ids.stream()
-                .map(id -> getIdFactory().createEdgeId(id))
-                .collect(Collectors.toList());
-
-        if (idList.isEmpty()) {
+        if (edgeIds.length == 0) {
             return new FireflyBatchElementIterator<>(this,
                     GraphQuery.create(this).scanEdgeIds(settings().evaluationTimeout), filters,
                     this::readEdges, null);
-        } else {
-            return FireflyEdge.readEdges(this, idList).stream().map(fireflyEdge -> (Edge) fireflyEdge).iterator();
         }
+
+        final List<FireflyId> idList = getIds(Arrays.asList(edgeIds)).stream()
+                .filter(Objects::nonNull)
+                .map(id -> getIdFactory().createEdgeId(id))
+                .collect(Collectors.toList());
+
+        return FireflyEdge.readEdges(this, idList).stream().map(fireflyEdge -> (Edge) fireflyEdge).iterator();
     }
 
     public interface TransformKeyRecord<E> {

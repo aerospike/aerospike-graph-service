@@ -29,6 +29,7 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -101,6 +103,9 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
         // Prioritize lookup by id but otherwise attempt an index lookup
         if (null == search) {
             return Stream.empty();
+        } else if (search.isEmpty()) {
+            // no filter => all vertices are good
+            return IteratorUtils.stream(graph.vertices());
         } else if (search.containsKey(T.id)) {
             final Object sid = search.get(T.id);
             final FireflyId fid = graph.getIdFactory().createVertexId(sid);
@@ -184,6 +189,13 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
     protected Iterator<Vertex> flatMap(final Traverser.Admin<S> traverser) {
         final Map mergeMap = materializeMap(traverser, mergeTraversal);;
         validateMapInput(mergeMap, false);
+
+        // validate onMatchTraversal before going too far
+        if (onMatchTraversal instanceof ConstantTraversal) {
+            final Map matchMap = onMatchTraversal.next();
+            validateMapInput(matchMap, true);
+        }
+
         while (true) {
             try {
                 Stream<Vertex> stream = createSearchStream(mergeMap);
@@ -233,9 +245,6 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                     final Vertex vertex;
 
                     final Map<?, ?> onCreateMap = onCreateMap(traverser, mergeMap);
-                    if (onCreateMap.isEmpty()) {
-                        return Collections.emptyIterator();
-                    }
                     final List<Object> keyValues = new ArrayList<>();
                     for (Map.Entry<?, ?> entry : onCreateMap.entrySet()) {
                         keyValues.add(entry.getKey());

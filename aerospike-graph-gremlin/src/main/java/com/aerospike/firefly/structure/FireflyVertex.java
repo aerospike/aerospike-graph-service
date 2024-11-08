@@ -1058,7 +1058,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         boolean includeSupernodeVirtualProperty = false;
         if (propertyKeys.length > 1) {
             for (final String propertyKey : propertyKeys) {
-                if (propertyKey.equals(SUPERNODE_PROPERTY_KEY)) {
+                if (SUPERNODE_PROPERTY_KEY.equals(propertyKey)) {
                     includeSupernodeVirtualProperty = true;
                     break;
                 }

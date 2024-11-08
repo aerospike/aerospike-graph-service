@@ -146,7 +146,6 @@ public class PagedGraphQuery implements GraphQuery {
                                                                             final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
                                                                             final List<Object> idsToRead,
                                                                             final Long evaluationTimeout) {
-
         if (idsToRead.size() == 1 && idsToRead.get(0) instanceof P) {
             // Passed in as P.within([id1, id2, ...])
             final P p = (P) idsToRead.get(0);

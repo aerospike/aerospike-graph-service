@@ -108,7 +108,6 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
         synchronized (this) {
             try {
                 if (shutdown.get()) {
-                    System.out.println("SHUTDOWN");
                     return Optional.empty();
                 }
                 final PageFetcher.Page page = pageQueue.take();

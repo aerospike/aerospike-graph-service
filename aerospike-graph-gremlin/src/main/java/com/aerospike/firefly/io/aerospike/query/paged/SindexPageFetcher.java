@@ -24,7 +24,6 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
                              final FireflyGraph.TransformKeyRecord<R> transformKeyRecord, final String indexName) {
         super(graph, maxQueueSize, transformKeyRecord, indexName);
         this.policy = policy;
-        System.out.println(" total timeout " + this.policy.totalTimeout);
         this.statement = new Statement();
         this.statement.setNamespace(namespace);
         this.statement.setSetName(setName);

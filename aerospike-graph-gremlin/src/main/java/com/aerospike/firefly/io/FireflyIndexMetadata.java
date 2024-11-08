@@ -122,9 +122,7 @@ public class FireflyIndexMetadata implements FireflyMetadata {
         final List<IndexInfo> indexInfosList = getPropertyIndexInfos();
         for (final IndexInfo indexInfo : indexInfosList) {
             if (FireflyVertex.class.isAssignableFrom(elementClass)) {
-                System.out.println("Checking " + indexInfo.indexName);
                 if (indexInfo.setName.equals(db.V_LABEL_INDEX_NAME) || indexInfo.setName.equals(db.VERTEX_AERO_SET)) {
-                    System.out.println("label or vertex");
                     if (indexInfo.key.equals(key) || (db.LABEL_BIN.equals(indexInfo.key) && "~label".equals(key))) {
                         if (Number.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(NUMERIC)) {
                             // If value is number, index type must also be numeric.

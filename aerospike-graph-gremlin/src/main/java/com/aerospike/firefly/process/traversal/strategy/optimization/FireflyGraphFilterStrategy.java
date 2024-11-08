@@ -67,7 +67,8 @@ public final class FireflyGraphFilterStrategy extends AbstractTraversalStrategy<
                     Traversal.Admin<Vertex, Vertex> vertexFilter = getVertexFilter(computerTraversal);
                     if (vertexFilter != null)
                         computer = computer.vertices(vertexFilter);
-                    //((FireflyGraph) traversal.getGraph().get()).setOlapHasContainers(getInitialHasContainers(computerTraversal));
+
+                    ((FireflyGraph) traversal.getGraph().get()).setOlapHasContainers(getInitialHasContainers(computerTraversal));
                 }
                 step.setComputer(computer);
             }

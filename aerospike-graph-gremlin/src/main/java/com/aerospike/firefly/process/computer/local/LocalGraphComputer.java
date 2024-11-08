@@ -83,7 +83,7 @@ public class LocalGraphComputer implements GraphComputer {
     private final LocalMessageBoard messageBoard = new LocalMessageBoard();
     private boolean executed = false;
     private final Set<MapReduce> mapReducers = new HashSet<>();
-    private int workers = Runtime.getRuntime().availableProcessors();
+    private int workers = Runtime.getRuntime().availableProcessors() * 4;
     private final GraphFilter graphFilter = new GraphFilter();
 
     private final int previousPartitionSize;
@@ -560,7 +560,7 @@ public class LocalGraphComputer implements GraphComputer {
 
             @Override
             public int getMaxWorkers() {
-                return Runtime.getRuntime().availableProcessors();
+                return Runtime.getRuntime().availableProcessors() * 4;
             }
 
             @Override

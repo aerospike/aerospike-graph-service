@@ -33,8 +33,7 @@ public class FireflyGraphVariables implements Graph.Variables {
             throw Graph.Variables.Exceptions.variableValueCanNotBeNull();
         if (null == key || key.isEmpty())
             throw Graph.Variables.Exceptions.variableKeyCanNotBeEmpty();
-        FireflyHelper.validateGraphVariableValue(value);
-        graph.writeGraphVariable(key, value);
+        graph.writeGraphVariable(key, FireflyHelper.validateGraphVariableValue(value));
     }
 
     @Override

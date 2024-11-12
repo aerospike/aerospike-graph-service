@@ -7,7 +7,9 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.step.LambdaHolder;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.PathFilterStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.SampleGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GroupStep;
@@ -25,6 +27,8 @@ import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -33,6 +37,8 @@ import java.util.stream.Collectors;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
+
+    private static final Class[] INVALIDATING_STEP_CLASSES_ARRAY = INVALIDATING_STEP_CLASSES.toArray(new Class[]{});
 
     /**
      * Default constructor for FireflyCompositeEdgeIdStrategy.
@@ -76,7 +82,7 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
                 continue;
             }
 
-            boolean propertyRemovalValid = !(super.steps.contains(PathStep.class) || super.steps.contains(TreeStep.class) || super.steps.contains(TreeSideEffectStep.class));
+            final boolean propertyRemovalValid = !TraversalHelper.hasStepOfClass(traversal, INVALIDATING_STEP_CLASSES_ARRAY);
 
             // Replace vertex step with composite id step.
             traversal.removeStep(vertexStep);

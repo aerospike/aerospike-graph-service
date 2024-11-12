@@ -141,8 +141,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
         final Map<String, Object> typeHints = new TreeMap<>();
         properties.forEach(property -> {
             final String key = property.getKey();
-            final Object value = property.getValue();
-            FireflyHelper.validatePropertyValue(value);
+            final Object value = FireflyHelper.validatePropertyValue(property.getValue());
 
             if (value == null) {
                 propertyMap.remove(key);
@@ -689,8 +688,8 @@ public class FireflyEdge extends FireflyElement implements Edge {
         }
 
         // Write the property and add to edge.
-        FireflyHelper.validatePropertyValue(value);
-        return writeProperty(graph, this, key, value);
+        final V validatedValue = (V) FireflyHelper.validatePropertyValue(value);
+        return writeProperty(graph, this, key, validatedValue);
     }
 
     @Override

@@ -355,6 +355,9 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
             List<MergeEdgePropertyContainer> onMatchMapPropertyChanges = Collections.emptyList();
             while (validEdge == null && edges.hasNext()) {
                 final Edge edge = edges.next();
+
+                if (isStart) traverser.set((S) edge);
+
                 final Map<String, ?> onMatchMap = materializeMap(traverser, onMatchTraversal);
                 validateMapInput(onMatchMap, true);
                 final List<MergeEdgePropertyContainer> onMatchProperties = new ArrayList<>();

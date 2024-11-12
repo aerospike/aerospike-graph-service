@@ -9,6 +9,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static org.apache.tinkerpop.gremlin.util.CollectionUtil.asMap;
 
 public class FireflyMergeEdgeStepTest {
     static FireflyGraph SETUP_GRAPH;
@@ -238,6 +240,36 @@ public class FireflyMergeEdgeStepTest {
             graph.getBaseGraph().dropDatabase(graph, false);
             graph.close();
         }
+    }
+
+    @Test
+    public void testPropertiesUpdate() {
+        final FireflyGraph graph = getGraphWithCacheSize(1000);
+        final GraphTraversalSource g = graph.traversal();
+        final Vertex v1 = g.addV().next();
+        final Vertex v2 = g.addV().next();
+
+        final GraphTraversal<?, ?> onMatch = __.sideEffect(__.property("count", __.union(__.values("count"), __.constant(1)).sum()))
+                .constant(Map.of());
+
+        // should create edge and set Count == 1
+        final Edge e1 = g.mergeE(asMap(Direction.OUT, v1.id(), Direction.IN, v2.id()))
+                .option(Merge.onCreate, asMap("count", 1))
+                .option(Merge.onMatch, onMatch).next();
+        Assert.assertEquals(1, e1.property("count").value());
+        Assert.assertEquals(v1.id(), e1.outVertex().id());
+        Assert.assertEquals(v2.id(), e1.inVertex().id());
+
+        // should update edge and set Count == 2
+        final Edge e2 = g.mergeE(asMap(Direction.OUT, v1.id(), Direction.IN, v2.id()))
+                .option(Merge.onCreate, asMap("count", 1))
+                .option(Merge.onMatch, onMatch).next();
+        Assert.assertEquals(2, e2.property("count").value());
+        Assert.assertEquals(e1.id(), e2.id());
+        Assert.assertEquals(v1.id(), e2.outVertex().id());
+        Assert.assertEquals(v2.id(), e2.inVertex().id());
+
+        graph.close();
     }
 
     private static class MergeERunnable implements Runnable {

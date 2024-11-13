@@ -42,6 +42,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
+import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
+
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
@@ -105,7 +107,8 @@ public class LocalWorkerPool implements AutoCloseable {
             if (elements.isEmpty()) {
                 builder.filters(filter);
             } else {
-                builder.vertices((List) elements);
+                // builder.filters(filter);
+                builder.vertices((List) elements); // Remove halted status?
             }
         }
         List<Element> results = Collections.synchronizedList(new ArrayList());

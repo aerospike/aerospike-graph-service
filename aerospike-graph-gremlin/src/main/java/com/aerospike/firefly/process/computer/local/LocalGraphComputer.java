@@ -210,6 +210,11 @@ public class LocalGraphComputer implements GraphComputer {
 
                     @Override
                     public List<Element> getRight() {
+                        if (finalResult != null) {
+                            for (Element element : finalResult) {
+                                ((Vertex) element).property(HALTED_TRAVERSERS).remove();
+                            }
+                        }
                         return finalResult;
                     }
 

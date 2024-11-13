@@ -19,9 +19,11 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.google.common.collect.Lists;
 import org.apache.tinkerpop.gremlin.process.traversal.Contains;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -86,6 +89,14 @@ public interface GraphQuery {
         return scanElementIds(FireflyEdge.class, List.of(), evaluationTimeout);
     }
 
+    default BlockingQueue<PageFetcher.Page> partitionVertices(final List<FireflyVertex> vertices) {
+        final BlockingQueue<PageFetcher.Page> pages = new LinkedBlockingQueue<>();
+        Lists.partition(vertices, ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, getGraph().configuration()))
+                .forEach(list -> pages.add(new PageFetcher.VertexPage(CloseableIterator.of(list.iterator()))));
+        pages.add(new PageFetcher.PoisonPill());
+        return pages;
+    }
+
     default BlockingQueue<PageFetcher.Page> partitionVertexIdPages(final List<HasContainer> hasContainers, final Long evaluationTimeout) {
         P<?> predicate = null;
         String binName = null;
@@ -110,6 +121,7 @@ public interface GraphQuery {
                 final Expression expression = GraphQueryHelper.hasContainerListToExpression(db, aerospikeSideHasContainers, FireflyVertex.class);
                 final BatchPolicy policy = new BatchPolicy();
                 policy.setTimeout(evaluationTimeout.intValue());
+                System.out.println("partitionVertexIdPages: " + ids);
                 return batchReadVertexPagesBlocking(graph, expression, graph::vertexFromRecord, ids, evaluationTimeout);
             }
 
@@ -131,6 +143,7 @@ public interface GraphQuery {
 
                     // Need to wrap with has container check
                     // If we have a property index, we can use it and read sindex pages.
+                    System.out.println("Index");
                     return indexSetPagesBlocking(db.VERTEX_AERO_SET, propertyIndexInfo.get().indexName,
                             GraphQueryHelper.predicateToFilter(db, topContainer.getPredicate(), propertyIndexInfo.get()),
                             policy, graph::vertexIdFromRecord);
@@ -147,6 +160,7 @@ public interface GraphQuery {
         }
 
         // Default to scan.
+        System.out.println("scan " + mapKey + " " + binName + " " + predicate);
         return scanSetPagesBlocking(mapKey, db.VERTEX_AERO_SET, binName, predicate, graph::vertexIdFromRecord,
                 hasContainers, FireflyVertex.class, true, true, evaluationTimeout);
     }

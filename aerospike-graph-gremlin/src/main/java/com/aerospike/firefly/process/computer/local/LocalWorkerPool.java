@@ -1,21 +1,34 @@
 package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
+import com.aerospike.firefly.process.traversal.step.computer.FireflyCompositeIdStepLocal;
+import com.aerospike.firefly.process.traversal.step.computer.PrecomputableComputerStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.commons.collections.list.SynchronizedList;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.computer.util.MapReducePool;
 import org.apache.tinkerpop.gremlin.process.computer.util.VertexProgramPool;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
+import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.apache.tinkerpop.gremlin.util.function.TriFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -63,12 +76,17 @@ public class LocalWorkerPool implements AutoCloseable {
         this.mapReducePool = new MapReducePool(mapReduce, this.numberOfWorkers);
     }
 
-    public void executeVertexProgram(final TriFunction<Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Long> worker, final List<HasContainer> hasContainers) throws InterruptedException {
+    public List<Element> executeVertexProgram(
+            final TriFunction<Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Pair<Long, List<Element>>> worker,
+            boolean isFirstStep,
+            final List<Element> elements,
+            final GraphFilter filter,
+            final List<HasContainer> hasContainers) throws InterruptedException {
         final long vertexCount = (long) ((Map<Object, Object>) this.graph.traversal().call("aerospike.graph.admin.metadata.summary").next()).get("Total vertex count");
         final int partitionSize = Math.max(
                 ((int) Math.ceil((double) vertexCount / (double) numberOfWorkers)),
                 ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, this.graph.configuration()));
-        LOG.warn("VERTEX PROGRAM STAGE PARTITION CONFIGURATION" +
+        LOG.debug("VERTEX PROGRAM STAGE PARTITION CONFIGURATION" +
                         "\n\tVertices in summary metadata: {}" +
                         "\n\tComputed partition size: {}" +
                         "\n\tPartition queue size: {}" +
@@ -78,10 +96,20 @@ public class LocalWorkerPool implements AutoCloseable {
                 ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, this.graph.configuration()),
                 ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, this.graph.configuration()));
         final AtomicLong counter = new AtomicLong(0);
-        try (final PartitionIterator partitions = PartitionIterator.build(this.graph)
-                .containers(hasContainers)
-                .partitionSize(partitionSize)
-                .create()) {
+        System.out.println("PartitionIterator.build(this.graph)");
+        // First guy comes in and
+        final PartitionIterator.Builder builder = PartitionIterator.build(this.graph).partitionSize(partitionSize);
+        if (isFirstStep) {
+            builder.containers(hasContainers);
+        } else {
+            if (elements.isEmpty()) {
+                builder.filters(filter);
+            } else {
+                builder.vertices((List) elements);
+            }
+        }
+        List<Element> results = Collections.synchronizedList(new ArrayList());
+        try (final PartitionIterator partitions = builder.create()) {
             for (int i = 0; i < this.numberOfWorkers; i++) {
                 final int index = i;
                 this.completionService.submit(() -> {
@@ -92,7 +120,10 @@ public class LocalWorkerPool implements AutoCloseable {
                         Optional<CloseableIterator<FireflyVertex>> option = partitions.next();
                         if (option.isPresent()) {
                             try {
-                                count = worker.apply(option.get(), vp, workerMemory);
+                                Pair<Long, List<Element>> output = worker.apply(option.get(), vp, workerMemory);
+                                if (output.getRight() != null) {
+                                    results.addAll(output.getRight());
+                                }
                                 LOG.debug("Worker {} processed {} vertices, total={}", index, count, counter.addAndGet(count));
                             } catch (final Exception e) {
                                 LOG.error("Worker {} failed on {} vertex of partition", index, count, e);
@@ -116,6 +147,7 @@ public class LocalWorkerPool implements AutoCloseable {
                 throw new IllegalStateException(e.getMessage(), e);
             }
         }
+        return results;
     }
 
     public void executeMapReduce(final Consumer<MapReduce> worker) throws InterruptedException {

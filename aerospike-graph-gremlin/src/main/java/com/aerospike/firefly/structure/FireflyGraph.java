@@ -217,13 +217,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     private final ThreadLocal<List<HasContainer>> olapHasContainers = ThreadLocal.withInitial(ArrayList::new);
 
-    public void setOlapHasContainers(List<HasContainer> olapHasContainers) {
+    public void setInitialOlapHasContainers(List<HasContainer> olapHasContainers) {
         this.olapHasContainers.get().clear();
         this.olapHasContainers.get().addAll(olapHasContainers);
         System.out.println("Has containers : " + olapHasContainers);
     }
 
-    public List<HasContainer> getOlapHasContainers() {
+    public List<HasContainer> getInitialOlapHasContainers() {
         return olapHasContainers.get();
     }
 

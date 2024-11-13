@@ -31,7 +31,7 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     private final FireflyGraph graph;
 
     public static final class Builder {
-
+        List<FireflyVertex> vertices = null;
         FireflyGraph graph;
         List<HasContainer> filters = new ArrayList<>();
 
@@ -63,6 +63,12 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
             return this;
         }
 
+        public Builder vertices(final List<FireflyVertex> vertices) {
+            System.out.println("Vertices: " + vertices.size());
+            this.vertices = vertices;
+            return this;
+        }
+
         public Builder partitionSize(final int pageSize) {
             this.graph.configuration().setProperty(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, pageSize);
             return this;
@@ -89,7 +95,11 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
 
     private PartitionIterator(final Builder builder) {
         this.graph = builder.graph;
-        this.pageQueue = GraphQuery.create(graph).partitionVertexIdPages(builder.filters, graph.settings().evaluationTimeout);
+        if (builder.vertices == null) {
+            this.pageQueue = GraphQuery.create(graph).partitionVertexIdPages(builder.filters, graph.settings().evaluationTimeout);
+        } else {
+            this.pageQueue = GraphQuery.create(graph).partitionVertices(builder.vertices);
+        }
     }
 
     public boolean hasNext() {
@@ -97,7 +107,14 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     }
 
     public Optional<CloseableIterator<FireflyVertex>> next() {
-        return this.getPage(pageQueue, shutdown).map(p -> FireflyCloseableIteratorUtils.map(p.keyRecords, graph::vertexFromRecord));
+        return this.getPage(pageQueue, shutdown).map(p -> {
+            if (p instanceof PageFetcher.VertexPage) {
+                final PageFetcher.VertexPage vp = (PageFetcher.VertexPage) p;
+                return vp.vertices;
+            } else {
+                return FireflyCloseableIteratorUtils.map(p.keyRecords, graph::vertexFromRecord);
+            }
+        });
     }
 
     public void close() {

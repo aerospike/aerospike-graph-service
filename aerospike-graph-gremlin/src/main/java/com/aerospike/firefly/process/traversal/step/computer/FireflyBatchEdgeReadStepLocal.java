@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> implements PrecomputableComputerStep {
+public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> implements PrecomputableComputerStep<Edge> {
     private final Direction direction;
     private final Set<String> edgeLabels;
 
@@ -98,6 +98,11 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> implements P
                 return vertex;
             }
         });
+    }
+
+    @Override
+    public List<Edge> get() {
+        return List.of();
     }
 
     public void precompute() {

@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -80,6 +81,14 @@ public class LocalGraphComputerView {
             properties.stream().filter(p -> ElementHelper.keyExists(p.key(), computeKeys)).forEach(p -> list.add((VertexProperty<V>) p));
         }
         return list;
+    }
+
+    public <V> List<VertexProperty<V>> getLocalVertices(final String computeKey) {
+        return computeProperties.values().stream().flatMap(m -> m.values().stream()).flatMap(List::stream).map(p -> (VertexProperty<V>) p).collect(Collectors.toList());
+    }
+
+    public List<Element> getLocalVertices2(final String computeKey) {
+        return computeProperties.keySet().stream().collect(Collectors.toList());
     }
 
 

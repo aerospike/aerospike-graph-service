@@ -39,7 +39,6 @@ public class FireflyIdFactory {
     public static final Map<Class<? extends Serializable>, Long> VERTEX_ID_TYPE_TO_HINT = new HashMap<>() {{
         put(Long.class, 1L);
         put(Integer.class, 2L);
-        put(Double.class, 3L);
         put(String.class, 5L);
     }};
 
@@ -60,10 +59,6 @@ public class FireflyIdFactory {
             return ((FireflyElement) id).id;
         } else if (id instanceof Element) {
             convertedId = ((Element) id).id();
-        }
-
-        if (convertedId instanceof Float) {
-            convertedId = ((Float) id).doubleValue();
         }
 
         if (convertedId instanceof String) {

@@ -212,7 +212,8 @@ public class LocalGraphComputer implements GraphComputer {
                     public List<Element> getRight() {
                         if (finalResult != null) {
                             for (Element element : finalResult) {
-                                ((Vertex) element).property(HALTED_TRAVERSERS).remove();
+                                graph.graphComputerView.getProperty((FireflyVertex) element, HALTED_TRAVERSERS).forEach(VertexProperty::remove);
+                                //((Vertex) element).property(HALTED_TRAVERSERS).remove();
                             }
                         }
                         return finalResult;

@@ -9,6 +9,7 @@ import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.MapHelper;
@@ -219,20 +220,30 @@ public class OLAPTesting {
     public void testGrateful() {
         Configuration conf = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (FireflyGraph graph = FireflyGraph.open(conf)) {
+            final GraphTraversalSource g = graph.traversal();
+            GraphTraversalSource g1 = traversal().withRemote(DriverRemoteConnection.using("localhost", 8182));
+            System.out.println(g1.V().not(__.hasLabel("Foo")).otherV().not(__.hasLabel("bar")).project("a").by(__.fold()).profile().toList());
+            GraphTraversal traversal = g.V().not(__.hasLabel("Foo")).hasLabel("bar").otherV();
+            System.out.println("   pre-strategy:" + traversal);
+            if (!traversal.asAdmin().isLocked()) traversal.asAdmin().applyStrategies();
+            System.out.println("  post-strategy:" + traversal);
+
             graph.traversal().V().drop().iterate();
             GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-            // Traversal<Vertex, Map<String, Long>> traversal = c.V().repeat(both("followedBy")).times(2).<String, Long>group("a").by("songType").by(count()).cap("a");
-            graph.traversal().withComputer().V().both("followedBy").both("followedBy").toList();
-            //printTraversalForm(traversal);
-            //checkMap(new HashMap<String, Long>() {
-            //    {
-            //        this.put("original", 771317L);
-            //        this.put("", 160968L);
-            //        this.put("cover", 368579L);
-            //    }
-            //}, (Map)traversal.next());
-            //Assert.assertFalse(traversal.hasNext());
-            //checkSideEffects(traversal.asAdmin().getSideEffects(), new Object[]{"a", HashMap.class});
+            traversal = graph.traversal().withComputer().V().repeat(both("followedBy")).times(2).<String, Long>group("a").by("songType").by(count()).cap("a");
+            //graph.traversal().withComputer().V().both("followedBy").both("followedBy").toList();
+            // Expected :160968
+            // Actual   :154867
+            printTraversalForm(traversal);
+            checkMap(new HashMap<String, Long>() {
+                {
+                    this.put("original", 771317L);
+                    this.put("", 160968L);
+                    this.put("cover", 368579L);
+                }
+            }, (Map)traversal.next());
+            Assert.assertFalse(traversal.hasNext());
+            checkSideEffects(traversal.asAdmin().getSideEffects(), new Object[]{"a", HashMap.class});
         }
     }
 

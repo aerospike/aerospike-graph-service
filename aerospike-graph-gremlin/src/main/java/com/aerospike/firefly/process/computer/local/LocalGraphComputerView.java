@@ -55,8 +55,12 @@ public class LocalGraphComputerView {
 
     public <V> Property<V> addProperty(final FireflyVertex vertex, final String key, final V value) {
         ElementHelper.validateProperty(key, value);
+        System.out.println("addProperty " + key);
+        if (!getProperty(vertex, key).isEmpty()) {
+            return new DetachedVertexProperty<>(99999999, key, value, Map.of(), vertex);
+        }
         if (isComputeKey(key)) {
-            final DetachedVertexProperty<V> property = new DetachedVertexProperty<>(123, key, value, Map.of(), vertex) {
+            final DetachedVertexProperty<V> property = new DetachedVertexProperty<>(99999999, key, value, Map.of(), vertex) {
                 @Override
                 public void remove() {
                     removeProperty(vertex, key, this);
@@ -227,7 +231,7 @@ public class LocalGraphComputerView {
     }
 
     private void removeValue(final Vertex vertex, final String key, final VertexProperty<?> property) {
-        this.computeProperties.<List<Map<String, VertexProperty<?>>>>getOrDefault(vertex, Collections.emptyMap()).get(key).remove(property);
+        this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).get(key).remove(property);
     }
 
     private List<VertexProperty<?>> getValue(final Vertex vertex, final String key) {

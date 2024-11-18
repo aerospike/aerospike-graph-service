@@ -1,6 +1,5 @@
 package com.aerospike.firefly.process.call;
 
-import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -25,19 +24,10 @@ public class FireflyUsageStatsCallTest {
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             Thread.sleep(1);
-            graph.getBaseGraph().getClient().truncate(null,
-                    graph.getBaseGraph().namespace, graph.getBaseGraph().USAGE_STATS_SET, null);
+            graph.getBaseGraph().truncate(null, graph.getBaseGraph().USAGE_STATS_SET, null);
             Thread.sleep(1);
-            FireflyUsageStats.restartUsageStats(graph.getBaseGraph());
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    @AfterClass
-    public static void cleanUp() {
-        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            FireflyUsageStats.restartUsageStats(graph.getBaseGraph());
         }
     }
 
@@ -163,7 +153,6 @@ public class FireflyUsageStatsCallTest {
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         final String previousDay = "2020-01-01";
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-
             // Wait 11 seconds so we can update.
             Thread.sleep(11000);
 
@@ -231,7 +220,7 @@ public class FireflyUsageStatsCallTest {
     }
 
     @Test
-    public void testMultiLocalFireflyProduces1Result() {
+    public void testMultiLocalFireflyProducesSeveralResults() {
         FireflyGraph graph1 = null;
         FireflyGraph graph2 = null;
         FireflyGraph graph3 = null;
@@ -269,9 +258,11 @@ public class FireflyUsageStatsCallTest {
             Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(0).get("memory-gb"));
 
             // Compare expected vcpu-yrs.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS)));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") > testVcpuCount * (8000f / MILLISECONDS_TO_HOURS));
             Assert.assertTrue((Double) usageStats.get("total-vcpu-hours") < testVcpuCount * (12000f / MILLISECONDS_TO_HOURS));
         } catch (final Exception e) {
+            throw new RuntimeException(e);
+        } finally {
             if (graph1 != null)
                 graph1.close();
             if (graph2 != null)
@@ -282,7 +273,6 @@ public class FireflyUsageStatsCallTest {
                 graph4.close();
             if (graph5 != null)
                 graph5.close();
-            throw new RuntimeException(e);
         }
     }
 }

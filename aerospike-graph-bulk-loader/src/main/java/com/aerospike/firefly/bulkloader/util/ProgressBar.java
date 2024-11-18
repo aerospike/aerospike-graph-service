@@ -2,6 +2,7 @@ package com.aerospike.firefly.bulkloader.util;
 
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +32,7 @@ public class ProgressBar extends TimerTask {
     private long verticesInitial = 0L;
     private int vertexPartitions = 0;
     private int edgePartitions = 0;
+    private AerospikeGraphException lastException = null;
 
     public ProgressBar(final int intervalMillis) {
         this.intervalMillis = intervalMillis;
@@ -39,6 +41,7 @@ public class ProgressBar extends TimerTask {
     public void close() {
         synchronized (ProgressBar.class) {
             if (this.graph != null) {
+                FireflyGraphSummaryUpdater.clearSummaryTickerException(this.graph.getBaseGraph().GRAPH_ID);
                 this.graph.close();
                 this.graph = null;
             }
@@ -295,6 +298,14 @@ public class ProgressBar extends TimerTask {
                         getEdgeWritingProgress(elementMetadata) +
                         getEdgeValidationProgress() +
                         JVMMemoryStats());
+            } catch (final AerospikeGraphException ae) {
+                if (this.lastException == null || ae.errorCode != this.lastException.errorCode) {
+                    this.lastException = ae;
+                    final AerospikeGraphException summaryUpdaterFailure = FireflyGraphSummaryUpdater.getLastSummaryTickerException(graph.getBaseGraph().GRAPH_ID);
+                    if (summaryUpdaterFailure == null || ae.errorCode != summaryUpdaterFailure.errorCode) {
+                        LOGGER.error("Error occurred when grabbing metadata information for progress bar: ", ae);
+                    }
+                }
             } catch (final Exception e) {
                 LOGGER.error("Error occurred when grabbing metadata information for progress bar: ", e);
             }

@@ -1,8 +1,8 @@
 package com.aerospike.firefly.io.aerospike.query.paged;
 
+import com.aerospike.client.Key;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
-import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
@@ -19,6 +19,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.stream.Collectors;
+
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
 
 public class PagedGraphQuery implements GraphQuery {
     private static final Logger LOG = LoggerFactory.getLogger(PagedGraphQuery.class);
@@ -132,20 +135,39 @@ public class PagedGraphQuery implements GraphQuery {
                                        final Filter filter,
                                        final QueryPolicy policy,
                                        final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
-        graph.getBaseGraph().configureScanPolicy(policy);
         final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(graph, policy, setName, db.getNamespace(), filter,
                 db.PAGINATION_PAGE_QUEUE_SIZE, db.PAGINATION_PAGE_SIZE, transformKeyRecord, indexName);
         return pageFetcher.startQuery();
     }
 
     @Override
-    public <E> BlockingQueue<PageFetcher.Page> batchReadSetPagesBlocking(final FireflyGraph graph, BatchPolicy policy,
-                                                                         final Class<? extends FireflyElement> type,
-                                                                         final Expression expression,
-                                                                         final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
-                                                                         final List<Object> idsToRead) {
-        final PageFetcher<E> pageFetcher = new BatchReadPageFetcher<>(graph, policy, type, db.PAGINATION_PAGE_SIZE,
-                db.PAGINATION_PAGE_SIZE, expression, transformKeyRecord, idsToRead);
+    public <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(final FireflyGraph graph,
+                                                                            final Expression expression,
+                                                                            final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
+                                                                            final List<Object> idsToRead,
+                                                                            final Long evaluationTimeout) {
+
+        if (idsToRead.size() == 1 && idsToRead.get(0) instanceof P) {
+            // Passed in as P.within([id1, id2, ...])
+            final P p = (P) idsToRead.get(0);
+            if (!p.getBiPredicate().toString().equals("within")) {
+                throw new IllegalArgumentException("Batch read only supports within predicate");
+            }
+            if (!(p.getValue() instanceof List)) {
+                throw new IllegalArgumentException("Batch read only supports a single list of keys");
+            }
+            idsToRead.clear();
+            idsToRead.addAll((List) p.getValue());
+        }
+
+        final List<Key> keysToRead = idsToRead.stream().
+                map(id -> graph.getIdFactory().createVertexId(id)).
+                map(vertexId -> getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, vertexId)).
+                collect(Collectors.toList());
+
+        final PageFetcher<E> pageFetcher = new BatchReadPageFetcher<>(graph, db.PAGINATION_PAGE_SIZE,
+                db.PAGINATION_PAGE_SIZE, expression, transformKeyRecord, keysToRead, evaluationTimeout);
+
         return pageFetcher.startQueryPagesDirect();
     }
 }

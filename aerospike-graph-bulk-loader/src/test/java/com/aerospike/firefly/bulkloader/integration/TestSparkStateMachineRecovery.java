@@ -102,7 +102,29 @@ public class TestSparkStateMachineRecovery {
         // Expect default start state to be read vertices.
         final SparkBulkLoaderState nextState = state.transitionState();
         Assert.assertTrue(nextState instanceof SparkBulkLoaderStateDetectSupernodes);
+    }
 
+    @Test
+    public void testForceFlag() {
+        System.out.println("Testing testForceFlag");
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_SUPERNODE}, DEFAULT_PARAMS));
+            Assert.fail("Should have thrown an exception");
+        } catch (Exception ignored) {
+            // Expected
+        }
+         try {
+             SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
+             SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
+             state.executeState();
+             Assert.fail("Should have thrown an exception");
+         } catch (IllegalStateException exception) {
+             Assert.assertTrue(exception.getMessage().contains("Bulk load resume information is present."));
+         }
+
+        SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig(), "-force"});
+        SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
+        state.executeState();
     }
 
     @Test

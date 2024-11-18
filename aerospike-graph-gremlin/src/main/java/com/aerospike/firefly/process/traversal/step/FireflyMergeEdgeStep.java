@@ -13,7 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -235,8 +235,8 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         final Object toId = search.get(Direction.IN);
         LOG.debug("Using FireflyMergeEdgeStep to obtain Edges between FROM Vertex {} and TO Vertex {}", fromId, toId);
 
-        final FireflyId fromVId = fireflyGraph.getIdFactory().createId(fromId, FireflyVertex.class);
-        final FireflyId toVId = fireflyGraph.getIdFactory().createId(toId, FireflyVertex.class);
+        final FireflyId fromVId = fireflyGraph.getIdFactory().createVertexId(fromId);
+        final FireflyId toVId = fireflyGraph.getIdFactory().createVertexId(toId);
         final List<FireflyVertex> fromVAndToV = fireflyGraph.readVertices(Collections.emptyList(),
                 List.of(fromVId, toVId), Collections.emptyList());
         FireflyVertex fromV = null;
@@ -355,6 +355,9 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
             List<MergeEdgePropertyContainer> onMatchMapPropertyChanges = Collections.emptyList();
             while (validEdge == null && edges.hasNext()) {
                 final Edge edge = edges.next();
+
+                if (isStart) traverser.set((S) edge);
+
                 final Map<String, ?> onMatchMap = materializeMap(traverser, onMatchTraversal);
                 validateMapInput(onMatchMap, true);
                 final List<MergeEdgePropertyContainer> onMatchProperties = new ArrayList<>();
@@ -366,7 +369,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
                         }
                         edge.property(key, value);
                     });
-                } catch (final ElementNotFoundException ignored) {
+                } catch (final AerospikeGraphElementNotFoundException ignored) {
                     continue;
                 }
                 validEdge = edge;
@@ -424,7 +427,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
                         e.property(key, value);
                     });
                     return e;
-                } catch (final ElementNotFoundException enfe) {
+                } catch (final AerospikeGraphElementNotFoundException enfe) {
                     return null;
                 }
             });

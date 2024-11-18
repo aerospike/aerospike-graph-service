@@ -20,6 +20,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.FORCE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_EMAIL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_KEYFILE_DIRECTORY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
@@ -108,6 +109,7 @@ public class CommandLineParser {
         options.addOption(new Option(READ_ONLY, "Disables intermediate writing to a temporary file to prevent potential duplicate edges."));
         options.addOption(new Option(DISABLE_EDGE_WRITE, "Disable Edge writing."));
         options.addOption(new Option(DISABLE_VERTEX_WRITE, "Disable Vertex writing."));
+        options.addOption(new Option(FORCE, "Force load to run with supplied inputs (removes any existing recovery data)."));
 
         final org.apache.commons.cli.CommandLineParser parser = new DefaultParser();
         try {

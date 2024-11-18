@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.ResultCode;
@@ -9,6 +8,7 @@ import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,8 +54,8 @@ public class FireflyVertexPropertyProperty<V> extends FireflyProperty<V> {
         try {
             vertexProperty.removePropertyFromCache(key());
             db.writeOperate(null, opKey, removeProperty, removeTypeHint);
-        } catch (AerospikeException ae) {
-            if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
+        } catch (final AerospikeGraphException ae) {
+            if (ae.errorCode == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Vertex Property Property has been removed from the Vertex since in this case
                 // the key is the Vertex key due to Vertex Properties being packed and thus the key still exists.
                 LOG.debug("Ignored exception removing an already-removed vertex property property {}", this, ae);

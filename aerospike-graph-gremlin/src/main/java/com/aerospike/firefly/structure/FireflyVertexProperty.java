@@ -14,9 +14,10 @@ import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
-import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
-import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphRecordSizeExceededException;
+import com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.FireflyHelper;
@@ -38,8 +39,8 @@ import java.util.TreeMap;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
-import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.fromAddingVpProperty;
-import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.getRelevantVertexBins;
+import static com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException.fromAddingVpProperty;
+import static com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException.getRelevantVertexBins;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -108,9 +109,9 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
             if (vertex != null) {
                 vertex.removeVertexProperty(label, id);
             }
-        } catch (final AerospikeException ae) {
+        } catch (final AerospikeGraphException ae) {
             // Removing a property that is already removed SHOULD NOT yield an error.
-            if (ae.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR) {
+            if (ae.errorCode == ResultCode.KEY_NOT_FOUND_ERROR) {
                 LOG.debug("Ignored exception removing an already-removed vertex property {}.", this, ae);
             } else {
                 throw ae;
@@ -157,17 +158,18 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
             db.writeOperate(writePolicy, opKey, operations.toArray(new Operation[0]));
-        } catch (final RecordTooBigException rtbe) {
+        } catch (final AerospikeGraphRecordSizeExceededException rtbe) {
             final VertexRecordSizeExceededException sizeExceededException =
                     fromAddingVpProperty((AerospikeException) rtbe.getCause(), db, getRelevantVertexBins(db, opKey),
                     this.vertexId, this.key, propertyKey);
             FireflyVertexProperty.LOG.error(sizeExceededException.getMessage());
             throw sizeExceededException;
-        } catch (final AerospikeException ae) {
-            if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
+        } catch (final AerospikeGraphException ae) {
+            if (ae.errorCode == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Vertex Property has been removed from the Vertex since in this case
                 // the key is the Vertex key due to Vertex Properties being packed and thus the key still exists.
-                throw new ElementNotFoundException(this, ae);
+                LOG.error("Vertex Property with ID {} no longer exists.", this.id());
+                throw new AerospikeGraphElementNotFoundException();
             } else {
                 throw ae;
             }

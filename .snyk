@@ -27,4 +27,9 @@ ignore:
         reason: XML External Entity (XXE) Injection
         expires: 2100-01-01T00:00:00.000Z
         created: 2023-10-06T01:08:59.834Z
+  SNYK-JAVA-COMFASTERXMLJACKSONCORE-7569538:
+    - '*':
+        reason: Version incompatibility between Scala module 2.14.2 jackson-databind version 2.17.2
+        expires: 2100-01-01T00:00:00.000Z
+        created: 2024-10-07T20:09:10.198Z
 patch: {}

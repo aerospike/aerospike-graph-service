@@ -124,9 +124,9 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
                 throw FastNoSuchElementException.instance();
             }
             if (outputType.equals(OutputType.VERTEX_ID)) {
-                return FireflyIdPoly.fromHashString((String) element, db.VERTEX_AERO_SET);
+                return this.db.getIdFactory().createVertexIdFromHash((String) element);
             } else {
-                return new FireflyPhatEdgeId((ByteBuffer) element, this.db.PHAT_EDGE_SIZE, this.db.EDGE_AERO_SET);
+                return this.db.getIdFactory().createEdgeId(element);
             }
         } else {
             throw FastNoSuchElementException.instance();

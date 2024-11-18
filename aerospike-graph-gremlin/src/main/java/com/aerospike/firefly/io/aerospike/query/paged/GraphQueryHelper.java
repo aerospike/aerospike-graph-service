@@ -319,7 +319,7 @@ public class GraphQueryHelper {
         } else {
             // If the accessor is an ID use a special expression that leverages the label key instead.
             if (T.id.getAccessor().equals(propertyKey)) {
-                final FireflyPhatEdgeId edgeId = (FireflyPhatEdgeId) db.getIdFactory().createId(value, FireflyEdge.class);
+                final FireflyPhatEdgeId edgeId = db.getIdFactory().createEdgeId(value);
                 return MapExp.getByKey(MapReturnType.EXISTS, Exp.Type.BOOL, Exp.val(edgeId.getUniqueId()),
                         Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
                         CTX.mapKey(Value.get(EDGE_SUPERNODE_LABEL_KEY)));

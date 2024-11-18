@@ -24,7 +24,6 @@ public class BufferedNumericIdManager implements IdManager<Long> {
     private AtomicLong bufferTrigger = null;
     private final String counterName;
     private final String readableIdName;
-    private final boolean allowUserSupplied;
 
     // Bulk loader mode specifics
     private static final Object VP_LOCK = new Object();
@@ -41,10 +40,9 @@ public class BufferedNumericIdManager implements IdManager<Long> {
     private static final AtomicLong EU_ID = new AtomicLong(Long.MAX_VALUE);
     private static final AtomicLong EU_ID_TRIGGER = new AtomicLong(Long.MAX_VALUE);
 
-    public BufferedNumericIdManager(final String counterName, final long bufferSize, final boolean allowUserSupplied) {
+    protected BufferedNumericIdManager(final String counterName, final long bufferSize) {
         this.counterName = counterName;
         this.bufferSize = bufferSize;
-        this.allowUserSupplied = allowUserSupplied;
         if (bufferSize < 1) {
             throw new IllegalArgumentException("BufferedNumericIdManager bufferSize of '" + bufferSize + "' " +
                     "is not valid. The value must be greater than 0.");
@@ -96,11 +94,6 @@ public class BufferedNumericIdManager implements IdManager<Long> {
         // Since Firefly returns decrementing negative long values as generated IDs, the first buffered ID to return is
         // the largest one
         idTracker.set(idTrigger.get() + bufferSize - 1);
-    }
-
-    @Override
-    public boolean allow(final Class<?> id) {
-        return allowUserSupplied && AerospikeConnection.IdToDiskTypeMap.containsKey(id);
     }
 
     @Override

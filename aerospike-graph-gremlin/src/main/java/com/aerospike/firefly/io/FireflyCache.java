@@ -5,6 +5,7 @@ import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
 import com.aerospike.client.policy.BatchPolicy;
+import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.WritePolicy;
 
 import java.util.UUID;
@@ -18,7 +19,8 @@ public abstract class FireflyCache {
         this.uuid = uuid;
     }
 
-    abstract public Record read(final Key key);
+    abstract public Record read(final Policy policy, final Key key);
+    abstract public Record read(final WritePolicy policy, final Key key, final Operation[] operations);
     abstract public Record[] read(final Key[] keys, final BatchPolicy policy);
     abstract public Record[] read(final Key[] keys, final BatchPolicy policy, final Operation[] operations);
     abstract public void write(final WritePolicy writePolicy, final Key key, final Bin... bins);

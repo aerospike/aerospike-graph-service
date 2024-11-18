@@ -1,4 +1,4 @@
-name: Publish Firefly Container for Dev
+name: Publish Aerospike Graph Container for Dev to QE
 
 on:
   push:
@@ -11,8 +11,9 @@ env:
   QE_DOCKER_USERNAME: firefly
 
 jobs:
-  publish-github:
-    name: Publish Firefly Docker Image - GitHub
+
+  publish-github-amd:
+    name: Publish Firefly Docker Image - AMD - QE
     permissions:
       packages: write
       contents: read
@@ -35,16 +36,19 @@ jobs:
 
       - name: Login to GitHub Container Registry
         run: |
+          # Login to ghcr.io.
           echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
       - name: Publish Container
         run: |
+          # Install python_on_whales.
+          pip3 install python_on_whales
+          
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(git rev-parse --short "$GITHUB_SHA")
-  
+          
           # Get registry URL and convert to lower case.
           OUTPUT_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev-$VERSION
           OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
@@ -52,8 +56,246 @@ jobs:
           DOCKER_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev
           DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
           
-          echo "Building and tagging docker image for linux/amd64 $DOCKER_IMAGE $OUTPUT_IMAGE"
-          bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
-          bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
+          echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
+          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-amd64 ${OUTPUT_IMAGE}-amd64 --platforms linux/amd64 --push
+
+  publish-github-arm:
+    name: Publish Firefly Docker Image - ARM - QE
+    permissions:
+      packages: write
+      contents: read
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        run: |
+          # Login to ghcr.io.
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Publish Container
+        run: |
+          # Install python_on_whales.
+          pip3 install python_on_whales
           
-          echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV
+          # Strip git ref prefix (refs/tags or ref/heads).
+          VERSION=$(git rev-parse --short "$GITHUB_SHA")
+          
+          # Get registry URL and convert to lower case.
+          OUTPUT_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev-$VERSION
+          OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          DOCKER_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev
+          DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
+          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-arm64 ${OUTPUT_IMAGE}-arm64 --platforms linux/arm64 --push
+
+  publish-github-arm-slim:
+    name: Publish Firefly Docker Image - ARM - slim - QE
+    permissions:
+      packages: write
+      contents: read
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        run: |
+          # Login to ghcr.io.
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Publish Container
+        run: |
+          # Install python_on_whales.
+          pip3 install python_on_whales
+          
+          # Strip git ref prefix (refs/tags or ref/heads).
+          VERSION=$(git rev-parse --short "$GITHUB_SHA")
+          
+          # Get registry URL and convert to lower case.
+          OUTPUT_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev-$VERSION
+          OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          DOCKER_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev
+          DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
+          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-slim-arm64 ${OUTPUT_IMAGE}-slim-arm64 --platforms linux/arm64 --push --slim
+  publish-github-amd-slim:
+    name: Publish Firefly Docker Image - AMD - slim - QE
+    permissions:
+      packages: write
+      contents: read
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        run: |
+          # Login to ghcr.io.
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Publish Container
+        run: |
+          # Install python_on_whales.
+          pip3 install python_on_whales
+          
+          # Strip git ref prefix (refs/tags or ref/heads).
+          VERSION=$(git rev-parse --short "$GITHUB_SHA")
+          
+          # Get registry URL and convert to lower case.
+          OUTPUT_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev-$VERSION
+          OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          DOCKER_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev
+          DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
+          python3 scripts/build-docker.py --tags ${DOCKER_IMAGE}-slim-amd64 ${OUTPUT_IMAGE}-slim-amd64 --platforms linux/amd64 --push --slim
+  publish-github-slim-multi-arch:
+    name: Publish Firefly Docker Image - Multi Arch - slim - QE
+    permissions:
+      packages: write
+      contents: read
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    needs: [publish-github-amd-slim,publish-github-arm-slim]
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        run: |
+          # Login to ghcr.io.
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Publish Container
+        run: |
+          # Install python_on_whales.
+          pip3 install python_on_whales
+          
+          # Strip git ref prefix (refs/tags or ref/heads).
+          VERSION=$(git rev-parse --short "$GITHUB_SHA")
+          
+          # Get registry URL and convert to lower case.
+          OUTPUT_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev-$VERSION
+          OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          DOCKER_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev
+          DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"          
+          docker buildx imagetools create -t ${DOCKER_IMAGE}-slim ${DOCKER_IMAGE}-slim-amd64 ${DOCKER_IMAGE}-slim-arm64
+          docker buildx imagetools create -t ${OUTPUT_IMAGE}-slim ${OUTPUT_IMAGE}-slim-amd64 ${OUTPUT_IMAGE}-slim-arm64
+  publish-github-multi-arch:
+    name: Publish Firefly Docker Image - Multi Arch - QE
+    permissions:
+      packages: write
+      contents: read
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    needs: [publish-github-amd,publish-github-arm]
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        run: |
+          # Login to ghcr.io.
+          echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Publish Container
+        run: |
+          # Install python_on_whales.
+          pip3 install python_on_whales
+          
+          # Strip git ref prefix (refs/tags or ref/heads).
+          VERSION=$(git rev-parse --short "$GITHUB_SHA")
+          
+          # Get registry URL and convert to lower case.
+          OUTPUT_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev-$VERSION
+          OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          DOCKER_IMAGE=$QE_DOCKER_REGISTRY/firefly:dev
+          DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"          
+          docker buildx imagetools create -t ${DOCKER_IMAGE} ${DOCKER_IMAGE}-amd64 ${DOCKER_IMAGE}-arm64
+          docker buildx imagetools create -t ${OUTPUT_IMAGE} ${OUTPUT_IMAGE}-amd64 ${OUTPUT_IMAGE}-arm64

@@ -3,7 +3,6 @@ package com.aerospike.firefly.io.aerospike.query.legacy;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
-import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
@@ -28,8 +27,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.DefaultAerospikeClientProvider.client;
-
 public class LegacyGraphQuery implements GraphQuery {
     private final FireflyGraph fireflyGraph;
     private final AerospikeConnection db;
@@ -38,7 +35,6 @@ public class LegacyGraphQuery implements GraphQuery {
     public LegacyGraphQuery(FireflyGraph fireflyGraph) {
         this.fireflyGraph = fireflyGraph;
         this.db = fireflyGraph.getBaseGraph();
-
     }
 
 
@@ -54,10 +50,9 @@ public class LegacyGraphQuery implements GraphQuery {
         statement.setSetName(setName);
         statement.setIndexName(indexName);
         statement.setFilter(filter);
-        db.configureReadPolicy(policy);
 
         return IteratorUtils.
-                stream(fireflyGraph.getBaseGraph().client.query(policy, statement))
+                stream(fireflyGraph.getBaseGraph().query(policy, statement))
                 .map( item -> transformKeyRecord.transform(item))
                 .iterator();
     }
@@ -81,7 +76,7 @@ public class LegacyGraphQuery implements GraphQuery {
         final ConcurrentScanRecordSequenceListener listener =
                 ConcurrentScanRecordSequenceListener.create(db, scanMonitor, scanId);
         listener.setStartTime();
-        client.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), setName, binNames);
+        db.scanAll(listener, policy, setName, binNames);
 
         return new FireflyCloseableIterator<>(listener.iterator());
     }
@@ -98,11 +93,11 @@ public class LegacyGraphQuery implements GraphQuery {
 
 
     @Override
-    public <E> BlockingQueue<PageFetcher.Page> batchReadSetPagesBlocking(final FireflyGraph graph, BatchPolicy policy,
-                                                                         final Class<? extends FireflyElement> type,
-                                                                         final Expression expression,
-                                                                         final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
-                                                                         final List<Object> idsToRead) {
+    public <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(final FireflyGraph graph,
+                                                                            final Expression expression,
+                                                                            final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
+                                                                            final List<Object> idsToRead,
+                                                                            final Long evaluationTimeout) {
         throw new RuntimeException("The graph computer does not support legacy reading.");
     }
 

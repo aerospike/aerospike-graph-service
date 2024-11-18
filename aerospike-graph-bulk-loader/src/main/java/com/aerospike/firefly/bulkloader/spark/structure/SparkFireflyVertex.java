@@ -2,9 +2,8 @@ package com.aerospike.firefly.bulkloader.spark.structure;
 
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.BadCsvEntryException;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,11 +46,11 @@ public class SparkFireflyVertex extends SparkFireflyElement {
                 properties.add(property);
             } catch (final RuntimeException e) {
                 LOG.error("Failed to generate Vertex property for header '" + header + "' from value: " + row.getAs(header));
-                throw new FireflyBulkLoaderException(e);
+                throw new BadCsvEntryException(e);
             }
         }
         if (id == null) {
-            throw new FireflyBulkLoaderException("Could not generate vertex due to ~id being blank.");
+            throw new BadCsvEntryException("Could not generate vertex due to ~id being blank.");
         }
         if (label == null) {
             label = DEFAULT_LABEL;
@@ -61,6 +60,6 @@ public class SparkFireflyVertex extends SparkFireflyElement {
 
     @Override
     public FireflyId getFireflyId(final AerospikeConnection db) {
-        return FireflyIdPoly.fromObject(this.id, db.VERTEX_AERO_SET);
+        return db.getIdFactory().createVertexId(this.id);
     }
 }

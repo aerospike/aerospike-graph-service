@@ -107,14 +107,14 @@ public class TestWarmup extends AbstractFireflySuite {
         Configuration wc = ConfigurationUtils.cloneConfiguration(config);
         wc.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), "true");
         graph.getBaseGraph().dropDatabase(graph, true);
-        List<Map.Entry<String, String>> indexesA = AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace());
+        List<Map.Entry<String, String>> indexesA = AerospikeConnection.InfoOps.listExistingIndexes(db);
         assertEquals(0, indexesA.stream().filter(it ->
                 it.getKey().contains(WarmupUtil.getWarmupArenaName()) || it.getValue().contains(WarmupUtil.getWarmupArenaName())).count());
 
         graph = FireflyGraph.open(wc);
         WarmupUtil w = WarmupUtil.create(wc);
         w.preheat(2);
-        List<Map.Entry<String, String>> indexesB = AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace());
+        List<Map.Entry<String, String>> indexesB = AerospikeConnection.InfoOps.listExistingIndexes(db);
         assertEquals(0, indexesB.stream().filter(it ->
                 it.getKey().contains(WarmupUtil.getWarmupArenaName()) || it.getValue().contains(WarmupUtil.getWarmupArenaName())).count());
     }

@@ -1,12 +1,11 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.client.util.Crypto;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
@@ -64,7 +63,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
-import static com.aerospike.firefly.structure.FireflyGraph.FIREFLY_CONFIGURATION_VARIABLE_NAME;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasLabel;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
@@ -102,8 +100,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void testReadWriteVertexProperty() {
-        final FireflyId vertexId = graph.getIdFactory().createFromManager(graph, FireflyVertex.class);
-        final FireflyId vpid = graph.getIdFactory().createFromManager(graph, FireflyVertexProperty.class);
+        final FireflyId vertexId = graph.getIdFactory().generateId(graph, FireflyVertex.class);
+        final FireflyId vpid = graph.getIdFactory().generateId(graph, FireflyVertexProperty.class);
         final FireflyVertex vertex = graph.writeVertex(vertexId, "aVertexLabel", new ArrayList<>());
         final FireflyVertexProperty fireflyVertexProperty = graph.writeVertexProperty(vpid, vertex, "aKey", "aValue");
 
@@ -136,7 +134,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void testReadWriteVertex() {
-        FireflyId id = graph.getIdFactory().createFromManager(graph, FireflyVertex.class);
+        FireflyId id = graph.getIdFactory().generateId(graph, FireflyVertex.class);
         graph.writeVertex(id, "aVertexLabel", new ArrayList<>());
         FireflyVertex v = graph.readVertex(id);
         assertEquals(v.label(), "aVertexLabel");
@@ -146,7 +144,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     public void testBatchReadVertexIterator() {
         List<FireflyId> usedIds = new ArrayList<>();
         LongStream.range(0, 10).forEach(l -> {
-            FireflyId next = graph.getIdFactory().createFromManager(graph, FireflyVertex.class);
+            FireflyId next = graph.getIdFactory().generateId(graph, FireflyVertex.class);
             usedIds.add(next);
             graph.writeVertex(next, "aVertexLabel", new ArrayList<>());
         });
@@ -523,6 +521,9 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Edge cie = cacheGraph.traversal().V(cgVb).inE().next();
         LOG.info("noCacheGraph edge: {}", ncie);
         LOG.info("cacheGraph edge: {}", cie);
+
+        noCacheGraph.close();
+        cacheGraph.close();
     }
 
 
@@ -632,13 +633,13 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         final Vertex lemon = g.V().hasLabel("lemon").next();
         final Vertex lime = g.V().hasLabel("lime").next();
-        Iterator<FireflyId> i = graph.readVertex(graph.getIdFactory().createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN, Set.of(), Collections.emptyList());
+        Iterator<FireflyId> i = graph.readVertex(graph.getIdFactory().createVertexId(fruit.id())).getEdgeIdsFromVertex(Direction.IN, Set.of(), Collections.emptyList());
         assertTrue(i.hasNext());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
-        FireflyId next = i.next();
-        assertTrue(x.contains(Crypto.encodeBase64(((ByteBuffer) next.getUserId()).array())));
-        next = i.next();
-        assertTrue(x.contains(Crypto.encodeBase64(((ByteBuffer) next.getUserId()).array())));
+        FireflyEdgeId next = (FireflyEdgeId) i.next();
+        assertTrue(x.contains(Crypto.encodeBase64(((ByteBuffer) next.getEdgeIdBytes()).array())));
+        next = (FireflyEdgeId) i.next();
+        assertTrue(x.contains(Crypto.encodeBase64(((ByteBuffer) next.getEdgeIdBytes()).array())));
     }
 
     public static void validateException(final Throwable expected, final Throwable actual) {
@@ -756,6 +757,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
         Assert.assertEquals(FireflyCloseableIteratorUtils.count(source.vertices()), FireflyCloseableIteratorUtils.count(targetGraph.vertices()));
         Assert.assertEquals(FireflyCloseableIteratorUtils.count(source.edges()), FireflyCloseableIteratorUtils.count(targetGraph.edges()));
+
+        targetGraph.close();
     }
 
     private static <A> boolean internalCheckList(final List<A> expectedList, final List<A> actualList) {
@@ -1051,32 +1054,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Assert.assertThrows(UnsupportedOperationException.class,
                 () -> v.property(VertexProperty.Cardinality.single, "name", "stephen",
                         new Object[]{T.id, id}));
-    }
-
-    @Test
-    public void shouldReturnConfigurationFromGraphVariable() {
-        Object stuff = graph.readGraphVariable(FIREFLY_CONFIGURATION_VARIABLE_NAME);
-        assertEquals(graph.readGraphVariable(FIREFLY_CONFIGURATION_VARIABLE_NAME), config);
-    }
-
-    @Test
-    public void shouldReturnConfigurationFromMetadataVertex() {
-        Vertex it = graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next();
-        List<VertexProperty<Object>> props = FireflyCloseableIteratorUtils.list(graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next().properties());
-        config.getKeys().forEachRemaining(key -> {
-            assertEquals(graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next().property(key).value(), config.getString(key));
-        });
-        assertEquals(FireflyCloseableIteratorUtils.list(graph.configuration().getKeys()).size() + 2, props.size());
-    }
-
-    @Test
-    public void testModelAndVersion() {
-        //This initializes the metadata for version and model, if drop database is called, its cleared
-        graph = GraphFactory.createGraph(db, config);
-
-        Vertex it = graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next();
-        assertEquals(graph.getBaseGraph().getDataModelMetadata().getDataModelName(), it.property(AerospikeConnection.DATA_MODEL_NAME).value());
-        assertEquals(graph.getBaseGraph().getDataModelMetadata().getDataModelVersion().toString(), it.property(AerospikeConnection.DATA_MODEL_VER).value());
     }
 
     @Test

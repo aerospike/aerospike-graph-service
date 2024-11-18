@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io.aerospike.query.paged;
 
 import com.aerospike.firefly.structure.FireflyGraph;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.NoSuchElementException;
@@ -16,10 +17,12 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
     private final Object lock = new Object();
     private final FireflyGraph graph;
     private final Runnable closeCallback;
+    private final long timeout;
 
-    public PaginationIterator(final FireflyGraph graph, final Runnable closeCallback) {
+    public PaginationIterator(final FireflyGraph graph, final Runnable closeCallback, final long timeout) {
         this.graph = graph;
         this.closeCallback = closeCallback;
+        this.timeout = timeout;
     }
 
     @Override
@@ -34,13 +37,13 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
                 }
             }
             try {
-                boolean succeeded = latch.await(graph.getBaseGraph().PAGINATION_PAGE_MAX_WAIT, TimeUnit.MILLISECONDS);
+                boolean succeeded = latch.await(Math.min(timeout, graph.getBaseGraph().PAGINATION_PAGE_MAX_WAIT), TimeUnit.MILLISECONDS);
                 if (!succeeded) {
                     throw new RuntimeException("Timeout waiting for more records in PaginationIterator. " +
                             "State: " + isClosed + " " + queue.isEmpty() + ".");
                 }
             } catch (final InterruptedException e) {
-                // Unexpected interrupt, just go back to waiting.
+                throw new TraversalInterruptedException();
             }
         }
         return true;
@@ -60,10 +63,10 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
         synchronized (lock) {
             if (!isClosed) {
                 isClosed = true;
+                closeCallback.run();
             }
             latch.countDown();
         }
-        closeCallback.run();
     }
 
     public void add(final E e) {

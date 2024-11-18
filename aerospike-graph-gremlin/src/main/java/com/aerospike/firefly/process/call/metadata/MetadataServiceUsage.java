@@ -66,9 +66,9 @@ public class MetadataServiceUsage<I, R> extends MetadataServiceBase<I, R> {
             }
         }
 
-        final List<Map<String, Object>> usageStats = FireflyUsageStats.readMetadata();
+        final List<Map<String, Object>> usageStats = graph.getUsageStats().readMetadata();
         final Map<String, Object> results = new HashMap<>();
-        Double vcpuHours = FireflyUsageStats.getTotalVcpuHours(usageStats, epochOffsetMilliseconds);
+        Double vcpuHours = graph.getUsageStats().getTotalVcpuHours(usageStats, epochOffsetMilliseconds);
         // Truncate to 2 decimal places.
         vcpuHours = Math.round(vcpuHours * 100.0) / 100.0;
         results.put("raw", usageStats);

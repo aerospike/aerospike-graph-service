@@ -15,14 +15,6 @@ public interface IdManager<T> {
     T getNextId(final FireflyGraph graph);
 
     /**
-     * Determine if an identifier's class is allowed by this manager given its type.
-     *
-     * @param id class of id to check
-     * @return is value allowed
-     */
-    boolean allow(final Class<?> id);
-
-    /**
      * Recycle an id for reuse.
      *
      * @param id    id to recycle

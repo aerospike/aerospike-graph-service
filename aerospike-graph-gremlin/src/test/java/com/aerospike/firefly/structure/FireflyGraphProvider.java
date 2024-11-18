@@ -6,6 +6,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.AbstractGraphProvider;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.IncidentToAdjacentStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,9 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 
 /**
@@ -29,6 +33,8 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
     static {
         // config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_CLUSTER_PROPERTIES);
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+
+        config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
 
         // Adjust here to test transition from caches to scans
         config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase(), "10000");
@@ -49,7 +55,14 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
 
         // Disable FireflyGraphDropStrategy for this test since it truncates the DB so event for vertex removal doesn't fire
         if (test.equals(EventStrategyProcessTest.class) && testMethodName.equals("shouldTriggerRemoveVertex")) {
-            configMap.put(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "false");
+            configMap.put(ENABLE_FIREFLY_DROP_STRATEGY, "false");
+        }
+
+        // Disable FireflyBatchOtherVReadStrategy for this test due to bug in Tinkerpop that applies this in OLAP
+        if (test.equals(IncidentToAdjacentStrategyProcessTest.class) && testMethodName.equals("shouldGenerateCorrectTraversers")) {
+            configMap.put(ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY, "false");
+            configMap.put(ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY, "false");
+            configMap.put(ENABLE_COMPOSITE_ID_STRATEGY, "false");
         }
 
         return configMap;

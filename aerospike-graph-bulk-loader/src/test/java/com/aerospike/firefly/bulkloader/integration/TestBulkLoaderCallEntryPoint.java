@@ -13,7 +13,6 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,10 +24,16 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 
 public class TestBulkLoaderCallEntryPoint {
+    private final Configuration config;
+
+    public TestBulkLoaderCallEntryPoint() {
+        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
+    }
 
     @Before
     public void beforeEach() {
-        try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             RecoveryUtil.truncate(fireflyGraph.getBaseGraph());
         }
     }
@@ -37,7 +42,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void invalidNoVerticesNoEdges() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             try {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("vertices", false).with("edges", false).iterate();
@@ -49,29 +53,9 @@ public class TestBulkLoaderCallEntryPoint {
     }
 
     @Test
-    public void testResumeThrows() {
-        // Right now calling the bulk loader here will fail with null config.
-        // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
-            try {
-                fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").
-                        with("vertices").
-                        with("edges").
-                        with("resume").
-                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
-                Assert.fail("Expected call to fail.");
-            } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'."));
-            }
-        }
-    }
-
-    @Test
     public void testClearExistingDataDoesntThrow() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             try {
                 fireflyGraph.traversal().V().drop().iterate();
@@ -91,13 +75,12 @@ public class TestBulkLoaderCallEntryPoint {
     public void invalidConfigPath() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             try {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", "invalid path").iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().contains("[PATH_NOT_FOUND] Path does not exist:"));
+                Assert.assertEquals("Error, failed to find the configuration file at 'invalid path'.", e.getMessage());
             }
         }
     }
@@ -106,13 +89,12 @@ public class TestBulkLoaderCallEntryPoint {
     public void invalidConfigPathNull() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             try {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", null).iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'"));
+                Assert.assertEquals("Error, 'aerospike.graphloader.config' cannot be null, but null was passed in.", e.getMessage());
             }
         }
     }
@@ -121,7 +103,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void invalidConfigKey() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             try {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("configure", "path").iterate();
@@ -136,7 +117,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void invalidNumericStringKey() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             try {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.sampling-percentage", "invalid").iterate();
@@ -151,7 +131,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void invalidNumericKey() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             try {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.sampling-percentage", true).iterate();
@@ -166,7 +145,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void invalidBooleanStringKey() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             try {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.keep-provided-edge-id-as-property", "boolean").iterate();
@@ -181,7 +159,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void invalidBooleanKey() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             try {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.keep-provided-edge-id-as-property", 123).iterate();
@@ -196,7 +173,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void vertexEdgeSeparatelyWithoutBooleans() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -217,7 +193,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void vertexEdgeSeparatelyWithBooleans() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -239,7 +214,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void vertexEdgeSeparatelyWithFalseOnly() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -260,7 +234,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void vertexEdgeSeparatelyWithTrueOnly() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -281,7 +254,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void vertexEdgeTogetherWith() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -297,7 +269,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void vertexEdgeTogetherWithTrue() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -313,7 +284,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void vertexEdgeTogetherDefault() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -329,7 +299,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void validateInputDataTrue() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -345,7 +314,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void validateInputDataFalse() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -361,7 +329,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void validateInputDataInvalidInput() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -378,7 +345,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void numericConfig() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -394,7 +360,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void testEmptyPath() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -415,7 +380,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void numericConfigAsString() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -431,7 +395,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void booleanConfig() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -447,7 +410,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void booleanConfigAsString() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -461,7 +423,6 @@ public class TestBulkLoaderCallEntryPoint {
 
     @Test
     public void concurrentBulkLoad() throws InterruptedException {
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -496,7 +457,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void testCsvOnS3() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -518,7 +478,6 @@ public class TestBulkLoaderCallEntryPoint {
     public void testCsvOnGcs() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -538,8 +497,23 @@ public class TestBulkLoaderCallEntryPoint {
     }
 
     @Test
+    public void testDifferentConfigFile() {
+        final Configuration differentConfig = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        differentConfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID, "somethingdifferent");
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(differentConfig)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            try {
+                g.call("aerospike.graphloader.admin.bulk-load.load").
+                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-1.properties").iterate();
+            } catch (final IllegalStateException e) {
+                Assert.assertEquals("Error, attempting to load graph id '0' through call step on graph id 'somethingdifferent'.", e.getMessage());
+            }
+        }
+    }
+
+    @Test
     public void testIncrementalLoad() {
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -588,10 +562,31 @@ public class TestBulkLoaderCallEntryPoint {
     }
 
     @Test
+    public void testLoadWithCsvFileDirectlyFails() {
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            try {
+                g.call("aerospike.graphloader.admin.bulk-load.load").
+                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-direct-csv-vertices.properties").iterate();
+                Assert.fail("Expected call to fail with direct csv of vertices.");
+            } catch (final RuntimeException e) {
+                Assert.assertTrue(e.getMessage().contains("Config aerospike.graphloader.vertices must be a directory and cannot be a single file, current value is src/test/resources/sampledata-incremental-1/vertices.csv"));
+            }
+            try {
+                g.call("aerospike.graphloader.admin.bulk-load.load").
+                        with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-direct-csv-edges.properties").iterate();
+                Assert.fail("Expected call to fail with direct csv of edges.");
+            } catch (final RuntimeException e) {
+                Assert.assertTrue(e.getMessage().contains("Config aerospike.graphloader.edges must be a directory and cannot be a single file, current value is src/test/resources/sampledata-incremental-1/edges.csv"));
+            }
+        }
+    }
+
+    @Test
     public void testIncrementalLoadNewSupernode() {
         // This test will test a dataset where there was previously not a supernode and we are adding to it such that it will
         // become a supernode from the combination of the previous cache plus the new data.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -625,7 +620,6 @@ public class TestBulkLoaderCallEntryPoint {
     @Test
     public void testIncrementalLoadOldSupernode() {
         // This test will test a dataset where there was previously a supernode and we are adding to it.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
@@ -658,7 +652,6 @@ public class TestBulkLoaderCallEntryPoint {
 	
 	@Test
     public void test500mCsvOnGcs() {
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();

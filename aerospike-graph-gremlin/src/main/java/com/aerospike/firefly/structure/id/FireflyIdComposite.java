@@ -5,11 +5,12 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyIdComposite extends FireflyId {
+public class FireflyIdComposite implements FireflyEdgeId {
     protected final AerospikeConnection db;
     /* The composite id is used so heavily in different forms that
        the edge id, adjacent id, and id array are not always all needed
@@ -18,22 +19,22 @@ public class FireflyIdComposite extends FireflyId {
        to increase performance. */
     protected byte[] id;
     protected FireflyId adjacentId;
-    protected FireflyId edgeId;
+    protected FireflyEdgeId edgeId;
 
-    public FireflyIdComposite(final AerospikeConnection db, final FireflyId edgeId, final FireflyId adjacentId) {
+    protected FireflyIdComposite(final AerospikeConnection db, final FireflyEdgeId edgeId, final FireflyId adjacentId) {
         this.db = db;
         initialize(edgeId, adjacentId);
     }
 
-    protected void initialize(final FireflyId edgeId, final FireflyId adjacentId) {
+    protected void initialize(final FireflyEdgeId edgeId, final FireflyId adjacentId) {
         this.adjacentId = adjacentId;
         this.edgeId = edgeId;
         this.id = new byte[36];
-        System.arraycopy(((ByteBuffer) edgeId.getUserId()).array(), 0, this.id, 0, 16);
+        System.arraycopy(edgeId.getEdgeIdBytes().array(), 0, this.id, 0, 16);
         System.arraycopy(adjacentId.getKeyHash(), 0, this.id, 16, 20);
     }
 
-    public FireflyIdComposite(final AerospikeConnection db, final byte[] id) {
+    protected FireflyIdComposite(final AerospikeConnection db, final byte[] id) {
         this.db = db;
         initialize(id);
     }
@@ -66,7 +67,7 @@ public class FireflyIdComposite extends FireflyId {
         if (edgeId == null) {
             final byte[] individualEdgeId = new byte[16];
             System.arraycopy(id, 0, individualEdgeId, 0, 16);
-            edgeId = new FireflyPhatEdgeId(ByteBuffer.wrap(individualEdgeId), db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
+            edgeId = FireflyPhatEdgeId.fromByteArray(individualEdgeId, db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
         }
         return (FireflyPhatEdgeId) edgeId;
     }
@@ -78,7 +79,7 @@ public class FireflyIdComposite extends FireflyId {
      */
     public FireflyId getAdjacentId() {
         if (adjacentId == null) {
-            adjacentId = FireflyIdPoly.fromHash(digestFromBytes(16), db.VERTEX_AERO_SET);
+            adjacentId = db.getIdFactory().createVertexIdFromHash(digestFromBytes(16));
         }
         return adjacentId;
     }
@@ -99,8 +100,23 @@ public class FireflyIdComposite extends FireflyId {
     }
 
     @Override
+    public ByteBuffer getEdgeIdBytes() {
+        return this.getEdgeId().getEdgeIdBytes();
+    }
+
+    @Override
     public Long getStorageTypeHint() {
         return this.getEdgeId().getStorageTypeHint();
+    }
+
+    @Override
+    public Long getPackingId() {
+        return this.getEdgeId().getPackingId();
+    }
+
+    @Override
+    public Long getUniqueId() {
+        return this.getEdgeId().getUniqueId();
     }
 
     @Override
@@ -121,6 +137,11 @@ public class FireflyIdComposite extends FireflyId {
     @Override
     public String getKeyHashBase64() {
         return Crypto.encodeBase64(getKeyHash());
+    }
+
+    @Override
+    public int hashCode() {
+        return this.getKeyHash() == null ? this.getStorageId().hashCode() : Arrays.hashCode(this.getKeyHash());
     }
 
     @Override

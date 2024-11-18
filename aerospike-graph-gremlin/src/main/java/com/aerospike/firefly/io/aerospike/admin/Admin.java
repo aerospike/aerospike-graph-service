@@ -138,7 +138,7 @@ public class Admin {
 
         private static List<String> getExistingIndexes(final FireflyGraph firefly) {
             return AerospikeConnection.InfoOps.
-                    listExistingIndexes(firefly.getBaseGraph().getClient(), firefly.getBaseGraph().getNamespace()).
+                    listExistingIndexes(firefly.getBaseGraph()).
                     stream().map(Map.Entry::getKey).collect(Collectors.toList());
         }
 
@@ -170,17 +170,14 @@ public class Admin {
         }
 
         public static Map<String, Long> getIndexStatus(final FireflyGraph firefly, final String indexName) {
-            final String infoQueryFormat = "sindex/%s/%s"; // "sindex/<namespace>/<index name>
             long lowestLoadPct = 100;
             long totalEntries = 0;
             long totalUsedBytes = 0;
             long highestLoadTime = 0;
             long highestMemoryUsed = 0;
             boolean valid = false;
-            for (final Node node : firefly.getBaseGraph().getClient().getNodes()) {
-                final String infoVar = String.format(infoQueryFormat, firefly.getBaseGraph().getNamespace(), indexName);
-                LOGGER.debug("Info.request: {}", infoVar);
-                final String infoResponse = Info.request(new InfoPolicy(), node, infoVar);
+            final List<String> infoResponses = AerospikeConnection.InfoOps.getIndexStatuses(firefly.getBaseGraph(), indexName);
+            for (final String infoResponse : infoResponses) {
                 for (String s : infoResponse.split(";")) {
                     valid = true;
                     if (s.startsWith("load_pct=")) {

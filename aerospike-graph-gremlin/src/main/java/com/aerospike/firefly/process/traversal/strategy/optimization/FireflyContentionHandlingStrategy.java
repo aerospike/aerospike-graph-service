@@ -6,6 +6,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.AdjacentToIncidentStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.IncidentToAdjacentStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.LambdaRestrictionStrategy;
 
 import java.util.HashSet;
@@ -29,6 +31,8 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
     private final FireflyStrategyBase fireflyScanProfileStrategy;
     private final FireflyStrategyBase fireflyAuthenticationStrategy;
     private final FireflyStrategyBase fireflyAdjacentVertexIdStrategy;
+    private final FireflyStrategyBase fireflyBatchOtherVReadStrategy;
+    private final FireflyStrategyBase fireflyEdgeToVertexBatchReadStrategy;
 
     /**
      * Default constructor for FireflyContentionHandlingStrategy.
@@ -45,6 +49,8 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         this.fireflyScanProfileStrategy = new FireflyScanProfileStrategy();
         this.fireflyAuthenticationStrategy = new FireflyAuthenticationStrategy();
         this.fireflyAdjacentVertexIdStrategy = new FireflyAdjacentVertexIdStrategy();
+        this.fireflyBatchOtherVReadStrategy = new FireflyOtherVBatchReadStrategy();
+        this.fireflyEdgeToVertexBatchReadStrategy = new FireflyEdgeToVertexBatchReadStrategy();
     }
 
     /**
@@ -99,6 +105,8 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         applyStrategy(traversal, fireflyGraphCountStrategy);
 
         // This step replaces out/in.id() with single step.
+        applyTinkerPopStrategy(traversal, AdjacentToIncidentStrategy.instance());
+        applyTinkerPopStrategy(traversal, IncidentToAdjacentStrategy.instance());
         applyStrategy(traversal, fireflyAdjacentVertexIdStrategy);
 
         // Steps that are generally applicable to most all traversals.
@@ -114,6 +122,8 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         fireflyCompositeEdgeIdStrategy.setSteps(internalStepClasses);
         applyStrategy(traversal, fireflyCompositeEdgeIdStrategy);
         applyStrategy(traversal, fireflyBatchEdgeReadStrategy);
+        applyStrategy(traversal, fireflyBatchOtherVReadStrategy);
+        applyStrategy(traversal, fireflyEdgeToVertexBatchReadStrategy);
         applyStrategy(traversal, fireflyScanProfileStrategy);
     }
 }

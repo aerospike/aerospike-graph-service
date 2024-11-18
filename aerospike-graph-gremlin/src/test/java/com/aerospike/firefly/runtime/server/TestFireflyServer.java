@@ -40,6 +40,7 @@ public class TestFireflyServer {
         HEAP_REPORTING_TIMER.schedule(new HeapReport(), 0, 5000);
         runManyQueries();
         uploadHeapUsage();
+        server.stop().join();
     }
 
     private static final Timer HEAP_REPORTING_TIMER = new Timer(true);

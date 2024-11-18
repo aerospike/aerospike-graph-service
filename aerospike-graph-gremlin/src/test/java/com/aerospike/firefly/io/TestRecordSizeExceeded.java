@@ -1,7 +1,7 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
-import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
+import com.aerospike.firefly.util.exceptions.EdgeRecordSizeExceededException;
+import com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -81,6 +81,7 @@ public class TestRecordSizeExceeded {
 
     @After
     public void afterEach() {
+        System.out.println("===> Completed " + testName.getMethodName() + " <===");
         graph.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
         graph.close();
     }
@@ -101,6 +102,8 @@ public class TestRecordSizeExceeded {
                 Assert.assertEquals(baseVertexPropertyCount + 1, e.vertexPropertyCount);
                 Assert.assertEquals(baseVpPropertyCount, e.vpPropertyCount);
                 return;
+            } catch (final Exception e) {
+                Assert.fail("Unexpected exception: " + e);
             }
         }
     }
@@ -121,6 +124,8 @@ public class TestRecordSizeExceeded {
                 Assert.assertEquals(baseVertexPropertyCount + addedVertexProperties + 1, e.vertexPropertyCount);
                 Assert.assertEquals(baseVpPropertyCount, e.vpPropertyCount);
                 return;
+            } catch (final Exception e) {
+                Assert.fail("Unexpected exception: " + e);
             }
         }
     }
@@ -142,6 +147,8 @@ public class TestRecordSizeExceeded {
                 Assert.assertEquals(baseVertexPropertyCount + 1, e.vertexPropertyCount);
                 Assert.assertEquals(baseVpPropertyCount + addedVpProperties, e.vpPropertyCount);
                 return;
+            } catch (final Exception e) {
+                Assert.fail("Unexpected exception: " + e);
             }
         }
     }
@@ -160,6 +167,8 @@ public class TestRecordSizeExceeded {
                 Assert.assertEquals((baseEdgePropertyCount * 2) + addedProperties + 1, e.propertyCount);
                 Assert.assertEquals(baseInEdgeCount + baseOutEdgeCount, e.edgePackCount);
                 break;
+            } catch (final Exception e) {
+                Assert.fail("Unexpected exception: " + e);
             }
         }
         try {
@@ -168,6 +177,8 @@ public class TestRecordSizeExceeded {
         } catch (final EdgeRecordSizeExceededException e) {
             Assert.assertEquals((baseEdgePropertyCount * 2) + addedProperties + 1, e.propertyCount);
             Assert.assertEquals(baseInEdgeCount + baseOutEdgeCount, e.edgePackCount);
+        } catch (final Exception e) {
+            Assert.fail("Unexpected exception: " + e);
         }
     }
 

@@ -38,7 +38,7 @@ public class BufferedNumericIdManagerIntegrationTest {
     @Test
     public void testBufferedAndUnbufferedIdGet() {
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-            final BufferedNumericIdManager idManager = (BufferedNumericIdManager) graph.vertexIdManager;
+            final BufferedNumericIdManager idManager = (BufferedNumericIdManager) graph.getIdFactory().getVertexIdManager();
             // Buffer -1, -2, -3
             Assert.assertEquals(idManager.getNextId(graph).longValue(), baseline-1);
             Assert.assertEquals(idManager.getNextId(graph).longValue(), baseline-2);
@@ -52,8 +52,8 @@ public class BufferedNumericIdManagerIntegrationTest {
     public void testIdsReservedProperly() {
         try (final FireflyGraph graph1 = FireflyGraph.open(CONFIG);
              final FireflyGraph graph2 = FireflyGraph.open(CONFIG)) {
-            final BufferedNumericIdManager idManager1 = (BufferedNumericIdManager) graph1.vertexIdManager;
-            final BufferedNumericIdManager idManager2 = (BufferedNumericIdManager) graph2.vertexIdManager;
+            final BufferedNumericIdManager idManager1 = (BufferedNumericIdManager) graph1.getIdFactory().getVertexIdManager();
+            final BufferedNumericIdManager idManager2 = (BufferedNumericIdManager) graph2.getIdFactory().getVertexIdManager();
 
             // Buffer -1, -2, -3
             Assert.assertEquals(idManager1.getNextId(graph1).longValue(), baseline-1);
@@ -72,7 +72,7 @@ public class BufferedNumericIdManagerIntegrationTest {
 
     private static long getBaselineId() {
         // Jog id manager to make sure it re-buffers.
-        SETUP_GRAPH.vertexIdManager.getNextId(SETUP_GRAPH);
-        return SETUP_GRAPH.vertexIdManager.getNextId(SETUP_GRAPH) - 1;
+        SETUP_GRAPH.getIdFactory().getVertexIdManager().getNextId(SETUP_GRAPH);
+        return SETUP_GRAPH.getIdFactory().getVertexIdManager().getNextId(SETUP_GRAPH) - 1;
     }
 }

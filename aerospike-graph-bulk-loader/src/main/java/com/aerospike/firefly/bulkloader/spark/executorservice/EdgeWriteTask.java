@@ -6,7 +6,7 @@ import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.slf4j.Logger;
@@ -90,10 +90,10 @@ public class EdgeWriteTask {
     public void updateCacheMap() {
         if (edgeCacheEnabled) {
             GraphOperations.updateEdgeMap(supernodes, outVertexId,
-                    graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
+                    graph.getIdFactory().createCompositeEdgeId((FireflyEdgeId) edgeId, graph.getIdFactory().createVertexId(inVertexId)),
                     edgeLabel, vertexOutEdgeMap);
             GraphOperations.updateEdgeMap(supernodes, inVertexId,
-                    graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
+                    graph.getIdFactory().createCompositeEdgeId((FireflyEdgeId) edgeId, graph.getIdFactory().createVertexId(outVertexId)),
                     edgeLabel, vertexInEdgeMap);
         }
     }

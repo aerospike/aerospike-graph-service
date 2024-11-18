@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.computer.local.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.map.FireflyAdjacentVertexIdStep;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -17,7 +18,6 @@ import java.util.Set;
 
 public class FireflyAdjacentVertexIdStrategy extends FireflyStrategyBase {
 
-    final ThreadLocal<Boolean> rootGroup = ThreadLocal.withInitial(() -> false);
 
     public FireflyAdjacentVertexIdStrategy() {
     }
@@ -29,33 +29,10 @@ public class FireflyAdjacentVertexIdStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
-        // Reset whenever root.
-        if (traversal.isRoot()) {
-            rootGroup.set(false);
-        }
-
-        if (!traversal.isRoot()) {
-            if (rootGroup.get()) {
-                return;
-            }
-        }
-
-        if (TraversalHelper.onGraphComputer(traversal))
+        if (ComputerHelper.onGraphComputer(traversal))
             return;
 
         final List<Step> steps = traversal.getSteps();
-
-        // TODO GRAPH-792: There's a weird interaction between the strategy and traversals like:
-        //  g.V().out().groupCount().by(outE().fold()).toList().
-        //  With these traversals there's a casting error that occurs at the end of the traversal pipe.
-        if (traversal.isRoot()) {
-            for (int i = 0; i < steps.size(); i++) {
-                if (steps.get(i) instanceof GroupStep || steps.get(i) instanceof GroupSideEffectStep) {
-                    rootGroup.set(true);
-                    break;
-                }
-            }
-        }
 
         // We need to find VertexSteps.
         // In particular, we need vertex steps that return a vertex.

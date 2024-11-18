@@ -26,7 +26,7 @@ public class TestAdminCallHttp {
 
     public String adminIndexList() {
         try {
-            final URL url = new URL("http://localhost:9090/admin/index/list");
+            final URL url = new URL("http://localhost:9090/0/admin/index/list");
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
             // Send request to the server and read reply
             con.setRequestMethod("GET");
@@ -45,7 +45,7 @@ public class TestAdminCallHttp {
             final String query = String.format("property_key=%s&element_type=%s",
                     URLEncoder.encode(propertyKey, "UTF-8"),
                     URLEncoder.encode(elementType, "UTF-8"));
-            final URL url = new URL("http://localhost:9090/admin/index/create?" + query);
+            final URL url = new URL("http://localhost:9090/0/admin/index/create?" + query);
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("GET");
 
@@ -63,7 +63,7 @@ public class TestAdminCallHttp {
             final String query = String.format("property_key=%s&element_type=%s",
                     URLEncoder.encode(propertyKey, "UTF-8"),
                     URLEncoder.encode(elementType, "UTF-8"));
-            final URL url = new URL("http://localhost:9090/admin/index/drop?" + query);
+            final URL url = new URL("http://localhost:9090/0/admin/index/drop?" + query);
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("GET");
 
@@ -78,7 +78,7 @@ public class TestAdminCallHttp {
 
     public String adminIndexCardinality() {
         try {
-            final URL url = new URL("http://localhost:9090/admin/index/cardinality");
+            final URL url = new URL("http://localhost:9090/0/admin/index/cardinality");
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("GET");
 
@@ -93,7 +93,7 @@ public class TestAdminCallHttp {
 
     public String adminMetadataSummary() {
         try {
-            final URL url = new URL("http://localhost:9090/admin/metadata/summary");
+            final URL url = new URL("http://localhost:9090/0/admin/metadata/summary");
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("GET");
 
@@ -108,7 +108,7 @@ public class TestAdminCallHttp {
 
     public String adminMetadataUsage() {
         try {
-            final URL url = new URL("http://localhost:9090/admin/metadata/usage");
+            final URL url = new URL("http://localhost:9090/0/admin/metadata/usage");
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("GET");
 
@@ -123,7 +123,7 @@ public class TestAdminCallHttp {
 
     public String adminMetadataConfig() {
         try {
-            final URL url = new URL("http://localhost:9090/admin/metadata/config");
+            final URL url = new URL("http://localhost:9093/0/admin/metadata/config");
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("GET");
 
@@ -138,7 +138,7 @@ public class TestAdminCallHttp {
 
     public String adminMetadataVersion() {
         try {
-            final URL url = new URL("http://localhost:9090/admin/metadata/version");
+            final URL url = new URL("http://localhost:9094/0/admin/metadata/version");
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("GET");
 
@@ -344,6 +344,8 @@ public class TestAdminCallHttp {
     public void testConfig() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.client.password", "Foo");
+        config.setProperty("aerospike.graph.http.port", 9093);
+
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final String configString = adminMetadataConfig();
             Assert.assertTrue(configString.startsWith("{"));
@@ -352,7 +354,6 @@ public class TestAdminCallHttp {
             final JsonNode tree = reader.readTree(configString);
             // Check has Aerospike version and Aerospike Graph Service version
             Assert.assertTrue(tree.has("Gremlin Server Configuration"));
-            Assert.assertTrue(tree.has("Unified Configuration"));
             Assert.assertTrue(tree.has("Graph Properties"));
             // Check value of graph service version
             final JsonNode configNode = tree.get("Graph Properties");
@@ -362,8 +363,6 @@ public class TestAdminCallHttp {
             Assert.assertEquals(pw, "********");
             final String dm = configNode.get("aerospike.graph.data.model").asText();
             Assert.assertEquals(dm, "packed");
-        } catch (JsonMappingException e) {
-            throw new RuntimeException(e);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
@@ -372,6 +371,8 @@ public class TestAdminCallHttp {
     @Test
     public void testVersion() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty("aerospike.graph.http.port", 9094);
+
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final String version = adminMetadataVersion();
             Assert.assertTrue(version.startsWith("{"));

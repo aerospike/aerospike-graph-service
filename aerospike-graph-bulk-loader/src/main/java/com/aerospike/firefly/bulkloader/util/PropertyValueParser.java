@@ -49,7 +49,7 @@ public class PropertyValueParser {
     public static Object parseId(final String id) {
         try {
             return Long.parseLong(id);
-        } catch (NumberFormatException ignored) {
+        } catch (final NumberFormatException ignored) {
         }
         return id;
     }

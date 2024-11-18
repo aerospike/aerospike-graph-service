@@ -19,4 +19,9 @@ public class BulkLoaderServiceCountErrorsDeprecated<I, R> extends BulkLoaderServ
         LOGGER.warn("Invoked deprecated API '" + getName() + "' for future use please see '" + super.getName() + "'.");
         super.auditLog(params);
     }
+
+    @Override
+    public boolean needRouting() {
+        return false;
+    }
 }

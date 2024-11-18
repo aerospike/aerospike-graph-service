@@ -6,6 +6,8 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +18,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class PageFetcher<E> {
     private static final Logger LOG = LoggerFactory.getLogger(PageFetcher.class);
@@ -25,6 +28,7 @@ public abstract class PageFetcher<E> {
     private final FireflyGraph.TransformKeyRecord<E> transformKeyRecord;
     protected final PartitionFilter filter;
     protected final String indexName;
+    protected AtomicBoolean isClosing = new AtomicBoolean(false);
 
     public PageFetcher(final FireflyGraph graph,
                        final int maxQueueSize,
@@ -48,7 +52,7 @@ public abstract class PageFetcher<E> {
         return filter.isDone();
     }
 
-    protected abstract void readPage();
+    protected abstract void readPage() throws InterruptedException;
 
     public Iterator<E> startQuery() {
         // Start loop.
@@ -70,8 +74,7 @@ public abstract class PageFetcher<E> {
                         try {
                             pageQueue.put(new PoisonPill());
                         } catch (final InterruptedException e) {
-                            LOG.error("Error adding poison pill.", e);
-                            Thread.currentThread().interrupt();
+                            signalError("Interrupted while attempting to add poison pill.", e);
                         }
                         return;
                     }
@@ -81,7 +84,12 @@ public abstract class PageFetcher<E> {
                     }
                     readPage();
                 } catch (final Throwable e) {
-                    signalError("Unexpected error while reading " + e.getMessage(), e);
+                    if (e.getMessage() == null) {
+                        signalError("Unexpected error while reading.", e);
+                    } else {
+                        signalError("Unexpected error while reading " + e.getMessage(), e);
+                    }
+                    return;
                 }
             }
         });
@@ -106,8 +114,8 @@ public abstract class PageFetcher<E> {
         }
 
         private boolean isIndexDropError() {
-            return this.exception instanceof AerospikeException
-                    && ((AerospikeException) this.exception).getResultCode() == ResultCode.INDEX_NOTFOUND;
+            return this.exception instanceof AerospikeGraphException
+                    && ((AerospikeGraphException) this.exception).errorCode == ResultCode.INDEX_NOTFOUND;
         }
     }
 
@@ -122,7 +130,7 @@ public abstract class PageFetcher<E> {
     public class PageIterator implements CloseableIterator<E> {
         private static final String NO_ERROR = "";
         private static final String INDEX_DROPPED = "INDEX_DROPPED";
-        private CloseableIterator<KeyRecord> currentIterator = FireflyCloseableIterator.EmptyCloseableIterator.instance();;
+        private CloseableIterator<KeyRecord> currentIterator = FireflyCloseableIterator.EmptyCloseableIterator.instance();
         private boolean isEmpty = false;
         private boolean isClosed = false;
         private String errorMessage = NO_ERROR;
@@ -139,6 +147,10 @@ public abstract class PageFetcher<E> {
             }
 
             try {
+                if (Thread.currentThread().isInterrupted()) {
+                    close();
+                    throw new TraversalInterruptedException();
+                }
                 final Page page = pageQueue.take();
                 if (page instanceof PoisonPill) {
                     isEmpty = true;
@@ -147,17 +159,16 @@ public abstract class PageFetcher<E> {
                     final ErrorPage errorPage = (ErrorPage) page;
                     errorMessage = errorPage.isIndexDropError() ? INDEX_DROPPED : errorPage.errorMessage;
                     error = errorPage.exception;
+                    if (error instanceof TraversalInterruptedException) {
+                        throw new TraversalInterruptedException();
+                    }
                     return;
                 }
 
                 currentIterator = page.keyRecords;
             } catch (final InterruptedException e) {
-                final StringBuilder err = new StringBuilder("Error thread interrupted while removing page:\n");
-                final StackTraceElement[] stackTraceElements = e.getStackTrace();
-                for (final StackTraceElement stackTraceElement : stackTraceElements) {
-                    err.append("\t").append(stackTraceElement.toString()).append("\n");
-                }
-                errorMessage = err.toString();
+                close();
+                throw new TraversalInterruptedException();
             }
         }
 
@@ -186,6 +197,10 @@ public abstract class PageFetcher<E> {
 
         @Override
         public E next() {
+            if (Thread.currentThread().isInterrupted()) {
+                close();
+                throw new TraversalInterruptedException();
+            }
             if (!hasNext()) {
                 throw new NoSuchElementException();
             } else {
@@ -214,9 +229,26 @@ public abstract class PageFetcher<E> {
 
         @Override
         public void close() {
+            isClosing.set(true);
             if (!isClosed) {
                 isClosed = true;
+                pageQueue.forEach(page -> {
+                    if (!(page instanceof ErrorPage || page instanceof PoisonPill)) {
+                        if (page.keyRecords != null) {
+                            page.keyRecords.close();
+                        }
+                    }
+                });
                 shutdown();
+                if (graph.getBaseGraph().PAGINATION_SHUTDOWN_WAIT != 0) {
+                    try {
+                        if (!readLoopExecutorService.awaitTermination(graph.getBaseGraph().PAGINATION_SHUTDOWN_WAIT,
+                                java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                            readLoopExecutorService.shutdownNow();
+                        }
+                    } catch (final InterruptedException e) {
+                    }
+                }
 
                 // Clean up any remaining pages.
                 if (currentIterator != null) {
@@ -257,12 +289,28 @@ public abstract class PageFetcher<E> {
     }
 
     protected void signalError(final String error, final Throwable exception) {
+        if (!isClosing.get()) {
+            LOG.error("{} attempting to signal error to iterator.", error);
+        }
         try {
-            LOG.error(error);
-            shutdown();
-            pageQueue.put(new ErrorPage(error, exception));
-        } catch (final InterruptedException e2) {
-            LOG.error("Error adding signalling error to iterator.", e2);
+            if (!isClosing.get()) {
+                shutdown();
+            }
+            boolean success = false;
+            for (int attemptCount = 0; attemptCount < 3; attemptCount++) {
+                pageQueue.clear();
+                if (pageQueue.offer(new ErrorPage(error, exception))) {
+                    success = true;
+                    break;
+                }
+            }
+            if (!success && !isClosing.get()) {
+                LOG.error("Failed to send error signal to iterator.");
+            }
+        } catch (final Exception e) {
+            if (!isClosing.get()) {
+                LOG.error("Failed to signal error to iterator. Please contact support.", e);
+            }
         }
     }
 }

@@ -20,6 +20,7 @@ import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.RESUME_WIT
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CLEAR_EXISTING_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.FORCE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RESUME;
 
@@ -103,9 +104,16 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
     @Override
     public void executeState() {
         // Check to see if actions are valid.
+        final boolean forceFlag = sparkBulkLoaderStateMachine.config.hasAction(FORCE);
         final boolean resumeFlag = sparkBulkLoaderStateMachine.config.hasAction(RESUME);
         final boolean incrementalLoadFlag = sparkBulkLoaderStateMachine.config.hasAction(INCREMENTAL_LOAD);
         final boolean clearExistingDataFlag = sparkBulkLoaderStateMachine.config.hasAction(CLEAR_EXISTING_DATA);
+        if (forceFlag) {
+            LOGGER.info("Force flag detected. Removing recovery data before starting.");
+            RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
+            LOGGER.info("Recovery data removed, continuing load.");
+        }
+
         RecoveryUtil.RecoveryInfo info =
                 RecoveryUtil.recover(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
         final boolean recoveryInfoExists = info.getState() != null;

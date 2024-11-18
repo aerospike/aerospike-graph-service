@@ -49,20 +49,20 @@ public class TestFireflyDropStrategyIntegration {
     public void beforeEach() {
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
         List<Map.Entry<String, Object>> properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Simon"));
-        final FireflyVertex simon = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createId(1, FireflyVertex.class), "person", properties);
+        final FireflyVertex simon = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(1), "person", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Lyndon"));
-        final FireflyVertex lyndon = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createId(2, FireflyVertex.class), "person", properties);
+        final FireflyVertex lyndon = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(2), "person", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Vincent"));
-        final FireflyVertex vincent = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createId(3, FireflyVertex.class), "cat", properties);
+        final FireflyVertex vincent = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(3), "cat", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Mycroft"));
-        final FireflyVertex mycroft = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createId(4, FireflyVertex.class), "cat", properties);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(getEdgeId(), FireflyEdge.class), "coworker", Collections.emptyList(),
+        final FireflyVertex mycroft = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(4), "cat", properties);
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "coworker", Collections.emptyList(),
                 lyndon, simon);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(getEdgeId(), FireflyEdge.class), "coworker", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "coworker", Collections.emptyList(),
                 simon, lyndon);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(getEdgeId(), FireflyEdge.class), "owns", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "owns", Collections.emptyList(),
                 vincent, lyndon);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(getEdgeId(), FireflyEdge.class), "owns", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "owns", Collections.emptyList(),
                 mycroft, lyndon);
         // Write a stray edge that normal drop traversal would not remove
         SETUP_GRAPH.bulkWriteEdge(getEdgeId(), "stray", Collections.emptyList(), 5, 5, false, false);

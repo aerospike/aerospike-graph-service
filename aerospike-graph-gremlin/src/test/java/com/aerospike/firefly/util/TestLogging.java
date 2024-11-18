@@ -4,11 +4,12 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
+import ch.qos.logback.core.AppenderBase;
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
 import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Key;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.Before;
@@ -17,8 +18,9 @@ import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -33,42 +35,48 @@ public class TestLogging {
     private MemoryAppender memoryAppender;
 
     // https://www.baeldung.com/junit-asserting-logs
-    public static class MemoryAppender extends ListAppender<ILoggingEvent> {
+    public static class MemoryAppender extends AppenderBase<ILoggingEvent> {
+        public Queue<ILoggingEvent> queue = new ConcurrentLinkedQueue<>();
+
+        protected void append(ILoggingEvent e) {
+            this.queue.add(e);
+        }
+
         public void reset() {
-            this.list.clear();
+            this.queue.clear();
         }
 
         public boolean contains(String string, Level level) {
-            return this.list.stream()
+            return this.queue.stream()
                     .anyMatch(event -> event.toString().contains(string)
                             && event.getLevel().equals(level));
         }
 
         public int countEventsForLogger(String loggerName) {
-            return (int) this.list.stream()
+            return (int) this.queue.stream()
                     .filter(event -> event.getLoggerName().contains(loggerName))
                     .count();
         }
 
         public List<ILoggingEvent> search(String string) {
-            return this.list.stream()
+            return this.queue.stream()
                     .filter(event -> event.toString().contains(string))
                     .collect(Collectors.toList());
         }
 
         public List<ILoggingEvent> search(String string, Level level) {
-            return this.list.stream()
+            return this.queue.stream()
                     .filter(event -> event.toString().contains(string)
                             && event.getLevel().equals(level))
                     .collect(Collectors.toList());
         }
 
         public int getSize() {
-            return this.list.size();
+            return this.queue.size();
         }
 
         public List<ILoggingEvent> getLoggedEvents() {
-            return Collections.unmodifiableList(this.list);
+            return new ArrayList<>(this.queue);
         }
     }
 
@@ -99,19 +107,22 @@ public class TestLogging {
     public void testFireflyLogConfiguration() {
         Configuration conf = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         conf.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "OFF");
-        FireflyGraph graph = FireflyGraph.open(conf);
+
         org.slf4j.Logger LOG = LoggerFactory.getLogger(TestLogging.class);
-        LOG.info("This should not be logged");
-        assertEquals(0, memoryAppender.countEventsForLogger(LOG.getName()));
-        graph.close();
+
+        try (FireflyGraph graph = FireflyGraph.open(conf)) {
+            LOG.info("This should not be logged");
+            assertEquals(0, memoryAppender.countEventsForLogger(LOG.getName()));
+        }
+
         conf.setProperty(ConfigurationHelper.Keys.LOG_LEVEL, "INFO");
-        graph = FireflyGraph.open(conf);
-        LoggerUtil.setLogLevel(Level.INFO);
-        LOG.debug("This should not be logged");
-        assertEquals(0, memoryAppender.countEventsForLogger(LOG.getName()));
-        LOG.info("This should be logged");
-        assertEquals(1, memoryAppender.countEventsForLogger(LOG.getName()));
-        graph.close();
+        try (FireflyGraph graph = FireflyGraph.open(conf)) {
+            LoggerUtil.setLogLevel(Level.INFO);
+            LOG.debug("This should not be logged");
+            assertEquals(0, memoryAppender.countEventsForLogger(LOG.getName()));
+            LOG.info("This should be logged");
+            assertEquals(1, memoryAppender.countEventsForLogger(LOG.getName()));
+        }
     }
 
     @Test
@@ -120,12 +131,12 @@ public class TestLogging {
         Configuration conf = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         conf.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "DEBUG");
         conf.setProperty(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED.toLowerCase(), "true");
-        FireflyGraph graph = FireflyGraph.open(conf);
-        final IAerospikeClient client = graph.getBaseGraph().getClient();
+        final FireflyGraph graph = FireflyGraph.open(conf);
+        final AerospikeConnection db = graph.getBaseGraph();
         final Key key = new Key("test", "test", "test");
-        client.put(null, key, new Bin("test", "test"));
+        db.checkedPut(null, key, new Bin("test", "test"));
         final Key keyDoesNotExist = new Key("test", "negative", "negative");
-        client.get(null, keyDoesNotExist);
+        db.checkedPut(null, keyDoesNotExist);
         AtomicBoolean passed = new AtomicBoolean(false);
         final ArrayList<ILoggingEvent> eventSnapshot = new ArrayList<>();
         eventSnapshot.addAll(memoryAppender.getLoggedEvents());

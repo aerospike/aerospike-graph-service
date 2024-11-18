@@ -1,7 +1,7 @@
 package com.aerospike.firefly.process.call.bulkload.utils.exception;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 
 import java.util.Set;
 
@@ -29,23 +29,27 @@ public class FireflyLoadingException extends RuntimeException {
             ResultCode.BATCH_FAILED
     );
 
-    final private AerospikeException aerospikeException;
+    final private AerospikeGraphException aerospikeGraphException;
 
-    public FireflyLoadingException(final AerospikeException cause) {
+    public FireflyLoadingException(final AerospikeGraphException cause) {
         super(cause);
-        this.aerospikeException = cause;
+        this.aerospikeGraphException = cause;
     }
 
-    public FireflyLoadingException(final AerospikeException cause, final String message) {
+    public FireflyLoadingException(final AerospikeGraphException cause, final String message) {
         super(message, cause);
-        this.aerospikeException = cause;
+        this.aerospikeGraphException = cause;
     }
 
     public boolean isRetryable() {
-        return RETRYABLE_CODES.contains(this.aerospikeException.getResultCode());
+        return isRetryable(this.aerospikeGraphException);
     }
 
-    public AerospikeException getCause() {
-        return this.aerospikeException;
+    public AerospikeGraphException getCause() {
+        return this.aerospikeGraphException;
+    }
+
+    public static boolean isRetryable(final AerospikeGraphException ae) {
+        return RETRYABLE_CODES.contains(ae.errorCode);
     }
 }

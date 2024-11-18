@@ -1,29 +1,23 @@
 package com.aerospike.firefly.bulkloader.spark;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.bulkloader.spark.executorservice.VertexWriteTask;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
-import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
-import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.BadCsvEntryException;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
-import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
-import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.util.CollectionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,8 +26,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +46,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RECOVERY_FAILURE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
+import static com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException.isRetryable;
 
 public class VertexOperations implements Serializable {
     public static final List<String> REQUIRED_VERTEX_HEADERS = List.of(ID_HEADER);
@@ -136,7 +129,7 @@ public class VertexOperations implements Serializable {
                         } else {
                             futures.add(vwt.write(executor));
                         }
-                    } catch (final FireflyBulkLoaderException e) {
+                    } catch (final BadCsvEntryException e) {
                         if (allowBadEntryCount == 0) {
                             throw e;
                         }
@@ -214,16 +207,15 @@ public class VertexOperations implements Serializable {
                             + " exists");
                 }
                 successful = true;
-            } catch (final AerospikeException ae) {
-                final FireflyLoadingException fle = new FireflyLoadingException(ae);
-                if (!fle.isRetryable()) {
-                    LOGGER.error("Failed to verify loaded Vertex due to non-retryable error: " + row, ae);
-                    throw ae;
+            } catch (final AerospikeGraphException e) {
+                if (!isRetryable(e)) {
+                    LOGGER.error("Failed to verify loaded Vertex due to non-retryable error: " + row, e);
+                    throw e;
                 } else if (++tryCount > RETRY_LIMIT) {
-                    LOGGER.error("Failed to verify loaded Vertex after " + tryCount + " attempts: " + row, ae);
-                    throw ae;
+                    LOGGER.error("Failed to verify loaded Vertex after " + tryCount + " attempts: " + row, e);
+                    throw e;
                 } else {
-                    LOGGER.warn("Failed to verify loaded Edge: " + row + ". Attempt count: " + tryCount, ae);
+                    LOGGER.warn("Failed to verify loaded Edge: " + row + ". Attempt count: " + tryCount, e);
                     exponentialBackoff(tryCount);
                 }
             }

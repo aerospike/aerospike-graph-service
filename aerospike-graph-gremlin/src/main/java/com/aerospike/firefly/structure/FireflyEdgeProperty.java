@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.ResultCode;
@@ -9,6 +8,8 @@ import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.structure.id.FireflyEdgeId;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +54,7 @@ public class FireflyEdgeProperty<V> extends FireflyProperty<V> {
     public void remove() {
         final AerospikeConnection db = graph.getBaseGraph();
         final Key key = getKey(db, db.EDGE_AERO_SET, edge.id);
-        final Value edgeIdMapKey = Value.get(edge.id.getUserId());
+        final Value edgeIdMapKey = Value.get(((FireflyEdgeId) edge.id).getEdgeIdBytes());
         final List<Operation> operations = new ArrayList<>();
 
         final Operation removeProperty = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(key()),
@@ -73,8 +74,8 @@ public class FireflyEdgeProperty<V> extends FireflyProperty<V> {
         try {
             edge.removePropertyFromCache(key());
             db.writeOperate(null, key, operations.toArray(new Operation[0]));
-        } catch (final AerospikeException ae) {
-            if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
+        } catch (final AerospikeGraphException ae) {
+            if (ae.errorCode == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Edge has been removed from the Phat Edge since in this case the key is
                 // the Phat Edge key and thus the key still exists.
                 LOG.debug("Ignored exception removing an already-removed property {}", this, ae);

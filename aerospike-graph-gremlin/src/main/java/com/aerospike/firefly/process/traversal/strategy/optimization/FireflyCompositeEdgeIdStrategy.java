@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.computer.local.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdLimitSampleStep;
 import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -33,13 +34,6 @@ import java.util.stream.Collectors;
  */
 public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
 
-    final ThreadLocal<Boolean> rootGroup = new ThreadLocal<Boolean>() {
-        @Override
-        protected Boolean initialValue() {
-            return false;
-        }
-    };
-
     /**
      * Default constructor for FireflyCompositeEdgeIdStrategy.
      */
@@ -55,35 +49,15 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
     public void apply(final Traversal.Admin<?, ?> traversal) {
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
 
-        // Reset whenever root.
-        if (traversal.isRoot()) {
-            rootGroup.set(false);
-        }
-
         if (!traversal.isRoot()) {
-            if (rootGroup.get()) {
-                return;
-            }
             if (!graph.getBaseGraph().ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY) {
                 return;
             }
         }
 
-        if (TraversalHelper.onGraphComputer(traversal))
+        if (ComputerHelper.onGraphComputer(traversal))
             return;
         final List<Step> steps = traversal.getSteps();
-
-        // TODO GRAPH-792: There's a weird interaction between the strategy and traversals like:
-        //  g.V().out().groupCount().by(outE().fold()).toList().
-        //  With these traversals there's a casting error that occurs at the end of the traversal pipe.
-        if (traversal.isRoot()) {
-            for (int i = 0; i < steps.size(); i++) {
-                if (steps.get(i) instanceof GroupStep || steps.get(i) instanceof GroupSideEffectStep) {
-                    rootGroup.set(true);
-                    break;
-                }
-            }
-        }
 
         // We need to find VertexSteps.
         // In particular, we need vertex steps that return a vertex.

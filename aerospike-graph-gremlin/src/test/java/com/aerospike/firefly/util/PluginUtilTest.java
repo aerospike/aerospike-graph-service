@@ -49,13 +49,14 @@ public class PluginUtilTest extends AbstractFireflySuite {
     }
 
     @Test
-    public void testPlugIntoGraph() {
+    public void testPlugIntoGraph() throws Exception {
         final Configuration pluginConf = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         pluginConf.setProperty(ConfigurationHelper.Keys.PLUGIN, TestPlugin.class.getName());
         final long before = TestPlugin.counter.get();
         final Graph pluggedGraph = FireflyGraph.open(pluginConf);
         assertEquals(before + 1, TestPlugin.counter.get());
         assertEquals("test", pluggedGraph.variables().get("test").get().toString());
+        pluggedGraph.close();
     }
 
     @Override

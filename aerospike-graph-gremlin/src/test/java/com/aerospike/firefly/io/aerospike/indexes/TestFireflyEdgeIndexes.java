@@ -163,7 +163,7 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
             g.addE("owns").from(person).to(cat).iterate();
 
             final List<Map.Entry<String, String>> indices = AerospikeConnection.InfoOps.listExistingIndexes(
-                    fireflyGraph.getBaseGraph().getClient(), fireflyGraph.getBaseGraph().getNamespace());
+                    fireflyGraph.getBaseGraph());
             Map.Entry<String, String> edgeLabelIndex = null;
             for (final Map.Entry<String, String> index : indices) {
                 if (index.getKey().equals(fireflyGraph.getBaseGraph().E_LABEL_INDEX_NAME)) {
@@ -191,7 +191,7 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
             g.addE("owns").from(person).to(cat).iterate();
 
             final List<Map.Entry<String, String>> indices = AerospikeConnection.InfoOps.listExistingIndexes(
-                    fireflyGraph.getBaseGraph().getClient(), fireflyGraph.getBaseGraph().getNamespace());
+                    fireflyGraph.getBaseGraph());
             for (final Map.Entry<String, String> index : indices) {
                 if (index.getKey().equals(fireflyGraph.getBaseGraph().E_LABEL_INDEX_NAME)) {
                     Assert.fail("Vertex label index found when it should have been disabled.");

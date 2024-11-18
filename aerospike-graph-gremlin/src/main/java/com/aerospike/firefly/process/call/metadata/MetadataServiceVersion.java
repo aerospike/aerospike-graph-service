@@ -1,6 +1,6 @@
 package com.aerospike.firefly.process.call.metadata;
 
-import com.aerospike.firefly.io.aerospike.FireflyAerospikeVersionCheck;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.util.Map;
@@ -35,7 +35,7 @@ public class MetadataServiceVersion<I, R> extends MetadataServiceBase<I, R> {
     @Override
     protected R execute(final Map params) {
         return (R) Map.of(
-                "Aerospike version", FireflyAerospikeVersionCheck.getVersionString(graph.getBaseGraph().client),
+                "Aerospike version", AerospikeConnection.InfoOps.getDatabaseVersionString(graph.getBaseGraph()),
                 "Aerospike Graph Service version", graph.FIREFLY_VERSION);
     }
 

@@ -1,14 +1,12 @@
 package com.aerospike.firefly.bulkloader.spark;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
-import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
-import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderPreflightException;
-import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.BadCsvEntryException;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
@@ -43,6 +41,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.NULL_VALUE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER;
+import static com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException.isRetryable;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.collect_set;
 import static org.apache.spark.sql.functions.count;
@@ -117,7 +116,7 @@ public class Validations {
             try {
                 SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId, providedIdPropertyName, nullValue, null, true, null);
                 return 0;
-            } catch (final FireflyBulkLoaderException e) {
+            } catch (final BadCsvEntryException e) {
                 final Set<String> columnToRemove = Set.of(FILENAME_COLUMN);
                 final String filteredRow = DatasetOperations.removeColumns(metadataRow, columnToRemove).toString();
                 final String fileName = metadataRow.get(metadataRow.fieldIndex(FILENAME_COLUMN)).toString();
@@ -140,7 +139,7 @@ public class Validations {
             try {
                 SparkFireflyVertex.createVertex(fireflyRow, nullValue);
                 return 0;
-            } catch (final FireflyBulkLoaderException e) {
+            } catch (final BadCsvEntryException e) {
                 final Set<String> columnToRemove = Set.of(FILENAME_COLUMN);
                 final String filteredRow = DatasetOperations.removeColumns(metadataRow, columnToRemove).toString();
                 final String fileName = metadataRow.get(metadataRow.fieldIndex(FILENAME_COLUMN)).toString();
@@ -165,12 +164,11 @@ public class Validations {
                         badEntryCount = graph.getBaseGraph().incrementAndGetBadEntryCount(badEntryCount);
                         if (badEntryCount > allowedBadEntryCount) {
                             LOGGER.error("Found too many bad entries in Edge dataset, please check Spark worker logs for more details.");
-                            throw new FireflyBulkLoaderPreflightException(BAD_ENTRY_COUNT_EXCEEDED);
+                            throw new RuntimeException(BAD_ENTRY_COUNT_EXCEEDED);
                         }
                         break;
-                    } catch (final AerospikeException e) {
-                        final FireflyLoadingException fle = new FireflyLoadingException(e);
-                        if (!fle.isRetryable()) {
+                    } catch (final AerospikeGraphException e) {
+                        if (!isRetryable(e)) {
                             LOGGER.error("Unexpected exception when attempting to get bad entry count: ", e);
                             throw e;
                         } else if (++tryCount > RETRY_LIMIT) {
@@ -206,12 +204,11 @@ public class Validations {
                             duplicateIdCount = graph.getBaseGraph().incrementAndGetDuplicateVertexIdCount(duplicateIdCount);
                             if (duplicateIdCount > allowedDuplicateIdCount) {
                                 LOGGER.error("Found too many duplicate Vertex IDs in Vertex dataset, please check Spark worker logs for more details.");
-                                throw new FireflyBulkLoaderPreflightException(DUPLICATE_VERTEX_ID_COUNT_EXCEEDED);
+                                throw new RuntimeException(DUPLICATE_VERTEX_ID_COUNT_EXCEEDED);
                             }
                             break;
-                        } catch (final AerospikeException e) {
-                            final FireflyLoadingException fle = new FireflyLoadingException(e);
-                            if (!fle.isRetryable()) {
+                        } catch (final AerospikeGraphException e) {
+                            if (!isRetryable(e)) {
                                 LOGGER.error("Unexpected exception when attempting to get duplicate Vertex ID count: ", e);
                                 throw e;
                             } else if (++tryCount > RETRY_LIMIT) {
@@ -233,12 +230,11 @@ public class Validations {
                             badEntryCount = graph.getBaseGraph().incrementAndGetBadEntryCount(badEntryCount);
                             if (badEntryCount > allowedBadEntryCount) {
                                 LOGGER.error("Found too many bad entries in Vertex dataset, please check Spark worker logs for more details.");
-                                throw new FireflyBulkLoaderPreflightException(BAD_ENTRY_COUNT_EXCEEDED);
+                                throw new RuntimeException(BAD_ENTRY_COUNT_EXCEEDED);
                             }
                             break;
-                        } catch (final AerospikeException e) {
-                            final FireflyLoadingException fle = new FireflyLoadingException(e);
-                            if (!fle.isRetryable()) {
+                        } catch (final AerospikeGraphException e) {
+                            if (!isRetryable(e)) {
                                 LOGGER.error("Unexpected exception when attempting to get bad entry count: ", e);
                                 throw e;
                             } else if (++tryCount > RETRY_LIMIT) {

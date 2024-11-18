@@ -2,6 +2,7 @@ package com.aerospike.firefly.feature;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import io.cucumber.java.Scenario;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.LoadGraphWith.GraphData;
@@ -11,12 +12,26 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
+import org.javatuples.Pair;
+import org.junit.AssumptionViolatedException;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 public class FireflyWorld implements World {
     private static final String configLocation = "../conf/integration-test-settings-packed.properties";
+
+    private static final String skipReasonOnCreate = "FireflyMergeEdgeStep always verify onCreate.";
+    private static final String skipReasonErrorMessage = "Error message includes step name.";
+
+    private static final List<Pair<String, String>> skip = new ArrayList<>() {{
+        add(Pair.with("g_mergeEXlabel_knows_out_vadasX_optionXonCreate_created_YX_optionXonMatch_created_NX_exists_updated", skipReasonOnCreate));
+        add(Pair.with("g_mergeEXout_vadasX_optionXonCreate_created_YX_optionXonMatch_created_NX_exists_updated", skipReasonOnCreate));
+        add(Pair.with("g_V_mergeEXlabel_knows_out_marko_in_vadasX_optionXonMatch_sideEffectXpropertyXweight_0XX_constantXemptyXX", skipReasonErrorMessage));
+    }};
 
     private static final FireflyGraph empty;
     private static final FireflyGraph modern;
@@ -58,8 +73,7 @@ public class FireflyWorld implements World {
         if (null == graphData) {
             empty.getBaseGraph().dropDatabase(empty, false);
             return empty.traversal();
-        }
-        else if (graphData == GraphData.CREW)
+        } else if (graphData == GraphData.CREW)
             return crew.traversal();
         else if (graphData == GraphData.MODERN)
             return modern.traversal();
@@ -71,6 +85,14 @@ public class FireflyWorld implements World {
             throw new UnsupportedOperationException("Classic graph contains Float property values not supported by Firefly.");
         else
             throw new UnsupportedOperationException("GraphData not supported: " + graphData.name());
+    }
+
+    @Override
+    public void beforeEachScenario(final Scenario scenario) {
+        final Optional<Pair<String, String>> skipped = skip.stream().
+                filter(s -> s.getValue0().equals(scenario.getName())).findFirst();
+        if (skipped.isPresent())
+            throw new AssumptionViolatedException(skipped.get().getValue1());
     }
 
     @Override

@@ -16,16 +16,13 @@ import org.junit.runner.RunWith;
                 "not @TinkerServiceRegistry and not @StepRead and not @MultiProperties and " +
                 "not @UserSuppliedVertexPropertyIds and not @InsertionOrderingRequired and " +
                 "not @UserSuppliedEdgeIds and " +
-                // TODO: GRAPH-1355
-                "not @StepMergeE and " +
-                // might need fix
+                // might need fix, but not easy with scans/index reads
                 "not @WithPartitionStrategy",
         glue = { "org.apache.tinkerpop.gremlin.features" },
         objectFactory = FireflyFeatureTest.FireflyGraphGuiceFactory.class,
         features = { "classpath:/org/apache/tinkerpop/gremlin/test/features" },
         plugin = {"progress", "junit:target/cucumber.xml"})
 public class FireflyFeatureTest {
-
     public static class FireflyGraphGuiceFactory extends AbstractGuiceFactory {
         public FireflyGraphGuiceFactory() {
             super(Guice.createInjector(Stage.PRODUCTION, CucumberModules.createScenarioModule(), new ServiceModule()));

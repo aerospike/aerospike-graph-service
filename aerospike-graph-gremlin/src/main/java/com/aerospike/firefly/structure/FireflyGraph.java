@@ -158,11 +158,11 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.PropertyTest$PropertyFeatureSupportTest", method = "*", reason = "This test fails due to using arrays", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.VariablesTest$GraphVariablesFeatureSupportTest", method = "*", reason = "This test fails due to using arrays", computers = {"ALL"})
 
-// Firefly does not support Float ids
+// Firefly does not support Float or Double IDs for Vertices
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingFloatRepresentation", reason = "Firefly does not support Float ids", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingFloatRepresentations", reason = "Firefly does not support Float ids", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateEdgesWithNumericIdSupportUsingFloatRepresentations", reason = "Firefly does not support Float ids", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateEdgesWithNumericIdSupportUsingFloatRepresentation", reason = "Firefly does not support Float ids", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingDoubleRepresentation", reason = "Firefly does not support Double ids", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingDoubleRepresentations", reason = "Firefly does not support Double ids", computers = {"ALL"})
 
 // Firefly does not support user-defined Edge ids
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldHaveExceptionConsistencyWhenFindEdgeByIdThatIsNonExistentViaIterator", reason = "Firefly does not expect Edge id lookups of random types", computers = {"ALL"})

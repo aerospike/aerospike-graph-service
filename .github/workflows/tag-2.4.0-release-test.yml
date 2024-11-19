@@ -76,9 +76,9 @@ jobs:
           DOCKERHUB_OUTPUT_IMAGE=$(echo $DOCKERHUB_OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
           DOCKERHUB_LATEST_IMAGE=$DOCKERHUB_IMAGE_BASE:latest
           DOCKERHUB_LATEST_IMAGE=$(echo $DOCKERHUB_LATEST_IMAGE | tr '[A-Z]' '[a-z]')
-        
+          
           # Pull base image.
-          docker pull ${GITHUB_IMAGE}-arm64
-          docker pull ${GITHUB_IMAGE}-amd64
+          docker pull ${GITHUB_IMAGE}-arm64 --platform linux/arm64
+          docker pull {$GITHUB_IMAGE}-amd64 --platform linux/amd64
           
           docker buildx imagetools create -t foo-bar ${GITHUB_IMAGE}-amd64 ${GITHUB_IMAGE}-arm64

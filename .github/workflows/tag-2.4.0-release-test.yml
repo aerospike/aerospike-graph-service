@@ -70,7 +70,7 @@ jobs:
       - name: Publish Container
         run: |
           VERSION=2.4.0
-          GITHUB_IMAGE=ghcr.io/citrusleaf/firefly:2.4.0-r4
+          GITHUB_IMAGE=ghcr.io/citrusleaf/firefly:2.4.0-rc4
           DOCKERHUB_IMAGE_BASE=$DOCKERHUB_REPOSITORY_NAME/$DOCKERHUB_IMAGE_NAME
           DOCKERHUB_OUTPUT_IMAGE=$DOCKERHUB_IMAGE_BASE:$VERSION
           DOCKERHUB_OUTPUT_IMAGE=$(echo $DOCKERHUB_OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')

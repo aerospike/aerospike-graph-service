@@ -80,5 +80,5 @@ jobs:
           # Pull base image.
           docker pull $GITHUB_IMAGE --platform linux/amd64
           
-          docker tag $GITHUB_IMAGE ghcr.io/citrusleaf/firefly:foo-test
-          docker push ghcr.io/citrusleaf/firefly:foo-test
+          docker tag $GITHUB_IMAGE ghcr.io/citrusleaf/firefly:foo-test2
+          docker push ghcr.io/citrusleaf/firefly:foo-test2

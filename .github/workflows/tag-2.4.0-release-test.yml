@@ -78,7 +78,6 @@ jobs:
           DOCKERHUB_LATEST_IMAGE=$(echo $DOCKERHUB_LATEST_IMAGE | tr '[A-Z]' '[a-z]')
         
           # Pull base image.
-          docker pull $GITHUB_IMAGE --platform linux/arm64
           docker pull $GITHUB_IMAGE --platform linux/amd64
           
           docker tag $GITHUB_IMAGE ghcr.io/citrusleaf/firefly:foo-test

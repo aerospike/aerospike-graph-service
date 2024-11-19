@@ -82,6 +82,6 @@ jobs:
           docker pull ${GITHUB_IMAGE}-arm64 --platform linux/arm64
           docker pull ${GITHUB_IMAGE}-amd64 --platform linux/amd64
           
-          docker buildx imagetools create -t ${DOCKERHUB_OUTPUT_IMAGE} ${GITHUB_IMAGE}-amd64 ${GITHUB_IMAGE}-arm64
-          docker buildx imagetools create -t ${$DOCKERHUB_LATEST_IMAGE} ${GITHUB_IMAGE}-amd64 ${GITHUB_IMAGE}-arm64
+          # docker buildx imagetools create -t ${DOCKERHUB_OUTPUT_IMAGE} ${GITHUB_IMAGE}-amd64 ${GITHUB_IMAGE}-arm64
+          docker buildx imagetools create -t ${DOCKERHUB_LATEST_IMAGE} ${GITHUB_IMAGE}-amd64 ${GITHUB_IMAGE}-arm64
           docker buildx imagetools create -t ${DOCKERHUB_IMMUTABLE_IMAGE} ${GITHUB_IMAGE}-amd64 ${GITHUB_IMAGE}-arm64

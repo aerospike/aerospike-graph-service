@@ -145,12 +145,13 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
             final Iterator<Vertex> vertices = traverser.get().vertices(this.direction, super.getEdgeLabels());
             return FireflyCloseableIteratorUtils.filter(vertices, v -> HasContainer.testAll(v, fireflyHasContainers));
         } else {
-            final List<Vertex> output = new ArrayList<>();
+            List<Vertex> output = new ArrayList<>();
             final List<FireflyId> missingIds = new ArrayList<>();
             final FireflyVertex fireflyVertex = (FireflyVertex) ((ComputerGraph.ComputerVertex) traverser.get()).getBaseVertex();
+            final List<Vertex> finalOutput = output;
             fireflyVertex.getVertexIdsFromVertex(direction, edgeLabels).forEachRemaining(id -> {
                 if (cache.get().containsKey(id)) {
-                    output.add(cache.get().get(id));
+                    finalOutput.add(cache.get().get(id));
                 } else {
                     missingIds.add(id);
                 }
@@ -158,6 +159,7 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
             final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
             final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, missingIds, requiredProperties);
             output.addAll(vertices);
+            //output = output.stream().map(v -> v).collect(Collectors.toList());
             outputOrderCache.get().addAll(output);
             return FireflyCloseableIteratorUtils.filter(output.iterator(), v -> HasContainer.testAll(v, fireflyHasContainers));
         }

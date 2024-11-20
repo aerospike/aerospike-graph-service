@@ -785,7 +785,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     @Override
     public <V> VertexProperty<V> property(final String key) {
-        if (this.removed )
+        if (this.removed)
             return VertexProperty.empty();
         if (FireflyHelper.inComputerMode(this.graph)) {
             final List<VertexProperty> list = (List) this.graph.graphComputerView.getProperty(this, key);
@@ -793,8 +793,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 return VertexProperty.<V>empty();
             else if (list.size() == 1)
                 return list.get(0);
+            else if (list.size() > 1)
+                return list.get(0);
             else
-                throw Vertex.Exceptions.multiplePropertiesExistForProvidedKey(key);
+                return VertexProperty.<V>empty();
+                // throw Vertex.Exceptions.multiplePropertiesExistForProvidedKey(key);
         } else {
             if(super.property(key) instanceof EmptyProperty)
                 return VertexProperty.empty();
@@ -1067,12 +1070,15 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                                 e -> ElementHelper.keyExists(e.getKey(), propertyKeys)),
                         Map.Entry::getValue);
 
-        if (!FireflyHelper.inComputerMode(this.graph))
+        if (!FireflyHelper.inComputerMode(this.graph)) {
             return iterator;
-        else {
+        } else {
             // TODO: GRAPH COMPUTER INTERCEPTION
             final LocalGraphComputerView view = FireflyHelper.getGraphComputerView(this.graph);
             final List<VertexProperty<V>> computeProperties = view.getComputeProperties(this, propertyKeys);
+            if (computeProperties.size() > 1) {
+                System.out.println("??");
+            }
             return (computeProperties.isEmpty()) ? iterator : FireflyCloseableIteratorUtils.concat(iterator, computeProperties.iterator());
         }
     }

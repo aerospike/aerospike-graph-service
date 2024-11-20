@@ -25,8 +25,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
 /**
@@ -36,13 +38,13 @@ public class LocalGraphComputerView {
 
     private final FireflyGraph graph;
     protected final Map<String, VertexComputeKey> computeKeys;
-    private final Map<Element, Map<String, List<VertexProperty<?>>>> computeProperties;
+    private final Map<Element, Map<String, Queue<VertexProperty<?>>>> computeProperties;
     private final GraphFilter graphFilter;
     //private final Set<String> retainVertexProperties;
 
     public LocalGraphComputerView(final FireflyGraph graph, final GraphFilter graphFilter, final Set<VertexComputeKey> computeKeys) {
         this.graph = graph;
-        this.computeKeys = new HashMap<>();
+        this.computeKeys = new ConcurrentHashMap<>();
         computeKeys.forEach(key -> this.computeKeys.put(key.getKey(), key));
         this.computeProperties = new ConcurrentHashMap<>();
         this.graphFilter = graphFilter;
@@ -53,9 +55,8 @@ public class LocalGraphComputerView {
         }*/
     }
 
-    public <V> Property<V> addProperty(final FireflyVertex vertex, final String key, final V value) {
+    synchronized public <V> Property<V> addProperty(final FireflyVertex vertex, final String key, final V value) {
         ElementHelper.validateProperty(key, value);
-        System.out.println("addProperty " + key);
         if (!getProperty(vertex, key).isEmpty()) {
             return new DetachedVertexProperty<>(99999999, key, value, Map.of(), vertex);
         }
@@ -73,26 +74,43 @@ public class LocalGraphComputerView {
         }
     }
 
-    public List<VertexProperty<?>> getProperty(final FireflyVertex vertex, final String key) {
+    synchronized public List<VertexProperty<?>> getProperty(final FireflyVertex vertex, final String key) {
         // if the vertex property is already on the vertex, use that.
-        final List<VertexProperty<?>> vertexProperty = this.getValue(vertex, key);
-        return vertexProperty.isEmpty() ? (List) getPropertiesMap(vertex).getOrDefault(key, Collections.emptyList()) : vertexProperty;
+        //synchronized (vertex) {
+            final List<VertexProperty<?>> vertexProperty = this.getValue(vertex, key);
+            final List<VertexProperty<?>> vps;
+            if (vertexProperty.isEmpty()) {
+                vps = getPropertiesMap(vertex).getOrDefault(key, Collections.emptyList());
+            } else {
+                vps = vertexProperty;
+            }
+            try {
+                final List<VertexProperty<?>> list = new ArrayList<>(vps);
+                return list;
+            } catch (NegativeArraySizeException e) {
+                System.out.println(e);
+            }
+            return List.of();
+        //}
     }
+    // A->B
+    // A->B
 
-    public <V> List<VertexProperty<V>> getComputeProperties(final FireflyVertex vertex, final String... computeKeys) {
+    synchronized public <V> List<VertexProperty<V>> getComputeProperties(final FireflyVertex vertex, final String... computeKeys) {
         final List<VertexProperty<V>> list = new ArrayList<>();
-        for (final List<VertexProperty<?>> properties : this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).values()) {
-            properties.stream().filter(p -> ElementHelper.keyExists(p.key(), computeKeys)).forEach(p -> list.add((VertexProperty<V>) p));
+        try {
+            for (final Queue<VertexProperty<?>> properties : this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).values()) {
+                for (VertexProperty<?> property : properties) {
+                    if (ElementHelper.keyExists(property.key(), computeKeys)) {
+                        list.add((VertexProperty<V>) property);
+                    }
+                }
+            }
+            return list;
+        } catch (Exception e) {
+            System.out.println(e);
         }
-        return list;
-    }
-
-    public <V> List<VertexProperty<V>> getLocalVertices(final String computeKey) {
-        return computeProperties.values().stream().flatMap(m -> m.values().stream()).flatMap(List::stream).map(p -> (VertexProperty<V>) p).collect(Collectors.toList());
-    }
-
-    public List<Element> getLocalVertices2(final String computeKey) {
-        return computeProperties.keySet().stream().collect(Collectors.toList());
+        return List.of();
     }
 
 
@@ -108,7 +126,7 @@ public class LocalGraphComputerView {
     }*/
 
     private Map<String, List<VertexProperty<?>>> getPropertiesMap(final FireflyVertex vertex) {
-        Map<String, List<VertexProperty<?>>> propertiesMap = new HashMap<>();
+        Map<String, List<VertexProperty<?>>> propertiesMap = new ConcurrentHashMap<>();
         vertex.properties().forEachRemaining(prop -> {
             propertiesMap.put(prop.key(), List.of(prop));
         });
@@ -118,7 +136,7 @@ public class LocalGraphComputerView {
         return propertiesMap;
     }
 
-    public void removeProperty(final DetachedVertex vertex, final String key, final VertexProperty<?> property) {
+    synchronized public void removeProperty(final DetachedVertex vertex, final String key, final VertexProperty<?> property) {
         if (isComputeKey(key)) {
             this.removeValue(vertex, key, property);
         } else {
@@ -143,7 +161,7 @@ public class LocalGraphComputerView {
         // remove all transient properties from the vertices
         for (final VertexComputeKey computeKey : this.computeKeys.values()) {
             if (computeKey.isTransient()) {
-                for (final Map<String, List<VertexProperty<?>>> properties : this.computeProperties.values()) {
+                for (final Map<String, Queue<VertexProperty<?>>> properties : this.computeProperties.values()) {
                     properties.remove(computeKey.getKey());
                 }
             }
@@ -222,19 +240,31 @@ public class LocalGraphComputerView {
     }
 
     private void addValue(final Vertex vertex, final String key, final VertexProperty<?> property) {
-        final Map<String, List<VertexProperty<?>>> elementProperties = this.computeProperties.computeIfAbsent(vertex, k -> new HashMap<>());
+        final Map<String, Queue<VertexProperty<?>>> elementProperties = this.computeProperties.computeIfAbsent(vertex, k -> new ConcurrentHashMap<>());
         elementProperties.compute(key, (k, v) -> {
-            if (null == v) v = new ArrayList<>();
+            if (null == v) {
+                v = new ConcurrentLinkedQueue<>();
+            } else {
+                v.clear();
+            }
             v.add(property);
             return v;
         });
     }
 
     private void removeValue(final Vertex vertex, final String key, final VertexProperty<?> property) {
-        this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).get(key).remove(property);
+        Queue<VertexProperty<?>> lvp = this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).get(key);
+        if (lvp != null) {
+            lvp.remove(property);
+        }
     }
 
     private List<VertexProperty<?>> getValue(final Vertex vertex, final String key) {
-        return this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).getOrDefault(key, Collections.emptyList());
+        if (this.computeProperties.containsKey(vertex)) {
+            Queue<VertexProperty<?>> result = this.computeProperties.get(vertex).getOrDefault(key, new ConcurrentLinkedQueue<>());
+            return new ArrayList<>(result);
+        } else {
+            return Collections.emptyList();
+        }
     }
 }

@@ -8,6 +8,7 @@ import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -221,20 +222,15 @@ public class OLAPTesting {
         Configuration conf = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (FireflyGraph graph = FireflyGraph.open(conf)) {
             final GraphTraversalSource g = graph.traversal();
-            GraphTraversalSource g1 = traversal().withRemote(DriverRemoteConnection.using("localhost", 8182));
-            System.out.println(g1.V().not(__.hasLabel("Foo")).otherV().not(__.hasLabel("bar")).project("a").by(__.fold()).profile().toList());
-            GraphTraversal traversal = g.V().not(__.hasLabel("Foo")).hasLabel("bar").otherV();
-            System.out.println("   pre-strategy:" + traversal);
-            if (!traversal.asAdmin().isLocked()) traversal.asAdmin().applyStrategies();
-            System.out.println("  post-strategy:" + traversal);
-
             graph.traversal().V().drop().iterate();
             GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-            traversal = graph.traversal().withComputer().V().repeat(both("followedBy")).times(2).<String, Long>group("a").by("songType").by(count()).cap("a");
-            //graph.traversal().withComputer().V().both("followedBy").both("followedBy").toList();
+            GraphTraversal traversal = graph.traversal().withComputer().V().repeat(both("followedBy")).
+                    times(2).<String, Long>group("a").by("songType").by(count()).cap("a");
+            // graph.traversal().withComputer().V().both("followedBy").both("followedBy").toList();
             // Expected :160968
             // Actual   :154867
             printTraversalForm(traversal);
+
             checkMap(new HashMap<String, Long>() {
                 {
                     this.put("original", 771317L);
@@ -243,6 +239,39 @@ public class OLAPTesting {
                 }
             }, (Map)traversal.next());
             Assert.assertFalse(traversal.hasNext());
+            checkSideEffects(traversal.asAdmin().getSideEffects(), new Object[]{"a", HashMap.class});
+        }
+    }
+
+    @Test
+    public void foobasdfasdf() {
+        Configuration conf = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (FireflyGraph graph = FireflyGraph.open(conf)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            this.printTraversalForm(graph.traversal().withComputer().
+                    V().both().
+                    groupCount("a").by(T.label).as("b").
+                    barrier().where(__.select("a").select("software").
+                            is(gt(2))).select("b").values("name"));
+            System.out.println("Initial result: " + graph.traversal().withComputer().
+                    V().both().
+                    groupCount("a").by(T.label).as("b").
+                    select("a").select("software").
+                    select("b").values("name").
+                    //barrier().select("a").select("software").is(gt(2)).
+
+                    //where(__.select("a").id().is(P.gt(Integer.MIN_VALUE))).
+                    //select("b").
+                    toList());
+            var traversal = graph.traversal().withComputer().
+                    V().both().
+                    groupCount("a").by(T.label).as("b").
+                    barrier().where(__.select("a").select("software").
+                            is(gt(2))).select("b").values("name");
+            this.printTraversalForm(traversal);
+            checkResults(Arrays.asList("lop", "lop", "lop", "peter", "marko", "marko", "marko", "ripple", "vadas", "josh", "josh", "josh"), traversal);
             checkSideEffects(traversal.asAdmin().getSideEffects(), new Object[]{"a", HashMap.class});
         }
     }

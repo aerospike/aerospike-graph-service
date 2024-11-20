@@ -2,7 +2,6 @@ package com.aerospike.firefly.process.computer.local;
 
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.TraversalVertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 
 public class ComputerHelper {
     public static boolean onGraphComputer(Traversal.Admin<?, ?> traversal) {

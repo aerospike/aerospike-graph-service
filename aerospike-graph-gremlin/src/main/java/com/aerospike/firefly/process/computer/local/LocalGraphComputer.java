@@ -211,10 +211,10 @@ public class LocalGraphComputer implements GraphComputer {
                     @Override
                     public List<Element> getRight() {
                         if (finalResult != null) {
-                            for (Element element : finalResult) {
-                                graph.graphComputerView.getProperty((FireflyVertex) element, HALTED_TRAVERSERS).forEach(VertexProperty::remove);
-                                //((Vertex) element).property(HALTED_TRAVERSERS).remove();
-                            }
+                            // for (Element element : finalResult) {
+                            //     // graph.graphComputerView.getProperty((FireflyVertex) element, HALTED_TRAVERSERS).forEach(VertexProperty::remove);
+                            //     //((Vertex) element).property(HALTED_TRAVERSERS).remove();
+                            // }
                         }
                         return finalResult;
                     }
@@ -522,7 +522,10 @@ public class LocalGraphComputer implements GraphComputer {
         } else {
             final IndexedTraverserSet<Object, Vertex> maybeActiveTraversers = memory.get(TraversalVertexProgram.ACTIVE_TRAVERSERS);
             while (vertices.hasNext()) {
-                final FireflyVertex vertex = vertices.next();
+                Vertex v = vertices.next();
+                if (v instanceof ComputerGraph.ComputerVertex)
+                    v = ((ComputerGraph.ComputerVertex) v).getBaseVertex();
+                final FireflyVertex vertex = (FireflyVertex) v;
                 outputVertices.add(vertex);
                 synchronized (maybeActiveTraversers) {
                     if (!maybeActiveTraversers.isEmpty()) {

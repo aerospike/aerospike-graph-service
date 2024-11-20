@@ -59,6 +59,7 @@ public enum GraphError {
     DROP_INDEX_UNAUTHORIZED(1112),
     DATA_MODEL_VERSION_MISMATCH(1113),
     CACHE_ADJACENT_ENABLED_COMPOSITE_ID_DISABLED(1114),
+    SINDEX_RECENTLY_DROPPED(1115),
 
     ELEMENT_NOT_FOUND(ResultCode.KEY_NOT_FOUND_ERROR),
     RECORD_SIZE_EXCEEDED(ResultCode.RECORD_TOO_BIG),
@@ -97,6 +98,7 @@ public enum GraphError {
         ERROR_MESSAGES.put(NO_ACTIVE_NODES.code, "No active server nodes found in cluster.");
         ERROR_MESSAGES.put(DROP_INDEX_UNAUTHORIZED.code, "Failed to drop index due to role violation. Please check the permissions of the role assigned.");
         ERROR_MESSAGES.put(DATA_MODEL_VERSION_MISMATCH.code, "The on-disk data model version '%s' is not compatible with the AGS version '%s' being used.");
+        ERROR_MESSAGES.put(SINDEX_RECENTLY_DROPPED.code, "This query is temporarily unavailable due to the index it utilizes%s being recently dropped. Please wait %s seconds and try again.");
 
         // Server
         ERROR_MESSAGES.put(ELEMENT_NOT_FOUND.code, "Element was dropped and no longer exists.");

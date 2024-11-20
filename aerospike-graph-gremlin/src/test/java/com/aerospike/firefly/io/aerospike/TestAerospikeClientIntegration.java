@@ -18,7 +18,6 @@ import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.FireflyRecord;
@@ -177,7 +176,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     }
 
     private long countQueryResults(final Statement stmt) {
-        final RecordSet rs = db.query(null, stmt);
+        final AerospikeConnection.FireflyRecordSet rs = db.query(null, stmt);
         int count = 0;
         while (rs.next()) {
             count++;
@@ -251,7 +250,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         stmt.setSetName(db.TEST_SET);
         stmt.setFilter(Filter.range("age", 34, 99));
         QueryPolicy p = new QueryPolicy();
-        RecordSet rs = db.query(null, stmt);
+        AerospikeConnection.FireflyRecordSet rs = db.query(null, stmt);
         Iterator<KeyRecord> i = rs.iterator();
         int count = 0;
         while (i.hasNext()) {

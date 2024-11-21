@@ -96,8 +96,10 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     private PartitionIterator(final Builder builder) {
         this.graph = builder.graph;
         if (builder.vertices == null) {
+            // If the last step did not wire through vertices, we need to run a scan / sindex using filters.
             this.pageQueue = GraphQuery.create(graph).partitionVertexIdPages(builder.filters, graph.settings().evaluationTimeout);
         } else {
+            // The last step wired through vertices, we can partition these and execute.
             this.pageQueue = GraphQuery.create(graph).partitionVertices(builder.vertices);
         }
     }
@@ -109,9 +111,11 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     public Optional<CloseableIterator<FireflyVertex>> next() {
         return this.getPage(pageQueue, shutdown).map(p -> {
             if (p instanceof PageFetcher.VertexPage) {
+                // If it's a vertex page we need to pass through the iterator.
                 final PageFetcher.VertexPage vp = (PageFetcher.VertexPage) p;
                 return vp.vertices;
             } else {
+                // Running transform from scan / sindex.
                 return FireflyCloseableIteratorUtils.map(p.keyRecords, graph::vertexFromRecord);
             }
         });

@@ -7,12 +7,8 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 public class SindexPageFetcher<R> extends PageFetcher<R> {
     private final QueryPolicy policy;

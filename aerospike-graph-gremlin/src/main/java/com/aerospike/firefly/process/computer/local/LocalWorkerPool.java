@@ -98,20 +98,20 @@ public class LocalWorkerPool implements AutoCloseable {
                 ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, this.graph.configuration()),
                 ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, this.graph.configuration()));
         final AtomicLong counter = new AtomicLong(0);
-        System.out.println("PartitionIterator.build(this.graph)");
-        // First guy comes in and
         final PartitionIterator.Builder builder = PartitionIterator.build(this.graph).partitionSize(partitionSize);
         if (isFirstStep) {
+            // If first step we need to use has containers.
             builder.containers(hasContainers);
         } else {
             if (elements.isEmpty()) {
+                // If no elements from previous loop and not first step, we need to use global filters.
                 builder.filters(filter);
             } else {
-                // builder.filters(filter);
-                builder.vertices((List) elements); // Remove halted status?
+                // Elements from previous loop.
+                builder.vertices((List) elements);
             }
         }
-        List<Element> results = Collections.synchronizedList(new ArrayList());
+        final List<Element> results = Collections.synchronizedList(new ArrayList());
         try (final PartitionIterator partitions = builder.create()) {
             for (int i = 0; i < this.numberOfWorkers; i++) {
                 final int index = i;
@@ -120,10 +120,10 @@ public class LocalWorkerPool implements AutoCloseable {
                     final VertexProgram<?> vp = this.vertexProgramPool.take();
                     final LocalWorkerMemory workerMemory = this.workerMemoryPool.poll();
                     while (true) {
-                        Optional<CloseableIterator<FireflyVertex>> option = partitions.next();
+                        final Optional<CloseableIterator<FireflyVertex>> option = partitions.next();
                         if (option.isPresent()) {
                             try {
-                                Pair<Long, List<Element>> output = worker.apply(option.get(), vp, workerMemory);
+                                final Pair<Long, List<Element>> output = worker.apply(option.get(), vp, workerMemory);
                                 if (output.getRight() != null) {
                                     results.addAll(output.getRight());
                                 }
@@ -173,7 +173,7 @@ public class LocalWorkerPool implements AutoCloseable {
         }
     }
 
-    public void closeNow() throws Exception {
+    public void closeNow() {
         this.workerPool.shutdownNow();
     }
 

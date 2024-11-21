@@ -40,7 +40,6 @@ public class LocalGraphComputerView {
     protected final Map<String, VertexComputeKey> computeKeys;
     private final Map<Element, Map<String, Queue<VertexProperty<?>>>> computeProperties;
     private final GraphFilter graphFilter;
-    //private final Set<String> retainVertexProperties;
 
     public LocalGraphComputerView(final FireflyGraph graph, final GraphFilter graphFilter, final Set<VertexComputeKey> computeKeys) {
         this.graph = graph;
@@ -48,20 +47,15 @@ public class LocalGraphComputerView {
         computeKeys.forEach(key -> this.computeKeys.put(key.getKey(), key));
         this.computeProperties = new ConcurrentHashMap<>();
         this.graphFilter = graphFilter;
-        /*if (this.graphFilter.hasVertexPropertyFilter()) {
-            retainVertexProperties = new HashSet<>(Arrays.asList(((PropertiesStep) graphFilter.getVertexPropertyFilter().getStartStep()).getPropertyKeys()));
-        } else {
-            retainVertexProperties = null;
-        }*/
     }
 
     synchronized public <V> Property<V> addProperty(final FireflyVertex vertex, final String key, final V value) {
         ElementHelper.validateProperty(key, value);
         if (!getProperty(vertex, key).isEmpty()) {
-            return new DetachedVertexProperty<>(99999999, key, value, Map.of(), vertex);
+            return new DetachedVertexProperty<>(1, key, value, Map.of(), vertex);
         }
         if (isComputeKey(key)) {
-            final DetachedVertexProperty<V> property = new DetachedVertexProperty<>(99999999, key, value, Map.of(), vertex) {
+            final DetachedVertexProperty<V> property = new DetachedVertexProperty<>(1, key, value, Map.of(), vertex) {
                 @Override
                 public void remove() {
                     removeProperty(vertex, key, this);
@@ -75,64 +69,34 @@ public class LocalGraphComputerView {
     }
 
     synchronized public List<VertexProperty<?>> getProperty(final FireflyVertex vertex, final String key) {
-        // if the vertex property is already on the vertex, use that.
-        //synchronized (vertex) {
-            final List<VertexProperty<?>> vertexProperty = this.getValue(vertex, key);
-            final List<VertexProperty<?>> vps;
-            if (vertexProperty.isEmpty()) {
-                vps = getPropertiesMap(vertex).getOrDefault(key, Collections.emptyList());
-            } else {
-                vps = vertexProperty;
-            }
-            try {
-                final List<VertexProperty<?>> list = new ArrayList<>(vps);
-                return list;
-            } catch (NegativeArraySizeException e) {
-                System.out.println(e);
-            }
-            return List.of();
-        //}
+        final List<VertexProperty<?>> vertexProperty = this.getValue(vertex, key);
+        final List<VertexProperty<?>> vps;
+        if (vertexProperty.isEmpty()) {
+            vps = getPropertiesMap(vertex).getOrDefault(key, Collections.emptyList());
+        } else {
+            vps = vertexProperty;
+        }
+        final List<VertexProperty<?>> list = new ArrayList<>(vps);
+        return list;
     }
-    // A->B
-    // A->B
 
     synchronized public <V> List<VertexProperty<V>> getComputeProperties(final FireflyVertex vertex, final String... computeKeys) {
         final List<VertexProperty<V>> list = new ArrayList<>();
-        try {
-            for (final Queue<VertexProperty<?>> properties : this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).values()) {
-                for (VertexProperty<?> property : properties) {
-                    if (ElementHelper.keyExists(property.key(), computeKeys)) {
-                        list.add((VertexProperty<V>) property);
-                    }
+        for (final Queue<VertexProperty<?>> properties : this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).values()) {
+            for (final VertexProperty<?> property : properties) {
+                if (ElementHelper.keyExists(property.key(), computeKeys)) {
+                    list.add((VertexProperty<V>) property);
                 }
             }
-            return list;
-        } catch (Exception e) {
-            System.out.println(e);
-        }
-        return List.of();
-    }
-
-
-    /*public List<Property<?>> getProperties(final FireflyVertex vertex) {
-        final List<Property<?>> list = new ArrayList<>();
-        for (final List<VertexProperty<?>> properties : getPropertiesMap(vertex).values()) {
-            list.addAll(properties);
-        }
-        for (final List<VertexProperty<?>> properties : this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).values()) {
-            list.addAll(properties);
         }
         return list;
-    }*/
+    }
 
     private Map<String, List<VertexProperty<?>>> getPropertiesMap(final FireflyVertex vertex) {
-        Map<String, List<VertexProperty<?>>> propertiesMap = new ConcurrentHashMap<>();
+        final Map<String, List<VertexProperty<?>>> propertiesMap = new ConcurrentHashMap<>();
         vertex.properties().forEachRemaining(prop -> {
             propertiesMap.put(prop.key(), List.of(prop));
         });
-        //if (retainVertexProperties != null) {
-        //    propertiesMap.keySet().retainAll(retainVertexProperties);
-        // }
         return propertiesMap;
     }
 
@@ -145,8 +109,7 @@ public class LocalGraphComputerView {
     }
 
     public boolean legalVertex(final Vertex vertex) {
-        return  !this.graphFilter.hasVertexFilter() || TraversalUtil.test(vertex, this.graphFilter.getVertexFilter().clone());
-        //return this.graphFilter.legalVertex(vertex);
+        return !this.graphFilter.hasVertexFilter() || TraversalUtil.test(vertex, this.graphFilter.getVertexFilter().clone());
     }
 
 
@@ -154,7 +117,6 @@ public class LocalGraphComputerView {
         return this.legalVertex(vertex) && (this.graphFilter.checkEdgeLegality(Direction.OUT, edge.label()).positive() ||
                 this.graphFilter.checkEdgeLegality(Direction.IN, edge.label()).positive() ||
                 this.graphFilter.checkEdgeLegality(Direction.BOTH, edge.label()).positive());
-        //return !this.graphFilter.hasEdgeFilter() || this.legalEdges.get(vertex.id()).contains(edge.id());
     }
 
     protected void complete() {
@@ -181,17 +143,6 @@ public class LocalGraphComputerView {
                 return this.graph;
             } else {
                 throw new UnsupportedOperationException("Persisting properties to new graph currently not supported");
-                /*final FireflyGraph newGraph = FireflyGraph.open(this.graph.configuration());
-                this.graph.vertices().forEachRemaining(vertex -> {
-                    final Vertex newVertex = newGraph.addVertex(T.id, vertex.id(), T.label, vertex.label());
-                    vertex.properties().forEachRemaining(vertexProperty -> {
-                        final VertexProperty<?> newVertexProperty = newVertex.property(VertexProperty.Cardinality.list, vertexProperty.key(), vertexProperty.value(), T.id, vertexProperty.id());
-                        vertexProperty.properties().forEachRemaining(property -> {
-                            newVertexProperty.property(property.key(), property.value());
-                        });
-                    });
-                });
-                return newGraph;*/
             }
         } else {  // Persist.EDGES
             if (GraphComputer.ResultGraph.ORIGINAL == resultGraph) {
@@ -199,23 +150,6 @@ public class LocalGraphComputerView {
                 return this.graph;
             } else {
                 throw new UnsupportedOperationException("Persisting edges to new graph currently not supported");
-                /*final FireflyGraph newGraph = FireflyGraph.open(this.graph.configuration());
-                this.graph.vertices().forEachRemaining(vertex -> {
-                    final Vertex newVertex = newGraph.addVertex(T.id, vertex.id(), T.label, vertex.label());
-                    vertex.properties().forEachRemaining(vertexProperty -> {
-                        final VertexProperty<?> newVertexProperty = newVertex.property(VertexProperty.Cardinality.list, vertexProperty.key(), vertexProperty.value(), T.id, vertexProperty.id());
-                        vertexProperty.properties().forEachRemaining(property -> {
-                            newVertexProperty.property(property.key(), property.value());
-                        });
-                    });
-                });
-                this.graph.edges().forEachRemaining(edge -> {
-                    final Vertex outVertex = newGraph.vertices(edge.outVertex().id()).next();
-                    final Vertex inVertex = newGraph.vertices(edge.inVertex().id()).next();
-                    final Edge newEdge = outVertex.addEdge(edge.label(), inVertex, T.id, edge.id());
-                    edge.properties().forEachRemaining(property -> newEdge.property(property.key(), property.value()));
-                });
-                return newGraph;*/
             }
         }
     }
@@ -253,7 +187,7 @@ public class LocalGraphComputerView {
     }
 
     private void removeValue(final Vertex vertex, final String key, final VertexProperty<?> property) {
-        Queue<VertexProperty<?>> lvp = this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).get(key);
+        final Queue<VertexProperty<?>> lvp = this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).get(key);
         if (lvp != null) {
             lvp.remove(property);
         }
@@ -261,7 +195,7 @@ public class LocalGraphComputerView {
 
     private List<VertexProperty<?>> getValue(final Vertex vertex, final String key) {
         if (this.computeProperties.containsKey(vertex)) {
-            Queue<VertexProperty<?>> result = this.computeProperties.get(vertex).getOrDefault(key, new ConcurrentLinkedQueue<>());
+            final Queue<VertexProperty<?>> result = this.computeProperties.get(vertex).getOrDefault(key, new ConcurrentLinkedQueue<>());
             return new ArrayList<>(result);
         } else {
             return Collections.emptyList();

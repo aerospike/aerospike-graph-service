@@ -64,7 +64,6 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
         }
 
         public Builder vertices(final List<FireflyVertex> vertices) {
-            //System.out.println("Vertices: " + vertices.stream().map(v -> v.values("name").next()).collect(Collectors.toList()));
             this.vertices = vertices;
             return this;
         }

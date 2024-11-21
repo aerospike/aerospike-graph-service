@@ -89,6 +89,7 @@ public interface GraphQuery {
         return scanElementIds(FireflyEdge.class, List.of(), evaluationTimeout);
     }
 
+    // GRAPH-1380 - Figure out dynamic paging.
     default BlockingQueue<PageFetcher.Page> partitionVertices(final List<FireflyVertex> vertices) {
         final BlockingQueue<PageFetcher.Page> pages = new LinkedBlockingQueue<>();
         Lists.partition(vertices, ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, getGraph().configuration()))
@@ -121,14 +122,12 @@ public interface GraphQuery {
                 final Expression expression = GraphQueryHelper.hasContainerListToExpression(db, aerospikeSideHasContainers, FireflyVertex.class);
                 final BatchPolicy policy = new BatchPolicy();
                 policy.setTimeout(evaluationTimeout.intValue());
-                System.out.println("partitionVertexIdPages: " + ids);
                 return batchReadVertexPagesBlocking(graph, expression, graph::vertexFromRecord, ids, evaluationTimeout);
             }
 
             final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, hasContainers);
             final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
             final HasContainer topContainer = aerospikeSideHasContainers.isEmpty() ? null : aerospikeSideHasContainers.remove(0);
-
             if (topContainer != null) {
                 // Find index.
                 final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo =
@@ -136,14 +135,9 @@ public interface GraphQuery {
                 if (propertyIndexInfo.isPresent()) {
                     final QueryPolicy policy = new QueryPolicy();
                     policy.setTimeout(evaluationTimeout.intValue());
-                    policy.setSocketTimeout(evaluationTimeout.intValue() / 3);
-                    policy.setTotalTimeout(evaluationTimeout.intValue());
-                    policy.totalTimeout = evaluationTimeout.intValue();
-                    policy.socketTimeout = evaluationTimeout.intValue() / 3;
 
                     // Need to wrap with has container check
                     // If we have a property index, we can use it and read sindex pages.
-                    System.out.println("Index");
                     return indexSetPagesBlocking(db.VERTEX_AERO_SET, propertyIndexInfo.get().indexName,
                             GraphQueryHelper.predicateToFilter(db, topContainer.getPredicate(), propertyIndexInfo.get()),
                             policy, graph::vertexIdFromRecord);
@@ -160,7 +154,6 @@ public interface GraphQuery {
         }
 
         // Default to scan.
-        System.out.println("scan " + mapKey + " " + binName + " " + predicate);
         return scanSetPagesBlocking(mapKey, db.VERTEX_AERO_SET, binName, predicate, graph::vertexIdFromRecord,
                 hasContainers, FireflyVertex.class, true, true, evaluationTimeout);
     }

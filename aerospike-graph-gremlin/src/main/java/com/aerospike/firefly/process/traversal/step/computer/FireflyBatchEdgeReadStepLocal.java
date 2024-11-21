@@ -27,8 +27,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -106,7 +104,6 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> implements P
     }
 
     public void precompute() {
-        System.out.println(Thread.currentThread().getName() + " - " + Thread.currentThread().getId() + " - precompute");
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
 
         // Info is used to keep track of how many output items we assign for each input (executed in order).

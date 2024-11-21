@@ -1,7 +1,5 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.computer.local.LocalGraphComputer;
-import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.computer.Computer;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer.Persist;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.TraversalVertexProgramStep;
@@ -30,9 +28,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.empty.EmptyGraph;
 
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -41,7 +37,6 @@ import java.util.stream.Stream;
  */
 public final class FireflyGraphFilterStrategy extends AbstractTraversalStrategy<TraversalStrategy.OptimizationStrategy> implements TraversalStrategy.OptimizationStrategy {
     private static final FireflyGraphFilterStrategy INSTANCE = new FireflyGraphFilterStrategy();
-    GraphFilterStrategy graphFilterStrategy;
 
     private FireflyGraphFilterStrategy() {
     }
@@ -84,11 +79,12 @@ public final class FireflyGraphFilterStrategy extends AbstractTraversalStrategy<
                  currentStep = currentStep.getNextStep()) {
                 if (currentStep instanceof HasStep) {
                     if (((HasStep) currentStep).getHasContainers().stream().filter(it -> (((HasContainer) it).getKey() == null)).findAny().isPresent()) {
-                        hasTraversal = hasTraversal.has("","").asAdmin();
+                        hasTraversal = hasTraversal.has("", "").asAdmin();
                     } else {
                         for (final HasContainer hasContainer : ((HasContainerHolder) currentStep).getHasContainers().stream()
                                 .filter(h -> h.getKey().equals(T.id.getAccessor()) || h.getValue() instanceof Number || h.getValue() instanceof Number ||
                                         (h.getPredicate().getPredicateName().equals(P.eq(1).getPredicateName()))).collect(Collectors.toList())) {
+
                             hasTraversal = hasTraversal.has(hasContainer.getKey(), hasContainer.getPredicate()).asAdmin();
                         }
                     }

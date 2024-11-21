@@ -29,9 +29,6 @@ public final class FireflyComputerVerificationStrategy extends AbstractTraversal
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
-        // TODO: Might be needed ?
-        //ComputerVerificationStrategy.instance().apply(traversal);
-
         // ADDING A PRE-CHECK
         // TraversalVertexProgram is decomposed into various individual VertexPrograms when using the graph algorithms package
         traversal.getSteps().forEach(step -> {

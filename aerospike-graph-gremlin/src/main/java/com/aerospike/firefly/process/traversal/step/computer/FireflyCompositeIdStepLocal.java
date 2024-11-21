@@ -145,7 +145,7 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
             final Iterator<Vertex> vertices = traverser.get().vertices(this.direction, super.getEdgeLabels());
             return FireflyCloseableIteratorUtils.filter(vertices, v -> HasContainer.testAll(v, fireflyHasContainers));
         } else {
-            List<Vertex> output = new ArrayList<>();
+            final List<Vertex> output = new ArrayList<>();
             final List<FireflyId> missingIds = new ArrayList<>();
             final FireflyVertex fireflyVertex = (FireflyVertex) ((ComputerGraph.ComputerVertex) traverser.get()).getBaseVertex();
             final List<Vertex> finalOutput = output;
@@ -159,21 +159,17 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
             final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
             final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, missingIds, requiredProperties);
             output.addAll(vertices);
-            //output = output.stream().map(v -> v).collect(Collectors.toList());
             outputOrderCache.get().addAll(output);
             return FireflyCloseableIteratorUtils.filter(output.iterator(), v -> HasContainer.testAll(v, fireflyHasContainers));
         }
     }
 
     public List<Vertex> get() {
-        System.out.println("get: " + traversal.asAdmin().toString());
-        // System.out.println("outputOrderCache.get().size(): " + outputOrderCache.get().size());
         return new ArrayList<>(outputOrderCache.get());
     }
 
     @Override
     public void release() {
-        System.out.println("release: " + traversal.asAdmin().toString());
         cache.get().clear();
         inputCache.get().clear();
         outputOrderCache.get().clear();

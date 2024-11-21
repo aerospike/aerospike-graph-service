@@ -625,6 +625,7 @@ public class LocalGraphComputer implements GraphComputer {
 
             @Override
             public int getMaxWorkers() {
+                // TODO GRAPH-1382 - We should have this configurable and maybe do something better.
                 return Runtime.getRuntime().availableProcessors() * 4;
             }
 

@@ -789,15 +789,13 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             return VertexProperty.empty();
         if (FireflyHelper.inComputerMode(this.graph)) {
             final List<VertexProperty> list = (List) this.graph.graphComputerView.getProperty(this, key);
-            if (list.size() == 0)
-                return VertexProperty.<V>empty();
+            if (list.isEmpty())
+                return VertexProperty.empty();
             else if (list.size() == 1)
                 return list.get(0);
-            else if (list.size() > 1)
-                return list.get(0);
             else
-                return VertexProperty.<V>empty();
-                // throw Vertex.Exceptions.multiplePropertiesExistForProvidedKey(key);
+                // Should never happen. This indicates
+                throw Vertex.Exceptions.multiplePropertiesExistForProvidedKey(key);
         } else {
             if(super.property(key) instanceof EmptyProperty)
                 return VertexProperty.empty();

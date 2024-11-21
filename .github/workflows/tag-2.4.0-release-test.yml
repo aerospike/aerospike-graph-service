@@ -69,6 +69,9 @@ jobs:
 
       - name: Publish Container
         run: |
+          # Configure docker auth for gcloud
+          gcloud auth configure-docker -q
+          
           VERSION=2.4.0
           GITHUB_IMAGE=ghcr.io/citrusleaf/firefly:2.4.0-rc4
           DOCKERHUB_IMAGE_BASE=$DOCKERHUB_REPOSITORY_NAME/$DOCKERHUB_IMAGE_NAME

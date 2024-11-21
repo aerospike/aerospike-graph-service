@@ -9,11 +9,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.PathStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertiesStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.TreeStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.TreeSideEffectStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 
@@ -38,7 +35,8 @@ public class FireflyGraphStepStrategy extends FireflyStrategyBase {
         if (ComputerHelper.onGraphComputer(traversal))
             return;
 
-        boolean propertyRemovalValid = !(steps.contains(TreeStep.class) || steps.contains(TreeSideEffectStep.class) || steps.contains(PathStep.class));
+        final boolean propertyRemovalValid = isPropertyRemovalValid(traversal);
+
         for (final GraphStep originalGraphStep : TraversalHelper.getStepsOfClass(GraphStep.class, traversal)) {
             int labelCount = 0;
             labelCount += originalGraphStep.getLabels().size();

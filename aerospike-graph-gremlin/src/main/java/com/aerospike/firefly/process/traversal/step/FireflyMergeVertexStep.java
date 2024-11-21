@@ -7,7 +7,6 @@ import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.TimeoutHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
@@ -29,11 +28,11 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +56,7 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
         if (step.getOnMatchTraversal() != null) this.addChildOption(Merge.onMatch, step.getOnMatchTraversal());
         if (step.getOnCreateTraversal() != null) this.addChildOption(Merge.onCreate, step.getOnCreateTraversal());
         if (step.getCallbackRegistry() != null) this.callbackRegistry = step.getCallbackRegistry();
+        step.getLabels().forEach(label -> addLabel((String)label));
         this.evaluationTimeout = TimeoutHelper.calculate(step.getTraversal());
     }
 
@@ -101,6 +101,9 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
         // Prioritize lookup by id but otherwise attempt an index lookup
         if (null == search) {
             return Stream.empty();
+        } else if (search.isEmpty()) {
+            // no filter => all vertices are good
+            return IteratorUtils.stream(graph.vertices());
         } else if (search.containsKey(T.id)) {
             final Object sid = search.get(T.id);
             final FireflyId fid = graph.getIdFactory().createVertexId(sid);
@@ -184,6 +187,13 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
     protected Iterator<Vertex> flatMap(final Traverser.Admin<S> traverser) {
         final Map mergeMap = materializeMap(traverser, mergeTraversal);;
         validateMapInput(mergeMap, false);
+
+        // validate onMatchTraversal before going too far
+        if (onMatchTraversal instanceof ConstantTraversal) {
+            final Map matchMap = onMatchTraversal.next();
+            validateMapInput(matchMap, true);
+        }
+
         while (true) {
             try {
                 Stream<Vertex> stream = createSearchStream(mergeMap);
@@ -233,9 +243,6 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                     final Vertex vertex;
 
                     final Map<?, ?> onCreateMap = onCreateMap(traverser, mergeMap);
-                    if (onCreateMap.isEmpty()) {
-                        return Collections.emptyIterator();
-                    }
                     final List<Object> keyValues = new ArrayList<>();
                     for (Map.Entry<?, ?> entry : onCreateMap.entrySet()) {
                         keyValues.add(entry.getKey());

@@ -344,17 +344,21 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
     private Iterator<Edge> lockedFlatMap(final Traverser.Admin<S> traverser, final Map mergeMap, final Map onCreateMap) {
         Iterator<Edge> edges = searchEdges(mergeMap);
 
+        if (onMatchTraversal != null && onMatchTraversal instanceof ConstantTraversal) {
+            final Map matchMap = onMatchTraversal.next();
+            validateMapInput(matchMap, true);
+        }
+
         if (onMatchTraversal != null && edges.hasNext()) {
             LOG.debug("MergeEdge found matches - applying onMatchTraversal.");
-            if (onMatchTraversal instanceof ConstantTraversal) {
-                final Map matchMap = onMatchTraversal.next();
-                validateMapInput(matchMap, true);
-            }
 
             Edge validEdge = null;
             List<MergeEdgePropertyContainer> onMatchMapPropertyChanges = Collections.emptyList();
             while (validEdge == null && edges.hasNext()) {
                 final Edge edge = edges.next();
+
+                if (isStart) traverser.set((S) edge);
+
                 final Map<String, ?> onMatchMap = materializeMap(traverser, onMatchTraversal);
                 validateMapInput(onMatchMap, true);
                 final List<MergeEdgePropertyContainer> onMatchProperties = new ArrayList<>();

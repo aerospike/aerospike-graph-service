@@ -32,7 +32,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SupportedValueTypes;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SUPPORTED_ARR_TYPES;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SUPPORTED_VALUE_TYPES;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -65,18 +66,48 @@ public final class FireflyHelper {
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static <V> V validateGraphVariableValue(V v) {
-        Set<Class<? extends Serializable>> supported = SupportedValueTypes.keySet();
-        if (v != null && !supported.contains(v.getClass()))
-            throw Graph.Variables.Exceptions.dataTypeOfVariableValueNotSupported(v);
-        return v;
+    public static Object validateGraphVariableValue(final Object v) {
+        return validatePropertyValue(v);
     }
 
-    public static <V> V validatePropertyValue(V v) {
-        Set<Class<? extends Serializable>> supported = SupportedValueTypes.keySet();
-        if (v != null && !supported.contains(v.getClass()))
+    public static Object validatePropertyValue(final Object v) {
+        final Object value;
+        if (v != null && SUPPORTED_ARR_TYPES.contains(v.getClass())) {
+            final ArrayList vList = new ArrayList<>();
+            if (v instanceof boolean[]) {
+                final boolean[] vArray = (boolean[]) v;
+                for (int i = 0; i < vArray.length; i++) {
+                    vList.add(vArray[i]);
+                }
+            } else if (v instanceof double[]) {
+                final double[] vArray = (double[]) v;
+                for (int i = 0; i < vArray.length; i++) {
+                    vList.add(vArray[i]);
+                }
+            } else if (v instanceof int[]) {
+                final int[] vArray = (int[]) v;
+                for (int i = 0; i < vArray.length; i++) {
+                    vList.add(vArray[i]);
+                }
+            } else if (v instanceof long[]) {
+                final long[] vArray = (long[]) v;
+                for (int i = 0; i < vArray.length; i++) {
+                    vList.add(vArray[i]);
+                }
+            } else {
+                final Object[] vArray = (Object[]) v;
+                for (int i = 0; i < vArray.length; i++) {
+                    vList.add(vArray[i]);
+                }
+            }
+            value = vList;
+        } else {
+            value = v;
+        }
+        if (value != null && !SUPPORTED_VALUE_TYPES.containsKey(value.getClass())) {
             throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(v);
-        return v;
+        }
+        return value;
     }
 
     public static void legalPropertyKeyValueArray(Object... keyValues) {

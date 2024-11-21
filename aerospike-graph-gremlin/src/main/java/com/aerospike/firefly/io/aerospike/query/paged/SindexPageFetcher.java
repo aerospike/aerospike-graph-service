@@ -1,11 +1,10 @@
 package com.aerospike.firefly.io.aerospike.query.paged;
 
-
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.util.Iterator;
@@ -30,7 +29,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
 
     @Override
     protected void readPage() throws InterruptedException {
-        final RecordSet recordSet = graph.getBaseGraph().queryPartitions(policy, statement, filter);
+        final AerospikeConnection.FireflyRecordSet recordSet = graph.getBaseGraph().queryPartitions(policy, statement, filter);
         final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
         try (final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close, timeout)) {
             pageQueue.put(new Page(pi));

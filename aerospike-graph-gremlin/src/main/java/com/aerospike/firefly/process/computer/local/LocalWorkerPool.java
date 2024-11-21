@@ -121,15 +121,21 @@ public class LocalWorkerPool implements AutoCloseable {
                     final LocalWorkerMemory workerMemory = this.workerMemoryPool.poll();
                     while (true) {
                         final Optional<CloseableIterator<FireflyVertex>> option = partitions.next();
+                        CloseableIterator<FireflyVertex> iterator = null;
                         if (option.isPresent()) {
                             try {
-                                final Pair<Long, List<Element>> output = worker.apply(option.get(), vp, workerMemory);
+                                iterator = option.get();
+                                final Pair<Long, List<Element>> output = worker.apply(iterator, vp, workerMemory);
                                 if (output.getRight() != null) {
                                     results.addAll(output.getRight());
                                 }
                                 LOG.debug("Worker {} processed {} vertices, total={}", index, count, counter.addAndGet(count));
                             } catch (final Exception e) {
                                 LOG.error("Worker {} failed on {} vertex of partition", index, count, e);
+                            } finally {
+                                if (iterator != null) {
+                                    iterator.close();
+                                }
                             }
                         } else {
                             break;

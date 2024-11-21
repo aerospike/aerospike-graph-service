@@ -196,7 +196,6 @@ public class LocalGraphComputer implements GraphComputer {
                 vertexCount.getAndAdd(counter);
                 List<Element> result = null;
                 if (output != null && output.getRight() != null) {
-                    System.out.println("active traversers:" + ((FireflyCompositeIdStepLocal) output.getRight()).get().size());
                     result = (List<Element>) output.getRight().get();
                 }
                 final long finalCounter = counter;
@@ -210,12 +209,6 @@ public class LocalGraphComputer implements GraphComputer {
 
                     @Override
                     public List<Element> getRight() {
-                        if (finalResult != null) {
-                            // for (Element element : finalResult) {
-                            //     // graph.graphComputerView.getProperty((FireflyVertex) element, HALTED_TRAVERSERS).forEach(VertexProperty::remove);
-                            //     //((Vertex) element).property(HALTED_TRAVERSERS).remove();
-                            // }
-                        }
                         return finalResult;
                     }
 
@@ -260,7 +253,7 @@ public class LocalGraphComputer implements GraphComputer {
 
     @Override
     public Future<ComputerResult> submit() {
-        LOG.warn("GRAPH COMPUTER FILTER STRATEGY CONFIGURATION:\n" +
+        LOG.info("GRAPH COMPUTER FILTER STRATEGY CONFIGURATION:\n" +
                         "\tVertexProgram to execute: {}\n" +
                         "\tNumber of workers available: {}\n" +
                         "\tGraphComputer strategies applied: {}\n" +
@@ -334,7 +327,7 @@ public class LocalGraphComputer implements GraphComputer {
                     final int mapPartitionSize = Math.max(
                             (vertexCount.get() > 0 ? ((int) Math.ceil((double) vertexCount.get() / (double) this.workers)) : this.previousPartitionSize),
                             ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, this.graph.configuration()));
-                    LOG.warn("MAPREDUCE STAGE PARTITION CONFIGURATION:\n\t" +
+                    LOG.info("MAPREDUCE STAGE PARTITION CONFIGURATION:\n\t" +
                             "Vertices in final vertex program iteration: {}\n\t" +
                             "Number of available workers: {}\n\t" +
                             "Computed partition size: {}", vertexCount.get(), this.workers, mapPartitionSize);
@@ -418,9 +411,9 @@ public class LocalGraphComputer implements GraphComputer {
     }
 
     private void updatePrecompute(final FireflyVertex vertex,
-                                                       final AtomicReference<PrecomputableComputerStep> precomputableComputerStep,
-                                                       final TraversalMatrix<?, ?> traversalMatrix,
-                                                       final Traverser.Admin<?> traverser) {
+                                  final AtomicReference<PrecomputableComputerStep> precomputableComputerStep,
+                                  final TraversalMatrix<?, ?> traversalMatrix,
+                                  final Traverser.Admin<?> traverser) {
         final Step<Object, Object> currentStep = traversalMatrix.getStepById(traverser.getStepId());
         if (currentStep instanceof PrecomputableComputerStep) {
             if (precomputableComputerStep.get() == null) {
@@ -465,9 +458,9 @@ public class LocalGraphComputer implements GraphComputer {
     }
 
     private void getPrecomputableComputerStep(final FireflyVertex vertex,
-                                                                   final AtomicReference<PrecomputableComputerStep> precomputableComputerStep,
-                                                                   final Traverser.Admin<?> traverser,
-                                                                   final Traversal.Admin<?, ?> child) {
+                                              final AtomicReference<PrecomputableComputerStep> precomputableComputerStep,
+                                              final Traverser.Admin<?> traverser,
+                                              final Traversal.Admin<?, ?> child) {
         if (child.getStartStep() instanceof HasStep) {
             final HasStep hasStep = (HasStep) child.getStartStep();
             if (hasStep.getNextStep() instanceof PrecomputableComputerStep) {

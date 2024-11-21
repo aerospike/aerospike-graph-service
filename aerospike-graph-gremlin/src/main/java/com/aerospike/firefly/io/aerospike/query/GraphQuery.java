@@ -128,6 +128,7 @@ public interface GraphQuery {
             final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, hasContainers);
             final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
             final HasContainer topContainer = aerospikeSideHasContainers.isEmpty() ? null : aerospikeSideHasContainers.remove(0);
+
             if (topContainer != null) {
                 // Find index.
                 final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo =
@@ -135,7 +136,6 @@ public interface GraphQuery {
                 if (propertyIndexInfo.isPresent()) {
                     final QueryPolicy policy = new QueryPolicy();
                     policy.setTimeout(evaluationTimeout.intValue());
-
                     // Need to wrap with has container check
                     // If we have a property index, we can use it and read sindex pages.
                     return indexSetPagesBlocking(db.VERTEX_AERO_SET, propertyIndexInfo.get().indexName,

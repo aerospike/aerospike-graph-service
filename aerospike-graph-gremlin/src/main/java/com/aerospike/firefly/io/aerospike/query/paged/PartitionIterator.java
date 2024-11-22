@@ -31,7 +31,7 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     private final FireflyGraph graph;
 
     public static final class Builder {
-
+        List<FireflyVertex> vertices = null;
         FireflyGraph graph;
         List<HasContainer> filters = new ArrayList<>();
 
@@ -55,6 +55,17 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
             return this.filters(Optional.ofNullable(filter.getVertexFilter()).map(t -> t.getSteps().stream()
                     .flatMap(s -> ((HasStep<Vertex>) s).getHasContainers().stream())
                     .collect(Collectors.toList())).orElse(null));
+        }
+
+        public Builder containers(final List<HasContainer> containers) {
+            if (null != containers)
+                this.filters.addAll(containers);
+            return this;
+        }
+
+        public Builder vertices(final List<FireflyVertex> vertices) {
+            this.vertices = vertices;
+            return this;
         }
 
         public Builder partitionSize(final int pageSize) {
@@ -83,7 +94,13 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
 
     private PartitionIterator(final Builder builder) {
         this.graph = builder.graph;
-        this.pageQueue = GraphQuery.create(graph).partitionVertexIdPages(builder.filters, graph.settings().evaluationTimeout);
+        if (builder.vertices == null) {
+            // If the last step did not wire through vertices, we need to run a scan / sindex using filters.
+            this.pageQueue = GraphQuery.create(graph).partitionVertexIdPages(builder.filters, graph.settings().evaluationTimeout);
+        } else {
+            // The last step wired through vertices, we can partition these and execute.
+            this.pageQueue = GraphQuery.create(graph).partitionVertices(builder.vertices);
+        }
     }
 
     public boolean hasNext() {
@@ -91,7 +108,16 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     }
 
     public Optional<CloseableIterator<FireflyVertex>> next() {
-        return this.getPage(pageQueue, shutdown).map(p -> FireflyCloseableIteratorUtils.map(p.keyRecords, graph::vertexFromRecord));
+        return this.getPage(pageQueue, shutdown).map(p -> {
+            if (p instanceof PageFetcher.VertexPage) {
+                // If it's a vertex page we need to pass through the iterator.
+                final PageFetcher.VertexPage vp = (PageFetcher.VertexPage) p;
+                return vp.vertices;
+            } else {
+                // Running transform from scan / sindex.
+                return FireflyCloseableIteratorUtils.map(p.keyRecords, graph::vertexFromRecord);
+            }
+        });
     }
 
     public void close() {
@@ -104,25 +130,21 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
                 if (shutdown.get()) {
                     return Optional.empty();
                 }
-                // LOG.warn("GRABBING page on worker {}", index);
                 final PageFetcher.Page page = pageQueue.take();
-                // LOG.warn("GRABBED page on worker {}", index);
 
                 if (page instanceof PageFetcher.ErrorPage) {
                     // ERROR
                     final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
-                    LOG.warn("ERROR: " + errorPage.errorMessage, errorPage.exception);
+                    LOG.error("ERROR: " + errorPage.errorMessage, errorPage.exception);
                     shutdown.set(true);
                     return Optional.empty();
                 }
                 if (page instanceof PageFetcher.PoisonPill) {
-                    LOG.warn("POISON PILL - DO NOTHING");
                     shutdown.set(true);
                     return Optional.empty();
                 }
                 return Optional.of(page);
             } catch (InterruptedException e) {
-                LOG.warn("INTERRUPTED - " + e.getMessage());
                 shutdown.set(true);
                 return Optional.empty();
             }

@@ -237,7 +237,7 @@
             </activation>
             <properties>
                 <!-- Java heap parameters -->
-                <maxheap>16384m</maxheap>
+                <maxheap>20g</maxheap>
                 <minheap>4096m</minheap>
             </properties>
         </profile>

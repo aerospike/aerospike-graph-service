@@ -791,18 +791,17 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         }
         if (FireflyHelper.inComputerMode(this.graph)) {
             final List<VertexProperty> list = (List) this.graph.graphComputerView.getProperty(this, key);
-            if (list.size() == 0) {
+            if (list.isEmpty()) {
                 return VertexProperty.empty();
             } else if (list.size() == 1) {
                 return list.get(0);
             } else {
+                // Should never happen.
                 throw Vertex.Exceptions.multiplePropertiesExistForProvidedKey(key);
             }
         } else {
-
-            if (super.property(key) instanceof EmptyProperty) {
+            if (super.property(key) instanceof EmptyProperty)
                 return VertexProperty.empty();
-            }
             return (VertexProperty<V>) super.property(key);
         }
     }
@@ -1072,9 +1071,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                                 e -> ElementHelper.keyExists(e.getKey(), propertyKeys)),
                         Map.Entry::getValue);
 
-        if (!FireflyHelper.inComputerMode(this.graph))
+        if (!FireflyHelper.inComputerMode(this.graph)) {
             return iterator;
-        else {
+        } else {
             // TODO: GRAPH COMPUTER INTERCEPTION
             final LocalGraphComputerView view = FireflyHelper.getGraphComputerView(this.graph);
             final List<VertexProperty<V>> computeProperties = view.getComputeProperties(this, propertyKeys);

@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io.aerospike.query;
 
 import com.aerospike.client.exp.Expression;
+import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
@@ -18,9 +19,11 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.google.common.collect.Lists;
 import org.apache.tinkerpop.gremlin.process.traversal.Contains;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -85,14 +89,23 @@ public interface GraphQuery {
         return scanElementIds(FireflyEdge.class, List.of(), evaluationTimeout);
     }
 
+    // GRAPH-1380 - Figure out dynamic paging.
+    default BlockingQueue<PageFetcher.Page> partitionVertices(final List<FireflyVertex> vertices) {
+        final BlockingQueue<PageFetcher.Page> pages = new LinkedBlockingQueue<>();
+        Lists.partition(vertices, ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, getGraph().configuration()))
+                .forEach(list -> pages.add(new PageFetcher.VertexPage(CloseableIterator.of(list.iterator()))));
+        pages.add(new PageFetcher.PoisonPill());
+        return pages;
+    }
+
     default BlockingQueue<PageFetcher.Page> partitionVertexIdPages(final List<HasContainer> hasContainers, final Long evaluationTimeout) {
         P<?> predicate = null;
         String binName = null;
         String mapKey = null;
         final FireflyGraph graph = getGraph();
         final AerospikeConnection db = graph.getBaseGraph();
-        final List<HasContainer> positiveFilters = hasContainers.stream().filter(it -> !it.getBiPredicate().equals(Contains.without)).collect(Collectors.toList());
 
+        final List<HasContainer> positiveFilters = hasContainers.stream().filter(it -> !it.getBiPredicate().equals(Contains.without)).collect(Collectors.toList());
         if (!positiveFilters.isEmpty()) {
             final List<Object> ids = positiveFilters
                     .stream()
@@ -107,17 +120,19 @@ public interface GraphQuery {
                 final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, nonIdContainers);
                 final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
                 final Expression expression = GraphQueryHelper.hasContainerListToExpression(db, aerospikeSideHasContainers, FireflyVertex.class);
+                final BatchPolicy policy = new BatchPolicy();
+                policy.setTimeout(evaluationTimeout.intValue());
                 return batchReadVertexPagesBlocking(graph, expression, graph::vertexFromRecord, ids, evaluationTimeout);
             }
 
             final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, hasContainers);
             final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
             final HasContainer topContainer = aerospikeSideHasContainers.isEmpty() ? null : aerospikeSideHasContainers.remove(0);
+
             if (topContainer != null) {
                 // Find index.
                 final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo =
                         graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, topContainer.getKey(), topContainer.getValue());
-
                 if (propertyIndexInfo.isPresent()) {
                     final QueryPolicy policy = new QueryPolicy();
                     policy.setTimeout(evaluationTimeout.intValue());

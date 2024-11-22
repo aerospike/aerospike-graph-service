@@ -4,6 +4,7 @@ import com.aerospike.client.ResultCode;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.SindexRecentlyDroppedException;
@@ -124,6 +125,16 @@ public abstract class PageFetcher<E> {
 
         public Page(final CloseableIterator<KeyRecord> keyRecords) {
             this.keyRecords = keyRecords;
+        }
+    }
+
+
+    public static class VertexPage extends Page {
+        public CloseableIterator<FireflyVertex> vertices;
+
+        public VertexPage(final CloseableIterator<FireflyVertex> vertices) {
+            super(CloseableIterator.EmptyCloseableIterator.instance());
+            this.vertices = vertices;
         }
     }
 

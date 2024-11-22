@@ -29,6 +29,9 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
     private final FireflyStrategyBase fireflyAdjacentVertexIdStrategy;
     private final FireflyStrategyBase fireflyBatchOtherVReadStrategy;
     private final FireflyStrategyBase fireflyEdgeToVertexBatchReadStrategy;
+    private final FireflyStrategyBase fireflyCompositeEdgeIdLocalStrategy;
+    private final FireflyStrategyBase fireflyBatchEdgeReadLocalStrategy;
+    private final FireflyStrategyBase fireflyCountGlobalLocalStrategy;
 
     /**
      * Default constructor for FireflyContentionHandlingStrategy.
@@ -44,6 +47,9 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         this.fireflyVertexEdgeLocalCountStrategy = new FireflyVertexEdgeLocalCountStrategy();
         this.fireflyScanProfileStrategy = new FireflyScanProfileStrategy();
         this.fireflyAuthenticationStrategy = new FireflyAuthenticationStrategy();
+        this.fireflyCompositeEdgeIdLocalStrategy = new FireflyCompositeEdgeIdLocalStrategy();
+        this.fireflyBatchEdgeReadLocalStrategy = new FireflyBatchEdgeReadLocalStrategy();
+        this.fireflyCountGlobalLocalStrategy = new FireflyCountGlobalLocalStrategy();
         this.fireflyAdjacentVertexIdStrategy = new FireflyAdjacentVertexIdStrategy();
         this.fireflyBatchOtherVReadStrategy = new FireflyOtherVBatchReadStrategy();
         this.fireflyEdgeToVertexBatchReadStrategy = new FireflyEdgeToVertexBatchReadStrategy();
@@ -96,6 +102,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         // Steps that override the entire step list first.
         applyStrategy(traversal, fireflyGraphDropStrategy);
         applyStrategy(traversal, fireflyGraphCountStrategy);
+        applyStrategy(traversal, fireflyCountGlobalLocalStrategy);
 
         // This step replaces out/in.id() with single step.
         applyTinkerPopStrategy(traversal, AdjacentToIncidentStrategy.instance());
@@ -112,8 +119,10 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         // Steps that replace specific internal steps.
         applyStrategy(traversal, fireflyMergeStepStrategy);
         applyStrategy(traversal, fireflyCompositeEdgeIdStrategy);
+        applyStrategy(traversal, fireflyCompositeEdgeIdLocalStrategy);
         applyStrategy(traversal, fireflyBatchEdgeReadStrategy);
         applyStrategy(traversal, fireflyBatchOtherVReadStrategy);
+        applyStrategy(traversal, fireflyBatchEdgeReadLocalStrategy);
         applyStrategy(traversal, fireflyEdgeToVertexBatchReadStrategy);
         applyStrategy(traversal, fireflyScanProfileStrategy);
     }

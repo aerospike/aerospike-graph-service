@@ -2,7 +2,6 @@ package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphFilterStrategy;
 import com.aerospike.firefly.util.AbstractFireflySuite;
-import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.TraversalVertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.strategy.optimization.GraphFilterStrategy;
@@ -12,12 +11,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.VerificationException;
-import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
-import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,18 +20,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import static org.apache.tinkerpop.gremlin.process.traversal.P.neq;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.as;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.bothE;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.has;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasLabel;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.in;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.values;
-import static org.apache.tinkerpop.gremlin.structure.Column.keys;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -85,10 +69,6 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
 
     @Test
     public void testGraphFilterConstruction() {
-        // Root -> Leaf
-        // g.V().hasLabel('Root').groupCount().by(__.out().count())
-        // g.V().hasLabel("person").out().out()
-        //
         final Object NONE = new Object() {
             @Override
             public String toString() {
@@ -154,47 +134,6 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
         //final List<Vertex> vertices = gComputer.V().has(T.id, 1).has(T.id, 2).toList();
         final List<Vertex> vertices = gComputer.V(1, 2).toList();
         assertEquals(2, vertices.size());
-    }
-
-    @Test
-    public void testModern() {
-        final GraphTraversalSource g = graph.traversal();
-        g.V().drop().iterate();
-        final Graph tg = TinkerFactory.createModern();
-        GraphHelper.cloneElements(tg, graph);
-        final GraphTraversalSource gComputer = graph.traversal().withComputer();
-        //final Vertex vadas = gComputer.V().has("name", "vadas").next();
-
-        //System.out.println("Running vadas both: " + vadas.id());
-        //System.out.println("Result vadas both: " + gComputer.V(vadas.id()).both().toList());
-        //System.out.println("Running marko out(knows): " + marko.id() + " -- "
-        //        + gComputer.V().has("name", "marko").id().next() + " -- " + g.V().has("name", "marko").id().next());
-        System.out.println("Result marko: " + gComputer.V(1).out("knows").toList());
-        System.out.println("Result marko: " + g.V(1).out("knows").toList());
-    }
-
-    @Test
-    public void testHasLabel() {
-        final GraphTraversalSource g = graph.traversal();
-        g.V().drop().iterate();
-        final Graph tg = TinkerFactory.createModern();
-        GraphHelper.cloneElements(tg, graph);
-        final GraphTraversalSource gComputer = graph.traversal().withComputer();
-        System.out.println("OUTPUT: " + gComputer.V(1).both().both().toList());
-        System.out.println("OUTPUT: " + gComputer.V(1).both().both().toList());
-        System.out.println("OUTPUT: " + gComputer.V(1).both().both().toList());
-        System.out.println("OUTPUT: " + gComputer.V(1).both().both().toList());
-        // Should be 4 items.
-        System.out.println(convertToVertex(gComputer, "vadas"));
-        System.out.println(convertToVertex(gComputer, "marko"));
-        System.out.println(convertToVertex(gComputer, "josh"));
-        System.out.println(convertToVertex(gComputer,  "peter"));
-        System.out.println(gComputer.V().hasLabel("person").order().by("age").toList());
-        System.out.println(g.V().hasLabel("person").order().by("age").toList());
-    }
-
-    public Vertex convertToVertex(final GraphTraversalSource g, final String vertexName) {
-        return g.V().has("name", vertexName).toList().get(0);
     }
 
     @Test

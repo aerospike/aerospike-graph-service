@@ -65,6 +65,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -166,8 +167,18 @@ public class LocalGraphComputer implements GraphComputer {
         return this;
     }
 
-    public TriFunction<Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Pair<Long, List<Element>>> executeVp(final AtomicLong vertexCount) {
-        return (vertices, vertexProgram, workerMemory) -> {
+    class ExecuteVertexProgram {
+        final LocalMessageBoard messageBoard;
+
+        // Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Pair<Long, List<Element>>
+        public ExecuteVertexProgram(final LocalMessageBoard messageBoard) {
+            this.messageBoard = messageBoard;
+        }
+
+        public Pair<Long, List<Element>> execute(Iterator<FireflyVertex> vertices,
+                                                 final VertexProgram vertexProgram,
+                                                 final LocalWorkerMemory workerMemory,
+                                                 final AtomicLong vertexCount) throws Exception {
             final PureTraversal<?, ?> traversal = ((TraversalVertexProgram) vertexProgram).getTraversal().clone();
             if (!traversal.get().isLocked())
                 traversal.get().applyStrategies();
@@ -222,7 +233,7 @@ public class LocalGraphComputer implements GraphComputer {
                     output.getRight().release();
                 }
             }
-        };
+        }
     }
 
     private static List<HasContainer> getInitialHasContainers(final Traversal.Admin<?, ?> traversal) {
@@ -310,7 +321,12 @@ public class LocalGraphComputer implements GraphComputer {
                             if (Thread.interrupted()) throw new TraversalInterruptedException();
                             this.memory.completeSubRound();
                             workers.setVertexProgram(this.vertexProgram);
-                            previousResult = workers.executeVertexProgram(this.executeVp(vertexCount), this.memory.isInitialIteration(), (List) previousResult, this.graphFilter, initialHasContainers);
+                            previousResult = workers.executeVertexProgram(
+                                    new ExecuteVertexProgram(this.messageBoard),
+                                    this.memory.isInitialIteration(),
+                                    previousResult,
+                                    this.graphFilter,
+                                    initialHasContainers);
                             this.messageBoard.completeIteration();
                             this.memory.completeSubRound();
                             if (this.vertexProgram.terminate(this.memory)) {
@@ -410,10 +426,10 @@ public class LocalGraphComputer implements GraphComputer {
         }
     }
 
-    private void updatePrecompute(final FireflyVertex vertex,
-                                  final AtomicReference<PrecomputableComputerStep> precomputableComputerStep,
-                                  final TraversalMatrix<?, ?> traversalMatrix,
-                                  final Traverser.Admin<?> traverser) {
+    private static void updatePrecompute(final FireflyVertex vertex,
+                                         final AtomicReference<PrecomputableComputerStep> precomputableComputerStep,
+                                         final TraversalMatrix<?, ?> traversalMatrix,
+                                         final Traverser.Admin<?> traverser) {
         final Step<Object, Object> currentStep = traversalMatrix.getStepById(traverser.getStepId());
         if (currentStep instanceof PrecomputableComputerStep) {
             if (precomputableComputerStep.get() == null) {
@@ -457,10 +473,10 @@ public class LocalGraphComputer implements GraphComputer {
         }
     }
 
-    private void getPrecomputableComputerStep(final FireflyVertex vertex,
-                                              final AtomicReference<PrecomputableComputerStep> precomputableComputerStep,
-                                              final Traverser.Admin<?> traverser,
-                                              final Traversal.Admin<?, ?> child) {
+    private static void getPrecomputableComputerStep(final FireflyVertex vertex,
+                                                     final AtomicReference<PrecomputableComputerStep> precomputableComputerStep,
+                                                     final Traverser.Admin<?> traverser,
+                                                     final Traversal.Admin<?, ?> child) {
         if (child.getStartStep() instanceof HasStep) {
             final HasStep hasStep = (HasStep) child.getStartStep();
             if (hasStep.getNextStep() instanceof PrecomputableComputerStep) {

@@ -144,7 +144,9 @@ public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
         }
     }
 
+    private static final FireflyCompositeEdgeIdLocalStrategy INSTANCE = new FireflyCompositeEdgeIdLocalStrategy();
+
     public static FireflyCompositeEdgeIdLocalStrategy instance() {
-        return new FireflyCompositeEdgeIdLocalStrategy();
+        return INSTANCE;
     }
 }

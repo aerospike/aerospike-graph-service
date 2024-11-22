@@ -135,18 +135,16 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
                 if (page instanceof PageFetcher.ErrorPage) {
                     // ERROR
                     final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
-                    LOG.warn("ERROR: " + errorPage.errorMessage, errorPage.exception);
+                    LOG.error("ERROR: " + errorPage.errorMessage, errorPage.exception);
                     shutdown.set(true);
                     return Optional.empty();
                 }
                 if (page instanceof PageFetcher.PoisonPill) {
-                    LOG.warn("POISON PILL - DO NOTHING");
                     shutdown.set(true);
                     return Optional.empty();
                 }
                 return Optional.of(page);
             } catch (InterruptedException e) {
-                LOG.warn("INTERRUPTED - " + e.getMessage());
                 shutdown.set(true);
                 return Optional.empty();
             }

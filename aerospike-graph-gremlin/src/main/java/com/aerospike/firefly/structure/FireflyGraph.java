@@ -222,8 +222,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
     }
 
-    private final ThreadLocal<List<HasContainer>> olapHasContainers = ThreadLocal.withInitial(ArrayList::new);
-
     public FireflyGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
         this.gremlinServerSettings = gremlinServerSettings;
         this.configuration = conf;

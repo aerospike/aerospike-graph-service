@@ -79,7 +79,7 @@ public class LocalWorkerPool implements AutoCloseable {
     }
 
     public List<Element> executeVertexProgram(
-            final TriFunction<Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Pair<Long, List<Element>>> worker,
+            final LocalGraphComputer.ExecuteVertexProgram executeVertexProgram,
             boolean isFirstStep,
             final List<Element> elements,
             final GraphFilter filter,
@@ -125,7 +125,7 @@ public class LocalWorkerPool implements AutoCloseable {
                         if (option.isPresent()) {
                             try {
                                 iterator = option.get();
-                                final Pair<Long, List<Element>> output = worker.apply(iterator, vp, workerMemory);
+                                final Pair<Long, List<Element>> output = executeVertexProgram.execute(iterator, vp, workerMemory, counter);
                                 if (output.getRight() != null) {
                                     results.addAll(output.getRight());
                                 }

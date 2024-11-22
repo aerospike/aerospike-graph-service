@@ -151,7 +151,7 @@
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
                     <environmentVariables>
-                        <FIREFLY_TESTING>true</FIREFLY_TESTING>
+                        <FIREFLY_TESTING>false</FIREFLY_TESTING>
                         <!--
                             This should be set to the lowest version of Aerospike graph that is available in dockerhub.
                             Note the major version must align. In this case, 1.0.0 was removed, so we use 1.0.1

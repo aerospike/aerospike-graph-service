@@ -104,6 +104,9 @@ public abstract class TestSparkBulkLoaderBase {
     protected abstract String getGcsFileSystem();
     protected abstract String getFailingClient();
     protected abstract String getHasBadEdges();
+    protected abstract String getSamplingSupernode();
+    protected abstract String getSamplingSupernodeTooHigh();
+    protected abstract String getSamplingSupernodeTooLow();
 
     @Test
     public void testDataAccuracy() {
@@ -416,6 +419,24 @@ public abstract class TestSparkBulkLoaderBase {
             Assert.assertTrue(e.getCause() instanceof RuntimeException);
             Assert.assertEquals(BAD_EDGE_COUNT_EXCEEDED, e.getCause().getMessage());
         }
+    }
+
+    @Test
+    public void testSupernodeSampling() {
+        SparkBulkLoader.main(ArrayUtils.addAll(
+                new String[]{"-local", "-ade", "0", "-c", getSamplingSupernode()}, DEFAULT_PARAMS));
+    }
+
+    @Test
+    public void testSupernodeSamplingTooHigh() {
+        SparkBulkLoader.main(ArrayUtils.addAll(
+                new String[]{"-local", "-ade", "0", "-c", getSamplingSupernodeTooHigh()}, DEFAULT_PARAMS));
+    }
+
+    @Test
+    public void testSupernodeSamplingTooLow() {
+        SparkBulkLoader.main(ArrayUtils.addAll(
+                new String[]{"-local", "-ade", "0", "-c", getSamplingSupernodeTooLow()}, DEFAULT_PARAMS));
     }
 
     @Test

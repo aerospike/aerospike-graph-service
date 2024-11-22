@@ -24,6 +24,9 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     static private final String GCS_FILESYSTEM = "src/test/resources/conf/packed/filesystem-gcs.properties";
     static private final String FAILING_CLIENT = "src/test/resources/conf/packed/failing-client.properties";
     static private final String DETACHED_EDGES = "src/test/resources/conf/packed/detached-edges.properties";
+    static private final String SAMPLE_SUPERNODE = "src/test/resources/conf/packed/config-sampling-supernodes.properties";
+    static private final String SAMPLE_SUPERNODE_TOO_HIGH = "src/test/resources/conf/packed/config-sampling-supernodes-too-high.properties";
+    static private final String SAMPLE_SUPERNODE_TOO_LOW = "src/test/resources/conf/packed/config-sampling-supernodes-too-low.properties";
     static private final String DATA_MODEL = "packed";
 
     @Test
@@ -109,5 +112,20 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     @Override
     protected String getHasBadEdges() {
         return DETACHED_EDGES;
+    }
+
+    @Override
+    protected String getSamplingSupernode() {
+        return SAMPLE_SUPERNODE;
+    }
+
+    @Override
+    protected String getSamplingSupernodeTooHigh() {
+        return SAMPLE_SUPERNODE_TOO_HIGH;
+    }
+
+    @Override
+    protected String getSamplingSupernodeTooLow() {
+        return SAMPLE_SUPERNODE_TOO_LOW;
     }
 }

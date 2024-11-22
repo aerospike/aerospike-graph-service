@@ -32,7 +32,8 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.supernodes = sparkBulkLoaderStateMachine.edgeOperations.extractSupernodes(
                 sparkBulkLoaderStateMachine.edgeDataset,
                 onRecordIdLimit,
-                sparkBulkLoaderStateMachine.incrementalLoad);
+                sparkBulkLoaderStateMachine.incrementalLoad,
+                sparkBulkLoaderStateMachine.supernodeSamplingPercentage);
         if (!sparkBulkLoaderStateMachine.readOnly) {
             LOGGER.info("Writing supernode list to Aerospike for recovery.");
             RecoveryUtil.writeSupernodeList(

@@ -36,7 +36,7 @@ public class TestSparkStateMachineRecovery {
     private final String FAIL_VERTEX_WRITE = "src/test/resources/conf/packed/config-recovery-fail-vertex-write.properties";
     private final String FAIL_VERTEX_VERIFY = "src/test/resources/conf/packed/config-recovery-fail-vertex-verify.properties";
     private final String FAIL_SUPERNODE = "src/test/resources/conf/packed/config-recovery-fail-supernodes.properties";
-    private final String SAMPLE_SUPERNODE = "src/test/resources/conf/packed/config-sampling-supernodes.properties";
+    private final String SAMPLE_SUPERNODE = "src/test/resources/conf/packed/config-sampling-supernodes-vertex-fail.properties";
 
     private Configuration getTestConfig() {
         return getConfig(Path.of(DEFAULT_CONFIG));

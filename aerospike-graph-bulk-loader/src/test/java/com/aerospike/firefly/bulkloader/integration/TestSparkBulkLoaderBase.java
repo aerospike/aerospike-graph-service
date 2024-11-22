@@ -429,14 +429,22 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testSupernodeSamplingTooHigh() {
+        try {
         SparkBulkLoader.main(ArrayUtils.addAll(
                 new String[]{"-local", "-ade", "0", "-c", getSamplingSupernodeTooHigh()}, DEFAULT_PARAMS));
+        } catch (IllegalArgumentException e) {
+            Assert.assertTrue(e.getMessage().contains("Configuration 'aerospike.graphloader.supernode.sampling-percentage' must be between 100 and 0.1 but was"));
+        }
     }
 
     @Test
     public void testSupernodeSamplingTooLow() {
-        SparkBulkLoader.main(ArrayUtils.addAll(
-                new String[]{"-local", "-ade", "0", "-c", getSamplingSupernodeTooLow()}, DEFAULT_PARAMS));
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(
+                    new String[]{"-local", "-ade", "0", "-c", getSamplingSupernodeTooLow()}, DEFAULT_PARAMS));
+        } catch (IllegalArgumentException e) {
+            Assert.assertTrue(e.getMessage().contains("Configuration 'aerospike.graphloader.supernode.sampling-percentage' must be between 100 and 0.1 but was"));
+        }
     }
 
     @Test

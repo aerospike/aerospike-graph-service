@@ -1,7 +1,6 @@
 package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
-import com.aerospike.firefly.process.traversal.step.computer.FireflyCompositeIdStepLocal;
 import com.aerospike.firefly.process.traversal.step.computer.PrecomputableComputerStep;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphFilterStrategy;
 import com.aerospike.firefly.process.traversal.strategy.verification.FireflyComputerVerificationStrategy;
@@ -49,7 +48,6 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-import org.apache.tinkerpop.gremlin.util.function.TriFunction;
 import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
@@ -65,7 +63,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

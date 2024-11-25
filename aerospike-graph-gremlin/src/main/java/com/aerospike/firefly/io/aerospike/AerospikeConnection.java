@@ -42,6 +42,7 @@ import com.aerospike.client.policy.TlsPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
@@ -72,6 +73,7 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.Serializable;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -79,6 +81,7 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -1640,11 +1643,11 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
-    public RecordSet query(final QueryPolicy policy, final Statement statement) {
+    public FireflyRecordSet query(final QueryPolicy policy, final Statement statement) {
         final QueryPolicy queryPolicy = policy == null ? new QueryPolicy() : policy;
         configureReadPolicy(queryPolicy);
         try {
-            return this.client.query(queryPolicy, statement);
+            return new FireflyRecordSet(this.client.query(queryPolicy, statement));
         } catch (final AerospikeException e) {
             throw fromAerospikeException(e);
         }
@@ -2302,11 +2305,11 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
-    public RecordSet queryPartitions(final QueryPolicy policy, final Statement statement, final PartitionFilter filter) {
+    public FireflyRecordSet queryPartitions(final QueryPolicy policy, final Statement statement, final PartitionFilter filter) {
         final QueryPolicy queryPolicy = policy == null ? new QueryPolicy() : policy;
         configureReadPolicy(queryPolicy);
         try {
-            return this.client.queryPartitions(queryPolicy, statement, filter);
+            return new FireflyRecordSet(this.client.queryPartitions(queryPolicy, statement, filter));
         } catch (final AerospikeException e) {
             throw fromAerospikeException(e);
         }
@@ -2435,6 +2438,64 @@ public class AerospikeConnection implements AutoCloseable {
             DefaultAerospikeClientProvider.INSTANCE.close();
         } catch (final Exception e) {
             LOG.error("Error closing Aerospike client", e);
+        }
+    }
+
+    public static class FireflyRecordSet implements Iterable<KeyRecord>, Closeable {
+        private final RecordSet recordSet;
+
+        private FireflyRecordSet(final RecordSet recordSet) {
+            this.recordSet = recordSet;
+        }
+
+        public boolean next() {
+            try {
+                return this.recordSet.next();
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        public void close() {
+            try {
+                this.recordSet.close();
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        public Iterator<KeyRecord> iterator() {
+            try {
+                return new FireflyKeyRecordIterator(this.recordSet.iterator());
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        private static class FireflyKeyRecordIterator implements Iterator<KeyRecord> {
+            private final Iterator<KeyRecord> recordSetIterator;
+
+            private FireflyKeyRecordIterator(final Iterator<KeyRecord> recordSetIterator) {
+                this.recordSetIterator = recordSetIterator;
+            }
+
+            @Override
+            public boolean hasNext() {
+                try {
+                    return this.recordSetIterator.hasNext();
+                } catch (final AerospikeException e) {
+                    throw fromAerospikeException(e);
+                }
+            }
+
+            @Override
+            public KeyRecord next() {
+                try {
+                    return this.recordSetIterator.next();
+                } catch (final AerospikeException e) {
+                    throw fromAerospikeException(e);
+                }
+            }
         }
     }
 

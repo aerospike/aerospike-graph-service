@@ -53,7 +53,7 @@ public class LegacyGraphQuery implements GraphQuery {
 
         return IteratorUtils.
                 stream(fireflyGraph.getBaseGraph().query(policy, statement))
-                .map( item -> transformKeyRecord.transform(item))
+                .map(item -> transformKeyRecord.transform(item))
                 .iterator();
     }
 

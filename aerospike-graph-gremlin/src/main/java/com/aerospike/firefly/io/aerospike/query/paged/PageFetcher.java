@@ -1,12 +1,13 @@
 package com.aerospike.firefly.io.aerospike.query.paged;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.SindexRecentlyDroppedException;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
@@ -127,6 +128,16 @@ public abstract class PageFetcher<E> {
         }
     }
 
+
+    public static class VertexPage extends Page {
+        public CloseableIterator<FireflyVertex> vertices;
+
+        public VertexPage(final CloseableIterator<FireflyVertex> vertices) {
+            super(CloseableIterator.EmptyCloseableIterator.instance());
+            this.vertices = vertices;
+        }
+    }
+
     public class PageIterator implements CloseableIterator<E> {
         private static final String NO_ERROR = "";
         private static final String INDEX_DROPPED = "INDEX_DROPPED";
@@ -210,18 +221,20 @@ public abstract class PageFetcher<E> {
                     } catch (final Exception e) {
                         LOG.warn("Updating Index metadata forcibly due to using a dropped index failed.", e);
                     }
-                    final StringBuilder sb = new StringBuilder();
-                    sb.append("This query is temporarily unavailable due to the index it utilizes");
+                    final String displayName;
                     if (indexName != null) {
-                        sb.append(", \"").append(indexName).append("\",");
+                        displayName = ", '" + indexName + "',";
+                    } else {
+                        displayName = "";
                     }
-                    sb.append(" being recently dropped. Please wait ");
-                    sb.append(graph.getBaseGraph().INDEX_METADATA_UPDATE_FREQUENCY / 1000);
-                    sb.append(" seconds and try again.");
-                    throw new RuntimeException(sb.toString());
+                    throw new SindexRecentlyDroppedException(displayName, graph.getBaseGraph().INDEX_METADATA_UPDATE_FREQUENCY / 1000);
                 }
                 if (!NO_ERROR.equals(errorMessage)) {
-                    throw new RuntimeException(errorMessage, error);
+                    if (error instanceof AerospikeGraphException) {
+                        throw (AerospikeGraphException) error;
+                    } else {
+                        throw new RuntimeException(errorMessage, error);
+                    }
                 }
                 return transformKeyRecord.transform(currentIterator.next());
             }

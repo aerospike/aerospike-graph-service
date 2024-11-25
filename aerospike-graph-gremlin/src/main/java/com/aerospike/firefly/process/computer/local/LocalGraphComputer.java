@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
+import com.aerospike.firefly.process.traversal.step.computer.PrecomputableComputerStep;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphFilterStrategy;
 import com.aerospike.firefly.process.traversal.strategy.verification.FireflyComputerVerificationStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -8,30 +9,56 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.computer.ComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.strategy.optimization.GraphFilterStrategy;
 import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
+import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.IndexedTraverserSet;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
+import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
+import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
+import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
@@ -42,6 +69,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -58,7 +90,7 @@ public class LocalGraphComputer implements GraphComputer {
     private final LocalMessageBoard messageBoard = new LocalMessageBoard();
     private boolean executed = false;
     private final Set<MapReduce> mapReducers = new HashSet<>();
-    private int workers = Runtime.getRuntime().availableProcessors();
+    private int workers = Runtime.getRuntime().availableProcessors() * 4;
     private final GraphFilter graphFilter = new GraphFilter();
 
     private final int previousPartitionSize;
@@ -132,9 +164,104 @@ public class LocalGraphComputer implements GraphComputer {
         return this;
     }
 
+    class ExecuteVertexProgram {
+        final LocalMessageBoard messageBoard;
+
+        // Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Pair<Long, List<Element>>
+        public ExecuteVertexProgram(final LocalMessageBoard messageBoard) {
+            this.messageBoard = messageBoard;
+        }
+
+        public Pair<Long, List<Element>> execute(Iterator<FireflyVertex> vertices,
+                                                 final VertexProgram vertexProgram,
+                                                 final LocalWorkerMemory workerMemory,
+                                                 final AtomicLong vertexCount) throws Exception {
+            final PureTraversal<?, ?> traversal = ((TraversalVertexProgram) vertexProgram).getTraversal().clone();
+            if (!traversal.get().isLocked())
+                traversal.get().applyStrategies();
+            final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.get());
+            long counter = 0;
+            vertexProgram.workerIterationStart(workerMemory.asImmutable());
+            Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = null;
+            try {
+                output = preComputeVertices(traversalMatrix, vertices, (TraversalVertexProgram) vertexProgram, workerMemory);
+                vertices = output.getLeft();
+                while (vertices.hasNext()) {
+                    final Vertex vertex = vertices.next();
+                    counter++;
+                    if (Thread.interrupted()) throw new TraversalInterruptedException();
+                    try {
+                        vertexProgram.execute(
+                                ComputerGraph.vertexProgram(vertex, vertexProgram),
+                                new LocalMessenger<>(vertex, messageBoard, vertexProgram.getMessageCombiner()),
+                                workerMemory);
+                    } catch (final Exception e) {
+                        LOG.error("Worker failed evaluating vertex {}", vertex.id(), e);
+                    }
+                }
+                vertexProgram.workerIterationEnd(workerMemory.asImmutable());
+                workerMemory.complete();
+                vertexCount.getAndAdd(counter);
+                List<Element> result = null;
+                if (output != null && output.getRight() != null) {
+                    result = (List<Element>) output.getRight().get();
+                }
+                final long finalCounter = counter;
+                final List<Element> finalResult = result;
+                return new Pair<>() {
+
+                    @Override
+                    public Long getLeft() {
+                        return finalCounter;
+                    }
+
+                    @Override
+                    public List<Element> getRight() {
+                        return finalResult;
+                    }
+
+                    @Override
+                    public List<Element> setValue(final List<Element> vertexList) {
+                        return List.of();
+                    }
+                };
+            } finally {
+                if (output != null && output.getRight() != null) {
+                    output.getRight().release();
+                }
+            }
+        }
+    }
+
+    private static List<HasContainer> getInitialHasContainers(final Traversal.Admin<?, ?> traversal) {
+        final List<HasContainer> hasContainers = new ArrayList<>();
+        if (traversal.getStartStep() instanceof GraphStep && ((GraphStep<Vertex, Vertex>) traversal.getStartStep()).returnsVertex()) {
+            if (Stream.of(((GraphStep) traversal.getStartStep()).getIds()).count() > 0)
+                hasContainers.add(new HasContainer(T.id.getAccessor(), P.eq(P.within(((GraphStep) traversal.getStartStep()).getIds()))));
+            for (Step<?, ?> currentStep = ((GraphStep) traversal.getStartStep()).getNextStep();
+                 currentStep instanceof HasStep || currentStep instanceof NoOpBarrierStep || currentStep instanceof ProfileStep;
+                 currentStep = currentStep.getNextStep()) {
+                if (currentStep instanceof HasStep) {
+                    if (((HasStep) currentStep).getHasContainers().stream().filter(it -> (((HasContainer) it).getKey() == null)).findAny().isPresent()) {
+                        for (HasContainer hasContainer : ((HasContainerHolder) currentStep).getHasContainers()) {
+                            hasContainers.add(hasContainer);
+                        }
+                    } else {
+                        for (final HasContainer hasContainer : ((HasContainerHolder) currentStep).getHasContainers().stream()
+                                .filter(h -> h.getKey().equals(T.id.getAccessor()) || h.getValue() instanceof Number || h.getValue() instanceof Number ||
+                                        (h.getPredicate().getPredicateName().equals(P.eq(1).getPredicateName()))).collect(Collectors.toList())) {
+                            hasContainers.add(hasContainer);
+                        }
+                    }
+                }
+            }
+        }
+        return hasContainers;
+    }
+
     @Override
     public Future<ComputerResult> submit() {
-        LOG.warn("GRAPH COMPUTER FILTER STRATEGY CONFIGURATION:\n" +
+        LOG.info("GRAPH COMPUTER FILTER STRATEGY CONFIGURATION:\n" +
                         "\tVertexProgram to execute: {}\n" +
                         "\tNumber of workers available: {}\n" +
                         "\tGraphComputer strategies applied: {}\n" +
@@ -170,6 +297,8 @@ public class LocalGraphComputer implements GraphComputer {
         // initialize the memory
         this.memory = new LocalMemory(this.vertexProgram, this.mapReducers);
         try {
+            final PureTraversal<?, ?> traversal = ((TraversalVertexProgram) vertexProgram).getTraversal().clone();
+            final List<HasContainer> initialHasContainers = getInitialHasContainers(traversal.get());
             final Future<ComputerResult> result = computerService.submit(() -> {
                 final long time = System.currentTimeMillis();
                 // create logical view over graph maintaining graph computer global state data
@@ -183,32 +312,18 @@ public class LocalGraphComputer implements GraphComputer {
                     if (null != this.vertexProgram) {
                         // execute the vertex program
                         this.vertexProgram.setup(this.memory);
+                        List<Element> previousResult = null;
                         while (true) {
                             vertexCount.set(0L);
                             if (Thread.interrupted()) throw new TraversalInterruptedException();
                             this.memory.completeSubRound();
                             workers.setVertexProgram(this.vertexProgram);
-                            workers.executeVertexProgram((vertices, vertexProgram, workerMemory) -> {
-                                long counter = 0;
-                                vertexProgram.workerIterationStart(workerMemory.asImmutable());
-                                while (vertices.hasNext()) {
-                                    final Vertex vertex = vertices.next();
-                                    counter++;
-                                    if (Thread.interrupted()) throw new TraversalInterruptedException();
-                                    try {
-                                        vertexProgram.execute(
-                                                ComputerGraph.vertexProgram(vertex, vertexProgram),
-                                                new LocalMessenger<>(vertex, this.messageBoard, vertexProgram.getMessageCombiner()),
-                                                workerMemory);
-                                    } catch (final Exception e) {
-                                        LOG.error("Worker failed evaluating vertex {}: {}", vertex.id(), e.getMessage());
-                                    }
-                                }
-                                vertexProgram.workerIterationEnd(workerMemory.asImmutable());
-                                workerMemory.complete();
-                                vertexCount.getAndAdd(counter);
-                                return counter;
-                            }, this.graphFilter);
+                            previousResult = workers.executeVertexProgram(
+                                    new ExecuteVertexProgram(this.messageBoard),
+                                    this.memory.isInitialIteration(),
+                                    previousResult,
+                                    this.graphFilter,
+                                    initialHasContainers);
                             this.messageBoard.completeIteration();
                             this.memory.completeSubRound();
                             if (this.vertexProgram.terminate(this.memory)) {
@@ -225,7 +340,7 @@ public class LocalGraphComputer implements GraphComputer {
                     final int mapPartitionSize = Math.max(
                             (vertexCount.get() > 0 ? ((int) Math.ceil((double) vertexCount.get() / (double) this.workers)) : this.previousPartitionSize),
                             ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, this.graph.configuration()));
-                    LOG.warn("MAPREDUCE STAGE PARTITION CONFIGURATION:\n\t" +
+                    LOG.info("MAPREDUCE STAGE PARTITION CONFIGURATION:\n\t" +
                             "Vertices in final vertex program iteration: {}\n\t" +
                             "Number of available workers: {}\n\t" +
                             "Computed partition size: {}", vertexCount.get(), this.workers, mapPartitionSize);
@@ -308,6 +423,170 @@ public class LocalGraphComputer implements GraphComputer {
         }
     }
 
+    private static void updatePrecompute(final FireflyVertex vertex,
+                                         final AtomicReference<PrecomputableComputerStep> precomputableComputerStep,
+                                         final TraversalMatrix<?, ?> traversalMatrix,
+                                         final Traverser.Admin<?> traverser) {
+        final Step<Object, Object> currentStep = traversalMatrix.getStepById(traverser.getStepId());
+        if (currentStep instanceof PrecomputableComputerStep) {
+            if (precomputableComputerStep.get() == null) {
+                precomputableComputerStep.set((PrecomputableComputerStep) currentStep);
+            }
+            precomputableComputerStep.get().add(traverser, vertex);
+        } else if (currentStep instanceof GraphStep || currentStep instanceof HasStep) {
+            Step<?, ?> nextStep = currentStep.getNextStep();
+            while (nextStep instanceof HasStep) {
+                nextStep = nextStep.getNextStep();
+            }
+            if (nextStep instanceof PrecomputableComputerStep) {
+                if (precomputableComputerStep.get() == null) {
+                    precomputableComputerStep.set((PrecomputableComputerStep) nextStep);
+                }
+                precomputableComputerStep.get().add(traverser, vertex);
+            }
+        } else if (currentStep instanceof TraversalParent) {
+            final TraversalParent traversalParent = (TraversalParent) currentStep;
+            final List<? extends Traversal.Admin<?, ?>> globalChildren = traversalParent.getGlobalChildren();
+            for (final Traversal.Admin<?, ?> globalChild : globalChildren) {
+                if (globalChild.getStartStep() instanceof PrecomputableComputerStep) {
+                    if (precomputableComputerStep.get() == null) {
+                        precomputableComputerStep.set((PrecomputableComputerStep) globalChild.getStartStep());
+                    }
+                    precomputableComputerStep.get().add(traverser, vertex);
+                } else {
+                    getPrecomputableComputerStep(vertex, precomputableComputerStep, traverser, globalChild);
+                }
+            }
+            final List<? extends Traversal.Admin<?, ?>> children = traversalParent.getLocalChildren();
+            for (final Traversal.Admin<?, ?> child : children) {
+                if (child.getStartStep() instanceof PrecomputableComputerStep) {
+                    if (precomputableComputerStep.get() == null) {
+                        precomputableComputerStep.set((PrecomputableComputerStep) child.getStartStep());
+                    }
+                    precomputableComputerStep.get().add(traverser, vertex);
+                }
+                getPrecomputableComputerStep(vertex, precomputableComputerStep, traverser, child);
+            }
+        }
+    }
+
+    private static void getPrecomputableComputerStep(final FireflyVertex vertex,
+                                                     final AtomicReference<PrecomputableComputerStep> precomputableComputerStep,
+                                                     final Traverser.Admin<?> traverser,
+                                                     final Traversal.Admin<?, ?> child) {
+        if (child.getStartStep() instanceof HasStep) {
+            final HasStep hasStep = (HasStep) child.getStartStep();
+            if (hasStep.getNextStep() instanceof PrecomputableComputerStep) {
+                if (HasContainer.testAll(vertex, hasStep.getHasContainers())) {
+                    if (precomputableComputerStep.get() == null) {
+                        precomputableComputerStep.set((PrecomputableComputerStep) hasStep.getNextStep());
+                    }
+                    precomputableComputerStep.get().add(traverser, vertex);
+                }
+            }
+        }
+    }
+
+    private Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> preComputeVertices(final TraversalMatrix<?, ?> traversalMatrix,
+                                                                                        final Iterator<FireflyVertex> vertices,
+                                                                                        final TraversalVertexProgram vertexProgram,
+                                                                                        final LocalWorkerMemory memory) {
+        final List<FireflyVertex> outputVertices = new ArrayList<>();
+        final AtomicReference<PrecomputableComputerStep> precomputableComputerStep = new AtomicReference<>(null);
+        if (memory.isInitialIteration()) {
+            while (vertices.hasNext()) {
+                final FireflyVertex vertex = vertices.next();
+                outputVertices.add(vertex);
+                final TraverserSet<Object> activeTraversers = new TraverserSet<>();
+                final VertexProperty<TraverserSet<Object>> property = vertex.property(HALTED_TRAVERSERS);
+                final TraverserSet<Object> haltedTraversers;
+                if (property.isPresent()) {
+                    haltedTraversers = property.value();
+                } else {
+                    haltedTraversers = new TraverserSet<>();
+                }
+                haltedTraversers.stream().iterator().forEachRemaining(activeTraversers::add);
+                if (vertexProgram.getTraversal().get().getStartStep() instanceof GraphStep) {
+                    final GraphStep<Element, Element> graphStep = (GraphStep<Element, Element>) vertexProgram.getTraversal().get().getStartStep();
+                    graphStep.reset();
+                    activeTraversers.forEach(traverser -> graphStep.addStart((Traverser.Admin) traverser));
+                    activeTraversers.clear();
+                    if (graphStep.returnsVertex())
+                        graphStep.setIteratorSupplier(() -> ElementHelper.idExists(vertex.id(), graphStep.getIds()) ? (Iterator) IteratorUtils.of(vertex) : EmptyIterator.instance());
+                    else
+                        graphStep.setIteratorSupplier(() -> (Iterator) IteratorUtils.filter(vertex.edges(Direction.OUT), edge -> ElementHelper.idExists(edge.id(), graphStep.getIds())));
+                    graphStep.forEachRemaining(traverser -> {
+                        if (!traverser.isHalted()) {
+                            activeTraversers.add((Traverser.Admin) traverser);
+                        }
+                    });
+                }
+
+                activeTraversers.forEach(traverser ->
+                        updatePrecompute(vertex, precomputableComputerStep, traversalMatrix, traverser));
+            }
+        } else {
+            final IndexedTraverserSet<Object, Vertex> maybeActiveTraversers = memory.get(TraversalVertexProgram.ACTIVE_TRAVERSERS);
+            while (vertices.hasNext()) {
+                Vertex v = vertices.next();
+                if (v instanceof ComputerGraph.ComputerVertex)
+                    v = ((ComputerGraph.ComputerVertex) v).getBaseVertex();
+                final FireflyVertex vertex = (FireflyVertex) v;
+                outputVertices.add(vertex);
+                synchronized (maybeActiveTraversers) {
+                    if (!maybeActiveTraversers.isEmpty()) {
+                        final Collection<Traverser.Admin<Object>> traversers = maybeActiveTraversers.get(vertex);
+                        if (traversers == null) {
+                            continue;
+                        }
+                        traversers.forEach(traverser -> updatePrecompute(vertex, precomputableComputerStep, traversalMatrix, traverser));
+                    }
+
+                    vertex.<TraverserSet<Object>>property(TraversalVertexProgram.ACTIVE_TRAVERSERS).ifPresent(previousActiveTraversers -> {
+                        previousActiveTraversers.forEach(traverser -> {
+                            updatePrecompute(vertex, precomputableComputerStep, traversalMatrix, traverser);
+                        });
+                    });
+
+                    final LocalMessenger<TraverserSet<Object>> messenger = new LocalMessenger<TraverserSet<Object>>(
+                            vertex, this.messageBoard, vertexProgram.getMessageCombiner());
+                    final Iterator<TraverserSet<Object>> messages = messenger.receiveMessages();
+                    while (messages.hasNext()) {
+                        final TraverserSet<Object> traversers = messages.next();
+                        traversers.forEach(traverser -> {
+                            if (!traverser.isHalted()) {
+                                updatePrecompute(vertex, precomputableComputerStep, traversalMatrix, traverser);
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+        if (precomputableComputerStep.get() != null) {
+            precomputableComputerStep.get().precompute();
+        }
+
+        return new Pair<>() {
+            final PrecomputableComputerStep pccs = precomputableComputerStep.get();
+
+            @Override
+            public Iterator<FireflyVertex> getLeft() {
+                return outputVertices.iterator();
+            }
+
+            @Override
+            public PrecomputableComputerStep getRight() {
+                return pccs;
+            }
+
+            @Override
+            public PrecomputableComputerStep setValue(final PrecomputableComputerStep value) {
+                return null;
+            }
+        };
+    }
+
     @Override
     public String toString() {
         return StringFactory.graphComputerString(this);
@@ -352,7 +631,8 @@ public class LocalGraphComputer implements GraphComputer {
 
             @Override
             public int getMaxWorkers() {
-                return Runtime.getRuntime().availableProcessors();
+                // TODO GRAPH-1382 - We should have this configurable and maybe do something better.
+                return Runtime.getRuntime().availableProcessors() * 4;
             }
 
             @Override

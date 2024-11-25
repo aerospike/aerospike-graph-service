@@ -72,6 +72,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -83,6 +85,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -112,6 +115,7 @@ public class AerospikeConnection implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
     private final IAerospikeClient client;
     private final EventLoops eventLoops;
+    Random random = new Random();
 
     static {
         Value.UseBoolBin = true;
@@ -1587,51 +1591,92 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public Record[] dynamicBatchRead(final Key[] keys, final Expression filterExp, final FireflyCache cache, final Operation... operations) {
+        boolean measure = random.nextInt(1000) == 1;
         if (keys.length > this.AEROSPIKE_BATCH_THRESHOLD) {
             // Default batch read used by read.
-            final BatchPolicy batchReadPolicy = new BatchPolicy();
-            batchReadPolicy.filterExp = filterExp;
-            return operations.length == 0 ? this.batchRead(keys, batchReadPolicy, cache) :
-                    this.batchRead(keys, batchReadPolicy, operations, cache);
+            if (measure) {
+                Instant start = Instant.now();
+                final BatchPolicy batchReadPolicy = new BatchPolicy();
+                batchReadPolicy.filterExp = filterExp;
+                Record [] data = operations.length == 0 ? this.batchRead(keys, batchReadPolicy, cache) :
+                        this.batchRead(keys, batchReadPolicy, operations, cache);
+                System.out.println("Batch read time: " + Duration.between(start, Instant.now()).toMillis());
+                return data;
+            } else {
+                final BatchPolicy batchReadPolicy = new BatchPolicy();
+                batchReadPolicy.filterExp = filterExp;
+                return operations.length == 0 ? this.batchRead(keys, batchReadPolicy, cache) :
+                        this.batchRead(keys, batchReadPolicy, operations, cache);
+            }
+
         } else {
-            final ExecutorService executor = Executors.newFixedThreadPool(keys.length);
-            final WritePolicy policy = new WritePolicy();
-            policy.filterExp = filterExp;
-            final List<Future<Record>> futures = new ArrayList<>();
-            for (final Key key : keys) {
-                futures.add(CompletableFuture.supplyAsync(() -> {
-                    if (operations.length == 0) {
-                        return this.read(key, policy);
-                    } else {
-                        return this.read(key, policy, operations);
-                    }
-                }));
-            }
-
-            final Record[] results = new Record[keys.length];
-            for (int i = 0; i < keys.length; i++) {
-                try {
-                    results[i] = futures.get(i).get();
-                } catch (final InterruptedException e) {
-                    // Should only happen if we are interrupted by TinkerPop.
-                    LOG.error("Error: Exception in read {}", e.getMessage());
-                    throw new TraversalInterruptedException();
-                } catch (final ExecutionException e) {
-                    // Should never happen.
-                    LOG.error("Error: Exception in read {}", e.getMessage());
-                    throw new RuntimeException(e);
+            if (measure) {
+                Instant start = Instant.now();
+                final WritePolicy policy = new WritePolicy();
+                policy.filterExp = filterExp;
+                final List<Future<Record>> futures = new ArrayList<>();
+                for (final Key key : keys) {
+                    futures.add(CompletableFuture.supplyAsync(() -> {
+                        if (operations.length == 0) {
+                            return this.read(key, policy);
+                        } else {
+                            return this.read(key, policy, operations);
+                        }
+                    }));
                 }
-            }
-            try {
-                executor.shutdown();
-                executor.awaitTermination(1, TimeUnit.SECONDS);
-            } catch (final InterruptedException e) {
-                // Should never happen since futures are complete at this point.
-                LOG.error("Error: Exception in read {}", e.getMessage());
-                throw new TraversalInterruptedException();
-            }
+                Instant futuresCreated = Instant.now();
 
-            return results;
+                final Record[] results = new Record[keys.length];
+                for (int i = 0; i < keys.length; i++) {
+                    try {
+                        results[i] = futures.get(i).get();
+                    } catch (final InterruptedException e) {
+                        // Should only happen if we are interrupted by TinkerPop.
+                        LOG.error("Error: Exception in read {}", e.getMessage());
+                        throw new TraversalInterruptedException();
+                    } catch (final ExecutionException e) {
+                        // Should never happen.
+                        LOG.error("Error: Exception in read {}", e.getMessage());
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                System.out.println("future creation time: " + Duration.between(start, futuresCreated).toMillis());
+                System.out.println("Wait for complete time: " + Duration.between(futuresCreated, Instant.now()).toMillis());
+                System.out.println("Total single read time: " + Duration.between(start, Instant.now()).toMillis());
+                return results;
+            } else {
+
+                final WritePolicy policy = new WritePolicy();
+                policy.filterExp = filterExp;
+                final List<Future<Record>> futures = new ArrayList<>();
+                for (final Key key : keys) {
+                    futures.add(CompletableFuture.supplyAsync(() -> {
+                        if (operations.length == 0) {
+                            return this.read(key, policy);
+                        } else {
+                            return this.read(key, policy, operations);
+                        }
+                    }));
+                }
+                Instant futuresCreated = Instant.now();
+
+                final Record[] results = new Record[keys.length];
+                for (int i = 0; i < keys.length; i++) {
+                    try {
+                        results[i] = futures.get(i).get();
+                    } catch (final InterruptedException e) {
+                        // Should only happen if we are interrupted by TinkerPop.
+                        LOG.error("Error: Exception in read {}", e.getMessage());
+                        throw new TraversalInterruptedException();
+                    } catch (final ExecutionException e) {
+                        // Should never happen.
+                        LOG.error("Error: Exception in read {}", e.getMessage());
+                        throw new RuntimeException(e);
+                    }
+                }
+                return results;
+            }
         }
     }
 

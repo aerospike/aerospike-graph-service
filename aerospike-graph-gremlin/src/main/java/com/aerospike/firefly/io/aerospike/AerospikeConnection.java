@@ -116,6 +116,7 @@ public class AerospikeConnection implements AutoCloseable {
     private final IAerospikeClient client;
     private final EventLoops eventLoops;
     Random random = new Random();
+    private final ExecutorService backgroundExecutor;
 
     static {
         Value.UseBoolBin = true;
@@ -585,6 +586,8 @@ public class AerospikeConnection implements AutoCloseable {
         }
         LOG.info("{} configured to {}.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, onRecordIdLimit);
         ON_RECORD_ID_LIMIT = onRecordIdLimit;
+
+        backgroundExecutor = Executors.newFixedThreadPool(FireflyGraph.getGremlinServerSettings().gremlinPool * AEROSPIKE_BATCH_THRESHOLD);
     }
 
     private long getRecordIdLimitFromAerospike(final double fillPercentage) {
@@ -1612,7 +1615,7 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public Record[] dynamicBatchRead(final Key[] keys, final Expression filterExp, final FireflyCache cache, final Operation... operations) {
-        boolean measure = random.nextInt(1000) == 1;
+        boolean measure = random.nextInt(3000) == 1;
         if (keys.length > this.AEROSPIKE_BATCH_THRESHOLD) {
             // Default batch read used by read.
             if (measure) {
@@ -1644,7 +1647,7 @@ public class AerospikeConnection implements AutoCloseable {
                         } else {
                             return this.read(key, policy, operations, cache2);
                         }
-                    }));
+                    }, backgroundExecutor));
                 }
                 Instant futuresCreated = Instant.now();
 
@@ -1679,7 +1682,7 @@ public class AerospikeConnection implements AutoCloseable {
                         } else {
                             return this.read(key, policy, operations, cache2);
                         }
-                    }));
+                    }, backgroundExecutor));
                 }
 
                 final Record[] results = new Record[keys.length];

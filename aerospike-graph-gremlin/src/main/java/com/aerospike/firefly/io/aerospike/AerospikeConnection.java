@@ -116,7 +116,7 @@ public class AerospikeConnection implements AutoCloseable {
     private final IAerospikeClient client;
     private final EventLoops eventLoops;
     Random random = new Random();
-    private final ExecutorService backgroundExecutor;
+    private final ExecutorService threadedReadExecutor;
 
     static {
         Value.UseBoolBin = true;
@@ -391,7 +391,8 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public AerospikeConnection(final Configuration conf,
                                final AerospikeClient client,
-                               final EventLoops eventLoops) {
+                               final EventLoops eventLoops,
+                               final ExecutorService threadedReadExecutor) {
         LOG.info("Initializing AerospikeConnection.");
         LOG.debug("CONFIGURATION:");
         conf.getKeys().forEachRemaining(key -> {
@@ -408,6 +409,7 @@ public class AerospikeConnection implements AutoCloseable {
         this.namespace = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf);
         this.eventLoops = eventLoops;
         this.client = client;
+        this.threadedReadExecutor = threadedReadExecutor;
 
         // Verify that the namespace is not using a default-ttl.
         if (InfoOps.getIsAerospikeTTLEnabled(client, namespace)) {
@@ -586,8 +588,6 @@ public class AerospikeConnection implements AutoCloseable {
         }
         LOG.info("{} configured to {}.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, onRecordIdLimit);
         ON_RECORD_ID_LIMIT = onRecordIdLimit;
-
-        backgroundExecutor = Executors.newFixedThreadPool(FireflyGraph.getGremlinServerSettings().gremlinPool * AEROSPIKE_BATCH_THRESHOLD);
     }
 
     private long getRecordIdLimitFromAerospike(final double fillPercentage) {
@@ -607,8 +607,9 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public static AerospikeConnection connect(final Configuration conf,
                                               final AerospikeClient client,
-                                              final EventLoops eventLoops) {
-        return new AerospikeConnection(conf, client, eventLoops);
+                                              final EventLoops eventLoops,
+                                              final ExecutorService threadedReadExecutor) {
+        return new AerospikeConnection(conf, client, eventLoops, threadedReadExecutor);
     }
 
 
@@ -620,7 +621,7 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public static AerospikeConnection connect(final Configuration conf) {
         final AerospikeClientProvider provider = DefaultAerospikeClientProvider.connect(conf);
-        return connect(conf, provider.getAerospikeClient(conf), provider.getEventLoops(conf));
+        return connect(conf, provider.getAerospikeClient(conf), provider.getEventLoops(conf), provider.getThreadedExecutorService(conf));
     }
 
 
@@ -1615,92 +1616,41 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public Record[] dynamicBatchRead(final Key[] keys, final Expression filterExp, final FireflyCache cache, final Operation... operations) {
-        boolean measure = random.nextInt(3000) == 1;
         if (keys.length > this.AEROSPIKE_BATCH_THRESHOLD) {
             // Default batch read used by read.
-            if (measure) {
-                Instant start = Instant.now();
-                final BatchPolicy batchReadPolicy = new BatchPolicy();
-                batchReadPolicy.filterExp = filterExp;
-                Record [] data = operations.length == 0 ? this.batchRead(keys, batchReadPolicy, cache) :
-                        this.batchRead(keys, batchReadPolicy, operations, cache);
-                System.out.println("Batch read time: " + Duration.between(start, Instant.now()).toMillis());
-                return data;
-            } else {
-                final BatchPolicy batchReadPolicy = new BatchPolicy();
-                batchReadPolicy.filterExp = filterExp;
-                return operations.length == 0 ? this.batchRead(keys, batchReadPolicy, cache) :
-                        this.batchRead(keys, batchReadPolicy, operations, cache);
-            }
-
+            final BatchPolicy batchReadPolicy = new BatchPolicy();
+            batchReadPolicy.filterExp = filterExp;
+            return operations.length == 0 ? this.batchRead(keys, batchReadPolicy, cache) :
+                    this.batchRead(keys, batchReadPolicy, operations, cache);
         } else {
-            if (measure) {
-                Instant start = Instant.now();
-                final WritePolicy policy = new WritePolicy();
-                policy.filterExp = filterExp;
-                final List<Future<Record>> futures = new ArrayList<>();
-                final FireflyCache cache2 = transactionCache.get();
-                for (final Key key : keys) {
-                    futures.add(CompletableFuture.supplyAsync(() -> {
-                        if (operations.length == 0) {
-                            return this.read(key, policy, cache2);
-                        } else {
-                            return this.read(key, policy, operations, cache2);
-                        }
-                    }, backgroundExecutor));
-                }
-                Instant futuresCreated = Instant.now();
-
-                final Record[] results = new Record[keys.length];
-                for (int i = 0; i < keys.length; i++) {
-                    try {
-                        results[i] = futures.get(i).get();
-                    } catch (final InterruptedException e) {
-                        // Should only happen if we are interrupted by TinkerPop.
-                        LOG.error("Error: Exception in read {}", e.getMessage());
-                        throw new TraversalInterruptedException();
-                    } catch (final ExecutionException e) {
-                        // Should never happen.
-                        LOG.error("Error: Exception in read {}", e.getMessage());
-                        throw new RuntimeException(e);
+            final WritePolicy policy = new WritePolicy();
+            policy.filterExp = filterExp;
+            final List<Future<Record>> futures = new ArrayList<>();
+            for (final Key key : keys) {
+                futures.add(CompletableFuture.supplyAsync(() -> {
+                    if (operations.length == 0) {
+                        return this.read(key, policy, cache);
+                    } else {
+                        return this.read(key, policy, operations, cache);
                     }
-                }
-
-                System.out.println("future creation time: " + Duration.between(start, futuresCreated).toMillis());
-                System.out.println("Wait for complete time: " + Duration.between(futuresCreated, Instant.now()).toMillis());
-                System.out.println("Total single read time: " + Duration.between(start, Instant.now()).toMillis());
-                return results;
-            } else {
-                final WritePolicy policy = new WritePolicy();
-                policy.filterExp = filterExp;
-                final List<Future<Record>> futures = new ArrayList<>();
-                final FireflyCache cache2 = transactionCache.get();
-                for (final Key key : keys) {
-                    futures.add(CompletableFuture.supplyAsync(() -> {
-                        if (operations.length == 0) {
-                            return this.read(key, policy, cache2);
-                        } else {
-                            return this.read(key, policy, operations, cache2);
-                        }
-                    }, backgroundExecutor));
-                }
-
-                final Record[] results = new Record[keys.length];
-                for (int i = 0; i < keys.length; i++) {
-                    try {
-                        results[i] = futures.get(i).get();
-                    } catch (final InterruptedException e) {
-                        // Should only happen if we are interrupted by TinkerPop.
-                        LOG.error("Error: Exception in read {}", e.getMessage());
-                        throw new TraversalInterruptedException();
-                    } catch (final ExecutionException e) {
-                        // Should never happen.
-                        LOG.error("Error: Exception in read {}", e.getMessage());
-                        throw new RuntimeException(e);
-                    }
-                }
-                return results;
+                }, threadedReadExecutor));
             }
+
+            final Record[] results = new Record[keys.length];
+            for (int i = 0; i < keys.length; i++) {
+                try {
+                    results[i] = futures.get(i).get();
+                } catch (final InterruptedException e) {
+                    // Should only happen if we are interrupted by TinkerPop.
+                    LOG.error("Error: Exception in read {}", e.getMessage());
+                    throw new TraversalInterruptedException();
+                } catch (final ExecutionException e) {
+                    // Should never happen.
+                    LOG.error("Error: Exception in read {}", e.getMessage());
+                    throw new RuntimeException(e);
+                }
+            }
+            return results;
         }
     }
 
@@ -2503,6 +2453,7 @@ public class AerospikeConnection implements AutoCloseable {
         public static final AtomicLong OPEN_COUNT = new AtomicLong(0);
         public static AerospikeClient CLIENT;
         public static EventLoops EVENT_LOOPS;
+        public static ExecutorService THREADED_EXECUTOR_SERVICE;
 
         public static final DefaultAerospikeClientProvider INSTANCE = new DefaultAerospikeClientProvider();
 
@@ -2527,6 +2478,8 @@ public class AerospikeConnection implements AutoCloseable {
                     final int threadPoolSize = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());
                     final ClientPolicy clientPolicy = setupClientPolicy(conf, threadPoolSize, EVENT_LOOPS);
                     CLIENT = setupDefaultClient(conf, clientPolicy);
+                    final int threadCount = threadPoolSize * ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, conf);
+                    THREADED_EXECUTOR_SERVICE = Executors.newFixedThreadPool(threadCount); // > 0 ? threadCount : 4);
                 }
                 OPEN_COUNT.incrementAndGet();
                 return INSTANCE;
@@ -2540,6 +2493,16 @@ public class AerospikeConnection implements AutoCloseable {
                     throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
                 }
                 return CLIENT;
+            }
+        }
+
+        @Override
+        public ExecutorService getThreadedExecutorService(final Configuration conf) {
+            synchronized (DefaultAerospikeClientProvider.class) {
+                if (OPEN_COUNT.get() <= 0 || CLIENT == null || !CLIENT.isConnected()) {
+                    throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
+                }
+                return THREADED_EXECUTOR_SERVICE;
             }
         }
 
@@ -2559,6 +2522,10 @@ public class AerospikeConnection implements AutoCloseable {
                 if (OPEN_COUNT.decrementAndGet() == 0) {
                     CLIENT.close();
                     EVENT_LOOPS.close();
+                    THREADED_EXECUTOR_SERVICE.shutdown();
+                    if (!THREADED_EXECUTOR_SERVICE.awaitTermination(1, TimeUnit.SECONDS)) {
+                        THREADED_EXECUTOR_SERVICE.shutdownNow();
+                    }
                 }
                 if (OPEN_COUNT.get() < 0) {
                     OPEN_COUNT.set(0);

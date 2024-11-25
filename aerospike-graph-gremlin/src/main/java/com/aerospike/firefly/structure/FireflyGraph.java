@@ -377,7 +377,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } catch (final Exception e) {
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");
             LOG.error("========== Aerospike Graph Service failing to start is usually a result of an incorrect configuration.");
-            LOG.error("========== See Error message for more details: {}", e.getMessage());
+            if (e.getMessage() != null) {
+                LOG.error("========== See Error message for more details: {}", e.getMessage());
+            } else {
+                LOG.error("========== Error did not contain message, please submit this stack trace to support: {}", e);
+            }
 
             // Signal to gremlin-server to shut down.
             EXIT_MANAGER.exit(1);

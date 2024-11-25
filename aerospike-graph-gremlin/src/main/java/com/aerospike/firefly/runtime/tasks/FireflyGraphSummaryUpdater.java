@@ -377,8 +377,8 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
     public FireflyElementMetadata getFireflyStatistics() {
         // Grab vertex metadata.
-        final Record vertexLabelSummaryRecord = db.read(V_SUMMARY_KEY, null);
-        final Record vertexPropertySummaryRecord = db.read(VP_SUMMARY_KEY, null);
+        final Record vertexLabelSummaryRecord = db.read(V_SUMMARY_KEY, null, null);
+        final Record vertexPropertySummaryRecord = db.read(VP_SUMMARY_KEY, null, null);
         final Map<String, FireflyPropertiesAndCount> vertexMetadata = new HashMap<>();
         if (vertexLabelSummaryRecord != null && vertexLabelSummaryRecord.bins.containsKey(SUMMARY_LABEL_BIN)) {
             final Map<String, Long> vertexCountByLabel = (Map<String, Long>) vertexLabelSummaryRecord.bins.get(SUMMARY_LABEL_BIN);
@@ -405,8 +405,8 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         }
 
         // Grab edge metadata.
-        final Record edgeLabelSummaryRecord = db.read(E_SUMMARY_KEY, null);
-        final Record edgePropertySummaryRecord = db.read(EP_SUMMARY_KEY, null);
+        final Record edgeLabelSummaryRecord = db.read(E_SUMMARY_KEY, null, null);
+        final Record edgePropertySummaryRecord = db.read(EP_SUMMARY_KEY, null, null);
         final Map<String, FireflyPropertiesAndCount> edgeMetadata = new HashMap<>();
         if (edgeLabelSummaryRecord != null && edgeLabelSummaryRecord.bins.containsKey(SUMMARY_LABEL_BIN)) {
             final Map<String, Long> edgeCountByLabel = (Map<String, Long>) edgeLabelSummaryRecord.bins.get(SUMMARY_LABEL_BIN);

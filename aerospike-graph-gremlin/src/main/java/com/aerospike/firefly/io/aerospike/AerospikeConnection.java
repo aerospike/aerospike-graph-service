@@ -1421,6 +1421,17 @@ public class AerospikeConnection implements AutoCloseable {
      * @param policy Aerospike Policy to use
      * @return Aerospike Record
      */
+    public Record read(final Key key, final Policy policy) {
+        return read(key, policy, null);
+    }
+
+    /**
+     * Perform an Aerospike read by Key
+     *
+     * @param key    Aerospike Key to read
+     * @param policy Aerospike Policy to use
+     * @return Aerospike Record
+     */
     public Record read(final Key key, final Policy policy, final FireflyCache cache) {
         final Policy readPolicy;
         if (policy == null) {
@@ -1435,6 +1446,18 @@ public class AerospikeConnection implements AutoCloseable {
             LOG.error("Error: AerospikeException in read {}", e.getMessage());
             throw fromAerospikeException(e);
         }
+    }
+
+    /**
+     * Perform an Aerospike read by Key
+     *
+     * @param key           Aerospike Key to read
+     * @param policy        Aerospike WritePolicy to use
+     * @param operations    Read operations
+     * @return Aerospike Record
+     */
+    public Record read(final Key key, final WritePolicy policy, final Operation[] operations) {
+        return read(key, policy, operations, null);
     }
 
     /**

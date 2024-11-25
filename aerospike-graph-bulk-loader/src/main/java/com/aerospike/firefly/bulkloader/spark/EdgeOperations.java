@@ -472,7 +472,7 @@ public class EdgeOperations implements Serializable {
         return localSupernodes;
     }
 
-    public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset, final long onRecordIdLimit, final boolean incremental) {
+    public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset, final long onRecordIdLimit, final boolean incremental, final double supernodeSamplingPercentage) {
         final Configuration fireflyConfig = this.config.getFireflyConfig();
         // If the global edge cache flag is off, then all vertices written have their edge caches disabled upon
         // creation. No need to find and disable them.
@@ -483,7 +483,6 @@ public class EdgeOperations implements Serializable {
                     .setJobGroup(taskName, "Compute Supernodes RDD operation", true);
             LOGGER.info("Supernode extraction starting...");
             // Csv format is: ~id, ~from, ~to, ...
-            final double supernodeSamplingPercentage = DatasetOperations.getSupernodeSamplingPercentage(this.config);
             supernodes.addAll(extractSupernodesDirection(edgeDataset, Direction.IN, onRecordIdLimit, supernodeSamplingPercentage, incremental));
             supernodes.addAll(extractSupernodesDirection(edgeDataset, Direction.OUT, onRecordIdLimit, supernodeSamplingPercentage, incremental));
             LOGGER.info("Final supernodes set: " + supernodes);

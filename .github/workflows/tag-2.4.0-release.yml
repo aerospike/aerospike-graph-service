@@ -5,7 +5,7 @@ name: Publish Aerospike Graph Container to Dockerhub and GCR
 # and https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#release
 on:
   push:
-    branches: [2.4.0-rc]
+    branches: [main]
 
 env:
   GITHUB_REPOSITORY_NAME: citrusleaf
@@ -73,7 +73,7 @@ jobs:
           gcloud auth configure-docker -q
           
           VERSION=2.4.0
-          GITHUB_IMAGE=ghcr.io/citrusleaf/firefly:2.4.0-rc4
+          GITHUB_IMAGE=ghcr.io/citrusleaf/firefly:2.4.1-rc4
           GCLOUD_IMAGE_BASE=$GCLOUD_REPOSITORY_NAME/$GCLOUD_IMAGE_NAME
           GCLOUD_OUTPUT_IMAGE=$GCLOUD_IMAGE_BASE:$VERSION
           GCLOUD_OUTPUT_IMAGE=$(echo $GCLOUD_OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')

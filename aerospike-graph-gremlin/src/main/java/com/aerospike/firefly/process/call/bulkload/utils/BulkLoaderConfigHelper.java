@@ -113,7 +113,7 @@ public class BulkLoaderConfigHelper implements Serializable {
         put(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, "false");
         put(PROVIDED_EDGE_ID_PROPERTY_NAME, "~providedId");
         put(SAMPLING_PERCENTAGE, "0");
-        put(SUPERNODE_SAMPLING_PERCENTAGE, "0");
+        put(SUPERNODE_SAMPLING_PERCENTAGE, "100");
         put(ENABLE_DATAFRAME_CACHING, "false");
         put(DATAFRAME_STORAGE_TYPE, "disk_only");
         put(SPARK_LOG_LEVEL, "INFO");

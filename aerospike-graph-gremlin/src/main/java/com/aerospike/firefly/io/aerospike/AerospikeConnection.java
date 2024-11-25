@@ -671,7 +671,7 @@ public class AerospikeConnection implements AutoCloseable {
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
         final Policy policy = new Policy();
         policy.sendKey = false;
-        Record dataModelRec = read(k, policy);
+        Record dataModelRec = read(k, policy, null);
         return new GraphMetadata(dataModelRec);
     }
 
@@ -1421,7 +1421,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param policy Aerospike Policy to use
      * @return Aerospike Record
      */
-    public Record read(final Key key, final Policy policy) {
+    public Record read(final Key key, final Policy policy, final FireflyCache cache) {
         final Policy readPolicy;
         if (policy == null) {
             readPolicy = new Policy();
@@ -1429,7 +1429,6 @@ public class AerospikeConnection implements AutoCloseable {
             readPolicy = policy;
         }
         configureReadPolicy(readPolicy);
-        final FireflyCache cache = transactionCache.get();
         try {
             return (cache != null) ? cache.read(readPolicy, key) : client.get(readPolicy, key);
         } catch (final AerospikeException e) {
@@ -1446,7 +1445,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param operations    Read operations
      * @return Aerospike Record
      */
-    public Record read(final Key key, final WritePolicy policy, final Operation[] operations) {
+    public Record read(final Key key, final WritePolicy policy, final Operation[] operations, final FireflyCache cache) {
         final WritePolicy writePolicy;
         if (policy == null) {
             writePolicy = new WritePolicy();
@@ -1455,7 +1454,6 @@ public class AerospikeConnection implements AutoCloseable {
         }
         // Operations require a WritePolicy but we only use this function to read.
         configureReadPolicy(writePolicy);
-        final FireflyCache cache = transactionCache.get();
         try {
             return (cache != null) ? cache.read(writePolicy, key, operations) : client.operate(writePolicy, key, operations);
         } catch (final AerospikeException e) {
@@ -1615,12 +1613,13 @@ public class AerospikeConnection implements AutoCloseable {
                 final WritePolicy policy = new WritePolicy();
                 policy.filterExp = filterExp;
                 final List<Future<Record>> futures = new ArrayList<>();
+                final FireflyCache cache2 = transactionCache.get();
                 for (final Key key : keys) {
                     futures.add(CompletableFuture.supplyAsync(() -> {
                         if (operations.length == 0) {
-                            return this.read(key, policy);
+                            return this.read(key, policy, cache2);
                         } else {
-                            return this.read(key, policy, operations);
+                            return this.read(key, policy, operations, cache2);
                         }
                     }));
                 }
@@ -1646,20 +1645,19 @@ public class AerospikeConnection implements AutoCloseable {
                 System.out.println("Total single read time: " + Duration.between(start, Instant.now()).toMillis());
                 return results;
             } else {
-
                 final WritePolicy policy = new WritePolicy();
                 policy.filterExp = filterExp;
                 final List<Future<Record>> futures = new ArrayList<>();
+                final FireflyCache cache2 = transactionCache.get();
                 for (final Key key : keys) {
                     futures.add(CompletableFuture.supplyAsync(() -> {
                         if (operations.length == 0) {
-                            return this.read(key, policy);
+                            return this.read(key, policy, cache2);
                         } else {
-                            return this.read(key, policy, operations);
+                            return this.read(key, policy, operations, cache2);
                         }
                     }));
                 }
-                Instant futuresCreated = Instant.now();
 
                 final Record[] results = new Record[keys.length];
                 for (int i = 0; i < keys.length; i++) {

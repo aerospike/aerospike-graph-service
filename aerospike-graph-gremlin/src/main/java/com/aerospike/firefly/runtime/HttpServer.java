@@ -136,7 +136,7 @@ public class HttpServer {
         }
 
         router.get(healthcheckPath).handler(routingContext -> {
-            if (graph != null && graph.getBaseGraph() != null && graph.getBaseGraph().getClusterIsConnected()) {
+            if (!FireflyGraph.NEED_PREHEAT && graph.getBaseGraph() != null && graph.getBaseGraph().getClusterIsConnected()) {
                 routingContext.response().setStatusCode(HEALTHCHECK_SUCCESS_CODE).putHeader("content-type", "text/html").
                         end(String.valueOf(List.of(Map.of("status", "true"))));
             } else {

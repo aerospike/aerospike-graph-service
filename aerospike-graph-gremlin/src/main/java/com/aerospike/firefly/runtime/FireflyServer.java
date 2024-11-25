@@ -69,10 +69,9 @@ public class FireflyServer {
             // need to add TraversalSource's to GraphManager
             final GraphManager graphManager = gremlinServer.getServerGremlinExecutor().getGraphManager();
 
-            boolean isWarmedUp = false;
             final Set<String> graphs = graphManager.getGraphNames();
             for (final String graphName : graphs) {
-                final FireflyGraph graph = (FireflyGraph)graphManager.getGraph(graphName);
+                final FireflyGraph graph = (FireflyGraph) graphManager.getGraph(graphName);
                 String gts = graph.configuration().getString(TRAVERSAL_NAME);
                 if (gts == null) {
                     // default gts for default graph
@@ -86,15 +85,16 @@ public class FireflyServer {
                 // let's graph know his config file path to use with bulk loader
                 graph.setConfigFilePath(settings.graphs.get(graphName));
 
-                if (!isWarmedUp) {
+                if (FireflyGraph.NEED_PREHEAT) {
                     final boolean needPreheat = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, graph.configuration());
                     if (needPreheat) {
                         WarmupUtil.create(graph.configuration()).preheat(WarmupUtil.passes);
-                        isWarmedUp = true;
+                        FireflyGraph.NEED_PREHEAT = false;
                         logger.info("Warmup is complete.");
                     }
                 }
             }
+            FireflyGraph.NEED_PREHEAT = false;
 
             // workaround to set TraversalSource's for script engines
             final GremlinExecutor gremlinExecutor = gremlinServer.getServerGremlinExecutor().getGremlinExecutor();

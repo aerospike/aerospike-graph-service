@@ -70,7 +70,6 @@ public class TestSlimVsFat {
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundSuccess = false;
         for (final String line : log) {
-            System.out.println(line);
             if (line.contains("Channel started at port 8182.")) {
                 foundSuccess = true;
                 break;

@@ -126,7 +126,6 @@ public class HttpServer {
         String healthcheckPath =
                 Optional.ofNullable(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.HEALTHCHECK_PATH, configuration))
                         .orElse(DEFAULT_HEALTHCHECK_PATH);
-        healthcheckPath = "/" + graph.getBaseGraph().GRAPH_ID + healthcheckPath;
 
         try {
             // wait for router
@@ -135,7 +134,7 @@ public class HttpServer {
             throw new RuntimeException(e);
         }
 
-        router.get(healthcheckPath).handler(routingContext -> {
+        final Handler<RoutingContext> handler = routingContext -> {
             if (!FireflyGraph.NEED_PREHEAT && graph.getBaseGraph() != null && graph.getBaseGraph().getClusterIsConnected()) {
                 routingContext.response().setStatusCode(HEALTHCHECK_SUCCESS_CODE).putHeader("content-type", "text/html").
                         end(String.valueOf(List.of(Map.of("status", "true"))));
@@ -143,7 +142,10 @@ public class HttpServer {
                 routingContext.response().setStatusCode(HEALTHCHECK_ERROR_CODE).putHeader("content-type", "text/html").
                         end(String.valueOf(List.of(Map.of("status", "false"))));
             }
-        });
+        };
+
+        router.get(healthcheckPath).handler(handler);
+        router.get("/" + graph.getBaseGraph().GRAPH_ID + healthcheckPath).handler(handler);
 
         graph.getAdminServiceRegistry().appendHandlers(router);
     }

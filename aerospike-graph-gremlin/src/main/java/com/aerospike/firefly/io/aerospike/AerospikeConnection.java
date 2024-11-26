@@ -72,8 +72,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -85,7 +83,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -115,7 +112,6 @@ public class AerospikeConnection implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
     private final IAerospikeClient client;
     private final EventLoops eventLoops;
-    Random random = new Random();
     private final ExecutorService threadedReadExecutor;
 
     static {
@@ -2478,8 +2474,10 @@ public class AerospikeConnection implements AutoCloseable {
                     final int threadPoolSize = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());
                     final ClientPolicy clientPolicy = setupClientPolicy(conf, threadPoolSize, EVENT_LOOPS);
                     CLIENT = setupDefaultClient(conf, clientPolicy);
+
+                    // Make at least 1 thread available for the threaded executor service, just so it's not empty.
                     final int threadCount = threadPoolSize * ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, conf);
-                    THREADED_EXECUTOR_SERVICE = Executors.newFixedThreadPool(threadCount); // > 0 ? threadCount : 4);
+                    THREADED_EXECUTOR_SERVICE = Executors.newFixedThreadPool(Math.min(threadCount, 1));
                 }
                 OPEN_COUNT.incrementAndGet();
                 return INSTANCE;

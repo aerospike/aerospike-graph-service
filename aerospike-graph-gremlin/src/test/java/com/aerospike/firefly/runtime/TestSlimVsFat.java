@@ -53,7 +53,7 @@ public class TestSlimVsFat {
     private static final DockerUtil DOCKER_UTIL = new DockerUtil();
 
     private static final String[] DEFAULT_ENV_VARIABLES = new String[]{
-            "aerospike.client.host=172.17.0.1:3000",
+             "aerospike.client.host=172.17.0.1:3000",
             "aerospike.graph.auto.preheat.enabled=false",
     };
 
@@ -89,7 +89,6 @@ public class TestSlimVsFat {
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundSuccess = false;
         for (final String line : log) {
-            System.out.println(line);
             if (line.contains("Channel started at port 8182.")) {
                 foundSuccess = true;
                 break;

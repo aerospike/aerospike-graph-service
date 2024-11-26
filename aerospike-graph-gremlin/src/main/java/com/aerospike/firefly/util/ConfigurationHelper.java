@@ -48,6 +48,8 @@ public final class ConfigurationHelper {
     }};
 
     public static class Keys {
+        // environmental variable config
+        public static final String HEALTHCHECK_FILE = "HEALTHCHECK_FILE";
 
         // External Configs
         public static final String AEROSPIKE_HOST = "aerospike.client.host";

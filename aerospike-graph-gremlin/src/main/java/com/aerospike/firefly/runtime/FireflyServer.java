@@ -5,6 +5,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.ReflectionHelper;
 import com.aerospike.firefly.util.WarmupUtil;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.tinkerpop.gremlin.groovy.engine.GremlinExecutor;
 import org.apache.tinkerpop.gremlin.server.GraphManager;
 import org.apache.tinkerpop.gremlin.server.GremlinServer;
@@ -12,6 +13,7 @@ import org.apache.tinkerpop.gremlin.server.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -95,6 +97,11 @@ public class FireflyServer {
                 }
             }
             FireflyGraph.NEED_PREHEAT = false;
+
+            final String healthCheckFilename = System.getenv().get(ConfigurationHelper.Keys.HEALTHCHECK_FILE);
+            if (StringUtils.isNotBlank(healthCheckFilename)) {
+                new File(healthCheckFilename).createNewFile();
+            }
 
             // workaround to set TraversalSource's for script engines
             final GremlinExecutor gremlinExecutor = gremlinServer.getServerGremlinExecutor().getGremlinExecutor();

@@ -44,6 +44,7 @@ FROM alpine AS main
 # Set environment variables.
 ENV CONF_DIR="/opt/conf"
 ENV OUTPUT_SERVER_YAML="$CONF_DIR/aerospike-graph-service.yaml"
+ENV HEALTHCHECK_FILE="/tmp/firefly-ready"
 
 COPY --from=build /opt /opt
 
@@ -56,6 +57,6 @@ RUN chmod +x scripts/gremlin-server-docker.sh
 RUN chmod +x scripts/firefly-server.sh
 RUN chmod -R 777 $CONF_DIR
 
-HEALTHCHECK CMD ls /tmp/firefly-ready
+HEALTHCHECK CMD ls $HEALTHCHECK_FILE
 
 ENTRYPOINT ["scripts/gremlin-server-docker.sh"]

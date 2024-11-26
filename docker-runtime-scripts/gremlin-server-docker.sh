@@ -70,8 +70,6 @@ stop_gremlin_server() {
   fi
 
   scripts/firefly-server.sh $GREMLIN_SERVER_YAML_PATH
-
-  touch /tmp/firefly-ready
 ) <&0 &
 child_pid=$!
 

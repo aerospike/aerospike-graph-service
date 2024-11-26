@@ -52,7 +52,10 @@ public class TestSlimVsFat {
             "aerospike.graph.admin.query.abort");
     private static final DockerUtil DOCKER_UTIL = new DockerUtil();
 
-    private static final String[] DEFAULT_ENV_VARIABLES = new String[]{"aerospike.client.host=172.17.0.1:3000"};
+    private static final String[] DEFAULT_ENV_VARIABLES = new String[]{
+            "aerospike.client.host=172.17.0.1:3000",
+            "aerospike.graph.auto.preheat.enabled=false",
+    };
 
 
     private static final String[] DEFAULT_ENV_VARIABLES_PREHEAT = new String[]{"aerospike.client.host=172.17.0.1:3000"};

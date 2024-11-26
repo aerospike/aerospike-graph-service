@@ -112,6 +112,7 @@ public class AerospikeConnection implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
     private final IAerospikeClient client;
     private final EventLoops eventLoops;
+    private final ExecutorService threadedReadExecutor;
 
     static {
         Value.UseBoolBin = true;
@@ -386,7 +387,8 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public AerospikeConnection(final Configuration conf,
                                final AerospikeClient client,
-                               final EventLoops eventLoops) {
+                               final EventLoops eventLoops,
+                               final ExecutorService threadedReadExecutor) {
         LOG.info("Initializing AerospikeConnection.");
         LOG.debug("CONFIGURATION:");
         conf.getKeys().forEachRemaining(key -> {
@@ -403,6 +405,7 @@ public class AerospikeConnection implements AutoCloseable {
         this.namespace = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf);
         this.eventLoops = eventLoops;
         this.client = client;
+        this.threadedReadExecutor = threadedReadExecutor;
 
         // Verify that the namespace is not using a default-ttl.
         if (InfoOps.getIsAerospikeTTLEnabled(client, namespace)) {
@@ -600,8 +603,9 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public static AerospikeConnection connect(final Configuration conf,
                                               final AerospikeClient client,
-                                              final EventLoops eventLoops) {
-        return new AerospikeConnection(conf, client, eventLoops);
+                                              final EventLoops eventLoops,
+                                              final ExecutorService threadedReadExecutor) {
+        return new AerospikeConnection(conf, client, eventLoops, threadedReadExecutor);
     }
 
 
@@ -613,7 +617,7 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public static AerospikeConnection connect(final Configuration conf) {
         final AerospikeClientProvider provider = DefaultAerospikeClientProvider.connect(conf);
-        return connect(conf, provider.getAerospikeClient(conf), provider.getEventLoops(conf));
+        return connect(conf, provider.getAerospikeClient(conf), provider.getEventLoops(conf), provider.getThreadedExecutorService(conf));
     }
 
 
@@ -667,7 +671,7 @@ public class AerospikeConnection implements AutoCloseable {
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
         final Policy policy = new Policy();
         policy.sendKey = false;
-        Record dataModelRec = read(k, policy);
+        Record dataModelRec = read(k, policy, null);
         return new GraphMetadata(dataModelRec);
     }
 
@@ -1418,6 +1422,17 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Aerospike Record
      */
     public Record read(final Key key, final Policy policy) {
+        return read(key, policy, null);
+    }
+
+    /**
+     * Perform an Aerospike read by Key
+     *
+     * @param key    Aerospike Key to read
+     * @param policy Aerospike Policy to use
+     * @return Aerospike Record
+     */
+    public Record read(final Key key, final Policy policy, final FireflyCache cache) {
         final Policy readPolicy;
         if (policy == null) {
             readPolicy = new Policy();
@@ -1425,7 +1440,6 @@ public class AerospikeConnection implements AutoCloseable {
             readPolicy = policy;
         }
         configureReadPolicy(readPolicy);
-        final FireflyCache cache = transactionCache.get();
         try {
             return (cache != null) ? cache.read(readPolicy, key) : client.get(readPolicy, key);
         } catch (final AerospikeException e) {
@@ -1443,6 +1457,18 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Aerospike Record
      */
     public Record read(final Key key, final WritePolicy policy, final Operation[] operations) {
+        return read(key, policy, operations, null);
+    }
+
+    /**
+     * Perform an Aerospike read by Key
+     *
+     * @param key           Aerospike Key to read
+     * @param policy        Aerospike WritePolicy to use
+     * @param operations    Read operations
+     * @return Aerospike Record
+     */
+    public Record read(final Key key, final WritePolicy policy, final Operation[] operations, final FireflyCache cache) {
         final WritePolicy writePolicy;
         if (policy == null) {
             writePolicy = new WritePolicy();
@@ -1451,7 +1477,6 @@ public class AerospikeConnection implements AutoCloseable {
         }
         // Operations require a WritePolicy but we only use this function to read.
         configureReadPolicy(writePolicy);
-        final FireflyCache cache = transactionCache.get();
         try {
             return (cache != null) ? cache.read(writePolicy, key, operations) : client.operate(writePolicy, key, operations);
         } catch (final AerospikeException e) {
@@ -1594,18 +1619,17 @@ public class AerospikeConnection implements AutoCloseable {
             return operations.length == 0 ? this.batchRead(keys, batchReadPolicy, cache) :
                     this.batchRead(keys, batchReadPolicy, operations, cache);
         } else {
-            final ExecutorService executor = Executors.newFixedThreadPool(keys.length);
             final WritePolicy policy = new WritePolicy();
             policy.filterExp = filterExp;
             final List<Future<Record>> futures = new ArrayList<>();
             for (final Key key : keys) {
                 futures.add(CompletableFuture.supplyAsync(() -> {
                     if (operations.length == 0) {
-                        return this.read(key, policy);
+                        return this.read(key, policy, cache);
                     } else {
-                        return this.read(key, policy, operations);
+                        return this.read(key, policy, operations, cache);
                     }
-                }));
+                }, threadedReadExecutor));
             }
 
             final Record[] results = new Record[keys.length];
@@ -1622,15 +1646,6 @@ public class AerospikeConnection implements AutoCloseable {
                     throw new RuntimeException(e);
                 }
             }
-            try {
-                executor.shutdown();
-                executor.awaitTermination(1, TimeUnit.SECONDS);
-            } catch (final InterruptedException e) {
-                // Should never happen since futures are complete at this point.
-                LOG.error("Error: Exception in read {}", e.getMessage());
-                throw new TraversalInterruptedException();
-            }
-
             return results;
         }
     }
@@ -2434,6 +2449,7 @@ public class AerospikeConnection implements AutoCloseable {
         public static final AtomicLong OPEN_COUNT = new AtomicLong(0);
         public static AerospikeClient CLIENT;
         public static EventLoops EVENT_LOOPS;
+        public static ExecutorService THREADED_EXECUTOR_SERVICE;
 
         public static final DefaultAerospikeClientProvider INSTANCE = new DefaultAerospikeClientProvider();
 
@@ -2458,6 +2474,10 @@ public class AerospikeConnection implements AutoCloseable {
                     final int threadPoolSize = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());
                     final ClientPolicy clientPolicy = setupClientPolicy(conf, threadPoolSize, EVENT_LOOPS);
                     CLIENT = setupDefaultClient(conf, clientPolicy);
+
+                    // Make at least 1 thread available for the threaded executor service, just so it's not empty.
+                    final int threadCount = threadPoolSize * ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, conf);
+                    THREADED_EXECUTOR_SERVICE = Executors.newFixedThreadPool(Math.min(threadCount, 1));
                 }
                 OPEN_COUNT.incrementAndGet();
                 return INSTANCE;
@@ -2471,6 +2491,16 @@ public class AerospikeConnection implements AutoCloseable {
                     throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
                 }
                 return CLIENT;
+            }
+        }
+
+        @Override
+        public ExecutorService getThreadedExecutorService(final Configuration conf) {
+            synchronized (DefaultAerospikeClientProvider.class) {
+                if (OPEN_COUNT.get() <= 0 || CLIENT == null || !CLIENT.isConnected()) {
+                    throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
+                }
+                return THREADED_EXECUTOR_SERVICE;
             }
         }
 
@@ -2490,6 +2520,10 @@ public class AerospikeConnection implements AutoCloseable {
                 if (OPEN_COUNT.decrementAndGet() == 0) {
                     CLIENT.close();
                     EVENT_LOOPS.close();
+                    THREADED_EXECUTOR_SERVICE.shutdown();
+                    if (!THREADED_EXECUTOR_SERVICE.awaitTermination(1, TimeUnit.SECONDS)) {
+                        THREADED_EXECUTOR_SERVICE.shutdownNow();
+                    }
                 }
                 if (OPEN_COUNT.get() < 0) {
                     OPEN_COUNT.set(0);

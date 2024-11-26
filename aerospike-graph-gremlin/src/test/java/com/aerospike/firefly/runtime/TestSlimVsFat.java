@@ -1,7 +1,6 @@
 package com.aerospike.firefly.runtime;
 
 import com.aerospike.firefly.util.DockerUtil;
-import com.google.common.collect.Sets;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.After;
@@ -11,12 +10,11 @@ import org.junit.Test;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
-import java.util.Set;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
 public class TestSlimVsFat {
-    private static final List EXPECTED_CALL_STEPS_PHAT = List.of(
+    private static final List<Object> EXPECTED_CALL_STEPS_PHAT = List.of(
             "aerospike.graph.admin.metadata.summary",
             "summary",
             "aerospike.graphloader.admin.bulk-load.errors",
@@ -37,8 +35,7 @@ public class TestSlimVsFat {
             "aerospike.graph.admin.metadata.config",
             "aerospike.graph.admin.rbac-jwt.issue-token",
             "aerospike.graph.admin.query.abort");
-    private static final DockerUtil DOCKER_UTIL = new DockerUtil();
-    private static final List EXPECTED_CALL_STEPS_SLIM = List.of(
+    private static final List<Object> EXPECTED_CALL_STEPS_SLIM = List.of(
             "aerospike.graph.admin.metadata.summary",
             "summary",
             "aerospike.graph.admin.metadata.usage",
@@ -53,6 +50,7 @@ public class TestSlimVsFat {
             "aerospike.graph.admin.metadata.config",
             "aerospike.graph.admin.rbac-jwt.issue-token",
             "aerospike.graph.admin.query.abort");
+    private static final DockerUtil DOCKER_UTIL = new DockerUtil();
 
     private static final String[] DEFAULT_ENV_VARIABLES = new String[]{"aerospike.client.host=172.17.0.1:3000"};
 
@@ -105,22 +103,7 @@ public class TestSlimVsFat {
         final GraphTraversalSource g = traversal().withRemote(connection);
         final List<Object> list = g.call("--list").toList();
 
-        Assert.assertEquals(Set.of(
-                "aerospike.graph.admin.metadata.summary",
-                "summary",
-                "aerospike.graph.admin.metadata.usage",
-                "usage-stats",
-                "aerospike.graph.admin.index.create",
-                "aerospike.graph.admin.index.drop",
-                "aerospike.graph.admin.index.list",
-                "aerospike.graph.admin.index.status",
-                "aerospike.graph.admin.index.cardinality",
-                "aerospike.graph.admin.reserved.info",
-                "aerospike.graph.admin.metadata.version",
-                "aerospike.graph.admin.metadata.config",
-                "aerospike.graph.admin.rbac-jwt.issue-token",
-                "aerospike.graph.admin.query.abort"
-        ), new HashSet<>(list));
+        Assert.assertEquals(new HashSet<>(EXPECTED_CALL_STEPS_SLIM), new HashSet<>(list));
     }
 
     @Test
@@ -129,13 +112,6 @@ public class TestSlimVsFat {
         final DriverRemoteConnection connection = DriverRemoteConnection.using("localhost", 8182);
         final GraphTraversalSource g = traversal().withRemote(connection);
         final List<Object> list = g.call("--list").toList();
-        final Set<Object> set = new HashSet<>(list);
-        final Set<Object> diff1 = Sets.difference(set, new HashSet(EXPECTED_CALL_STEPS_PHAT));
-        final Set<Object> diff2 = Sets.difference(new HashSet(EXPECTED_CALL_STEPS_PHAT), set);
-        System.out.println("diff1: " + diff1);
-        System.out.println("diff2: " + diff2);
-        Assert.assertTrue(diff1.isEmpty());
-        Assert.assertTrue(diff2.isEmpty());
         Assert.assertEquals(new HashSet<>(EXPECTED_CALL_STEPS_PHAT), new HashSet<>(list));
     }
 

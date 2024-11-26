@@ -23,7 +23,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark {
                 g.call("aerospike.graphloader.admin.bulk-load.load").
                         with("aerospike.graphloader.config", "/opt/aerospike-graph/etc/config.properties").next();
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().contains("ERROR: To use the bulk loader via the call API, use the docker image with bulk loader support."));
+                Assert.assertTrue(e.getMessage().contains("Unrecognized service: aerospike.graphloader.admin.bulk-load.load"));
             }
         }
     }
@@ -38,7 +38,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark {
                         .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/vertices")
                         .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/edges").next();
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().contains("ERROR: To use the bulk loader via the call API, use the docker image with bulk loader support."));
+                Assert.assertTrue(e.getMessage().contains("Unrecognized service: aerospike.graphloader.admin.bulk-load.load"));
             }
         }
     }
@@ -56,7 +56,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark {
                         .with("aerospike.graphloader.remote-passkey", System.getenv("AWS_SECRET_ACCESS_KEY"))
                         .next();
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().contains("ERROR: To use the bulk loader via the call API, use the docker image with bulk loader support."));
+                Assert.assertTrue(e.getMessage().contains("Unrecognized service: aerospike.graphloader.admin.bulk-load.load"));
             }
         }
     }
@@ -75,7 +75,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark {
                         .with("aerospike.graphloader.gcs-email", System.getenv("GCS_CLIENT_EMAIL"))
                         .next();
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().contains("ERROR: To use the bulk loader via the call API, use the docker image with bulk loader support."));
+                Assert.assertTrue(e.getMessage().contains("Unrecognized service: aerospike.graphloader.admin.bulk-load.load"));
             }
         }
     }

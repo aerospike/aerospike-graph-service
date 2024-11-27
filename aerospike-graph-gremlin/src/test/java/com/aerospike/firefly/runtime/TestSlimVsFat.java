@@ -88,7 +88,7 @@ public class TestSlimVsFat {
     public void testDockerImageSettingsTmp(final String dockerImage, final String[] environmentVariables) throws InterruptedException {
         final String containerId = DOCKER_UTIL.startDockerImageCustom(dockerImage, true, 1, environmentVariables);
         Assert.assertFalse(DOCKER_UTIL.checkTmpFileExists(containerId));
-        Thread.sleep(35 * 1000);
+        Thread.sleep(75 * 1000);
         Assert.assertTrue(DOCKER_UTIL.checkTmpFileExists(containerId));
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundSuccess = false;

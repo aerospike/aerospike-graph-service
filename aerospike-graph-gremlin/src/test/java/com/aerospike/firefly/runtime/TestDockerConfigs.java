@@ -13,7 +13,6 @@ public class TestDockerConfigs {
     public void testDockerImageSettings(final String[] environmentVariables) throws InterruptedException {
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
-        Thread.sleep(1000);
         boolean foundErrorMsg = false;
         for (final String line : log) {
             System.out.println(line);
@@ -38,7 +37,6 @@ public class TestDockerConfigs {
         final String[] environmentVariables = new String[]{"aerospike.client.host=172.17.0.1:3000"};
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
-        Thread.sleep(1000);
         boolean foundMsg0 = false;
         boolean foundMsg1 = false;
         for (final String line : log) {
@@ -62,7 +60,6 @@ public class TestDockerConfigs {
                 "aerospike.graph-service.graphs=graph,modern"};
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
-        Thread.sleep(1000);
         boolean foundMsg0 = false;
         boolean foundMsg1 = false;
         boolean foundMsg2 = false;
@@ -89,7 +86,6 @@ public class TestDockerConfigs {
                 "aerospike.graph-service.graphs=graph,modern!"};
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
-        Thread.sleep(1000);
         boolean foundMsg = false;
         for (final String line : log) {
             if (line.contains("Graph name should be within [a-z][A-Z][0-9][-_], but found modern!")) {
@@ -109,7 +105,6 @@ public class TestDockerConfigs {
         };
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
-        Thread.sleep(1000);
         // Maybe there's a better way to do this, but for now this will suffice...
         int linesUntilEnableCheck = Integer.MAX_VALUE;
         int linesUntilIntervalCheck = Integer.MAX_VALUE;
@@ -143,7 +138,6 @@ public class TestDockerConfigs {
         };
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
-        Thread.sleep(1000);
         boolean foundErrorMsg = false;
         for (final String line : log) {
             System.out.println(line);
@@ -163,7 +157,6 @@ public class TestDockerConfigs {
         };
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
-        Thread.sleep(1000);
         boolean foundErrorMsg = false;
         for (final String line : log) {
             System.out.println(line);

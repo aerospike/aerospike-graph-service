@@ -74,13 +74,11 @@ public class TestSlimVsFat {
     public void testDockerImageSettings(final String imageName, final String[] environmentVariables) throws InterruptedException {
         final String containerId = DOCKER_UTIL.startDockerImageCustom(imageName, true, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
-        Thread.sleep(1000);
         boolean foundSuccess = false;
         for (final String line : log) {
             LOG.warn(line);
             if (line.contains("Channel started at port 8182.")) {
                 foundSuccess = true;
-                break;
             }
         }
         Assert.assertTrue(foundSuccess);
@@ -92,13 +90,11 @@ public class TestSlimVsFat {
         Thread.sleep(25 * 1000);
         Assert.assertTrue(DOCKER_UTIL.checkTmpFileExists(containerId));
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
-        Thread.sleep(1000);
         boolean foundSuccess = false;
         for (final String line : log) {
             LOG.warn(line);
             if (line.contains("Channel started at port 8182.")) {
                 foundSuccess = true;
-                break;
             }
         }
         Assert.assertTrue(foundSuccess);

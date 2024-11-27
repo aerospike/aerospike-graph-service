@@ -27,12 +27,6 @@ public class TestFireflyBasicCall {
             Assert.assertEquals(Set.of(
                     "aerospike.graph.admin.metadata.summary",
                     "summary",
-                    "aerospike.graphloader.admin.bulk-load.errors",
-                    "get-bulk-load-errors",
-                    "aerospike.graphloader.admin.bulk-load.error-count",
-                    "get-bulk-load-error-count",
-                    "aerospike.graphloader.admin.bulk-load.load",
-                    "bulk-load",
                     "aerospike.graph.admin.metadata.usage",
                     "usage-stats",
                     "aerospike.graph.admin.index.create",

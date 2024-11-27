@@ -6,6 +6,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.List;
@@ -14,6 +16,7 @@ import java.util.Queue;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
 public class TestSlimVsFat {
+    final Logger LOG = LoggerFactory.getLogger(TestSlimVsFat.class);
     private static final List<Object> EXPECTED_CALL_STEPS_PHAT = List.of(
             "aerospike.graph.admin.metadata.summary",
             "summary",
@@ -73,6 +76,7 @@ public class TestSlimVsFat {
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundSuccess = false;
         for (final String line : log) {
+            LOG.warn(line);
             if (line.contains("Channel started at port 8182.")) {
                 foundSuccess = true;
                 break;
@@ -84,11 +88,12 @@ public class TestSlimVsFat {
     public void testDockerImageSettingsTmp(final String dockerImage, final String[] environmentVariables) throws InterruptedException {
         final String containerId = DOCKER_UTIL.startDockerImageCustom(dockerImage, true, 1, environmentVariables);
         Assert.assertFalse(DOCKER_UTIL.checkTmpFileExists(containerId));
-        Thread.sleep(20 * 1000);
+        Thread.sleep(25 * 1000);
         Assert.assertTrue(DOCKER_UTIL.checkTmpFileExists(containerId));
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundSuccess = false;
         for (final String line : log) {
+            LOG.warn(line);
             if (line.contains("Channel started at port 8182.")) {
                 foundSuccess = true;
                 break;
@@ -99,6 +104,7 @@ public class TestSlimVsFat {
 
     @Test
     public void testSlimCallList() throws InterruptedException {
+        LOG.warn("=== Running testSlimCallList ===");
         testSlimDockerImageSettings(DEFAULT_ENV_VARIABLES);
         final DriverRemoteConnection connection = DriverRemoteConnection.using("localhost", 8182);
         final GraphTraversalSource g = traversal().withRemote(connection);
@@ -109,6 +115,7 @@ public class TestSlimVsFat {
 
     @Test
     public void testCallList() throws InterruptedException {
+        LOG.warn("=== Running testCallList ===");
         testFatDockerImageSettings(DEFAULT_ENV_VARIABLES);
         final DriverRemoteConnection connection = DriverRemoteConnection.using("localhost", 8182);
         final GraphTraversalSource g = traversal().withRemote(connection);
@@ -118,21 +125,25 @@ public class TestSlimVsFat {
 
     @Test
     public void testDefaultsTmpExistsNoPreheat() throws InterruptedException {
+        LOG.warn("=== Running testDefaultsTmpExistsNoPreheat ===");
         testDockerImageSettingsTmp("firefly", DEFAULT_ENV_VARIABLES);
     }
 
     @Test
     public void testDefaultsTmpExistsWithPreheat() throws InterruptedException {
+        LOG.warn("=== Running testDefaultsTmpExistsWithPreheat ===");
         testDockerImageSettingsTmp("firefly", DEFAULT_ENV_VARIABLES_PREHEAT);
     }
 
     @Test
     public void testSlimDefaultTmpExistsNoPreheat() throws InterruptedException {
+        LOG.warn("=== Running testSlimDefaultTmpExistsNoPreheat ===");
         testDockerImageSettingsTmp("firefly-slim", DEFAULT_ENV_VARIABLES);
     }
 
     @Test
     public void testSlimDefaultTmpExistsWithPreheat() throws InterruptedException {
+        LOG.warn("=== Running testSlimDefaultTmpExistsWithPreheat ===");
         testDockerImageSettingsTmp("firefly-slim", DEFAULT_ENV_VARIABLES_PREHEAT);
     }
 

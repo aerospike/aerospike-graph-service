@@ -61,7 +61,6 @@ public class WarmupUtil {
                 warmupConfig.setProperty(ConfigurationHelper.Keys.WARMUP_MODE.toLowerCase(), "true");
                 warmupConfig.setProperty(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG.toLowerCase(), "false");
                 warmupConfig.setProperty(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG.toLowerCase(), "false");
-                warmupConfig.setProperty(ConfigurationHelper.Keys.TTL_ENABLED_FLAG.toLowerCase(), "false");
                 warmupConfig.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "OFF");
                 warmupConfig.setProperty(ConfigurationHelper.Keys.AUTO_PRE_HEAT.toLowerCase(), "false");
                 warmupConfig.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");

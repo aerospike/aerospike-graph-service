@@ -41,7 +41,7 @@ public class FireflyTtlHandler implements Closeable {
 
     public FireflyTtlHandler(final FireflyGraph graph) {
         this.graph = graph;
-        this.isTtlEnabled = graph.getBaseGraph().TTL_ENABLED_FLAG && !graph.bulkLoaderFlag;
+        this.isTtlEnabled = graph.getBaseGraph().TTL_ENABLED_FLAG && !graph.bulkLoaderFlag && !graph.getBaseGraph().WARMUP_MODE;
         this.ttlPurgeIntervalMillis = graph.getBaseGraph().TTL_PURGE_INTERVAL_SECONDS * 1000;
         this.thisRunTime = new AtomicLong();
         if (this.isTtlEnabled) {
@@ -117,14 +117,16 @@ public class FireflyTtlHandler implements Closeable {
                         vertex.remove();
                         removalCount++;
                     } catch (final AerospikeGraphException e) {
-                        LOG.error("Unexpected error occurred when removing TTL Vertex ID {}: {}", vertex.id(), e);
+                        LOG.error("Unexpected error occurred when removing TTL Vertex ID {}: {}", vertex.id(), e.getMessage());
                     }
                 }
             }
         } catch (final AerospikeGraphException e) {
-            LOG.error("Unexpected error occurred when running index to grab TTL expired Vertices.", e);
+            LOG.error("Unexpected error occurred when running index to grab TTL expired Vertices: {}", e.getMessage());
+        } catch (final Exception e) {
+            LOG.error("Unexpected exception when TTL purging Vertices.", e);
         }
-        LOG.debug("TTL purge removed " + removalCount + " expired Vertices.");
+        LOG.debug("TTL purge removed {}} expired Vertices.", removalCount);
         return removalCount;
     }
 
@@ -151,16 +153,18 @@ public class FireflyTtlHandler implements Closeable {
                                 currentEdgeDeleteTime = System.currentTimeMillis();
                                 removalCount++;
                             } catch (final AerospikeGraphException e) {
-                                LOG.error("Unexpected error occurred when removing TTL Edge ID {}: {}", edge.id(), e);
+                                LOG.error("Unexpected error occurred when removing TTL Edge ID {}: {}", edge.id(), e.getMessage());
                             }
                         }
                     }
                 }
             }
         } catch (final AerospikeGraphException e) {
-            LOG.error("Unexpected error occurred when running index to grab TTL expired Edges.", e);
+            LOG.error("Unexpected error occurred when running index to grab TTL expired Edges: {}", e.getMessage());
+        } catch (final Exception e) {
+            LOG.error("Unexpected exception when TTL purging Edges.", e);
         }
-        LOG.debug("TTL purge removed " + removalCount + " expired Edges.");
+        LOG.debug("TTL purge removed {} expired Edges.", removalCount);
         return removalCount;
     }
 }

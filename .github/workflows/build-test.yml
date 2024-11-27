@@ -1161,6 +1161,7 @@ jobs:
           pip3 install python_on_whales
           echo "Building docker image"
           python3 scripts/build-docker.py --tags firefly --platforms linux/amd64
+          python3 scripts/build-docker.py --tags firefly-slim --platforms linux/amd64 --use_local --slim
       # Due to the nature of the multi usage stats test, it MUST come first. Otherwise it will have problems.
       - name: Run multi Firefly usage test
         env:
@@ -1276,6 +1277,7 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=TestPerformanceModes -DfailIfNoTests=false --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerJavaOptions -DfailIfNoTests=false --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerConfigs -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestSlimVsFat -DfailIfNoTests=false --no-transfer-progress
   test-aerospike-ttl:
     name: Test Aerospike TTL Fails
     timeout-minutes: 30

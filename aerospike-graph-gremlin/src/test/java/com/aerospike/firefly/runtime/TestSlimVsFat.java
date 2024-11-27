@@ -95,6 +95,8 @@ public class TestSlimVsFat {
             LOG.warn(line);
             if (line.contains("Channel started at port 8182.")) {
                 foundSuccess = true;
+            } else if (line.contains("Warmup is complete")) {
+                foundSuccess = true;
             }
         }
         Assert.assertTrue(foundSuccess);

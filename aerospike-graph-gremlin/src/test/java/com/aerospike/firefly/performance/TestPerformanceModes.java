@@ -31,6 +31,7 @@ public class TestPerformanceModes {
                                       final int expectedThreadPoolWorker) throws InterruptedException {
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
+        Thread.sleep(1000);
         String gremlinPool = null;
         String threadPoolWorker = null;
         for (final String line : log) {

@@ -18,6 +18,7 @@ public class TestDockerJavaOptions {
     public void testDockerImageSettings(final String[] environmentVariables) throws InterruptedException {
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
+        Thread.sleep(1000);
         boolean foundSuccess = false;
         for (final String line : log) {
             System.out.println(line);

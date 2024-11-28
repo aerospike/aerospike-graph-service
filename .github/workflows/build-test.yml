@@ -4,7 +4,7 @@ on:
   push:
     branches: [main,2.x-dev]
   pull_request:
-    branches: [2.4.1-rc]
+    branches: [main,2.x-dev]
 
 jobs:
   build-firefly-maven:
@@ -502,7 +502,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress                    
           
           echo "Starting firefly-server"
-          java -cp "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.4.1.jar:aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.4.1.jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+          java -cp "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.5.0-SNAPSHOT.jar:aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.5.0-SNAPSHOT.jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
           
           echo "Sleeping for 30 seconds while firefly-server starts"
           sleep 30
@@ -1055,7 +1055,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
 
           echo "Starting firefly-server"
-          java -cp "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.4.1.jar:aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.4.1.jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+          java -cp "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.5.0-SNAPSHOT.jar:aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.5.0-SNAPSHOT.jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
           
           echo "Sleeping for 30 seconds while firefly-server starts"
           sleep 30
@@ -1105,7 +1105,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
 
           echo "Starting firefly-server"
-          java -cp "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.4.1.jar:aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.4.1.jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+          java -cp "aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.5.0-SNAPSHOT.jar:aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.5.0-SNAPSHOT.jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
           
           echo "Sleeping for 30 seconds while firefly-server starts"
           sleep 30

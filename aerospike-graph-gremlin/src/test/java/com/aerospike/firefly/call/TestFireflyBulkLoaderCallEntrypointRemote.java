@@ -2,9 +2,13 @@ package com.aerospike.firefly.call;
 
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.time.Instant;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
@@ -22,6 +26,26 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
             Assert.assertEquals("Success", g.with("evaluationTimeout", 5 * 60 * 1000).
                     call("aerospike.graphloader.admin.bulk-load.load").
                     with("aerospike.graphloader.config", "/opt/aerospike-graph/etc/config.properties").next());
+        }
+    }
+
+    @Test
+    public void testOLTP() throws Exception {
+        try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using("34.123.37.227", 8182))) {
+            Instant instant = Instant.now();
+            var x = g.with("evaluationTimeout", 60 * 60 * 1000).V().hasLabel("Person").count().toList();
+            System.out.println(x);
+            System.out.println("Time : " + (Instant.now().toEpochMilli() - instant.toEpochMilli()));
+        }
+    }
+
+    @Test
+    public void testOLAP() throws Exception {
+        try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using("34.123.37.227", 8182))) {
+            Instant instant = Instant.now();
+            var x = g.with("evaluationTimeout", 60 * 60 * 1000).withComputer().V().hasLabel("Person").count().toList();
+            System.out.println(x);
+            System.out.println("Time : " + (Instant.now().toEpochMilli() - instant.toEpochMilli()));
         }
     }
 

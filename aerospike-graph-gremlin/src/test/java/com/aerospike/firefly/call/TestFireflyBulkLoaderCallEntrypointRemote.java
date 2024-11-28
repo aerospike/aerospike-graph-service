@@ -30,26 +30,6 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
     }
 
     @Test
-    public void testOLTP() throws Exception {
-        try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using("34.123.37.227", 8182))) {
-            Instant instant = Instant.now();
-            var x = g.with("evaluationTimeout", 60 * 60 * 1000).V().hasLabel("Person").count().toList();
-            System.out.println(x);
-            System.out.println("Time : " + (Instant.now().toEpochMilli() - instant.toEpochMilli()));
-        }
-    }
-
-    @Test
-    public void testOLAP() throws Exception {
-        try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using("34.123.37.227", 8182))) {
-            Instant instant = Instant.now();
-            var x = g.with("evaluationTimeout", 60 * 60 * 1000).withComputer().V().hasLabel("Person").count().toList();
-            System.out.println(x);
-            System.out.println("Time : " + (Instant.now().toEpochMilli() - instant.toEpochMilli()));
-        }
-    }
-
-    @Test
     public void testRemoteEntryPointNoConfig() throws Exception {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();

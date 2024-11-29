@@ -181,7 +181,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static final String PRODUCT_NAME = "Aerospike Graph";
     private static final Logger LOG = LoggerFactory.getLogger(PRODUCT_NAME);
 
-    public static String FIREFLY_VERSION = "2.4.0-SNAPSHOT";
+    public static String FIREFLY_VERSION = "2.5.0-SNAPSHOT";
     public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final Timer fireflyIndexMetadataTask = new Timer(true);
@@ -207,6 +207,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private static final String GREMLIN_SERVER_YAML_PATH = "GREMLIN_SERVER_YAML_PATH";
     private final Settings gremlinServerSettings;
     public static ExitManager EXIT_MANAGER = new ExitManager();
+    public static boolean NEED_PREHEAT = true;
 
     public static class ExitManager {
         public void exit(final int code) {
@@ -311,18 +312,15 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static FireflyGraph open(final Configuration conf) {
         ConfigurationHelper.validateConfig(conf);
         String logLevel;
-        if (System.getenv("FIREFLY_TESTING") != null) {
-            if (System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
-                logLevel = "WARN";
-                // Audit log test needs to check output of logs.
-                for (final StackTraceElement e : Thread.currentThread().getStackTrace()) {
-                    if (e.getClassName().contains("TestAuditLog")) {
-                        logLevel = "INFO";
-                        break;
-                    }
+        if (System.getenv("FIREFLY_TESTING") != null &&
+                System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
+            logLevel = "WARN";
+            // Audit log and warmup test needs to check output of logs.
+            for (final StackTraceElement e : Thread.currentThread().getStackTrace()) {
+                if (e.getClassName().contains("TestAuditLog") || e.getClassName().contains("TestWarmup")) {
+                    logLevel = "INFO";
+                    break;
                 }
-            } else {
-                logLevel = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.LOG_LEVEL, conf);
             }
         } else {
             logLevel = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.LOG_LEVEL, conf);
@@ -388,7 +386,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } catch (final Exception e) {
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");
             LOG.error("========== Aerospike Graph Service failing to start is usually a result of an incorrect configuration.");
-            LOG.error("========== See Error message for more details: {}", e.getMessage());
+            if (e.getMessage() != null) {
+                LOG.error("========== See Error message for more details: {}", e.getMessage());
+            } else {
+                LOG.error("========== Error did not contain message, please submit this stack trace to support", e);
+            }
 
             // Signal to gremlin-server to shut down.
             EXIT_MANAGER.exit(1);

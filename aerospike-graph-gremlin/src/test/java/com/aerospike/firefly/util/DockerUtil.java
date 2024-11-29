@@ -2,6 +2,7 @@ package com.aerospike.firefly.util;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
+import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.model.Container;
 import com.github.dockerjava.api.model.ExposedPort;
@@ -19,9 +20,9 @@ import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -152,7 +153,14 @@ public class DockerUtil {
 
     public synchronized String startDockerImageCustom(final String dockerImage,
                                                       final boolean expectException,
-                                                      final String ... environmentVariables) {
+                                                      final String... environmentVariables) {
+        return startDockerImageCustom(dockerImage, expectException, 20, environmentVariables);
+    }
+
+    public synchronized String startDockerImageCustom(final String dockerImage,
+                                                      final boolean expectException,
+                                                      final int waitTimeSeconds,
+                                                      final String... environmentVariables) {
         final List<Image> images = dockerClient.listImagesCmd().exec();
         for (final Image image : images) {
             // Check if image is already an image on the system of the same tag.
@@ -196,7 +204,7 @@ public class DockerUtil {
 
         // Wait 20 seconds for the container to have logs ready.
         try {
-            Thread.sleep(20 * 1000);
+            Thread.sleep(waitTimeSeconds * 1000);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -222,6 +230,37 @@ public class DockerUtil {
         });
         dockerClient.logContainerCmd(containerId).withStdOut(true).withStdErr(true).exec(callback).awaitCompletion();
         return log;
+    }
+
+    public boolean checkTmpFileExists(final String containerId) throws InterruptedException {
+        // Create an exec command to test file existence
+        ExecCreateCmdResponse execCreateCmdResponse = dockerClient.execCreateCmd(containerId)
+                .withCmd("sh", "-c", "test -f /tmp/firefly-ready && echo FOUND_FILE || echo DID_NOT_FIND_FILE ")
+                .withAttachStdout(true)
+                .withAttachStderr(true)
+                .exec();
+
+        // Run the exec command and capture the output
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        final Exception[] eOutput = {null};
+        dockerClient.execStartCmd(execCreateCmdResponse.getId())
+                .exec(new ResultCallback.Adapter<>() {
+                    @Override
+                    public void onNext(com.github.dockerjava.api.model.Frame frame) {
+                        try {
+                            outputStream.write(frame.getPayload());
+                        } catch (Exception e) {
+                            eOutput[0] = e;
+                        }
+                    }
+                }).awaitCompletion();
+
+        if (eOutput[0] != null) {
+            throw new RuntimeException(eOutput[0]);
+        }
+
+        // Check the output
+        return outputStream.toString().trim().contains("FOUND_FILE");
     }
 
     public synchronized boolean versionExists(final String dockerImage, final String tag) {

@@ -104,6 +104,9 @@ public abstract class TestSparkBulkLoaderBase {
     protected abstract String getGcsFileSystem();
     protected abstract String getFailingClient();
     protected abstract String getHasBadEdges();
+    protected abstract String getSamplingSupernode();
+    protected abstract String getSamplingSupernodeTooHigh();
+    protected abstract String getSamplingSupernodeTooLow();
 
     @Test
     public void testDataAccuracy() {
@@ -415,6 +418,32 @@ public abstract class TestSparkBulkLoaderBase {
         } catch (final Exception e) {
             Assert.assertTrue(e.getCause() instanceof RuntimeException);
             Assert.assertEquals(BAD_EDGE_COUNT_EXCEEDED, e.getCause().getMessage());
+        }
+    }
+
+    @Test
+    public void testSupernodeSampling() {
+        SparkBulkLoader.main(ArrayUtils.addAll(
+                new String[]{"-local", "-ade", "0", "-c", getSamplingSupernode()}, DEFAULT_PARAMS));
+    }
+
+    @Test
+    public void testSupernodeSamplingTooHigh() {
+        try {
+        SparkBulkLoader.main(ArrayUtils.addAll(
+                new String[]{"-local", "-ade", "0", "-c", getSamplingSupernodeTooHigh()}, DEFAULT_PARAMS));
+        } catch (ConfigurationRuntimeException e) {
+            Assert.assertTrue(e.getMessage().contains("for configuration key, \"aerospike.graphloader.supernode.sampling-percentage\", must be between 0 and 100."));
+        }
+    }
+
+    @Test
+    public void testSupernodeSamplingTooLow() {
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(
+                    new String[]{"-local", "-ade", "0", "-c", getSamplingSupernodeTooLow()}, DEFAULT_PARAMS));
+        } catch (IllegalArgumentException e) {
+            Assert.assertTrue(e.getMessage().contains("Configuration 'aerospike.graphloader.supernode.sampling-percentage' must be between 100 and 0.1 but was"));
         }
     }
 

@@ -148,6 +148,11 @@ public abstract class PageFetcher<E> {
         private Throwable error = null;
 
         private void removePage() {
+            // Race condition protection - if an error has occurred already reading is stopped.
+            if (!NO_ERROR.equals(errorMessage)) {
+                return;
+            }
+
             // Check if possible.
             // No more data is coming in and there's no more pages available.
             if (readLoopExecutorService.isTerminated()) {
@@ -303,7 +308,7 @@ public abstract class PageFetcher<E> {
 
     protected void signalError(final String error, final Throwable exception) {
         if (!isClosing.get()) {
-            LOG.error("{} attempting to signal error to iterator.", error);
+            LOG.error("Attempting to signal error to iterator: {}", error);
         }
         try {
             if (!isClosing.get()) {

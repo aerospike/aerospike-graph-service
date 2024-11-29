@@ -1,8 +1,8 @@
 package com.aerospike.firefly.util;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import ch.qos.logback.classic.Level;
+import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -12,11 +12,11 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
-import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedFactory;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -47,11 +47,6 @@ public class WarmupUtil {
     }
 
     public void preheat(final int passes) {
-        if (ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.FAULT_TEST, conf)) {
-            final String message = "Fault Test. The '" + ConfigurationHelper.Keys.FAULT_TEST + "' configuration key has been enabled. This intentionally causes the warmup routine to fail.";
-            System.out.println(message);
-            throw new AerospikeException(message);
-        }
         // Allow warmup to be disabled.
         if (!ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_ENABLED, conf)) {
             return;
@@ -66,18 +61,18 @@ public class WarmupUtil {
                 warmupConfig.setProperty(ConfigurationHelper.Keys.WARMUP_MODE.toLowerCase(), "true");
                 warmupConfig.setProperty(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG.toLowerCase(), "false");
                 warmupConfig.setProperty(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG.toLowerCase(), "false");
-                warmupConfig.setProperty(ConfigurationHelper.Keys.TTL_ENABLED_FLAG.toLowerCase(), "false");
                 warmupConfig.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "OFF");
                 warmupConfig.setProperty(ConfigurationHelper.Keys.AUTO_PRE_HEAT.toLowerCase(), "false");
                 warmupConfig.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
+                warmupConfig.setProperty(ConfigurationHelper.Keys.AUTHENTICATION_ENABLED.toLowerCase(), "false");
                 graph = FireflyGraph.open(warmupConfig);
             }
             IntStream.range(0, passes).forEach(i -> {
                 phase1();
                 phase2();
             });
-        } catch (final Exception e) {
-            System.out.println("Error during warmup" + e.getMessage());
+        } catch (final Throwable e) {
+            System.out.println("Error during warmup: " + e.getMessage());
         } finally {
             if (graph != null) {
                 graph.close();
@@ -121,14 +116,17 @@ public class WarmupUtil {
         g.V(createdIdAry).drop().iterate();
     }
 
-
     private static List<Object> cloneElements(final Graph original, final Graph clone) {
         final HashMap<Object, Object> vxidmap = new HashMap<>();
-        original.vertices(new Object[0]).forEachRemaining((origVertex) -> {
-            final Vertex newVertex = DetachedFactory.detach(origVertex, true).attach(Attachable.Method.create(clone));
+        original.vertices().forEachRemaining((origVertex) -> {
+            // need to assign new id to avoid conflict where multiple AGS instances running warmup.
+            // T.id is unsupported id type, so Firefly will create new one.
+            final Vertex newVertex = new DetachedVertex(T.id, origVertex.label(), IteratorUtils.toList(origVertex.properties()))
+                    .attach(Attachable.Method.create(clone));
+
             vxidmap.put(origVertex.id(), newVertex.id());
         });
-        original.edges(new Object[0]).forEachRemaining((e) -> {
+        original.edges().forEachRemaining((e) -> {
             final Vertex iv = e.inVertex();
             final Vertex ov = e.outVertex();
             final GraphTraversalSource cg = clone.traversal();
@@ -138,6 +136,6 @@ public class WarmupUtil {
             });
 
         });
-        return Arrays.asList(vxidmap.values().toArray());
+        return new ArrayList(vxidmap.values());
     }
 }

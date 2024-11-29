@@ -48,6 +48,8 @@ public final class ConfigurationHelper {
     }};
 
     public static class Keys {
+        // environmental variable config
+        public static final String HEALTHCHECK_FILE = "HEALTHCHECK_FILE";
 
         // External Configs
         public static final String AEROSPIKE_HOST = "aerospike.client.host";
@@ -156,7 +158,6 @@ public final class ConfigurationHelper {
         public static final String AUTO_PRE_HEAT = "aerospike.graph.auto.preheat.enabled";
         public static final String WARMUP_MODE = "aerospike.graph.warmup.mode.enabled";
         public static final String WARMUP_ENABLED = "aerospike.graph.warmup.enabled";
-        public static final String FAULT_TEST = "aerospike.graph.warmup.mode.fault.test.enabled";
         public static final String ENABLE_CUSTOM_PROFILE = "aerospike.graph.strategy.profile.custom.enabled";
         public static final String ASCLIENT_LOG_ENABLED = "aerospike.client.logging.enabled";
         public static final String ON_RECORD_ID_LIMIT = "aerospike.graph.vertex.edge.cache.size";
@@ -375,7 +376,6 @@ public final class ConfigurationHelper {
         put(Keys.WARMUP_ENABLED, "true");
         put(Keys.WARMUP_MODE, "false");
         put(Keys.ENABLE_CUSTOM_PROFILE, "true");
-        put(Keys.FAULT_TEST, "false");
         put(Keys.CLIENT_FAILURE_TEST, "false");
         put(Keys.CLIENT_FAILURE_RATE, "0");
         put(Keys.ASCLIENT_LOG_ENABLED, "false");
@@ -471,7 +471,7 @@ public final class ConfigurationHelper {
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MERGE_EDGE_POLL_INTERVAL, 1);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.EVENT_LOOP_COUNT, 0);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.DELAY_QUEUE_SIZE, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, 2);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, 0);
     }
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {

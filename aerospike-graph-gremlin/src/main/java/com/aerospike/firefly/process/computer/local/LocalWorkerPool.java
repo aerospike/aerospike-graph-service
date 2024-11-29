@@ -131,13 +131,9 @@ public class LocalWorkerPool implements AutoCloseable {
                         if (option.isPresent()) {
                             try {
                                 iterator = option.get();
-                                System.out.println("Worker " + index + " starting processing");
                                 final Pair<Long, List<Element>> output = executeVertexProgram.execute(iterator, vp, workerMemory, counter);
-                                System.out.println("Worker " + index + " finished processing");
                                 if (output.getRight() != null) {
-                                    System.out.println("Worker " + index + " adding " + output.getRight().size() + " elements");
                                     results.addAll(output.getRight());
-                                    System.out.println("Worker " + index + " added " + results.size() + " elements");
                                 }
                                 LOG.info("Worker {} processed {} vertices, total={}", index, count, counter.addAndGet(count));
                             } catch (final Exception e) {

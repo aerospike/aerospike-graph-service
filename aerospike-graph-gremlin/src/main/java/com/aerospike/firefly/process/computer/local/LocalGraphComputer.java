@@ -345,6 +345,7 @@ public class LocalGraphComputer implements GraphComputer {
                             "Number of available workers: {}\n\t" +
                             "Computed partition size: {}", vertexCount.get(), this.workers, mapPartitionSize);
                     for (final MapReduce mapReduce : mapReducers) {
+                        System.out.println("Running mapreduce - " + mapReduce);
                         final LocalMapEmitter<?, ?> mapEmitter = new LocalMapEmitter<>(mapReduce.doStage(MapReduce.Stage.REDUCE));
                         workers.setMapReduce(mapReduce);
                         workers.executeMapReduce(workerMapReduce -> {

@@ -101,12 +101,18 @@ public class LocalWorkerPool implements AutoCloseable {
         final PartitionIterator.Builder builder = PartitionIterator.build(this.graph).partitionSize(partitionSize);
         if (isFirstStep) {
             // If first step we need to use has containers.
+            System.out
+                    .println("!!!!!!!!!!!!!!!!!hasContainers = " + hasContainers);
             builder.containers(hasContainers);
         } else {
             if (elements.isEmpty()) {
+                System.out
+                        .println("!!!!!!!!!!!!!!!!!prev loop empty = " + filter);
                 // If no elements from previous loop and not first step, we need to use global filters.
                 builder.filters(filter);
             } else {
+                System.out
+                        .println("!!!!!!!!!!!!!!!!!prev loop not empty - " + elements.size());
                 // Elements from previous loop.
                 builder.vertices((List) elements);
             }
@@ -129,7 +135,7 @@ public class LocalWorkerPool implements AutoCloseable {
                                 if (output.getRight() != null) {
                                     results.addAll(output.getRight());
                                 }
-                                LOG.debug("Worker {} processed {} vertices, total={}", index, count, counter.addAndGet(count));
+                                LOG.info("Worker {} processed {} vertices, total={}", index, count, counter.addAndGet(count));
                             } catch (final Exception e) {
                                 LOG.error("Worker {} failed on {} vertex of partition", index, count, e);
                             } finally {

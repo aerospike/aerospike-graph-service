@@ -82,6 +82,7 @@ public class PagedGraphQuery implements GraphQuery {
                                                             final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
                                                             final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
                                                             final Long evaluationTimeout, final String... binNames) {
+        System.out.println("!!!!!!!!!!!!!! Running scan");
         final ScanPolicy policy = new ScanPolicy();
         policy.sendKey = sendKey;
         policy.includeBinData = includeBinData;
@@ -123,6 +124,7 @@ public class PagedGraphQuery implements GraphQuery {
                                                                     final Filter filter,
                                                                     final QueryPolicy policy,
                                                                     final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
+        System.out.println("!!!!!!!!!!!!!! Running sindex");
         final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(graph, policy, setName, db.getNamespace(), filter,
                 db.PAGINATION_PAGE_QUEUE_SIZE, db.PAGINATION_PAGE_SIZE, transformKeyRecord, indexName);
         return pageFetcher.startQueryPagesDirect();

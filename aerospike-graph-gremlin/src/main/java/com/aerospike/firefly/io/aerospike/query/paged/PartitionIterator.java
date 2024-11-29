@@ -17,8 +17,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -29,6 +32,7 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     private final BlockingQueue<PageFetcher.Page> pageQueue;
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
     private final FireflyGraph graph;
+    private final Queue<PageFetcher.Page> internalPageQueue = new ConcurrentLinkedQueue<>();
 
     public static final class Builder {
         List<FireflyVertex> vertices = null;
@@ -130,6 +134,9 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     private Optional<PageFetcher.Page> getPage(final BlockingQueue<PageFetcher.Page> pageQueue, final AtomicBoolean shutdown) {
         synchronized (this) {
             try {
+                if (!internalPageQueue.isEmpty())
+                    return Optional.of(internalPageQueue.remove());
+
                 if (shutdown.get()) {
                     return Optional.empty();
                 }
@@ -146,7 +153,21 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
                     shutdown.set(true);
                     return Optional.empty();
                 }
-                return Optional.of(page);
+
+                final AtomicInteger[] counter = {new AtomicInteger()};
+                final List<FireflyVertex>[] ffv = new List[]{new ArrayList<>()};
+                page.keyRecords.forEachRemaining(kr -> {
+                    ffv[0].add(graph.vertexFromRecord(kr));
+                    counter[0].getAndIncrement();
+                    if (counter[0].get() % 1000 == 0) {
+                        internalPageQueue.add(new PageFetcher.VertexPage(FireflyCloseableIteratorUtils.asIterator(ffv[0].iterator())));
+                    }
+                    ffv[0] = new ArrayList<>();
+                });
+                if (ffv[0].size() > 0) {
+                    internalPageQueue.add(new PageFetcher.VertexPage(FireflyCloseableIteratorUtils.asIterator(ffv[0].iterator())));
+                }
+                return Optional.of(internalPageQueue.remove());
             } catch (InterruptedException e) {
                 shutdown.set(true);
                 return Optional.empty();

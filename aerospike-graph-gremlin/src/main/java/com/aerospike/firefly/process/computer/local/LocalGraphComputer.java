@@ -184,7 +184,9 @@ public class LocalGraphComputer implements GraphComputer {
             vertexProgram.workerIterationStart(workerMemory.asImmutable());
             Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = null;
             try {
+                System.out.println("Worker " + Thread.currentThread().getId() + " starting precompute");
                 output = preComputeVertices(traversalMatrix, vertices, (TraversalVertexProgram) vertexProgram, workerMemory);
+                System.out.println("Worker " + Thread.currentThread().getId() + " done precompute");
                 vertices = output.getLeft();
                 while (vertices.hasNext()) {
                     final Vertex vertex = vertices.next();

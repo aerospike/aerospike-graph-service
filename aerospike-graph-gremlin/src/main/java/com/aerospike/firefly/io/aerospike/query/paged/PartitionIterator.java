@@ -130,7 +130,9 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
                 if (shutdown.get()) {
                     return Optional.empty();
                 }
+                System.out.println("Thread " + Thread.currentThread().getName() + " waiting for page");
                 final PageFetcher.Page page = pageQueue.take();
+                System.out.println("Thread " + Thread.currentThread().getName() + " got page");
 
                 if (page instanceof PageFetcher.ErrorPage) {
                     // ERROR

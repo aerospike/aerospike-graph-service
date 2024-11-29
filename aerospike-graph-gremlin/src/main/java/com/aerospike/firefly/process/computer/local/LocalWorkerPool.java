@@ -135,7 +135,7 @@ public class LocalWorkerPool implements AutoCloseable {
                                 if (output.getRight() != null) {
                                     results.addAll(output.getRight());
                                 }
-                                LOG.info("Worker {} processed {} vertices, total={}", index, count, counter.addAndGet(count));
+                                //LOG.info("Worker {} processed {} vertices, total={}", index, count, counter.addAndGet(count));
                             } catch (final Exception e) {
                                 LOG.error("Worker {} failed on {} vertex of partition", index, count, e);
                             } finally {

@@ -108,7 +108,8 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     }
 
     public Optional<CloseableIterator<FireflyVertex>> next() {
-        return this.getPage(pageQueue, shutdown).map(p -> {
+        System.out.println("Thread " + Thread.currentThread().getName() + " waiting for page");
+        Optional<CloseableIterator<FireflyVertex>> optional = this.getPage(pageQueue, shutdown).map(p -> {
             if (p instanceof PageFetcher.VertexPage) {
                 // If it's a vertex page we need to pass through the iterator.
                 final PageFetcher.VertexPage vp = (PageFetcher.VertexPage) p;
@@ -118,6 +119,8 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
                 return FireflyCloseableIteratorUtils.map(p.keyRecords, graph::vertexFromRecord);
             }
         });
+        System.out.println("Thread " + Thread.currentThread().getName() + " got page");
+        return optional;
     }
 
     public void close() {
@@ -130,9 +133,7 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
                 if (shutdown.get()) {
                     return Optional.empty();
                 }
-                System.out.println("Thread " + Thread.currentThread().getName() + " waiting for page");
                 final PageFetcher.Page page = pageQueue.take();
-                System.out.println("Thread " + Thread.currentThread().getName() + " got page");
 
                 if (page instanceof PageFetcher.ErrorPage) {
                     // ERROR

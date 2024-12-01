@@ -6,14 +6,19 @@ import com.aerospike.client.Record;
 import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.io.aerospike.ScanHitCounter;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
@@ -29,9 +34,18 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
     private final ScanHitCounter scanHitCounter;
 
 
-    public ScanPageFetcher(final FireflyGraph graph, final ScanPolicy policy, final String setName, final String namespace,
-                           final int maxQueueSize, final int maxPageSize, final String mapKey, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
-        super(graph, maxQueueSize, transformKeyRecord);
+    public ScanPageFetcher(final FireflyGraph graph,
+                           final Object lock,
+                           final List<AtomicBoolean> allCompleted,
+                           final ScanPolicy policy,
+                           final String setName,
+                           final String namespace,
+                           final int maxPageSize,
+                           final String mapKey,
+                           final FireflyGraph.TransformKeyRecord<R> transformKeyRecord,
+                           final ExecutorService readLoopExecutorService,
+                           final BlockingQueue<Page> pageQueue) {
+        super(graph, lock, allCompleted, transformKeyRecord, null, PartitionFilter.all(), readLoopExecutorService, pageQueue);
         graph.getBaseGraph().configureScanPolicy(policy);
         this.policy = policy;
         this.policy.maxRecords = maxPageSize;

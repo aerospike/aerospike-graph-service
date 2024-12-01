@@ -134,9 +134,6 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     private Optional<PageFetcher.Page> getPage(final BlockingQueue<PageFetcher.Page> pageQueue, final AtomicBoolean shutdown) {
         synchronized (this) {
             try {
-                if (!internalPageQueue.isEmpty())
-                    return Optional.of(internalPageQueue.remove());
-
                 if (shutdown.get()) {
                     return Optional.empty();
                 }
@@ -153,21 +150,7 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
                     shutdown.set(true);
                     return Optional.empty();
                 }
-
-                final AtomicInteger[] counter = {new AtomicInteger()};
-                final List<FireflyVertex>[] ffv = new List[]{new ArrayList<>()};
-                page.keyRecords.forEachRemaining(kr -> {
-                    ffv[0].add(graph.vertexFromRecord(kr));
-                    counter[0].getAndIncrement();
-                    if (counter[0].get() % 1000 == 0) {
-                        internalPageQueue.add(new PageFetcher.VertexPage(FireflyCloseableIteratorUtils.asIterator(ffv[0].iterator())));
-                    }
-                    ffv[0] = new ArrayList<>();
-                });
-                if (ffv[0].size() > 0) {
-                    internalPageQueue.add(new PageFetcher.VertexPage(FireflyCloseableIteratorUtils.asIterator(ffv[0].iterator())));
-                }
-                return Optional.of(internalPageQueue.remove());
+                return Optional.of(page);
             } catch (InterruptedException e) {
                 shutdown.set(true);
                 return Optional.empty();

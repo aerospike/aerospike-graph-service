@@ -6,6 +6,7 @@ import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
+import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.structure.FireflyElement;
@@ -15,13 +16,19 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.FireflyRecord.read;
 
 public class PagedGraphQuery implements GraphQuery {
     private static final Logger LOG = LoggerFactory.getLogger(PagedGraphQuery.class);
@@ -66,14 +73,21 @@ public class PagedGraphQuery implements GraphQuery {
         }
 
         LOG.debug("Issuing scan query of all records in {}:{}:{} with filter {}.", db.getNamespace(), setName, Arrays.toString(binNames), policy.filterExp);
+        final ExecutorService readLoopExecutorService = Executors.newSingleThreadExecutor();
+        final BlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
+        final Object lock = new Object();
+        final List<AtomicBoolean> allCompleted = new ArrayList<>();
         final PageFetcher pageFetcher = new ScanPageFetcher(graph,
+                lock,
+                allCompleted,
                 policy,
                 setName,
                 db.getNamespace(),
-                db.PAGINATION_PAGE_QUEUE_SIZE,
                 db.PAGINATION_PAGE_SIZE,
                 mapKey,
-                transform);
+                transform,
+                readLoopExecutorService,
+                pageQueue);
         return pageFetcher.startQuery();
     }
 
@@ -107,15 +121,24 @@ public class PagedGraphQuery implements GraphQuery {
         }
 
         LOG.debug("Issuing scan query of all records in {}:{}:{} with filter {}.", db.getNamespace(), setName, Arrays.toString(binNames), policy.filterExp);
-        final PageFetcher pageFetcher = new ScanPageFetcher(graph,
+        final BlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
+        final ExecutorService readLoopExecutorService = Executors.newSingleThreadExecutor();
+        final Object lock = new Object();
+        final List<AtomicBoolean> allCompleted = new ArrayList<>();
+        final PageFetcher pageFetcher = new ScanPageFetcher(
+                graph,
+                lock,
+                allCompleted,
                 policy,
                 setName,
                 db.getNamespace(),
-                db.PAGINATION_PAGE_QUEUE_SIZE,
                 db.PAGINATION_PAGE_SIZE,
                 mapKey,
-                transform);
-        return pageFetcher.startQueryPagesDirect();
+                transform,
+                readLoopExecutorService,
+                pageQueue);
+        pageFetcher.startQueryPagesDirect();
+        return pageQueue;
     }
 
     @Override
@@ -125,9 +148,39 @@ public class PagedGraphQuery implements GraphQuery {
                                                                     final QueryPolicy policy,
                                                                     final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
         System.out.println("!!!!!!!!!!!!!! Running sindex");
-        final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(graph, policy, setName, db.getNamespace(), filter,
-                db.PAGINATION_PAGE_QUEUE_SIZE, db.PAGINATION_PAGE_SIZE, transformKeyRecord, indexName);
-        return pageFetcher.startQueryPagesDirect();
+        final int partitions = 4096;
+        final int blockSize = partitions / db.PAGINATION_WORKERS;
+        final int remainder = partitions % db.PAGINATION_WORKERS;
+        final ExecutorService readLoopExecutorService = Executors.newFixedThreadPool(db.PAGINATION_WORKERS, r -> {
+            final Thread t = new Thread(r);
+            t.setName("Aerospike-Graph-Partition-Worker-" + t.getId());
+            t.setDaemon(true);
+            return t;
+        });
+        final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
+        final Object lock = new Object();
+        final List<AtomicBoolean> allCompleted = new ArrayList<>();
+        for (int i = 0; i < db.PAGINATION_WORKERS; i++) {
+            final int start = i * blockSize;
+            final int end = start + blockSize + (i == db.PAGINATION_WORKERS - 1 ? remainder : 0);
+            final PartitionFilter partitionFilter = PartitionFilter.range(start, end);
+            final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(
+                    graph,
+                    lock,
+                    allCompleted,
+                    policy,
+                    setName,
+                    db.getNamespace(),
+                    filter,
+                    db.PAGINATION_PAGE_SIZE,
+                    transformKeyRecord,
+                    indexName,
+                    partitionFilter,
+                    readLoopExecutorService,
+                    pageQueue);
+            pageFetcher.startQueryPagesDirect();
+        }
+        return pageQueue;
     }
 
 
@@ -137,8 +190,23 @@ public class PagedGraphQuery implements GraphQuery {
                                        final Filter filter,
                                        final QueryPolicy policy,
                                        final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
-        final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(graph, policy, setName, db.getNamespace(), filter,
-                db.PAGINATION_PAGE_QUEUE_SIZE, db.PAGINATION_PAGE_SIZE, transformKeyRecord, indexName);
+        final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
+        final Object lock = new Object();
+        final List<AtomicBoolean> allCompleted = new ArrayList<>();
+        final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(
+                graph,
+                lock,
+                allCompleted,
+                policy,
+                setName,
+                db.getNamespace(),
+                filter,
+                db.PAGINATION_PAGE_SIZE,
+                transformKeyRecord,
+                indexName,
+                PartitionFilter.all(),
+                Executors.newSingleThreadExecutor(),
+                pageQueue);
         return pageFetcher.startQuery();
     }
 
@@ -167,9 +235,21 @@ public class PagedGraphQuery implements GraphQuery {
                 map(vertexId -> getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, vertexId)).
                 collect(Collectors.toList());
 
-        final PageFetcher<E> pageFetcher = new BatchReadPageFetcher<>(graph, db.PAGINATION_PAGE_SIZE,
-                db.PAGINATION_PAGE_SIZE, expression, transformKeyRecord, keysToRead, evaluationTimeout);
-
-        return pageFetcher.startQueryPagesDirect();
+        final ExecutorService readLoopExecutorService = Executors.newSingleThreadExecutor();
+        final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
+        final Object lock = new Object();
+        final List<AtomicBoolean> allCompleted = new ArrayList<>();
+        final PageFetcher<E> pageFetcher = new BatchReadPageFetcher<>(
+                graph,
+                lock,
+                allCompleted,
+                db.PAGINATION_PAGE_SIZE,
+                expression,
+                transformKeyRecord,
+                keysToRead,
+                evaluationTimeout,
+                readLoopExecutorService, pageQueue);
+        pageFetcher.startQueryPagesDirect();
+        return pageQueue;
     }
 }

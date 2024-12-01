@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -30,21 +31,26 @@ public abstract class PageFetcher<E> {
     protected final PartitionFilter filter;
     protected final String indexName;
     protected AtomicBoolean isClosing = new AtomicBoolean(false);
+    final Object lock;
+    Boolean poisonPillInserted = false;
+    List<AtomicBoolean> allCompleted;
+    AtomicBoolean selfCompleted = new AtomicBoolean(false);
 
     public PageFetcher(final FireflyGraph graph,
-                       final int maxQueueSize,
-                       final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
-        this(graph, maxQueueSize, transformKeyRecord, null);
-    }
-
-    public PageFetcher(final FireflyGraph graph,
-                       final int maxQueueSize,
+                       final Object lock,
+                       final List<AtomicBoolean> allCompleted,
                        final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
-                       final String indexName) {
+                       final String indexName,
+                       final PartitionFilter partitionFilter,
+                       final ExecutorService readLoopExecutorService,
+                       final BlockingQueue<Page> pageQueue) {
         this.graph = graph;
-        this.filter = PartitionFilter.all();
-        this.readLoopExecutorService = Executors.newSingleThreadExecutor();
-        this.pageQueue = new LinkedBlockingQueue<>(maxQueueSize);
+        this.lock = lock;
+        this.allCompleted = allCompleted;
+        this.allCompleted.add(selfCompleted);
+        this.filter = partitionFilter;
+        this.readLoopExecutorService = readLoopExecutorService;
+        this.pageQueue = pageQueue;
         this.transformKeyRecord = transformKeyRecord;
         this.indexName = indexName;
     }
@@ -61,27 +67,44 @@ public abstract class PageFetcher<E> {
         return new PageFetcher.PageIterator();
     }
 
-    public BlockingQueue<Page> startQueryPagesDirect() {
+    public void startQueryPagesDirect() {
         // Start loop.
         readPages();
-        return this.pageQueue;
     }
 
     private void readPages() {
         readLoopExecutorService.submit(() -> {
             while (true) {
                 try {
-                    if (readLoopExecutorService.isShutdown()) {
-                        try {
-                            pageQueue.put(new PoisonPill());
-                        } catch (final InterruptedException e) {
-                            signalError("Interrupted while attempting to add poison pill.", e);
+                    synchronized (lock) {
+                        if (readLoopExecutorService.isShutdown()) {
+                            try {
+                                if (!poisonPillInserted) {
+                                    pageQueue.put(new PoisonPill());
+                                    poisonPillInserted = true;
+                                }
+                            } catch (final InterruptedException e) {
+                                signalError("Interrupted while attempting to add poison pill.", e);
+                            }
+                            return;
                         }
-                        return;
-                    }
-                    if (isDone()) {
-                        readLoopExecutorService.shutdown();
-                        continue;
+                        if (isDone()) {
+                            // Set self done and check if all are done.
+                            selfCompleted.set(true);
+                            if (allCompleted.stream().allMatch(AtomicBoolean::get)) {
+                                // Shutdown if all done.
+                                readLoopExecutorService.shutdown();
+                            }
+                            try {
+                                if (!poisonPillInserted) {
+                                    pageQueue.put(new PoisonPill());
+                                    poisonPillInserted = true;
+                                }
+                            } catch (final InterruptedException e) {
+                                signalError("Interrupted while attempting to add poison pill.", e);
+                            }
+                            return;
+                        }
                     }
                     readPage();
                 } catch (final Throwable e) {

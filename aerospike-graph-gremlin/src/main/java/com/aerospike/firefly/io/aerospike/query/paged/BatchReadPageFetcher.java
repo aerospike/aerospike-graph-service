@@ -7,6 +7,10 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BatchReadPageFetcher<R> extends PageFetcher<R> {
     private final Expression filterExp;
@@ -15,12 +19,17 @@ public class BatchReadPageFetcher<R> extends PageFetcher<R> {
     private int idx;
     private Long evaluationTimeout;
 
-    public BatchReadPageFetcher(final FireflyGraph graph, final int maxQueueSize,
-                                final int maxPageSize, final Expression expression,
+    public BatchReadPageFetcher(final FireflyGraph graph,
+                                final Object lock,
+                                final List<AtomicBoolean> allCompleted,
+                                final int maxPageSize,
+                                final Expression expression,
                                 final FireflyGraph.TransformKeyRecord<R> transformKeyRecord,
                                 final List<Key> keysToRead,
-                                final Long evaluationTimeout) {
-        super(graph, maxQueueSize, transformKeyRecord);
+                                final Long evaluationTimeout,
+                                final ExecutorService readLoopExecutorService,
+                                final BlockingQueue<Page> pageQueue) {
+        super(graph, lock, allCompleted, transformKeyRecord, null, null, readLoopExecutorService, pageQueue);
         this.filterExp = expression;
         this.keysToRead = keysToRead;
         this.idx = 0;

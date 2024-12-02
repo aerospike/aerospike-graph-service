@@ -49,47 +49,53 @@ public class LocalGraphComputerView {
         this.graphFilter = graphFilter;
     }
 
-    synchronized public <V> Property<V> addProperty(final FireflyVertex vertex, final String key, final V value) {
-        ElementHelper.validateProperty(key, value);
-        if (!getProperty(vertex, key).isEmpty()) {
-            return new DetachedVertexProperty<>(1, key, value, Map.of(), vertex);
-        }
-        if (isComputeKey(key)) {
-            final DetachedVertexProperty<V> property = new DetachedVertexProperty<>(1, key, value, Map.of(), vertex) {
-                @Override
-                public void remove() {
-                    removeProperty(vertex, key, this);
-                }
-            };
-            this.addValue(vertex, key, property);
-            return property;
-        } else {
-            throw GraphComputer.Exceptions.providedKeyIsNotAnElementComputeKey(key);
-        }
-    }
-
-    synchronized public List<VertexProperty<?>> getProperty(final FireflyVertex vertex, final String key) {
-        final List<VertexProperty<?>> vertexProperty = this.getValue(vertex, key);
-        final List<VertexProperty<?>> vps;
-        if (vertexProperty.isEmpty()) {
-            vps = getPropertiesMap(vertex).getOrDefault(key, Collections.emptyList());
-        } else {
-            vps = vertexProperty;
-        }
-        final List<VertexProperty<?>> list = new ArrayList<>(vps);
-        return list;
-    }
-
-    synchronized public <V> List<VertexProperty<V>> getComputeProperties(final FireflyVertex vertex, final String... computeKeys) {
-        final List<VertexProperty<V>> list = new ArrayList<>();
-        for (final Queue<VertexProperty<?>> properties : this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).values()) {
-            for (final VertexProperty<?> property : properties) {
-                if (ElementHelper.keyExists(property.key(), computeKeys)) {
-                    list.add((VertexProperty<V>) property);
-                }
+    public <V> Property<V> addProperty(final FireflyVertex vertex, final String key, final V value) {
+        synchronized (vertex) {
+            ElementHelper.validateProperty(key, value);
+            if (!getProperty(vertex, key).isEmpty()) {
+                return new DetachedVertexProperty<>(1, key, value, Map.of(), vertex);
+            }
+            if (isComputeKey(key)) {
+                final DetachedVertexProperty<V> property = new DetachedVertexProperty<>(1, key, value, Map.of(), vertex) {
+                    @Override
+                    public void remove() {
+                        removeProperty(vertex, key, this);
+                    }
+                };
+                this.addValue(vertex, key, property);
+                return property;
+            } else {
+                throw GraphComputer.Exceptions.providedKeyIsNotAnElementComputeKey(key);
             }
         }
-        return list;
+    }
+
+    public List<VertexProperty<?>> getProperty(final FireflyVertex vertex, final String key) {
+        synchronized (vertex) {
+            final List<VertexProperty<?>> vertexProperty = this.getValue(vertex, key);
+            final List<VertexProperty<?>> vps;
+            if (vertexProperty.isEmpty()) {
+                vps = getPropertiesMap(vertex).getOrDefault(key, Collections.emptyList());
+            } else {
+                vps = vertexProperty;
+            }
+            final List<VertexProperty<?>> list = new ArrayList<>(vps);
+            return list;
+        }
+    }
+
+    public <V> List<VertexProperty<V>> getComputeProperties(final FireflyVertex vertex, final String... computeKeys) {
+        synchronized (vertex) {
+            final List<VertexProperty<V>> list = new ArrayList<>();
+            for (final Queue<VertexProperty<?>> properties : this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).values()) {
+                for (final VertexProperty<?> property : properties) {
+                    if (ElementHelper.keyExists(property.key(), computeKeys)) {
+                        list.add((VertexProperty<V>) property);
+                    }
+                }
+            }
+            return list;
+        }
     }
 
     private Map<String, List<VertexProperty<?>>> getPropertiesMap(final FireflyVertex vertex) {
@@ -100,11 +106,13 @@ public class LocalGraphComputerView {
         return propertiesMap;
     }
 
-    synchronized public void removeProperty(final DetachedVertex vertex, final String key, final VertexProperty<?> property) {
-        if (isComputeKey(key)) {
-            this.removeValue(vertex, key, property);
-        } else {
-            throw GraphComputer.Exceptions.providedKeyIsNotAnElementComputeKey(key);
+    public void removeProperty(final DetachedVertex vertex, final String key, final VertexProperty<?> property) {
+        synchronized (vertex) {
+            if (isComputeKey(key)) {
+                this.removeValue(vertex, key, property);
+            } else {
+                throw GraphComputer.Exceptions.providedKeyIsNotAnElementComputeKey(key);
+            }
         }
     }
 

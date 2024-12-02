@@ -8,6 +8,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.FireflyHelper;
+import com.aerospike.firefly.util.ReflectionHelper;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.computer.ComputerResult;
@@ -183,6 +184,8 @@ public class LocalGraphComputer implements GraphComputer {
                 traversal.get().applyStrategies();
             System.out.println("Thread " + Thread.currentThread().getName() + " executing vertex program after apply " + traversal);
             final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.get());
+            Map<String, Object> matrix = (Map) ReflectionHelper.getFieldValue(traversalMatrix, "matrix");
+            System.out.println("Thread " + Thread.currentThread().getName() + " executing vertex program matrix " + matrix);
             long counter = 0;
             vertexProgram.workerIterationStart(workerMemory.asImmutable());
             Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = null;

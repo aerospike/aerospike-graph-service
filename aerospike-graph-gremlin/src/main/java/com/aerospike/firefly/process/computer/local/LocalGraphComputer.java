@@ -178,16 +178,16 @@ public class LocalGraphComputer implements GraphComputer {
                                                  final LocalWorkerMemory workerMemory,
                                                  final AtomicLong vertexCount) throws Exception {
             final PureTraversal<?, ?> traversal = ((TraversalVertexProgram) vertexProgram).getTraversal().clone();
+            System.out.println("Thread " + Thread.currentThread().getName() + " executing vertex program before apply " + traversal);
             if (!traversal.get().isLocked())
                 traversal.get().applyStrategies();
+            System.out.println("Thread " + Thread.currentThread().getName() + " executing vertex program after apply " + traversal);
             final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.get());
             long counter = 0;
             vertexProgram.workerIterationStart(workerMemory.asImmutable());
             Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = null;
             try {
-                //System.out.println("Worker " + Thread.currentThread().getId() + " starting precompute");
                 output = preComputeVertices(traversalMatrix, vertices, (TraversalVertexProgram) vertexProgram, workerMemory);
-                //System.out.println("Worker " + Thread.currentThread().getId() + " done precompute");
                 vertices = output.getLeft();
                 while (vertices.hasNext()) {
                     final Vertex vertex = vertices.next();
@@ -448,7 +448,7 @@ public class LocalGraphComputer implements GraphComputer {
                 }
                 precomputableComputerStep.get().add(traverser, vertex);
             } else {
-                System.out.println("Thread " + Thread.currentThread().getName() + " not updating for " + currentStep);
+                System.out.println("Thread " + Thread.currentThread().getName() + " not updating (1) for " + currentStep + " step id " + traverser.getStepId() + " matrix: " + traversalMatrix);
             }
         } else if (currentStep instanceof TraversalParent) {
             final TraversalParent traversalParent = (TraversalParent) currentStep;
@@ -474,7 +474,7 @@ public class LocalGraphComputer implements GraphComputer {
                 getPrecomputableComputerStep(vertex, precomputableComputerStep, traverser, child);
             }
         } else {
-            System.out.println("Thread " + Thread.currentThread().getName() + " not updating for " + currentStep);
+            System.out.println("Thread " + Thread.currentThread().getName() + " not updating (0) for " + currentStep + " step id " + traverser.getStepId() + " matrix: " + traversalMatrix);
         }
     }
 

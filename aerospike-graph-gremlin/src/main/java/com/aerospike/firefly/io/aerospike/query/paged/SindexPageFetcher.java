@@ -49,7 +49,9 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         final AerospikeConnection.FireflyRecordSet recordSet = graph.getBaseGraph().queryPartitions(policy, statement, filter);
         final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
         try (final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close, timeout)) {
-            pageQueue.put(new Page(pi));
+            if (recordSetIterator.hasNext()) {
+                pageQueue.put(new Page(pi));
+            }
             while (recordSetIterator.hasNext()) {
                 pi.add(recordSetIterator.next());
             }

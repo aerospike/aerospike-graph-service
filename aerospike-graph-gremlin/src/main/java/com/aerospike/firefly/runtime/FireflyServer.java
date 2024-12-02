@@ -5,6 +5,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.ReflectionHelper;
 import com.aerospike.firefly.util.WarmupUtil;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.tinkerpop.gremlin.groovy.engine.GremlinExecutor;
 import org.apache.tinkerpop.gremlin.server.GraphManager;
 import org.apache.tinkerpop.gremlin.server.GremlinServer;
@@ -12,6 +13,7 @@ import org.apache.tinkerpop.gremlin.server.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -69,10 +71,9 @@ public class FireflyServer {
             // need to add TraversalSource's to GraphManager
             final GraphManager graphManager = gremlinServer.getServerGremlinExecutor().getGraphManager();
 
-            boolean isWarmedUp = false;
             final Set<String> graphs = graphManager.getGraphNames();
             for (final String graphName : graphs) {
-                final FireflyGraph graph = (FireflyGraph)graphManager.getGraph(graphName);
+                final FireflyGraph graph = (FireflyGraph) graphManager.getGraph(graphName);
                 String gts = graph.configuration().getString(TRAVERSAL_NAME);
                 if (gts == null) {
                     // default gts for default graph
@@ -86,14 +87,20 @@ public class FireflyServer {
                 // let's graph know his config file path to use with bulk loader
                 graph.setConfigFilePath(settings.graphs.get(graphName));
 
-                if (!isWarmedUp) {
+                if (FireflyGraph.NEED_PREHEAT) {
                     final boolean needPreheat = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, graph.configuration());
                     if (needPreheat) {
                         WarmupUtil.create(graph.configuration()).preheat(WarmupUtil.passes);
-                        isWarmedUp = true;
+                        FireflyGraph.NEED_PREHEAT = false;
                         logger.info("Warmup is complete.");
                     }
                 }
+            }
+            FireflyGraph.NEED_PREHEAT = false;
+
+            final String healthCheckFilename = System.getenv().get(ConfigurationHelper.Keys.HEALTHCHECK_FILE);
+            if (StringUtils.isNotBlank(healthCheckFilename)) {
+                new File(healthCheckFilename).createNewFile();
             }
 
             // workaround to set TraversalSource's for script engines

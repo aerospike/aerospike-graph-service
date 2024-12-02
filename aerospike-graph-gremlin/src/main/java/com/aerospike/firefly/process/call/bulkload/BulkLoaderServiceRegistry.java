@@ -8,6 +8,11 @@ import java.util.Set;
 public class BulkLoaderServiceRegistry extends ServiceRegistryBase {
 
     public BulkLoaderServiceRegistry(final FireflyGraph graph) {
+        // Check if com.aerospike.firefly.bulkloader.SparkBulkLoaderMain exists. Only load if it does.
+        if (!bulkLoaderExists()) {
+            services = Set.of();
+            return;
+        }
         services = Set.of(
                 new BulkLoaderServiceLoad<>(graph),
                 new BulkLoaderServiceErrors<>(graph),
@@ -17,5 +22,14 @@ public class BulkLoaderServiceRegistry extends ServiceRegistryBase {
                 new BulkLoaderServiceCountErrorsDeprecated<>(graph));
 
         services.forEach(graph.getServiceRegistry()::registerService);
+    }
+
+    private boolean bulkLoaderExists() {
+        try {
+            Class.forName("com.aerospike.firefly.bulkloader.SparkBulkLoaderMain");
+            return true;
+        } catch (final ClassNotFoundException e) {
+            return false;
+        }
     }
 }

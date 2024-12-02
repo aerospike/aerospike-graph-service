@@ -74,6 +74,7 @@ public class SparkBulkLoaderStateMachine {
     public boolean readOnly;
     public Set<Long> completedVertexPartitions = new HashSet<>();
     public Set<Long> completedEdgePartitions = new HashSet<>();
+    public double supernodeSamplingPercentage;
 
     public SparkBulkLoaderStateMachine(final String[] args) {
         try {
@@ -126,6 +127,7 @@ public class SparkBulkLoaderStateMachine {
             });
             config = new BulkLoaderConfigHelper(fileConfig, cmd);
             config.validateBulkLoadConfig();
+            supernodeSamplingPercentage = DatasetOperations.getSupernodeSamplingPercentage(config);
 
             final String logLevel = config.getOrDefault(SPARK_LOG_LEVEL).toUpperCase();
             // Set LOG LEVEL for spark logging to disable logging of each step during debugging purposes.

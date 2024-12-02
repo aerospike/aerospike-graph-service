@@ -158,6 +158,9 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
                     missingIds.add(id);
                 }
             });
+            if (!missingIds.isEmpty()) {
+                System.out.println("Thread " + Thread.currentThread().getName() + " missing ids: " + missingIds.size() + " cache size: " + cache.get().size());
+            }
             final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
             final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, missingIds, requiredProperties);
             output.addAll(vertices);

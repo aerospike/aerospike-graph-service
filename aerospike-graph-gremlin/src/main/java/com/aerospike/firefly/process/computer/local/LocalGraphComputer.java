@@ -447,6 +447,8 @@ public class LocalGraphComputer implements GraphComputer {
                     precomputableComputerStep.set((PrecomputableComputerStep) nextStep);
                 }
                 precomputableComputerStep.get().add(traverser, vertex);
+            } else {
+                System.out.println("Thread " + Thread.currentThread().getName() + " not updating for " + currentStep);
             }
         } else if (currentStep instanceof TraversalParent) {
             final TraversalParent traversalParent = (TraversalParent) currentStep;
@@ -471,6 +473,8 @@ public class LocalGraphComputer implements GraphComputer {
                 }
                 getPrecomputableComputerStep(vertex, precomputableComputerStep, traverser, child);
             }
+        } else {
+            System.out.println("Thread " + Thread.currentThread().getName() + " not updating for " + currentStep);
         }
     }
 
@@ -497,6 +501,7 @@ public class LocalGraphComputer implements GraphComputer {
                                                                                         final LocalWorkerMemory memory) {
         final List<FireflyVertex> outputVertices = new ArrayList<>();
         final AtomicReference<PrecomputableComputerStep> precomputableComputerStep = new AtomicReference<>(null);
+        boolean attempted = false;
         if (memory.isInitialIteration()) {
             while (vertices.hasNext()) {
                 final FireflyVertex vertex = vertices.next();
@@ -515,6 +520,7 @@ public class LocalGraphComputer implements GraphComputer {
                     graphStep.reset();
                     activeTraversers.forEach(traverser -> graphStep.addStart((Traverser.Admin) traverser));
                     activeTraversers.clear();
+                    // TODO can we remove id exists ?
                     if (graphStep.returnsVertex())
                         graphStep.setIteratorSupplier(() -> ElementHelper.idExists(vertex.id(), graphStep.getIds()) ? (Iterator) IteratorUtils.of(vertex) : EmptyIterator.instance());
                     else
@@ -526,8 +532,12 @@ public class LocalGraphComputer implements GraphComputer {
                     });
                 }
 
+                attempted = true;
                 activeTraversers.forEach(traverser ->
                         updatePrecompute(vertex, precomputableComputerStep, traversalMatrix, traverser));
+            }
+            if (!attempted) {
+                System.out.println("Thread " + Thread.currentThread().getName() + " no vertices to precompute");
             }
         } else {
             final IndexedTraverserSet<Object, Vertex> maybeActiveTraversers = memory.get(TraversalVertexProgram.ACTIVE_TRAVERSERS);

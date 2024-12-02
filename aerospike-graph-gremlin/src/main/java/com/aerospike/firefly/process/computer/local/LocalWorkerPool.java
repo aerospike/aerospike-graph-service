@@ -1,35 +1,24 @@
 package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
-import com.aerospike.firefly.process.traversal.step.computer.FireflyCompositeIdStepLocal;
-import com.aerospike.firefly.process.traversal.step.computer.PrecomputableComputerStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import org.apache.commons.collections.list.SynchronizedList;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
-import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
-import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.computer.util.MapReducePool;
 import org.apache.tinkerpop.gremlin.process.computer.util.VertexProgramPool;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
-import org.apache.tinkerpop.gremlin.util.function.TriFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,8 +30,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-
-import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -101,18 +88,12 @@ public class LocalWorkerPool implements AutoCloseable {
         final PartitionIterator.Builder builder = PartitionIterator.build(this.graph).partitionSize(partitionSize);
         if (isFirstStep) {
             // If first step we need to use has containers.
-            System.out
-                    .println("!!!!!!!!!!!!!!!!!hasContainers = " + hasContainers);
             builder.containers(hasContainers);
         } else {
             if (elements.isEmpty()) {
-                System.out
-                        .println("!!!!!!!!!!!!!!!!!prev loop empty = " + filter);
                 // If no elements from previous loop and not first step, we need to use global filters.
                 builder.filters(filter);
             } else {
-                System.out
-                        .println("!!!!!!!!!!!!!!!!!prev loop not empty - " + elements.size());
                 // Elements from previous loop.
                 builder.vertices((List) elements);
             }
@@ -120,7 +101,6 @@ public class LocalWorkerPool implements AutoCloseable {
         final List<Element> results = Collections.synchronizedList(new ArrayList());
         try (final PartitionIterator partitions = builder.create()) {
             for (int i = 0; i < this.numberOfWorkers; i++) {
-                //System.out.println("Thread " + Thread.currentThread().getName() + " started");
                 final int index = i;
                 this.completionService.submit(() -> {
                     long count = 0;
@@ -142,11 +122,9 @@ public class LocalWorkerPool implements AutoCloseable {
                             } catch (final Exception e) {
                                 LOG.error("Worker {} failed on {} vertex of partition", index, count, e);
                             } finally {
-                                //System.out.println("Thread " + Thread.currentThread().getName() + " closing iterator");
                                 if (iterator != null) {
                                     iterator.close();
                                 }
-                                //System.out.println("Thread " + Thread.currentThread().getName() + " iterator closed");
                             }
                         } else {
                             break;
@@ -167,7 +145,6 @@ public class LocalWorkerPool implements AutoCloseable {
                 throw new IllegalStateException(e.getMessage(), e);
             }
         }
-        System.out.println("Done local worker pool");
         return results;
     }
 

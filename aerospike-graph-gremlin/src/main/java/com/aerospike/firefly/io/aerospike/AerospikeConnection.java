@@ -87,7 +87,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -1625,14 +1624,6 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public Record[] dynamicBatchRead(final Key[] keys, final Expression filterExp, final FireflyCache cache, final Operation... operations) {
-        // System.out.println("Thread " + Thread.currentThread().getName() + " is reading " + keys.length + " keys.");
-        final Random random = new Random();
-        if (random.nextInt(1000) == 0 && keys.length == 1) {
-            final StackTraceElement[] elements = Thread.currentThread().getStackTrace();
-            for (final StackTraceElement element : elements) {
-                System.out.println(element);
-            }
-        }
         if (keys.length > this.AEROSPIKE_BATCH_THRESHOLD) {
             // Default batch read used by read.
             final BatchPolicy batchReadPolicy = new BatchPolicy();

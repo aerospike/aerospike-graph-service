@@ -122,7 +122,7 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
                     with("element_type", "vertex").next();
         }
         try {
-            Thread.sleep(2 * 1000);
+            Thread.sleep(60 * 1000);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }

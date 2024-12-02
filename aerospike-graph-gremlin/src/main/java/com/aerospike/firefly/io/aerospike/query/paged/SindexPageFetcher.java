@@ -12,7 +12,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SindexPageFetcher<R> extends PageFetcher<R> {
@@ -48,16 +47,13 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
     protected void readPage() throws InterruptedException {
         final AerospikeConnection.FireflyRecordSet recordSet = graph.getBaseGraph().queryPartitions(policy, statement, filter);
         final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
-        int count = 0;
         try (final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close, timeout)) {
             if (recordSetIterator.hasNext()) {
                 pageQueue.put(new Page(pi));
             }
             while (recordSetIterator.hasNext()) {
                 pi.add(recordSetIterator.next());
-                count++;
             }
-            System.out.println("Worker " + Thread.currentThread().getName() + " read " + count + " records");
         }
     }
 }

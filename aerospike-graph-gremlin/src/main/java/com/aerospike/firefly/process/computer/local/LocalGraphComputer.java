@@ -168,24 +168,20 @@ public class LocalGraphComputer implements GraphComputer {
 
     class ExecuteVertexProgram {
         final LocalMessageBoard messageBoard;
+        final TraversalMatrix traversalMatrix;
 
         // Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Pair<Long, List<Element>>
-        public ExecuteVertexProgram(final LocalMessageBoard messageBoard) {
+        public ExecuteVertexProgram(final LocalMessageBoard messageBoard, final PureTraversal<?, ?> traversal) {
             this.messageBoard = messageBoard;
+            if (!traversal.get().isLocked())
+                traversal.get().applyStrategies();
+            this.traversalMatrix = new TraversalMatrix<>(traversal.get());
         }
 
         public Pair<Long, List<Element>> execute(Iterator<FireflyVertex> vertices,
                                                  final VertexProgram vertexProgram,
                                                  final LocalWorkerMemory workerMemory,
                                                  final AtomicLong vertexCount) throws Exception {
-            final PureTraversal<?, ?> traversal = ((TraversalVertexProgram) vertexProgram).getTraversal().clone();
-            System.out.println("Thread " + Thread.currentThread().getName() + " executing vertex program before apply " + traversal);
-            if (!traversal.get().isLocked())
-                traversal.get().applyStrategies();
-            System.out.println("Thread " + Thread.currentThread().getName() + " executing vertex program after apply " + traversal);
-            final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.get());
-            Map<String, Object> matrix = (Map) ReflectionHelper.getFieldValue(traversalMatrix, "matrix");
-            System.out.println("Thread " + Thread.currentThread().getName() + " executing vertex program matrix " + matrix);
             long counter = 0;
             vertexProgram.workerIterationStart(workerMemory.asImmutable());
             Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = null;
@@ -325,7 +321,7 @@ public class LocalGraphComputer implements GraphComputer {
                             this.memory.completeSubRound();
                             workers.setVertexProgram(this.vertexProgram);
                             previousResult = workers.executeVertexProgram(
-                                    new ExecuteVertexProgram(this.messageBoard),
+                                    new ExecuteVertexProgram(this.messageBoard, new TraversalMatrix<>(traversal.get().clone())),
                                     this.memory.isInitialIteration(),
                                     previousResult,
                                     this.graphFilter,
@@ -434,6 +430,7 @@ public class LocalGraphComputer implements GraphComputer {
                                          final AtomicReference<PrecomputableComputerStep> precomputableComputerStep,
                                          final TraversalMatrix<?, ?> traversalMatrix,
                                          final Traverser.Admin<?> traverser) {
+
         final Step<Object, Object> currentStep = traversalMatrix.getStepById(traverser.getStepId());
         if (currentStep instanceof PrecomputableComputerStep) {
             if (precomputableComputerStep.get() == null) {
@@ -451,7 +448,8 @@ public class LocalGraphComputer implements GraphComputer {
                 }
                 precomputableComputerStep.get().add(traverser, vertex);
             } else {
-                System.out.println("Thread " + Thread.currentThread().getName() + " not updating (1) for " + currentStep + " step id " + traverser.getStepId() + " matrix: " + traversalMatrix);
+                Map<String, Step<?, ?>> matrix = (Map) ReflectionHelper.getFieldValue(traversalMatrix, "matrix");
+                System.out.println("Thread " + Thread.currentThread().getName() + " not updating (1) for " + currentStep + " step id " + traverser.getStepId() + " matrix: " + matrix);
             }
         } else if (currentStep instanceof TraversalParent) {
             final TraversalParent traversalParent = (TraversalParent) currentStep;
@@ -477,7 +475,8 @@ public class LocalGraphComputer implements GraphComputer {
                 getPrecomputableComputerStep(vertex, precomputableComputerStep, traverser, child);
             }
         } else {
-            System.out.println("Thread " + Thread.currentThread().getName() + " not updating (0) for " + currentStep + " step id " + traverser.getStepId() + " matrix: " + traversalMatrix);
+            Map<String, Step<?, ?>> matrix = (Map) ReflectionHelper.getFieldValue(traversalMatrix, "matrix");
+            System.out.println("Thread " + Thread.currentThread().getName() + " not updating (0) for " + currentStep + " step id " + traverser.getStepId() + " matrix: " + matrix);
         }
     }
 
@@ -540,7 +539,9 @@ public class LocalGraphComputer implements GraphComputer {
                         updatePrecompute(vertex, precomputableComputerStep, traversalMatrix, traverser));
             }
             if (!attempted) {
-                System.out.println("Thread " + Thread.currentThread().getName() + " no vertices to precompute");
+                Map<String, Step<?, ?>> matrix = (Map) ReflectionHelper.getFieldValue(traversalMatrix, "matrix");
+                System.out.println("Thread " + Thread.currentThread().getName() + " no vertices to precompute " + matrix);
+
             }
         } else {
             final IndexedTraverserSet<Object, Vertex> maybeActiveTraversers = memory.get(TraversalVertexProgram.ACTIVE_TRAVERSERS);

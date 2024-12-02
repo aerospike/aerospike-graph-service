@@ -109,6 +109,7 @@ public abstract class PageFetcher<E> {
                             return;
                         }
                     }
+                    System.out.println("Worker " + Thread.currentThread().getName() + " reading page.");
                     readPage();
                 } catch (final Throwable e) {
                     if (e.getMessage() == null) {

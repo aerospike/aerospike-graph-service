@@ -173,9 +173,10 @@ public class LocalGraphComputer implements GraphComputer {
         // Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Pair<Long, List<Element>>
         public ExecuteVertexProgram(final LocalMessageBoard messageBoard, final PureTraversal<?, ?> traversal) {
             this.messageBoard = messageBoard;
-            if (!traversal.get().isLocked())
-                traversal.get().applyStrategies();
-            this.traversalMatrix = new TraversalMatrix<>(traversal.get());
+            Traversal<?, ?> traversal1 = traversal.get().clone();
+            if (!traversal1.asAdmin().isLocked())
+                traversal1.asAdmin().applyStrategies();
+            this.traversalMatrix = new TraversalMatrix<>(traversal1.get());
         }
 
         public Pair<Long, List<Element>> execute(Iterator<FireflyVertex> vertices,
@@ -321,7 +322,7 @@ public class LocalGraphComputer implements GraphComputer {
                             this.memory.completeSubRound();
                             workers.setVertexProgram(this.vertexProgram);
                             previousResult = workers.executeVertexProgram(
-                                    new ExecuteVertexProgram(this.messageBoard, new TraversalMatrix<>(traversal.get().clone())),
+                                    new ExecuteVertexProgram(this.messageBoard, traversal),
                                     this.memory.isInitialIteration(),
                                     previousResult,
                                     this.graphFilter,

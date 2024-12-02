@@ -120,6 +120,7 @@ public class LocalWorkerPool implements AutoCloseable {
         final List<Element> results = Collections.synchronizedList(new ArrayList());
         try (final PartitionIterator partitions = builder.create()) {
             for (int i = 0; i < this.numberOfWorkers; i++) {
+                System.out.println("Thread " + Thread.currentThread().getName() + " started");
                 final int index = i;
                 this.completionService.submit(() -> {
                     long count = 0;
@@ -141,9 +142,11 @@ public class LocalWorkerPool implements AutoCloseable {
                             } catch (final Exception e) {
                                 LOG.error("Worker {} failed on {} vertex of partition", index, count, e);
                             } finally {
+                                System.out.println("Thread " + Thread.currentThread().getName() + " closing iterator");
                                 if (iterator != null) {
                                     iterator.close();
                                 }
+                                System.out.println("Thread " + Thread.currentThread().getName() + " iterator closed");
                             }
                         } else {
                             break;
@@ -164,6 +167,7 @@ public class LocalWorkerPool implements AutoCloseable {
                 throw new IllegalStateException(e.getMessage(), e);
             }
         }
+        System.out.println("Done local worker pool");
         return results;
     }
 

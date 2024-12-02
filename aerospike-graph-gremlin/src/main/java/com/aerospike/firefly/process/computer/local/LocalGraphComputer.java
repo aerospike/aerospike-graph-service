@@ -54,6 +54,7 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -184,11 +185,14 @@ public class LocalGraphComputer implements GraphComputer {
                                                  final LocalWorkerMemory workerMemory,
                                                  final AtomicLong vertexCount) throws Exception {
             long counter = 0;
+            long startTime = Instant.now().getEpochSecond();
             vertexProgram.workerIterationStart(workerMemory.asImmutable());
             Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = null;
             try {
+                System.out.println("Thread " + Thread.currentThread().getName() + " Precomputing vertices " + (Instant.now().getEpochSecond() - startTime));
                 output = preComputeVertices(traversalMatrix, vertices, (TraversalVertexProgram) vertexProgram, workerMemory);
                 vertices = output.getLeft();
+                System.out.println("Thread " + Thread.currentThread().getName() + " Precomputing done " +  (Instant.now().getEpochSecond() - startTime));
                 while (vertices.hasNext()) {
                     final Vertex vertex = vertices.next();
                     counter++;
@@ -202,6 +206,7 @@ public class LocalGraphComputer implements GraphComputer {
                         LOG.error("Worker failed evaluating vertex {}", vertex.id(), e);
                     }
                 }
+                System.out.println("Thread " + Thread.currentThread().getName() + " vertex program done " +  (Instant.now().getEpochSecond() - startTime));
                 vertexProgram.workerIterationEnd(workerMemory.asImmutable());
                 workerMemory.complete();
                 vertexCount.getAndAdd(counter);
@@ -209,6 +214,7 @@ public class LocalGraphComputer implements GraphComputer {
                 if (output != null && output.getRight() != null) {
                     result = (List<Element>) output.getRight().get();
                 }
+                System.out.println("Thread " + Thread.currentThread().getName() + " vertex finalizing " +  (Instant.now().getEpochSecond() - startTime));
                 final long finalCounter = counter;
                 final List<Element> finalResult = result;
                 return new Pair<>() {
@@ -231,6 +237,7 @@ public class LocalGraphComputer implements GraphComputer {
             } finally {
                 if (output != null && output.getRight() != null) {
                     output.getRight().release();
+                    System.out.println("Thread " + Thread.currentThread().getName() + " vertex released " +  (Instant.now().getEpochSecond() - startTime));
                 }
             }
         }
@@ -311,6 +318,7 @@ public class LocalGraphComputer implements GraphComputer {
                 final LocalWorkerPool workers = new LocalWorkerPool(this.graph, this.memory, this.workers);
 
                 try {
+                    Instant start = Instant.now();
                     final AtomicLong vertexCount = new AtomicLong(-1); // stores final iteration vertex count (used for mapreduce parittion size calculation)
                     if (null != this.vertexProgram) {
                         // execute the vertex program
@@ -336,6 +344,7 @@ public class LocalGraphComputer implements GraphComputer {
                                 this.memory.incrIteration();
                             }
                         }
+                        System.out.println("Vertex program done " + (Instant.now().getEpochSecond() - start.getEpochSecond()));
                         view.complete(); // drop all transient vertex compute keys (i.e. drop global state)
                     }
 

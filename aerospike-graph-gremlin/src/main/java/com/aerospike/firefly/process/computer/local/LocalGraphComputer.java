@@ -176,7 +176,7 @@ public class LocalGraphComputer implements GraphComputer {
             Traversal<?, ?> traversal1 = traversal.get().clone();
             if (!traversal1.asAdmin().isLocked())
                 traversal1.asAdmin().applyStrategies();
-            this.traversalMatrix = new TraversalMatrix<>(traversal1.get());
+            this.traversalMatrix = new TraversalMatrix<>(traversal1);
         }
 
         public Pair<Long, List<Element>> execute(Iterator<FireflyVertex> vertices,

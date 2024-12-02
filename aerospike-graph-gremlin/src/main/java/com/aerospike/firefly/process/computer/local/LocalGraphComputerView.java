@@ -38,19 +38,22 @@ public class LocalGraphComputerView {
 
     private final FireflyGraph graph;
     protected final Map<String, VertexComputeKey> computeKeys;
+    protected final Map<Element, Object> lockMap;
     private final Map<Element, Map<String, Queue<VertexProperty<?>>>> computeProperties;
     private final GraphFilter graphFilter;
 
     public LocalGraphComputerView(final FireflyGraph graph, final GraphFilter graphFilter, final Set<VertexComputeKey> computeKeys) {
         this.graph = graph;
         this.computeKeys = new ConcurrentHashMap<>();
+        this.lockMap = new ConcurrentHashMap<>();
         computeKeys.forEach(key -> this.computeKeys.put(key.getKey(), key));
         this.computeProperties = new ConcurrentHashMap<>();
         this.graphFilter = graphFilter;
     }
 
     public <V> Property<V> addProperty(final FireflyVertex vertex, final String key, final V value) {
-        synchronized (vertex) {
+        final Object lock = lockMap.computeIfAbsent(vertex, k -> new Object());
+        synchronized (lock) {
             ElementHelper.validateProperty(key, value);
             if (!getProperty(vertex, key).isEmpty()) {
                 return new DetachedVertexProperty<>(1, key, value, Map.of(), vertex);
@@ -71,7 +74,8 @@ public class LocalGraphComputerView {
     }
 
     public List<VertexProperty<?>> getProperty(final FireflyVertex vertex, final String key) {
-        synchronized (vertex) {
+        final Object lock = lockMap.computeIfAbsent(vertex, k -> new Object());
+        synchronized (lock) {
             final List<VertexProperty<?>> vertexProperty = this.getValue(vertex, key);
             final List<VertexProperty<?>> vps;
             if (vertexProperty.isEmpty()) {
@@ -85,7 +89,8 @@ public class LocalGraphComputerView {
     }
 
     public <V> List<VertexProperty<V>> getComputeProperties(final FireflyVertex vertex, final String... computeKeys) {
-        synchronized (vertex) {
+        final Object lock = lockMap.computeIfAbsent(vertex, k -> new Object());
+        synchronized (lock) {
             final List<VertexProperty<V>> list = new ArrayList<>();
             for (final Queue<VertexProperty<?>> properties : this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).values()) {
                 for (final VertexProperty<?> property : properties) {
@@ -107,7 +112,8 @@ public class LocalGraphComputerView {
     }
 
     public void removeProperty(final DetachedVertex vertex, final String key, final VertexProperty<?> property) {
-        synchronized (vertex) {
+        final Object lock = lockMap.computeIfAbsent(vertex, k -> new Object());
+        synchronized (lock) {
             if (isComputeKey(key)) {
                 this.removeValue(vertex, key, property);
             } else {

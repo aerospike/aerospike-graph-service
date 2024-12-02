@@ -332,7 +332,7 @@ public final class ConfigurationHelper {
         put(Keys.PAGINATION_PAGE_MAX_WAIT, "1200000"); // 20 minutes.
         put(Keys.PAGINATION_SHUTDOWN_WAIT, "0");
         put(Keys.PAGINATION_WORKERS, String.valueOf(Runtime.getRuntime().availableProcessors()));
-        put(Keys.OLAP_WORKERS, String.valueOf(5));
+        put(Keys.OLAP_WORKERS, String.valueOf(4 * Runtime.getRuntime().availableProcessors()));
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_READ_THROUGH_CACHE, "true");
         put(Keys.ENABLE_PREFETCH_STRATEGY, "true");

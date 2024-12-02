@@ -23,6 +23,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
     public SindexPageFetcher(final FireflyGraph graph,
                              final Object lock,
                              final List<AtomicBoolean> allCompleted,
+                             final int workerCount,
                              final QueryPolicy policy,
                              final String setName,
                              final String namespace,
@@ -33,7 +34,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
                              final PartitionFilter partitionFilter,
                              final ExecutorService readLoopExecutorService,
                              final BlockingQueue<Page> pageQueue) {
-        super(graph, lock, allCompleted, transformKeyRecord, indexName, partitionFilter, readLoopExecutorService, pageQueue);
+        super(graph, workerCount, lock, allCompleted, transformKeyRecord, indexName, partitionFilter, readLoopExecutorService, pageQueue);
         this.policy = policy;
         this.statement = new Statement();
         this.statement.setNamespace(namespace);
@@ -50,8 +51,10 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         try (final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close, timeout)) {
             pageQueue.put(new Page(pi));
             while (recordSetIterator.hasNext()) {
+                System.out.println("Adding 1");
                 pi.add(recordSetIterator.next());
             }
         }
+        System.out.println("Page read");
     }
 }

@@ -35,6 +35,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
 
 
     public ScanPageFetcher(final FireflyGraph graph,
+                           final int workerCount,
                            final Object lock,
                            final List<AtomicBoolean> allCompleted,
                            final ScanPolicy policy,
@@ -45,7 +46,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
                            final FireflyGraph.TransformKeyRecord<R> transformKeyRecord,
                            final ExecutorService readLoopExecutorService,
                            final BlockingQueue<Page> pageQueue) {
-        super(graph, lock, allCompleted, transformKeyRecord, null, PartitionFilter.all(), readLoopExecutorService, pageQueue);
+        super(graph, workerCount, lock, allCompleted, transformKeyRecord, null, PartitionFilter.all(), readLoopExecutorService, pageQueue);
         graph.getBaseGraph().configureScanPolicy(policy);
         this.policy = policy;
         this.policy.maxRecords = maxPageSize;

@@ -35,8 +35,10 @@ public abstract class PageFetcher<E> {
     Boolean poisonPillInserted = false;
     List<AtomicBoolean> allCompleted;
     AtomicBoolean selfCompleted = new AtomicBoolean(false);
+    final int workerCount;
 
     public PageFetcher(final FireflyGraph graph,
+                       final int workerCount,
                        final Object lock,
                        final List<AtomicBoolean> allCompleted,
                        final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
@@ -45,6 +47,7 @@ public abstract class PageFetcher<E> {
                        final ExecutorService readLoopExecutorService,
                        final BlockingQueue<Page> pageQueue) {
         this.graph = graph;
+        this.workerCount = workerCount;
         this.lock = lock;
         this.allCompleted = allCompleted;
         this.allCompleted.add(selfCompleted);
@@ -91,7 +94,7 @@ public abstract class PageFetcher<E> {
                         if (isDone()) {
                             // Set self done and check if all are done.
                             selfCompleted.set(true);
-                            if (allCompleted.stream().allMatch(AtomicBoolean::get)) {
+                            if (allCompleted.size() == workerCount && allCompleted.stream().allMatch(AtomicBoolean::get)) {
                                 // Shutdown if all done.
                                 readLoopExecutorService.shutdown();
                             }

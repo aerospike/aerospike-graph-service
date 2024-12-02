@@ -78,6 +78,7 @@ public class PagedGraphQuery implements GraphQuery {
         final Object lock = new Object();
         final List<AtomicBoolean> allCompleted = new ArrayList<>();
         final PageFetcher pageFetcher = new ScanPageFetcher(graph,
+                1,
                 lock,
                 allCompleted,
                 policy,
@@ -127,6 +128,7 @@ public class PagedGraphQuery implements GraphQuery {
         final List<AtomicBoolean> allCompleted = new ArrayList<>();
         final PageFetcher pageFetcher = new ScanPageFetcher(
                 graph,
+                1,
                 lock,
                 allCompleted,
                 policy,
@@ -149,8 +151,7 @@ public class PagedGraphQuery implements GraphQuery {
                                                                     final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
         System.out.println("!!!!!!!!!!!!!! Running sindex");
         final int partitions = 4096;
-        final int blockSize = partitions / db.PAGINATION_WORKERS;
-        final int remainder = partitions % db.PAGINATION_WORKERS;
+        System.out.println("Workers: " + db.PAGINATION_WORKERS);
         final ExecutorService readLoopExecutorService = Executors.newFixedThreadPool(db.PAGINATION_WORKERS, r -> {
             final Thread t = new Thread(r);
             t.setName("Aerospike-Graph-Partition-Worker-" + t.getId());
@@ -160,14 +161,16 @@ public class PagedGraphQuery implements GraphQuery {
         final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
         final Object lock = new Object();
         final List<AtomicBoolean> allCompleted = new ArrayList<>();
-        for (int i = 0; i < db.PAGINATION_WORKERS; i++) {
-            final int start = i * blockSize;
-            final int end = start + blockSize + (i == db.PAGINATION_WORKERS - 1 ? remainder : 0);
-            final PartitionFilter partitionFilter = PartitionFilter.range(start, end);
+        final List<Range> ranges = splitPartitions(partitions, db.PAGINATION_WORKERS);
+
+        for (Range range : ranges) {
+            System.out.println("Submitting range " + range);
+            final PartitionFilter partitionFilter = PartitionFilter.range(range.start, range.count);
             final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(
                     graph,
                     lock,
                     allCompleted,
+                    db.PAGINATION_WORKERS,
                     policy,
                     setName,
                     db.getNamespace(),
@@ -181,6 +184,43 @@ public class PagedGraphQuery implements GraphQuery {
             pageFetcher.startQueryPagesDirect();
         }
         return pageQueue;
+    }
+
+    public List<Range> splitPartitions(int totalPartitions, int numberOfWorkers) {
+        List<Range> ranges = new ArrayList<>();
+        int partitionsPerWorker = totalPartitions / numberOfWorkers;
+        int remainder = totalPartitions % numberOfWorkers;
+
+        int start = 0;
+        for (int i = 0; i < numberOfWorkers; i++) {
+            int count = partitionsPerWorker;
+
+            // Distribute the remainder
+            if (remainder > 0) {
+                count++;
+                remainder--;
+            }
+
+            ranges.add(new Range(start, count));
+            start += count;
+        }
+
+        return ranges;
+    }
+
+    class Range {
+        private final int start;
+        private final int count;
+
+        public Range(int start, int count) {
+            this.start = start;
+            this.count = count;
+        }
+
+        @Override
+        public String toString() {
+            return "[" + start + " - " + (start + count - 1) + "]";
+        }
     }
 
 
@@ -197,6 +237,7 @@ public class PagedGraphQuery implements GraphQuery {
                 graph,
                 lock,
                 allCompleted,
+                1,
                 policy,
                 setName,
                 db.getNamespace(),
@@ -241,6 +282,7 @@ public class PagedGraphQuery implements GraphQuery {
         final List<AtomicBoolean> allCompleted = new ArrayList<>();
         final PageFetcher<E> pageFetcher = new BatchReadPageFetcher<>(
                 graph,
+                1,
                 lock,
                 allCompleted,
                 db.PAGINATION_PAGE_SIZE,

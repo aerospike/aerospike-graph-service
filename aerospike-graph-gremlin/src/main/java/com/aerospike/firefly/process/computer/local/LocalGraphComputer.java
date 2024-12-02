@@ -450,7 +450,7 @@ public class LocalGraphComputer implements GraphComputer {
                 precomputableComputerStep.get().add(traverser, vertex);
             } else {
                 Map<String, Step<?, ?>> matrix = (Map) ReflectionHelper.getFieldValue(traversalMatrix, "matrix");
-                System.out.println("Thread " + Thread.currentThread().getName() + " not updating (1) for " + currentStep + " step id " + traverser.getStepId() + " matrix: " + matrix);
+                //System.out.println("Thread " + Thread.currentThread().getName() + " not updating (1) for " + currentStep + " step id " + traverser.getStepId() + " matrix: " + matrix);
             }
         } else if (currentStep instanceof TraversalParent) {
             final TraversalParent traversalParent = (TraversalParent) currentStep;
@@ -475,10 +475,10 @@ public class LocalGraphComputer implements GraphComputer {
                 }
                 getPrecomputableComputerStep(vertex, precomputableComputerStep, traverser, child);
             }
-        } else {
-            Map<String, Step<?, ?>> matrix = (Map) ReflectionHelper.getFieldValue(traversalMatrix, "matrix");
-            System.out.println("Thread " + Thread.currentThread().getName() + " not updating (0) for " + currentStep + " step id " + traverser.getStepId() + " matrix: " + matrix);
-        }
+        }// else {
+            // Map<String, Step<?, ?>> matrix = (Map) ReflectionHelper.getFieldValue(traversalMatrix, "matrix");
+            // System.out.println("Thread " + Thread.currentThread().getName() + " not updating (0) for " + currentStep + " step id " + traverser.getStepId() + " matrix: " + matrix);
+        //}
     }
 
     private static void getPrecomputableComputerStep(final FireflyVertex vertex,

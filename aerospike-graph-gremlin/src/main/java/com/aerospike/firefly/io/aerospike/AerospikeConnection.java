@@ -1625,7 +1625,7 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public Record[] dynamicBatchRead(final Key[] keys, final Expression filterExp, final FireflyCache cache, final Operation... operations) {
-        System.out.println("Thread " + Thread.currentThread().getName() + " is reading " + keys.length + " keys.");
+        // System.out.println("Thread " + Thread.currentThread().getName() + " is reading " + keys.length + " keys.");
         final Random random = new Random();
         if (random.nextInt(1000) == 0 && keys.length == 1) {
             final StackTraceElement[] elements = Thread.currentThread().getStackTrace();

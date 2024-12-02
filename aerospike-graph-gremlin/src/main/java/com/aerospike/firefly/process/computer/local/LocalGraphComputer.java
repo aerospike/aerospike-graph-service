@@ -188,10 +188,10 @@ public class LocalGraphComputer implements GraphComputer {
             long startTime = Instant.now().getEpochSecond();
             vertexProgram.workerIterationStart(workerMemory.asImmutable());
             Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = null;
-            System.out.println("Thread " + Thread.currentThread().getName() + " Precomputing vertices " + (Instant.now().getEpochSecond() - startTime));
+            //System.out.println("Thread " + Thread.currentThread().getName() + " Precomputing vertices " + (Instant.now().getEpochSecond() - startTime));
             output = preComputeVertices(traversalMatrix, vertices, (TraversalVertexProgram) vertexProgram, workerMemory);
             vertices = output.getLeft();
-            System.out.println("Thread " + Thread.currentThread().getName() + " Precomputing done " +  (Instant.now().getEpochSecond() - startTime));
+            //System.out.println("Thread " + Thread.currentThread().getName() + " Precomputing done " +  (Instant.now().getEpochSecond() - startTime));
             while (vertices.hasNext()) {
                 final Vertex vertex = vertices.next();
                 counter++;
@@ -205,7 +205,7 @@ public class LocalGraphComputer implements GraphComputer {
                     LOG.error("Worker failed evaluating vertex {}", vertex.id(), e);
                 }
             }
-            System.out.println("Thread " + Thread.currentThread().getName() + " vertex program done " +  (Instant.now().getEpochSecond() - startTime));
+            //System.out.println("Thread " + Thread.currentThread().getName() + " vertex program done " +  (Instant.now().getEpochSecond() - startTime));
             vertexProgram.workerIterationEnd(workerMemory.asImmutable());
             workerMemory.complete();
             vertexCount.getAndAdd(counter);
@@ -213,7 +213,7 @@ public class LocalGraphComputer implements GraphComputer {
             if (output != null && output.getRight() != null) {
                 result = (List<Element>) output.getRight().get();
             }
-            System.out.println("Thread " + Thread.currentThread().getName() + " vertex finalizing " +  (Instant.now().getEpochSecond() - startTime));
+            //System.out.println("Thread " + Thread.currentThread().getName() + " vertex finalizing " +  (Instant.now().getEpochSecond() - startTime));
             final long finalCounter = counter;
             final List<Element> finalResult = result;
             final Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> finalOutput = output;
@@ -549,7 +549,7 @@ public class LocalGraphComputer implements GraphComputer {
             }
             if (!attempted) {
                 Map<String, Step<?, ?>> matrix = (Map) ReflectionHelper.getFieldValue(traversalMatrix, "matrix");
-                System.out.println("Thread " + Thread.currentThread().getName() + " no vertices to precompute " + matrix);
+                //System.out.println("Thread " + Thread.currentThread().getName() + " no vertices to precompute " + matrix);
 
             }
         } else {

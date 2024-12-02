@@ -100,7 +100,7 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
     }
 
     public void precompute() {
-        System.out.println("Thread " + Thread.currentThread().getName() + " precomputing FireflyCompositeIdStepLocal");
+        //System.out.println("Thread " + Thread.currentThread().getName() + " precomputing FireflyCompositeIdStepLocal");
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
 
         // Info is used to keep track of how many output items we assign for each input (executed in order).
@@ -138,7 +138,7 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
         // Drain data to output.
         FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
                 fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache.get(), graph::readVertices, requiredProperties);
-        System.out.println("Thread " + Thread.currentThread().getName() + " done precomputing FireflyCompositeIdStepLocal");
+        //System.out.println("Thread " + Thread.currentThread().getName() + " done precomputing FireflyCompositeIdStepLocal");
     }
 
     @Override

@@ -30,7 +30,7 @@ public class BatchReadPageFetcher<R> extends PageFetcher<R> {
                                 final Long evaluationTimeout,
                                 final ExecutorService readLoopExecutorService,
                                 final BlockingQueue<Page> pageQueue) {
-        super(graph, 1, lock, allCompleted, transformKeyRecord, null, null, readLoopExecutorService, pageQueue);
+        super(graph, workerCount, lock, allCompleted, transformKeyRecord, null, null, readLoopExecutorService, pageQueue);
         this.filterExp = expression;
         this.keysToRead = keysToRead;
         this.idx = 0;

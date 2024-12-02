@@ -1624,7 +1624,7 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public Record[] dynamicBatchRead(final Key[] keys, final Expression filterExp, final FireflyCache cache, final Operation... operations) {
-        System.out.println("Reading " + keys.length + " keys");
+        System.out.println("Thread " + Thread.currentThread().getId() + " is reading " + keys.length + " keys.");
         if (keys.length > this.AEROSPIKE_BATCH_THRESHOLD) {
             // Default batch read used by read.
             final BatchPolicy batchReadPolicy = new BatchPolicy();

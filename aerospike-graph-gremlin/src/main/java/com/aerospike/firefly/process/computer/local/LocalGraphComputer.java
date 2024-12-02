@@ -90,7 +90,7 @@ public class LocalGraphComputer implements GraphComputer {
     private final LocalMessageBoard messageBoard = new LocalMessageBoard();
     private boolean executed = false;
     private final Set<MapReduce> mapReducers = new HashSet<>();
-    private int workers = Runtime.getRuntime().availableProcessors() * 4;
+    private int workers;
     private final GraphFilter graphFilter = new GraphFilter();
 
     private final int previousPartitionSize;
@@ -108,6 +108,7 @@ public class LocalGraphComputer implements GraphComputer {
     public LocalGraphComputer(final FireflyGraph graph) {
         this.graph = graph;
         this.previousPartitionSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, this.graph.configuration());
+        this.workers = graph.getBaseGraph().OLAP_WORKERS;
     }
 
     public GraphComputer partitionSize(final int partitionSize) {
@@ -634,8 +635,7 @@ public class LocalGraphComputer implements GraphComputer {
 
             @Override
             public int getMaxWorkers() {
-                // TODO GRAPH-1382 - We should have this configurable and maybe do something better.
-                return graph.getBaseGraph().PAGINATION_WORKERS;
+                return Integer.MAX_VALUE;
             }
 
             @Override

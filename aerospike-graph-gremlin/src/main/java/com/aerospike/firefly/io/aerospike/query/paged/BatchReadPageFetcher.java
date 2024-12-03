@@ -7,10 +7,6 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BatchReadPageFetcher<R> extends PageFetcher<R> {
     private final Expression filterExp;

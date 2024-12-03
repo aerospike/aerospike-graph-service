@@ -228,7 +228,6 @@ public class LocalGraphComputer implements GraphComputer {
                     }
                 };
             } finally {
-
                 if (output != null && output.getRight() != null) {
                     output.getRight().release();
                 }

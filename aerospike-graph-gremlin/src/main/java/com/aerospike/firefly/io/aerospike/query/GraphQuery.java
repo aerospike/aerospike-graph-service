@@ -367,11 +367,8 @@ public class GraphQuery {
             db.getScanHitCounter().increment(mapKey);
         }
 
-        final BlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
-        final PageFetcher pageFetcher = new ScanPageFetcher(graph, policy, setName, db.getNamespace(),
-                db.PAGINATION_PAGE_SIZE, mapKey, transform);
-        pageFetcher.startQuery();
-        return pageQueue;
+        final PageFetcher pageFetcher = new ScanPageFetcher(graph, policy, setName, db.PAGINATION_PAGE_SIZE, mapKey, transform);
+        return pageFetcher.startQueryDirect();
     }
 
 
@@ -394,7 +391,6 @@ public class GraphQuery {
         for (final Range range : ranges) {
             final PartitionFilter partitionFilter = PartitionFilter.range(range.start, range.count);
             final PageFetcher<E> pageFetcher = new PartitionedSindexPageFetcher<>(
-                    // Standard args
                     graph, policy, setName, db.getNamespace(), filter, db.PAGINATION_PAGE_SIZE, transformKeyRecord, indexName,
                     partitionFilter,readLoopExecutorService ,
                     pageQueue, lock, allCompleted, db.PAGINATION_WORKERS);

@@ -24,7 +24,6 @@ import java.util.function.BiFunction;
 
 public class ScanPageFetcher<E extends Element> extends PageFetcher<E> {
     private static final Logger LOG = LoggerFactory.getLogger(ScanPageFetcher.class);
-    private final String namespace;
     private final String set;
     private final ScanPolicy policy;
     private final BiFunction<Long, Long, Void> metricsCallback;
@@ -32,11 +31,9 @@ public class ScanPageFetcher<E extends Element> extends PageFetcher<E> {
     private final UUID scanId = UUID.randomUUID();
     private final ScanHitCounter scanHitCounter;
 
-
     public ScanPageFetcher(final FireflyGraph graph,
                            final ScanPolicy policy,
                            final String setName,
-                           final String namespace,
                            final int maxPageSize,
                            final String mapKey,
                            final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
@@ -44,7 +41,6 @@ public class ScanPageFetcher<E extends Element> extends PageFetcher<E> {
         graph.getBaseGraph().configureScanPolicy(policy);
         this.policy = policy;
         this.policy.maxRecords = maxPageSize;
-        this.namespace = namespace;
         this.set = setName;
         this.scanHitCounter = graph.getBaseGraph().getScanHitCounter();
         if (mapKey != null) {

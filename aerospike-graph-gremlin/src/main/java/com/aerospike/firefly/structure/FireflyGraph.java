@@ -79,7 +79,6 @@ import java.io.File;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -208,6 +207,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private final Settings gremlinServerSettings;
     public static ExitManager EXIT_MANAGER = new ExitManager();
     public static boolean NEED_PREHEAT = true;
+    public final GraphQuery graphQuery;
 
     public static class ExitManager {
         public void exit(final int code) {
@@ -232,6 +232,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.configuration = conf;
         db.createGraphIndexes();
         this.db = db;
+        graphQuery = new GraphQuery(this);
         this.idFactory = db.getIdFactory();
         this.bulkLoaderFlag = db.getBulkLoaderFlag();
         this.bulkLoadIdBufferSize = ConfigurationHelper.getOrDefaultInt(BULK_LOAD_ID_BUFFER_SIZE, conf);
@@ -545,7 +546,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public Iterator<Map<String, Object>> readDuplicateVertexIdErrors() {
-        return GraphQuery.create(this).scanSet(null, db.BULK_LOAD_DUPLICATE_VID_SET, null, null, keyRecord -> {
+        return this.graphQuery.scanSet(null, db.BULK_LOAD_DUPLICATE_VID_SET, null, null, keyRecord -> {
             final Map<String, Object> errorInfo = new HashMap<>();
             errorInfo.put("id", keyRecord.key.userKey.getObject());
             errorInfo.put("count", keyRecord.record.getLong(db.COUNTER_BIN));
@@ -570,7 +571,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public Iterator<Map<String, String>> readBadEntryErrors() {
-        return GraphQuery.create(this).scanSet(null, db.BULK_LOAD_BAD_ENTRY_SET, null, null, keyRecord -> {
+        return this.graphQuery.scanSet(null, db.BULK_LOAD_BAD_ENTRY_SET, null, null, keyRecord -> {
             final Map<String, String> errorInfo = new HashMap<>();
             errorInfo.put("row", keyRecord.record.getString(db.BL_ROW_BIN));
             errorInfo.put("file", keyRecord.record.getString(db.BL_FILE_BIN));
@@ -595,7 +596,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public Iterator<Map<String, Object>> readBadEdgeErrors() {
-        return GraphQuery.create(this).scanSet(null, db.BULK_LOAD_BAD_EDGE_SET, null, null, keyRecord -> {
+        return this.graphQuery.scanSet(null, db.BULK_LOAD_BAD_EDGE_SET, null, null, keyRecord -> {
             final Map<String, Object> errorInfo = new HashMap<>();
             errorInfo.put("bad-vertex-id", keyRecord.key.userKey.getObject());
             errorInfo.put("count", keyRecord.record.getLong(db.COUNTER_BIN));
@@ -912,11 +913,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public long getVertexCount(final List<HasContainer> hasContainers, final Long evaluationTimeout) {
-        return FireflyCloseableIteratorUtils.count(GraphQuery.create(this).scanVertexIds(hasContainers, evaluationTimeout));
+        return FireflyCloseableIteratorUtils.count(this.graphQuery.scanVertexIds(hasContainers, evaluationTimeout));
     }
 
     public long getEdgeCount(final Long evaluationTimeout) {
-        return FireflyCloseableIteratorUtils.count(GraphQuery.create(this).scanEdgeIds(evaluationTimeout));
+        return FireflyCloseableIteratorUtils.count(this.graphQuery.scanEdgeIds(evaluationTimeout));
     }
 
     @Override
@@ -1066,7 +1067,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public Iterator<Vertex> vertices(final List<HasContainer> filters, final List<String> requiredProperties, final Object... vertexIdsOrVertices) {
         final Iterator<FireflyId> idsIterator;
         if (vertexIdsOrVertices.length == 0) {
-            idsIterator = GraphQuery.create(this).scanVertexIds(settings().evaluationTimeout);
+            idsIterator = this.graphQuery.scanVertexIds(settings().evaluationTimeout);
         } else {
             idsIterator = getIds(Arrays.asList(vertexIdsOrVertices)).stream()
                     .filter(Objects::nonNull)
@@ -1092,7 +1093,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
         if (edgeIds.length == 0) {
             return new FireflyBatchElementIterator<>(this,
-                    GraphQuery.create(this).scanEdgeIds(settings().evaluationTimeout), filters,
+                    this.graphQuery.scanEdgeIds(settings().evaluationTimeout), filters,
                     this::readEdges, null);
         }
 

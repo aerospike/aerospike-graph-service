@@ -9,10 +9,8 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SindexPageFetcher<R> extends PageFetcher<R> {
     private final QueryPolicy policy;
@@ -20,9 +18,24 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
     private final int timeout;
 
     public SindexPageFetcher(final FireflyGraph graph,
-                             final Object lock,
-                             final List<AtomicBoolean> allCompleted,
-                             final int workerCount,
+                             final QueryPolicy policy,
+                             final String setName,
+                             final String namespace,
+                             final Filter filter,
+                             final int maxPageSize,
+                             final FireflyGraph.TransformKeyRecord<R> transformKeyRecord,
+                             final String indexName) {
+        super(graph, transformKeyRecord, indexName);
+        this.policy = policy;
+        this.statement = new Statement();
+        this.statement.setNamespace(namespace);
+        this.statement.setSetName(setName);
+        this.statement.setFilter(filter);
+        this.statement.setMaxRecords(maxPageSize);
+        this.timeout = policy.totalTimeout == 0 ? policy.socketTimeout : policy.totalTimeout;
+    }
+
+    public SindexPageFetcher(final FireflyGraph graph,
                              final QueryPolicy policy,
                              final String setName,
                              final String namespace,
@@ -33,7 +46,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
                              final PartitionFilter partitionFilter,
                              final ExecutorService readLoopExecutorService,
                              final BlockingQueue<Page> pageQueue) {
-        super(graph, workerCount, lock, allCompleted, transformKeyRecord, indexName, partitionFilter, readLoopExecutorService, pageQueue);
+        super(graph, transformKeyRecord, indexName, partitionFilter, readLoopExecutorService, pageQueue);
         this.policy = policy;
         this.statement = new Statement();
         this.statement.setNamespace(namespace);

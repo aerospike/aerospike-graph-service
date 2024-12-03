@@ -1,6 +1,5 @@
 package com.aerospike.firefly.io.aerospike.query.paged;
 
-import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
@@ -17,11 +16,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -32,7 +28,6 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     private final BlockingQueue<PageFetcher.Page> pageQueue;
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
     private final FireflyGraph graph;
-    private final Queue<PageFetcher.Page> internalPageQueue = new ConcurrentLinkedQueue<>();
 
     public static final class Builder {
         List<FireflyVertex> vertices = null;
@@ -100,10 +95,10 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
         this.graph = builder.graph;
         if (builder.vertices == null) {
             // If the last step did not wire through vertices, we need to run a scan / sindex using filters.
-            this.pageQueue = GraphQuery.create(graph).partitionVertexIdPages(builder.filters, graph.settings().evaluationTimeout);
+            this.pageQueue = graph.graphQuery.partitionVertexIdPages(builder.filters, graph.settings().evaluationTimeout);
         } else {
             // The last step wired through vertices, we can partition these and execute.
-            this.pageQueue = GraphQuery.create(graph).partitionVertices(builder.vertices);
+            this.pageQueue = graph.graphQuery.partitionVertices(builder.vertices);
         }
     }
 
@@ -112,7 +107,7 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
     }
 
     public Optional<CloseableIterator<FireflyVertex>> next() {
-        Optional<CloseableIterator<FireflyVertex>> optional = this.getPage(pageQueue, shutdown).map(p -> {
+        return this.getPage(pageQueue, shutdown).map(p -> {
             if (p instanceof PageFetcher.VertexPage) {
                 // If it's a vertex page we need to pass through the iterator.
                 final PageFetcher.VertexPage vp = (PageFetcher.VertexPage) p;
@@ -122,7 +117,6 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
                 return FireflyCloseableIteratorUtils.map(p.keyRecords, graph::vertexFromRecord);
             }
         });
-        return optional;
     }
 
     public void close() {

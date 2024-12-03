@@ -18,12 +18,11 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 
-public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
+public class ScanPageFetcher<E extends Element> extends PageFetcher<E> {
     private static final Logger LOG = LoggerFactory.getLogger(ScanPageFetcher.class);
     private final String namespace;
     private final String set;
@@ -35,18 +34,13 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
 
 
     public ScanPageFetcher(final FireflyGraph graph,
-                           final int workerCount,
-                           final Object lock,
-                           final List<AtomicBoolean> allCompleted,
                            final ScanPolicy policy,
                            final String setName,
                            final String namespace,
                            final int maxPageSize,
                            final String mapKey,
-                           final FireflyGraph.TransformKeyRecord<R> transformKeyRecord,
-                           final ExecutorService readLoopExecutorService,
-                           final BlockingQueue<Page> pageQueue) {
-        super(graph, workerCount, lock, allCompleted, transformKeyRecord, null, PartitionFilter.all(), readLoopExecutorService, pageQueue);
+                           final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
+        super(graph, transformKeyRecord, null);
         graph.getBaseGraph().configureScanPolicy(policy);
         this.policy = policy;
         this.policy.maxRecords = maxPageSize;

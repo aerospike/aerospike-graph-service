@@ -20,17 +20,12 @@ public class BatchReadPageFetcher<R> extends PageFetcher<R> {
     private Long evaluationTimeout;
 
     public BatchReadPageFetcher(final FireflyGraph graph,
-                                final int workerCount,
-                                final Object lock,
-                                final List<AtomicBoolean> allCompleted,
                                 final int maxPageSize,
                                 final Expression expression,
                                 final FireflyGraph.TransformKeyRecord<R> transformKeyRecord,
                                 final List<Key> keysToRead,
-                                final Long evaluationTimeout,
-                                final ExecutorService readLoopExecutorService,
-                                final BlockingQueue<Page> pageQueue) {
-        super(graph, workerCount, lock, allCompleted, transformKeyRecord, null, null, readLoopExecutorService, pageQueue);
+                                final Long evaluationTimeout) {
+        super(graph, transformKeyRecord, null);
         this.filterExp = expression;
         this.keysToRead = keysToRead;
         this.idx = 0;

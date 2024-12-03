@@ -215,8 +215,7 @@ public class GraphQuery {
     // Computer Methods.
     ////////////////////
 
-    public <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(final FireflyGraph graph,
-                                                                            final Expression expression,
+    public <E> BlockingQueue<PageFetcher.Page> batchReadVertexPagesBlocking(final Expression expression,
                                                                             final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
                                                                             final List<Object> idsToRead,
                                                                             final Long evaluationTimeout) {
@@ -303,7 +302,7 @@ public class GraphQuery {
                 final Expression expression = GraphQueryHelper.hasContainerListToExpression(db, aerospikeSideHasContainers, FireflyVertex.class);
                 final BatchPolicy policy = new BatchPolicy();
                 policy.setTimeout(evaluationTimeout.intValue());
-                return batchReadVertexPagesBlocking(graph, expression, graph::vertexFromRecord, ids, evaluationTimeout);
+                return batchReadVertexPagesBlocking(expression, graph::vertexFromRecord, ids, evaluationTimeout);
             }
 
             final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, hasContainers);

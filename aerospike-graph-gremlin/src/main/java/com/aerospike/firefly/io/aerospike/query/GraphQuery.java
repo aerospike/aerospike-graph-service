@@ -377,7 +377,7 @@ public class GraphQuery {
                                                                      final QueryPolicy policy,
                                                                      final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
         final int partitions = 4096; // Always 4096 in Aerospike. Like the speed of light, this is constant.
-        final ExecutorService readLoopExecutorService = Executors.newFixedThreadPool(db.PAGINATION_WORKERS, r -> {
+        final ExecutorService readLoopExecutorService = Executors.newFixedThreadPool(db.OLAP_PAGINATION_WORKERS, r -> {
             final Thread t = new Thread(r);
             t.setName("Aerospike-Graph-Partition-Worker-" + t.getId());
             t.setDaemon(true);
@@ -386,13 +386,13 @@ public class GraphQuery {
         final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
         final Object lock = new Object();
         final List<AtomicBoolean> allCompleted = new ArrayList<>();
-        final List<Range> ranges = Range.splitPartitions(partitions, db.PAGINATION_WORKERS);
+        final List<Range> ranges = Range.splitPartitions(partitions, db.OLAP_PAGINATION_WORKERS);
         for (final Range range : ranges) {
             final PartitionFilter partitionFilter = PartitionFilter.range(range.start, range.count);
             final PageFetcher<E> pageFetcher = new PartitionedSindexPageFetcher<>(
                     graph, policy, setName, db.getNamespace(), filter, db.PAGINATION_PAGE_SIZE, transformKeyRecord, indexName,
                     partitionFilter,readLoopExecutorService ,
-                    pageQueue, lock, allCompleted, db.PAGINATION_WORKERS);
+                    pageQueue, lock, allCompleted, db.OLAP_PAGINATION_WORKERS);
 
             // Intentionally not using return value here.
             pageFetcher.startQueryDirect();

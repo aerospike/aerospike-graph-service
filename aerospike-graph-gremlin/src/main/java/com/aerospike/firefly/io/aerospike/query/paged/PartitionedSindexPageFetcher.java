@@ -18,7 +18,6 @@ public class PartitionedSindexPageFetcher<R> extends SindexPageFetcher<R> {
     // Only used by computer.
     private final Object lock;
     private final List<AtomicBoolean> allCompleted;
-    private final AtomicBoolean selfCompleted = new AtomicBoolean(false);
     private final int workerCount;
     private Boolean poisonPillInserted = false;
 
@@ -61,7 +60,6 @@ public class PartitionedSindexPageFetcher<R> extends SindexPageFetcher<R> {
                             }
                             if (isDone()) {
                                 // Set self done and check if all are done.
-                                selfCompleted.set(true);
                                 if (allCompleted.size() == workerCount && allCompleted.stream().allMatch(AtomicBoolean::get)) {
                                     // Shutdown if all done.
                                     readLoopExecutorService.shutdown();

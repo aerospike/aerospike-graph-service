@@ -123,7 +123,7 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
         }
         try {
             Thread.sleep(60 * 1000);
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
     }

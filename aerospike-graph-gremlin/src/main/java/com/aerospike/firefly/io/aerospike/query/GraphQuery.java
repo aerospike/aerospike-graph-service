@@ -45,7 +45,7 @@ public class GraphQuery {
     final FireflyGraph graph;
     final AerospikeConnection db;
 
-    public GraphQuery(FireflyGraph graph) {
+    public GraphQuery(final FireflyGraph graph) {
         this.graph = graph;
         this.db = graph.getBaseGraph();
     }
@@ -67,7 +67,7 @@ public class GraphQuery {
         return scanElementIds(FireflyEdge.class, List.of(), evaluationTimeout);
     }
 
-    public Iterator<FireflyId> scanElementIds(final Class<? extends FireflyElement> clazz,
+    private Iterator<FireflyId> scanElementIds(final Class<? extends FireflyElement> clazz,
                                               final List<HasContainer> hasContainers,
                                               final Long evaluationTimeout) {
         final P<?> predicate;
@@ -154,8 +154,7 @@ public class GraphQuery {
             db.getScanHitCounter().increment(mapKey);
         }
 
-        final PageFetcher<E> pageFetcher = new ScanPageFetcher(
-                graph, policy, setName, db.getNamespace(), db.PAGINATION_PAGE_SIZE, mapKey, transform);
+        final PageFetcher<E> pageFetcher = new ScanPageFetcher(graph, policy, setName, db.PAGINATION_PAGE_SIZE, mapKey, transform);
         return pageFetcher.startQuery();
     }
 
@@ -173,18 +172,18 @@ public class GraphQuery {
         return pageFetcher.startQuery();
     }
 
-    public <E> Iterator<E> queryVertexSIndex(FireflyIndexMetadata.IndexInfo indexInfo,
-                                             P<?> predicate,
-                                             FireflyGraph.TransformKeyRecord<E> transform,
-                                             Long evaluationTimeout) {
+    public <E> Iterator<E> queryVertexSIndex(final FireflyIndexMetadata.IndexInfo indexInfo,
+                                             final P<?> predicate,
+                                             final FireflyGraph.TransformKeyRecord<E> transform,
+                                             final Long evaluationTimeout) {
         return queryVertexSIndex(indexInfo, predicate, transform, Collections.emptyList(), evaluationTimeout);
     }
 
-    public <E> Iterator<E> queryVertexSIndex(FireflyIndexMetadata.IndexInfo indexInfo,
-                                             P<?> predicate,
-                                             FireflyGraph.TransformKeyRecord<E> transform,
-                                             List<HasContainer> hasContainers,
-                                             Long evaluationTimeout) {
+    public <E> Iterator<E> queryVertexSIndex(final FireflyIndexMetadata.IndexInfo indexInfo,
+                                             final P<?> predicate,
+                                             final FireflyGraph.TransformKeyRecord<E> transform,
+                                             final List<HasContainer> hasContainers,
+                                             final Long evaluationTimeout) {
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
         graph.getBaseGraph().configureIndexPolicy(queryPolicy);
@@ -405,7 +404,7 @@ public class GraphQuery {
         private final int start;
         private final int count;
 
-        public Range(int start, int count) {
+        public Range(final int start, final int count) {
             this.start = start;
             this.count = count;
         }

@@ -97,7 +97,6 @@ public class PagedGraphQuery implements GraphQuery {
                                                             final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
                                                             final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
                                                             final Long evaluationTimeout, final String... binNames) {
-        System.out.println("!!!!!!!!!!!!!! Running scan");
         final ScanPolicy policy = new ScanPolicy();
         policy.sendKey = sendKey;
         policy.includeBinData = includeBinData;
@@ -149,9 +148,7 @@ public class PagedGraphQuery implements GraphQuery {
                                                                     final Filter filter,
                                                                     final QueryPolicy policy,
                                                                     final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
-        System.out.println("!!!!!!!!!!!!!! Running sindex");
         final int partitions = 4096;
-        System.out.println("Workers: " + db.PAGINATION_WORKERS);
         final ExecutorService readLoopExecutorService = Executors.newFixedThreadPool(db.PAGINATION_WORKERS, r -> {
             final Thread t = new Thread(r);
             t.setName("Aerospike-Graph-Partition-Worker-" + t.getId());
@@ -164,7 +161,6 @@ public class PagedGraphQuery implements GraphQuery {
         final List<Range> ranges = splitPartitions(partitions, db.PAGINATION_WORKERS);
 
         for (Range range : ranges) {
-            System.out.println("Submitting range " + range);
             final PartitionFilter partitionFilter = PartitionFilter.range(range.start, range.count);
             final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(
                     graph,

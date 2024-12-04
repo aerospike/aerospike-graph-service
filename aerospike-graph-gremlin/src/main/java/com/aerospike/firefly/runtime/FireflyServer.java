@@ -107,6 +107,10 @@ public class FireflyServer {
             final GremlinExecutor gremlinExecutor = gremlinServer.getServerGremlinExecutor().getGremlinExecutor();
             ReflectionHelper.setFieldValue(gremlinExecutor, "globalBindings", graphManager.getAsBindings());
 
+            // workaround to allow only GremlinLangScriptEngine
+            final FireflyScriptEngineManager scriptEngineManager = new FireflyScriptEngineManager();
+            ReflectionHelper.setFieldValue(gremlinExecutor, "gremlinScriptEngineManager", scriptEngineManager);
+
             serverMetrics = new ServerMetrics(gremlinServer);
             serverMetrics.start();
         } catch (Exception ex) {

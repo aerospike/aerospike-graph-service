@@ -75,10 +75,15 @@ public class JWTAuthorizer implements Authorizer {
         }
 
         final StringBuilder sb = new StringBuilder().append("[");
-        for (var entry : ((Map<String, String>) role).entrySet()) {
+        for (final Map.Entry<String, String> entry : ((Map<String, String>) role).entrySet()) {
             sb.append(String.format("'%s':'%s',",
                     StringEscapeUtils.escapeJava(entry.getKey()), StringEscapeUtils.escapeJava(entry.getValue())));
         }
-        return sb.append("]").toString();
+        if (((Map) role).isEmpty()) {
+            sb.append("]");
+        } else {
+            sb.replace(sb.length() - 1, sb.length(), "]");
+        }
+        return sb.toString();
     }
 }

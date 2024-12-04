@@ -2,6 +2,7 @@ package com.aerospike.firefly.process.call.metadata;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
+import org.apache.tinkerpop.gremlin.util.Gremlin;
 
 import java.util.Map;
 
@@ -36,7 +37,8 @@ public class MetadataServiceVersion<I, R> extends MetadataServiceBase<I, R> {
     protected R execute(final Map params) {
         return (R) Map.of(
                 "Aerospike version", AerospikeConnection.InfoOps.getDatabaseVersionString(graph.getBaseGraph()),
-                "Aerospike Graph Service version", graph.FIREFLY_VERSION);
+                "Aerospike Graph Service version", graph.FIREFLY_VERSION,
+                "Gremlin version", Gremlin.version());
     }
 
     @Override

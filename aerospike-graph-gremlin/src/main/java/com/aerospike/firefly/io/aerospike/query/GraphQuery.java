@@ -204,10 +204,10 @@ public class GraphQuery {
                 GraphQueryHelper.predicateToFilter(graph.getBaseGraph(), predicate, indexInfo), queryPolicy, transform);
     }
 
-    public <E> Iterator<E> querySIndex(String setName,
-                                       String indexName,
-                                       Filter filter,
-                                       QueryPolicy policy) {
+    public <E> Iterator<E> querySIndex(final String setName,
+                                       final String indexName,
+                                       final Filter filter,
+                                       final QueryPolicy policy) {
         return (Iterator<E>) querySIndex(setName, indexName, filter, policy, (it) -> it);
     }
 

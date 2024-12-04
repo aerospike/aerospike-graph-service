@@ -1,35 +1,24 @@
 package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
-import com.aerospike.firefly.process.traversal.step.computer.FireflyCompositeIdStepLocal;
-import com.aerospike.firefly.process.traversal.step.computer.PrecomputableComputerStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import org.apache.commons.collections.list.SynchronizedList;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
-import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
-import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.computer.util.MapReducePool;
 import org.apache.tinkerpop.gremlin.process.computer.util.VertexProgramPool;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
-import org.apache.tinkerpop.gremlin.util.function.TriFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,8 +30,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-
-import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -125,11 +112,13 @@ public class LocalWorkerPool implements AutoCloseable {
                         if (option.isPresent()) {
                             try {
                                 iterator = option.get();
-                                final Pair<Long, List<Element>> output = executeVertexProgram.execute(iterator, vp, workerMemory, counter);
-                                if (output.getRight() != null) {
-                                    results.addAll(output.getRight());
+                                if (iterator.hasNext()) {
+                                    final Pair<Long, List<Element>> output = executeVertexProgram.execute(iterator, vp, workerMemory, counter);
+                                    if (output.getRight() != null) {
+                                        results.addAll(output.getRight());
+                                    }
                                 }
-                                LOG.debug("Worker {} processed {} vertices, total={}", index, count, counter.addAndGet(count));
+                                LOG.info("Worker {} processed {} vertices, total={}", index, count, counter.addAndGet(count));
                             } catch (final Exception e) {
                                 LOG.error("Worker {} failed on {} vertex of partition", index, count, e);
                             } finally {

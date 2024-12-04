@@ -21,7 +21,6 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.Statement;
 import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -406,8 +405,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
             graph.traversal().V().drop().iterate();
             sleep(2000);
-            final Iterator<FireflyId> vertexKeys = GraphQuery.create(graph).scanVertexIds(evaluationTimeout);
-            final Iterator<FireflyId> edgeKeys = GraphQuery.create(graph).scanEdgeIds(evaluationTimeout);
+            final Iterator<FireflyId> vertexKeys = graph.graphQuery.scanVertexIds(evaluationTimeout);
+            final Iterator<FireflyId> edgeKeys = graph.graphQuery.scanEdgeIds(evaluationTimeout);
             assertFalse(vertexKeys.hasNext());
             assertFalse(edgeKeys.hasNext());
         } finally {

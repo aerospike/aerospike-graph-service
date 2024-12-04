@@ -90,7 +90,7 @@ public class LocalGraphComputer implements GraphComputer {
     private final LocalMessageBoard messageBoard = new LocalMessageBoard();
     private boolean executed = false;
     private final Set<MapReduce> mapReducers = new HashSet<>();
-    private int workers = Runtime.getRuntime().availableProcessors() * 4;
+    private int workers;
     private final GraphFilter graphFilter = new GraphFilter();
 
     private final int previousPartitionSize;
@@ -108,6 +108,7 @@ public class LocalGraphComputer implements GraphComputer {
     public LocalGraphComputer(final FireflyGraph graph) {
         this.graph = graph;
         this.previousPartitionSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, this.graph.configuration());
+        this.workers = graph.getBaseGraph().OLAP_WORKERS;
     }
 
     public GraphComputer partitionSize(final int partitionSize) {
@@ -166,24 +167,25 @@ public class LocalGraphComputer implements GraphComputer {
 
     class ExecuteVertexProgram {
         final LocalMessageBoard messageBoard;
+        final TraversalMatrix traversalMatrix;
 
         // Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Pair<Long, List<Element>>
-        public ExecuteVertexProgram(final LocalMessageBoard messageBoard) {
+        public ExecuteVertexProgram(final LocalMessageBoard messageBoard, final PureTraversal<?, ?> traversal) {
             this.messageBoard = messageBoard;
+            Traversal<?, ?> traversal1 = traversal.get().clone();
+            if (!traversal1.asAdmin().isLocked())
+                traversal1.asAdmin().applyStrategies();
+            this.traversalMatrix = new TraversalMatrix<>(traversal1.asAdmin());
         }
 
         public Pair<Long, List<Element>> execute(Iterator<FireflyVertex> vertices,
                                                  final VertexProgram vertexProgram,
                                                  final LocalWorkerMemory workerMemory,
                                                  final AtomicLong vertexCount) throws Exception {
-            final PureTraversal<?, ?> traversal = ((TraversalVertexProgram) vertexProgram).getTraversal().clone();
-            if (!traversal.get().isLocked())
-                traversal.get().applyStrategies();
-            final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.get());
             long counter = 0;
-            vertexProgram.workerIterationStart(workerMemory.asImmutable());
             Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = null;
             try {
+                vertexProgram.workerIterationStart(workerMemory.asImmutable());
                 output = preComputeVertices(traversalMatrix, vertices, (TraversalVertexProgram) vertexProgram, workerMemory);
                 vertices = output.getLeft();
                 while (vertices.hasNext()) {
@@ -203,13 +205,12 @@ public class LocalGraphComputer implements GraphComputer {
                 workerMemory.complete();
                 vertexCount.getAndAdd(counter);
                 List<Element> result = null;
-                if (output != null && output.getRight() != null) {
+                if (output.getRight() != null) {
                     result = (List<Element>) output.getRight().get();
                 }
                 final long finalCounter = counter;
                 final List<Element> finalResult = result;
                 return new Pair<>() {
-
                     @Override
                     public Long getLeft() {
                         return finalCounter;
@@ -319,7 +320,7 @@ public class LocalGraphComputer implements GraphComputer {
                             this.memory.completeSubRound();
                             workers.setVertexProgram(this.vertexProgram);
                             previousResult = workers.executeVertexProgram(
-                                    new ExecuteVertexProgram(this.messageBoard),
+                                    new ExecuteVertexProgram(this.messageBoard, traversal),
                                     this.memory.isInitialIteration(),
                                     previousResult,
                                     this.graphFilter,
@@ -631,8 +632,7 @@ public class LocalGraphComputer implements GraphComputer {
 
             @Override
             public int getMaxWorkers() {
-                // TODO GRAPH-1382 - We should have this configurable and maybe do something better.
-                return Runtime.getRuntime().availableProcessors() * 4;
+                return Integer.MAX_VALUE;
             }
 
             @Override

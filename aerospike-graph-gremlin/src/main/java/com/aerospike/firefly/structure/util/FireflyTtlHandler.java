@@ -6,7 +6,6 @@ import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -107,7 +106,7 @@ public class FireflyTtlHandler implements Closeable {
         final AerospikeConnection db = this.graph.getBaseGraph();
         long removalCount = 0;
         try {
-            final Iterator<KeyRecord> vertexRecordsToDelete = GraphQuery.create(graph).querySIndex(db.VERTEX_AERO_SET,
+            final Iterator<KeyRecord> vertexRecordsToDelete = graph.graphQuery.querySIndex(db.VERTEX_AERO_SET,
                     db.TTL_VERTEX_INDEX_NAME, Filter.range(db.TTL_BIN, startTime, endTime), INDEX_POLICY);
             while (vertexRecordsToDelete.hasNext()) {
                 final KeyRecord vertexRecord = vertexRecordsToDelete.next();
@@ -134,7 +133,7 @@ public class FireflyTtlHandler implements Closeable {
         final AerospikeConnection db = this.graph.getBaseGraph();
         long removalCount = 0;
         try {
-            final Iterator<KeyRecord> edgesToDelete = GraphQuery.create(graph).querySIndex(db.EDGE_AERO_SET,
+            final Iterator<KeyRecord> edgesToDelete = graph.graphQuery.querySIndex(db.EDGE_AERO_SET,
                     db.TTL_EDGE_INDEX_NAME, Filter.range(db.TTL_BIN, IndexCollectionType.MAPVALUES, startTime, endTime),
                     INDEX_POLICY);
             long currentEdgeDeleteTime = System.currentTimeMillis();

@@ -87,15 +87,13 @@ jobs:
           GITHUB_IMAGE_ARM=${GITHUB_IMAGE}-arm64
           GITHUB_IMAGE_AMD=${GITHUB_IMAGE}-amd64
           
+          GITHUB_IMAGE=$GITHUB_IMAGE_BASE:$VERSION-rc$DOCKER_RC_TAG
+          GITHUB_IMAGE_ARM_SLIM=${GITHUB_IMAGE}-slim-arm64
+          GITHUB_IMAGE_AMD_SLIM=${GITHUB_IMAGE}-slim-amd64
+          
           # Get registry URL and convert to lower case.
           DOCKERHUB_IMAGE_BASE=$DOCKERHUB_REPOSITORY_NAME/$DOCKERHUB_IMAGE_NAME
           GCLOUD_IMAGE_BASE=$GCLOUD_REPOSITORY_NAME/$GCLOUD_IMAGE_NAME
-          
-          # Set dockerhub output and latest image name.
-          DOCKERHUB_OUTPUT_IMAGE=$DOCKERHUB_IMAGE_BASE:$VERSION
-          DOCKERHUB_OUTPUT_IMAGE=$(echo $DOCKERHUB_OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
-          DOCKERHUB_LATEST_IMAGE=$DOCKERHUB_IMAGE_BASE:latest
-          DOCKERHUB_LATEST_IMAGE=$(echo $DOCKERHUB_LATEST_IMAGE | tr '[A-Z]' '[a-z]')
           
           DOCKERHUB_IMAGE_BASE=$DOCKERHUB_REPOSITORY_NAME/$DOCKERHUB_IMAGE_NAME
           DOCKERHUB_OUTPUT_IMAGE=$DOCKERHUB_IMAGE_BASE:$VERSION
@@ -105,20 +103,44 @@ jobs:
           DOCKERHUB_IMMUTABLE_IMAGE=${DOCKERHUB_OUTPUT_IMAGE}.1
           
           # Set gcloud output and latest image name.
-          GCLOUD_OUTPUT_IMAGE=$GCLOUD_IMAGE_BASE:$VERSION
-          GCLOUD_OUTPUT_IMAGE=$(echo $GCLOUD_OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
-          GCLOUD_LATEST_IMAGE=$GCLOUD_IMAGE_BASE:latest
-          GCLOUD_LATEST_IMAGE=$(echo $GCLOUD_LATEST_IMAGE | tr '[A-Z]' '[a-z]')
-          GCLOUD_IMMUTABLE_IMAGE=${GCLOUD_OUTPUT_IMAGE}.1
+          # 2.4.1-slim
+          GCLOUD_OUTPUT_IMAGE_SLIM=$GCLOUD_IMAGE_BASE:$VERSION-slim
+          #2.4.1-slim
+          GCLOUD_OUTPUT_IMAGE_SLIM=$(echo GCLOUD_OUTPUT_IMAGE_SLIM | tr '[A-Z]' '[a-z]')
+          #latest-slim
+          GCLOUD_LATEST_IMAGE_SLIM=$GCLOUD_IMAGE_BASE:latest-slim
+          GCLOUD_LATEST_IMAGE_SLIM=$(echo GCLOUD_LATEST_IMAGE_SLIM | tr '[A-Z]' '[a-z]')
+          #2.4.1-slim.1
+          GCLOUD_IMMUTABLE_IMAGE_SLIM=${GCLOUD_OUTPUT_IMAGE_SLIM}.1
+          
+          # 2.4.1-slim
+          DOCKERHUB_OUTPUT_IMAGE_SLIM=$DOCKERHUB_IMAGE_BASE:$VERSION-slim
+          #2.4.1-slim
+          DOCKERHUB_OUTPUT_IMAGE_SLIM=$(echo DOCKERHUB_OUTPUT_IMAGE_SLIM | tr '[A-Z]' '[a-z]')
+          #latest-slim
+          DOCKERHUB_LATEST_IMAGE_SLIM=$DOCKERHUB_IMAGE_BASE:latest-slim
+          DOCKERHUB_LATEST_IMAGE_SLIM=$(echo DOCKERHUB_LATEST_IMAGE_SLIM | tr '[A-Z]' '[a-z]')
+          #2.4.1-slim.1
+          DOCKERHUB_IMMUTABLE_IMAGE=${DOCKERHUB_OUTPUT_IMAGE_SLIM}.1
           
           # Pull base image.
           docker pull ${GITHUB_IMAGE_ARM} --platform linux/arm64
           docker pull ${GITHUB_IMAGE_AMD} --platform linux/amd64
+          docker pull ${GITHUB_IMAGE_ARM_SLIM} --platform linux/arm64
+          docker pull ${GITHUB_IMAGE_AMD_SLIM} --platform linux/amd64
           
           docker buildx imagetools create -t ${DOCKERHUB_OUTPUT_IMAGE} ${GITHUB_IMAGE_AMD} ${GITHUB_IMAGE_ARM}
           docker buildx imagetools create -t ${DOCKERHUB_LATEST_IMAGE} ${GITHUB_IMAGE_AMD} ${GITHUB_IMAGE_ARM}
           docker buildx imagetools create -t ${DOCKERHUB_IMMUTABLE_IMAGE} ${GITHUB_IMAGE_AMD} ${GITHUB_IMAGE_ARM}
           
+          docker buildx imagetools create -t ${DOCKERHUB_OUTPUT_IMAGE_SLIM} ${GITHUB_IMAGE_AMD_SLIM} ${GITHUB_IMAGE_ARM_SLIM}
+          docker buildx imagetools create -t ${DOCKERHUB_LATEST_IMAGE_SLIM} ${GITHUB_IMAGE_AMD_SLIM} ${GITHUB_IMAGE_ARM_SLIM}
+          docker buildx imagetools create -t ${DOCKERHUB_IMMUTABLE_IMAGE_SLIM} ${GITHUB_IMAGE_AMD_SLIM} ${GITHUB_IMAGE_ARM_SLIM}
+          
           docker buildx imagetools create -t ${GCLOUD_OUTPUT_IMAGE} ${GITHUB_IMAGE_AMD} ${GITHUB_IMAGE_ARM}
           docker buildx imagetools create -t ${GCLOUD_LATEST_IMAGE} ${GITHUB_IMAGE_AMD} ${GITHUB_IMAGE_ARM}
           docker buildx imagetools create -t ${GCLOUD_IMMUTABLE_IMAGE} ${GITHUB_IMAGE_AMD} ${GITHUB_IMAGE_ARM}
+          
+          docker buildx imagetools create -t ${GCLOUD_OUTPUT_IMAGE_SLIM} ${GITHUB_IMAGE_AMD_SLIM} ${GITHUB_IMAGE_ARM_SLIM}
+          docker buildx imagetools create -t ${GCLOUD_LATEST_IMAGE_SLIM} ${GITHUB_IMAGE_AMD_SLIM} ${GITHUB_IMAGE_ARM_SLIM}
+          docker buildx imagetools create -t ${GCLOUD_IMMUTABLE_IMAGE_SLIM} ${GITHUB_IMAGE_AMD_SLIM} ${GITHUB_IMAGE_ARM_SLIM}

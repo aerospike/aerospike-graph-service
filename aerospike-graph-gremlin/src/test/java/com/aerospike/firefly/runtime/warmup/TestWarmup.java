@@ -1,15 +1,13 @@
 package com.aerospike.firefly.runtime.warmup;
 
-import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.runtime.FireflyServer;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.OutputCapturer;
 import com.aerospike.firefly.util.TestLogging;
 import com.aerospike.firefly.util.WarmupUtil;
 import org.apache.commons.configuration2.Configuration;
@@ -20,13 +18,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.util.Arrays;
-import java.util.Collections;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -43,47 +37,6 @@ public class TestWarmup extends AbstractFireflySuite {
 
     private TestLogging.MemoryAppender memoryAppender;
 
-    // https://www.baeldung.com/junit-asserting-logs
-    private class MemoryAppender extends ListAppender<ILoggingEvent> {
-        public void reset() {
-            this.list.clear();
-        }
-
-        public boolean contains(String string, Level level) {
-            return this.list.stream()
-                    .anyMatch(event -> event.toString().contains(string)
-                            && event.getLevel().equals(level));
-        }
-
-        public int countEventsForLogger(String loggerName) {
-            return (int) this.list.stream()
-                    .filter(event -> event.getLoggerName().contains(loggerName))
-                    .count();
-        }
-
-        public List<ILoggingEvent> search(String string) {
-            return this.list.stream()
-                    .filter(event -> event.toString().contains(string))
-                    .collect(Collectors.toList());
-        }
-
-        public List<ILoggingEvent> search(String string, Level level) {
-            return this.list.stream()
-                    .filter(event -> event.toString().contains(string)
-                            && event.getLevel().equals(level))
-                    .collect(Collectors.toList());
-        }
-
-        public int getSize() {
-            return this.list.size();
-        }
-
-        public List<ILoggingEvent> getLoggedEvents() {
-            return Collections.unmodifiableList(this.list);
-        }
-    }
-
-
     @Before
     public void setup() {
         Logger logger = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
@@ -91,6 +44,7 @@ public class TestWarmup extends AbstractFireflySuite {
         memoryAppender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
         logger.addAppender(memoryAppender);
         memoryAppender.start();
+        FireflyGraph.NEED_PREHEAT = true;
     }
 
     @Test
@@ -131,17 +85,14 @@ public class TestWarmup extends AbstractFireflySuite {
     }
 
     @Test
-    public void testWarmupWithAuth() {
-        PrintStream originalOut = System.out;
+    public void testWarmupWithAuth() throws IOException, InterruptedException {
         FireflyServer server = null;
 
-        try {
-            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            System.setOut(new PrintStream(baos));
-
+        try (final OutputCapturer outputCapturer = new OutputCapturer()) {
             server = FireflyServer.start(new String[]{"../conf/credentials-config/authenticator-with-warmup.yaml"});
 
-            final List<String> logList = Arrays.asList(baos.toString().split("\n"));
+            Thread.sleep(10);
+            final String[] logList = outputCapturer.toString().split("\n");
 
             boolean warmupComplete = false;
             for (final String line : logList) {
@@ -152,12 +103,12 @@ public class TestWarmup extends AbstractFireflySuite {
                     break;
                 }
             }
+
             assertTrue(warmupComplete);
         } finally {
             if (server != null) {
                 server.stop().join();
             }
-            System.setOut(originalOut);
         }
     }
 }

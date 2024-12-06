@@ -10,11 +10,14 @@ import io.netty.util.concurrent.SingleThreadEventExecutor;
 import org.apache.tinkerpop.gremlin.groovy.engine.GremlinExecutor;
 import org.apache.tinkerpop.gremlin.server.GremlinServer;
 import org.apache.tinkerpop.gremlin.server.util.MetricManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 
 public class ServerMetrics {
+    private static final Logger logger = LoggerFactory.getLogger(ServerMetrics.class);
     private final String nettyQueueSizeMetricName = MetricRegistry.name("aerospike_graph_service_server_queue_size");
     private final String gremlinQueueSizeMetricName = MetricRegistry.name("aerospike_graph_service_gremlin_queue_size");
     private final GremlinServer gremlinServer;
@@ -29,6 +32,7 @@ public class ServerMetrics {
     }
 
     public void shutDown() {
+        logger.info("Shutting down server metrics.");
         MetricManager.INSTANCE.getRegistry().remove(nettyQueueSizeMetricName);
         MetricManager.INSTANCE.getRegistry().remove(gremlinQueueSizeMetricName);
     }

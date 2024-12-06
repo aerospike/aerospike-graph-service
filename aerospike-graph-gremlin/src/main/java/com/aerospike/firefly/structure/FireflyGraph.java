@@ -318,7 +318,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             logLevel = "WARN";
             // Audit log and warmup test needs to check output of logs.
             for (final StackTraceElement e : Thread.currentThread().getStackTrace()) {
-                if (e.getClassName().contains("TestAuditLog") || e.getClassName().contains("TestWarmup")) {
+                if (e.getClassName().contains("TestAuditLog") || e.getClassName().contains("TestWarmup") || e.getClassName().contains("TestShutdown")) {
                     logLevel = "INFO";
                     break;
                 }
@@ -1153,9 +1153,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public void close() {
-        LOG.info("Closing FireflyGraph.");
+        // GremlinServer try to close Graph 2 times, we should be prepared
         if (this.closed.getAndSet(true))
             return;
+
+        LOG.info("Closing FireflyGraph {}.", getBaseGraph().GRAPH_ID);
 
         this.fireflyCardinalityMetadataTask.cancel();
         this.fireflyIndexMetadataTask.cancel();

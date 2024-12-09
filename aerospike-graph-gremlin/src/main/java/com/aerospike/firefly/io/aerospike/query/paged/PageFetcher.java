@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -24,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class PageFetcher<E> {
     private static final Logger LOG = LoggerFactory.getLogger(PageFetcher.class);
     protected final FireflyGraph graph;
-    private final ExecutorService readLoopExecutorService;
+    protected final ExecutorService readLoopExecutorService;
     protected final BlockingQueue<Page> pageQueue;
     private final FireflyGraph.TransformKeyRecord<E> transformKeyRecord;
     protected final PartitionFilter filter;
@@ -32,19 +33,33 @@ public abstract class PageFetcher<E> {
     protected AtomicBoolean isClosing = new AtomicBoolean(false);
 
     public PageFetcher(final FireflyGraph graph,
-                       final int maxQueueSize,
-                       final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
-        this(graph, maxQueueSize, transformKeyRecord, null);
+                       final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
+                       final String indexName) {
+        this(
+                graph,
+                transformKeyRecord,
+                indexName,
+                PartitionFilter.all(),
+                Executors.newSingleThreadExecutor(r -> {
+                    final Thread t = new Thread(r);
+                    t.setName("Aerospike-Graph-Pagination-Worker-" + t.getId());
+                    t.setDaemon(true);
+                    return t;
+                }),
+                new LinkedBlockingQueue<>(graph.getBaseGraph().PAGINATION_PAGE_QUEUE_SIZE)
+        );
     }
 
     public PageFetcher(final FireflyGraph graph,
-                       final int maxQueueSize,
                        final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
-                       final String indexName) {
+                       final String indexName,
+                       final PartitionFilter partitionFilter,
+                       final ExecutorService readLoopExecutorService,
+                       final BlockingQueue<Page> pageQueue) {
         this.graph = graph;
-        this.filter = PartitionFilter.all();
-        this.readLoopExecutorService = Executors.newSingleThreadExecutor();
-        this.pageQueue = new LinkedBlockingQueue<>(maxQueueSize);
+        this.filter = partitionFilter;
+        this.readLoopExecutorService = readLoopExecutorService;
+        this.pageQueue = pageQueue;
         this.transformKeyRecord = transformKeyRecord;
         this.indexName = indexName;
     }
@@ -61,13 +76,13 @@ public abstract class PageFetcher<E> {
         return new PageFetcher.PageIterator();
     }
 
-    public BlockingQueue<Page> startQueryPagesDirect() {
+    public BlockingQueue<Page> startQueryDirect() {
         // Start loop.
         readPages();
-        return this.pageQueue;
+        return pageQueue;
     }
 
-    private void readPages() {
+    protected void readPages() {
         readLoopExecutorService.submit(() -> {
             while (true) {
                 try {
@@ -95,7 +110,6 @@ public abstract class PageFetcher<E> {
             }
         });
     }
-
 
     public static class PoisonPill extends Page {
 

@@ -172,6 +172,7 @@
                         <exclude>**/TestDockerJavaOptions.java</exclude>
                         <exclude>**/TestDockerConfigs.java</exclude>
                         <exclude>**/TestSlimVsFat.java</exclude>
+                        <exclude>**/TestDockerShutdown.java</exclude>
                         <exclude>**/FireflyUsageStatsCallMultiTest.java</exclude>
                         <exclude>**/TestMovielens1M.java</exclude>
                         <exclude>**/TestFireflyExceedHeap.java</exclude>

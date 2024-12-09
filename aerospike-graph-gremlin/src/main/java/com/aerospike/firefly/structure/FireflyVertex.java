@@ -34,7 +34,6 @@ import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.OperationReturnHandler;
-import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
@@ -976,11 +975,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         queryPolicy.filterExp = GraphQueryHelper.phatEdgeHasContainerListToExpression(db, hasContainers, labels,
                 id.getKeyHashString(), adjacentVertexId, direction);
         if (direction == Direction.OUT) {
-            return new CachedIterator(graph, GraphQuery.create(graph).querySIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME,
+            return new CachedIterator(graph, graph.graphQuery.querySIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME,
                     Filter.contains(db.SUPERNODES_OUT_BIN, IndexCollectionType.MAPVALUES, id.getKeyHashString()),
                     queryPolicy));
         } else if (direction == Direction.IN) {
-            return new CachedIterator(graph, GraphQuery.create(graph).querySIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME,
+            return new CachedIterator(graph, graph.graphQuery.querySIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME,
                     Filter.contains(db.SUPERNODES_IN_BIN, IndexCollectionType.MAPVALUES, id.getKeyHashString()),
                     queryPolicy));
         } else {

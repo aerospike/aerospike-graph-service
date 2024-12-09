@@ -54,6 +54,7 @@ public class FireflyServer {
             fireflyServer.stop().join();
             return null;
         }).join();
+
         return fireflyServer;
     }
 
@@ -107,8 +108,20 @@ public class FireflyServer {
             final GremlinExecutor gremlinExecutor = gremlinServer.getServerGremlinExecutor().getGremlinExecutor();
             ReflectionHelper.setFieldValue(gremlinExecutor, "globalBindings", graphManager.getAsBindings());
 
+            // workaround to allow only GremlinLangScriptEngine
+            final FireflyScriptEngineManager scriptEngineManager = new FireflyScriptEngineManager();
+            ReflectionHelper.setFieldValue(gremlinExecutor, "gremlinScriptEngineManager", scriptEngineManager);
+
             serverMetrics = new ServerMetrics(gremlinServer);
             serverMetrics.start();
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                logger.info("Closing FireflyServer.");
+                if (serverMetrics != null) {
+                    serverMetrics.shutDown();
+                    serverMetrics = null;
+                }
+            }, "firefly-server-shutdown"));
         } catch (Exception ex) {
             serverStarted.completeExceptionally(ex);
         }

@@ -1,6 +1,5 @@
 package com.aerospike.firefly.io.aerospike.query.paged;
 
-import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
@@ -96,10 +95,10 @@ public final class PartitionIterator implements CloseableIterator<Optional<Close
         this.graph = builder.graph;
         if (builder.vertices == null) {
             // If the last step did not wire through vertices, we need to run a scan / sindex using filters.
-            this.pageQueue = GraphQuery.create(graph).partitionVertexIdPages(builder.filters, graph.settings().evaluationTimeout);
+            this.pageQueue = graph.graphQuery.partitionVertexIdPages(builder.filters, graph.settings().evaluationTimeout);
         } else {
             // The last step wired through vertices, we can partition these and execute.
-            this.pageQueue = GraphQuery.create(graph).partitionVertices(builder.vertices);
+            this.pageQueue = graph.graphQuery.partitionVertices(builder.vertices);
         }
     }
 

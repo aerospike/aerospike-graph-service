@@ -272,6 +272,10 @@ public class DockerUtil {
         }
     }
 
+    public void stopDocker(final String containerId) {
+        dockerClient.stopContainerCmd(containerId).exec();
+    }
+
     public synchronized void stopAllDockerImages() {
         for (final Container container : dockerClient.listContainersCmd().exec()) {
             try {

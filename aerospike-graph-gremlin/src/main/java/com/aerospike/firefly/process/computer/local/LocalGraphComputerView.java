@@ -38,58 +38,69 @@ public class LocalGraphComputerView {
 
     private final FireflyGraph graph;
     protected final Map<String, VertexComputeKey> computeKeys;
+    protected final Map<Element, Object> lockMap;
     private final Map<Element, Map<String, Queue<VertexProperty<?>>>> computeProperties;
     private final GraphFilter graphFilter;
 
     public LocalGraphComputerView(final FireflyGraph graph, final GraphFilter graphFilter, final Set<VertexComputeKey> computeKeys) {
         this.graph = graph;
         this.computeKeys = new ConcurrentHashMap<>();
+        this.lockMap = new ConcurrentHashMap<>();
         computeKeys.forEach(key -> this.computeKeys.put(key.getKey(), key));
         this.computeProperties = new ConcurrentHashMap<>();
         this.graphFilter = graphFilter;
     }
 
-    synchronized public <V> Property<V> addProperty(final FireflyVertex vertex, final String key, final V value) {
-        ElementHelper.validateProperty(key, value);
-        if (!getProperty(vertex, key).isEmpty()) {
-            return new DetachedVertexProperty<>(1, key, value, Map.of(), vertex);
-        }
-        if (isComputeKey(key)) {
-            final DetachedVertexProperty<V> property = new DetachedVertexProperty<>(1, key, value, Map.of(), vertex) {
-                @Override
-                public void remove() {
-                    removeProperty(vertex, key, this);
-                }
-            };
-            this.addValue(vertex, key, property);
-            return property;
-        } else {
-            throw GraphComputer.Exceptions.providedKeyIsNotAnElementComputeKey(key);
-        }
-    }
-
-    synchronized public List<VertexProperty<?>> getProperty(final FireflyVertex vertex, final String key) {
-        final List<VertexProperty<?>> vertexProperty = this.getValue(vertex, key);
-        final List<VertexProperty<?>> vps;
-        if (vertexProperty.isEmpty()) {
-            vps = getPropertiesMap(vertex).getOrDefault(key, Collections.emptyList());
-        } else {
-            vps = vertexProperty;
-        }
-        final List<VertexProperty<?>> list = new ArrayList<>(vps);
-        return list;
-    }
-
-    synchronized public <V> List<VertexProperty<V>> getComputeProperties(final FireflyVertex vertex, final String... computeKeys) {
-        final List<VertexProperty<V>> list = new ArrayList<>();
-        for (final Queue<VertexProperty<?>> properties : this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).values()) {
-            for (final VertexProperty<?> property : properties) {
-                if (ElementHelper.keyExists(property.key(), computeKeys)) {
-                    list.add((VertexProperty<V>) property);
-                }
+    public <V> Property<V> addProperty(final FireflyVertex vertex, final String key, final V value) {
+        final Object lock = lockMap.computeIfAbsent(vertex, k -> new Object());
+        synchronized (lock) {
+            ElementHelper.validateProperty(key, value);
+            if (!getProperty(vertex, key).isEmpty()) {
+                return new DetachedVertexProperty<>(1, key, value, Map.of(), vertex);
+            }
+            if (isComputeKey(key)) {
+                final DetachedVertexProperty<V> property = new DetachedVertexProperty<>(1, key, value, Map.of(), vertex) {
+                    @Override
+                    public void remove() {
+                        removeProperty(vertex, key, this);
+                    }
+                };
+                this.addValue(vertex, key, property);
+                return property;
+            } else {
+                throw GraphComputer.Exceptions.providedKeyIsNotAnElementComputeKey(key);
             }
         }
-        return list;
+    }
+
+    public List<VertexProperty<?>> getProperty(final FireflyVertex vertex, final String key) {
+        final Object lock = lockMap.computeIfAbsent(vertex, k -> new Object());
+        synchronized (lock) {
+            final List<VertexProperty<?>> vertexProperty = this.getValue(vertex, key);
+            final List<VertexProperty<?>> vps;
+            if (vertexProperty.isEmpty()) {
+                vps = getPropertiesMap(vertex).getOrDefault(key, Collections.emptyList());
+            } else {
+                vps = vertexProperty;
+            }
+            final List<VertexProperty<?>> list = new ArrayList<>(vps);
+            return list;
+        }
+    }
+
+    public <V> List<VertexProperty<V>> getComputeProperties(final FireflyVertex vertex, final String... computeKeys) {
+        final Object lock = lockMap.computeIfAbsent(vertex, k -> new Object());
+        synchronized (lock) {
+            final List<VertexProperty<V>> list = new ArrayList<>();
+            for (final Queue<VertexProperty<?>> properties : this.computeProperties.getOrDefault(vertex, Collections.emptyMap()).values()) {
+                for (final VertexProperty<?> property : properties) {
+                    if (ElementHelper.keyExists(property.key(), computeKeys)) {
+                        list.add((VertexProperty<V>) property);
+                    }
+                }
+            }
+            return list;
+        }
     }
 
     private Map<String, List<VertexProperty<?>>> getPropertiesMap(final FireflyVertex vertex) {
@@ -100,11 +111,14 @@ public class LocalGraphComputerView {
         return propertiesMap;
     }
 
-    synchronized public void removeProperty(final DetachedVertex vertex, final String key, final VertexProperty<?> property) {
-        if (isComputeKey(key)) {
-            this.removeValue(vertex, key, property);
-        } else {
-            throw GraphComputer.Exceptions.providedKeyIsNotAnElementComputeKey(key);
+    public void removeProperty(final DetachedVertex vertex, final String key, final VertexProperty<?> property) {
+        final Object lock = lockMap.computeIfAbsent(vertex, k -> new Object());
+        synchronized (lock) {
+            if (isComputeKey(key)) {
+                this.removeValue(vertex, key, property);
+            } else {
+                throw GraphComputer.Exceptions.providedKeyIsNotAnElementComputeKey(key);
+            }
         }
     }
 

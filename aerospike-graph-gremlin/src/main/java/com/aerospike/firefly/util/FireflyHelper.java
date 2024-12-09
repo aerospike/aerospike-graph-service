@@ -4,7 +4,6 @@ import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -16,13 +15,11 @@ import org.apache.tinkerpop.gremlin.process.computer.VertexComputeKey;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -149,7 +146,7 @@ public final class FireflyHelper {
             queryPolicy.setTimeout(evaluationTimeout.intValue());
 
             // Query index.
-            final Iterator<KeyRecord> keyRecordIterator = GraphQuery.create(graph).querySIndex(
+            final Iterator<KeyRecord> keyRecordIterator = graph.graphQuery.querySIndex(
                     info.get().setName,
                     info.get().indexName,
                     GraphQueryHelper.predicateToFilter(db, topHasContainer.getPredicate(), info.get()),

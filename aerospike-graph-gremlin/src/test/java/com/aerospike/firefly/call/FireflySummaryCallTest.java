@@ -36,6 +36,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         Assert.assertNotNull(version);
         Assert.assertEquals(version.get("Aerospike Graph Service version"), FireflyGraph.FIREFLY_VERSION);
         Assert.assertTrue(version.containsKey("Aerospike version"));
+        Assert.assertTrue(version.containsKey("Gremlin version"));
     }
 
     @Test

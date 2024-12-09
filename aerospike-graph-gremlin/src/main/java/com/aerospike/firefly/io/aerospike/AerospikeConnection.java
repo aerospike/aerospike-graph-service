@@ -266,6 +266,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final int PAGINATION_PAGE_SIZE;
     public final int PAGINATION_PAGE_MAX_WAIT;
     public final int PAGINATION_SHUTDOWN_WAIT;
+    public final int OLAP_PAGINATION_WORKERS;
+    public final int OLAP_WORKERS;
     public final boolean IS_AUDIT_LOG_ENABLED;
     public final boolean AUTHENTICATION_ENABLED;
     public final boolean USAGE_STATS_SET_INDEX_ENABLED;
@@ -443,6 +445,8 @@ public class AerospikeConnection implements AutoCloseable {
         PAGINATION_PAGE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf);
         PAGINATION_PAGE_MAX_WAIT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, conf);
         PAGINATION_SHUTDOWN_WAIT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_SHUTDOWN_WAIT, conf);
+        OLAP_PAGINATION_WORKERS = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.OLAP_PAGINATION_WORKERS, conf);
+        OLAP_WORKERS = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.OLAP_WORKERS, conf);
         PAGINATION_PAGE_QUEUE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, conf);
         AUTHENTICATION_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTHENTICATION_ENABLED, conf);
         USAGE_STATS_SET_INDEX_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.USAGE_STATS_SET_INDEX_ENABLED, conf);
@@ -2590,6 +2594,7 @@ public class AerospikeConnection implements AutoCloseable {
         public void close() throws Exception {
             synchronized (DefaultAerospikeClientProvider.class) {
                 if (OPEN_COUNT.decrementAndGet() == 0) {
+                    LOG.info("Closing Aerospike client.");
                     CLIENT.close();
                     EVENT_LOOPS.close();
                     THREADED_EXECUTOR_SERVICE.shutdown();

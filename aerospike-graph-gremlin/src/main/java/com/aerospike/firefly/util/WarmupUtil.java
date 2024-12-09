@@ -32,7 +32,6 @@ public class WarmupUtil {
     public static final int passes = 16;
     private final Configuration conf;
     private static FireflyGraph graph = null;
-    private Level logLevel;
 
     private WarmupUtil(final Configuration conf) {
         this.conf = conf;
@@ -51,9 +50,10 @@ public class WarmupUtil {
         if (!ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_ENABLED, conf)) {
             return;
         }
-        try {
-            logLevel = LoggerUtil.getLogLevel();
 
+        final Level logLevel = LoggerUtil.getLogLevel();
+
+        try {
             if (graph == null) {
                 final Configuration warmupConfig = ConfigurationUtils.cloneConfiguration(conf);
                 final String warmupArena = getWarmupArenaName();

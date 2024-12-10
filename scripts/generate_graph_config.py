@@ -22,8 +22,8 @@ def main(argv):
 
     with open(benchmark_config_file, 'w') as properties:
         properties.write(f'{hosts}\n')
-        properties.write('aerospike.client.namespace=test')
-        properties.write('aerospike.graph.index.vertex.label.enabled=true')
+        properties.write('aerospike.client.namespace=test\n')
+        properties.write('aerospike.graph.index.vertex.label.enabled=true\n')
 
 if __name__ == "__main__":
     main(sys.argv)

@@ -29,8 +29,8 @@ def main(argv):
         properties.write(f'{vertices_path}\n')
         properties.write(f'{edges_path}\n')
         properties.write(f'{temp_path}\n')
-        properties.write('aerospike.client.namespace=test')
-        properties.write('aerospike.graph.index.vertex.label.enabled=true')
+        properties.write('aerospike.client.namespace=test\n')
+        properties.write('aerospike.graph.index.vertex.label.enabled=true\n')
 
 if __name__ == "__main__":
     main(sys.argv)

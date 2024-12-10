@@ -12,7 +12,9 @@ def main(argv):
         properties.write("set -eo pipefail\n")
         properties.write("sudo apt -y update\n")
         properties.write("sudo apt -y install docker.io\n")
+        properties.write("echo \"running with {ghcr_io_login}\"\n")
         properties.write("echo {ghcr_io_login} | sudo docker login ghcr.io -u aerobot-firefly --password-stdin\n")
+        properties.write("echo \"Logged in successfully. Attempting to start {ags_image}\"\n")
         properties.write(f"sudo docker run --name firefly -d -p 8182:8182 -p 9090:9090 -v $(pwd)/graph-config.properties:/opt/aerospike-graph/aerospike-graph.properties {ags_image}\n")
 
 if __name__ == "__main__":

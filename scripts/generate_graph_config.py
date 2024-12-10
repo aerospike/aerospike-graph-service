@@ -4,7 +4,7 @@ import sys
 
 def main(argv):
     aerospike_name = argv[1]
-    config_file = argv[2]
+    benchmark_config_file = argv[2]
     hosts = 'aerospike.client.host='
     ip_only = ''
     with open('./clusters.json') as file:

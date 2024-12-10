@@ -15,3 +15,4 @@ cd tinkerbench
 
 mvn clean install -DskipTests
 java -Dconfig=$working_dir/tinkerbench-config.properties -jar ./target/tinkerBench-1.0-SNAPSHOT-jar-with-dependencies.jar BenchmarkShortRead
+

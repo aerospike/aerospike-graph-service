@@ -12,10 +12,11 @@ def main(argv):
 
         for client in clients:
             if aerospike_graph_name in client['ClientName']:
+                if ip_only != '':
+                    ip_only = ip_only + ','
                 ip_only = ip_only + client['PrivateIp']
                 print(f"Found {aerospike_graph_name} at {ip_only}")
-        ip_only = ip_only[:-1]
-        hosts = hosts + ip_only
+    hosts = hosts + ip_only
 
     if hosts == 'graph.server.host=':
         print('Client not found')

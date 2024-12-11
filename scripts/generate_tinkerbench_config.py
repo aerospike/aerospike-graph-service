@@ -8,16 +8,17 @@ def main(argv):
     hosts = 'graph.server.host='
     ip_only = ''
     with open('./clients.json') as file:
-        clusters = json.load(file)
+        clients = json.load(file)
 
-        for cluster in clusters:
-            if aerospike_graph_name in cluster['ClientName']:
-                ip_only = ip_only + cluster['PrivateIp']
+        for client in clients:
+            if aerospike_graph_name in client['ClientName']:
+                ip_only = ip_only + client['PrivateIp']
+                print(f"Found {aerospike_graph_name} at {ip_only}")
         ip_only = ip_only[:-1]
         hosts = hosts + ip_only
 
     if hosts == 'graph.server.host=':
-        print('Cluster not found')
+        print('Client not found')
         sys.exit(1)
 
     with open(benchmark_config_file, 'w') as properties:

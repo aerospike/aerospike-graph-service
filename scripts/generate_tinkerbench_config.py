@@ -30,11 +30,11 @@ def main(argv):
         properties.write('graph.client.minConnectionPoolSize=32\n')
         properties.write('graph.client.maxInProcessPerConnection=8\n')
         properties.write('benchmark.measurementForks=1\n')
-        properties.write('benchmark.measurementIterations=1\n')
-        properties.write('benchmark.measurementTime=60\n')
-        properties.write('benchmark.measurementTimeout=100\n')
+        properties.write('benchmark.measurementIterations=5\n')
+        properties.write('benchmark.measurementTime=10\n')
+        properties.write('benchmark.measurementTimeout=20\n')
         properties.write('benchmark.measurementThreads=32\n')
-        properties.write('benchmark.mode=all\n')
+        properties.write('benchmark.mode=average\n')
         properties.write('benchmark.idBufferSize=5000\n')
 
 if __name__ == "__main__":

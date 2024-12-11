@@ -11,7 +11,7 @@ def main(argv):
         clusters = json.load(file)
 
         for cluster in clusters:
-            if aerospike_graph_name in cluster['ClusterName']:
+            if aerospike_graph_name in cluster['ClientName']:
                 ip_only = ip_only + cluster['PrivateIp']
         ip_only = ip_only[:-1]
         hosts = hosts + ip_only

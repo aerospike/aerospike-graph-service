@@ -207,7 +207,7 @@ public class ReadThroughRecordCache extends FireflyCache {
     @Override
     public void remove(final Key key) {
         cache.invalidate(key);
-        db.delete(key);
+        db.delete(key, null);
     }
 
     /**

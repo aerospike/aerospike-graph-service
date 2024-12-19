@@ -21,7 +21,7 @@ public class TestShutdown {
             Thread.sleep(10);
             server = null;
 
-            final String[] logList = outputCapturer.toString().split("\n");
+            final String[] logList = outputCapturer.getLines();
 
             boolean graph0Closed = false;
             boolean graphModernClosed = false;

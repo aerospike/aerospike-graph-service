@@ -198,13 +198,13 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
             final RecyclingBufferedNumericIdManager edgeIdManager = (RecyclingBufferedNumericIdManager) graph.getIdFactory().getEdgeIdManager();
             Assert.assertEquals(0, edgeIdManager.availableRecycledIds());
             // Test removal within phat edge (record persists after removal of edge)
-            e1.removeEdge();
-            e1.removeEdge();
+            graph.getOperations().removeEdge(e1);
+            graph.getOperations().removeEdge(e1);
             Assert.assertEquals(1, edgeIdManager.availableRecycledIds());
             Assert.assertFalse(g.E(e1.id()).hasNext());
             // Test removal of last edge in phat edge (record deleted after removal of edge)
-            e2.removeEdge();
-            e2.removeEdge();
+            graph.getOperations().removeEdge(e2);
+            graph.getOperations().removeEdge(e2);
             Assert.assertEquals(2, edgeIdManager.availableRecycledIds());
             Assert.assertFalse(g.E(e2.id()).hasNext());
         }

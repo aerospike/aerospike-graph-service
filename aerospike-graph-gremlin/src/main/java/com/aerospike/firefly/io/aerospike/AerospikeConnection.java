@@ -11,6 +11,7 @@ import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.ScanCallback;
+import com.aerospike.client.Txn;
 import com.aerospike.client.Value;
 import com.aerospike.client.async.EventLoops;
 import com.aerospike.client.async.EventPolicy;
@@ -104,6 +105,7 @@ import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
 import static com.aerospike.firefly.util.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.MRT_ENABLED_FLAG;
 import static com.aerospike.firefly.util.ConfigurationHelper.getOrDefaultString;
 import static com.aerospike.firefly.util.exceptions.AerospikeGraphException.fromAerospikeException;
 
@@ -128,6 +130,8 @@ public class AerospikeConnection implements AutoCloseable {
     public static final String DATA_MODEL_CONF = "DATA_MODEL_CONF";
 
     public final String GRAPH_ID;
+    public final boolean MRT_ENABLED;
+    public final int MRT_TIMEOUT;
     public final String V_LABEL_INDEX_NAME;
     public final String E_LABEL_INDEX_NAME;
     public final boolean V_LABEL_INDEX_ENABLED_FLAG;
@@ -352,7 +356,8 @@ public class AerospikeConnection implements AutoCloseable {
             LOG.error("Error connecting to Aerospike", e);
             throw e;
         }
-        FireflyAerospikeVersionCheck.validateVersion(aerospikeClient);
+
+        FireflyAerospikeVersionCheck.validateVersion(aerospikeClient, false);
         FireflyAerospikeGraphServiceCheck.checkFeatureKey(aerospikeClient);
 
         if (ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.CLIENT_FAILURE_TEST, conf)) {
@@ -384,7 +389,6 @@ public class AerospikeConnection implements AutoCloseable {
         // Because of this, we need to use the greatest of either what the bulk loader would use or what gremlin-server would use.
         return Math.max(2 * Runtime.getRuntime().availableProcessors() + 14, 2 * gremlinServerSettings.gremlinPool + 14);
     }
-
 
     /**
      * Construct a new AerospikeConnection
@@ -565,6 +569,12 @@ public class AerospikeConnection implements AutoCloseable {
         bulkLoaderFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf);
 
         idFactory = new FireflyIdFactory(this);
+
+        MRT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MRT_TIMEOUT, conf);
+        MRT_ENABLED = ConfigurationHelper.getOrDefaultBool(MRT_ENABLED_FLAG, conf);
+        if (MRT_ENABLED) {
+            validateMrtSupport();
+        }
 
         vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_BIN); // 2
         vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN); // 3
@@ -950,27 +960,27 @@ public class AerospikeConnection implements AutoCloseable {
         public static boolean getIsAerospikeTTLEnabled(final AerospikeClient client, final String namespace) {
             final String requestKey = Keys.GET_CONFIG + namespace;
 
-             try {
-                 final Node[] nodes = client.getNodes();
-                 for (final Node node : nodes) {
-                     LOG.debug("Info.request: {}", requestKey);
-                     final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
-                     final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
-                     for (final Map<String, String> config : listOfConfigs) {
-                         if (config.containsKey(DEFAULT_TTL)) {
-                             if (!config.get(DEFAULT_TTL).equals("0")) {
-                                 LOG.error("One or more Aerospike node has default-ttl set to non-zero value: " + config.get(DEFAULT_TTL) +
-                                         " in the namespace '" + namespace + "'. Please set default-ttl to 0 in all Aerospike " +
-                                         "configuration files under the namespace '" + namespace + "'.");
-                                 return true;
-                             }
-                         }
-                     }
-                 }
-                 return false;
-             } catch (final AerospikeException e) {
-                 throw fromAerospikeException(e);
-             }
+            try {
+                final Node[] nodes = client.getNodes();
+                for (final Node node : nodes) {
+                    LOG.debug("Info.request: {}", requestKey);
+                    final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
+                    final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
+                    for (final Map<String, String> config : listOfConfigs) {
+                        if (config.containsKey(DEFAULT_TTL)) {
+                            if (!config.get(DEFAULT_TTL).equals("0")) {
+                                LOG.error("One or more Aerospike node has default-ttl set to non-zero value: " + config.get(DEFAULT_TTL) +
+                                        " in the namespace '" + namespace + "'. Please set default-ttl to 0 in all Aerospike " +
+                                        "configuration files under the namespace '" + namespace + "'.");
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
         }
 
         /**
@@ -1463,9 +1473,9 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Perform an Aerospike read by Key
      *
-     * @param key           Aerospike Key to read
-     * @param policy        Aerospike WritePolicy to use
-     * @param operations    Read operations
+     * @param key        Aerospike Key to read
+     * @param policy     Aerospike WritePolicy to use
+     * @param operations Read operations
      * @return Aerospike Record
      */
     public Record read(final Key key, final WritePolicy policy, final Operation[] operations) {
@@ -1475,9 +1485,9 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Perform an Aerospike read by Key
      *
-     * @param key           Aerospike Key to read
-     * @param policy        Aerospike WritePolicy to use
-     * @param operations    Read operations
+     * @param key        Aerospike Key to read
+     * @param policy     Aerospike WritePolicy to use
+     * @param operations Read operations
      * @return Aerospike Record
      */
     public Record read(final Key key, final WritePolicy policy, final Operation[] operations, final FireflyCache cache) {
@@ -1500,9 +1510,9 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Perform a batch Aerospike read for a group of keys
      *
-     * @param keys          Array of Key to return records for
-     * @param policy        BatchPolicy to use
-     * @param operations    Read operations
+     * @param keys       Array of Key to return records for
+     * @param policy     BatchPolicy to use
+     * @param operations Read operations
      * @return Array of Record
      */
     private Record[] batchRead(final Key[] keys, final BatchPolicy policy, final Operation[] operations, final FireflyCache cache) {
@@ -1520,8 +1530,8 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Perform a batch Aerospike read for a group of keys
      *
-     * @param keys      Array of Key to return records for
-     * @param policy    BatchPolicy to use
+     * @param keys   Array of Key to return records for
+     * @param policy BatchPolicy to use
      * @return Array of Record
      */
     private Record[] batchRead(final Key[] keys, final BatchPolicy policy, final FireflyCache cache) {
@@ -1554,7 +1564,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Aerospike Record
      */
     Record skipCacheRead(final Key key, final Policy policy) {
-        final Policy readPolicy = policy ==  null ? new Policy() : policy;
+        final Policy readPolicy = policy == null ? new Policy() : policy;
         configureReadPolicy(readPolicy);
         try {
             return client.get(readPolicy, key);
@@ -1571,7 +1581,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Aerospike Record
      */
     Record skipCacheRead(final Key key, final WritePolicy policy, final Operation[] operations) {
-        final WritePolicy writePolicy = policy ==  null ? new WritePolicy() : policy;
+        final WritePolicy writePolicy = policy == null ? new WritePolicy() : policy;
         configureReadPolicy(writePolicy);
         try {
             return client.operate(writePolicy, key, operations);
@@ -1584,9 +1594,9 @@ public class AerospikeConnection implements AutoCloseable {
      * Perform a batch Aerospike read for a group of keys and bypass the transaction cache. Should only be called by
      * the cache.
      *
-     * @param keys          Array of Key to return records for
-     * @param policy        BatchPolicy to use
-     * @param operations    Read operations
+     * @param keys       Array of Key to return records for
+     * @param policy     BatchPolicy to use
+     * @param operations Read operations
      * @return Array of Record
      */
     Record[] skipCacheRead(final Key[] keys, final BatchPolicy policy, Operation[] operations) {
@@ -1604,8 +1614,8 @@ public class AerospikeConnection implements AutoCloseable {
      * Perform a batch Aerospike read for a group of keys and bypass the transaction cache. Should only be called by
      * the cache.
      *
-     * @param keys      Array of Key to return records for
-     * @param policy    BatchPolicy to use
+     * @param keys   Array of Key to return records for
+     * @param policy BatchPolicy to use
      * @return Array of Record
      */
     Record[] skipCacheRead(final Key[] keys, final BatchPolicy policy) {
@@ -1790,7 +1800,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param key Aerospike Key to delete
      * @return whether record existed on server before deletion
      */
-    public boolean delete(final Key key) {
+    public boolean delete(final Key key, final Txn txn) {
         final FireflyCache cache = transactionCache.get();
         if (cache != null) {
             cache.invalidate(key);
@@ -1801,6 +1811,8 @@ public class AerospikeConnection implements AutoCloseable {
         }
         final WritePolicy policy = new WritePolicy();
         configureWritePolicy(policy);
+        policy.txn = txn;
+        policy.durableDelete = txn != null;
         try {
             return client.delete(policy, key);
         } catch (final AerospikeException e) {
@@ -2072,10 +2084,8 @@ public class AerospikeConnection implements AutoCloseable {
      * Delete all data from the namespace
      */
     public void clearNamespace() {
-        final Set<String> sets = InfoOps.getNonEmptySetList(this);
-        for (final String set : sets) {
-            client.truncate(null, namespace, set, null);
-        }
+        client.truncate(null, namespace, null, null);
+
         final List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(this);
         for (final Map.Entry<String, String> entry : indexes) {
             dropIndex(entry.getValue(), entry.getKey());
@@ -2425,6 +2435,39 @@ public class AerospikeConnection implements AutoCloseable {
         final Bin addBin = new Bin(COUNTER_BIN, amount);
         final Record record = this.writeOperate(null, badEntryCountKey, Operation.add(addBin), Operation.get(COUNTER_BIN));
         return record.getLong(COUNTER_BIN);
+    }
+
+    public void commit(final Txn txn) {
+        if (txn != null) {
+            this.client.commit(txn);
+        }
+    }
+
+    public void rollback(final Txn txn) {
+        if (txn != null) {
+            this.client.abort(txn);
+        }
+    }
+
+    public void validateMrtSupport() {
+        FireflyAerospikeVersionCheck.validateVersion(client, true);
+
+        try {
+            final FireflyId id = this.getIdFactory().getTestId("test");
+            final Bin bin = new Bin("txn", "support check");
+            final Key key = getKey(this, this.TEST_SET, id);
+
+            final Txn txn = new Txn();
+            final WritePolicy writePolicy = new WritePolicy();
+            writePolicy.sendKey = true;
+            writePolicy.txn = txn;
+
+            checkedPut(writePolicy, key, bin);
+
+            rollback(txn);
+        } catch (final AerospikeGraphException e) {
+            throw new RuntimeException("Transactions are not supported by Aerospike. TODO: link to doc with how to configure MRT.");
+        }
     }
 
     public AuthMode getAuthMode() {

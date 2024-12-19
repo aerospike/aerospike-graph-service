@@ -40,7 +40,7 @@ public class FireflyFilteredBatchEdgeIterator<E extends Edge> extends FireflyBat
             while (idIterator.hasNext() && fireflyIdList.size() < graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 fireflyIdList.add(idIterator.next());
             }
-            elementIterator = FireflyEdge.readEdges(graph, fireflyIdList).iterator();
+            elementIterator = graph.getOperations().readEdges(fireflyIdList).iterator();
             return hasNext();
         } else {
             // Search the current element iterator for one that passes the filters.

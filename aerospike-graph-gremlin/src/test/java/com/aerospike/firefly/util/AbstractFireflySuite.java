@@ -61,6 +61,7 @@ public abstract class AbstractFireflySuite {
         }
         this.isTestStarted = true;
         start = Instant.now();
+        exited = false;
     }
 
     @After
@@ -79,4 +80,11 @@ public abstract class AbstractFireflySuite {
         graph.close();
     }
 
+    public static boolean exited = false;
+    public static class ExitManagerTest extends FireflyGraph.ExitManager {
+        @Override
+        public void exit(final int code) {
+            exited = true;
+        }
+    }
 }

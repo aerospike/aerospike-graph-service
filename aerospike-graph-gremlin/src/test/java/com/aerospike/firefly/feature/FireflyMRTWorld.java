@@ -5,7 +5,7 @@ import org.apache.tinkerpop.gremlin.LoadGraphWith.GraphData;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 
-public class FireflyWorld extends FireflyWorldBase {
+public class FireflyMRTWorld extends FireflyWorldBase {
     private static final FireflyGraph empty;
     private static final FireflyGraph modern;
     private static final FireflyGraph crew;
@@ -13,11 +13,11 @@ public class FireflyWorld extends FireflyWorldBase {
     private static final FireflyGraph grateful;
 
     static {
-        empty = FireflyGraph.open(getConfiguration("empty", false));
-        modern = createFireflyGraph("modern", TinkerFactory.createModern(), false);
-        crew = createFireflyGraph("crew", TinkerFactory.createTheCrew(), false);
-        sink = createFireflyGraph("sink", TinkerFactory.createKitchenSink(), false);
-        grateful = createFireflyGraph("grateful", TinkerFactory.createGratefulDead(), false);
+        empty = FireflyGraph.open(getConfiguration("empty", true));
+        modern = createFireflyGraph("modern", TinkerFactory.createModern(), true);
+        crew = createFireflyGraph("crew", TinkerFactory.createTheCrew(), true);
+        sink = createFireflyGraph("sink", TinkerFactory.createKitchenSink(), true);
+        grateful = createFireflyGraph("grateful", TinkerFactory.createGratefulDead(), true);
     }
 
     @Override

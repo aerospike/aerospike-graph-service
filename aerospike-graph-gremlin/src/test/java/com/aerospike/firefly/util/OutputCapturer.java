@@ -24,4 +24,8 @@ public class OutputCapturer extends ByteArrayOutputStream implements AutoCloseab
         super.close();
         System.setOut(originalOut);
     }
+
+    public String[] getLines() {
+        return toString().split("\n");
+    }
 }

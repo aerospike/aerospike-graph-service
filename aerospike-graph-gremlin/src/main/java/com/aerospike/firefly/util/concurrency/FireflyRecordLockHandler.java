@@ -109,7 +109,7 @@ public class FireflyRecordLockHandler {
                 if (System.currentTimeMillis() - this.lockAcquireTime.get() < this.handler.lockTtl) {
                     // Holding a record lock for longer than its TTL invalidates it since it is released, so check here
                     // to at least not unlock a different Firefly that might've grabbed this lock.
-                    this.handler.db.delete(this.key);
+                    this.handler.db.delete(this.key, null);
                 }
             } catch (final Exception e) {
                 LOG.error("Unexpected error when unlocking record lock.", e);

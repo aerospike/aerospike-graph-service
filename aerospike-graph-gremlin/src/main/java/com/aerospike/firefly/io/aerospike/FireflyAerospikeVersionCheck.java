@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.cluster.Node;
 import org.slf4j.Logger;
@@ -84,7 +85,7 @@ public class FireflyAerospikeVersionCheck {
         extension = extension1;
     }
 
-    public static void validateVersion(final AerospikeClient client) {
+    public static void validateVersion(final IAerospikeClient client, final boolean requireMRTSupport) {
         for (final Node node : client.getNodes()) {
             LOG.debug("Info.request: build");
             final String response = Info.request(null, node, "build");
@@ -94,6 +95,12 @@ public class FireflyAerospikeVersionCheck {
                                 " Please verify that all nodes in the cluster are running a compatible version of Aerospike.",
                         version.major, version.minor, version.revision, version.extension,
                         MAJOR_MINIMUM, MINOR_MINIMUM, REVISION_MINIMUM, EXTENSION_MINIMUM));
+            }
+
+            if (requireMRTSupport && version.major < 8) {
+                throw new RuntimeException(String.format("Aerospike version %d.%d.%d.%d is not supported. Minimum version 8 required for MRT." +
+                                " Please verify that all nodes in the cluster are running a compatible version of Aerospike.",
+                        version.major, version.minor, version.revision, version.extension));
             }
         }
     }

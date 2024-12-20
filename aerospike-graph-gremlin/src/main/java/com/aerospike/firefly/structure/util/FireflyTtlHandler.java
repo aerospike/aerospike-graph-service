@@ -7,6 +7,7 @@ import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -145,7 +146,7 @@ public class FireflyTtlHandler implements Closeable {
                     // Need this check since phat edge TTL bin map can contain entries outside of index range
                     if (expiryTime <= currentEdgeDeleteTime) {
                         final FireflyId edgeId = db.getIdFactory().createEdgeId(edgeTtl.getKey());
-                        final FireflyEdge edge = FireflyEdge.FireflyEdgeFactory.create(edgeId, edgeRecord, graph);
+                        final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, edgeRecord, graph);
                         if (edge != null) {
                             try {
                                 edge.remove();

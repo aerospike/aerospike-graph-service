@@ -156,7 +156,7 @@ public class FailureProfile {
                 if (chanceOfPreTimeoutBeingInDoubt < 1) {
                     inDoubt = ThreadLocalRandom.current().nextDouble() <= chanceOfPreTimeoutBeingInDoubt;
                 }
-                throw new AerospikeException.Timeout(1, inDoubt);
+                throw new AerospikeException.Timeout("Timeout", 1, 1, inDoubt);
             }
             if (chanceOfThreadFailureOnRead > 0.0
                     && ThreadLocalRandom.current().nextDouble() < chanceOfThreadFailureOnRead / 2) {
@@ -173,7 +173,7 @@ public class FailureProfile {
             if (chanceOfReadTimeout > 0.0 && ThreadLocalRandom.current().nextDouble() < chanceOfReadTimeout / 2) {
                 if (callback != null)
                     callback.failureOccurred(FailureType.TIMEOUT, false);
-                throw new AerospikeException.Timeout(1, true);
+                throw new AerospikeException.Timeout("Timeout", 1, 1, true);
             }
             if (chanceOfThreadFailureOnRead > 0.0
                     && ThreadLocalRandom.current().nextDouble() < chanceOfThreadFailureOnRead / 2) {
@@ -273,7 +273,7 @@ public class FailureProfile {
             case THREAD_DEATH:
                 throw new Error("Thread Death");
             case TIMEOUT:
-                throw new AerospikeException.Timeout(1, true);
+                throw new AerospikeException.Timeout("Timeout", 1, 1, true);
             case EXCEPTION:
                 throw this.exception;
             }

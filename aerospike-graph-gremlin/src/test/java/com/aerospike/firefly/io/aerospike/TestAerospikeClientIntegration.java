@@ -105,7 +105,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final Policy policy = new Policy();
         policy.sendKey = false;
         assertNotEquals(null, db.read(FireflyRecord.getKey(db, db.TEST_SET, id), policy));
-        db.delete(FireflyRecord.getKey(db, db.TEST_SET, id));
+        db.delete(FireflyRecord.getKey(db, db.TEST_SET, id), null);
         assertNull(db.read(FireflyRecord.getKey(db, db.TEST_SET, id), policy));
     }
 

@@ -92,7 +92,7 @@ public class TestWarmup extends AbstractFireflySuite {
             server = FireflyServer.start(new String[]{"../conf/credentials-config/authenticator-with-warmup.yaml"});
 
             Thread.sleep(10);
-            final String[] logList = outputCapturer.toString().split("\n");
+            final String[] logList = outputCapturer.getLines();
 
             boolean warmupComplete = false;
             for (final String line : logList) {

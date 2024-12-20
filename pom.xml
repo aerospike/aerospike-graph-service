@@ -52,7 +52,8 @@
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <aerospike-client.version>7.2.1</aerospike-client.version>
+<!--        <aerospike-client.version>7.2.1</aerospike-client.version>-->
+        <aerospike-client.version>9.0.2</aerospike-client.version>
         <tinkerpop.version>3.7.2</tinkerpop.version>
         <junit.version>4.13.1</junit.version>
         <awaitly.version>4.2.0</awaitly.version>
@@ -193,6 +194,10 @@
                         <exclude>**/TestRecoveryActionFlags</exclude>
                         <exclude>**/QueryServiceAbortTest</exclude>
                         <exclude>**/TestAerospikeClientConfigEventLoop</exclude>
+                        <!-- tests require MRT compatible aerospike server (version 8.0+ and SC enabled) -->
+                        <exclude>**/TestMRTSupported</exclude>
+                        <exclude>**/FireflyMRTFeatureTest</exclude>
+                        <exclude>**/TestAerospikeOperations</exclude>
                     </excludes>
                 </configuration>
             </plugin>

@@ -410,7 +410,7 @@ public class EdgeOperations implements Serializable {
                 results.add(new Tuple2<>(vertex.id.getUserId(), newEdgeCount + existingEdgeCount));
                 if (newEdgeCount + existingEdgeCount >= onRecordIdLimit) {
                     // This is going to become a supernode, mark it now.
-                    vertex.setCacheDisabled();
+                    graph.getOperations().setCacheDisabled(vertex);
                 }
             }
         }

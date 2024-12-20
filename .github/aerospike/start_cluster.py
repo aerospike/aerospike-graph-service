@@ -22,19 +22,23 @@ def parse_cluster_cli():
     parser.add_argument('--debug', help="debug logging", action="store_true", default=False)
     parser.add_argument('--test', help="test", action="store_true", default=False)
     parser.add_argument('--default_ttl', help="Default ttl for Aerospike nodes", default=0, type=str)
+    parser.add_argument('--sc', help="enable strong consistency mode", action="store_true", default=False)
 
     cli = parser.parse_args()
     assert cli.repo_path is not None
     assert cli.aerospike_version is not None
     assert cli.features_file is not None
+
+    aerospike_image = f"aerospike/aerospike-server-enterprise:{cli.aerospike_version}" if cli.sc else f"aerospike:{cli.aerospike_version}"
     return Box({"aerospike_version": cli.aerospike_version,
                 "config_template": cli.config_template,
                 "features_file": cli.features_file,
                 "repo_path": cli.repo_path,
-                "aerospike_image": f"aerospike:{cli.aerospike_version}",
+                "aerospike_image": aerospike_image,
                 "node_count": cli.node_count,
                 "debug": cli.debug,
                 "default_ttl": cli.default_ttl,
+                "sc": cli.sc if "sc" in cli else False,
                 "test": cli.test if "test" in cli else False})
 
 
@@ -66,6 +70,7 @@ class ClusterManager:
         temp_dir = tempfile.mkdtemp("aerospike_config")
         mounts = get_mounts(config, temp_dir)
 
+        # todo: exclude 8.0.0.0
         legacy_memory_setting = "memory-size 3G" if not "ee-7." in config.aerospike_version else ""
         template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(os.path.realpath(__file__)))
         template_env = jinja2.Environment(loader=template_loader)
@@ -121,6 +126,32 @@ class ClusterManager:
         self.logger.info(f"healthcheck: {output}")
         return exit == 0
 
+    def cluster_sc(self, nodes: list, docker_client: DockerClient, cluster_size) -> bool:
+        # get list of available nodes
+        cmd = f"asinfo -p 3000 -v roster:namespace=test"
+        exit, output = self.run_asinfo_cmd(cmd, nodes[0], docker_client)
+        s = str(output)
+        idx = s.index('nodes=')
+
+        # It is safe to issue this command multiple times, once for each observed node.
+        for i in range(0, cluster_size):
+            cmd = f"asinfo -p 30{i}0 -v roster-set:namespace=test;{s[idx:-3]}"
+            self.run_asinfo_cmd(cmd, nodes[i], docker_client)
+
+        # only principal node is able to handle this request, other nodes will ignore it.
+        for i in range(0, cluster_size):
+            cmd = f"asinfo -p 30{i}0 -v recluster:"
+            self.run_asinfo_cmd(cmd, nodes[i], docker_client)
+
+        time.sleep(5) # seconds
+
+        # verify recluster
+        cmd = f"asinfo -p 3000 -v roster:namespace=test"
+        exit, output = self.run_asinfo_cmd(cmd, nodes[0], docker_client)
+        self.logger.info("roster: " + str(output))
+
+        return exit == 0
+
     def single_healthcheck(self, port, ctr_id: str, docker_client: DockerClient) -> bool:
         self.logger.info(f"will healthcheck {ctr_id} with port {port}")
         cmd = f"asinfo -p {port} -v namespaces"
@@ -150,7 +181,7 @@ class ClusterManager:
         nodes: List = []
         for i in range(node_count):
             container_id = self.start_aerospike_node(i, config, docker_client)
-            self.logger.info(f"started aerospike container {i} {container_id}")
+            self.logger.info(f"started aerospike container {i} {container_id} {self.get_ctr_ip(container_id, docker_client)}")
             nodes.append(container_id)
         for i in range(node_count):
             self.logger.info(f"tip container {nodes[i]} to peer with first container {nodes[0]}")
@@ -164,7 +195,9 @@ if __name__ == '__main__':
     cluster_manager = ClusterManager(config)
 
     if config.node_count == 1:
-        cluster_manager.start_aerospike_single(config, docker_client)
+        if config.sc:
+            raise Exception("SC mode is not supported for single node cluster")
+        ctr_id = cluster_manager.start_aerospike_single(config, docker_client)
     elif config.node_count > 9:
         raise Exception("more than 9 nodes not supported")
     else:
@@ -172,6 +205,9 @@ if __name__ == '__main__':
         time.sleep(3)
         for i in range(0, config.node_count - 1):
             assert cluster_manager.cluster_healthcheck(f"30{i}0", nodes[i], docker_client, config.node_count)
+        if config.sc:
+            cluster_manager.cluster_sc(nodes, docker_client, config.node_count)
+
         if "test" in config and config.test:
             for node in nodes:
                 cluster_manager.shutdown(node, docker_client)

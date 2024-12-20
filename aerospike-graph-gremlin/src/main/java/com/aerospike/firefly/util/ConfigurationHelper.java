@@ -84,6 +84,8 @@ public final class ConfigurationHelper {
         public static final String PLUGIN = "aerospike.graph.plugin";
         public static final String TTL_ENABLED_FLAG = "aerospike.graph.ttl.enabled";
         public static final String TTL_PURGE_INTERVAL_SECONDS = "aerospike.graph.ttl.purge.interval";
+        public static final String MRT_ENABLED_FLAG = "aerospike.graph.mrt.enabled";
+        public static final String MRT_TIMEOUT = "aerospike.graph.mrt.timeout";
 
         public static final String WRITE_SOCKET_TIMEOUT = "aerospike.client.policy.write.socketTimeout";
         public static final String READ_SOCKET_TIMEOUT = "aerospike.client.policy.read.socketTimeout";
@@ -400,6 +402,8 @@ public final class ConfigurationHelper {
         put(Keys.DEBUG_MODE_FLAG, "false");
         put(Keys.TTL_ENABLED_FLAG, "false");
         put(Keys.TTL_PURGE_INTERVAL_SECONDS, "2");
+        put(Keys.MRT_ENABLED_FLAG, "false");
+        put(Keys.MRT_TIMEOUT, "0"); // SECONDS
         put(Keys.USAGE_STATS_UPDATE_INTERVAL, "3600000"); // 1 hour default
         put(Keys.AUTH_MODE, "internal");
         put(Keys.CLIENT_SERVICES_ALTERNATE, "false");
@@ -476,6 +480,7 @@ public final class ConfigurationHelper {
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.EVENT_LOOP_COUNT, 0);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.DELAY_QUEUE_SIZE, 0);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.MRT_TIMEOUT, 0, 120);
     }
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {

@@ -122,7 +122,7 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
                     with("element_type", "vertex").next();
         }
         try {
-            Thread.sleep(60 * 1000);
+            Thread.sleep(1000);
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -163,6 +163,7 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
         createIndexWaitComplete("name");
         final GraphTraversalSource gComputer = graph.traversal().withComputer();
         final Vertex marko = gComputer.V().has("name", "marko").next();
+        assertEquals(1, marko.id());
     }
 
     @Test

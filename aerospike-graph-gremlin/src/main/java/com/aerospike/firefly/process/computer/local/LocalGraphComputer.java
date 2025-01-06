@@ -204,9 +204,13 @@ public class LocalGraphComputer implements GraphComputer {
                 vertexProgram.workerIterationEnd(workerMemory.asImmutable());
                 workerMemory.complete();
                 vertexCount.getAndAdd(counter);
-                List<Element> result = null;
+                final List<Element> result;
+                // we have a precompute step so we can get data from it
                 if (output.getRight() != null) {
                     result = (List<Element>) output.getRight().get();
+                } else {
+                    // otherwise messageBoard can help
+                    result = messageBoard.getVerticesWithActiveTraversers();
                 }
                 final long finalCounter = counter;
                 final List<Element> finalResult = result;

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.traversal.strategy.profile.FireflyQueryTracingStrategy;
 import com.aerospike.firefly.process.traversal.strategy.profile.FireflyScanProfileStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -32,6 +33,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
     private final FireflyStrategyBase fireflyCompositeEdgeIdLocalStrategy;
     private final FireflyStrategyBase fireflyBatchEdgeReadLocalStrategy;
     private final FireflyStrategyBase fireflyCountGlobalLocalStrategy;
+    private final FireflyStrategyBase fireflyQueryTracingStrategy;
 
     /**
      * Default constructor for FireflyContentionHandlingStrategy.
@@ -53,6 +55,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         this.fireflyAdjacentVertexIdStrategy = new FireflyAdjacentVertexIdStrategy();
         this.fireflyBatchOtherVReadStrategy = new FireflyOtherVBatchReadStrategy();
         this.fireflyEdgeToVertexBatchReadStrategy = new FireflyEdgeToVertexBatchReadStrategy();
+        this.fireflyQueryTracingStrategy = new FireflyQueryTracingStrategy();
     }
 
     /**
@@ -125,5 +128,6 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         applyStrategy(traversal, fireflyBatchEdgeReadLocalStrategy);
         applyStrategy(traversal, fireflyEdgeToVertexBatchReadStrategy);
         applyStrategy(traversal, fireflyScanProfileStrategy);
+        applyStrategy(traversal, fireflyQueryTracingStrategy);
     }
 }

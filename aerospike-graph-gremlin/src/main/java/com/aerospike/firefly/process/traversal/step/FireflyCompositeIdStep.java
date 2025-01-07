@@ -15,6 +15,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.EmptyTraver
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -116,5 +117,10 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> implem
             set.addAll(output);
             output.clear(); // Force garbage collection.
         }
+    }
+
+    @Override
+    public String toString() {
+        return StringFactory.stepString(this, this.direction, this.edgeLabels, this.barrierSize);
     }
 }

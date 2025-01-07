@@ -207,6 +207,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final String TTL_EDGE_INDEX_NAME;
     public final int TTL_PURGE_INTERVAL_SECONDS;
     public final boolean SUPERNODE_TRAVERSAL_LOG_WARNING;
+    public final boolean REDACT_SCRIPT_LITERALS_ENABLED;
 
     private final int AEROSPIKE_MAX_RETRIES;
     private final int WRITE_SLEEP_BETWEEN_RETRY;
@@ -491,6 +492,7 @@ public class AerospikeConnection implements AutoCloseable {
         INDEX_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf);
         TTL_PURGE_INTERVAL_SECONDS = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.TTL_PURGE_INTERVAL_SECONDS, conf);
         SUPERNODE_TRAVERSAL_LOG_WARNING = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUPERNODE_TRAVERSAL_LOG_WARNING, conf);
+        REDACT_SCRIPT_LITERALS_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.REDACT_SCRIPT_LITERALS_ENABLED, conf);
 
         TEST_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.TEST_SET.name(), conf);
         SUMMARY_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.SUMMARY_SET.name(), conf);

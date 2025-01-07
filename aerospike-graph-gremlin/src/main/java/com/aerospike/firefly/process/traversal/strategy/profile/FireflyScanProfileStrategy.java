@@ -1,7 +1,7 @@
 package com.aerospike.firefly.process.traversal.strategy.profile;
 
 import com.aerospike.firefly.process.computer.local.ComputerHelper;
-import com.aerospike.firefly.process.traversal.step.FireflyProfileStep;
+import com.aerospike.firefly.process.traversal.step.FireflyScanProfileStep;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -44,7 +44,7 @@ public class FireflyScanProfileStrategy extends FireflyStrategyBase {
         }
 
         // Tack on the step that will remove the cache when it's finished.
-        final FireflyProfileStep profileStep = new FireflyProfileStep(traversal);
+        final FireflyScanProfileStep profileStep = new FireflyScanProfileStep(traversal);
         // Profile must be last if it exists.
         if (TraversalHelper.hasStepOfClass(ProfileSideEffectStep.class, traversal)) {
             // FireflyProfileStep carries custom metrics

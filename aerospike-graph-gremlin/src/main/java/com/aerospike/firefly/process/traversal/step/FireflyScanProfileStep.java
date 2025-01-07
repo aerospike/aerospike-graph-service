@@ -19,10 +19,10 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class FireflyProfileStep<S> extends AbstractStep<S, S> implements Profiling {
+public class FireflyScanProfileStep<S> extends AbstractStep<S, S> implements Profiling {
     private MutableMetrics metrics;
 
-    public FireflyProfileStep(Traversal.Admin traversal) {
+    public FireflyScanProfileStep(Traversal.Admin traversal) {
         super(traversal);
     }
 

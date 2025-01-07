@@ -35,6 +35,7 @@ import com.aerospike.firefly.process.computer.local.LocalGraphComputer;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.runtime.HttpServer;
+import com.aerospike.firefly.runtime.zipkin.OpenTelemetryZipkinExporter;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.runtime.tasks.FireflyMetadataTask;
@@ -58,6 +59,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.util.DefaultTraversalMetrics;
 import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -109,6 +111,10 @@ import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_PROPERTY_K
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOAD_ID_BUFFER_SIZE;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.HTTP_ENABLED;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.QUERY_TRACING_LOG_HOST;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.QUERY_TRACING_LOG_PORT;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.QUERY_TRACING_LOG_THRESHOLD;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.QUERY_TRACING_SAMPLE_PERCENT;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 
 /**
@@ -208,6 +214,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static ExitManager EXIT_MANAGER = new ExitManager();
     public static boolean NEED_PREHEAT = true;
     public final GraphQuery graphQuery;
+    private boolean queryTracingEnabled = false;
+    private OpenTelemetryZipkinExporter zipkinExporter;
 
     public static class ExitManager {
         public void exit(final int code) {
@@ -296,6 +304,16 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 HttpServer.getInstance().start(this);
                 httpStarted = true;
             }
+
+            final int queryTracingMinMillis = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_LOG_THRESHOLD, conf);
+            if (queryTracingMinMillis >= 0) {
+                this.queryTracingEnabled = true;
+                final int queryTracingSamplePercent = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_SAMPLE_PERCENT, conf);
+                final String queryTracingLogHost = ConfigurationHelper.getOrDefaultString(QUERY_TRACING_LOG_HOST, conf);
+                final int queryTracingLogPort = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_LOG_PORT, conf);
+                this.zipkinExporter = OpenTelemetryZipkinExporter.create(queryTracingLogHost,
+                        queryTracingLogPort, queryTracingMinMillis, queryTracingSamplePercent);
+            }
         }
     }
 
@@ -309,6 +327,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public String getUser() {
         return USER.get();
+    }
+
+    public boolean isQueryTracingEnabled() {
+        return this.queryTracingEnabled;
     }
 
     public static FireflyGraph open(final Configuration conf) {
@@ -1105,6 +1127,14 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return metadata.totalEdgeCount() == 0 && metadata.totalVertexCount() == 0;
     }
 
+    public void exportQuery(final DefaultTraversalMetrics metrics, final String scopeName, final String traversal) {
+        if (this.zipkinExporter == null) {
+            // This should never happen.
+            throw new IllegalStateException("Slow query logging was not initialized but was used. Please contact support.");
+        }
+        this.zipkinExporter.exportQuery(metrics, scopeName, traversal);
+    }
+
     @Override
     public Transaction tx() {
         throw new UnsupportedOperationException(UNIMPLEMENTED);
@@ -1136,6 +1166,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
 
         this.ttlHandler.close();
+
+        if (this.zipkinExporter != null) {
+            this.zipkinExporter.close();
+        }
 
         this.db.close();
     }

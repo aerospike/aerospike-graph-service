@@ -179,7 +179,7 @@ g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("aerospike.graphloader.bul
 ##### Spark Submit
 
 ```
-spark-submit --conf  spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-2.5.0-SNAPSHOT.jar -c config.properties -validate_input_data -verify_output_data
+spark-submit --conf  spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-<version>.jar -c config.properties -validate_input_data -verify_output_data
 ```
 
 ##### config.properties
@@ -323,8 +323,8 @@ These are the flags to modify the run when bulk loading via Spark Submit. The Ca
 
 | description        | command                                                                                                                                                                                                                                                                              |
 | ------------------ |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| only load vertices | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-2.5.0-SNAPSHOT.jar -c c:/config/config.properties -disable_edges -validate_input_data -verify_output_data    |
-| only load edges    | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-2.5.0-SNAPSHOT.jar -c c:/config/config.properties -disable_vertices -validate_input_data -verify_output_data |
+| only load vertices | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-<version>.jar -c c:/config/config.properties -disable_edges -validate_input_data -verify_output_data    |
+| only load edges    | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-<version>.jar -c c:/config/config.properties -disable_vertices -validate_input_data -verify_output_data |
 
 ##### sample config file
  ```

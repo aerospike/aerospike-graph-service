@@ -183,6 +183,7 @@ public class LocalGraphComputer implements GraphComputer {
                                                  final LocalWorkerMemory workerMemory,
                                                  final AtomicLong vertexCount) throws Exception {
             long counter = 0;
+            // we need reference to PrecomputableComputerStep to be able to release caches
             Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = null;
             try {
                 vertexProgram.workerIterationStart(workerMemory.asImmutable());
@@ -204,16 +205,8 @@ public class LocalGraphComputer implements GraphComputer {
                 vertexProgram.workerIterationEnd(workerMemory.asImmutable());
                 workerMemory.complete();
                 vertexCount.getAndAdd(counter);
-                final List<Element> result;
-                // we have a precompute step so we can get data from it
-                if (output.getRight() != null) {
-                    result = (List<Element>) output.getRight().get();
-                } else {
-                    // otherwise messageBoard can help
-                    result = messageBoard.getVerticesWithActiveTraversers();
-                }
+                final List<Element> result = messageBoard.getVerticesWithActiveTraversers();
                 final long finalCounter = counter;
-                final List<Element> finalResult = result;
                 return new Pair<>() {
                     @Override
                     public Long getLeft() {
@@ -222,7 +215,7 @@ public class LocalGraphComputer implements GraphComputer {
 
                     @Override
                     public List<Element> getRight() {
-                        return finalResult;
+                        return result;
                     }
 
                     @Override

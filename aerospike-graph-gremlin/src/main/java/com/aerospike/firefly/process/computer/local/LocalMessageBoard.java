@@ -40,7 +40,7 @@ public class LocalMessageBoard<M> {
 
             final Map<Vertex, Queue<M>> messages = sendMessages.get(messageScope);
             final List allMessages = Stream.of(messages.keySet())
-                    .filter(q -> messages.get(q).stream().anyMatch(t -> !((Traverser.Admin) t).isHalted()))
+                    .filter(q -> messages.get(q) != null && messages.get(q).stream().anyMatch(t -> !((Traverser.Admin) t).isHalted()))
                     .flatMap(q -> q.stream())
                     .collect(Collectors.toList());
 

@@ -98,11 +98,6 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> implements P
         });
     }
 
-    @Override
-    public List<Edge> get() {
-        return List.of();
-    }
-
     public void precompute() {
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
 

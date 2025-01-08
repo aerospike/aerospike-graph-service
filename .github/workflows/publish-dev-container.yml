@@ -1,4 +1,4 @@
-name: QE Container
+name: Publish Dev (QE)
 
 on:
   push:

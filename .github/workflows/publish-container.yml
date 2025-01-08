@@ -38,6 +38,14 @@ jobs:
       - name: Build Firefly and Bulk Loader
         run: |
           mvn clean install -DskipTests
+          if find aerospike-graph-gremlin/target -type f -name "-SNAPSHOT.jar" | grep -q .; then
+            echo "ERROR: output file ended with '-SNAPSHOT' in aerospike-graph-gremlin/target, please update version before publishing a release candidate"
+            exit 1
+          fi
+          if find aerospike-graph-bulk-loader/target -type f -name "-SNAPSHOT.jar" | grep -q .; then
+              echo "ERROR: output file ended with '-SNAPSHOT' in aerospike-graph-bulk-loader/target, please update version before publishing a release candidate"
+              exit 1
+          fi
 
       - name: Upload Bulk Loader
         uses: actions/upload-artifact@v3

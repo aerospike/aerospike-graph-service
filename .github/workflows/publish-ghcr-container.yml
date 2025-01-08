@@ -371,9 +371,20 @@ jobs:
           echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"          
           docker buildx imagetools create -t ${DOCKER_IMAGE}-slim ${DOCKER_IMAGE}-slim-amd64 ${DOCKER_IMAGE}-slim-arm64
           docker buildx imagetools create -t ${OUTPUT_IMAGE}-slim ${OUTPUT_IMAGE}-slim-amd64 ${OUTPUT_IMAGE}-slim-arm64
-      - name: Scan Slim Container
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
+      - name: Authenticate with Snyk
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk auth ${SNYK_TOKEN}
+
+      - name: Scan Slim Container
         run: |
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=0.0.0.1
@@ -453,6 +464,19 @@ jobs:
           echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"          
           docker buildx imagetools create -t ${DOCKER_IMAGE} ${DOCKER_IMAGE}-amd64 ${DOCKER_IMAGE}-arm64
           docker buildx imagetools create -t ${OUTPUT_IMAGE} ${OUTPUT_IMAGE}-amd64 ${OUTPUT_IMAGE}-arm64
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
+      - name: Authenticate with Snyk
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk auth ${SNYK_TOKEN}
+
       - name: Scan Full Container
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}

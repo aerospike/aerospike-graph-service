@@ -1,13 +1,13 @@
-name: Publish Aerospike Graph Container for Dev to GHCR
+name: Dev Container (GHCR)
 
 # Publish the container if a tag of 'vX.Y.Z-rcW' is made.
 # Example: v0.0.1-rc1, v0.1.0-rc2, v1.0.0-rc3, etc.
 # THIS WILL NOT RUN ON TAGS WITHOUT A DASH IN THEM (release candidates only)
 
 on:
-  push:
-    tags:
-      - 'dev-**'
+  pull_request:
+    branches:
+      - 2.x-dev
 
 env:
   GITHUB_REPOSITORY_NAME: citrusleaf
@@ -15,7 +15,6 @@ env:
   GITHUB_REGISTRY_URL: ghcr.io
 
 jobs:
-
   publish-artifacts:
     name: Publish Artifacts
     timeout-minutes: 120
@@ -96,7 +95,8 @@ jobs:
           mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=0.0.0.1
+          # $(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           
           # Strip prefixed v if it is a tag.
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
@@ -160,7 +160,8 @@ jobs:
           mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=0.0.0.1
+          # $(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           
           # Strip prefixed v if it is a tag.
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
@@ -224,7 +225,8 @@ jobs:
           mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=0.0.0.1
+          # $(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           
           # Strip prefixed v if it is a tag.
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
@@ -287,7 +289,8 @@ jobs:
           mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=0.0.0.1
+          # $(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           
           # Strip prefixed v if it is a tag.
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
@@ -350,7 +353,8 @@ jobs:
           mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=0.0.0.1
+          # $(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           
           # Strip prefixed v if it is a tag.
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
@@ -367,6 +371,23 @@ jobs:
           echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"          
           docker buildx imagetools create -t ${DOCKER_IMAGE}-slim ${DOCKER_IMAGE}-slim-amd64 ${DOCKER_IMAGE}-slim-arm64
           docker buildx imagetools create -t ${OUTPUT_IMAGE}-slim ${OUTPUT_IMAGE}-slim-amd64 ${OUTPUT_IMAGE}-slim-arm64
+      - name: Scan Slim Container
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          # Strip git ref prefix (refs/tags or ref/heads).
+          VERSION=0.0.0.1
+          # $(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          
+          # Strip prefixed v if it is a tag.
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          
+          # Get registry URL and convert to lower case.
+          OUTPUT_IMAGE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME:$VERSION
+          OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          # Publish slim image.
+          snyk container monitor --file=Dockerfile-slim --target-reference="${VERSION}-slim" --org=be10589f-f50c-44fb-a496-955dfa70670a $OUTPUT_IMAGE
   publish-github-multi-arch:
     name: Publish Firefly Docker Image - Multi Arch - GitHub
     permissions:
@@ -414,7 +435,8 @@ jobs:
           mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=0.0.0.1
+          # $(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           
           # Strip prefixed v if it is a tag.
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
@@ -431,3 +453,20 @@ jobs:
           echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"          
           docker buildx imagetools create -t ${DOCKER_IMAGE} ${DOCKER_IMAGE}-amd64 ${DOCKER_IMAGE}-arm64
           docker buildx imagetools create -t ${OUTPUT_IMAGE} ${OUTPUT_IMAGE}-amd64 ${OUTPUT_IMAGE}-arm64
+      - name: Scan Full Container
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          # Strip git ref prefix (refs/tags or ref/heads).
+          VERSION=0.0.0.1
+          # $(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          
+          # Strip prefixed v if it is a tag.
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          
+          # Get registry URL and convert to lower case.
+          OUTPUT_IMAGE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME:$VERSION
+          OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          # Publish full image.
+          snyk container monitor --file=Dockerfile --target-reference="${VERSION}" --org=be10589f-f50c-44fb-a496-955dfa70670a $OUTPUT_IMAGE

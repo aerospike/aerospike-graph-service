@@ -165,6 +165,7 @@ public final class ConfigurationHelper {
         public static final String ON_RECORD_ID_LIMIT = "aerospike.graph.vertex.edge.cache.size";
         public static final String DEBUG_MODE_FLAG = "aerospike.graph.debug.mode.enabled";
         public static final String BULK_LOADER_FLAG = "aerospike.graph.bulk.loading.enabled";
+        public static final String BULK_LOADER_INITIALIZER_FLAG = "aerospike.graph.bulk.loading.initializer.enabled";
         public static final String USAGE_STATS_UPDATE_INTERVAL = "aerospike.graph.usage.update.interval";
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
@@ -394,6 +395,7 @@ public final class ConfigurationHelper {
         put(Keys.SUMMARY_TICKER_ENABLED_FLAG, "true");
         put(Keys.SUMMARY_ENABLED_FLAG, "true");
         put(Keys.BULK_LOADER_FLAG, "false");
+        put(Keys.BULK_LOADER_INITIALIZER_FLAG, "false");
         put(Keys.MAX_ERROR_RATE, "100");
         put(Keys.MAX_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings()) * 2));
         put(Keys.MIN_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));

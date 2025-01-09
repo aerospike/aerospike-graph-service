@@ -44,6 +44,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
 
 public class SparkBulkLoaderStateMachine {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderStateMachine.class);
@@ -140,7 +141,9 @@ public class SparkBulkLoaderStateMachine {
             }
 
             // Create graph and initialize progress bar.
+            config.getFireflyConfig().setProperty(BULK_LOADER_INITIALIZER_FLAG, "true");
             initializerGraph = FireflyGraph.open(config.getFireflyConfig());
+            config.getFireflyConfig().clearProperty(BULK_LOADER_INITIALIZER_FLAG);
             progressBar.initialize(initializerGraph, incrementalLoad);
             progressBarTimer.scheduleAtFixedRate(progressBar, 0, 10000);
 

@@ -109,6 +109,7 @@ import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_POSITION;
 import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_PROPERTY_KEY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOAD_ID_BUFFER_SIZE;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.HTTP_ENABLED;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.QUERY_TRACING_LOG_HOST;
@@ -199,6 +200,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private final FireflyIdFactory idFactory;
     public LocalGraphComputerView graphComputerView = null;
     public final boolean bulkLoaderFlag;
+    public final boolean bulkLoaderInitializerFlag;
     public final long bulkLoadIdBufferSize;
     private final FireflyTtlHandler ttlHandler;
     public final FireflyCardinalityMetadata fireflyCardinalityMetadata;
@@ -245,6 +247,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.idFactory = db.getIdFactory();
         this.bulkLoaderFlag = db.getBulkLoaderFlag();
         this.bulkLoadIdBufferSize = ConfigurationHelper.getOrDefaultInt(BULK_LOAD_ID_BUFFER_SIZE, conf);
+        this.bulkLoaderInitializerFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_INITIALIZER_FLAG, conf);
 
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyFeatures();
@@ -254,17 +257,23 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final TimerTask indexMetadataTimerTask = new FireflyMetadataTask(fireflyIndexMetadata);
         fireflyIndexMetadataTask.schedule(indexMetadataTimerTask, 0, db.INDEX_METADATA_UPDATE_FREQUENCY);
 
-        // Grab user defined vertex property indexes from the configuration and create them.
-        final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
-        createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
-
-        // Grab user defined edge property indexes from the configuration and create them.
-        final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
-        if (edgePropertyIndexes != null && !edgePropertyIndexes.isEmpty()) {
-            // TODO: Edge indexes.
-            throw new RuntimeException("Edge property indexes are not currently supported.");
+        // If bulk loading, only create indexes for the first bulk loader graph initialization. Otherwise they spam 1000's of times.
+        if (!bulkLoaderFlag || (bulkLoaderFlag && bulkLoaderInitializerFlag)) {
+            // Grab user defined vertex property indexes from the configuration and create them.
+            final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
+            createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
         }
-        createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
+
+        // If bulk loading, only create indexes for the first bulk loader graph initialization. Otherwise they spam 1000's of times.
+        if (!bulkLoaderFlag || (bulkLoaderFlag && bulkLoaderInitializerFlag)) {
+            // Grab user defined edge property indexes from the configuration and create them.
+            final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
+            if (edgePropertyIndexes != null && !edgePropertyIndexes.isEmpty()) {
+                // TODO: Edge indexes.
+                throw new RuntimeException("Edge property indexes are not currently supported.");
+            }
+            createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
+        }
 
         // Create ttl background task.
         this.ttlHandler = new FireflyTtlHandler(this);

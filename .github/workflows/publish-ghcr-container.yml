@@ -1,4 +1,4 @@
-name: Publish Aerospike Graph Container for Dev to GHCR
+name: Publish Dev (GHCR)
 
 # Publish the container if a tag of 'vX.Y.Z-rcW' is made.
 # Example: v0.0.1-rc1, v0.1.0-rc2, v1.0.0-rc3, etc.

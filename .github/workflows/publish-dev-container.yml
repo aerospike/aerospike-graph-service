@@ -1,4 +1,4 @@
-name: Publish Aerospike Graph Container for Dev to QE
+name: Publish Dev (QE)
 
 on:
   push:
@@ -11,7 +11,6 @@ env:
   QE_DOCKER_USERNAME: firefly
 
 jobs:
-
   publish-github-amd:
     name: Publish Firefly Docker Image - AMD - QE
     permissions:

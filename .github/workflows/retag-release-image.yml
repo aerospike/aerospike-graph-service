@@ -1,4 +1,4 @@
-name: Publish Aerospike Graph Container to Dockerhub and GCR
+name: Publish Public Release
 
 # Publish the container if a full release is made.
 # See https://docs.github.com/en/webhooks/webhook-events-and-payloads?actionType=released#release

@@ -58,7 +58,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.DiagnosticUtil;
 import com.aerospike.firefly.util.WarmupUtil;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
@@ -103,10 +103,10 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
-import static com.aerospike.firefly.util.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.MRT_ENABLED_FLAG;
-import static com.aerospike.firefly.util.ConfigurationHelper.getOrDefaultString;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.MRT_ENABLED_FLAG;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.getOrDefaultString;
 import static com.aerospike.firefly.util.exceptions.AerospikeGraphException.fromAerospikeException;
 
 /**

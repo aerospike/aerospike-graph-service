@@ -2,7 +2,7 @@ package com.aerospike.firefly.runtime;
 
 import com.aerospike.firefly.runtime.metrics.ServerMetrics;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.ReflectionHelper;
 import com.aerospike.firefly.util.WarmupUtil;
 import org.apache.commons.lang3.StringUtils;
@@ -17,7 +17,7 @@ import java.io.File;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TRAVERSAL_NAME;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.TRAVERSAL_NAME;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)

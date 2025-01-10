@@ -1,7 +1,8 @@
 package com.aerospike.firefly.process.call.bulkload.utils;
 
-import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.NumericConfigValidator;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
+import com.aerospike.firefly.util.config.DoubleConfigValidator;
+import com.aerospike.firefly.util.config.IntegerConfigValidator;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
@@ -16,7 +17,8 @@ import java.util.Map;
 
 public class BulkLoaderConfigHelper implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(BulkLoaderConfigHelper.class);
-    private static final NumericConfigValidator NUMERIC_CONFIG_VALIDATOR = new NumericConfigValidator();
+    private static final IntegerConfigValidator INTEGER_CONFIG_VALIDATOR = new IntegerConfigValidator();
+    private static final DoubleConfigValidator DOUBLE_CONFIG_VALIDATOR = new DoubleConfigValidator();
 
     // ==CommandLine Configurations==
     // Flag indicating that the job is running from IDE/JVM.
@@ -127,11 +129,14 @@ public class BulkLoaderConfigHelper implements Serializable {
     }};
 
     static {
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(VERTEX_WRITE_BUFFER, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(EDGE_WRITE_BUFFER, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(ALLOWED_DUPLICATE_VERTEX_ID_COUNT, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(ALLOWED_BAD_EDGES_COUNT, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(ALLOWED_BAD_ENTRY_COUNT, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(VERTEX_WRITE_BUFFER, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(EDGE_WRITE_BUFFER, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(ALLOWED_DUPLICATE_VERTEX_ID_COUNT, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(ALLOWED_BAD_EDGES_COUNT, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(ALLOWED_BAD_ENTRY_COUNT, 0);
+
+        DOUBLE_CONFIG_VALIDATOR.addConfig(SAMPLING_PERCENTAGE, 0, 100);
+        DOUBLE_CONFIG_VALIDATOR.addConfig(SUPERNODE_SAMPLING_PERCENTAGE, 0.1, 100);
     }
 
     public BulkLoaderConfigHelper(final Map<String, Object> fileConfig, final CommandLine cmdConfig) {
@@ -150,7 +155,7 @@ public class BulkLoaderConfigHelper implements Serializable {
         } else if (DEFAULT_VALUES.containsKey(loweredKey)) {
             return DEFAULT_VALUES.get(loweredKey);
         } else {
-            final String errorMessage = "No default value available for key: " + loweredKey;
+            final String errorMessage = "A value for configuration key, \"" + loweredKey + "\", was not provided and is required.";
             LOG.error(errorMessage);
             throw new ConfigurationRuntimeException(errorMessage);
         }
@@ -171,26 +176,14 @@ public class BulkLoaderConfigHelper implements Serializable {
     }
 
     public int getOrDefaultInt(final String key) {
-        final String value = (String) getOrDefault(key);
-        return NUMERIC_CONFIG_VALIDATOR.validate(key, value);
+        final String value = getOrDefault(key);
+        return INTEGER_CONFIG_VALIDATOR.validate(key, value);
     }
 
     public double getOrDefaultDoublePercentageDecimal(final String key) {
         final String value = getOrDefault(key);
-        try {
-            final double percentage = Double.parseDouble(value.trim());
-            if (percentage > 100 || percentage < 0) {
-                final String errorMessage = "Value provided, \"" + value + "\", for configuration key, \"" + key + "\", must be between 0 and 100.";
-                LOG.error(errorMessage);
-                throw new ConfigurationRuntimeException(errorMessage);
-            } else {
-                return percentage / 100;
-            }
-        } catch (final NumberFormatException e) {
-            final String errorMessage = "Value provided, \"" + value + "\", for configuration key, \"" + key + "\", is invalid due to not being numeric.";
-            LOG.error(errorMessage);
-            throw new ConfigurationRuntimeException(errorMessage);
-        }
+        final Double doubleValue = DOUBLE_CONFIG_VALIDATOR.validate(key, value);
+        return doubleValue / 100;
     }
 
     public boolean hasAction(final String action) {
@@ -206,27 +199,22 @@ public class BulkLoaderConfigHelper implements Serializable {
     }
 
     public void validateBulkLoadConfig() {
-        String currentKey = null;
-        try {
-            if (!hasAction(INCREMENTAL_LOAD)) {
-                if (!hasAction(DISABLE_VERTEX_WRITE)) {
-                    currentKey = VERTEX_DIRECTORY_KEY;
-                    getOrDefault(VERTEX_DIRECTORY_KEY);
-                }
-                if (!hasAction(DISABLE_EDGE_WRITE)) {
-                    currentKey = EDGE_DIRECTORY_KEY;
-                    getOrDefault(EDGE_DIRECTORY_KEY);
-                }
+        if (!hasAction(INCREMENTAL_LOAD)) {
+            if (!hasAction(DISABLE_VERTEX_WRITE)) {
+                getOrDefault(VERTEX_DIRECTORY_KEY);
             }
-            if (!hasAction(READ_ONLY)) {
-                currentKey = TEMP_DIRECTORY_KEY;
-                getOrDefault(TEMP_DIRECTORY_KEY);
+            if (!hasAction(DISABLE_EDGE_WRITE)) {
+                getOrDefault(EDGE_DIRECTORY_KEY);
             }
-
-        } catch (final ConfigurationRuntimeException e) {
-            final String message = "Invalid configuration provided - invalid value for property: " + currentKey;
-            LOG.error(message);
-            throw new ConfigurationRuntimeException(message);
+        }
+        if (!hasAction(READ_ONLY)) {
+            getOrDefault(TEMP_DIRECTORY_KEY);
+        }
+        for (final String key : INTEGER_CONFIG_VALIDATOR.keySet()) {
+            getOrDefault(key);
+        }
+        for (final String key : DOUBLE_CONFIG_VALIDATOR.keySet()) {
+            getOrDefault(key);
         }
     }
 }

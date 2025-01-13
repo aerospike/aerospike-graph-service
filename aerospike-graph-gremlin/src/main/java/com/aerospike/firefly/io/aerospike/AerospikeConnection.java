@@ -1315,7 +1315,7 @@ public class AerospikeConnection implements AutoCloseable {
         if (warmup_mode || VERTEX_AERO_SET.contains(WarmupUtil.getWarmupArenaName()))
             return;
 
-        if (shouldCreateIndexes())
+        if (!shouldCreateIndexes())
             return;
 
         try {

@@ -143,7 +143,6 @@ public class SparkBulkLoaderStateMachine {
             // Create graph and initialize progress bar.
             config.getFireflyConfig().setProperty(BULK_LOADER_INITIALIZER_FLAG, "true");
             initializerGraph = FireflyGraph.open(config.getFireflyConfig());
-            config.getFireflyConfig().clearProperty(BULK_LOADER_INITIALIZER_FLAG);
             progressBar.initialize(initializerGraph, incrementalLoad);
             progressBarTimer.scheduleAtFixedRate(progressBar, 0, 10000);
 

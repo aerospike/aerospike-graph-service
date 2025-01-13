@@ -200,7 +200,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private final FireflyIdFactory idFactory;
     public LocalGraphComputerView graphComputerView = null;
     public final boolean bulkLoaderFlag;
-    public final boolean bulkLoaderInitializerFlag;
     public final long bulkLoadIdBufferSize;
     private final FireflyTtlHandler ttlHandler;
     public final FireflyCardinalityMetadata fireflyCardinalityMetadata;
@@ -247,7 +246,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.idFactory = db.getIdFactory();
         this.bulkLoaderFlag = db.getBulkLoaderFlag();
         this.bulkLoadIdBufferSize = ConfigurationHelper.getOrDefaultInt(BULK_LOAD_ID_BUFFER_SIZE, conf);
-        this.bulkLoaderInitializerFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_INITIALIZER_FLAG, conf);
+        final boolean bulkLoaderInitializerFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_INITIALIZER_FLAG, conf);
 
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyFeatures();
@@ -258,14 +257,14 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         fireflyIndexMetadataTask.schedule(indexMetadataTimerTask, 0, db.INDEX_METADATA_UPDATE_FREQUENCY);
 
         // If bulk loading, only create indexes for the first bulk loader graph initialization. Otherwise they spam 1000's of times.
-        if (!bulkLoaderFlag || (bulkLoaderFlag && bulkLoaderInitializerFlag)) {
+        if (!bulkLoaderFlag || bulkLoaderInitializerFlag) {
             // Grab user defined vertex property indexes from the configuration and create them.
             final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
             createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
         }
 
         // If bulk loading, only create indexes for the first bulk loader graph initialization. Otherwise they spam 1000's of times.
-        if (!bulkLoaderFlag || (bulkLoaderFlag && bulkLoaderInitializerFlag)) {
+        if (!bulkLoaderFlag || bulkLoaderInitializerFlag) {
             // Grab user defined edge property indexes from the configuration and create them.
             final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
             if (edgePropertyIndexes != null && !edgePropertyIndexes.isEmpty()) {

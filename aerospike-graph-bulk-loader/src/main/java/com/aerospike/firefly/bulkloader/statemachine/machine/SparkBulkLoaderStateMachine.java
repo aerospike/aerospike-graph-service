@@ -44,7 +44,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
 
 public class SparkBulkLoaderStateMachine {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderStateMachine.class);

@@ -105,6 +105,7 @@ import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.MRT_ENABLED_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.getOrDefaultString;
 import static com.aerospike.firefly.util.exceptions.AerospikeGraphException.fromAerospikeException;

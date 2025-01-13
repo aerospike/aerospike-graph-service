@@ -1,5 +1,6 @@
 package com.aerospike.firefly.util;
 
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.junit.Test;

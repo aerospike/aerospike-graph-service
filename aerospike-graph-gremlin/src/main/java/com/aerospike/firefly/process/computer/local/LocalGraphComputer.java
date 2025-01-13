@@ -6,7 +6,7 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGrap
 import com.aerospike.firefly.process.traversal.strategy.verification.FireflyComputerVerificationStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.commons.lang3.tuple.Pair;
@@ -183,6 +183,7 @@ public class LocalGraphComputer implements GraphComputer {
                                                  final LocalWorkerMemory workerMemory,
                                                  final AtomicLong vertexCount) throws Exception {
             long counter = 0;
+            // we need reference to PrecomputableComputerStep to be able to release caches
             Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = null;
             try {
                 vertexProgram.workerIterationStart(workerMemory.asImmutable());
@@ -204,12 +205,8 @@ public class LocalGraphComputer implements GraphComputer {
                 vertexProgram.workerIterationEnd(workerMemory.asImmutable());
                 workerMemory.complete();
                 vertexCount.getAndAdd(counter);
-                List<Element> result = null;
-                if (output.getRight() != null) {
-                    result = (List<Element>) output.getRight().get();
-                }
+                final List<Element> result = messageBoard.getVerticesWithActiveTraversers();
                 final long finalCounter = counter;
-                final List<Element> finalResult = result;
                 return new Pair<>() {
                     @Override
                     public Long getLeft() {
@@ -218,7 +215,7 @@ public class LocalGraphComputer implements GraphComputer {
 
                     @Override
                     public List<Element> getRight() {
-                        return finalResult;
+                        return result;
                     }
 
                     @Override

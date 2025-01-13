@@ -1,6 +1,6 @@
 package com.aerospike.firefly.security;
 
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphAuthException;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTCreator;

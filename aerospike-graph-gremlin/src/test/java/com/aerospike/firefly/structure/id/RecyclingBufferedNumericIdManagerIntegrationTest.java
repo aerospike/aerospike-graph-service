@@ -2,7 +2,7 @@ package com.aerospike.firefly.structure.id;
 
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -22,7 +22,7 @@ import java.util.Random;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE;
 
 public class RecyclingBufferedNumericIdManagerIntegrationTest {
     private static final long BUFFER_SIZE = 3;

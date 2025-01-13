@@ -6,7 +6,7 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.runtime.FireflyServer;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.OutputCapturer;
 import com.aerospike.firefly.util.TestLogging;
 import com.aerospike.firefly.util.WarmupUtil;

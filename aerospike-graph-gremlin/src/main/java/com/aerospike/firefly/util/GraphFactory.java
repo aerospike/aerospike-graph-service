@@ -3,6 +3,7 @@ package com.aerospike.firefly.util;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.DataModelVersioning;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.configuration2.Configuration;
 import org.slf4j.Logger;
@@ -11,7 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 
 import static com.aerospike.firefly.structure.FireflyGraph.getGremlinServerSettings;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.FIREFLY_DATA_MODEL;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.FIREFLY_DATA_MODEL;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)

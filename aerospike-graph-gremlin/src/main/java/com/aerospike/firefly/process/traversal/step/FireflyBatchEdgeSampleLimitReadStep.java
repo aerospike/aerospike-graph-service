@@ -18,6 +18,7 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
+import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -195,5 +196,10 @@ public class FireflyBatchEdgeSampleLimitReadStep extends CollectingBarrierStep<E
             set.addAll(output);
             output.clear(); // Force garbage collection.
         }
+    }
+
+    @Override
+    public String toString() {
+        return StringFactory.stepString(this, this.direction, this.edgeLabels, this.barrierSize);
     }
 }

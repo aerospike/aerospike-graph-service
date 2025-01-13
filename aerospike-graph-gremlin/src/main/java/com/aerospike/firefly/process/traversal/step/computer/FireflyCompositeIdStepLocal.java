@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -44,8 +43,6 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
     private static final ThreadLocal<Map<FireflyId, FireflyVertex>> cache =
             ThreadLocal.withInitial(HashMap::new);
     private static final ThreadLocal<List<Pair<Traverser.Admin<Vertex>, FireflyVertex>>> inputCache =
-            ThreadLocal.withInitial(ArrayList::new);
-    private static final ThreadLocal<List<Vertex>> outputOrderCache =
             ThreadLocal.withInitial(ArrayList::new);
 
     public FireflyCompositeIdStepLocal(final Traversal.Admin traversal,
@@ -159,19 +156,13 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
             final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
             final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, missingIds, requiredProperties);
             output.addAll(vertices);
-            outputOrderCache.get().addAll(output);
             return FireflyCloseableIteratorUtils.filter(output.iterator(), v -> HasContainer.testAll(v, fireflyHasContainers));
         }
-    }
-
-    public List<Vertex> get() {
-        return new ArrayList<>(outputOrderCache.get());
     }
 
     @Override
     public void release() {
         cache.get().clear();
         inputCache.get().clear();
-        outputOrderCache.get().clear();
     }
 }

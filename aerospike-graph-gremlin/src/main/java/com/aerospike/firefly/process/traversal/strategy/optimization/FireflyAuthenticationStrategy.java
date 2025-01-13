@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphAuthException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
@@ -8,7 +9,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Mutating;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.CallStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.Parameters;
-import org.apache.tinkerpop.gremlin.process.traversal.translator.GroovyTranslator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -167,8 +167,8 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                             }
                         }
                         toRemove.forEach(instructions::remove);
-                        LOG.info("[{}] - " + " Insufficient permissions to execute mutating step. Query: 'g{}'.", userClaims.get().getUsername(),
-                                GroovyTranslator.of("").translate(copy.asAdmin().getBytecode()).getScript());
+                        LOG.info("[{}] - " + " Insufficient permissions to execute mutating step. Query: '{}'.", userClaims.get().getUsername(),
+                                TraversalUtil.toStringScript(copy.asAdmin(), graph.getBaseGraph().REDACT_SCRIPT_LITERALS_ENABLED));
                     }
                     throw AerospikeGraphAuthException.userDoesNotHaveWriteAccess();
                 }

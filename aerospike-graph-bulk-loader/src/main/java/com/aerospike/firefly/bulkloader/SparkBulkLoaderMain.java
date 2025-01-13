@@ -11,13 +11,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
 
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
 import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad.BULK_LOAD_SUCCESS;
@@ -56,19 +54,23 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             if (!output.equals(BULK_LOAD_SUCCESS)) {
                 LOGGER.warn(output);
             }
-        } catch (final ExecutionException | InterruptedException e) {
+        } catch (final ExecutionException ee) {
             // Drill into exception and throw the root exception. Should be a RuntimeException generally.
-            Throwable ee = e;
-            while (ee.getCause() != null) {
-                ee = ee.getCause();
+            Throwable cause = ee;
+            while (cause.getCause() != null) {
+                cause = cause.getCause();
             }
-            if (ee instanceof ClassNotFoundException) {
+            if (cause instanceof ClassNotFoundException) {
                 throw new IllegalStateException("ERROR: To use the bulk loader via the call API, " +
-                        "use the docker image with bulk loader support.", e);
+                        "use the docker image with bulk loader support.", ee);
             }
 
-            LOGGER.error("Failed to bootstrap SparkBulkLoaderStateMachine", ee);
-            throw (ee instanceof RuntimeException) ? (RuntimeException) ee : new RuntimeException(ee);
+            LOGGER.error("Failed to bootstrap SparkBulkLoaderStateMachine.", cause);
+            throw (cause instanceof RuntimeException) ? (RuntimeException) cause : new RuntimeException(cause);
+        } catch (final InterruptedException ie) {
+            final String message = "Initializing the bulk loader was unexpectedly interrupted. Please retry or contact support if the problem persists.";
+            LOGGER.error(message);
+            throw new RuntimeException(message, ie);
         } finally {
             if (sparkBulkLoaderStateMachine != null) {
                 sparkBulkLoaderStateMachine.cleanup();

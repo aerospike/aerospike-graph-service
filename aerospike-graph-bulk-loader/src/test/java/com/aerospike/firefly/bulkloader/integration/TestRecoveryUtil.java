@@ -2,7 +2,7 @@ package com.aerospike.firefly.bulkloader.integration;
 
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.junit.Assert;
 import org.junit.Test;
 

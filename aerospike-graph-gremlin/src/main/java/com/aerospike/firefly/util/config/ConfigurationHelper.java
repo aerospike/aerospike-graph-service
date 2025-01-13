@@ -1,10 +1,11 @@
-package com.aerospike.firefly.util;
+package com.aerospike.firefly.util.config;
 
 import ch.qos.logback.classic.Level;
 import com.aerospike.client.async.EventLoopType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.LoggerUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
@@ -37,7 +38,7 @@ import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getDefaultT
  */
 public final class ConfigurationHelper {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
-    private static final NumericConfigValidator NUMERIC_CONFIG_VALIDATOR = new NumericConfigValidator();
+    private static final IntegerConfigValidator INTEGER_CONFIG_VALIDATOR = new IntegerConfigValidator();
 
     private ConfigurationHelper() {
     }
@@ -65,6 +66,7 @@ public final class ConfigurationHelper {
         public static final String CLIENT_SERVICES_ALTERNATE = "aerospike.client.services.alternate";
         public static final String CLUSTER_NAME = "aerospike.client.cluster.name";
 
+        public static final String REDACT_SCRIPT_LITERALS_ENABLED = "aerospike.graph.script-logging.redact-literals";
         public static final String LOG_LEVEL = "aerospike.graph.log.level";
         public static final String SUPERNODE_TRAVERSAL_LOG_WARNING = "aerospike.graph.log.supernode.warning";
         public static final String FIREFLY_DATA_MODEL = "aerospike.graph.data.model";
@@ -78,9 +80,6 @@ public final class ConfigurationHelper {
         public static final String EDGE_PROPERTY_INDEXES = "aerospike.graph.index.edge.properties";
         public static final String GRAPH_ID = "aerospike.graph.id";
         public static final String TRAVERSAL_NAME = "aerospike.graph.traversal";
-        public static final String HTTP_PORT = "aerospike.graph.http.port";
-        public static final String PROMETHEUS_PATH = "aerospike.graph.prometheus.path";
-        public static final String HEALTHCHECK_PATH = "aerospike.graph.healthcheck.path";
         public static final String PLUGIN = "aerospike.graph.plugin";
         public static final String TTL_ENABLED_FLAG = "aerospike.graph.ttl.enabled";
         public static final String TTL_PURGE_INTERVAL_SECONDS = "aerospike.graph.ttl.purge.interval";
@@ -188,8 +187,15 @@ public final class ConfigurationHelper {
         public static final String COMMANDS_PER_EVENT_LOOP = "aerospike.client.eventPolicy.maxCommandsInProcess";
         public static final String DELAY_QUEUE_SIZE = "aerospike.client.eventPolicy.maxCommandsInQueue";
 
-        // to speed up testing
-        public static final String HTTP_ENABLED = "aerospike.graph.http.enabled";
+        // Endpoint configurations
+        public static final String HTTP_ENABLED = "aerospike.graph.http.enabled"; // Disable to speed up testing
+        public static final String HTTP_PORT = "aerospike.graph.http.port";
+        public static final String PROMETHEUS_PATH = "aerospike.graph.prometheus.path";
+        public static final String HEALTHCHECK_PATH = "aerospike.graph.healthcheck.path";
+        public static final String QUERY_TRACING_LOG_THRESHOLD = "aerospike.graph.query-tracing.threshold-ms";
+        public static final String QUERY_TRACING_SAMPLE_PERCENT = "aerospike.graph.query-tracing.sampling-percentage";
+        public static final String QUERY_TRACING_LOG_HOST = "aerospike.graph.query-tracing.opentelemetry-host";
+        public static final String QUERY_TRACING_LOG_PORT = "aerospike.graph.query-tracing.opentelemetry-port";
 
         public static class Pair {
             public final int numeric;
@@ -377,6 +383,7 @@ public final class ConfigurationHelper {
         put(Keys.MOVEMENT_BARRIER_SIZE, "1000");
         put(Keys.LOG_LEVEL, "INFO");
         put(Keys.SUPERNODE_TRAVERSAL_LOG_WARNING, "true");
+        put(Keys.REDACT_SCRIPT_LITERALS_ENABLED, "false");
         put(Keys.TLS, "false");
         put(Keys.AUTO_PRE_HEAT, "true");
         put(Keys.WARMUP_ENABLED, "true");
@@ -431,6 +438,10 @@ public final class ConfigurationHelper {
         put(Keys.MERGE_EDGE_POLL_INTERVAL, "10");
         put(Keys.MERGE_EDGE_STARVATION_PROTECTION, "false");
         put(Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, "false");
+        put(Keys.QUERY_TRACING_LOG_HOST, "localhost");
+        put(Keys.QUERY_TRACING_LOG_PORT, "9411");
+        put(Keys.QUERY_TRACING_LOG_THRESHOLD, "-1");
+        put(Keys.QUERY_TRACING_SAMPLE_PERCENT, "100");
     }};
 
     private static final Map<Object, String> BULK_LOAD_DEFAULTS = new HashMap<>() {{
@@ -441,46 +452,48 @@ public final class ConfigurationHelper {
     }};
 
     static {
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.SCAN_MAX_WAIT, 100);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_MAX_RETRIES, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_QUEUE_SIZE, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_SIZE, 128);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_MAX_WAIT, 1000);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_TIMEOUT, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.WRITE_SOCKET_TIMEOUT, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.READ_SOCKET_TIMEOUT, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.READ_TOTAL_TIMEOUT_BULK_LOAD, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.READ_SOCKET_TIMEOUT_BULK_LOAD, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.READ_SOCKET_TIMEOUT, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.WRITE_TOTAL_TIMEOUT, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.READ_TOTAL_TIMEOUT, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.WRITE_SLEEP_BETWEEN_RETRY, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.READ_SLEEP_BETWEEN_RETRY, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.VERTEX_ID_BUFFER_SIZE, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.EDGE_ID_BUFFER_SIZE, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PROPERTY_ID_BUFFER_SIZE, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.BULK_LOAD_ID_BUFFER_SIZE, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.INDEX_METADATA_UPDATE_FREQUENCY, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.TTL_PURGE_INTERVAL_SECONDS, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_READ_SIZE, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.PHAT_EDGE_SIZE, 1, 100);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MOVEMENT_BARRIER_SIZE, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MAX_ERROR_RATE, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.CONNECT_TIMEOUT, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.TIMEOUT_DELAY, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.USAGE_STATS_UPDATE_INTERVAL, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MAX_CONNECTIONS_PER_NODE, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MIN_CONNECTIONS_PER_NODE, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.MERGE_EDGE_EVAL_TIMEOUT, 1, 60000);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.MERGE_EDGE_TTL, 1000, 60000);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MERGE_EDGE_POLL_INTERVAL, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.EVENT_LOOP_COUNT, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.DELAY_QUEUE_SIZE, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, 0);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.MRT_TIMEOUT, 0, 120);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.SCAN_MAX_WAIT, 100);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_MAX_RETRIES, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_QUEUE_SIZE, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_SIZE, 128);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_MAX_WAIT, 1000);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_TIMEOUT, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.WRITE_SOCKET_TIMEOUT, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.READ_SOCKET_TIMEOUT, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.READ_TOTAL_TIMEOUT_BULK_LOAD, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.READ_SOCKET_TIMEOUT_BULK_LOAD, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.READ_SOCKET_TIMEOUT, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.WRITE_TOTAL_TIMEOUT, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.READ_TOTAL_TIMEOUT, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.WRITE_SLEEP_BETWEEN_RETRY, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.READ_SLEEP_BETWEEN_RETRY, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.VERTEX_ID_BUFFER_SIZE, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.EDGE_ID_BUFFER_SIZE, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.PROPERTY_ID_BUFFER_SIZE, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.BULK_LOAD_ID_BUFFER_SIZE, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.INDEX_METADATA_UPDATE_FREQUENCY, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.TTL_PURGE_INTERVAL_SECONDS, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_READ_SIZE, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfig(Keys.PHAT_EDGE_SIZE, 1, 100);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.MOVEMENT_BARRIER_SIZE, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.MAX_ERROR_RATE, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.CONNECT_TIMEOUT, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.TIMEOUT_DELAY, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.USAGE_STATS_UPDATE_INTERVAL, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.MAX_CONNECTIONS_PER_NODE, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.MIN_CONNECTIONS_PER_NODE, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfig(Keys.MERGE_EDGE_EVAL_TIMEOUT, 1, 60000);
+        INTEGER_CONFIG_VALIDATOR.addConfig(Keys.MERGE_EDGE_TTL, 1000, 60000);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.MERGE_EDGE_POLL_INTERVAL, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.EVENT_LOOP_COUNT, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.DELAY_QUEUE_SIZE, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfig(Keys.MRT_TIMEOUT, 0, 120);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.QUERY_TRACING_LOG_THRESHOLD, -1);
+        INTEGER_CONFIG_VALIDATOR.addConfig(Keys.QUERY_TRACING_SAMPLE_PERCENT, 1, 100);
     }
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {
@@ -620,7 +633,7 @@ public final class ConfigurationHelper {
 
     public static int getOrDefaultInt(final String key, Configuration config) {
         final String value = (String) getOrDefault(key, config);
-        return NUMERIC_CONFIG_VALIDATOR.validate(key, value);
+        return INTEGER_CONFIG_VALIDATOR.validate(key, value);
     }
 
     public static boolean getOrDefaultBool(final String key, Configuration config) {
@@ -713,6 +726,6 @@ public final class ConfigurationHelper {
 
     public static void setOnRecordIdLimit(final long limit) {
         final int intLimit = limit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) limit;
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.ON_RECORD_ID_LIMIT, 0, intLimit);
+        INTEGER_CONFIG_VALIDATOR.addConfig(Keys.ON_RECORD_ID_LIMIT, 0, intLimit);
     }
 }

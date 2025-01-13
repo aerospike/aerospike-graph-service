@@ -1,7 +1,7 @@
 package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
 import com.aerospike.firefly.util.PerfUtil;
 import org.apache.commons.configuration2.Configuration;
@@ -24,8 +24,8 @@ import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 import static org.apache.tinkerpop.gremlin.structure.io.IoCore.graphml;
 
 public class TestFireflyCompositeIdStrategyIntegration {

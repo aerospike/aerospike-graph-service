@@ -1,7 +1,7 @@
 package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -14,8 +14,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES;
 
 public class TestGraphStepHasContainerNumericBounds {
     public void testTraversals(final GraphTraversalSource g) {

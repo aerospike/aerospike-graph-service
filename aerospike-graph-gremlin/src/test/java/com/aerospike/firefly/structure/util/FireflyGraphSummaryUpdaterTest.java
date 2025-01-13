@@ -1,7 +1,7 @@
 package com.aerospike.firefly.structure.util;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;

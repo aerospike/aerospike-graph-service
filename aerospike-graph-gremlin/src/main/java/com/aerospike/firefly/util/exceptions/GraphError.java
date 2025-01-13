@@ -2,7 +2,7 @@ package com.aerospike.firefly.util.exceptions;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 
 import java.util.HashMap;
 
@@ -20,7 +20,7 @@ import static com.aerospike.client.ResultCode.SCAN_TERMINATED;
 import static com.aerospike.client.ResultCode.SERIALIZE_ERROR;
 import static com.aerospike.client.ResultCode.SERVER_NOT_AVAILABLE;
 import static com.aerospike.firefly.structure.FireflyElement.TTL_PROPERTY_KEY;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE;
 
 /**
  * Client codes are absolute value of ResultCode + 1000

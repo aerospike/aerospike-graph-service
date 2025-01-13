@@ -3,7 +3,7 @@ package com.aerospike.firefly.process.call.bulkload;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.google.common.collect.Sets;
 import org.apache.commons.configuration2.Configuration;
 

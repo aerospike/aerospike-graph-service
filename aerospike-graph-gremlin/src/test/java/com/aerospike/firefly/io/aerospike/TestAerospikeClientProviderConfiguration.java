@@ -2,17 +2,17 @@ package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.policy.AuthMode;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.AUTH_MODE;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.CLIENT_SERVICES_ALTERNATE;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.CLUSTER_NAME;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.PHAT_EDGE_SIZE;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.VALIDATE_CLUSTER_NAME;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.AUTH_MODE;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.CLIENT_SERVICES_ALTERNATE;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.CLUSTER_NAME;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.PHAT_EDGE_SIZE;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.VALIDATE_CLUSTER_NAME;
 
 public class TestAerospikeClientProviderConfiguration {
 

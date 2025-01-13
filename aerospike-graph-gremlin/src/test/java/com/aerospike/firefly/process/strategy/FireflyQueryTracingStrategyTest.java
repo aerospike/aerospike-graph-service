@@ -2,7 +2,7 @@ package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyQueryTracingStep;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;

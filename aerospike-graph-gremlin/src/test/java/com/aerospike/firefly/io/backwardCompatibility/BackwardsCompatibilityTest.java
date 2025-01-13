@@ -1,7 +1,7 @@
 package com.aerospike.firefly.io.backwardCompatibility;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.DockerUtil;
 import com.aerospike.firefly.util.VersionUtil;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;

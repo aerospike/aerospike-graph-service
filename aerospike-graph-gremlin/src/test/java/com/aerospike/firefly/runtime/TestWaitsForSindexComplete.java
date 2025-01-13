@@ -1,7 +1,7 @@
 package com.aerospike.firefly.runtime;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.Assert;
 import org.junit.Test;

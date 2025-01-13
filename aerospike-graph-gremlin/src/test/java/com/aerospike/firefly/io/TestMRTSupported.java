@@ -7,9 +7,9 @@ import org.junit.Test;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.AbstractFireflySuite.exited;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.HTTP_ENABLED;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.MRT_ENABLED_FLAG;
-import static com.aerospike.firefly.util.ConfigurationHelper.loadFromFile;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.HTTP_ENABLED;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.MRT_ENABLED_FLAG;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.loadFromFile;
 import static org.junit.Assert.assertFalse;
 
 // to run this test need AeroSpike database 8+ with strong consistency

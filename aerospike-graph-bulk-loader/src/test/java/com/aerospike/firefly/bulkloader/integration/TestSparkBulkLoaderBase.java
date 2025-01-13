@@ -5,7 +5,7 @@ import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.commons.io.FileUtils;
@@ -432,8 +432,9 @@ public abstract class TestSparkBulkLoaderBase {
         try {
         SparkBulkLoader.main(ArrayUtils.addAll(
                 new String[]{"-local", "-ade", "0", "-c", getSamplingSupernodeTooHigh()}, DEFAULT_PARAMS));
-        } catch (ConfigurationRuntimeException e) {
-            Assert.assertTrue(e.getMessage().contains("for configuration key, \"aerospike.graphloader.supernode.sampling-percentage\", must be between 0 and 100."));
+        } catch (final ConfigurationRuntimeException e) {
+            Assert.assertEquals("Value provided, \"101\", for configuration key, \"aerospike.graphloader.supernode.sampling-percentage\", is above the maximum acceptable value, \"100\".",
+                    e.getMessage());
         }
     }
 
@@ -442,8 +443,9 @@ public abstract class TestSparkBulkLoaderBase {
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(
                     new String[]{"-local", "-ade", "0", "-c", getSamplingSupernodeTooLow()}, DEFAULT_PARAMS));
-        } catch (IllegalArgumentException e) {
-            Assert.assertTrue(e.getMessage().contains("Configuration 'aerospike.graphloader.supernode.sampling-percentage' must be between 100 and 0.1 but was"));
+        } catch (final ConfigurationRuntimeException e) {
+            Assert.assertEquals("Value provided, \"0.001\", for configuration key, \"aerospike.graphloader.supernode.sampling-percentage\", is below the minimum acceptable value, \"0.1\".",
+                    e.getMessage());
         }
     }
 
@@ -512,7 +514,7 @@ public abstract class TestSparkBulkLoaderBase {
                     DEFAULT_PARAMS));
             Assert.fail("Should fail when no Edge directory provided.");
         } catch (final ConfigurationRuntimeException e) {
-            Assert.assertEquals("Invalid configuration provided - invalid value for property: aerospike.graphloader.edges",
+            Assert.assertEquals("A value for configuration key, \"aerospike.graphloader.edges\", was not provided and is required.",
                     e.getMessage());
         }
 
@@ -524,7 +526,7 @@ public abstract class TestSparkBulkLoaderBase {
                     DEFAULT_PARAMS));
             Assert.fail("Should fail when no Vertex directory provided.");
         } catch (final ConfigurationRuntimeException e) {
-            Assert.assertEquals("Invalid configuration provided - invalid value for property: aerospike.graphloader.vertices",
+            Assert.assertEquals("A value for configuration key, \"aerospike.graphloader.vertices\", was not provided and is required.",
                     e.getMessage());
         }
 
@@ -536,7 +538,7 @@ public abstract class TestSparkBulkLoaderBase {
                     DEFAULT_PARAMS));
             Assert.fail("Should fail when no temp directory provided.");
         } catch (final ConfigurationRuntimeException e) {
-            Assert.assertEquals("Invalid configuration provided - invalid value for property: aerospike.graphloader.temp-directory",
+            Assert.assertEquals("A value for configuration key, \"aerospike.graphloader.temp-directory\", was not provided and is required.",
                     e.getMessage());
         }
     }

@@ -1,10 +1,8 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.client.AerospikeException;
-import com.aerospike.client.cluster.Cluster;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -12,9 +10,9 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.AEROSPIKE_HOST;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.AEROSPIKE_PORT;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TLS;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.AEROSPIKE_HOST;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.AEROSPIKE_PORT;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.TLS;
 import static org.junit.Assert.assertTrue;
 
 /**

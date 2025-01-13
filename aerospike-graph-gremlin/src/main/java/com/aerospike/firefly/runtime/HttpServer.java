@@ -2,7 +2,7 @@ package com.aerospike.firefly.runtime;
 
 import com.aerospike.firefly.runtime.metrics.FireflyMetricCollector;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.dropwizard.DropwizardExports;

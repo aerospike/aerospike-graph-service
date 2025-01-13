@@ -148,13 +148,7 @@ public class DatasetOperations implements Serializable {
     }
 
     public static double getSupernodeSamplingPercentage(final BulkLoaderConfigHelper config) {
-        final double percentage = config.getOrDefaultDoublePercentageDecimal(SUPERNODE_SAMPLING_PERCENTAGE);
-        // Must be between 0.1% and 100%
-        if (percentage < 0.001 || percentage > 1.0) {
-            throw new IllegalArgumentException("Configuration '" + SUPERNODE_SAMPLING_PERCENTAGE + "' must be between 100 and 0.1" +
-                    " but was " + percentage * 100 + ".");
-        }
-        return percentage;
+        return config.getOrDefaultDoublePercentageDecimal(SUPERNODE_SAMPLING_PERCENTAGE);
     }
 
     public static void preflightCheck(final Dataset<Row> edgeDataset, final Dataset<Row> vertexDataset,

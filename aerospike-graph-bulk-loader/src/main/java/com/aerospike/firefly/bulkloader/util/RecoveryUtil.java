@@ -50,8 +50,7 @@ public class RecoveryUtil {
             db.truncate(null, db.BULK_LOAD_RECOVERY_SUPERNODE_SET, null);
             db.truncate(null, db.BULK_LOAD_RECOVERY_STATE_SET, null);
             Thread.sleep(1);
-        } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
+        } catch (final InterruptedException ignored) {
         }
     }
 

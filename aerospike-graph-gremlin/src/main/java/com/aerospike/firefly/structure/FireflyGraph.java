@@ -260,7 +260,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             // Grab user defined vertex property indexes from the configuration and create them.
             final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
             createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
-            
+
             // Grab user defined edge property indexes from the configuration and create them.
             final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
             if (edgePropertyIndexes != null && !edgePropertyIndexes.isEmpty()) {

@@ -23,4 +23,5 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
+          mvn clean install -DskipTests
           mvn snyk:test@snyk-test

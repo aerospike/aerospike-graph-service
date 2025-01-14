@@ -542,11 +542,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public void bulkWriteVertex(final FireflyId idValue,
                                 final String label,
                                 final List<Map.Entry<String, Object>> properties,
-                                final boolean supernode) {
+                                final boolean supernode,
+                                final Map<String, List<FireflyId>> toEdgeCache,
+                                final Map<String, List<FireflyId>> fromEdgeCache) {
         try {
             // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
             // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
-            operations.writeVertex(idValue, label, properties, getTypeHint(), false, supernode);
+            operations.writeVertex(idValue, label, properties, getTypeHint(), false, supernode, Optional.of(toEdgeCache), Optional.of(fromEdgeCache));
         } catch (final AerospikeGraphException e) {
             throw new FireflyLoadingException(e);
         }

@@ -222,6 +222,14 @@ public class RecoveryUtil {
         }
     }
 
+    public static String getVertexRecoveryDirectory(final String tempDirectory, final String separator) {
+        if (tempDirectory.endsWith(separator) || tempDirectory.endsWith("/")) {
+            return tempDirectory + "recovery" + separator + "vertex" + separator + RandomStringUtils.randomAlphanumeric(8);
+        } else {
+            return tempDirectory + separator + "recovery" + separator + "vertex" + separator + RandomStringUtils.randomAlphanumeric(8);
+        }
+    }
+
     public static int recoverEdgePartitionCount(final AerospikeConnection db) {
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "edge_partition_count");
         final Policy readPolicy = new Policy();

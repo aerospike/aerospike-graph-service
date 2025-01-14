@@ -124,6 +124,15 @@ public class AerospikeOperations {
 
     //////////////// VERTEX OPERATIONS ///////////////
 
+    public FireflyVertex writeVertex(final FireflyId vertexId,
+                                     final String label,
+                                     final List<Map.Entry<String, Object>> properties,
+                                     final int vertexTypeHint,
+                                     final boolean createOnly,
+                                     final boolean isEdgeCacheOverflowed) {
+        return writeVertex(vertexId, label, properties, vertexTypeHint, createOnly, isEdgeCacheOverflowed, Optional.empty(), Optional.empty());
+    }
+
 
     /**
      * Write and construct a FireflyVertex using the provided parameters.
@@ -140,7 +149,9 @@ public class AerospikeOperations {
                                      final List<Map.Entry<String, Object>> properties,
                                      final int vertexTypeHint,
                                      final boolean createOnly,
-                                     final boolean isEdgeCacheOverflowed) {
+                                     final boolean isEdgeCacheOverflowed,
+                                     final Optional<Map<String, List<FireflyId>>> toEdgeCache,
+                                     final Optional<Map<String, List<FireflyId>>> fromEdgeCache) {
         LOG.debug("Writing Vertex {} {}.", vertexId, properties);
 
         final Map<String, FireflyId> vertexPropertyIds;
@@ -211,6 +222,9 @@ public class AerospikeOperations {
         final Bin typeHintBin = new Bin(db.RELATIONAL_VERTEX_TYPE_HINT_BIN, Value.get(vertexTypeHint));
         final Operation writeTypeHint = Operation.put(typeHintBin);
         final Map<String, List<Long>> emptyEdgeCache = new TreeMap<>();
+        if (toEdgeCache.isPresent()) {
+            // todo.
+        }
         final Bin edgeCacheInBin = new Bin(db.IN_EDGES_BIN, Value.get(emptyEdgeCache, MapOrder.KEY_ORDERED));
         final Operation writeEdgeCacheIn = Operation.put(edgeCacheInBin);
         final Bin edgeCacheOutBin = new Bin(db.OUT_EDGES_BIN, Value.get(emptyEdgeCache, MapOrder.KEY_ORDERED));

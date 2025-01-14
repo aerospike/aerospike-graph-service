@@ -8,6 +8,8 @@ import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -25,6 +27,9 @@ public class VertexWriteTask {
     final boolean edgeCacheEnabled;
     final SparkFireflyVertex sparkVertex;
     final FireflyId fireflyId;
+    final Map<String, List<FireflyId>> toEdgeCache;
+    final Map<String, List<FireflyId>> fromEdgeCache;
+
     public VertexWriteTask(
             ExponentialBackoffRetry retry,
             final String nullValue,
@@ -39,8 +44,10 @@ public class VertexWriteTask {
         this.metadataRow = metadataRow;
         this.supernodes = supernodes;
         this.edgeCacheEnabled = this.graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG;
-        sparkVertex = SparkFireflyVertex.createVertex(this.fireflyRow, this.nullValue);
-        fireflyId = sparkVertex.getFireflyId(this.graph.getBaseGraph());
+        this.sparkVertex = SparkFireflyVertex.createVertex(this.fireflyRow, this.nullValue);
+        this.fireflyId = sparkVertex.getFireflyId(this.graph.getBaseGraph());
+        this.toEdgeCache = sparkVertex.getToEdgeCache(this.graph.getBaseGraph());
+        this.fromEdgeCache = sparkVertex.getFromEdgeCache(this.graph.getBaseGraph());
     }
 
     public CompletionStage<Void> writeIncremental(final ScheduledExecutorService service) {
@@ -57,8 +64,7 @@ public class VertexWriteTask {
 
     public CompletionStage<Void> write(final ScheduledExecutorService service) {
         final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
-            this.graph.bulkWriteVertex(fireflyId, sparkVertex.getLabel(),
-                    sparkVertex.getProperties(), isSupernode());
+            this.graph.bulkWriteVertex(fireflyId, sparkVertex.getLabel(), sparkVertex.getProperties(), isSupernode(), toEdgeCache, fromEdgeCache);
             return null;
         }, service);
         return retry.withRetries(supplier, service).exceptionally(e -> {

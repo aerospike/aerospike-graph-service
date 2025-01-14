@@ -162,6 +162,14 @@ public class TestBulkLoaderRecovery {
     }
 
     @Test
+    public void tesasdfe() {
+        System.out.println("Testing tesasdfe");
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+        Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
+        Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
+    }
+
+    @Test
     public void testResume() {
         System.out.println("Testing testResume");
         try {

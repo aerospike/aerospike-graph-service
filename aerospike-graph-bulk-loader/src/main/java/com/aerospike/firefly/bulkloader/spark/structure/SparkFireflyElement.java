@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 public abstract class SparkFireflyElement implements Serializable {
     public static final String ID_HEADER = "~id";
-    protected static final String LABEL_HEADER = "~label";
+    public static final String LABEL_HEADER = "~label";
 
     protected final Object id;
     protected final String label;

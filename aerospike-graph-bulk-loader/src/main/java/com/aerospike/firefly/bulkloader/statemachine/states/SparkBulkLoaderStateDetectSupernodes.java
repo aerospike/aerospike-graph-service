@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderStateDetectSupernodes.class);
+
     public SparkBulkLoaderStateDetectSupernodes(final SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine) {
         super(sparkBulkLoaderStateMachine);
     }
@@ -44,6 +45,6 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
 
     @Override
     public SparkBulkLoaderState transitionState() {
-        return new SparkBulkLoaderStateWriteVertices(sparkBulkLoaderStateMachine);
+        return new SparkBulkLoaderStateGenerateEdgeCaches(sparkBulkLoaderStateMachine);
     }
 }

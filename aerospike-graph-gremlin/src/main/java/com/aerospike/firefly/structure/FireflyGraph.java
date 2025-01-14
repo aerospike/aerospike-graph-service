@@ -254,17 +254,20 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final TimerTask indexMetadataTimerTask = new FireflyMetadataTask(fireflyIndexMetadata);
         fireflyIndexMetadataTask.schedule(indexMetadataTimerTask, 0, db.INDEX_METADATA_UPDATE_FREQUENCY);
 
-        // Grab user defined vertex property indexes from the configuration and create them.
-        final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
-        createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
+        // If bulk loading, only create indexes for the first bulk loader graph initialization. Otherwise they spam 1000's of times.
+        if (db.shouldCreateIndexes()) {
+            // Grab user defined vertex property indexes from the configuration and create them.
+            final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
+            createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
 
-        // Grab user defined edge property indexes from the configuration and create them.
-        final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
-        if (edgePropertyIndexes != null && !edgePropertyIndexes.isEmpty()) {
-            // TODO: Edge indexes.
-            throw new RuntimeException("Edge property indexes are not currently supported.");
+            // Grab user defined edge property indexes from the configuration and create them.
+            final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
+            if (edgePropertyIndexes != null && !edgePropertyIndexes.isEmpty()) {
+                // TODO: Edge indexes.
+                throw new RuntimeException("Edge property indexes are not currently supported.");
+            }
+            createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
         }
-        createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
 
         // Create ttl background task.
         this.ttlHandler = new FireflyTtlHandler(this);

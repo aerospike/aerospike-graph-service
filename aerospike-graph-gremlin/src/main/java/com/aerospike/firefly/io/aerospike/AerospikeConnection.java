@@ -105,6 +105,7 @@ import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.MRT_ENABLED_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.getOrDefaultString;
 import static com.aerospike.firefly.util.exceptions.AerospikeGraphException.fromAerospikeException;
@@ -284,6 +285,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final String QUERY_IMPL;
 
     private final boolean bulkLoaderFlag;
+    private final boolean bulkLoaderInitializerFlag;
 
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
@@ -569,6 +571,7 @@ public class AerospikeConnection implements AutoCloseable {
         QUERY_IMPL = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.QUERY_IMPL, conf);
 
         bulkLoaderFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf);
+        bulkLoaderInitializerFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_INITIALIZER_FLAG, conf);
 
         idFactory = new FireflyIdFactory(this);
 
@@ -1312,6 +1315,9 @@ public class AerospikeConnection implements AutoCloseable {
         if (warmup_mode || VERTEX_AERO_SET.contains(WarmupUtil.getWarmupArenaName()))
             return;
 
+        if (!shouldCreateIndexes())
+            return;
+
         try {
             LOG.info("Creating graph indices.");
             List<String> existingIndexes =
@@ -1380,6 +1386,10 @@ public class AerospikeConnection implements AutoCloseable {
             // TODO GRAPH-438: Edge indexes.
             throw new RuntimeException("Edge indexes are not currently supported.");
         }
+    }
+
+    public boolean shouldCreateIndexes() {
+        return !bulkLoaderFlag || bulkLoaderInitializerFlag;
     }
 
     /**

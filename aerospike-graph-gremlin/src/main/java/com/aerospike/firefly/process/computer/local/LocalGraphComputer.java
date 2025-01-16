@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.computer.PrecomputableComputerStep;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphFilterStrategy;
 import com.aerospike.firefly.process.traversal.strategy.verification.FireflyComputerVerificationStrategy;
@@ -296,7 +297,7 @@ public class LocalGraphComputer implements GraphComputer {
         this.memory = new LocalMemory(this.vertexProgram, this.mapReducers);
         try {
             final PureTraversal<?, ?> traversal = ((TraversalVertexProgram) vertexProgram).getTraversal().clone();
-            final List<HasContainer> initialHasContainers = getInitialHasContainers(traversal.get());
+            final List<HasContainer> initialHasContainers = ComputerHelper.getInitialHasContainers(traversal.get());
             final Future<ComputerResult> result = computerService.submit(() -> {
                 final long time = System.currentTimeMillis();
                 // create logical view over graph maintaining graph computer global state data

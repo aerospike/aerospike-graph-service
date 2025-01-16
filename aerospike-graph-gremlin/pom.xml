@@ -236,6 +236,12 @@
             <artifactId>opentelemetry-exporter-zipkin</artifactId>
             <version>1.44.1</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-sql_2.12</artifactId>
+            <version>3.4.3</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
     <build>
         <directory>${basedir}/target</directory>

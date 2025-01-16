@@ -31,6 +31,7 @@ import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
+import com.aerospike.firefly.process.computer.distributed.DistributedGraphComputer;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputer;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
@@ -1002,11 +1003,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public <C extends GraphComputer> C compute(final Class<C> graphComputerClass) throws IllegalArgumentException {
-        if (!LocalGraphComputer.class.isAssignableFrom(graphComputerClass))
-            throw new IllegalArgumentException(graphComputerClass.getSimpleName() + " is not assignable from " + LocalGraphComputer.class.getSimpleName());
+        if (!DistributedGraphComputer.class.isAssignableFrom(graphComputerClass))
+            throw new IllegalArgumentException(graphComputerClass.getSimpleName() + " is not assignable from " + DistributedGraphComputer.class.getSimpleName());
         else {
             try {
-                Class<C> clazz = graphComputerClass.equals(GraphComputer.class) ? (Class<C>) LocalGraphComputer.class : graphComputerClass;
+                Class<C> clazz = graphComputerClass.equals(GraphComputer.class) ? (Class<C>) DistributedGraphComputer.class : graphComputerClass;
                 return clazz.getConstructor(FireflyGraph.class).newInstance(this);
             } catch (Exception e) {
                 throw new IllegalArgumentException(e.getMessage(), e);

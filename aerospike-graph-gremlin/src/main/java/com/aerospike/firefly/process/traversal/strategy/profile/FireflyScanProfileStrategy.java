@@ -1,6 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.profile;
 
-import com.aerospike.firefly.process.computer.local.ComputerHelper;
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyScanProfileStep;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
 import com.aerospike.firefly.structure.FireflyGraph;

@@ -1,6 +1,6 @@
 package com.aerospike.firefly.process.traversal.step.map;
 
-import com.aerospike.firefly.process.computer.local.ComputerHelper;
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Operator;

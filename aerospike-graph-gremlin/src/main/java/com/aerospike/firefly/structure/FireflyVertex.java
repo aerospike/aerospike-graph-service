@@ -124,6 +124,10 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         return FireflyCloseableIteratorUtils.asIterator(vertexPropertyList);
     }
 
+    public Map<String, Object> getRawVertexPropertyValues() {
+        return vertexPropertyValues;
+    }
+
     /**
      * Get the vertex property by vertex property label for the vertex.
      *

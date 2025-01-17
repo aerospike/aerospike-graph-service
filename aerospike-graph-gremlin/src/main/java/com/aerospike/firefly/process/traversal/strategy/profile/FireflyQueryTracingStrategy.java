@@ -16,12 +16,12 @@ import java.util.List;
 public class FireflyQueryTracingStrategy extends FireflyStrategyBase {
 
     @Override
-    public boolean isEnabled(final FireflyGraph fireflyGraph) {
+    protected boolean isEnabled(final FireflyGraph fireflyGraph) {
         return fireflyGraph.isQueryTracingEnabled();
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         if (ComputerHelper.onGraphComputer(traversal) ||
                 TraversalHelper.hasStepOfClass(ProfileSideEffectStep.class, traversal)) {
             return;

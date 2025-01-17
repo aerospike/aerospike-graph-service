@@ -28,12 +28,8 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
-
-        if (!graph.getBaseGraph().ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY) {
-            return;
-        }
 
         if (ComputerHelper.onGraphComputer(traversal))
             return;

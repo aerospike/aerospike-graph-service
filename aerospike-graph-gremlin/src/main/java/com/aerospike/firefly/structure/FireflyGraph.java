@@ -33,7 +33,7 @@ import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputer;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
 import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.runtime.zipkin.OpenTelemetryZipkinExporter;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
@@ -59,6 +59,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.LambdaRestrictionStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.DefaultTraversalMetrics;
 import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -101,6 +102,7 @@ import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
+import static com.aerospike.firefly.process.traversal.strategy.util.FireflyStrategyUtil.FIREFLY_STRATEGIES;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_DATA_SIZE;
 import static com.aerospike.firefly.structure.FireflyEdge.IN_V_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.LABEL_POSITION;
@@ -230,7 +232,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         synchronized (TraversalStrategies.GlobalCache.class) {
             TraversalStrategies.GlobalCache.registerStrategies(
                     FireflyGraph.class, TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                            .addStrategies(new FireflyContentionHandlingStrategy())
+                            .addStrategies(LambdaRestrictionStrategy.instance())
+                            .addStrategies(FIREFLY_STRATEGIES.toArray(new FireflyStrategyBase[0]))
                             .addStrategies(OptionsStrategy.build().create()));
         }
     }

@@ -33,7 +33,7 @@ public class FireflyReadThroughCacheStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         if (!traversal.isRoot()) {
             return;
         }

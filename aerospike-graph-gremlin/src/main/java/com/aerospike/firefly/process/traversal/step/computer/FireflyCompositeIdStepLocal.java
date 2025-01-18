@@ -16,6 +16,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -30,7 +31,7 @@ import java.util.stream.Collectors;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements PrecomputableComputerStep<Vertex> {
+public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements PrecomputableComputerStep<Vertex>, Serializable {
     private final Direction direction;
     private final Set<String> edgeLabels;
 

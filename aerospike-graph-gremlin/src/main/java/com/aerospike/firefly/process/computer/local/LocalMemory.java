@@ -42,6 +42,7 @@ public class LocalMemory implements Memory.Admin {
         for (final MapReduce mapReduce : mapReducers) {
             this.memoryKeys.put(mapReduce.getMemoryKey(), MemoryComputeKey.of(mapReduce.getMemoryKey(), Operator.assign, false, false));
         }
+        System.out.println("foo");
     }
 
     @Override

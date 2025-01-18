@@ -76,14 +76,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
-    <dependencies>
-        <dependency>
-            <groupId>org.apache.tinkerpop</groupId>
-            <artifactId>gremlin-core</artifactId>
-            <version>4.0.0-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-    </dependencies>
 
     <!-- DEPLOYMENT REPOSITORIES -->
     <repositories>
@@ -161,7 +153,7 @@
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
                     <environmentVariables>
-                        <FIREFLY_TESTING>true</FIREFLY_TESTING>
+                        <FIREFLY_TESTING>false</FIREFLY_TESTING>
                         <!--
                             This should be set to the lowest version of Aerospike graph that is available in dockerhub.
                             Note the major version must align. In this case, 1.0.0 was removed, so we use 1.0.1

@@ -1,0 +1,386 @@
+package com.aerospike.firefly.olap.structure;
+
+import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
+import com.aerospike.firefly.olap.config.DistributedConfigHelper;
+import com.aerospike.firefly.olap.config.DistributedConfiguration;
+import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
+import com.aerospike.firefly.process.computer.local.LocalMemory;
+import com.aerospike.firefly.process.computer.local.LocalMessageBoard;
+import com.aerospike.firefly.process.computer.local.LocalMessenger;
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.util.FireflyHelper;
+import com.amazonaws.services.pinpoint.model.MessageBody;
+import com.google.gson.Gson;
+import org.apache.commons.configuration2.MapConfiguration;
+import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.MapPartitionsFunction;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
+import org.apache.spark.sql.catalyst.encoders.RowEncoder;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructType;
+import org.apache.tinkerpop.gremlin.process.computer.ComputerResult;
+import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
+import org.apache.spark.SparkConf;
+import org.apache.spark.sql.SparkSession;
+import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
+import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
+import org.apache.tinkerpop.gremlin.process.computer.Memory;
+import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
+import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
+import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_O_Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_O_TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTraverserGeneratorFactory;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
+import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
+import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Property;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import scala.Predef;
+import scala.Tuple2;
+import scala.collection.JavaConverters;
+
+import javax.xml.crypto.Data;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
+
+import static com.aerospike.firefly.olap.structure.DistributedElement.ID_STRING;
+import static com.aerospike.firefly.olap.structure.DistributedElement.IN_STRING;
+import static com.aerospike.firefly.olap.structure.DistributedElement.LABEL_STRING;
+import static com.aerospike.firefly.olap.structure.DistributedElement.OUT_STRING;
+import static com.aerospike.firefly.olap.structure.DistributedElement.PROPERTIES_STRING;
+import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
+
+/**
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ */
+public class DistributedGraphComputer implements GraphComputer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DistributedGraphComputer.class);
+    private ResultGraph resultGraph = null;
+    private Persist persist = null;
+    private SparkSession spark = null;
+
+    private VertexProgram<?> vertexProgram;
+    private final FireflyGraph graph;
+    private final Set<MapReduce> mapReducers = new HashSet<>();
+    private int workers;
+    private final GraphFilter graphFilter = new GraphFilter();
+    private boolean executed = false;
+    private final DistributedConfigHelper configHelper;
+
+    public DistributedGraphComputer(final FireflyGraph graph) {
+        this.graph = graph;
+        final Map<String, Object> config = new HashMap<>();
+        final Iterator<String> keys = graph.configuration().getKeys();
+        while (keys.hasNext()) {
+            final String key = keys.next();
+            config.put(key, graph.configuration().getString(key));
+        }
+        configHelper = new DistributedConfigHelper(config);
+        this.spark = buildSparkSession();
+    }
+
+    private static SparkSession buildSparkSession() {
+        // TODO: Remove null support and replace commandline with configs or something.
+        final SparkConf conf = new SparkConf();
+        conf.setMaster("local[*]");
+
+        conf.setAppName("aerospike-graph-olap")
+                .set("spark.driver.allowMultipleContexts", "false")
+                .set("spark.ui.enabled", "true")
+                .set("mapreduce.fileoutputcommitter.algorithm.version", "2");
+
+        final SparkSession.Builder builder = SparkSession.builder().config(conf);
+        builder.config("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+                .config("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
+                .config("google.cloud.auth.service.account.enable", true);
+
+        return builder.getOrCreate();
+    }
+
+    ////
+    // Boilerplate.
+    ////
+
+    @Override
+    public GraphComputer result(final ResultGraph resultGraph) {
+        this.resultGraph = resultGraph;
+        return this;
+    }
+
+    @Override
+    public GraphComputer persist(final Persist persist) {
+        this.persist = persist;
+        return this;
+    }
+
+    @Override
+    public GraphComputer program(final VertexProgram vertexProgram) {
+        this.vertexProgram = vertexProgram;
+        return this;
+    }
+
+    @Override
+    public GraphComputer mapReduce(final MapReduce mapReduce) {
+        this.mapReducers.add(mapReduce);
+        return this;
+    }
+
+    @Override
+    public GraphComputer workers(final int workers) {
+        this.workers = workers;
+        return this;
+    }
+
+    @Override
+    public GraphComputer vertices(final Traversal<Vertex, Vertex> vertexFilter) {
+        this.graphFilter.setVertexFilter(vertexFilter);
+        return this;
+    }
+
+
+    @Override
+    public GraphComputer edges(final Traversal<Vertex, Edge> edgeFilter) {
+        this.graphFilter.setEdgeFilter(edgeFilter);
+        return this;
+    }
+
+    @Override
+    public GraphComputer vertexProperties(Traversal<Vertex, ? extends Property<?>> vertexPropertyFilter) {
+        this.graphFilter.setVertexPropertyFilter(vertexPropertyFilter);
+        return this;
+    }
+
+    @Override
+    public Features features() {
+        return new Features() {
+            @Override
+            public boolean supportsResultGraphPersistCombination(final ResultGraph resultGraph, final Persist persist) {
+                return persist == Persist.NOTHING || resultGraph == ResultGraph.ORIGINAL;
+            }
+
+            @Override
+            public int getMaxWorkers() {
+                return Integer.MAX_VALUE;
+            }
+
+            @Override
+            public boolean supportsVertexAddition() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsVertexRemoval() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsVertexPropertyRemoval() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsEdgeAddition() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsEdgeRemoval() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsEdgePropertyAddition() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsEdgePropertyRemoval() {
+                return false;
+            }
+        };
+    }
+
+    ////
+    // Some hardcore stuff.
+    ////
+
+    @Override
+    public Future<ComputerResult> submit() {
+        // TODO: Might be able to mess w/ this later.
+        LOGGER.info("GRAPH COMPUTER FILTER STRATEGY CONFIGURATION:\n" +
+                        "\tVertexProgram to execute: {}\n" +
+                        "\tNumber of workers available: {}\n" +
+                        "\tGraphComputer strategies applied: {}\n" +
+                        "\tGraph filters computed:\n" +
+                        "\t\tvertices: {}\n" +
+                        "\t\tedges: {}",
+                null == this.vertexProgram ? "N/A" : this.vertexProgram.toString(),
+                this.workers,
+                TraversalStrategies.GlobalCache.getStrategies(DistributedGraphComputer.class).toList().toString(),
+                this.graphFilter.getVertexFilter(),
+                this.graphFilter.getEdgeFilter());
+        // A graph computer can only be executed once.
+        if (this.executed) {
+            throw Exceptions.computerHasAlreadyBeenSubmittedAVertexProgram();
+        }
+        this.executed = true;
+
+        // It is not possible execute a computer if it has no vertex program nor MapReducers.
+        if (null == this.vertexProgram && this.mapReducers.isEmpty())
+            throw GraphComputer.Exceptions.computerHasNoVertexProgramNorMapReducers();
+
+        // It is possible to run MapReducers without a vertex program.
+        if (null != this.vertexProgram) {
+            GraphComputerHelper.validateProgramOnComputer(this, this.vertexProgram);
+            this.mapReducers.addAll(this.vertexProgram.getMapReducers());
+        }
+
+        // Get the result graph and persist state to use for the computation.
+        this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
+        this.persist = GraphComputerHelper.getPersistState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.persist));
+
+        // TODO: Maybe smarter check.
+        // Ensure requested workers are not larger than supported workers.
+        if (this.workers > this.features().getMaxWorkers())
+            throw GraphComputer.Exceptions.computerRequiresMoreWorkersThanSupported(this.workers, this.features().getMaxWorkers());
+
+        // Initialize the memory.
+        // this.memory = new LocalMemory(this.vertexProgram, this.mapReducers);
+        this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
+        this.persist = GraphComputerHelper.getPersistState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.persist));
+        try {
+            final PureTraversal<?, ?> traversal = ((TraversalVertexProgram) vertexProgram).getTraversal().clone();
+            final List<HasContainer> initialHasContainers = ComputerHelper.getInitialHasContainers(traversal.get());
+
+            // TODO Configurable page size w/ ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE
+            final PartitionIterator.Builder builder = PartitionIterator.
+                    build(this.graph).
+                    containers(initialHasContainers).
+                    partitionSize(10000);
+
+            final List<Row> vertices = new ArrayList<>();
+            try (final PartitionIterator partitionIterator = builder.create()) {
+                while (partitionIterator.hasNext()) {
+                    final Optional<CloseableIterator<FireflyVertex>> optional = partitionIterator.next();
+                    if (optional.isEmpty()) {
+                        break;
+                    } else {
+                        try (final CloseableIterator<FireflyVertex> vertexIterator = optional.get()) {
+                            while (vertexIterator.hasNext()) {
+                                final FireflyVertex vertex = vertexIterator.next();
+                                vertices.add(createRow(vertex));
+                            }
+                        }
+                    }
+                }
+            }
+
+
+            final Traversal pureTraversal = traversal.getPure().asAdmin().clone();
+            pureTraversal.asAdmin().applyStrategies();
+            final Set<TraverserRequirement> traverserRequirements = pureTraversal.asAdmin().getTraverserRequirements();
+            final TraverserGenerator traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirements);
+
+            final StructType schema = new StructType()
+                    .add(ID_STRING, DataTypes.StringType, false)
+                    .add(LABEL_STRING, DataTypes.StringType, false)
+                    .add(PROPERTIES_STRING, DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType, true));
+                    //.add(IN_STRING, DataTypes.createMapType(DataTypes.StringType,
+                    //        DataTypes.createArrayType(DataTypes.BinaryType)), false);
+                    //.add(OUT_STRING, DataTypes.createMapType(DataTypes.StringType,
+                    //        DataTypes.createArrayType(DataTypes.BinaryType)), false);
+
+            Dataset<Row> df = spark.createDataFrame(vertices, schema);
+            df.show(false);
+            this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
+
+            System.out.println("Test0");
+            final DistributedMemory memory = new DistributedMemory(this.vertexProgram, this.mapReducers, new JavaSparkContext(spark.sparkContext()));
+            final DistributedConfiguration vertexProgramConfiguration = new DistributedConfiguration();
+            this.vertexProgram.storeState(vertexProgramConfiguration);
+            System.out.println("Test1");
+            this.vertexProgram.setup(memory);
+            System.out.println("Test2");
+            memory.broadcastMemory(new JavaSparkContext(spark.sparkContext()));
+            System.out.println("Test3");
+            while (true) {
+                if (Thread.interrupted()) {
+                    spark.sparkContext().cancelAllJobs();
+                    throw new TraversalInterruptedException();
+                }
+                //System.out.println("Running partitions on " + df.rdd().getNumPartitions() + " partitions");
+                memory.setInExecute(true);
+                System.out.println("Running partition");
+                df = DistributedExecutor.execute(df, memory, configHelper, vertexProgramConfiguration, schema);
+                System.out.println("Partition done");
+                memory.setInExecute(false);
+                if (this.vertexProgram.terminate(memory)) {
+                    memory.incrIteration();
+                    df.show(false);
+                    break;
+                } else {
+                    memory.incrIteration();
+                }
+                df.show(false);
+            }
+            List<Row> rows = df.collectAsList();
+            final TraverserSet traversers = new TraverserSet();
+            rows.stream().forEach(row -> {
+                final DistributedVertex vertex = new DistributedVertex(row);
+                traversers.add(new B_O_Traverser<>(vertex, 1L));
+            });
+
+            memory.set(HALTED_TRAVERSERS, traversers);
+            memory.complete();
+            final LocalGraphComputerView view = FireflyHelper.createGraphComputerView(this.graph,
+                    this.graphFilter,
+                    null != this.vertexProgram ? this.vertexProgram.getVertexComputeKeys() : Collections.emptySet());
+
+            final Graph resultGraph = view.processResultGraphPersist(this.resultGraph, this.persist);
+            return CompletableFuture.completedFuture(new DefaultComputerResult(resultGraph, memory));
+        } catch (final Exception e) {
+            LOGGER.error("A global error occurred. Shutting down {}: {}", this, e.getMessage(), e);
+            return new CompletableFuture<>();
+        }
+    }
+
+    private static Row createRow(final FireflyVertex vertex) {
+        // TODO: Make a better format, stringifying these is going to be slow.
+
+        return RowFactory.create(
+                vertex.id().toString(),
+                vertex.label(),
+                vertex.getRawVertexStringPropertyValues());
+                //toScalaMap((HashMap) vertex.getCachedIdMap(Direction.IN)));
+                //vertex.getCachedIdMap(Direction.OUT));
+    }
+}

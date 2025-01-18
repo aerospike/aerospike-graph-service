@@ -30,8 +30,8 @@ import com.aerospike.firefly.io.aerospike.AerospikeOperations;
 import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
+import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
-import com.aerospike.firefly.process.computer.distributed.DistributedGraphComputer;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputer;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
@@ -79,6 +79,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -231,7 +232,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         synchronized (TraversalStrategies.GlobalCache.class) {
             TraversalStrategies.GlobalCache.registerStrategies(
                     FireflyGraph.class, TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                            .addStrategies(new FireflyContentionHandlingStrategy())
                             .addStrategies(OptionsStrategy.build().create()));
         }
     }
@@ -1003,21 +1003,30 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public <C extends GraphComputer> C compute(final Class<C> graphComputerClass) throws IllegalArgumentException {
-        if (!DistributedGraphComputer.class.isAssignableFrom(graphComputerClass))
-            throw new IllegalArgumentException(graphComputerClass.getSimpleName() + " is not assignable from " + DistributedGraphComputer.class.getSimpleName());
-        else {
-            try {
-                Class<C> clazz = graphComputerClass.equals(GraphComputer.class) ? (Class<C>) DistributedGraphComputer.class : graphComputerClass;
-                return clazz.getConstructor(FireflyGraph.class).newInstance(this);
-            } catch (Exception e) {
-                throw new IllegalArgumentException(e.getMessage(), e);
-            }
+        try {
+            final Class<C> clazz = (Class<C>) Class.forName("com.aerospike.firefly.olap.structure.DistributedGraphComputer");
+            return clazz.getConstructor(FireflyGraph.class).newInstance(this);
+        } catch (final InvocationTargetException | NoSuchMethodException | ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+            e.printStackTrace();
+            throw new IllegalStateException("ERROR: To use OLAP, use the docker image with OLAP support or a Spark cluster.", e);
         }
     }
 
     @Override
     public GraphComputer compute() throws IllegalArgumentException {
-        return new LocalGraphComputer(this);
+        //System.out.println(System.getProperty("java.class.path"));
+        Arrays.stream(System.getProperty("java.class.path").split(":")).forEach(s -> {
+            if (s.contains("olap")) {
+                System.out.println(s);
+            }
+        });
+        try {
+            final Class<? extends GraphComputer> clazz = (Class<? extends GraphComputer>) Class.forName("com.aerospike.firefly.olap.structure.DistributedGraphComputer");
+            return clazz.getConstructor(FireflyGraph.class).newInstance(this);
+        } catch (final InvocationTargetException | NoSuchMethodException | ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+            e.printStackTrace();
+            throw new IllegalStateException("ERROR: To use OLAP, use the docker image with OLAP support or a Spark cluster.", e);
+        }
     }
 
     /**

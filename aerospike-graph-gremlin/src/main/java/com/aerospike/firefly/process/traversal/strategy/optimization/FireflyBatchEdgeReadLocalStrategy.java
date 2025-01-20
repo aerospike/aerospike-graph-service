@@ -40,7 +40,7 @@ public class FireflyBatchEdgeReadLocalStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
 
         if (!ComputerHelper.onGraphComputer(traversal))
@@ -53,9 +53,6 @@ public class FireflyBatchEdgeReadLocalStrategy extends FireflyStrategyBase {
 
         if (!traversal.isRoot()) {
             if (rootGroup.get()) {
-                return;
-            }
-            if (!graph.getBaseGraph().ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY) {
                 return;
             }
         }

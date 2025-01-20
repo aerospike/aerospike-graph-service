@@ -71,7 +71,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
         final List<CallStep> callSteps = new ArrayList<>();
         CallStep adminStep = null;

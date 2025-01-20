@@ -35,14 +35,8 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
-
-        if (!traversal.isRoot()) {
-            if (!graph.getBaseGraph().ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY) {
-                return;
-            }
-        }
 
         if (ComputerHelper.onGraphComputer(traversal))
             return;

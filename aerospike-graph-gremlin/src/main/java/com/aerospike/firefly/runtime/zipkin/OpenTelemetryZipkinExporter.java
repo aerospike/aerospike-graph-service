@@ -77,8 +77,6 @@ public class OpenTelemetryZipkinExporter implements Closeable {
             final OpenTelemetrySdk openTelemetry =
                     OpenTelemetrySdk.builder().setTracerProvider(tracerProvider).build();
 
-            // add a shutdown hook to shut down the SDK
-            Runtime.getRuntime().addShutdownHook(new Thread(tracerProvider::close));
             INSTANCES.put(graphId, new OpenTelemetryZipkinExporter(openTelemetry, tracerProvider, graphId,
                     minQueryThresholdMillis, samplingPercentage));
         }

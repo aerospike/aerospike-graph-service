@@ -4,11 +4,14 @@ import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
+import org.abego.treelayout.internal.util.java.util.IteratorUtil;
+import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.util.MapReducePool;
 import org.apache.tinkerpop.gremlin.process.computer.util.VertexProgramPool;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
@@ -105,26 +108,30 @@ public class LocalWorkerPool implements AutoCloseable {
                 this.completionService.submit(() -> {
                     long count = 0;
                     final VertexProgram<?> vp = this.vertexProgramPool.take();
+                    final BatchTraversalVertexProgram trueVP = vp instanceof BatchTraversalVertexProgram
+                            ? (BatchTraversalVertexProgram) vp
+                            : new BatchTraversalVertexProgram((TraversalVertexProgram) vp);
                     final LocalWorkerMemory workerMemory = this.workerMemoryPool.poll();
                     while (true) {
                         final Optional<CloseableIterator<FireflyVertex>> option = partitions.next();
-                        CloseableIterator<FireflyVertex> iterator = null;
+                        List<FireflyVertex> batch;
                         if (option.isPresent()) {
                             try {
-                                iterator = option.get();
-                                if (iterator.hasNext()) {
-                                    final Pair<Long, List<Element>> output = executeVertexProgram.execute(iterator, vp, workerMemory, counter);
-                                    if (output.getRight() != null) {
-                                        results.addAll(output.getRight());
+                                batch = IteratorUtils.toList(option.get());
+                                count += batch.size();
+                                if (!batch.isEmpty()) {
+                                    final List<Element> output = executeVertexProgram.execute(batch, trueVP, workerMemory);
+                                    System.out.println("LocalWorkerPool output: " + output);
+                                    if (output != null) {
+                                        results.addAll(output);
+                                        counter.addAndGet(output.size());
                                     }
                                 }
-                                LOG.info("Worker {} processed {} vertices, total={}", index, count, counter.addAndGet(count));
+                                LOG.info("Worker {} processed {} vertices, total={}", index, count, counter.get());
                             } catch (final Exception e) {
                                 LOG.error("Worker {} failed on {} vertex of partition", index, count, e);
                             } finally {
-                                if (iterator != null) {
-                                    iterator.close();
-                                }
+
                             }
                         } else {
                             break;

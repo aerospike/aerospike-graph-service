@@ -84,7 +84,7 @@ public class LocalGraphComputer implements GraphComputer {
     private ResultGraph resultGraph = null;
     private Persist persist = null;
 
-    private VertexProgram<?> vertexProgram;
+    private BatchTraversalVertexProgram vertexProgram;
     private final FireflyGraph graph;
     private LocalMemory memory;
     private final LocalMessageBoard messageBoard = new LocalMessageBoard();
@@ -130,7 +130,7 @@ public class LocalGraphComputer implements GraphComputer {
 
     @Override
     public GraphComputer program(final VertexProgram vertexProgram) {
-        this.vertexProgram = vertexProgram;
+        this.vertexProgram = new BatchTraversalVertexProgram((TraversalVertexProgram) vertexProgram);
         return this;
     }
 
@@ -167,7 +167,6 @@ public class LocalGraphComputer implements GraphComputer {
 
     class ExecuteVertexProgram {
         final LocalMessageBoard messageBoard;
-        final TraversalMatrix traversalMatrix;
 
         // Iterator<FireflyVertex>, VertexProgram, LocalWorkerMemory, Pair<Long, List<Element>>
         public ExecuteVertexProgram(final LocalMessageBoard messageBoard, final PureTraversal<?, ?> traversal) {
@@ -175,59 +174,23 @@ public class LocalGraphComputer implements GraphComputer {
             Traversal<?, ?> traversal1 = traversal.get().clone();
             if (!traversal1.asAdmin().isLocked())
                 traversal1.asAdmin().applyStrategies();
-            this.traversalMatrix = new TraversalMatrix<>(traversal1.asAdmin());
         }
 
-        public Pair<Long, List<Element>> execute(Iterator<FireflyVertex> vertices,
-                                                 final VertexProgram vertexProgram,
-                                                 final LocalWorkerMemory workerMemory,
-                                                 final AtomicLong vertexCount) throws Exception {
-            long counter = 0;
-            // we need reference to PrecomputableComputerStep to be able to release caches
-            Pair<Iterator<FireflyVertex>, PrecomputableComputerStep> output = null;
-            try {
-                vertexProgram.workerIterationStart(workerMemory.asImmutable());
-                output = preComputeVertices(traversalMatrix, vertices, (TraversalVertexProgram) vertexProgram, workerMemory);
-                vertices = output.getLeft();
-                while (vertices.hasNext()) {
-                    final Vertex vertex = vertices.next();
-                    counter++;
-                    if (Thread.interrupted()) throw new TraversalInterruptedException();
-                    try {
-                        vertexProgram.execute(
-                                ComputerGraph.vertexProgram(vertex, vertexProgram),
-                                new LocalMessenger<>(vertex, messageBoard, vertexProgram.getMessageCombiner()),
-                                workerMemory);
-                    } catch (final Exception e) {
-                        LOG.error("Worker failed evaluating vertex {}", vertex.id(), e);
-                    }
-                }
-                vertexProgram.workerIterationEnd(workerMemory.asImmutable());
-                workerMemory.complete();
-                vertexCount.getAndAdd(counter);
-                final List<Element> result = messageBoard.getVerticesWithActiveTraversers();
-                final long finalCounter = counter;
-                return new Pair<>() {
-                    @Override
-                    public Long getLeft() {
-                        return finalCounter;
-                    }
+        public List<Element> execute(List<FireflyVertex> vertices,
+                                     final BatchTraversalVertexProgram vertexProgram,
+                                     final LocalWorkerMemory workerMemory) throws Exception {
+            vertexProgram.workerIterationStart(workerMemory.asImmutable());
 
-                    @Override
-                    public List<Element> getRight() {
-                        return result;
-                    }
+            if (Thread.interrupted()) throw new TraversalInterruptedException();
 
-                    @Override
-                    public List<Element> setValue(final List<Element> vertexList) {
-                        return List.of();
-                    }
-                };
-            } finally {
-                if (output != null && output.getRight() != null) {
-                    output.getRight().release();
-                }
-            }
+            vertexProgram.execute(
+                    vertices, // todo: should be star vertices?
+                    new BatchMessenger<>(vertices, messageBoard, vertexProgram.getMessageCombiner()),
+                    workerMemory);
+
+            vertexProgram.workerIterationEnd(workerMemory.asImmutable());
+            workerMemory.complete();
+            return messageBoard.getVerticesWithTraversers();
         }
     }
 
@@ -295,7 +258,7 @@ public class LocalGraphComputer implements GraphComputer {
         // initialize the memory
         this.memory = new LocalMemory(this.vertexProgram, this.mapReducers);
         try {
-            final PureTraversal<?, ?> traversal = ((TraversalVertexProgram) vertexProgram).getTraversal().clone();
+            final PureTraversal<?, ?> traversal = vertexProgram.getTraversal().clone();
             final List<HasContainer> initialHasContainers = getInitialHasContainers(traversal.get());
             final Future<ComputerResult> result = computerService.submit(() -> {
                 final long time = System.currentTimeMillis();
@@ -326,6 +289,10 @@ public class LocalGraphComputer implements GraphComputer {
                             this.memory.completeSubRound();
                             if (this.vertexProgram.terminate(this.memory)) {
                                 this.memory.incrIteration();
+                                final TraverserSet halted = new TraverserSet();
+                                this.messageBoard.getHaltedTraversers().forEach(t -> halted.add(((Traverser) t).asAdmin()));
+                                // todo: fix wrong shortcut
+                                this.memory.set(HALTED_TRAVERSERS, halted);
                                 break;
                             } else {
                                 this.memory.incrIteration();

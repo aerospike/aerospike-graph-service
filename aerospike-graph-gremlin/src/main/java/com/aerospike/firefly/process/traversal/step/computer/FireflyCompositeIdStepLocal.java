@@ -45,6 +45,8 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
     private static final ThreadLocal<List<Pair<Traverser.Admin<Vertex>, FireflyVertex>>> inputCache =
             ThreadLocal.withInitial(ArrayList::new);
 
+    private static final ThreadLocal<Boolean> firstRun = ThreadLocal.withInitial(() -> true);
+
     public FireflyCompositeIdStepLocal(final Traversal.Admin traversal,
                                        final Direction direction,
                                        final String[] edgeLabels,
@@ -72,9 +74,19 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
         for (final String label : labels) {
             this.addLabel(label);
         }
+
+        firstRun.set(true);
+    }
+
+    @Override
+    public void addStart(final Traverser.Admin<Vertex> start) {
+        super.addStart(start);
+        System.out.println("FireflyCompositeIdStepLocal.addStart: " + start);
+        add(start, start.get());
     }
 
     public void add(final Traverser.Admin<?> tv, final Vertex v) {
+        // System.out.println("FireflyCompositeIdStepLocal.add: " + tv + "; " + v);
         inputCache.get().add(new Pair<>() {
             @Override
             public FireflyVertex setValue(final FireflyVertex value) {
@@ -97,6 +109,7 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
     }
 
     public void precompute() {
+        System.out.println("FireflyCompositeIdStepLocal.precompute");
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
 
         // Info is used to keep track of how many output items we assign for each input (executed in order).
@@ -131,6 +144,7 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
             }
         }
 
+        System.out.println("  reading: " + fireflyIdList);
         // Drain data to output.
         FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
                 fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache.get(), graph::readVertices, requiredProperties);
@@ -138,13 +152,21 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
 
     @Override
     protected Iterator<Vertex> flatMap(final Traverser.Admin<Vertex> traverser) {
+        if (firstRun.get()) {
+            precompute();
+            firstRun.set(false);
+        }
+
         if (cache.get() == null) {
             final Iterator<Vertex> vertices = traverser.get().vertices(this.direction, super.getEdgeLabels());
             return FireflyCloseableIteratorUtils.filter(vertices, v -> HasContainer.testAll(v, fireflyHasContainers));
         } else {
+            System.out.println("FireflyCompositeIdStepLocal.flatMap: " + traverser);
             final List<Vertex> output = new ArrayList<>();
             final List<FireflyId> missingIds = new ArrayList<>();
-            final FireflyVertex fireflyVertex = (FireflyVertex) ((ComputerGraph.ComputerVertex) traverser.get()).getBaseVertex();
+            final FireflyVertex fireflyVertex = traverser.get() instanceof FireflyVertex
+                    ? (FireflyVertex) traverser.get()
+                    : (FireflyVertex) ((ComputerGraph.ComputerVertex) traverser.get()).getBaseVertex();
             final List<Vertex> finalOutput = output;
             fireflyVertex.getVertexIdsFromVertex(direction, edgeLabels).forEachRemaining(id -> {
                 if (cache.get().containsKey(id)) {
@@ -156,6 +178,7 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
             final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
             final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, missingIds, requiredProperties);
             output.addAll(vertices);
+            System.out.println("  output: " + output);
             return FireflyCloseableIteratorUtils.filter(output.iterator(), v -> HasContainer.testAll(v, fireflyHasContainers));
         }
     }

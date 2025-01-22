@@ -10,6 +10,7 @@ import static com.aerospike.firefly.util.AbstractFireflySuite.exited;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.HTTP_ENABLED;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.MRT_ENABLED_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.loadFromFile;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 // to run this test need AeroSpike database 8+ with strong consistency
@@ -25,6 +26,8 @@ public class TestMRTSupported {
         // should not fail
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().count().iterate();
+            // should be default supernode limit for test config
+            assertEquals(6553, graph.getBaseGraph().ON_RECORD_ID_LIMIT);
         }
         assertFalse(exited);
 
@@ -32,6 +35,8 @@ public class TestMRTSupported {
         // should not fail
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().count().iterate();
+            // supernode limit should be more strict
+            assertEquals(1023, graph.getBaseGraph().ON_RECORD_ID_LIMIT);
         }
         assertFalse(exited);
     }

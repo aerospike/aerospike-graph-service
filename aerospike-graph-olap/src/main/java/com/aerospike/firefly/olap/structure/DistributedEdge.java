@@ -14,7 +14,7 @@ import java.util.Iterator;
 public class DistributedEdge extends DistributedElement implements Edge {
 
     public DistributedEdge(final Object id, final String label) {
-        super(id, label);
+        super(id.toString(), 0, label);
     }
 
     @Override

@@ -31,15 +31,30 @@ import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.VertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_P_S_SE_SL_TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_S_SE_SL_TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_O_P_S_SE_SL_TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_O_S_SE_SL_TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_NL_O_S_SE_SL_TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_O_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_O_Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_O_TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.LP_NL_O_OB_P_S_SE_SL_TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.LP_NL_O_OB_S_SE_SL_TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.LP_O_OB_P_S_SE_SL_TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.LP_O_OB_S_SE_SL_TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.NL_O_OB_S_SE_SL_TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.O_OB_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTraverserGeneratorFactory;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
@@ -73,6 +88,7 @@ import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.olap.structure.DistributedElement.ID_STRING;
+import static com.aerospike.firefly.olap.structure.DistributedElement.ID_TYPEHINT_STRING;
 import static com.aerospike.firefly.olap.structure.DistributedElement.IN_STRING;
 import static com.aerospike.firefly.olap.structure.DistributedElement.LABEL_STRING;
 import static com.aerospike.firefly.olap.structure.DistributedElement.OUT_STRING;
@@ -288,6 +304,12 @@ public class DistributedGraphComputer implements GraphComputer {
                     partitionSize(10000);
 
             final List<Row> vertices = new ArrayList<>();
+
+
+            final Traversal pureTraversal = traversal.getPure().asAdmin().clone();
+            pureTraversal.asAdmin().applyStrategies();
+            final Set<TraverserRequirement> traverserRequirements = pureTraversal.asAdmin().getTraverserRequirements();
+            final TraverserGenerator traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirements);
             try (final PartitionIterator partitionIterator = builder.create()) {
                 while (partitionIterator.hasNext()) {
                     final Optional<CloseableIterator<FireflyVertex>> optional = partitionIterator.next();
@@ -297,27 +319,23 @@ public class DistributedGraphComputer implements GraphComputer {
                         try (final CloseableIterator<FireflyVertex> vertexIterator = optional.get()) {
                             while (vertexIterator.hasNext()) {
                                 final FireflyVertex vertex = vertexIterator.next();
-                                vertices.add(createRow(vertex));
+                                vertices.add(createRow(vertex, traverserGenerator, null));
                             }
                         }
                     }
                 }
             }
 
-
-            final Traversal pureTraversal = traversal.getPure().asAdmin().clone();
-            pureTraversal.asAdmin().applyStrategies();
-            final Set<TraverserRequirement> traverserRequirements = pureTraversal.asAdmin().getTraverserRequirements();
-            final TraverserGenerator traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirements);
-
             final StructType schema = new StructType()
                     .add(ID_STRING, DataTypes.StringType, false)
+                    .add(ID_TYPEHINT_STRING, DataTypes.IntegerType, false)
                     .add(LABEL_STRING, DataTypes.StringType, false)
-                    .add(PROPERTIES_STRING, DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType, true));
-                    //.add(IN_STRING, DataTypes.createMapType(DataTypes.StringType,
-                    //        DataTypes.createArrayType(DataTypes.BinaryType)), false);
-                    //.add(OUT_STRING, DataTypes.createMapType(DataTypes.StringType,
-                    //        DataTypes.createArrayType(DataTypes.BinaryType)), false);
+                    .add(PROPERTIES_STRING, DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType, true))
+                    .add(IN_STRING, DataTypes.createMapType(DataTypes.StringType,
+                            DataTypes.createArrayType(DataTypes.BinaryType)), false)
+                    .add(OUT_STRING, DataTypes.createMapType(DataTypes.StringType,
+                            DataTypes.createArrayType(DataTypes.BinaryType)), false);
+            final GraphStep<Vertex, Vertex> graphStep = (GraphStep<Vertex, Vertex>) traversal.getPure().getStartStep();
 
             Dataset<Row> df = spark.createDataFrame(vertices, schema);
             df.show(false);
@@ -340,7 +358,7 @@ public class DistributedGraphComputer implements GraphComputer {
                 //System.out.println("Running partitions on " + df.rdd().getNumPartitions() + " partitions");
                 memory.setInExecute(true);
                 System.out.println("Running partition");
-                df = DistributedExecutor.execute(df, memory, configHelper, vertexProgramConfiguration, schema);
+                df = DistributedExecutor.execute(df, memory, configHelper, vertexProgramConfiguration, pureTraversal, schema);
                 System.out.println("Partition done");
                 memory.setInExecute(false);
                 if (this.vertexProgram.terminate(memory)) {
@@ -354,8 +372,9 @@ public class DistributedGraphComputer implements GraphComputer {
             }
             List<Row> rows = df.collectAsList();
             final TraverserSet traversers = new TraverserSet();
+            // TODO: This should be removed.
             rows.stream().forEach(row -> {
-                final DistributedVertex vertex = new DistributedVertex(row);
+                final DistributedVertex vertex = new DistributedVertex(row, graph);
                 traversers.add(new B_O_Traverser<>(vertex, 1L));
             });
 
@@ -366,6 +385,7 @@ public class DistributedGraphComputer implements GraphComputer {
                     null != this.vertexProgram ? this.vertexProgram.getVertexComputeKeys() : Collections.emptySet());
 
             final Graph resultGraph = view.processResultGraphPersist(this.resultGraph, this.persist);
+
             return CompletableFuture.completedFuture(new DefaultComputerResult(resultGraph, memory));
         } catch (final Exception e) {
             LOGGER.error("A global error occurred. Shutting down {}: {}", this, e.getMessage(), e);
@@ -373,14 +393,77 @@ public class DistributedGraphComputer implements GraphComputer {
         }
     }
 
-    private static Row createRow(final FireflyVertex vertex) {
+    private static DistributedElement.ID_TYPE getIdType(final Object id) {
+        if (id instanceof Long) {
+            return DistributedElement.ID_TYPE.LONG;
+        } else if (id instanceof Integer) {
+            return DistributedElement.ID_TYPE.INTEGER;
+        } else if (id instanceof  String) {
+            return DistributedElement.ID_TYPE.STRING;
+        } else {
+            // TODO.
+            throw new IllegalArgumentException("Only Long string and integer types can be serialized at this time.");
+        }
+    }
+
+    private static Row createRow(final FireflyVertex vertex,
+                                 final TraverserGenerator generator,
+                                 final GraphStep<Vertex, Vertex> step) {
+        //final TraverserGenerator generator = traversal.asAdmin().getTraverserGenerator();
         // TODO: Make a better format, stringifying these is going to be slow.
 
         return RowFactory.create(
                 vertex.id().toString(),
+                getIdType(vertex.id()).ordinal(),
                 vertex.label(),
-                vertex.getRawVertexStringPropertyValues());
-                //toScalaMap((HashMap) vertex.getCachedIdMap(Direction.IN)));
-                //vertex.getCachedIdMap(Direction.OUT));
+                vertex.getRawVertexStringPropertyValues(),
+                vertex.getCachedIdMap(Direction.IN),
+                vertex.getCachedIdMap(Direction.OUT));
+    }
+
+
+    public TraverserGenerator getTraverserGenerator(final Set<TraverserRequirement> requirements) {
+        if (requirements.contains(TraverserRequirement.ONE_BULK)) {
+            if (O_OB_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
+                return O_OB_S_SE_SL_TraverserGenerator.instance();
+
+            if (NL_O_OB_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
+                return NL_O_OB_S_SE_SL_TraverserGenerator.instance();
+
+            if (LP_O_OB_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
+                return LP_O_OB_S_SE_SL_TraverserGenerator.instance();
+
+            if (LP_NL_O_OB_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
+                return LP_NL_O_OB_S_SE_SL_TraverserGenerator.instance();
+
+            if (LP_O_OB_P_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
+                return LP_O_OB_P_S_SE_SL_TraverserGenerator.instance();
+
+            if (LP_NL_O_OB_P_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
+                return LP_NL_O_OB_P_S_SE_SL_TraverserGenerator.instance();
+        } else {
+            if (B_O_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
+                return B_O_TraverserGenerator.instance();
+
+            if (B_O_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
+                return B_O_S_SE_SL_TraverserGenerator.instance();
+
+            if (B_NL_O_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
+                return B_NL_O_S_SE_SL_TraverserGenerator.instance();
+
+            if (B_LP_O_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
+                return B_LP_O_S_SE_SL_TraverserGenerator.instance();
+
+            if (B_LP_NL_O_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
+                return B_LP_NL_O_S_SE_SL_TraverserGenerator.instance();
+
+            if (B_LP_O_P_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
+                return B_LP_O_P_S_SE_SL_TraverserGenerator.instance();
+
+            if (B_LP_NL_O_P_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
+                return B_LP_NL_O_P_S_SE_SL_TraverserGenerator.instance();
+        }
+
+        throw new IllegalStateException("The provided traverser generator factory does not support the requirements of the traversal: " + this.getClass().getCanonicalName() + requirements);
     }
 }

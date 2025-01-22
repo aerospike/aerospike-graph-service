@@ -14,7 +14,7 @@ public class DistributedVertexProperty<V> extends DistributedElement implements 
     private final V value;
 
     public DistributedVertexProperty(final String key, final V value) {
-        super(null, key);
+        super(null, 0, key);
         this.key = key;
         this.value = value;
     }

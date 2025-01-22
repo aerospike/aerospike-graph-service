@@ -51,6 +51,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
 
     @Override
     public Set<String> keys() {
+
         if (this.inExecute)
             return this.broadcast.getValue().keySet();
         else {
@@ -95,10 +96,18 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         if (this.inExecute && !this.memoryComputeKeys.get(key).isBroadcast())
             throw Memory.Exceptions.memoryDoesNotExist(key);
         final DistributedMemoryEntry<R> r = (DistributedMemoryEntry<R>) (this.inExecute ? this.broadcast.value().get(key) : this.sparkMemory.get(key).value());
-        if (null == r || r.isEmpty())
+        if (null == r || r.isEmpty()) {
+            // gremlin.traversalVertexProgram.completedBarriers
+            //
             throw Memory.Exceptions.memoryDoesNotExist(key);
-        else
-            return r.get();
+        } else {
+            final R rr = r.get();
+            if (rr instanceof DistributedIndexedTraverserSet) {
+                return (R) new IndexedTraverserSet<>(((DistributedIndexedTraverserSet)rr).indexingFunction);
+            } else {
+                return r.get();
+            }
+        }
     }
 
     @Override

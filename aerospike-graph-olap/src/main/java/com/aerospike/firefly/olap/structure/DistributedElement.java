@@ -13,22 +13,42 @@ import java.util.Iterator;
  */
 public abstract class DistributedElement<V> implements Element {
     static final String ID_STRING = "~id";
+    static final String ID_TYPEHINT_STRING = "~id_typehint";
     static final String LABEL_STRING = "~label";
     static final String PROPERTIES_STRING = "~properties";
     static final String IN_STRING = "~in";
     static final String OUT_STRING = "~out";
 
-    private final String id;
-    private final String label;
+    enum ID_TYPE {
+        STRING,
+        INTEGER,
+        LONG
+    }
 
-    public DistributedElement(final Object id, final String label) {
-        this.id = id.toString();
+    protected final String id;
+    protected final int idTypeOrdinal;
+    protected final String label;
+
+    public DistributedElement(final String id,
+                              final int idTypeOrdinal,
+                              final String label) {
+        this.id = id;
+        this.idTypeOrdinal = idTypeOrdinal;
         this.label = label;
     }
 
     @Override
     public Object id() {
-        return id;
+        if (ID_TYPE.STRING.ordinal() == idTypeOrdinal) {
+            return id;
+        } else if (ID_TYPE.LONG.ordinal() == idTypeOrdinal) {
+            return Long.parseLong(id);
+        } else if (ID_TYPE.INTEGER.ordinal() == idTypeOrdinal) {
+            return Integer.parseInt(id);
+        } else {
+            // TODO.
+            throw new IllegalArgumentException("Only string int and long ids are supported in olap");
+        }
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.aerospike.firefly.olap.structure;
 import org.apache.tinkerpop.gremlin.process.computer.MessageScope;
 import org.apache.tinkerpop.gremlin.process.computer.Messenger;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -15,6 +16,10 @@ import scala.Tuple2;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -42,6 +47,7 @@ public class DistributedMessenger<M> implements Messenger<M> {
 
     @Override
     public void sendMessage(final MessageScope messageScope, final M message) {
+        System.out.println("!!!!SEND");
         if (messageScope instanceof MessageScope.Local) {
             final MessageScope.Local<M> localMessageScope = (MessageScope.Local) messageScope;
             final Traversal.Admin<Vertex, Edge> incidentTraversal = DistributedMessenger.setVertexStart(localMessageScope.getIncidentTraversal().get().asAdmin(), this.vertex);
@@ -71,5 +77,11 @@ public class DistributedMessenger<M> implements Messenger<M> {
     private static Direction getOppositeDirection(final Traversal.Admin<Vertex, Edge> incidentTraversal) {
         final VertexStep step = TraversalHelper.getLastStepOfAssignableClass(VertexStep.class, incidentTraversal).get();
         return step.getDirection().opposite();
+    }
+
+    public List<M> getVerticesWithActiveTraversersIncoming() {
+        final List<M> result = new ArrayList<>();
+        incomingMessages.forEach(itty -> result.add(itty));
+        return result;
     }
 }

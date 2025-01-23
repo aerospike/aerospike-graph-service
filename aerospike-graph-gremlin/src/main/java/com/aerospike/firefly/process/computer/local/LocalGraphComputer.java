@@ -70,6 +70,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -176,17 +177,18 @@ public class LocalGraphComputer implements GraphComputer {
                 traversal1.asAdmin().applyStrategies();
         }
 
-        public List<Element> execute(List<FireflyVertex> vertices,
-                                     final BatchTraversalVertexProgram vertexProgram,
-                                     final LocalWorkerMemory workerMemory) throws Exception {
+        public List<Element> execute(final BatchTraversalVertexProgram vertexProgram,
+                                     final LocalWorkerMemory workerMemory,
+                                     final Predicate workerIdFilter) throws Exception {
             vertexProgram.workerIterationStart(workerMemory.asImmutable());
 
             if (Thread.interrupted()) throw new TraversalInterruptedException();
 
             vertexProgram.execute(
-                    vertices, // todo: should be star vertices?
-                    new BatchMessenger<>(vertices, messageBoard, vertexProgram.getMessageCombiner()),
-                    workerMemory);
+                    messageBoard.getActiveTraversers(),
+                    new BatchMessenger<>(messageBoard, vertexProgram.getMessageCombiner()),
+                    workerMemory,
+                    workerIdFilter);
 
             vertexProgram.workerIterationEnd(workerMemory.asImmutable());
             workerMemory.complete();

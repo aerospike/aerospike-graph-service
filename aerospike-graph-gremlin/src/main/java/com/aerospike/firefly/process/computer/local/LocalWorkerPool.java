@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -119,9 +120,12 @@ public class LocalWorkerPool implements AutoCloseable {
                             try {
                                 batch = IteratorUtils.toList(option.get());
                                 count += batch.size();
+                                final List<Object> batchIds = batch.stream().map(e->e.id()).collect(Collectors.toList());
                                 if (!batch.isEmpty()) {
-                                    final List<Element> output = executeVertexProgram.execute(batch, trueVP, workerMemory);
-                                    System.out.println("LocalWorkerPool output: " + output);
+                                    final List<Element> output = executeVertexProgram.execute(trueVP, workerMemory,
+                                            // id -> ((Integer)id) % numberOfWorkers == index);
+                                            id -> batchIds.contains(id));
+                                    System.out.println("LocalWorkerPool " + index + " output: " + output);
                                     if (output != null) {
                                         results.addAll(output);
                                         counter.addAndGet(output.size());

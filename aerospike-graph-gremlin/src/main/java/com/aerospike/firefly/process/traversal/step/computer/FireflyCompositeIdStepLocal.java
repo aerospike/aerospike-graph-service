@@ -152,6 +152,8 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
 
     @Override
     protected Iterator<Vertex> flatMap(final Traverser.Admin<Vertex> traverser) {
+        System.out.println("FireflyCompositeIdStepLocal.flatMap: " + traverser);
+
         if (firstRun.get()) {
             precompute();
             firstRun.set(false);
@@ -161,7 +163,6 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements P
             final Iterator<Vertex> vertices = traverser.get().vertices(this.direction, super.getEdgeLabels());
             return FireflyCloseableIteratorUtils.filter(vertices, v -> HasContainer.testAll(v, fireflyHasContainers));
         } else {
-            System.out.println("FireflyCompositeIdStepLocal.flatMap: " + traverser);
             final List<Vertex> output = new ArrayList<>();
             final List<FireflyId> missingIds = new ArrayList<>();
             final FireflyVertex fireflyVertex = traverser.get() instanceof FireflyVertex

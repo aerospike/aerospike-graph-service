@@ -1,9 +1,11 @@
 package com.aerospike.firefly.process.computer.local;
 
+import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.MessageScope;
 import org.apache.tinkerpop.gremlin.process.computer.Messenger;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalSideEffects;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -17,6 +19,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.IndexedTrav
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
@@ -30,6 +33,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BatchWorkerExecutor {
@@ -38,8 +42,7 @@ public class BatchWorkerExecutor {
 
     }
 
-    protected static boolean execute(final List<? extends Vertex> vertices,
-                                     final Messenger<TraverserSet<Object>> messenger,
+    protected static boolean execute(final Messenger<TraverserSet<Object>> messenger,
                                      final TraversalMatrix<?, ?> traversalMatrix,
                                      final Memory memory,
                                      final boolean returnHaltedTraversers,
@@ -62,24 +65,26 @@ public class BatchWorkerExecutor {
         // some memory systems are interacted with by multiple threads and thus, concurrent modification can happen at iterator.remove().
         // its better to reduce the memory footprint and shorten the active traverser list so synchronization is worth it.
         // most distributed OLAP systems have the memory partitioned and thus, this synchronization does nothing.
-        synchronized (maybeActiveTraversers) {
-            if (!maybeActiveTraversers.isEmpty()) {
-                for (final Vertex vertex : vertices) {
-                    final Collection<Traverser.Admin<Object>> traversers = maybeActiveTraversers.get(vertex);
-                    if (traversers != null) {
-                        final Iterator<Traverser.Admin<Object>> iterator = traversers.iterator();
-                        while (iterator.hasNext()) {
-                            final Traverser.Admin<Object> traverser = iterator.next();
-                            iterator.remove();
-                            maybeActiveTraversers.remove(traverser);
-                            traverser.attach(Attachable.Method.get(vertex));
-                            traverser.setSideEffects(traversalSideEffects);
-                            toProcessTraversers.add(traverser);
-                        }
-                    }
-                }
-            }
-        }
+        // todo: read necessary vertices for attachment
+//        final List<? extends Vertex> vertexCache = vertices;
+//        synchronized (maybeActiveTraversers) {
+//            if (!maybeActiveTraversers.isEmpty()) {
+//                for (final Vertex vertex : vertexCache) {
+//                    final Collection<Traverser.Admin<Object>> traversers = maybeActiveTraversers.get(vertex);
+//                    if (traversers != null) {
+//                        final Iterator<Traverser.Admin<Object>> iterator = traversers.iterator();
+//                        while (iterator.hasNext()) {
+//                            final Traverser.Admin<Object> traverser = iterator.next();
+//                            iterator.remove();
+//                            maybeActiveTraversers.remove(traverser);
+//                            traverser.attach(Attachable.Method.get(vertex));
+//                            traverser.setSideEffects(traversalSideEffects);
+//                            toProcessTraversers.add(traverser);
+//                        }
+//                    }
+//                }
+//            }
+//        }
 
         // WORKER ACTIVE
         // these are traversers that exist from a local barrier
@@ -110,20 +115,23 @@ public class BatchWorkerExecutor {
                 } else {
                     // traverser is not halted and thus, should be processed locally
                     // attach it and process
-                    Vertex vertex = null;
-                    for (final Vertex v : vertices) {
-                        if (ElementHelper.areEqual(v, traverser.get())) {
-                            vertex = v;
-                            break;
-                        }
-                    }
-                    // todo: null check (?)
-                    traverser.attach(Attachable.Method.get(vertex));
-                    traverser.setSideEffects(traversalSideEffects);
+//                    Vertex vertex = null;
+//                    for (final Vertex v : vertexCache) {
+//                        if (ElementHelper.areEqual(v, traverser.get())) {
+//                            vertex = v;
+//                            break;
+//                        }
+//                    }
+//                    // todo: null check (?)
+//                    traverser.attach(Attachable.Method.get(vertex));
+//                    traverser.setSideEffects(traversalSideEffects);
                     toProcessTraversers.add(traverser);
                 }
             });
         }
+
+        ComputerHelper.bulkAttach( (FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
+                traversalSideEffects, toProcessTraversers);
 
         ///////////////////////////////
         // PROCESS LOCAL TRAVERSERS //

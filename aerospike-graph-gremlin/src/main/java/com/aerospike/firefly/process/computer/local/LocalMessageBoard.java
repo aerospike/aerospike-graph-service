@@ -47,6 +47,26 @@ public class LocalMessageBoard<M> {
         return result;
     }
 
+    public TraverserSet getActiveTraversers() {
+        final TraverserSet result = new TraverserSet();
+        for (final MessageScope messageScope : sendMessages.keySet()) {
+            if (messageScope instanceof MessageScope.Local) {
+                continue;
+            }
+
+            final Map<Vertex, Queue<M>> messages = sendMessages.get(messageScope);
+            final List halted = (List) messages.keySet().stream()
+                    .filter(q -> messages.get(q) != null)
+                    .flatMap(q -> messages.get(q).stream())
+                    .flatMap(ts -> ((TraverserSet) ts).stream())
+                    .filter(t -> !((Traverser.Admin) t).isHalted())
+                    .collect(Collectors.toList());
+
+            result.addAll(halted);
+        }
+        return result;
+    }
+
     public List<Traverser> getHaltedTraversers() {
         final List<Traverser> result = new ArrayList<>();
         for (final MessageScope messageScope : receiveMessages.keySet()) {

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.computer.local;
 
+import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.util.ReflectionHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.Computer;
@@ -67,6 +68,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 
 public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<Object>> {
 
@@ -264,7 +266,10 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    public void execute(final List<? extends Vertex> vertices, final BatchMessenger<TraverserSet<Object>> messenger, final Memory memory) {
+    public void execute(final TraverserSet<Object> activeTraversers,
+                        final BatchMessenger<TraverserSet<Object>> messenger,
+                        final Memory memory,
+                        final Predicate workerIdFilter) {
         // if any global halted traversers, simply don't use them as they were handled by master setup()
         // these halted traversers are typically from a previous OLAP job that yielded traversers at the master traversal
         if (null != this.haltedTraversers)
@@ -291,7 +296,7 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
         //////////////////
         System.out.println("\nIteration: " +  memory.getIteration());
         if (memory.isInitialIteration()) {    // ITERATION 1
-            final TraverserSet<Object> activeTraversers = new TraverserSet<>();
+            activeTraversers.clear(); // todo:
             // if halted traversers are being sent from a previous VertexProgram in an OLAP chain (distributed traversers), get them into the flow
             IteratorUtils.removeOnNext(haltedTraversers.iterator()).forEachRemaining(traverser -> {
                 traverser.setStepId(this.traversal.get().getStartStep().getId());
@@ -299,14 +304,15 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
             });
             assert haltedTraversers.isEmpty();
             // for g.V()/E()
-            if (this.traversal.get().getStartStep() instanceof GraphStep) {
-                final GraphStep<Element, Element> graphStep = (GraphStep<Element, Element>) this.traversal.get().getStartStep();
+            if (this.traversal.get().getStartStep() instanceof FireflyGraphStep) {
+                final FireflyGraphStep<Element, Element> graphStep = (FireflyGraphStep<Element, Element>) this.traversal.get().getStartStep();
                 graphStep.reset();
                 activeTraversers.forEach(traverser -> graphStep.addStart((Traverser.Admin) traverser));
                 activeTraversers.clear();
-                if (graphStep.returnsVertex())
-                    // (vk) bug here for duplicate incoming vertices.
-                    graphStep.setIteratorSupplier(() -> (Iterator) IteratorUtils.filter(vertices, v -> ElementHelper.idExists(v.id(), graphStep.getIds())).iterator());
+                if (graphStep.returnsVertex()) {
+                    graphStep.setPartitionFilter(workerIdFilter);
+                    //graphStep.setIteratorSupplier(() -> (Iterator) IteratorUtils.filter(vertices, v -> ElementHelper.idExists(v.id(), graphStep.getIds())).iterator());
+                }
                 // todo: start with edges
 //                else
 //                    graphStep.setIteratorSupplier(() -> (Iterator) IteratorUtils.filter(vertex.edges(Direction.OUT), edge -> ElementHelper.idExists(edge.id(), graphStep.getIds())));
@@ -320,9 +326,11 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
                         activeTraversers.add((Traverser.Admin) traverser);
                 });
             }
-            memory.add(VOTE_TO_HALT, activeTraversers.isEmpty() || BatchWorkerExecutor.execute(vertices, new BatchSingleMessenger<>(messenger, activeTraversers), this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));
+            memory.add(VOTE_TO_HALT, activeTraversers.isEmpty()
+                    || BatchWorkerExecutor.execute(new BatchSingleMessenger<>(messenger, activeTraversers), this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));
         } else   // ITERATION 1+
-            memory.add(VOTE_TO_HALT, BatchWorkerExecutor.execute(vertices, messenger, this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));
+            memory.add(VOTE_TO_HALT,
+                    BatchWorkerExecutor.execute(new BatchSingleMessenger<>(messenger, activeTraversers), this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));
         // save space by not having an empty halted traversers property
 //        if (this.returnHaltedTraversers || haltedTraversers.isEmpty())
 //            vertex.<TraverserSet>property(HALTED_TRAVERSERS).remove();

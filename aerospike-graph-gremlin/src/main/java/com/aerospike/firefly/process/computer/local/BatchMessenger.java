@@ -28,49 +28,55 @@ import java.util.stream.StreamSupport;
  */
 public class BatchMessenger<M> implements Messenger<M> {
 
-    private final List<? extends Vertex> vertices;
+    // private final List<? extends Vertex> vertices;
     private final LocalMessageBoard<M> messageBoard;
     private final MessageCombiner<M> combiner;
 
-    public BatchMessenger(final List<? extends Vertex> vertices, final LocalMessageBoard<M> messageBoard, final Optional<MessageCombiner<M>> combiner) {
-        this.vertices = vertices;
+    public BatchMessenger(final LocalMessageBoard<M> messageBoard, final Optional<MessageCombiner<M>> combiner) {
         this.messageBoard = messageBoard;
         this.combiner = combiner.isPresent() ? combiner.get() : null;
     }
 
+//    public BatchMessenger(final List<? extends Vertex> vertices, final LocalMessageBoard<M> messageBoard, final Optional<MessageCombiner<M>> combiner) {
+//        this.vertices = vertices;
+//        this.messageBoard = messageBoard;
+//        this.combiner = combiner.isPresent() ? combiner.get() : null;
+//    }
+
     public Iterator<M> receiveMessages() {
-        final MultiIterator<M> multiIterator = new MultiIterator<>();
-        for (final MessageScope messageScope : this.messageBoard.receiveMessages.keySet()) {
-            if (messageScope instanceof MessageScope.Local) {
-//                final MessageScope.Local<M> localMessageScope = (MessageScope.Local<M>) messageScope;
-//                final Traversal.Admin<Vertex, Edge> incidentTraversal = BatchMessenger.setVertexStart(localMessageScope.getIncidentTraversal().get().asAdmin(), this.vertex);
-//                final Direction direction = BatchMessenger.getDirection(incidentTraversal);
-//                final Edge[] edge = new Edge[1]; // simulates storage side-effects available in Gremlin, but not Java streams
-//                multiIterator.addIterator(StreamSupport.stream(Spliterators.spliteratorUnknownSize(VertexProgramHelper.reverse(incidentTraversal.asAdmin()), Spliterator.IMMUTABLE | Spliterator.SIZED), false)
-//                        .map((Edge e) -> {
-//                            edge[0] = e;
-//                            Vertex vv;
-//                            if (direction.equals(Direction.IN) || direction.equals(Direction.OUT)) {
-//                                vv = e.vertices(direction).next();
-//                            } else {
-//                                vv = e.outVertex() == this.vertex ? e.inVertex() : e.outVertex();
-//                            }
-//                            return this.messageBoard.receiveMessages.get(messageScope).get(vv);
-//                        })
+        throw new IllegalStateException("should never be called");
+//        final MultiIterator<M> multiIterator = new MultiIterator<>();
+//        for (final MessageScope messageScope : this.messageBoard.receiveMessages.keySet()) {
+//            if (messageScope instanceof MessageScope.Local) {
+////                final MessageScope.Local<M> localMessageScope = (MessageScope.Local<M>) messageScope;
+////                final Traversal.Admin<Vertex, Edge> incidentTraversal = BatchMessenger.setVertexStart(localMessageScope.getIncidentTraversal().get().asAdmin(), this.vertex);
+////                final Direction direction = BatchMessenger.getDirection(incidentTraversal);
+////                final Edge[] edge = new Edge[1]; // simulates storage side-effects available in Gremlin, but not Java streams
+////                multiIterator.addIterator(StreamSupport.stream(Spliterators.spliteratorUnknownSize(VertexProgramHelper.reverse(incidentTraversal.asAdmin()), Spliterator.IMMUTABLE | Spliterator.SIZED), false)
+////                        .map((Edge e) -> {
+////                            edge[0] = e;
+////                            Vertex vv;
+////                            if (direction.equals(Direction.IN) || direction.equals(Direction.OUT)) {
+////                                vv = e.vertices(direction).next();
+////                            } else {
+////                                vv = e.outVertex() == this.vertex ? e.inVertex() : e.outVertex();
+////                            }
+////                            return this.messageBoard.receiveMessages.get(messageScope).get(vv);
+////                        })
+////                        .filter(q -> null != q)
+////                        .flatMap(Queue::stream)
+////                        .map(message -> localMessageScope.getEdgeFunction().apply(message, edge[0]))
+////                        .iterator());
+//
+//            } else {
+//                multiIterator.addIterator(Stream.of(this.vertices)
+//                        .map(this.messageBoard.receiveMessages.get(messageScope)::get)
 //                        .filter(q -> null != q)
 //                        .flatMap(Queue::stream)
-//                        .map(message -> localMessageScope.getEdgeFunction().apply(message, edge[0]))
 //                        .iterator());
-
-            } else {
-                multiIterator.addIterator(Stream.of(this.vertices)
-                        .map(this.messageBoard.receiveMessages.get(messageScope)::get)
-                        .filter(q -> null != q)
-                        .flatMap(Queue::stream)
-                        .iterator());
-            }
-        }
-        return multiIterator;
+//            }
+//        }
+//        return multiIterator;
     }
 
     public void sendMessage(final MessageScope messageScope, final M message) {

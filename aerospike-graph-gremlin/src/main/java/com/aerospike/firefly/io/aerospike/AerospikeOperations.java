@@ -1241,24 +1241,29 @@ public class AerospikeOperations {
                     LOG.error(message);
                     throw new IllegalStateException(message);
                 }
-                // todo: txn
-                removeEdge(edges.get(0));
+                removeEdge(edges.get(0), false, false, txn);
             }
             LOG.debug("Generation check retry failed when regenerating Edge with id {} since it was not found.", edge.id.getUserId());
         }
 
-        if (fromOutV) {
-            removeEdgeFromOut(edge, txn);
-        }
+        try {
+            if (fromOutV) {
+                removeEdgeFromOut(edge, txn);
+            }
 
-        if (fromInV) {
-            removeEdgeFromIn(edge, txn);
-        }
-        edge.removed = true;
+            if (fromInV) {
+                removeEdgeFromIn(edge, txn);
+            }
+            edge.removed = true;
 
-        // commit only own txn
-        if (outerTxn == null)
-            db.commit(txn);
+            // commit only own txn
+            if (outerTxn == null)
+                db.commit(txn);
+        } catch (final AerospikeGraphException e) {
+            if (outerTxn == null)
+                db.rollback(txn);
+            throw e;
+        }
 
         if (this.db.IS_AUDIT_LOG_ENABLED) {
             LOG.info("[{}] Dropped edge [{}]-[{}]>[{}].", graph.getUser(), edge.outVertex().id(), edge.label(), edge.inVertex().id());

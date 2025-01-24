@@ -354,7 +354,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final Iterator<FireflyId> adjacentEdgeIds;
         if (isEdgeCacheOverflowed) {
             final Iterator<FireflyId> sindexEdgeIds = new FireflyPhatEdgeIdIteratorFromIndexedVertex(
-                    graph.operations.getEdgeKeyRecordsByIndex(this, direction, labels,
+                    graph.operations.getEdgeKeyRecordsByIndex(this.id, direction, labels,
                             FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, aerospikeHasContainers, adjacent),
                     this.db, direction, this.id, labels, FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, adjacent);
             adjacentEdgeIds = FireflyCloseableIteratorUtils.concat(edgeIds.iterator(), sindexEdgeIds);
@@ -682,7 +682,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                                                         final Set<String> labels,
                                                         final FireflyPhatEdgeIdIteratorFromVertex.OutputType outputType,
                                                         final List<HasContainer> hasContainers) {
-        return graph.operations.getEdgeKeyRecordsByIndex(this, direction, labels, outputType, hasContainers, null);
+        return graph.operations.getEdgeKeyRecordsByIndex(this.id, direction, labels, outputType, hasContainers, null);
     }
 
     public long getEdgeCount(final Direction direction) {

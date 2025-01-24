@@ -18,6 +18,7 @@ public abstract class DistributedElement<V> implements Element {
     static final String PROPERTIES_STRING = "~properties";
     static final String IN_STRING = "~in";
     static final String OUT_STRING = "~out";
+    static final String HALTED_STRING = "~halted";
 
     enum ID_TYPE {
         STRING,

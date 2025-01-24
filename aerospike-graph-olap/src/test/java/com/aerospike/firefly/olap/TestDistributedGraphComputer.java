@@ -35,7 +35,9 @@ public class TestDistributedGraphComputer {
             graph.traversal().V().drop().iterate();
             final Graph tg = TinkerFactory.createModern();
             GraphHelper.cloneElements(tg, graph);
+            System.out.println("!!!!!!!!!!!!Start");
             List<Vertex> output = graph.traversal().withComputer().V().has("name", "marko").out().toList();
+            System.out.println("!!!!!!!!!!!!end");
             System.out.println(output);
         }
     }

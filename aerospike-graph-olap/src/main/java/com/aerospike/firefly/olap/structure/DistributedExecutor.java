@@ -2,6 +2,8 @@ package com.aerospike.firefly.olap.structure;
 
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
 import org.apache.spark.sql.Dataset;
@@ -23,9 +25,12 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTrav
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Tuple2;
 import scala.collection.JavaConverters;
+import scala.collection.Seq;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,6 +43,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.olap.structure.DistributedElement.HALTED_STRING;
+import static com.aerospike.firefly.olap.structure.DistributedGraphComputer.getIdType;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.ACTIVE_TRAVERSERS;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
@@ -64,38 +71,57 @@ public class DistributedExecutor {
             LOGGER.info("test");
             System.out.println("Mapping partitions");
             memory.setInExecute(true);
+
             try (FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
                 final VertexProgram workerVertexProgram = VertexProgram.createVertexProgram(graph, vertexProgramConfig);
                 workerVertexProgram.workerIterationStart(memory.asImmutable());
                 final List<Row> output = new ArrayList<>();
                 final DistributedMessenger<TraverserSet<Vertex>> messenger = new DistributedMessenger<>();
                 while (iterator.hasNext()) {
-
-                    final DistributedVertex vertex = new DistributedVertex(iterator.next(), graph);
+                    final Row r = iterator.next();
+                    if ((Boolean) r.get(r.fieldIndex(HALTED_STRING))) {
+                        output.add(r);
+                        continue;
+                    }
+                    System.out.println("R: " + r);
+                    // R: [1,1,person,Map(name -> marko, age -> 29),Map(),Map(created -> WrappedArray([B@6ea6df7), knows -> WrappedArray([B@5dd15cf8, [B@460a2906))]
+                    final DistributedVertex vertex = new DistributedVertex(r, graph);
                     //if (memory.isInitialIteration()) {
                         // TODO Should we use matrix to generate ??
-                        final TraverserSet<Vertex> traverserList = new TraverserSet<>();
+                        //final TraverserSet<Vertex> traverserList = new TraverserSet<>();
                         // final Traverser<Vertex> <== Create traverser and set step id so that it isnt halted.
-                        traverserList.add(traverserGenerator.generate(vertex, (GraphStep<Vertex, Vertex>) traversal.asAdmin().getStartStep(), 1L));
-                        final List<TraverserSet<Vertex>> traverserSetMessage = new ArrayList<>();
-                        traverserSetMessage.add(traverserList);
-                        messenger.setVertexAndIncomingMessages(vertex, traverserSetMessage); // TODO: Needs traverserSet.
+                        //traverserList.add(traverserGenerator.generate(vertex, (GraphStep<Vertex, Vertex>) traversal.asAdmin().getStartStep(), 1L));
+                        //final List<TraverserSet<Vertex>> traverserSetMessage = new ArrayList<>();
+                        //traverserSetMessage.add(traverserList);
+                        //messenger.setVertexAndIncomingMessages(vertex, traverserSetMessage); // TODO: Needs traverserSet.
                     //} else {
                     //}
                     //final TraverserGenerator<Vertex> traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirement);
                     //traverserGenerator.generate(vertex, traversal.asAdmin().getStartStep(), 1L);
                     workerVertexProgram.execute(vertex, messenger, memory);
-                    output.add(createRow(vertex));
+                    //output.add(createRow(vertex));
 
                 }
                 workerVertexProgram.workerIterationEnd(memory.asImmutable());
                 System.out.println("Output: " + output);
                 memory.setInExecute(false);
-                Iterator<?> msgs = messenger.receiveMessages();
-                while (msgs.hasNext()) {
-                    System.out.println("!!!!!!!!!!!Vertex : " + msgs.next());
+                List<Tuple2<Object, TraverserSet<Vertex>>> msgs = messenger.getOutgoingMessages();
+                final List<FireflyId> ids = new ArrayList<>();
+                final Map<String, Boolean> haltedMap = new HashMap<>();
+                for (Tuple2<Object, TraverserSet<Vertex>> msg : msgs) {
+                    if (msg._2.element().get() instanceof ReferenceVertex) {
+                        msg._2.forEach(v -> ids.add(graph.getIdFactory().createVertexId(v.get().id().toString())));
+                        msg._2.forEach(v -> haltedMap.put(v.get().id().toString(), v.isHalted()));
+                    }
+
                 }
-                Object foo = messenger.getVerticesWithActiveTraversersIncoming();
+                final List<FireflyVertex> vertices2 = graph.readVertices(List.of(), ids, null);
+                System.out.println("Finalize");
+                for (final FireflyVertex vv : vertices2) {
+                    System.out.println("Adding vertex: " + vv);
+                    output.add(createRow(vv, haltedMap.get(vv.id().toString())));
+                }
+
                 return output.iterator();
             } catch (Exception e) {
                 e.printStackTrace();
@@ -104,7 +130,7 @@ public class DistributedExecutor {
         }, RowEncoder.apply(schema));
     }
 
-    private static Row createRow(final DistributedVertex vertex) {
+    private Row createRow(final DistributedVertex vertex) {
         return RowFactory.create(
                 vertex.id,
                 vertex.idTypeOrdinal,
@@ -112,6 +138,47 @@ public class DistributedExecutor {
                 vertex.getScalaProperties(),
                 vertex.getScalaEdges(Direction.IN),
                 vertex.getScalaEdges(Direction.OUT));
+        //         return RowFactory.create(
+        //                vertex.id().toString(),
+        //                getIdType(vertex.id()).ordinal(),
+        //                vertex.label(),
+        //                vertex.getRawVertexStringPropertyValues(),
+        //                vertex.getCachedIdMap(Direction.IN),
+        //                vertex.getCachedIdMap(Direction.OUT));
+    }
+
+
+
+        public static Row createRow(final FireflyVertex vertex, Boolean halted) {
+            //final TraverserGenerator generator = traversal.asAdmin().getTraverserGenerator();
+            // TODO: Make a better format, stringifying these is going to be slow.
+            scala.collection.mutable.Map<String, String> properties = JavaConverters.mapAsScalaMap(vertex.getRawVertexStringPropertyValues());
+            final Map<String, List<byte[]>> inEdgesJava = vertex.getCachedIdMap(Direction.IN);
+            final Map<String, Seq<byte[]>> inEdgesScala = new HashMap<>();
+            for (final String label : inEdgesJava.keySet()) {
+                inEdgesScala.put(label, JavaConverters.asScalaBuffer(inEdgesJava.get(label)));
+            }
+            final Map<String, List<byte[]>> outEdgesJava = vertex.getCachedIdMap(Direction.OUT);
+            final Map<String, Seq<byte[]>> outEdgesScala = new HashMap<>();
+            for (final String label : outEdgesJava.keySet()) {
+                outEdgesScala.put(label, JavaConverters.asScalaBuffer(outEdgesJava.get(label)));
+            }
+            scala.collection.mutable.Map<String, Seq<byte[]>> inEdges = JavaConverters.mapAsScalaMap(inEdgesScala);
+            scala.collection.mutable.Map<String, Seq<byte[]>> outEdges = JavaConverters.mapAsScalaMap(outEdgesScala);
+
+            return RowFactory.create(
+                    vertex.id().toString(),
+                    getIdType(vertex.id()).ordinal(),
+                    vertex.label(),
+                    properties,
+                    inEdges,
+                    outEdges,
+                    halted);
+
+    }
+
+    private static Row createRow(final ReferenceVertex vertex) {
+        return RowFactory.create();
     }
 
     public static <A, B> scala.collection.mutable.Map<A, B> toScalaMap(HashMap<A, B> m) {

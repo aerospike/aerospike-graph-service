@@ -367,7 +367,7 @@ public class AerospikeOperations {
         this.db.writeOperate(writePolicy, key, writeTtl);
     }
 
-    public Iterator<KeyRecord> getEdgeKeyRecordsByIndex(final FireflyVertex vertex,
+    public Iterator<KeyRecord> getEdgeKeyRecordsByIndex(final FireflyId vertexId,
                                                         final Direction direction,
                                                         final Set<String> labels,
                                                         final FireflyPhatEdgeIdIteratorFromVertex.OutputType outputType,
@@ -381,14 +381,14 @@ public class AerospikeOperations {
         queryPolicy.sendKey = true;
         queryPolicy.includeBinData = true;
         queryPolicy.filterExp = GraphQueryHelper.phatEdgeHasContainerListToExpression(db, hasContainers, labels,
-                vertex.id.getKeyHashString(), adjacentVertexId, direction);
+                vertexId.getKeyHashString(), adjacentVertexId, direction);
         if (direction == Direction.OUT) {
             return new CachedIterator(graph, graph.graphQuery.querySIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME,
-                    Filter.contains(db.SUPERNODES_OUT_BIN, IndexCollectionType.MAPVALUES, vertex.id.getKeyHashString()),
+                    Filter.contains(db.SUPERNODES_OUT_BIN, IndexCollectionType.MAPVALUES, vertexId.getKeyHashString()),
                     queryPolicy));
         } else if (direction == Direction.IN) {
             return new CachedIterator(graph, graph.graphQuery.querySIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME,
-                    Filter.contains(db.SUPERNODES_IN_BIN, IndexCollectionType.MAPVALUES, vertex.id.getKeyHashString()),
+                    Filter.contains(db.SUPERNODES_IN_BIN, IndexCollectionType.MAPVALUES, vertexId.getKeyHashString()),
                     queryPolicy));
         } else {
             // This should never happen since this method is not invoked with BOTH.

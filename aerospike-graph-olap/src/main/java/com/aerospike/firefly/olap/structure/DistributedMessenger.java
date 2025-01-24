@@ -10,6 +10,7 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
+import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import scala.Tuple2;
 
@@ -40,9 +41,17 @@ public class DistributedMessenger<M> implements Messenger<M> {
         return this.outgoingMessages;
     }
 
+    public List<Vertex> getVerticesWithActiveTraversers() {
+        return null;
+    }
+
     @Override
     public Iterator<M> receiveMessages() {
-        return IteratorUtils.removeOnNext(this.incomingMessages.iterator());
+        if (incomingMessages != null && incomingMessages.iterator().hasNext()) {
+            return IteratorUtils.removeOnNext(this.incomingMessages.iterator());
+        } else {
+            return EmptyIterator.instance();
+        }
     }
 
     @Override

@@ -197,7 +197,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static String EP_INDEX_PREFIX = "EP";
     private final FireflyGraphVariables variables;
     protected final AerospikeConnection db;
-    protected final AerospikeOperations operations;
+    public final AerospikeOperations operations;
     private final FireflyIdFactory idFactory;
     public LocalGraphComputerView graphComputerView = null;
     public final boolean bulkLoaderFlag;

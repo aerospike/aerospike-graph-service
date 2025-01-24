@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * Most of the Distributed* classes are adapted from the Spark* in TinkerPop from by Marko A. Rodriguez (http://markorodriguez.com)
  */
 public class DistributedMemory implements Memory.Admin, Serializable {
     public final Map<String, MemoryComputeKey> memoryComputeKeys = new HashMap<>();

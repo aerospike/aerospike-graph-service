@@ -11,17 +11,9 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.types.StructType;
-import org.apache.tinkerpop.gremlin.process.computer.Messenger;
 import org.apache.tinkerpop.gremlin.process.computer.VertexComputeKey;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
-import org.apache.tinkerpop.gremlin.process.computer.util.SingleMessenger;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
-import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserGeneratorFactory;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTraverserGeneratorFactory;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -33,11 +25,7 @@ import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,6 +38,7 @@ import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalV
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * Most of the Distributed* classes are adapted from the Spark* in TinkerPop from by Marko A. Rodriguez (http://markorodriguez.com)
  */
 public class DistributedExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(DistributedExecutor.class);
@@ -64,48 +53,43 @@ public class DistributedExecutor {
                                 final Configuration vertexProgramConfig,
                                 final Traversal<?, ?> traversal,
                                 final StructType schema) {
-        System.out.println("Executing");
         System.out.println("Partitions: " + input.rdd().partitions().length);
         return input.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
-            final TraverserGenerator traverserGenerator = traversal.asAdmin().getTraverserGenerator();
-            LOGGER.info("test");
-            System.out.println("Mapping partitions");
-            memory.setInExecute(true);
+            final List<Row> output = new ArrayList<>();
 
+            // Open graph.
             try (FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
+
+                // Set memory is in execute.
+                memory.setInExecute(true);
+
+                // Create VertexProgram for worker and prset iteration start.
                 final VertexProgram workerVertexProgram = VertexProgram.createVertexProgram(graph, vertexProgramConfig);
                 workerVertexProgram.workerIterationStart(memory.asImmutable());
-                final List<Row> output = new ArrayList<>();
+
+                // Create distributed messenger.
                 final DistributedMessenger<TraverserSet<Vertex>> messenger = new DistributedMessenger<>();
+
+                // Loop through input rows, transform to vertices, and execute workerVertexProgram.
                 while (iterator.hasNext()) {
                     final Row r = iterator.next();
                     if ((Boolean) r.get(r.fieldIndex(HALTED_STRING))) {
                         output.add(r);
                         continue;
                     }
-                    System.out.println("R: " + r);
-                    // R: [1,1,person,Map(name -> marko, age -> 29),Map(),Map(created -> WrappedArray([B@6ea6df7), knows -> WrappedArray([B@5dd15cf8, [B@460a2906))]
                     final DistributedVertex vertex = new DistributedVertex(r, graph);
-                    //if (memory.isInitialIteration()) {
-                        // TODO Should we use matrix to generate ??
-                        //final TraverserSet<Vertex> traverserList = new TraverserSet<>();
-                        // final Traverser<Vertex> <== Create traverser and set step id so that it isnt halted.
-                        //traverserList.add(traverserGenerator.generate(vertex, (GraphStep<Vertex, Vertex>) traversal.asAdmin().getStartStep(), 1L));
-                        //final List<TraverserSet<Vertex>> traverserSetMessage = new ArrayList<>();
-                        //traverserSetMessage.add(traverserList);
-                        //messenger.setVertexAndIncomingMessages(vertex, traverserSetMessage); // TODO: Needs traverserSet.
-                    //} else {
-                    //}
-                    //final TraverserGenerator<Vertex> traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirement);
-                    //traverserGenerator.generate(vertex, traversal.asAdmin().getStartStep(), 1L);
                     workerVertexProgram.execute(vertex, messenger, memory);
-                    //output.add(createRow(vertex));
 
                 }
+
+                // End worker iteration.
                 workerVertexProgram.workerIterationEnd(memory.asImmutable());
-                System.out.println("Output: " + output);
+
+                // Set memory is not in execute.
                 memory.setInExecute(false);
-                List<Tuple2<Object, TraverserSet<Vertex>>> msgs = messenger.getOutgoingMessages();
+
+                // TODO: This logic should be simplified down.
+                final List<Tuple2<Object, TraverserSet<Vertex>>> msgs = messenger.getOutgoingMessages();
                 final List<FireflyId> ids = new ArrayList<>();
                 final Map<String, Boolean> haltedMap = new HashMap<>();
                 for (Tuple2<Object, TraverserSet<Vertex>> msg : msgs) {
@@ -113,15 +97,15 @@ public class DistributedExecutor {
                         msg._2.forEach(v -> ids.add(graph.getIdFactory().createVertexId(v.get().id().toString())));
                         msg._2.forEach(v -> haltedMap.put(v.get().id().toString(), v.isHalted()));
                     }
-
                 }
+
+                // TODO: Ideally we can do something better than reading all vertices here.
                 final List<FireflyVertex> vertices2 = graph.readVertices(List.of(), ids, null);
-                System.out.println("Finalize");
                 for (final FireflyVertex vv : vertices2) {
-                    System.out.println("Adding vertex: " + vv);
                     output.add(createRow(vv, haltedMap.get(vv.id().toString())));
                 }
 
+                // Return results.
                 return output.iterator();
             } catch (Exception e) {
                 e.printStackTrace();

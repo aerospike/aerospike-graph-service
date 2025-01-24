@@ -17,6 +17,7 @@ import java.util.function.Function;
 // Would be nice to fix the tinkerpop VertexIndexTraverserSet so that we don't need this class.
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * Most of the Distributed* classes are adapted from the Spark* in TinkerPop from by Marko A. Rodriguez (http://markorodriguez.com)
  */
 public class DistributedIndexedTraverserSet <S,I> extends TraverserSet<S> implements Serializable {
     final MultiValuedMap<I, Traverser.Admin<S>> index = new ArrayListValuedHashMap<>();

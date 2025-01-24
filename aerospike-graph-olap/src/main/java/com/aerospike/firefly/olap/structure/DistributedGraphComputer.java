@@ -64,18 +64,13 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Predef;
-import scala.Tuple2;
-import scala.collection.JavaConverters;
 
-import javax.xml.crypto.Data;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -87,7 +82,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.olap.structure.DistributedElement.HALTED_STRING;
 import static com.aerospike.firefly.olap.structure.DistributedElement.ID_STRING;
@@ -101,6 +95,7 @@ import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalV
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * Most of the Distributed* classes are adapted from the Spark* in TinkerPop from by Marko A. Rodriguez (http://markorodriguez.com)
  */
 public class DistributedGraphComputer implements GraphComputer {
     private static final Logger LOGGER = LoggerFactory.getLogger(DistributedGraphComputer.class);
@@ -137,8 +132,7 @@ public class DistributedGraphComputer implements GraphComputer {
         conf.setAppName("aerospike-graph-olap")
                 .set("spark.driver.allowMultipleContexts", "false")
                 .set("spark.ui.enabled", "true")
-                .set("mapreduce.fileoutputcommitter.algorithm.version", "2")
-                .set("spark.sql.repl.eagerEval.enabled", "true");
+                .set("mapreduce.fileoutputcommitter.algorithm.version", "2");
 
         final SparkSession.Builder builder = SparkSession.builder().config(conf);
         builder.config("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
@@ -304,18 +298,23 @@ public class DistributedGraphComputer implements GraphComputer {
             final List<HasContainer> initialHasContainers = ComputerHelper.getInitialHasContainers(traversal.get());
 
             // TODO Configurable page size w/ ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE
+            // TODO: Ultimately reworking this logic so that we can distribute the partition to the spark workers to run a sindex again
+            // would probably be the best way to go
             final PartitionIterator.Builder builder = PartitionIterator.
                     build(this.graph).
                     containers(initialHasContainers).
                     partitionSize(10000);
-
             final List<Row> vertices = new ArrayList<>();
 
-
+            // Get traversal and apply strategies.
             final Traversal pureTraversal = traversal.getPure().asAdmin().clone();
             pureTraversal.asAdmin().applyStrategies();
+
+            // Get TraverseRequirements and TraverserGenerator, this will be useful later when we go to traverser based approach.
             final Set<TraverserRequirement> traverserRequirements = pureTraversal.asAdmin().getTraverserRequirements();
             final TraverserGenerator traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirements);
+
+            // If we give partition info to workers, this can go away.
             try (final PartitionIterator partitionIterator = builder.create()) {
                 while (partitionIterator.hasNext()) {
                     final Optional<CloseableIterator<FireflyVertex>> optional = partitionIterator.next();
@@ -332,6 +331,7 @@ public class DistributedGraphComputer implements GraphComputer {
                 }
             }
 
+            // Create basic schema.
             final StructType schema = new StructType()
                     .add(ID_STRING, DataTypes.StringType, false)
                     .add(ID_TYPEHINT_STRING, DataTypes.IntegerType, false)
@@ -343,90 +343,88 @@ public class DistributedGraphComputer implements GraphComputer {
                             DataTypes.createArrayType(DataTypes.BinaryType)), true)
                     .add(HALTED_STRING, DataTypes.BooleanType, false);
 
+            // Generate Dataset.
             Dataset<Row> df = spark.createDataFrame(vertices, schema);
-            df.show(false);
-            this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
 
-            System.out.println("Test0");
+            // Create necessary things for execution (Memory, ResultGraph, Config, etc.)
+            this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
             final DistributedMemory memory = new DistributedMemory(this.vertexProgram, this.mapReducers, new JavaSparkContext(spark.sparkContext()));
             final DistributedConfiguration vertexProgramConfiguration = new DistributedConfiguration();
             this.vertexProgram.storeState(vertexProgramConfiguration);
-            System.out.println("Test1");
             this.vertexProgram.setup(memory);
-            System.out.println("Test2");
+
+            // Broadcast spark context.
             memory.broadcastMemory(new JavaSparkContext(spark.sparkContext()));
-            System.out.println("Test3");
+
+            // Set results to initially empty.
             Dataset<Row> results = spark.emptyDataset(RowEncoder.apply(schema));
             while (true) {
-                System.out.println("!!!Results4: " + results.count());
                 if (Thread.interrupted()) {
+                    // If query is cancelled, cancel all spark jobs and throw an exception.
                     spark.sparkContext().cancelAllJobs();
                     throw new TraversalInterruptedException();
                 }
-                //System.out.println("Running partitions on " + df.rdd().getNumPartitions() + " partitions");
-                memory.setInExecute(true);
-                System.out.println("Running partition " + schema);
-                df.printSchema();
-                df = DistributedExecutor.execute(df, memory, configHelper, vertexProgramConfiguration, pureTraversal, schema);
-                df.foreach(row -> { });
-                Dataset<Row> halted = df.filter(org.apache.spark.sql.functions.col(HALTED_STRING).equalTo(true));
-                halted.foreach(row -> { });
 
-                // Explicitly reattach schema
+                // Set inExecute to true, execute the vertex program, and set inExecute to false.
+                memory.setInExecute(true);
+                df = DistributedExecutor.execute(df, memory, configHelper, vertexProgramConfiguration, pureTraversal, schema);
+                memory.setInExecute(false);
+
+                // Filter out halted vertices.
+                Dataset<Row> halted = df.filter(org.apache.spark.sql.functions.col(HALTED_STRING).equalTo(true));
+
+                // Filter out vertices that are not halted.
                 df = df.filter(org.apache.spark.sql.functions.col(HALTED_STRING).equalTo(false));
+
+                // Create new dataframe with schema (without reapplying schema there are issues).
                 df = spark.createDataFrame(df.rdd(), schema);
-                System.out.println("Halted size: " + halted.count());
-                halted.show(false);
                 if (!halted.isEmpty()) {
-                    System.out.println("Attaching halted to results");
+                    // Apply schema to halted vertices and union, then apply schema to results.
                     halted = spark.createDataFrame(halted.rdd(), schema);
                     results = results.union(halted);
                     results = spark.createDataFrame(results.rdd(), schema);
                 }
-                System.out.println("!!!Results: " + results.count());
 
-                // Intentionally do nothing here. Spark is lazy. Unless we force it to, it won't execute the above until data is requested.
-                // This is problematic b/c if we incr memory and get/set inExecute, state can be corrupted when data is actually pulled.
-                // Doing forEachPartition allows data to stay partitioned across nodes as opposed to being collected on driver.
-                df.show(false);
-                System.out.println("!!!Results5: " + results.count());
+                // Persist results.
                 results.persist();
-                System.out.println("Partition done");
-                memory.setInExecute(false);
-                System.out.println("!!!Results6: " + results.count());
+                // This is a workaround for the fact spark is lazy. This forces evaluation, without it none of the
+                // above actions would have actually executed yet and the below vertexProgram.terminate check will be
+                // erroneous.
+                results.count();
+
                 memory.set("gremlin.traversalVertexProgram.voteToHalt", true);
                 memory.set(ACTIVE_TRAVERSERS, new IndexedTraverserSet.VertexIndexedTraverserSet());
-                System.out.println("!!!Results8: " + results.count());
                 if (this.vertexProgram.terminate(memory)) {
                     // Need to be very careful with this stuff. Spark is LAZY. It doesn't execute unless forced, so if we incr at the wrong time there is problems.
                     memory.incrIteration();
-                    df.show(false);
-                    System.out.println("!!!Results2: " + results.count());
                     break;
                 } else {
-                    System.out.println("!!!Results7: " + results.count());
                     memory.incrIteration();
-                    System.out.println("!!!Results3: " + results.count());
                 }
                 df.show(false);
             }
-            System.out.println("!!!!!!!!!!RESULTS: " + results.count());
-            List<Row> rows = results.collectAsList();
+
+            // Collect results.
+            final List<Row> rows = results.collectAsList();
+
+            // Create traversers.
             final TraverserSet traversers = new TraverserSet();
-            // TODO: This should be removed.
             rows.stream().forEach(row -> {
                 final DistributedVertex vertex = new DistributedVertex(row, graph);
                 traversers.add(new B_O_Traverser<>(vertex, 1L));
             });
 
+            // Set all traversers as halted and complete memory.
             memory.set(HALTED_TRAVERSERS, traversers);
             memory.complete();
+
+            // Generate view and process result graph.
             final LocalGraphComputerView view = FireflyHelper.createGraphComputerView(this.graph,
                     this.graphFilter,
                     null != this.vertexProgram ? this.vertexProgram.getVertexComputeKeys() : Collections.emptySet());
-
             final Graph resultGraph = view.processResultGraphPersist(this.resultGraph, this.persist);
 
+            // Send result and memory to computer result.
             return CompletableFuture.completedFuture(new DefaultComputerResult(resultGraph, memory));
         } catch (final Exception e) {
             LOGGER.error("A global error occurred. Shutting down {}: {}", this, e.getMessage(), e);

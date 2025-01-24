@@ -7,6 +7,7 @@ import java.io.Serializable;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * Most of the Distributed* classes are adapted from the Spark* in TinkerPop from by Marko A. Rodriguez (http://markorodriguez.com)
  */
 public class DistributedAccumulator<A> extends AccumulatorV2<DistributedMemoryEntry<A>, DistributedMemoryEntry<A>> implements Serializable {
 

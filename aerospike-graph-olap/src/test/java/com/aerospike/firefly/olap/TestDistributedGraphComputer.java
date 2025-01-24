@@ -13,6 +13,7 @@ import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -37,6 +38,7 @@ public class TestDistributedGraphComputer {
             GraphHelper.cloneElements(tg, graph);
             System.out.println("!!!!!!!!!!!!Start");
             List<Vertex> output = graph.traversal().withComputer().V().has("name", "marko").out().toList();
+            Assert.assertEquals(3, output.size());
             System.out.println("!!!!!!!!!!!!end");
             System.out.println(output);
         }

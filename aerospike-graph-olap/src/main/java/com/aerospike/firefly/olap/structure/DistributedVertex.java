@@ -5,7 +5,6 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
-import com.aerospike.firefly.structure.id.LazyIdTransform;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromIndexedVertex;
@@ -18,9 +17,6 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
-import scala.Function1;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 import scala.collection.mutable.WrappedArray;
@@ -38,6 +34,7 @@ import java.util.stream.Collectors;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * Most of the Distributed* classes are adapted from the Spark* in TinkerPop from by Marko A. Rodriguez (http://markorodriguez.com)
  */
 // TODO: Should maybe make this detatchd however technically we have graph access in the contrusting class so attached is OK.
 public class DistributedVertex extends DistributedElement implements Vertex {

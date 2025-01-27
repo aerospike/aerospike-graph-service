@@ -285,6 +285,7 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
         }
         // define halted traversers
         final TraverserSet<Object> haltedTraversers = new TraverserSet<>();
+        // todo: used by local barriers
 //        final VertexProperty<TraverserSet<Object>> property = vertex.property(HALTED_TRAVERSERS);
 //        final TraverserSet<Object> haltedTraversers;
 //        if (property.isPresent()) {

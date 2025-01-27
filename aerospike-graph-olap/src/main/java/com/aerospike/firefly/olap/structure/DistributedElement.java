@@ -9,13 +9,14 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
  * Most of the Distributed* classes are adapted from the Spark* in TinkerPop from by Marko A. Rodriguez (http://markorodriguez.com)
  */
 public abstract class DistributedElement<V> implements Element {
-    static final String ID_STRING = "~id";
-    static final String ID_TYPEHINT_STRING = "~id_typehint";
-    static final String LABEL_STRING = "~label";
-    static final String PROPERTIES_STRING = "~properties";
-    static final String IN_STRING = "~in";
-    static final String OUT_STRING = "~out";
-    static final String HALTED_STRING = "~halted";
+    static final String ID_COL = "~id";
+    static final String ID_TYPEHINT_COL = "~id_typehint";
+    static final String LABEL_COL = "~label";
+    static final String PROPERTIES_COL = "~properties";
+    static final String IN_COL = "~in";
+    static final String OUT_COL = "~out";
+    static final String HALTED_COL = "~halted";
+    static final String REF_COL = "~ref";
 
     enum ID_TYPE {
         STRING,

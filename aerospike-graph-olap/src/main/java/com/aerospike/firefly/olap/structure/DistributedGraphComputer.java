@@ -4,19 +4,11 @@ import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.olap.config.DistributedConfiguration;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
-import com.aerospike.firefly.process.computer.local.LocalMemory;
-import com.aerospike.firefly.process.computer.local.LocalMessageBoard;
-import com.aerospike.firefly.process.computer.local.LocalMessenger;
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.FireflyHelper;
-import com.amazonaws.services.pinpoint.model.MessageBody;
-import com.google.gson.Gson;
-import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.MapPartitionsFunction;
-import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
@@ -29,16 +21,12 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.sql.SparkSession;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
-import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
-import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.VertexProgramStep;
-import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
-import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
@@ -83,13 +71,14 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
-import static com.aerospike.firefly.olap.structure.DistributedElement.HALTED_STRING;
-import static com.aerospike.firefly.olap.structure.DistributedElement.ID_STRING;
-import static com.aerospike.firefly.olap.structure.DistributedElement.ID_TYPEHINT_STRING;
-import static com.aerospike.firefly.olap.structure.DistributedElement.IN_STRING;
-import static com.aerospike.firefly.olap.structure.DistributedElement.LABEL_STRING;
-import static com.aerospike.firefly.olap.structure.DistributedElement.OUT_STRING;
-import static com.aerospike.firefly.olap.structure.DistributedElement.PROPERTIES_STRING;
+import static com.aerospike.firefly.olap.structure.DistributedElement.HALTED_COL;
+import static com.aerospike.firefly.olap.structure.DistributedElement.ID_COL;
+import static com.aerospike.firefly.olap.structure.DistributedElement.ID_TYPEHINT_COL;
+import static com.aerospike.firefly.olap.structure.DistributedElement.IN_COL;
+import static com.aerospike.firefly.olap.structure.DistributedElement.LABEL_COL;
+import static com.aerospike.firefly.olap.structure.DistributedElement.OUT_COL;
+import static com.aerospike.firefly.olap.structure.DistributedElement.PROPERTIES_COL;
+import static com.aerospike.firefly.olap.structure.DistributedElement.REF_COL;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.ACTIVE_TRAVERSERS;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
@@ -333,15 +322,16 @@ public class DistributedGraphComputer implements GraphComputer {
 
             // Create basic schema.
             final StructType schema = new StructType()
-                    .add(ID_STRING, DataTypes.StringType, false)
-                    .add(ID_TYPEHINT_STRING, DataTypes.IntegerType, false)
-                    .add(LABEL_STRING, DataTypes.StringType, true)
-                    .add(PROPERTIES_STRING, DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType, true))
-                    .add(IN_STRING, DataTypes.createMapType(DataTypes.StringType,
+                    .add(ID_COL, DataTypes.StringType, false)
+                    .add(ID_TYPEHINT_COL, DataTypes.IntegerType, false)
+                    .add(LABEL_COL, DataTypes.StringType, true)
+                    .add(PROPERTIES_COL, DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType, true))
+                    .add(IN_COL, DataTypes.createMapType(DataTypes.StringType,
                             DataTypes.createArrayType(DataTypes.BinaryType)), true)
-                    .add(OUT_STRING, DataTypes.createMapType(DataTypes.StringType,
+                    .add(OUT_COL, DataTypes.createMapType(DataTypes.StringType,
                             DataTypes.createArrayType(DataTypes.BinaryType)), true)
-                    .add(HALTED_STRING, DataTypes.BooleanType, false);
+                    .add(HALTED_COL, DataTypes.BooleanType, false)
+                    .add(REF_COL, DataTypes.BooleanType, false);
 
             // Generate Dataset.
             Dataset<Row> df = spark.createDataFrame(vertices, schema);
@@ -371,10 +361,10 @@ public class DistributedGraphComputer implements GraphComputer {
                 memory.setInExecute(false);
 
                 // Filter out halted vertices.
-                Dataset<Row> halted = df.filter(org.apache.spark.sql.functions.col(HALTED_STRING).equalTo(true));
+                Dataset<Row> halted = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true));
 
                 // Filter out vertices that are not halted.
-                df = df.filter(org.apache.spark.sql.functions.col(HALTED_STRING).equalTo(false));
+                df = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false));
 
                 // Create new dataframe with schema (without reapplying schema there are issues).
                 df = spark.createDataFrame(df.rdd(), schema);
@@ -458,6 +448,7 @@ public class DistributedGraphComputer implements GraphComputer {
                 vertex.getRawVertexStringPropertyValues(),
                 vertex.getCachedIdMap(Direction.IN),
                 vertex.getCachedIdMap(Direction.OUT),
+                false,
                 false);
     }
 

@@ -52,7 +52,6 @@ public class DistributedMessenger<M> implements Messenger<M> {
 
     @Override
     public void sendMessage(final MessageScope messageScope, final M message) {
-        System.out.println("!!!!SEND");
         if (messageScope instanceof MessageScope.Local) {
             final MessageScope.Local<M> localMessageScope = (MessageScope.Local) messageScope;
             final Traversal.Admin<Vertex, Edge> incidentTraversal = DistributedMessenger.setVertexStart(localMessageScope.getIncidentTraversal().get().asAdmin(), this.vertex);

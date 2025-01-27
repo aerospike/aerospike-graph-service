@@ -31,7 +31,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.olap.structure.DistributedElement.HALTED_STRING;
+import static com.aerospike.firefly.olap.structure.DistributedElement.HALTED_COL;
+import static com.aerospike.firefly.olap.structure.DistributedElement.REF_COL;
 import static com.aerospike.firefly.olap.structure.DistributedGraphComputer.getIdType;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.ACTIVE_TRAVERSERS;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
@@ -71,15 +72,39 @@ public class DistributedExecutor {
                 final DistributedMessenger<TraverserSet<Vertex>> messenger = new DistributedMessenger<>();
 
                 // Loop through input rows, transform to vertices, and execute workerVertexProgram.
+                final List<Vertex> incomingVertices = new ArrayList<>();
+                final List<FireflyId> ffids = new ArrayList<>();
                 while (iterator.hasNext()) {
                     final Row r = iterator.next();
-                    if ((Boolean) r.get(r.fieldIndex(HALTED_STRING))) {
+                    if ((Boolean) r.get(r.fieldIndex(HALTED_COL))) {
+                        // TODO: Maybe should assert. This would be a logic error.
                         output.add(r);
-                        continue;
+                    } else if ((Boolean) r.get(r.fieldIndex(REF_COL))) {
+                        final Object id = r.get(0);
+                        final DistributedElement.ID_TYPE idType = DistributedElement.ID_TYPE.values()[(int) r.get(1)];
+                        final FireflyId fireflyId;
+                        if (idType.equals(DistributedElement.ID_TYPE.STRING)) {
+                            fireflyId = graph.getIdFactory().createVertexId(id);
+                        } else if (idType.equals(DistributedElement.ID_TYPE.INTEGER)) {
+                            fireflyId = graph.getIdFactory().createVertexId(Integer.parseInt((String) id));
+                        } else if (idType.equals(DistributedElement.ID_TYPE.LONG)) {
+                            fireflyId = graph.getIdFactory().createVertexId(Long.parseLong((String) id));
+                        } else {
+                            throw new IllegalArgumentException("Only string int and long ids are supported in olap");
+                        }
+                        ffids.add(fireflyId);
+                    } else {
+                        final DistributedVertex vertex = new DistributedVertex(r, graph);
+                        incomingVertices.add(vertex);
                     }
-                    final DistributedVertex vertex = new DistributedVertex(r, graph);
-                    workerVertexProgram.execute(vertex, messenger, memory);
+                }
+                if (!ffids.isEmpty()) {
+                    final List<FireflyVertex> otherVertices = graph.readVertices(List.of(), ffids, null);
+                    incomingVertices.addAll(otherVertices);
+                }
 
+                for (final Vertex vertex : incomingVertices) {
+                    workerVertexProgram.execute(vertex, messenger, memory);
                 }
 
                 // End worker iteration.
@@ -88,21 +113,14 @@ public class DistributedExecutor {
                 // Set memory is not in execute.
                 memory.setInExecute(false);
 
-                // TODO: This logic should be simplified down.
+                // TODO: Is this correct for all cases ?
                 final List<Tuple2<Object, TraverserSet<Vertex>>> msgs = messenger.getOutgoingMessages();
-                final List<FireflyId> ids = new ArrayList<>();
-                final Map<String, Boolean> haltedMap = new HashMap<>();
                 for (Tuple2<Object, TraverserSet<Vertex>> msg : msgs) {
                     if (msg._2.element().get() instanceof ReferenceVertex) {
-                        msg._2.forEach(v -> ids.add(graph.getIdFactory().createVertexId(v.get().id().toString())));
-                        msg._2.forEach(v -> haltedMap.put(v.get().id().toString(), v.isHalted()));
+                        msg._2.forEach(v -> output.add(createRow((ReferenceVertex)v.get(), v.isHalted())));
+                    } else if (msg._2.element().get() instanceof FireflyVertex) {
+                        msg._2.forEach(v -> output.add(createRow((FireflyVertex) v.get(), v.isHalted())));
                     }
-                }
-
-                // TODO: Ideally we can do something better than reading all vertices here.
-                final List<FireflyVertex> vertices2 = graph.readVertices(List.of(), ids, null);
-                for (final FireflyVertex vv : vertices2) {
-                    output.add(createRow(vv, haltedMap.get(vv.id().toString())));
                 }
 
                 // Return results.
@@ -114,6 +132,19 @@ public class DistributedExecutor {
         }, RowEncoder.apply(schema));
     }
 
+    private static Row createRow(final ReferenceVertex vertex, final boolean halted) {
+        final DistributedElement.ID_TYPE idType;
+        final Object id = vertex.id();
+        if (id instanceof String) {
+            idType = DistributedElement.ID_TYPE.STRING;
+        } else if (id instanceof Integer) {
+            idType = DistributedElement.ID_TYPE.INTEGER;
+        } else {
+            idType = DistributedElement.ID_TYPE.LONG;
+        }
+        return RowFactory.create(vertex.id().toString(), idType.ordinal(), vertex.label(), null, null, null, halted, true);
+    }
+
     private Row createRow(final DistributedVertex vertex) {
         return RowFactory.create(
                 vertex.id,
@@ -122,42 +153,34 @@ public class DistributedExecutor {
                 vertex.getScalaProperties(),
                 vertex.getScalaEdges(Direction.IN),
                 vertex.getScalaEdges(Direction.OUT));
-        //         return RowFactory.create(
-        //                vertex.id().toString(),
-        //                getIdType(vertex.id()).ordinal(),
-        //                vertex.label(),
-        //                vertex.getRawVertexStringPropertyValues(),
-        //                vertex.getCachedIdMap(Direction.IN),
-        //                vertex.getCachedIdMap(Direction.OUT));
     }
 
 
+    public static Row createRow(final FireflyVertex vertex, Boolean halted) {
+        //final TraverserGenerator generator = traversal.asAdmin().getTraverserGenerator();
+        // TODO: Make a better format, stringifying these is going to be slow.
+        scala.collection.mutable.Map<String, String> properties = JavaConverters.mapAsScalaMap(vertex.getRawVertexStringPropertyValues());
+        final Map<String, List<byte[]>> inEdgesJava = vertex.getCachedIdMap(Direction.IN);
+        final Map<String, Seq<byte[]>> inEdgesScala = new HashMap<>();
+        for (final String label : inEdgesJava.keySet()) {
+            inEdgesScala.put(label, JavaConverters.asScalaBuffer(inEdgesJava.get(label)));
+        }
+        final Map<String, List<byte[]>> outEdgesJava = vertex.getCachedIdMap(Direction.OUT);
+        final Map<String, Seq<byte[]>> outEdgesScala = new HashMap<>();
+        for (final String label : outEdgesJava.keySet()) {
+            outEdgesScala.put(label, JavaConverters.asScalaBuffer(outEdgesJava.get(label)));
+        }
+        scala.collection.mutable.Map<String, Seq<byte[]>> inEdges = JavaConverters.mapAsScalaMap(inEdgesScala);
+        scala.collection.mutable.Map<String, Seq<byte[]>> outEdges = JavaConverters.mapAsScalaMap(outEdgesScala);
 
-        public static Row createRow(final FireflyVertex vertex, Boolean halted) {
-            //final TraverserGenerator generator = traversal.asAdmin().getTraverserGenerator();
-            // TODO: Make a better format, stringifying these is going to be slow.
-            scala.collection.mutable.Map<String, String> properties = JavaConverters.mapAsScalaMap(vertex.getRawVertexStringPropertyValues());
-            final Map<String, List<byte[]>> inEdgesJava = vertex.getCachedIdMap(Direction.IN);
-            final Map<String, Seq<byte[]>> inEdgesScala = new HashMap<>();
-            for (final String label : inEdgesJava.keySet()) {
-                inEdgesScala.put(label, JavaConverters.asScalaBuffer(inEdgesJava.get(label)));
-            }
-            final Map<String, List<byte[]>> outEdgesJava = vertex.getCachedIdMap(Direction.OUT);
-            final Map<String, Seq<byte[]>> outEdgesScala = new HashMap<>();
-            for (final String label : outEdgesJava.keySet()) {
-                outEdgesScala.put(label, JavaConverters.asScalaBuffer(outEdgesJava.get(label)));
-            }
-            scala.collection.mutable.Map<String, Seq<byte[]>> inEdges = JavaConverters.mapAsScalaMap(inEdgesScala);
-            scala.collection.mutable.Map<String, Seq<byte[]>> outEdges = JavaConverters.mapAsScalaMap(outEdgesScala);
-
-            return RowFactory.create(
-                    vertex.id().toString(),
-                    getIdType(vertex.id()).ordinal(),
-                    vertex.label(),
-                    properties,
-                    inEdges,
-                    outEdges,
-                    halted);
+        return RowFactory.create(
+                vertex.id().toString(),
+                getIdType(vertex.id()).ordinal(),
+                vertex.label(),
+                properties,
+                inEdges,
+                outEdges,
+                halted);
 
     }
 

@@ -600,10 +600,19 @@ public class AerospikeConnection implements AutoCloseable {
         int onRecordIdLimit;
         try {
             onRecordIdLimit = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf);
+            if (MRT_ENABLED && onRecordIdLimit > 1023) {
+                LOG.warn("The provided value for '{}' could not be used and has been instead set to the maximum allowed value of 1023 for when '{}' is set as true.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, MRT_ENABLED_FLAG);
+            }
         } catch (final ConfigurationRuntimeException ignored) {
             // If it was not manually configured, dynamically adjust it relative to the max-record-size configuration of Aerospike
             final long onRecordIdDefaultLimit = getRecordIdLimitFromAerospike(.45);
             onRecordIdLimit = onRecordIdDefaultLimit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) onRecordIdDefaultLimit;
+        }
+
+        // MRT operation can handle only 4096 records, so for Vertex drop we can touch no more than 1023 edges
+        // (1023*2*2+1) < 4096
+        if (MRT_ENABLED && onRecordIdLimit > 1023) {
+            onRecordIdLimit = 1023;
         }
         LOG.info("{} configured to {}.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, onRecordIdLimit);
         ON_RECORD_ID_LIMIT = onRecordIdLimit;

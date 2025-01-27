@@ -317,7 +317,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 final int queryTracingSamplePercent = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_SAMPLE_PERCENT, conf);
                 final String queryTracingLogHost = ConfigurationHelper.getOrDefaultString(QUERY_TRACING_LOG_HOST, conf);
                 final int queryTracingLogPort = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_LOG_PORT, conf);
-                this.zipkinExporter = OpenTelemetryZipkinExporter.create(queryTracingLogHost,
+                this.zipkinExporter = OpenTelemetryZipkinExporter.create(db.GRAPH_ID, queryTracingLogHost,
                         queryTracingLogPort, queryTracingMinMillis, queryTracingSamplePercent);
             }
         }

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process;
 
+import com.aerospike.firefly.process.computer.local.LocalGraphComputer;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.AbstractFireflySuite;
@@ -11,6 +12,7 @@ import org.apache.tinkerpop.gremlin.FeatureRequirementSet;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.TestHelper;
+import org.apache.tinkerpop.gremlin.process.computer.Computer;
 import org.apache.tinkerpop.gremlin.process.traversal.IO;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
@@ -42,6 +44,7 @@ import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONResourceAccess
 import org.apache.tinkerpop.gremlin.structure.io.gryo.GryoResourceAccess;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
+import org.apache.tinkerpop.gremlin.tinkergraph.process.computer.TinkerGraphComputer;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.hamcrest.MatcherAssert;
@@ -132,6 +135,28 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             stringBuilder.append(CHARACTERS.charAt(idx));
         }
         RANDOM_STRING = stringBuilder.toString();
+    }
+
+    @Test
+    public void olap() throws InterruptedException {
+        Graph tg = TinkerFactory.createModern();
+
+        GraphHelper.cloneElements(tg, graph);
+
+        Computer computer = Computer.compute(LocalGraphComputer.class).workers(2);
+
+        List c0 = g.withComputer(computer)
+                .V(1, 2)
+                .out()
+                .toList();
+        System.out.println(c0);
+    }
+
+    @Test
+    public void req() {
+        var t = g.V(1,2).out().path();
+        t.asAdmin().applyStrategies();
+        System.out.println(t.asAdmin().getTraverserRequirements());
     }
 
     @Test

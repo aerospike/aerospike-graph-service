@@ -2,6 +2,7 @@ package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyOtherVBatchReadStep;
+import com.aerospike.firefly.process.traversal.step.computer.FireflyOtherVBatchReadStepLocal;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -35,8 +36,8 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
             return;
         }
 
-        if (ComputerHelper.onGraphComputer(traversal))
-            return;
+//        if (ComputerHelper.onGraphComputer(traversal))
+//            return;
 
         final List<Step> steps = traversal.getSteps();
 
@@ -83,11 +84,20 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
                 }
             }
 
-            final FireflyOtherVBatchReadStep optimizedStep = new FireflyOtherVBatchReadStep(
-                    traversal,
-                    hasContainers,
-                    labels,
-                    graph.getBaseGraph().MOVEMENT_BARRIER_SIZE);
+            final Step<?, ?> optimizedStep;
+            if (ComputerHelper.onGraphComputer(traversal)) {
+                optimizedStep = new FireflyOtherVBatchReadStepLocal(
+                        traversal,
+                        hasContainers,
+                        labels,
+                        null); // todo: verify !!!
+            } else {
+                optimizedStep = new FireflyOtherVBatchReadStep(
+                        traversal,
+                        hasContainers,
+                        labels,
+                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE);
+            }
 
             TraversalHelper.replaceStep(original, optimizedStep, traversal);
         }

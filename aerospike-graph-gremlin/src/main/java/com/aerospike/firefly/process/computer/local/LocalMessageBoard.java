@@ -2,6 +2,7 @@ package com.aerospike.firefly.process.computer.local;
 
 import org.apache.tinkerpop.gremlin.process.computer.MessageScope;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.ArrayList;
@@ -12,11 +13,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-/**
- * @author Marko A. Rodriguez (http://markorodriguez.com)
- */
 public class LocalMessageBoard<M> {
 
     public Map<MessageScope, Map<Vertex, Queue<M>>> sendMessages = new ConcurrentHashMap<>();
@@ -31,7 +28,7 @@ public class LocalMessageBoard<M> {
         this.currentMessageScopes = new HashSet<>();
     }
 
-    public List<Vertex> getVerticesWithActiveTraversers() {
+    public List<Vertex> getVerticesWithTraversers() {
         final List<Vertex> result = new ArrayList<>();
         for (final MessageScope messageScope : sendMessages.keySet()) {
             if (messageScope instanceof MessageScope.Local) {
@@ -39,12 +36,53 @@ public class LocalMessageBoard<M> {
             }
 
             final Map<Vertex, Queue<M>> messages = sendMessages.get(messageScope);
-            final List allMessages = Stream.of(messages.keySet())
-                    .filter(q -> messages.get(q) != null && messages.get(q).stream().anyMatch(t -> !((Traverser.Admin) t).isHalted()))
-                    .flatMap(q -> q.stream())
+            final List allMessages = messages.keySet().stream()
+                    .filter(q -> messages.get(q) != null
+                            // && messages.get(q).stream().anyMatch(ts -> ((TraverserSet) ts).stream().anyMatch(t -> !((Traverser.Admin) t).isHalted())))
+                            && messages.get(q).stream().anyMatch(ts -> !((TraverserSet) ts).isEmpty()))
                     .collect(Collectors.toList());
 
             result.addAll(allMessages);
+        }
+        return result;
+    }
+
+    public TraverserSet getActiveTraversers() {
+        final TraverserSet result = new TraverserSet();
+        for (final MessageScope messageScope : sendMessages.keySet()) {
+            if (messageScope instanceof MessageScope.Local) {
+                continue;
+            }
+
+            final Map<Vertex, Queue<M>> messages = sendMessages.get(messageScope);
+            final List halted = (List) messages.keySet().stream()
+                    .filter(q -> messages.get(q) != null)
+                    .flatMap(q -> messages.get(q).stream())
+                    .flatMap(ts -> ((TraverserSet) ts).stream())
+                    .filter(t -> !((Traverser.Admin) t).isHalted())
+                    .collect(Collectors.toList());
+
+            result.addAll(halted);
+        }
+        return result;
+    }
+
+    public List<Traverser> getHaltedTraversers() {
+        final List<Traverser> result = new ArrayList<>();
+        for (final MessageScope messageScope : receiveMessages.keySet()) {
+            if (messageScope instanceof MessageScope.Local) {
+                continue;
+            }
+
+            final Map<Vertex, Queue<M>> messages = receiveMessages.get(messageScope);
+            final List halted = (List) messages.keySet().stream()
+                    .filter(q -> messages.get(q) != null)
+                    .flatMap(q -> messages.get(q).stream())
+                    .flatMap(ts -> ((TraverserSet) ts).stream())
+                    .filter(t -> ((Traverser.Admin) t).isHalted())
+                    .collect(Collectors.toList());
+
+            result.addAll(halted);
         }
         return result;
     }

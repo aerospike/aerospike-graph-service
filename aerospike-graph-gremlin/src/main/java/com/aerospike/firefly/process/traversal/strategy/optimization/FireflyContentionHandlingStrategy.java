@@ -26,7 +26,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
     private final FireflyStrategyBase fireflyReadThroughCacheStrategy;
     private final FireflyStrategyBase fireflyVertexEdgeLocalCountStrategy;
     private final FireflyStrategyBase fireflyScanProfileStrategy;
-    private final FireflyStrategyBase fireflyAuthenticationStrategy;
+    //private final FireflyStrategyBase fireflyAuthenticationStrategy;
     private final FireflyStrategyBase fireflyAdjacentVertexIdStrategy;
     private final FireflyStrategyBase fireflyBatchOtherVReadStrategy;
     private final FireflyStrategyBase fireflyEdgeToVertexBatchReadStrategy;
@@ -48,7 +48,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         this.fireflyReadThroughCacheStrategy = new FireflyReadThroughCacheStrategy();
         this.fireflyVertexEdgeLocalCountStrategy = new FireflyVertexEdgeLocalCountStrategy();
         this.fireflyScanProfileStrategy = new FireflyScanProfileStrategy();
-        this.fireflyAuthenticationStrategy = new FireflyAuthenticationStrategy();
+        //this.fireflyAuthenticationStrategy = new FireflyAuthenticationStrategy();
         this.fireflyCompositeEdgeIdLocalStrategy = new FireflyCompositeEdgeIdLocalStrategy();
         this.fireflyBatchEdgeReadLocalStrategy = new FireflyBatchEdgeReadLocalStrategy();
         this.fireflyCountGlobalLocalStrategy = new FireflyCountGlobalLocalStrategy();
@@ -100,7 +100,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         applyTinkerPopStrategy(traversal, LambdaRestrictionStrategy.instance());
 
         // Perform auth strategy before we mutate anything.
-        applyStrategy(traversal, fireflyAuthenticationStrategy);
+        // applyStrategy(traversal, fireflyAuthenticationStrategy);
 
         // Steps that override the entire step list first.
         applyStrategy(traversal, fireflyGraphDropStrategy);

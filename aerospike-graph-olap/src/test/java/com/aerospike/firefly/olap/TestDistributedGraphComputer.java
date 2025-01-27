@@ -1,5 +1,6 @@
 package com.aerospike.firefly.olap;
 
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -40,6 +41,14 @@ public class TestDistributedGraphComputer {
             Assert.assertEquals(3, output.size());
             System.out.println(output);
         }
+    }
+
+    @Test
+    public void testConfig() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            System.out.println("Config: " + AerospikeConnection.InfoOps.getMaxParallelSindexes(graph.getBaseGraph(), graph.getBaseGraph().namespace));
+        }
+
     }
 
     @Test

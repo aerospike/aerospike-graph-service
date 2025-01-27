@@ -818,6 +818,8 @@ public class AerospikeConnection implements AutoCloseable {
         private static final String QUERY_ABORT_RESULT = "result";
         private static final String QUERY_ABORT_SUCCESS = "OK";
         private static final String QUERY_ABORT_TRID_INACTIVE = "trid-not-active";
+        private static final String QUERY_THREADS_LIMIT = "query-threads-limit";
+        private static final String SINGLE_QUERY_THREADS = "single-query-threads";
 
         //Parse the whole infoResponse and return it as a List of Maps
         public static List<Map<String, String>> parseRaw(final String infoResponse) {
@@ -933,6 +935,34 @@ public class AerospikeConnection implements AutoCloseable {
                     }
                 }
                 return indexList;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        public static int getMaxParallelSindexes(final AerospikeConnection db, final String namespace) {
+            final String requestKey = Keys.GET_CONFIG + namespace;
+            int maxParallelSindexes = Integer.MAX_VALUE;
+
+            try {
+                final IAerospikeClient client = db.client;
+                for (final Node node : client.getNodes()) {
+                    LOG.debug("Info.request: {}", requestKey);
+                    final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
+                    final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
+                    int queryThreadsLimit = 128; // https://aerospike.com/docs/server/reference/configuration#service__query-threads-limit
+                    int singleQueryThreads = 4; // https://aerospike.com/docs/server/reference/configuration#namespace__single-query-threads
+                    for (final Map<String, String> config : listOfConfigs) {
+                        if (config.containsKey(QUERY_THREADS_LIMIT)) {
+                            queryThreadsLimit = Integer.parseInt(config.get(QUERY_THREADS_LIMIT));
+                        }
+                        if (config.containsKey(SINGLE_QUERY_THREADS)) {
+                            singleQueryThreads = Integer.parseInt(config.get(SINGLE_QUERY_THREADS));
+                        }
+                        maxParallelSindexes = Math.min(maxParallelSindexes, queryThreadsLimit / singleQueryThreads);
+                    }
+                }
+                return maxParallelSindexes;
             } catch (final AerospikeException e) {
                 throw fromAerospikeException(e);
             }

@@ -289,6 +289,13 @@ public class DistributedGraphComputer implements GraphComputer {
             // TODO Configurable page size w/ ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE
             // TODO: Ultimately reworking this logic so that we can distribute the partition to the spark workers to run a sindex again
             // would probably be the best way to go
+
+            // TODO https://aerospike.com/docs/server/reference/configuration#namespace__background-query-max-rps - We might want to jack this up for OLAP.
+            // TODO: Partitions pull data directly.
+            // final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace);
+            // final Dataset<Row> initialDataset = getInitialDataset(maxParallelSindexes, initialHasContainers);
+
+
             final PartitionIterator.Builder builder = PartitionIterator.
                     build(this.graph).
                     containers(initialHasContainers).
@@ -496,5 +503,61 @@ public class DistributedGraphComputer implements GraphComputer {
         }
 
         throw new IllegalStateException("The provided traverser generator factory does not support the requirements of the traversal: " + this.getClass().getCanonicalName() + requirements);
+    }
+
+    public static String PARTITION_START_COL = "partition_start";
+    public static String PARTITION_COUNT_COL = "partition_count";
+
+    private Dataset<Row> getInitialDataset(final int maxParallelQueries, final List<HasContainer> hasContainers) {
+        // Create basic schema.
+        final StructType sindexSchema = new StructType()
+                .add(PARTITION_START_COL, DataTypes.IntegerType, false)
+                .add(PARTITION_COUNT_COL, DataTypes.IntegerType, false);
+
+        // Leave some space.
+        // Should assert maxParallelQueries > ??
+        List<Range> ranges = Range.splitPartitions(4096, maxParallelQueries - 10);
+        final List<Row> rows = new ArrayList<>();
+        for (Range range : ranges) {
+            rows.add(RowFactory.create(range.start, range.count));
+        }
+        return spark.createDataFrame(rows, sindexSchema);
+    }
+
+
+
+    static class Range {
+        private final int start;
+        private final int count;
+
+        public Range(final int start, final int count) {
+            this.start = start;
+            this.count = count;
+        }
+
+        public static List<Range> splitPartitions(int totalPartitions, int numberOfWorkers) {
+            final List<Range> ranges = new ArrayList<>();
+            final int partitionsPerWorker = totalPartitions / numberOfWorkers;
+            int remainder = totalPartitions % numberOfWorkers;
+
+            int count;
+            for (int start = 0; start < totalPartitions; start+=count) {
+                count = partitionsPerWorker;
+
+                // Distribute the remainder
+                if (remainder > 0) {
+                    count++;
+                    remainder--;
+                }
+                ranges.add(new Range(start, count));
+            }
+
+            return ranges;
+        }
+
+        @Override
+        public String toString() {
+            return "[" + start + " - " + (start + count - 1) + "]";
+        }
     }
 }

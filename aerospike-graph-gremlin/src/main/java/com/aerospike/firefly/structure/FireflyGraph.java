@@ -232,6 +232,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         synchronized (TraversalStrategies.GlobalCache.class) {
             TraversalStrategies.GlobalCache.registerStrategies(
                     FireflyGraph.class, TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
+                            .addStrategies(new FireflyContentionHandlingStrategy())
                             .addStrategies(OptionsStrategy.build().create()));
         }
     }

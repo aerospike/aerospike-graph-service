@@ -23,6 +23,7 @@ import java.util.List;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyGraphStepStrategy extends FireflyStrategyBase {
+
     /**
      * Default constructor for FireflyGraphStepStrategy.
      */

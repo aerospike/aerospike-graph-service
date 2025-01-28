@@ -62,12 +62,12 @@ public class DistributedVertex extends DistributedElement implements Vertex {
 
     public DistributedVertex(final Row row, final FireflyGraph graph) {
         // Minor optimization would be to use scala maps directly here.
-        super((String) row.get(row.fieldIndex(ID_COL)),
-                (Integer) row.get(row.fieldIndex(ID_TYPEHINT_COL)),
-                (String) row.get(row.fieldIndex(LABEL_COL)));
-        this.properties = (scala.collection.immutable.Map) row.get(row.fieldIndex(PROPERTIES_COL));
-        this.inEdges = (scala.collection.immutable.Map) row.get(row.fieldIndex(IN_COL));
-        this.outEdges = (scala.collection.immutable.Map) row.get(row.fieldIndex(OUT_COL));
+        super((String) row.get(row.fieldIndex(DistributedCodec.ID_COL)),
+                (Integer) row.get(row.fieldIndex(DistributedCodec.ID_TYPEHINT_COL)),
+                (String) row.get(row.fieldIndex(DistributedCodec.LABEL_COL)));
+        this.properties = (scala.collection.immutable.Map) row.get(row.fieldIndex(DistributedCodec.PROPERTIES_COL));
+        this.inEdges = (scala.collection.immutable.Map) row.get(row.fieldIndex(DistributedCodec.IN_COL));
+        this.outEdges = (scala.collection.immutable.Map) row.get(row.fieldIndex(DistributedCodec.OUT_COL));
         this.graph = graph;
         this.db = graph.getBaseGraph();
         this.isEdgeCacheOverflowed = false; // TODO.

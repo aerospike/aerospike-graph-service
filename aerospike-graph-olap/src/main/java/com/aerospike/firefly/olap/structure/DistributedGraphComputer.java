@@ -11,8 +11,6 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Encoder;
-import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
@@ -31,9 +29,7 @@ import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
-import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_P_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_S_SE_SL_TraverserGenerator;
@@ -51,8 +47,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.NL_O_OB_S_SE_SL_
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.O_OB_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTraverserGeneratorFactory;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.EmptyTraverser;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.IndexedTraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
@@ -77,18 +71,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
-import java.util.logging.Level;
 
-import static com.aerospike.firefly.olap.structure.DistributedElement.HALTED_COL;
-import static com.aerospike.firefly.olap.structure.DistributedElement.ID_COL;
-import static com.aerospike.firefly.olap.structure.DistributedElement.ID_TYPEHINT_COL;
-import static com.aerospike.firefly.olap.structure.DistributedElement.IN_COL;
-import static com.aerospike.firefly.olap.structure.DistributedElement.LABEL_COL;
-import static com.aerospike.firefly.olap.structure.DistributedElement.OUT_COL;
-import static com.aerospike.firefly.olap.structure.DistributedElement.PROPERTIES_COL;
-import static com.aerospike.firefly.olap.structure.DistributedElement.REF_COL;
-import static com.aerospike.firefly.olap.structure.DistributedElement.STEP_COL;
-import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.ACTIVE_TRAVERSERS;
+import static com.aerospike.firefly.olap.structure.DistributedCodec.HALTED_COL;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
@@ -330,30 +314,15 @@ public class DistributedGraphComputer implements GraphComputer {
                         try (final CloseableIterator<FireflyVertex> vertexIterator = optional.get()) {
                             while (vertexIterator.hasNext()) {
                                 final FireflyVertex vertex = vertexIterator.next();
-                                vertices.add(createRow(vertex, secondStep));
+                                vertices.add(DistributedCodec.encode(vertex, secondStep.getId()));
                             }
                         }
                     }
                 }
             }
 
-            //Encoder<Traverser> encoder = Encoders.bean(Traverser.class);
-            //Dataset<Traverser> dataset = spark.createDataset(List.of(EmptyTraverser.instance()), encoder);
-            //Dataset<Row> df = dataset.toDF();
-
             // Create basic schema.
-            final StructType schema = new StructType()
-                    .add(ID_COL, DataTypes.StringType, false)
-                    .add(ID_TYPEHINT_COL, DataTypes.IntegerType, false)
-                    .add(LABEL_COL, DataTypes.StringType, true)
-                    .add(PROPERTIES_COL, DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType, true))
-                    .add(IN_COL, DataTypes.createMapType(DataTypes.StringType,
-                            DataTypes.createArrayType(DataTypes.BinaryType)), true)
-                    .add(OUT_COL, DataTypes.createMapType(DataTypes.StringType,
-                            DataTypes.createArrayType(DataTypes.BinaryType)), true)
-                    .add(HALTED_COL, DataTypes.BooleanType, false)
-                    .add(REF_COL, DataTypes.BooleanType, false)
-                    .add(STEP_COL, DataTypes.StringType, false);
+            final StructType schema = DistributedCodec.schema();
 
             // Generate Dataset.
             Dataset<Row> df = spark.createDataFrame(vertices, schema);
@@ -438,9 +407,9 @@ public class DistributedGraphComputer implements GraphComputer {
 
             // Create traversers.
             final TraverserSet traversers = new TraverserSet();
+            final TraversalMatrix traversalMatrix = new TraversalMatrix<>(pureTraversal.asAdmin());
             rows.stream().forEach(row -> {
-                final DistributedVertex vertex = new DistributedVertex(row, graph);
-                traversers.add(new B_O_Traverser<>(vertex, 1L));
+                traversers.add(DistributedCodec.decode(row, traverserGenerator, traversalMatrix).asAdmin());
             });
 
             // Set all traversers as halted and complete memory.
@@ -461,34 +430,17 @@ public class DistributedGraphComputer implements GraphComputer {
         }
     }
 
-    public static DistributedElement.ID_TYPE getIdType(final Object id) {
+    public static DistributedCodec.ID_TYPE getIdType(final Object id) {
         if (id instanceof Long) {
-            return DistributedElement.ID_TYPE.LONG;
+            return DistributedCodec.ID_TYPE.LONG;
         } else if (id instanceof Integer) {
-            return DistributedElement.ID_TYPE.INTEGER;
+            return DistributedCodec.ID_TYPE.INTEGER;
         } else if (id instanceof  String) {
-            return DistributedElement.ID_TYPE.STRING;
+            return DistributedCodec.ID_TYPE.STRING;
         } else {
             // TODO.
             throw new IllegalArgumentException("Only Long string and integer types can be serialized at this time.");
         }
-    }
-
-    public static Row createRow(final FireflyVertex vertex,
-                                final Step<?, ?> step) {
-        //final TraverserGenerator generator = traversal.asAdmin().getTraverserGenerator();
-        // TODO: Make a better format, stringifying these is going to be slow.
-
-        return RowFactory.create(
-                vertex.id().toString(),
-                getIdType(vertex.id()).ordinal(),
-                vertex.label(),
-                vertex.getRawVertexStringPropertyValues(),
-                vertex.getCachedIdMap(Direction.IN),
-                vertex.getCachedIdMap(Direction.OUT),
-                false,
-                false,
-                step.getId());
     }
 
 

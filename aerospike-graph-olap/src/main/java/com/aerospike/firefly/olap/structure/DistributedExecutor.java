@@ -6,7 +6,6 @@ import com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram;
 import com.aerospike.firefly.process.computer.local.LocalMessageBoard;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
 import org.apache.spark.sql.Dataset;
@@ -20,18 +19,15 @@ import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexPr
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTraverserGeneratorFactory;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Tuple2;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
@@ -42,10 +38,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.olap.structure.DistributedElement.HALTED_COL;
-import static com.aerospike.firefly.olap.structure.DistributedElement.LABEL_COL;
-import static com.aerospike.firefly.olap.structure.DistributedElement.REF_COL;
-import static com.aerospike.firefly.olap.structure.DistributedElement.STEP_COL;
+import static com.aerospike.firefly.olap.structure.DistributedCodec.HALTED_COL;
+import static com.aerospike.firefly.olap.structure.DistributedCodec.LABEL_COL;
+import static com.aerospike.firefly.olap.structure.DistributedCodec.STEP_COL;
 import static com.aerospike.firefly.olap.structure.DistributedGraphComputer.getIdType;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.ACTIVE_TRAVERSERS;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
@@ -95,28 +90,7 @@ public class DistributedExecutor {
                 final TraverserSet<Object> traverserSet = new TraverserSet<>();
                 while (iterator.hasNext()) {
                     final Row r = iterator.next();
-                    System.out.println("!!!! It: " + r.get(r.fieldIndex(HALTED_COL)));
-                    if ((Boolean) r.get(r.fieldIndex(HALTED_COL))) {
-                        // TODO: Maybe should assert. This would be a logic error.
-                        output.add(r);
-                    } else {
-                        final Object id = r.get(0);
-                        final DistributedElement.ID_TYPE idType = DistributedElement.ID_TYPE.values()[(int) r.get(1)];
-                        final ReferenceVertex vertex;
-                        if (idType.equals(DistributedElement.ID_TYPE.STRING)) {
-                            vertex = new ReferenceVertex(id, (String) r.get(r.fieldIndex(LABEL_COL)));
-                        } else if (idType.equals(DistributedElement.ID_TYPE.INTEGER)) {
-                            vertex = new ReferenceVertex(Integer.parseInt((String) id), (String) r.get(r.fieldIndex(LABEL_COL)));
-                        } else if (idType.equals(DistributedElement.ID_TYPE.LONG)) {
-                            vertex = new ReferenceVertex(Long.parseLong((String) id), (String) r.get(r.fieldIndex(LABEL_COL)));
-                        } else {
-                            throw new IllegalArgumentException("Only string int and long ids are supported in olap");
-                        }
-                        final String stepId = (String) r.get(r.fieldIndex(STEP_COL));
-                        final Traverser traverser = traverserGenerator.generate(vertex, traversalMatrix.getStepById(stepId), 1L);
-                        traverser.asAdmin().setStepId(stepId);
-                        traverserSet.add(traverser.asAdmin());
-                    }
+                    traverserSet.add(DistributedCodec.decode(r, traverserGenerator, traversalMatrix).asAdmin());
                 }
 
                 final List<Object> batchIds = traverserSet.stream().map(t -> ((Element) t.get()).id()).collect(Collectors.toList());
@@ -136,88 +110,17 @@ public class DistributedExecutor {
                 // TODO: Is this correct for all cases ?
                 final TraverserSet<Traverser.Admin<?>> traversers = messageBoard.getActiveTraversers();
                 for (Traverser.Admin<?> traverser : traversers) {
-                    if (traverser.isHalted()) {
-                        System.out.println("!!! HALTED !!!");
-                    }
-                    if (traverser.get() instanceof FireflyVertex) {
-                        output.add(createRow(new ReferenceVertex((FireflyVertex)traverser.get()), traverser.getStepId(), traverser.isHalted()));
-                    } else if (traverser.get() instanceof ReferenceVertex) {
-                        output.add(createRow((ReferenceVertex) traverser.get(), traverser.getStepId(), traverser.isHalted()));
-                    } else {
-                        throw new RuntimeException("Error " + traverser.get().getClass().getName() + " Not supported to convert to row.");
-                    }
+                    output.add(DistributedCodec.encode(traverser));
                 }
 
                 // Return results.
                 System.out.println("Returning " + output);
-                if (output.isEmpty()) {
-                    System.out.println("empty");
-                }
                 return output.iterator();
             } catch (Exception e) {
                 e.printStackTrace();
                 throw e;
             }
         }, RowEncoder.apply(schema));
-    }
-
-    private static Row createRow(final ReferenceVertex vertex, final String stepId, final boolean halted) {
-        final DistributedElement.ID_TYPE idType;
-        final Object id = vertex.id();
-        if (id instanceof String) {
-            idType = DistributedElement.ID_TYPE.STRING;
-        } else if (id instanceof Integer) {
-            idType = DistributedElement.ID_TYPE.INTEGER;
-        } else {
-            idType = DistributedElement.ID_TYPE.LONG;
-        }
-        return RowFactory.create(vertex.id().toString(), idType.ordinal(), vertex.label(), null, null, null, halted, true, stepId);
-    }
-
-    private Row createRow(final DistributedVertex vertex) {
-        return RowFactory.create(
-                vertex.id,
-                vertex.idTypeOrdinal,
-                vertex.label(),
-                vertex.getScalaProperties(),
-                vertex.getScalaEdges(Direction.IN),
-                vertex.getScalaEdges(Direction.OUT));
-    }
-
-
-    public static Row createRow(final FireflyVertex vertex, Boolean halted) {
-        //final TraverserGenerator generator = traversal.asAdmin().getTraverserGenerator();
-        // TODO: Make a better format, stringifying these is going to be slow.
-        scala.collection.mutable.Map<String, String> properties = JavaConverters.mapAsScalaMap(vertex.getRawVertexStringPropertyValues());
-        final Map<String, List<byte[]>> inEdgesJava = vertex.getCachedIdMap(Direction.IN);
-        final Map<String, Seq<byte[]>> inEdgesScala = new HashMap<>();
-        for (final String label : inEdgesJava.keySet()) {
-            inEdgesScala.put(label, JavaConverters.asScalaBuffer(inEdgesJava.get(label)));
-        }
-        final Map<String, List<byte[]>> outEdgesJava = vertex.getCachedIdMap(Direction.OUT);
-        final Map<String, Seq<byte[]>> outEdgesScala = new HashMap<>();
-        for (final String label : outEdgesJava.keySet()) {
-            outEdgesScala.put(label, JavaConverters.asScalaBuffer(outEdgesJava.get(label)));
-        }
-        scala.collection.mutable.Map<String, Seq<byte[]>> inEdges = JavaConverters.mapAsScalaMap(inEdgesScala);
-        scala.collection.mutable.Map<String, Seq<byte[]>> outEdges = JavaConverters.mapAsScalaMap(outEdgesScala);
-
-        return RowFactory.create(
-                vertex.id().toString(),
-                getIdType(vertex.id()).ordinal(),
-                vertex.label(),
-                properties,
-                inEdges,
-                outEdges,
-                halted);
-    }
-
-    public static <A, B> scala.collection.mutable.Map<A, B> toScalaMap(HashMap<A, B> m) {
-        return JavaConverters.mapAsScalaMapConverter(m).asScala();
-    }
-
-    public static Set<VertexComputeKey> getComputeKeys() {
-        return COMPUTE_KEY_MAP.values().stream().collect(Collectors.toSet());
     }
 
     public static Set<String> getComputeKeyStrings() {

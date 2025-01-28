@@ -84,11 +84,12 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingBufferedNumer
 
         @Override
         protected void finalize() {
-            for (final Long id : ids) {
+            while (!this.ids.isEmpty()) {
                 if (this.idManager.recycledIds.size() >= idManager.bufferSize) {
-                    LOG.warn("Recycled IDs buffer is full. Recycling ID {} will be dropped.", id);
+                    LOG.warn("Recycled IDs buffer is full. Dropping {} recycling IDs.", this.ids.size());
+                    break;
                 } else {
-                    this.idManager.recycledIds.add(id);
+                    this.idManager.recycledIds.add(this.ids.poll());
                 }
             }
         }

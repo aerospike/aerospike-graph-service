@@ -3,6 +3,7 @@ package com.aerospike.firefly.olap.structure;
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.olap.config.DistributedConfiguration;
+import com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -149,7 +150,7 @@ public class DistributedGraphComputer implements GraphComputer {
 
     @Override
     public GraphComputer program(final VertexProgram vertexProgram) {
-        this.vertexProgram = vertexProgram;
+        this.vertexProgram = new BatchTraversalVertexProgram((TraversalVertexProgram) vertexProgram);
         return this;
     }
 
@@ -283,7 +284,7 @@ public class DistributedGraphComputer implements GraphComputer {
         this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
         this.persist = GraphComputerHelper.getPersistState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.persist));
         try {
-            final PureTraversal<?, ?> traversal = ((TraversalVertexProgram) vertexProgram).getTraversal().clone();
+            final PureTraversal<?, ?> traversal = ((BatchTraversalVertexProgram) vertexProgram).getTraversal().clone();
             final List<HasContainer> initialHasContainers = ComputerHelper.getInitialHasContainers(traversal.get());
 
             // TODO Configurable page size w/ ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE
@@ -374,13 +375,19 @@ public class DistributedGraphComputer implements GraphComputer {
                 df = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false));
 
                 // Create new dataframe with schema (without reapplying schema there are issues).
+                System.out.println("DF1:");
+                df.show(false);
                 df = spark.createDataFrame(df.rdd(), schema);
                 if (!halted.isEmpty()) {
                     // Apply schema to halted vertices and union, then apply schema to results.
                     halted = spark.createDataFrame(halted.rdd(), schema);
                     results = results.union(halted);
                     results = spark.createDataFrame(results.rdd(), schema);
+                    System.out.println("Result:");
+                    results.show(false);
                 }
+                System.out.println("DF2:");
+                df.show(false);
 
                 // Persist results.
                 results.persist();

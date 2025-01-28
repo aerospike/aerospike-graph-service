@@ -59,7 +59,6 @@ public class LocalMessageBoard<M> {
                     .filter(q -> messages.get(q) != null)
                     .flatMap(q -> messages.get(q).stream())
                     .flatMap(ts -> ((TraverserSet) ts).stream())
-                    .filter(t -> !((Traverser.Admin) t).isHalted())
                     .collect(Collectors.toList());
 
             result.addAll(halted);

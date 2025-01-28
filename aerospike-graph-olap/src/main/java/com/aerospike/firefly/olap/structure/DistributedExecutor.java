@@ -1,6 +1,9 @@
 package com.aerospike.firefly.olap.structure;
 
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
+import com.aerospike.firefly.process.computer.local.BatchMessenger;
+import com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram;
+import com.aerospike.firefly.process.computer.local.LocalMessageBoard;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -13,9 +16,12 @@ import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.computer.VertexComputeKey;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.slf4j.Logger;
@@ -63,13 +69,18 @@ public class DistributedExecutor {
 
                 // Set memory is in execute.
                 memory.setInExecute(true);
+                final LocalMessageBoard messageBoard = new LocalMessageBoard();
 
                 // Create VertexProgram for worker and prset iteration start.
-                final VertexProgram workerVertexProgram = VertexProgram.createVertexProgram(graph, vertexProgramConfig);
+                final VertexProgram vertexProgram = VertexProgram.createVertexProgram(graph, vertexProgramConfig);
+                final BatchTraversalVertexProgram workerVertexProgram = vertexProgram instanceof BatchTraversalVertexProgram
+                        ? (BatchTraversalVertexProgram) vertexProgram
+                        : new BatchTraversalVertexProgram((TraversalVertexProgram) vertexProgram);
+
                 workerVertexProgram.workerIterationStart(memory.asImmutable());
 
                 // Create distributed messenger.
-                final DistributedMessenger<TraverserSet<Vertex>> messenger = new DistributedMessenger<>();
+                final BatchMessenger messenger = new BatchMessenger<>(messageBoard, workerVertexProgram.getMessageCombiner());
 
                 // Loop through input rows, transform to vertices, and execute workerVertexProgram.
                 final List<Vertex> incomingVertices = new ArrayList<>();
@@ -103,9 +114,16 @@ public class DistributedExecutor {
                     incomingVertices.addAll(otherVertices);
                 }
 
-                for (final Vertex vertex : incomingVertices) {
-                    workerVertexProgram.execute(vertex, messenger, memory);
-                }
+                final List<Object> batchIds = incomingVertices.stream().map(Element::id).collect(Collectors.toList());
+
+                workerVertexProgram.execute(
+                        messageBoard.getActiveTraversers(),
+                        messenger,
+                        memory,
+                        batchIds::contains);
+                //for (final Vertex vertex : incomingVertices) {
+                //    // workerVertexProgram.execute(vertex, messenger, memory);
+                //}
 
                 // End worker iteration.
                 workerVertexProgram.workerIterationEnd(memory.asImmutable());
@@ -114,12 +132,14 @@ public class DistributedExecutor {
                 memory.setInExecute(false);
 
                 // TODO: Is this correct for all cases ?
-                final List<Tuple2<Object, TraverserSet<Vertex>>> msgs = messenger.getOutgoingMessages();
-                for (Tuple2<Object, TraverserSet<Vertex>> msg : msgs) {
-                    if (msg._2.element().get() instanceof ReferenceVertex) {
-                        msg._2.forEach(v -> output.add(createRow((ReferenceVertex)v.get(), v.isHalted())));
-                    } else if (msg._2.element().get() instanceof FireflyVertex) {
-                        msg._2.forEach(v -> output.add(createRow((FireflyVertex) v.get(), v.isHalted())));
+                final TraverserSet<Traverser.Admin<?>> traversers = messageBoard.getActiveTraversers();
+                for (Traverser.Admin<?> traverser : traversers) {
+                    if (traverser.get() instanceof FireflyVertex) {
+                        output.add(createRow((FireflyVertex) traverser, traverser.isHalted()));
+                    } else if (traverser.get() instanceof ReferenceVertex) {
+                        output.add(createRow((ReferenceVertex) traverser.get(), traverser.isHalted()));
+                    } else {
+                        throw new RuntimeException("Error " + traverser.get().getClass().getName() + " Not supported to convert to row.");
                     }
                 }
 
@@ -182,10 +202,6 @@ public class DistributedExecutor {
                 outEdges,
                 halted);
 
-    }
-
-    private static Row createRow(final ReferenceVertex vertex) {
-        return RowFactory.create();
     }
 
     public static <A, B> scala.collection.mutable.Map<A, B> toScalaMap(HashMap<A, B> m) {

@@ -44,6 +44,20 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
+    public void testFairlyBasic() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            System.out.println(graph.traversal().V().hasLabel("person").out().toList());
+            System.out.println(graph.traversal().V().hasLabel("person").out().out().toList());
+            List<Vertex> output = graph.traversal().withComputer().V().hasLabel("person").out().out().toList();
+            // Assert.assertEquals(3, output.size());
+            System.out.println(output);
+        }
+    }
+
+    @Test
     public void testConfig() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             System.out.println("Config: " + AerospikeConnection.InfoOps.getMaxParallelSindexes(graph.getBaseGraph(), graph.getBaseGraph().namespace));

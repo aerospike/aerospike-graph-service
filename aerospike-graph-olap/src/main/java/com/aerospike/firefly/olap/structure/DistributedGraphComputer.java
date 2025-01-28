@@ -11,6 +11,8 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoder;
+import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
@@ -28,6 +30,7 @@ import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
@@ -47,6 +50,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.NL_O_OB_S_SE_SL_
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.O_OB_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTraverserGeneratorFactory;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.EmptyTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.IndexedTraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
@@ -71,6 +75,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.logging.Level;
 
 import static com.aerospike.firefly.olap.structure.DistributedElement.HALTED_COL;
 import static com.aerospike.firefly.olap.structure.DistributedElement.ID_COL;
@@ -328,6 +333,10 @@ public class DistributedGraphComputer implements GraphComputer {
                 }
             }
 
+            //Encoder<Traverser> encoder = Encoders.bean(Traverser.class);
+            //Dataset<Traverser> dataset = spark.createDataset(List.of(EmptyTraverser.instance()), encoder);
+            //Dataset<Row> df = dataset.toDF();
+
             // Create basic schema.
             final StructType schema = new StructType()
                     .add(ID_COL, DataTypes.StringType, false)
@@ -342,7 +351,12 @@ public class DistributedGraphComputer implements GraphComputer {
                     .add(REF_COL, DataTypes.BooleanType, false);
 
             // Generate Dataset.
+            vertices.clear();
+            vertices.add(RowFactory.create("123465", 0, "fake", null, null, null, false, true));
             Dataset<Row> df = spark.createDataFrame(vertices, schema);
+
+            //Logger.getLogger("org").setLevel(Level.OFF);
+            //Logger.getLogger("akka").setLevel(Level.OFF);
 
             // Create necessary things for execution (Memory, ResultGraph, Config, etc.)
             this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
@@ -365,19 +379,29 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 // Set inExecute to true, execute the vertex program, and set inExecute to false.
                 memory.setInExecute(true);
-                df = DistributedExecutor.execute(df, memory, configHelper, vertexProgramConfiguration, pureTraversal, schema);
+                System.out.println("!!!!! before: " + df.count());
+                df = DistributedExecutor.execute(df,
+                        memory,
+                        configHelper,
+                        vertexProgramConfiguration,
+                        pureTraversal,
+                        schema);
+                System.out.println("!!!!! after: " + df.count());
                 memory.setInExecute(false);
 
                 // Filter out halted vertices.
                 Dataset<Row> halted = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true));
+                System.out.println("Halted: " + halted.count());
 
                 // Filter out vertices that are not halted.
                 df = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false));
+                System.out.println("!!!!! afterafter: " + df.count());
 
                 // Create new dataframe with schema (without reapplying schema there are issues).
                 System.out.println("DF1:");
                 df.show(false);
                 df = spark.createDataFrame(df.rdd(), schema);
+                System.out.println("!!!!! reschema: " + df.count());
                 if (!halted.isEmpty()) {
                     // Apply schema to halted vertices and union, then apply schema to results.
                     halted = spark.createDataFrame(halted.rdd(), schema);
@@ -396,8 +420,8 @@ public class DistributedGraphComputer implements GraphComputer {
                 // erroneous.
                 results.count();
 
-                memory.set("gremlin.traversalVertexProgram.voteToHalt", true);
-                memory.set(ACTIVE_TRAVERSERS, new IndexedTraverserSet.VertexIndexedTraverserSet());
+                //memory.set("gremlin.traversalVertexProgram.voteToHalt", true);
+                //memory.set(ACTIVE_TRAVERSERS, new IndexedTraverserSet.VertexIndexedTraverserSet());
                 if (this.vertexProgram.terminate(memory)) {
                     // Need to be very careful with this stuff. Spark is LAZY. It doesn't execute unless forced, so if we incr at the wrong time there is problems.
                     memory.incrIteration();

@@ -382,41 +382,35 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 // Set inExecute to true, execute the vertex program, and set inExecute to false.
                 memory.setInExecute(true);
-                df.repartition(1); // Temporary.
                 df.count();
-                System.out.println("!!!!! before: " + df.count() + "->" + df.rdd().getNumPartitions());
+                System.out.println("------BEFORE EXEC------");
+                df.show(false);
                 df = DistributedExecutor.execute(df,
                         memory,
                         configHelper,
                         vertexProgramConfiguration,
                         pureTraversal,
                         schema);
-                System.out.println("!!!!! after: " + df.count());
+
+                System.out.println("------AFTER EXEC------");
+                df.show(false);
                 memory.setInExecute(false);
 
                 // Filter out halted vertices.
                 Dataset<Row> halted = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true));
-                System.out.println("Halted: " + halted.count());
 
                 // Filter out vertices that are not halted.
                 df = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false));
-                System.out.println("!!!!! afterafter: " + df.count());
 
                 // Create new dataframe with schema (without reapplying schema there are issues).
-                System.out.println("DF1:");
-                df.show(false);
+                df.count();
                 df = spark.createDataFrame(df.rdd(), schema);
-                System.out.println("!!!!! reschema: " + df.count());
                 if (!halted.isEmpty()) {
                     // Apply schema to halted vertices and union, then apply schema to results.
                     halted = spark.createDataFrame(halted.rdd(), schema);
                     results = results.union(halted);
                     results = spark.createDataFrame(results.rdd(), schema);
-                    System.out.println("Result:");
-                    results.show(false);
                 }
-                System.out.println("DF2:");
-                df.show(false);
 
                 // Persist results.
                 results.persist();
@@ -427,14 +421,16 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 //memory.set("gremlin.traversalVertexProgram.voteToHalt", true);
                 //memory.set(ACTIVE_TRAVERSERS, new IndexedTraverserSet.VertexIndexedTraverserSet());
-                if (this.vertexProgram.terminate(memory)) {
+
+                // TODO: Ultimately probably don't want to do isEmpty() check here b/c we could have a query that pulls more data from graph later and
+                // we could screw it up.
+                if (this.vertexProgram.terminate(memory) || df.isEmpty()) {
                     // Need to be very careful with this stuff. Spark is LAZY. It doesn't execute unless forced, so if we incr at the wrong time there is problems.
                     memory.incrIteration();
                     break;
                 } else {
                     memory.incrIteration();
                 }
-                df.show(false);
             }
 
             // Collect results.

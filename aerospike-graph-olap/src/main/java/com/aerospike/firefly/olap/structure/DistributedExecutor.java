@@ -67,8 +67,6 @@ public class DistributedExecutor {
                                 final Configuration vertexProgramConfig,
                                 final Traversal<?, ?> traversal,
                                 final StructType schema) {
-        System.out.println("Partitions: " + input.rdd().partitions().length);
-        input.show(false);
         return input.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.asAdmin());
             final List<Row> output = new ArrayList<>();
@@ -97,7 +95,7 @@ public class DistributedExecutor {
                 final TraverserSet<Object> traverserSet = new TraverserSet<>();
                 while (iterator.hasNext()) {
                     final Row r = iterator.next();
-                    System.out.println("!!!! It: " + r.fieldIndex(HALTED_COL));
+                    System.out.println("!!!! It: " + r.get(r.fieldIndex(HALTED_COL)));
                     if ((Boolean) r.get(r.fieldIndex(HALTED_COL))) {
                         // TODO: Maybe should assert. This would be a logic error.
                         output.add(r);

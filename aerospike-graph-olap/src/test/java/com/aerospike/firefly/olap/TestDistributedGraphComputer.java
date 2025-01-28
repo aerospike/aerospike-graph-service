@@ -50,9 +50,9 @@ public class TestDistributedGraphComputer {
             final Graph tg = TinkerFactory.createModern();
             GraphHelper.cloneElements(tg, graph);
             System.out.println(graph.traversal().V().hasLabel("person").out().toList());
-            System.out.println(graph.traversal().V().hasLabel("person").out().out().toList());
+            System.out.println("Actual: " + graph.traversal().V().hasLabel("person").out().out().toList());
             List<Vertex> output = graph.traversal().withComputer().V().hasLabel("person").out().out().toList();
-            // Assert.assertEquals(3, output.size());
+            Assert.assertEquals(2, output.size());
             System.out.println(output);
         }
     }

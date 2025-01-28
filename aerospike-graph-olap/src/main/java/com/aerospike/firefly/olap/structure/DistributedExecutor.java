@@ -24,6 +24,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTraverserGeneratorFactory;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -44,6 +45,7 @@ import java.util.stream.Collectors;
 import static com.aerospike.firefly.olap.structure.DistributedElement.HALTED_COL;
 import static com.aerospike.firefly.olap.structure.DistributedElement.LABEL_COL;
 import static com.aerospike.firefly.olap.structure.DistributedElement.REF_COL;
+import static com.aerospike.firefly.olap.structure.DistributedElement.STEP_COL;
 import static com.aerospike.firefly.olap.structure.DistributedGraphComputer.getIdType;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.ACTIVE_TRAVERSERS;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
@@ -68,6 +70,7 @@ public class DistributedExecutor {
         System.out.println("Partitions: " + input.rdd().partitions().length);
         input.show(false);
         return input.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
+            final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.asAdmin());
             final List<Row> output = new ArrayList<>();
 
             // Open graph.
@@ -91,59 +94,40 @@ public class DistributedExecutor {
                 final BatchMessenger messenger = new BatchMessenger<>(messageBoard, workerVertexProgram.getMessageCombiner());
 
                 // Loop through input rows, transform to vertices, and execute workerVertexProgram.
-                final List<Vertex> incomingVertices = new ArrayList<>();
-                final List<FireflyId> ffids = new ArrayList<>();
+                final TraverserSet<Object> traverserSet = new TraverserSet<>();
                 while (iterator.hasNext()) {
                     final Row r = iterator.next();
+                    System.out.println("!!!! It: " + r.fieldIndex(HALTED_COL));
                     if ((Boolean) r.get(r.fieldIndex(HALTED_COL))) {
                         // TODO: Maybe should assert. This would be a logic error.
                         output.add(r);
-                    } else if ((Boolean) r.get(r.fieldIndex(REF_COL))) {
+                    } else {
                         final Object id = r.get(0);
                         final DistributedElement.ID_TYPE idType = DistributedElement.ID_TYPE.values()[(int) r.get(1)];
-                        //final FireflyId fireflyId;
+                        final ReferenceVertex vertex;
                         if (idType.equals(DistributedElement.ID_TYPE.STRING)) {
-                            //fireflyId = graph.getIdFactory().createVertexId(id);
-                            final ReferenceVertex vertex = new ReferenceVertex(id, (String) r.get(r.fieldIndex(LABEL_COL)));
-                            incomingVertices.add(vertex);
+                            vertex = new ReferenceVertex(id, (String) r.get(r.fieldIndex(LABEL_COL)));
                         } else if (idType.equals(DistributedElement.ID_TYPE.INTEGER)) {
-                            final ReferenceVertex vertex = new ReferenceVertex(Integer.parseInt((String) id), (String) r.get(r.fieldIndex(LABEL_COL)));
-                            incomingVertices.add(vertex);
-                            //fireflyId = graph.getIdFactory().createVertexId(Integer.parseInt((String) id));
+                            vertex = new ReferenceVertex(Integer.parseInt((String) id), (String) r.get(r.fieldIndex(LABEL_COL)));
                         } else if (idType.equals(DistributedElement.ID_TYPE.LONG)) {
-                            final ReferenceVertex vertex = new ReferenceVertex(Long.parseLong((String) id), (String) r.get(r.fieldIndex(LABEL_COL)));
-                            incomingVertices.add(vertex);
-                            //fireflyId = graph.getIdFactory().createVertexId(Long.parseLong((String) id));
+                            vertex = new ReferenceVertex(Long.parseLong((String) id), (String) r.get(r.fieldIndex(LABEL_COL)));
                         } else {
                             throw new IllegalArgumentException("Only string int and long ids are supported in olap");
                         }
-                        // ffids.add(fireflyId);
-                    } else {
-                        final DistributedVertex vertex = new DistributedVertex(r, graph);
-                        incomingVertices.add(vertex);
+                        final String stepId = (String) r.get(r.fieldIndex(STEP_COL));
+                        final Traverser traverser = traverserGenerator.generate(vertex, traversalMatrix.getStepById(stepId), 1L);
+                        traverser.asAdmin().setStepId(stepId);
+                        traverserSet.add(traverser.asAdmin());
                     }
                 }
-                if (!ffids.isEmpty()) {
-                    final List<FireflyVertex> otherVertices = graph.readVertices(List.of(), ffids, null);
-                    incomingVertices.addAll(otherVertices);
-                }
 
-                final List<Object> batchIds = incomingVertices.stream().map(Element::id).collect(Collectors.toList());
-                TraverserSet<Object> incomingTraversers = new TraverserSet<>();
-                for (final Vertex v : incomingVertices) {
-                    incomingTraversers.add(traverserGenerator.generate(v, EmptyStep.instance(), 1L));
-                }
-                if (memory.getIteration() > 0) {
-                    System.out.println("??");
-                }
+                final List<Object> batchIds = traverserSet.stream().map(t -> ((Element) t.get()).id()).collect(Collectors.toList());
+                System.out.println("!!! Input traverserSet size : " + traverserSet.size());
                 workerVertexProgram.execute(
-                        incomingTraversers,
+                        traverserSet,
                         messenger,
                         memory,
                         batchIds::contains);
-                //for (final Vertex vertex : incomingVertices) {
-                //    // workerVertexProgram.execute(vertex, messenger, memory);
-                //}
 
                 // End worker iteration.
                 workerVertexProgram.workerIterationEnd(memory.asImmutable());
@@ -158,9 +142,9 @@ public class DistributedExecutor {
                         System.out.println("!!! HALTED !!!");
                     }
                     if (traverser.get() instanceof FireflyVertex) {
-                        output.add(createRow(new ReferenceVertex((FireflyVertex)traverser.get()), traverser.isHalted()));
+                        output.add(createRow(new ReferenceVertex((FireflyVertex)traverser.get()), traverser.getStepId(), traverser.isHalted()));
                     } else if (traverser.get() instanceof ReferenceVertex) {
-                        output.add(createRow((ReferenceVertex) traverser.get(), traverser.isHalted()));
+                        output.add(createRow((ReferenceVertex) traverser.get(), traverser.getStepId(), traverser.isHalted()));
                     } else {
                         throw new RuntimeException("Error " + traverser.get().getClass().getName() + " Not supported to convert to row.");
                     }
@@ -179,7 +163,7 @@ public class DistributedExecutor {
         }, RowEncoder.apply(schema));
     }
 
-    private static Row createRow(final ReferenceVertex vertex, final boolean halted) {
+    private static Row createRow(final ReferenceVertex vertex, final String stepId, final boolean halted) {
         final DistributedElement.ID_TYPE idType;
         final Object id = vertex.id();
         if (id instanceof String) {
@@ -189,7 +173,7 @@ public class DistributedExecutor {
         } else {
             idType = DistributedElement.ID_TYPE.LONG;
         }
-        return RowFactory.create(vertex.id().toString(), idType.ordinal(), vertex.label(), null, null, null, halted, true);
+        return RowFactory.create(vertex.id().toString(), idType.ordinal(), vertex.label(), null, null, null, halted, true, stepId);
     }
 
     private Row createRow(final DistributedVertex vertex) {
@@ -228,7 +212,6 @@ public class DistributedExecutor {
                 inEdges,
                 outEdges,
                 halted);
-
     }
 
     public static <A, B> scala.collection.mutable.Map<A, B> toScalaMap(HashMap<A, B> m) {

@@ -329,9 +329,11 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
             }
             memory.add(VOTE_TO_HALT, activeTraversers.isEmpty()
                     || BatchWorkerExecutor.execute(new BatchSingleMessenger<>(messenger, activeTraversers), this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));
-        } else   // ITERATION 1+
-            memory.add(VOTE_TO_HALT,
-                    BatchWorkerExecutor.execute(new BatchSingleMessenger<>(messenger, activeTraversers), this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));
+        } else {  // ITERATION 1+
+            final Boolean voteToHalt2 = BatchWorkerExecutor.execute(new BatchSingleMessenger<>(messenger, activeTraversers), this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy);
+            System.out.println("VoteToHalt: " + voteToHalt2);
+            memory.add(VOTE_TO_HALT, voteToHalt2);
+        }
         // save space by not having an empty halted traversers property
 //        if (this.returnHaltedTraversers || haltedTraversers.isEmpty())
 //            vertex.<TraverserSet>property(HALTED_TRAVERSERS).remove();

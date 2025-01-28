@@ -28,6 +28,7 @@ import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -55,6 +56,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.IndexedTrav
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -85,6 +87,7 @@ import static com.aerospike.firefly.olap.structure.DistributedElement.LABEL_COL;
 import static com.aerospike.firefly.olap.structure.DistributedElement.OUT_COL;
 import static com.aerospike.firefly.olap.structure.DistributedElement.PROPERTIES_COL;
 import static com.aerospike.firefly.olap.structure.DistributedElement.REF_COL;
+import static com.aerospike.firefly.olap.structure.DistributedElement.STEP_COL;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.ACTIVE_TRAVERSERS;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
@@ -315,6 +318,7 @@ public class DistributedGraphComputer implements GraphComputer {
             // Get TraverseRequirements and TraverserGenerator, this will be useful later when we go to traverser based approach.
             final Set<TraverserRequirement> traverserRequirements = pureTraversal.asAdmin().getTraverserRequirements();
             final TraverserGenerator traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirements);
+            final Step<?, ?> secondStep = pureTraversal.asAdmin().getStartStep().getNextStep();
 
             // If we give partition info to workers, this can go away.
             try (final PartitionIterator partitionIterator = builder.create()) {
@@ -326,7 +330,7 @@ public class DistributedGraphComputer implements GraphComputer {
                         try (final CloseableIterator<FireflyVertex> vertexIterator = optional.get()) {
                             while (vertexIterator.hasNext()) {
                                 final FireflyVertex vertex = vertexIterator.next();
-                                vertices.add(createRow(vertex, traverserGenerator, null));
+                                vertices.add(createRow(vertex, secondStep));
                             }
                         }
                     }
@@ -348,15 +352,11 @@ public class DistributedGraphComputer implements GraphComputer {
                     .add(OUT_COL, DataTypes.createMapType(DataTypes.StringType,
                             DataTypes.createArrayType(DataTypes.BinaryType)), true)
                     .add(HALTED_COL, DataTypes.BooleanType, false)
-                    .add(REF_COL, DataTypes.BooleanType, false);
+                    .add(REF_COL, DataTypes.BooleanType, false)
+                    .add(STEP_COL, DataTypes.StringType, false);
 
             // Generate Dataset.
-            vertices.clear();
-            vertices.add(RowFactory.create("123465", 0, "fake", null, null, null, false, true));
             Dataset<Row> df = spark.createDataFrame(vertices, schema);
-
-            //Logger.getLogger("org").setLevel(Level.OFF);
-            //Logger.getLogger("akka").setLevel(Level.OFF);
 
             // Create necessary things for execution (Memory, ResultGraph, Config, etc.)
             this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
@@ -370,6 +370,9 @@ public class DistributedGraphComputer implements GraphComputer {
 
             // Set results to initially empty.
             Dataset<Row> results = spark.emptyDataset(RowEncoder.apply(schema));
+
+            // PartitionIterator pulls initial step data, so we can start on step 2.
+            memory.incrIteration();
             while (true) {
                 if (Thread.interrupted()) {
                     // If query is cancelled, cancel all spark jobs and throw an exception.
@@ -379,7 +382,9 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 // Set inExecute to true, execute the vertex program, and set inExecute to false.
                 memory.setInExecute(true);
-                System.out.println("!!!!! before: " + df.count());
+                df.repartition(1); // Temporary.
+                df.count();
+                System.out.println("!!!!! before: " + df.count() + "->" + df.rdd().getNumPartitions());
                 df = DistributedExecutor.execute(df,
                         memory,
                         configHelper,
@@ -474,8 +479,7 @@ public class DistributedGraphComputer implements GraphComputer {
     }
 
     public static Row createRow(final FireflyVertex vertex,
-                                 final TraverserGenerator generator,
-                                 final GraphStep<Vertex, Vertex> step) {
+                                final Step<?, ?> step) {
         //final TraverserGenerator generator = traversal.asAdmin().getTraverserGenerator();
         // TODO: Make a better format, stringifying these is going to be slow.
 
@@ -487,7 +491,8 @@ public class DistributedGraphComputer implements GraphComputer {
                 vertex.getCachedIdMap(Direction.IN),
                 vertex.getCachedIdMap(Direction.OUT),
                 false,
-                false);
+                false,
+                step.getId());
     }
 
 

@@ -17,6 +17,7 @@ public abstract class DistributedElement<V> implements Element {
     static final String OUT_COL = "~out";
     static final String HALTED_COL = "~halted";
     static final String REF_COL = "~ref";
+    static final String STEP_COL = "~step";
 
     enum ID_TYPE {
         STRING,

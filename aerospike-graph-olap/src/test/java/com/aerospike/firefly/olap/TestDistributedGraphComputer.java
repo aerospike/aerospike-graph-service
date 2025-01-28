@@ -11,16 +11,22 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
 
 public class TestDistributedGraphComputer {
     private Configuration config;
@@ -54,6 +60,55 @@ public class TestDistributedGraphComputer {
             List<Vertex> output = graph.traversal().withComputer().V().hasLabel("person").out().out().toList();
             Assert.assertEquals(2, output.size());
             System.out.println(output);
+        }
+    }
+
+    @Ignore
+    @Test
+    // todo: enable when edges serialization implemented
+    public void testOtherV() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            final GraphTraversalSource g = graph.traversal().withComputer();
+
+            // filter out everything
+            List result = g.V().outE().not(__.hasLabel("knows")).otherV().hasLabel("test").toList();
+            assertEquals(0, result.size());
+//
+//            // only part of results is valid
+//            result = g.V().outE().not(__.hasLabel("knows")).otherV().has("name", "ripple").toList();
+//            assertEquals(1, result.size());
+//
+//            // lets inject new vertex and check we captured right `a`
+//            result = g.V().outE().not(__.hasLabel("knows")).otherV().as("a")
+//                    .has("name", "ripple")
+//                    .inject(null)
+//                    .select("a").toList();
+//            assertEquals(1, result.size());
+//
+//            result = g.V().outE().not(__.hasLabel("knows")).otherV()
+//                    .has("name", "ripple").as("a")
+//                    .inject(null)
+//                    .select("a").toList();
+//            assertEquals(1, result.size());
+//
+//            // no hasContainer
+//            result = g.V().outE().not(__.hasLabel("knows")).otherV().toList();
+//            assertEquals(4, result.size());
+//
+//            // borrowed from TinkerPop Feature tests
+//            result = g.V().local(__.bothE("created").limit(1)).otherV().values("name").toList();
+//            assertEquals(5, result.size());
+//
+//            result = g.V(4).bothE().otherV().toList();
+//            assertEquals(3, result.size());
+//
+//            result = g.V(4).bothE().has("weight", P.lt(1.0)).otherV().toList();
+//            assertEquals(1, result.size());
+//            assertEquals(3, ((Vertex)result.get(0)).id());
         }
     }
 

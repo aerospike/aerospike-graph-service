@@ -89,8 +89,7 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
                 optimizedStep = new FireflyOtherVBatchReadStepLocal(
                         traversal,
                         hasContainers,
-                        labels,
-                        null); // todo: verify !!!
+                        labels);
             } else {
                 optimizedStep = new FireflyOtherVBatchReadStep(
                         traversal,

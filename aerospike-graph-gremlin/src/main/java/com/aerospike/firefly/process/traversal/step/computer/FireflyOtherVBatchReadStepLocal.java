@@ -6,10 +6,11 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.AbstractStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.FlatMapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -20,27 +21,25 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class FireflyOtherVBatchReadStepLocal extends AbstractStep<Edge, Vertex> {
+public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
     private final List<HasContainer> fireflyHasContainers;
     private final List<HasContainer> aerospikeHasContainers;
-    private final List<String> requiredProperties;
-    private static final ThreadLocal<Map<FireflyId, FireflyVertex>> cache =
-            ThreadLocal.withInitial(HashMap::new);
-    private static final ThreadLocal<Set<FireflyId>> inputCache =
-            ThreadLocal.withInitial(HashSet::new);
+
+    private final Map<FireflyId, FireflyVertex> cache = new HashMap<>();
+    private final List<FireflyId> inputCache =new ArrayList<>();
+    private boolean first = true;
 
     public FireflyOtherVBatchReadStepLocal(final Traversal.Admin traversal,
                                            final List<HasContainer> hasContainers,
-                                           final Set<String> labels,
-                                           final List<String> requiredProperties) {
+                                           final Set<String> labels) {
         super(traversal);
         this.labels = new HashSet<>(labels);
-        this.requiredProperties = requiredProperties;
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
                     FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) traversal.getGraph().get(), Vertex.class, hasContainers);
@@ -56,17 +55,19 @@ public class FireflyOtherVBatchReadStepLocal extends AbstractStep<Edge, Vertex> 
     }
 
     @Override
-    protected Traverser.Admin<Vertex> processNextStart() {
-        System.out.println("FireflyOtherVBatchReadStepLocal.processNextStart");
-        while (true) {
-            final Traverser.Admin<Edge> traverser = this.starts.next();
-            final Vertex result = handle(traverser);
-            if (result != null)
-                return traverser.split(result, this);
-        }
+    public void addStart(final Traverser.Admin<Edge> start) {
+        super.addStart(start);
+        System.out.println("FireflyCompositeIdStepLocal.addStart: " + start);
+        add(start);
     }
 
-    private Vertex handle(final Traverser.Admin<Edge> traverser) {
+    @Override
+    protected Iterator<Vertex> flatMap(final Traverser.Admin<Edge> traverser) {
+        if (first) {
+            precompute();
+            first = false;
+        }
+
         List<Object> objects = traverser.path().objects();
         for (int i = objects.size() - 2; i >= 0; --i) {
             if (objects.get(i) instanceof Vertex) {
@@ -78,7 +79,7 @@ public class FireflyOtherVBatchReadStepLocal extends AbstractStep<Edge, Vertex> 
                         : traverser.get());
                 // try to get something without reading from DB
                 // at least one should be not empty
-                Vertex outVertex = cache.get().get(edge.outVertexId()), inVertex = cache.get().get(edge.inVertexId());
+                Vertex outVertex = cache.get(edge.outVertexId()), inVertex = cache.get(edge.inVertexId());
                 final Vertex result;
                 if (outVertex == null && inVertex == null) {
                     // cache might be outdated. Or precompute skipped
@@ -88,31 +89,31 @@ public class FireflyOtherVBatchReadStepLocal extends AbstractStep<Edge, Vertex> 
                     result = outVertex != null && !ElementHelper.areEqual(vertex, outVertex) ? outVertex : inVertex;
                 }
                 if (HasContainer.testAll(result, fireflyHasContainers))
-                    return result;
-                return null;
+                    return FireflyCloseableIteratorUtils.of(result);
+                return Collections.emptyIterator();
             }
         }
         throw new IllegalStateException("The path history of the traverser does not contain a previous vertex: " + traverser.path());
     }
 
     private void precompute() {
-        if (inputCache.get().isEmpty()) return;
+        if (inputCache.isEmpty()) return;
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         final List<FireflyId> chunk = new ArrayList<>();
-        for (final FireflyId id : inputCache.get()) {
+        for (final FireflyId id : inputCache) {
             chunk.add(id);
             if (chunk.size() == graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
-                final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, chunk, requiredProperties);
+                final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, chunk, null);
                 for (final FireflyVertex vertex : vertices) {
-                    cache.get().put(vertex.id, vertex);
+                    cache.put(vertex.id, vertex);
                 }
                 chunk.clear();
             }
         }
         if (!chunk.isEmpty()) {
-            final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, chunk, requiredProperties);
+            final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, chunk, null);
             for (final FireflyVertex vertex : vertices) {
-                cache.get().put(vertex.id, vertex);
+                cache.put(vertex.id, vertex);
             }
         }
     }
@@ -126,15 +127,10 @@ public class FireflyOtherVBatchReadStepLocal extends AbstractStep<Edge, Vertex> 
                 final Vertex vertex = ElementHelper.areEqual((Vertex) objects.get(i), edge.outVertex())
                         ? edge.inVertex()
                         : edge.outVertex();
-                inputCache.get().add(graph.getIdFactory().createVertexId(vertex));
+                inputCache.add(graph.getIdFactory().createVertexId(vertex));
                 return;
             }
         }
-    }
-
-    public void addStart(final Traverser.Admin<Edge> start) {
-        System.out.println("FireflyOtherVBatchReadStepLocal.addStart: " + start);
-        this.starts.add(start);
     }
 
     @Override

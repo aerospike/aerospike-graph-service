@@ -15,8 +15,10 @@ import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Assert;
@@ -27,6 +29,7 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 
@@ -46,6 +49,35 @@ public class TestDistributedGraphComputer {
             final Graph tg = TinkerFactory.createModern();
             GraphHelper.cloneElements(tg, graph);
             List<Vertex> output = graph.traversal().withComputer().V().has("name", "marko").out().toList();
+            Assert.assertEquals(3, output.size());
+            System.out.println(output);
+        }
+    }
+
+    @Test
+    public void testSideEffect() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            System.out.println(graph.traversal().V().store("a").by("name").out().cap("a").toList());
+            List<?> output = graph.traversal().withComputer().V().store("a").by("name").out().cap("a").toList();
+            System.out.println(output);
+            Assert.assertTrue(output.size() == 1 && output.get(0) instanceof BulkSet);
+            final BulkSet result = (BulkSet) output.get(0);
+            assertEquals(6, result.size());
+            Assert.assertTrue(result.asBulk().keySet().containsAll(Set.of("marko", "vadas", "josh", "peter", "ripple", "lop")));
+            result.asBulk().values().forEach(v -> Assert.assertEquals(1L, v));
+        }
+    }
+
+    @Test
+    public void testBarrier() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            List<?> output = graph.traversal().withComputer().V().group().by(T.label).toList();
             Assert.assertEquals(3, output.size());
             System.out.println(output);
         }

@@ -119,8 +119,8 @@ public class TestDistributedGraphComputer {
             assertEquals(4, result.size());
 
             // borrowed from TinkerPop Feature tests
-//            result = g.V().local(__.bothE("created").limit(1)).otherV().values("name").toList();
-//            assertEquals(5, result.size()); // return 20 now, 5 correct with bulk 4
+            result = g.V().local(__.bothE("created").limit(1)).otherV().values("name").toList();
+            assertEquals(5, result.size());
 
             result = g.V(4).bothE().otherV().toList();
             assertEquals(3, result.size());

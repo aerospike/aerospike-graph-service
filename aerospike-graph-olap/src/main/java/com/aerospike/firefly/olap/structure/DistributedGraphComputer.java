@@ -361,6 +361,7 @@ public class DistributedGraphComputer implements GraphComputer {
                         vertexProgramConfiguration,
                         pureTraversal,
                         schema);
+                df.cache();
 
                 memory.setInExecute(false);
 

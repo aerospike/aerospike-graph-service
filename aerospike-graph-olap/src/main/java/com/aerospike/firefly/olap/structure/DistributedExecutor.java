@@ -60,11 +60,7 @@ public class DistributedExecutor {
         System.out.println("Starting with " + input.rdd().partitions().length + " partitions.");
         return input.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             logDebuggingMessage("starting with " + (iterator.hasNext() ? "non-empty" : "empty") + " partition.");
-            final List<Row> rows = new ArrayList<>();
-            while (iterator.hasNext()) {
-                rows.add(iterator.next());
-            }
-            iterator = rows.iterator();
+
             final Codec codec;
             final TraversalMatrix<?, ?> traversalMatrix;
             final List<Row> output;
@@ -125,6 +121,9 @@ public class DistributedExecutor {
                 // TODO: Is this correct for all cases ?
                 final TraverserSet<Traverser.Admin<?>> traversers = messageBoard.getActiveTraversers();
                 logDebuggingMessage("Output traverserSet size : " + traversers.size());
+                if (traversers.size() > 0) {
+                    logDebuggingMessage("Step: " + traversers.stream().collect(Collectors.toList()).get(0).getStepId());
+                }
                 traversers.forEach(t -> output.add(codec.encode(t)));
 
                 // Return results.

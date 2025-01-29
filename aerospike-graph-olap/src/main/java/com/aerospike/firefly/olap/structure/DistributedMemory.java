@@ -96,6 +96,9 @@ public class DistributedMemory implements Memory.Admin, Serializable {
             throw Memory.Exceptions.memoryDoesNotExist(key);
         if (this.inExecute && !this.memoryComputeKeys.get(key).isBroadcast())
             throw Memory.Exceptions.memoryDoesNotExist(key);
+        if (!this.sparkMemory.containsKey(key))
+            throw Memory.Exceptions.memoryDoesNotExist(key);
+
         final DistributedMemoryEntry<R> r = (DistributedMemoryEntry<R>) (this.inExecute ? this.broadcast.value().get(key) : this.sparkMemory.get(key).value());
         if (null == r || r.isEmpty()) {
             // gremlin.traversalVertexProgram.completedBarriers

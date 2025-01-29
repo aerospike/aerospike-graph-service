@@ -100,6 +100,7 @@ public class DistributedExecutor {
 
                 // TODO: Is this correct for all cases ?
                 final TraverserSet<Traverser.Admin<?>> traversers = messageBoard.getActiveTraversers();
+                System.out.println("!!! Output traverserSet size : " + traversers.size());
                 traversers.forEach(t -> output.add(codec.encode(t)));
 
                 // Return results.

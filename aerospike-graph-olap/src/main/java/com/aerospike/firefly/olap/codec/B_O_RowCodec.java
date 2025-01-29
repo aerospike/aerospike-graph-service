@@ -43,8 +43,8 @@ public class B_O_RowCodec extends RowCodec {
 
     @Override
     public Traverser decode(final Row row,
-                                   final TraverserGenerator traverserGenerator,
-                                   final TraversalMatrix traversalMatrix) {
+                            final TraverserGenerator traverserGenerator,
+                            final TraversalMatrix traversalMatrix) {
         if (row.getString(row.fieldIndex(ID_COL)) == null) {
             throw new RuntimeException("Error, only rows with id col populated are currently supported");
         }
@@ -56,7 +56,7 @@ public class B_O_RowCodec extends RowCodec {
         if (row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) == TRAVERSER_TYPE.VERTEX.ordinal()) {
             element = new ReferenceVertex(id, label);
         } else if (row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) == TRAVERSER_TYPE.EDGE.ordinal()) {
-            element = new ReferenceEdge(id, label, null, null);
+            element = new ReferenceEdge(id, label, new ReferenceVertex("~empty"), new ReferenceVertex("~empty"));
         } else {
             throw new RuntimeException("Error, decoder for " + row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) + " is not implemented");
         }

@@ -402,12 +402,19 @@ public class DistributedGraphComputer implements GraphComputer {
                     memory.incrIteration();
                 }
             }
+            final TraverserSet traversers = new TraverserSet();
+
+            try {
+                TraverserSet memoryTraversers = memory.get(HALTED_TRAVERSERS);
+                traversers.addAll(memoryTraversers);
+            } catch (IllegalArgumentException e) {
+                // No data in memory.
+            }
 
             // Collect results.
             final List<Row> rows = results.collectAsList();
 
             // Create traversers.
-            final TraverserSet traversers = new TraverserSet();
             final TraversalMatrix traversalMatrix = new TraversalMatrix<>(pureTraversal.asAdmin());
             rows.stream().forEach(row -> {
                 traversers.add(codec.decode(row, traverserGenerator, traversalMatrix).asAdmin());

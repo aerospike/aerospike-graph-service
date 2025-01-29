@@ -9,6 +9,9 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequire
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 
 import java.util.Set;
 
@@ -28,6 +31,11 @@ public abstract class RowCodec {
     public static final String REF_COL = "~ref";
     public static final String STEP_COL = "~step";
     public static final String BULK_COL = "~bulk";
+    public static final String PATH_ID_COL = "~path_id";
+    public static final String PATH_ID_TYPEHINT_COL = "~path_id_typehint";
+    public static final String PATH_OBJ_TYPE_COL = "~path_obj_type";
+    public static final String PATH_LABELS_COL = "~path_steps";
+
 
     /////////////////////////////////////////////////////////////////////
     // Schema
@@ -110,6 +118,16 @@ public abstract class RowCodec {
         } else {
             // TODO.
             throw new IllegalArgumentException("Only Long string and integer types can be serialized at this time.");
+        }
+    }
+
+    public static ReferenceElement getReferenceElement(final int elementTypeOrdinal, final Object id, final String label) {
+        if (TRAVERSER_TYPE.VERTEX.ordinal() == elementTypeOrdinal) {
+            return new ReferenceVertex(id);
+        } else if (TRAVERSER_TYPE.EDGE.ordinal() == elementTypeOrdinal) {
+            return new ReferenceEdge(id, null, null, null);
+        } else {
+            throw new RuntimeException("Error, decoder for " + elementTypeOrdinal + " is not implemented");
         }
     }
 }

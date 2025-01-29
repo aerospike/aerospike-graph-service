@@ -1,6 +1,7 @@
 package com.aerospike.firefly.olap.structure;
 
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
+import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.olap.config.DistributedConfiguration;
 import com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram;
@@ -37,7 +38,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_O_P_S_SE_SL
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_O_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_NL_O_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_O_S_SE_SL_TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_O_Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_O_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.LP_NL_O_OB_P_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.LP_NL_O_OB_S_SE_SL_TraverserGenerator;
@@ -51,7 +51,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSe
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
-import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
@@ -72,7 +71,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
-import static com.aerospike.firefly.olap.structure.DistributedCodec.HALTED_COL;
+import static com.aerospike.firefly.olap.codec.schema.RowSchema.HALTED_COL;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
@@ -304,6 +303,8 @@ public class DistributedGraphComputer implements GraphComputer {
             final TraverserGenerator traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirements);
             final Step<?, ?> secondStep = pureTraversal.asAdmin().getStartStep().getNextStep();
 
+            final Codec codec = new Codec(traverserRequirements);
+
             // If we give partition info to workers, this can go away.
             try (final PartitionIterator partitionIterator = builder.create()) {
                 while (partitionIterator.hasNext()) {
@@ -314,7 +315,7 @@ public class DistributedGraphComputer implements GraphComputer {
                         try (final CloseableIterator<FireflyVertex> vertexIterator = optional.get()) {
                             while (vertexIterator.hasNext()) {
                                 final FireflyVertex vertex = vertexIterator.next();
-                                vertices.add(DistributedCodec.encode(vertex, secondStep.getId()));
+                                vertices.add(codec.encode(vertex, secondStep.getId()));
                             }
                         }
                     }
@@ -322,7 +323,7 @@ public class DistributedGraphComputer implements GraphComputer {
             }
 
             // Create basic schema.
-            final StructType schema = DistributedCodec.schema();
+            final StructType schema = codec.getSchema();
 
             // Generate Dataset.
             Dataset<Row> df = spark.createDataFrame(vertices, schema);
@@ -409,7 +410,7 @@ public class DistributedGraphComputer implements GraphComputer {
             final TraverserSet traversers = new TraverserSet();
             final TraversalMatrix traversalMatrix = new TraversalMatrix<>(pureTraversal.asAdmin());
             rows.stream().forEach(row -> {
-                traversers.add(DistributedCodec.decode(row, traverserGenerator, traversalMatrix).asAdmin());
+                traversers.add(codec.decode(row, traverserGenerator, traversalMatrix).asAdmin());
             });
 
             // Set all traversers as halted and complete memory.
@@ -427,19 +428,6 @@ public class DistributedGraphComputer implements GraphComputer {
         } catch (final Exception e) {
             LOGGER.error("A global error occurred. Shutting down {}: {}", this, e.getMessage(), e);
             return new CompletableFuture<>();
-        }
-    }
-
-    public static DistributedCodec.ID_TYPE getIdType(final Object id) {
-        if (id instanceof Long) {
-            return DistributedCodec.ID_TYPE.LONG;
-        } else if (id instanceof Integer) {
-            return DistributedCodec.ID_TYPE.INTEGER;
-        } else if (id instanceof  String) {
-            return DistributedCodec.ID_TYPE.STRING;
-        } else {
-            // TODO.
-            throw new IllegalArgumentException("Only Long string and integer types can be serialized at this time.");
         }
     }
 

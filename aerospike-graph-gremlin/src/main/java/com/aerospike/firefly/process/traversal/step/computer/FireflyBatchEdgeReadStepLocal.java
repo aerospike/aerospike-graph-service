@@ -150,7 +150,12 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> implements P
         } else {
             final List<Edge> output = new ArrayList<>();
             final List<FireflyId> missingIds = new ArrayList<>();
-            FireflyVertex fireflyVertex = (FireflyVertex) ((ComputerGraph.ComputerVertex) traverser.get()).getBaseVertex();
+            FireflyVertex fireflyVertex;
+            if (traverser.get() instanceof ComputerGraph.ComputerVertex) {
+                fireflyVertex = (FireflyVertex) ((ComputerGraph.ComputerVertex) traverser.get()).getBaseVertex();
+            } else {
+                fireflyVertex = (FireflyVertex) traverser.get();
+            }
             fireflyVertex.getEdgeIdsFromVertex(direction, edgeLabels, aerospikeHasContainers).forEachRemaining(id -> {
                 if (cache.get().containsKey(id)) {
                     output.add(cache.get().get(id));

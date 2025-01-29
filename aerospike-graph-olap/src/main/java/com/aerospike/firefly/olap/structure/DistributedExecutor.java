@@ -1,16 +1,15 @@
 package com.aerospike.firefly.olap.structure;
 
+import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.process.computer.local.BatchMessenger;
 import com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram;
 import com.aerospike.firefly.process.computer.local.LocalMessageBoard;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.computer.VertexComputeKey;
@@ -23,25 +22,16 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequire
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTraverserGeneratorFactory;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
-import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.olap.structure.DistributedCodec.HALTED_COL;
-import static com.aerospike.firefly.olap.structure.DistributedCodec.LABEL_COL;
-import static com.aerospike.firefly.olap.structure.DistributedCodec.STEP_COL;
-import static com.aerospike.firefly.olap.structure.DistributedGraphComputer.getIdType;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.ACTIVE_TRAVERSERS;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
@@ -63,6 +53,7 @@ public class DistributedExecutor {
                                 final Traversal<?, ?> traversal,
                                 final StructType schema) {
         return input.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
+            final Codec codec = new Codec(traversal.asAdmin().getTraverserRequirements());
             final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.asAdmin());
             final List<Row> output = new ArrayList<>();
 
@@ -90,7 +81,7 @@ public class DistributedExecutor {
                 final TraverserSet<Object> traverserSet = new TraverserSet<>();
                 while (iterator.hasNext()) {
                     final Row r = iterator.next();
-                    traverserSet.add(DistributedCodec.decode(r, traverserGenerator, traversalMatrix).asAdmin());
+                    traverserSet.add(codec.decode(r, traverserGenerator, traversalMatrix).asAdmin());
                 }
 
                 final List<Object> batchIds = traverserSet.stream().map(t -> ((Element) t.get()).id()).collect(Collectors.toList());
@@ -109,9 +100,7 @@ public class DistributedExecutor {
 
                 // TODO: Is this correct for all cases ?
                 final TraverserSet<Traverser.Admin<?>> traversers = messageBoard.getActiveTraversers();
-                for (Traverser.Admin<?> traverser : traversers) {
-                    output.add(DistributedCodec.encode(traverser));
-                }
+                traversers.forEach(t -> output.add(codec.encode(t)));
 
                 // Return results.
                 System.out.println("Returning " + output);

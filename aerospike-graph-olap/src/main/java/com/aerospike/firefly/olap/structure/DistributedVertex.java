@@ -2,6 +2,7 @@ package com.aerospike.firefly.olap.structure;
 
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.olap.codec.schema.RowSchema;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
@@ -62,12 +63,12 @@ public class DistributedVertex extends DistributedElement implements Vertex {
 
     public DistributedVertex(final Row row, final FireflyGraph graph) {
         // Minor optimization would be to use scala maps directly here.
-        super((String) row.get(row.fieldIndex(DistributedCodec.ID_COL)),
-                (Integer) row.get(row.fieldIndex(DistributedCodec.ID_TYPEHINT_COL)),
-                (String) row.get(row.fieldIndex(DistributedCodec.LABEL_COL)));
-        this.properties = (scala.collection.immutable.Map) row.get(row.fieldIndex(DistributedCodec.PROPERTIES_COL));
-        this.inEdges = (scala.collection.immutable.Map) row.get(row.fieldIndex(DistributedCodec.IN_COL));
-        this.outEdges = (scala.collection.immutable.Map) row.get(row.fieldIndex(DistributedCodec.OUT_COL));
+        super((String) row.get(row.fieldIndex(RowSchema.ID_COL)),
+                (Integer) row.get(row.fieldIndex(RowSchema.ID_TYPEHINT_COL)),
+                (String) row.get(row.fieldIndex(RowSchema.LABEL_COL)));
+        this.properties = (scala.collection.immutable.Map) row.get(row.fieldIndex(RowSchema.PROPERTIES_COL));
+        this.inEdges = (scala.collection.immutable.Map) row.get(row.fieldIndex(RowSchema.IN_COL));
+        this.outEdges = (scala.collection.immutable.Map) row.get(row.fieldIndex(RowSchema.OUT_COL));
         this.graph = graph;
         this.db = graph.getBaseGraph();
         this.isEdgeCacheOverflowed = false; // TODO.

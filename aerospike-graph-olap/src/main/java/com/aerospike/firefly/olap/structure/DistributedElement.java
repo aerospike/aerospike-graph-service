@@ -1,5 +1,6 @@
 package com.aerospike.firefly.olap.structure;
 
+import com.aerospike.firefly.olap.codec.Codec;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
@@ -23,11 +24,11 @@ public abstract class DistributedElement<V> implements Element {
 
     @Override
     public Object id() {
-        if (DistributedCodec.ID_TYPE.STRING.ordinal() == idTypeOrdinal) {
+        if (Codec.ID_TYPE.STRING.ordinal() == idTypeOrdinal) {
             return id;
-        } else if (DistributedCodec.ID_TYPE.LONG.ordinal() == idTypeOrdinal) {
+        } else if (Codec.ID_TYPE.LONG.ordinal() == idTypeOrdinal) {
             return Long.parseLong(id);
-        } else if (DistributedCodec.ID_TYPE.INTEGER.ordinal() == idTypeOrdinal) {
+        } else if (Codec.ID_TYPE.INTEGER.ordinal() == idTypeOrdinal) {
             return Integer.parseInt(id);
         } else {
             // TODO.

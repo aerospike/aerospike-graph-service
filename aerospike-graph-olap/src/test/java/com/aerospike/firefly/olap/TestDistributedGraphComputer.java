@@ -11,11 +11,14 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.Path;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -52,6 +55,35 @@ public class TestDistributedGraphComputer {
             System.out.println(graph.traversal().V().hasLabel("person").out().toList());
             System.out.println("Actual: " + graph.traversal().V().hasLabel("person").out().out().toList());
             List<Vertex> output = graph.traversal().withComputer().V().hasLabel("person").out().out().toList();
+            Assert.assertEquals(2, output.size());
+            System.out.println(output);
+        }
+    }
+
+    @Test
+    public void testPath() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            System.out.println(graph.traversal().V().hasLabel("person").out().toList());
+            System.out.println("Actual: " + graph.traversal().V().hasLabel("person").out().out().path().toList());
+            List<Path> output = graph.traversal().withComputer().V().hasLabel("person").out().out().path().toList();
+            Assert.assertEquals(2, output.size());
+            System.out.println(output);
+        }
+    }
+
+    @Test
+    @Ignore
+    public void testFairlyBasicEdge() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            System.out.println(graph.traversal().V().hasLabel("person").out().toList());
+            System.out.println("Actual: " + graph.traversal().V().hasLabel("person").out().out().toList());
+            List<Edge> output = graph.traversal().withComputer().V().hasLabel("person").out().outE().toList();
             Assert.assertEquals(2, output.size());
             System.out.println(output);
         }

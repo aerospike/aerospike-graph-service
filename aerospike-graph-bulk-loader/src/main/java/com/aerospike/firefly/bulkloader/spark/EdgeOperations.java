@@ -601,7 +601,7 @@ public class EdgeOperations implements Serializable {
                 "Edges ID write task", true);
         final ExpressionEncoder<Row> encoder = RowEncoder.apply(writeSchema);
         final Dataset<Row> EdgeIdDF = edgeDataSet.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), encoder);
-        EdgeIdDF.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "bzip2").csv(writeLocation);
+        EdgeIdDF.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "bzip2").option("maxRecordsPerFile", 1000000).csv(writeLocation);
         edgeDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
         LOGGER.info("Execution time in seconds for Edge ID write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
     }

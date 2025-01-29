@@ -362,8 +362,6 @@ public class DistributedGraphComputer implements GraphComputer {
                         pureTraversal,
                         schema);
 
-                System.out.println("------AFTER EXEC------");
-                df.show(false);
                 memory.setInExecute(false);
 
                 // Filter out halted vertices.

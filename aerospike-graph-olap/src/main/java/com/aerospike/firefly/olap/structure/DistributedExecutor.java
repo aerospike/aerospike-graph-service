@@ -7,6 +7,7 @@ import com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram;
 import com.aerospike.firefly.process.computer.local.LocalMessageBoard;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -46,16 +47,36 @@ public class DistributedExecutor {
             ACTIVE_TRAVERSERS, VertexComputeKey.of(ACTIVE_TRAVERSERS, true)
     );
 
+    private static void logDebuggingMessage(final String message) {
+        System.out.println("Task " + TaskContext.getPartitionId() + " - " + message);
+    }
+
     static Dataset<Row> execute(final Dataset<Row> input,
                                 final DistributedMemory memory,
                                 final DistributedConfigHelper configHelper,
                                 final Configuration vertexProgramConfig,
                                 final Traversal<?, ?> traversal,
                                 final StructType schema) {
+        System.out.println("Starting with " + input.rdd().partitions().length + " partitions.");
         return input.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
-            final Codec codec = new Codec(traversal.asAdmin().getTraverserRequirements());
-            final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.asAdmin());
-            final List<Row> output = new ArrayList<>();
+            logDebuggingMessage("starting with " + (iterator.hasNext() ? "non-empty" : "empty") + " partition.");
+            final List<Row> rows = new ArrayList<>();
+            while (iterator.hasNext()) {
+                rows.add(iterator.next());
+            }
+            iterator = rows.iterator();
+            final Codec codec;
+            final TraversalMatrix<?, ?> traversalMatrix;
+            final List<Row> output;
+            try {
+                codec = new Codec(traversal.asAdmin().getTraverserRequirements());
+                traversalMatrix = new TraversalMatrix<>(traversal.asAdmin());
+                output = new ArrayList<>();
+            } catch (Exception e) {
+                logDebuggingMessage("ERROR");
+                e.printStackTrace();
+                throw e;
+            }
 
             // Open graph.
             try (FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
@@ -85,7 +106,10 @@ public class DistributedExecutor {
                 }
 
                 final List<Object> batchIds = traverserSet.stream().map(t -> ((Element) t.get()).id()).collect(Collectors.toList());
-                System.out.println("!!! Input traverserSet size : " + traverserSet.size());
+                logDebuggingMessage("Input TraverserSet: " + traverserSet);
+                if (!traverserSet.isEmpty()) {
+                    logDebuggingMessage("Step: " + traverserSet.stream().collect(Collectors.toList()).get(0).getStepId());
+                }
                 workerVertexProgram.execute(
                         traverserSet,
                         messenger,
@@ -100,13 +124,14 @@ public class DistributedExecutor {
 
                 // TODO: Is this correct for all cases ?
                 final TraverserSet<Traverser.Admin<?>> traversers = messageBoard.getActiveTraversers();
-                System.out.println("!!! Output traverserSet size : " + traversers.size());
+                logDebuggingMessage("Output traverserSet size : " + traversers.size());
                 traversers.forEach(t -> output.add(codec.encode(t)));
 
                 // Return results.
-                System.out.println("Returning " + output);
+                logDebuggingMessage("ending with " + output.size() + " rows.");
                 return output.iterator();
             } catch (Exception e) {
+                logDebuggingMessage("ERROR");
                 e.printStackTrace();
                 throw e;
             }

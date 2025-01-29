@@ -21,6 +21,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram.HALTED_TRAVERSERS;
+
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  * Most of the Distributed* classes are adapted from the Spark* in TinkerPop from by Marko A. Rodriguez (http://markorodriguez.com)
@@ -117,9 +119,11 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     @Override
     public void add(final String key, final Object value) {
         checkKeyValue(key, value);
-        if (this.inExecute)
+        if (this.inExecute) {
+            if (key.equals(HALTED_TRAVERSERS))
+                System.out.println("~~~Adding halted " + value);
             this.sparkMemory.get(key).add(new DistributedMemoryEntry<>(value));
-        else
+        } else
             throw Memory.Exceptions.memoryAddOnlyDuringVertexProgramExecute(key);
     }
 

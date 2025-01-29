@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -96,6 +97,8 @@ public class VertexOperations implements Serializable {
 
             LOGGER.info("Starting to write VertexDataset in PartitionId: " + partitionId);
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
+                Iterator<Vertex> vertices = graph.vertices(<list>);
+
                 final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);
                 final long allowBadEntryCount = this.config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
                 final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();

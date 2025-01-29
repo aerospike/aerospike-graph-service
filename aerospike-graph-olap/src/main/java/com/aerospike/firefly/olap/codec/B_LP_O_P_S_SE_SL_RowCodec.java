@@ -9,6 +9,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ImmutablePath;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_O_P_S_SE_SL_Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_O_P_S_SE_SL_TraverserGenerator;
@@ -26,6 +27,7 @@ import scala.collection.Seq;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public class B_LP_O_P_S_SE_SL_RowCodec extends RowCodec {
@@ -78,7 +80,8 @@ public class B_LP_O_P_S_SE_SL_RowCodec extends RowCodec {
         final List<Integer> pathObjTypes = row.getList(row.fieldIndex(PATH_OBJ_TYPE_COL));
         final List<Seq<String>> pathLabels = row.getList(row.fieldIndex(PATH_LABELS_COL));
 
-        final _B_LP_O_P_S_SE_SL_Traverser<?> pathTraverser = new _B_LP_O_P_S_SE_SL_Traverser<>(element, tm.getStepById(step), bulk);
+        final Step stepOrEmpty = Optional.ofNullable(tm.getStepById(step)).orElse(EmptyStep.instance());
+        final _B_LP_O_P_S_SE_SL_Traverser<?> pathTraverser = new _B_LP_O_P_S_SE_SL_Traverser<>(element, stepOrEmpty, bulk);
         pathTraverser.setStepId(step);
         if (pathIds != null) {
             pathTraverser.setPath(pathIds, pathIdTypeHints, pathObjTypes, pathLabels);

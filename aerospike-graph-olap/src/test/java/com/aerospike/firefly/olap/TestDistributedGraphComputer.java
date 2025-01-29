@@ -82,6 +82,8 @@ public class TestDistributedGraphComputer {
     @Test
     @Ignore
     public void testFairlyBasicEdge() {
+        // to get firefly elements
+        System.setProperty("is.testing", "true");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();
             final Graph tg = TinkerFactory.createModern();
@@ -94,10 +96,9 @@ public class TestDistributedGraphComputer {
         }
     }
 
-    @Ignore
     @Test
-    // todo: enable when edges serialization implemented
     public void testOtherV() {
+        // System.setProperty("is.testing", "true");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();
             final Graph tg = TinkerFactory.createModern();
@@ -108,38 +109,25 @@ public class TestDistributedGraphComputer {
             // filter out everything
             List result = g.V().outE().not(__.hasLabel("knows")).otherV().hasLabel("test").toList();
             assertEquals(0, result.size());
-//
-//            // only part of results is valid
-//            result = g.V().outE().not(__.hasLabel("knows")).otherV().has("name", "ripple").toList();
-//            assertEquals(1, result.size());
-//
-//            // lets inject new vertex and check we captured right `a`
-//            result = g.V().outE().not(__.hasLabel("knows")).otherV().as("a")
-//                    .has("name", "ripple")
-//                    .inject(null)
-//                    .select("a").toList();
-//            assertEquals(1, result.size());
-//
-//            result = g.V().outE().not(__.hasLabel("knows")).otherV()
-//                    .has("name", "ripple").as("a")
-//                    .inject(null)
-//                    .select("a").toList();
-//            assertEquals(1, result.size());
-//
-//            // no hasContainer
-//            result = g.V().outE().not(__.hasLabel("knows")).otherV().toList();
-//            assertEquals(4, result.size());
-//
-//            // borrowed from TinkerPop Feature tests
+
+            // only part of results is valid
+            result = g.V().outE().not(__.hasLabel("knows")).otherV().has("name", "ripple").toList();
+            assertEquals(1, result.size());
+
+            // no hasContainer
+            result = g.V().outE().not(__.hasLabel("knows")).otherV().toList();
+            assertEquals(4, result.size());
+
+            // borrowed from TinkerPop Feature tests
 //            result = g.V().local(__.bothE("created").limit(1)).otherV().values("name").toList();
-//            assertEquals(5, result.size());
-//
-//            result = g.V(4).bothE().otherV().toList();
-//            assertEquals(3, result.size());
-//
-//            result = g.V(4).bothE().has("weight", P.lt(1.0)).otherV().toList();
-//            assertEquals(1, result.size());
-//            assertEquals(3, ((Vertex)result.get(0)).id());
+//            assertEquals(5, result.size()); // return 20 now, 5 correct with bulk 4
+
+            result = g.V(4).bothE().otherV().toList();
+            assertEquals(3, result.size());
+
+            result = g.V(4).bothE().has("weight", P.lt(1.0)).otherV().toList();
+            assertEquals(1, result.size());
+            assertEquals(3, ((Vertex) result.get(0)).id());
         }
     }
 

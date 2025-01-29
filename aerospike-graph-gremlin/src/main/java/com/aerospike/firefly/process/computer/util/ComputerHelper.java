@@ -1,20 +1,30 @@
 package com.aerospike.firefly.process.computer.util;
 
+import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.TraversalVertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalSideEffects;
 import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -25,7 +35,7 @@ public class ComputerHelper {
                 return true;
             traversal = traversal.getParent().asStep().getTraversal();
         }
-        if (traversal.getSteps().size() > 0) {
+        if (!traversal.getSteps().isEmpty()) {
             return traversal.getSteps().get(0) instanceof TraversalVertexProgramStep;
         } else {
             return false;
@@ -56,5 +66,39 @@ public class ComputerHelper {
             }
         }
         return hasContainers;
+    }
+
+    public static void bulkAttach(final FireflyGraph graph,
+                                  final TraversalSideEffects traversalSideEffects,
+                                  final TraverserSet<Object> traversers) {
+        final Set<Object> vertexIds = new HashSet<>();
+        final Set<Object> edgeIds = new HashSet<>();
+        traversers.forEach(traverser -> {
+            if (traverser.get() instanceof Vertex)
+                vertexIds.add(((Vertex) traverser.get()).id());
+            else if (traverser.get() instanceof Edge)
+                edgeIds.add(((Edge) traverser.get()).id());
+        });
+
+        final Map<Object, Element> vertexCache = new HashMap<>();
+        if (!vertexIds.isEmpty())
+            graph.vertices(vertexIds.toArray(new Object[vertexIds.size()])).forEachRemaining(vertex -> vertexCache.put(vertex.id(), vertex));
+
+        final Map<Object, Element> edgeCache = new HashMap<>();
+        if (!edgeIds.isEmpty())
+            graph.edges(edgeIds.toArray(new Object[edgeIds.size()])).forEachRemaining(edge -> edgeCache.put(edge.id(), edge));
+
+        traversers.forEach(traverser -> {
+            if (traverser.get() instanceof Vertex && vertexCache.containsKey(((Vertex) traverser.get()).id())) {
+                final Vertex vertex = (Vertex) vertexCache.get(((Vertex) traverser.get()).id());
+                traverser.attach(Attachable.Method.get(vertex));
+                traverser.setSideEffects(traversalSideEffects);
+            } else if(traverser.get() instanceof Edge && edgeCache.containsKey(((Edge) traverser.get()).id())) {
+                final Edge edge = (Edge) edgeCache.get(((Edge) traverser.get()).id());
+                // todo: better attachment way for edges
+                traverser.attach(Attachable.Method.get(edge.outVertex()));
+                traverser.setSideEffects(traversalSideEffects);
+            }
+        });
     }
 }

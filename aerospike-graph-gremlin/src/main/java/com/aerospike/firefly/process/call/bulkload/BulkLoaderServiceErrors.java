@@ -27,9 +27,9 @@ public class BulkLoaderServiceErrors<I, R> extends BulkLoaderServiceBase<I, R> {
                 "\tExpected argument key '%s' with value of any of '%s'.\n" +
                 "\tProvided argument: '%s'.\n" +
                 "\tExamples of correct usage:\n" +
-                "\t\tg.call(\"%s\").with(\"%s\").next();\n" +
-                "\t\tg.call(\"%s\").with(\"%s\").next();\n" +
-                "\t\tg.call(\"%s\").with(\"%s\").next();\n",
+                "\t\tg.call(\"%s\").with(\"%s\", \"%s\").next();\n" +
+                "\t\tg.call(\"%s\").with(\"%s\", \"%s\").next();\n" +
+                "\t\tg.call(\"%s\").with(\"%s\", \"%s\").next();\n",
                 getName(), KEY, VALUES, params,
                 getName(), KEY, BAD_ENTRY,
                 getName(), KEY, DUPLICATE_VID,

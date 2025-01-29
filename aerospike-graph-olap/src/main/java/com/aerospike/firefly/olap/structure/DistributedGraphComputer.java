@@ -71,7 +71,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
-import static com.aerospike.firefly.olap.codec.schema.RowSchema.HALTED_COL;
+import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**

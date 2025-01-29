@@ -2,7 +2,6 @@ package com.aerospike.firefly.olap.structure;
 
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.olap.codec.schema.RowSchema;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
@@ -32,6 +31,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static com.aerospike.firefly.olap.codec.RowCodec.ID_COL;
+import static com.aerospike.firefly.olap.codec.RowCodec.ID_TYPEHINT_COL;
+import static com.aerospike.firefly.olap.codec.RowCodec.IN_COL;
+import static com.aerospike.firefly.olap.codec.RowCodec.LABEL_COL;
+import static com.aerospike.firefly.olap.codec.RowCodec.OUT_COL;
+import static com.aerospike.firefly.olap.codec.RowCodec.PROPERTIES_COL;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -63,12 +69,12 @@ public class DistributedVertex extends DistributedElement implements Vertex {
 
     public DistributedVertex(final Row row, final FireflyGraph graph) {
         // Minor optimization would be to use scala maps directly here.
-        super((String) row.get(row.fieldIndex(RowSchema.ID_COL)),
-                (Integer) row.get(row.fieldIndex(RowSchema.ID_TYPEHINT_COL)),
-                (String) row.get(row.fieldIndex(RowSchema.LABEL_COL)));
-        this.properties = (scala.collection.immutable.Map) row.get(row.fieldIndex(RowSchema.PROPERTIES_COL));
-        this.inEdges = (scala.collection.immutable.Map) row.get(row.fieldIndex(RowSchema.IN_COL));
-        this.outEdges = (scala.collection.immutable.Map) row.get(row.fieldIndex(RowSchema.OUT_COL));
+        super((String) row.get(row.fieldIndex(ID_COL)),
+                (Integer) row.get(row.fieldIndex(ID_TYPEHINT_COL)),
+                (String) row.get(row.fieldIndex(LABEL_COL)));
+        this.properties = (scala.collection.immutable.Map) row.get(row.fieldIndex(PROPERTIES_COL));
+        this.inEdges = (scala.collection.immutable.Map) row.get(row.fieldIndex(IN_COL));
+        this.outEdges = (scala.collection.immutable.Map) row.get(row.fieldIndex(OUT_COL));
         this.graph = graph;
         this.db = graph.getBaseGraph();
         this.isEdgeCacheOverflowed = false; // TODO.

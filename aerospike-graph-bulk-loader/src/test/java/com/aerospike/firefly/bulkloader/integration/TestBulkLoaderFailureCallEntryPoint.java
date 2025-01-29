@@ -8,9 +8,11 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -195,6 +197,55 @@ public class TestBulkLoaderFailureCallEntryPoint {
             } catch (final Exception e) {
                 Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.errors'."));
             }
+        }
+    }
+
+    @Test
+    public void testErrorMessageGivesValidSuggestions() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            final List<String> suggestions = new ArrayList<>();
+            boolean failureHappened = false;
+            try {
+                g.call("aerospike.graphloader.admin.bulk-load.errors").next();
+            } catch (final IllegalArgumentException e) {
+                failureHappened = true;
+                final String[] errorLines = e.getMessage().split("\n");
+                for (int i = 0; i < errorLines.length; i++) {
+                    suggestions.add(errorLines[i].trim());
+
+                }
+                Assert.assertTrue(suggestions.contains("g.call(\"aerospike.graphloader.admin.bulk-load.errors\").with(\"type\", \"duplicate-vertex-ids\").next();"));
+                Assert.assertTrue(suggestions.contains("g.call(\"aerospike.graphloader.admin.bulk-load.errors\").with(\"type\", \"bad-entries\").next();"));
+                Assert.assertTrue(suggestions.contains("g.call(\"aerospike.graphloader.admin.bulk-load.errors\").with(\"type\", \"bad-edges\").next();"));
+            }
+            Assert.assertTrue(failureHappened);
+            boolean suggestionExecuted = false;
+            for (final String suggestion : suggestions) {
+                if (suggestion.startsWith("g.call(\"aerospike.graphloader.admin.bulk-load.errors\").with(")) {
+                    final String command = suggestion.split(".with")[1];
+                    int delimiterCount = 0;
+                    String key = "";
+                    String value = "";
+                    for (int i = 0; i < command.length(); i++) {
+                        if (command.charAt(i) == '"') {
+                            delimiterCount++;
+                            if (delimiterCount >= 4) {
+                                break;
+                            }
+                        } else if (delimiterCount == 1) {
+                            key = key + command.charAt(i);
+                        } else if (delimiterCount == 3) {
+                            value = value + command.charAt(i);
+                        }
+                    }
+                    Assert.assertEquals(4, delimiterCount);
+                    g.call("aerospike.graphloader.admin.bulk-load.errors").with(key, value).next();
+                    suggestionExecuted = true;
+                }
+            }
+            Assert.assertTrue(suggestionExecuted);
         }
     }
 }

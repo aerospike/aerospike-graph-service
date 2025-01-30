@@ -1,0 +1,20 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="FireflyComputerFeatureTest" type="JUnit" factoryName="JUnit" nameIsGenerated="true">
+    <module name="aerospike-graph-olap" />
+    <shortenClasspath name="ARGS_FILE" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="com.aerospike.firefly.olap.features.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <option name="PACKAGE_NAME" value="com.aerospike.firefly.olap.features" />
+    <option name="MAIN_CLASS_NAME" value="com.aerospike.firefly.olap.features.FireflyComputerFeatureTest" />
+    <option name="METHOD_NAME" value="" />
+    <option name="TEST_OBJECT" value="class" />
+    <option name="VM_PARAMETERS" value="-ea --add-opens=java.base/java.lang=ALL-UNNAMED" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

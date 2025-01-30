@@ -96,6 +96,50 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
+    public void test_dataset_gVCount() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            final long count = graph.traversal().V().count().next();
+            final long olapCount = graph.traversal().withComputer().V().count().next();
+            Assert.assertEquals(count, olapCount);
+        }
+    }
+
+    @Test
+    public void test_dataset_gVGroupCountByOutCount() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            final Map<Object, Long> oltp = graph.traversal().V().groupCount().by(__.out().count()).next();
+            final Map<Object, Long> olap = graph.traversal().withComputer().V().groupCount().by(__.out().count()).next();
+            System.out.println("OLTP: " + oltp);
+            System.out.println("OLAP: " + olap);
+            Assert.assertTrue(oltp.keySet().containsAll(olap.keySet()));
+            Assert.assertEquals(oltp.keySet().size(), olap.keySet().size());
+            oltp.keySet().forEach(k -> Assert.assertEquals(oltp.get(k), olap.get(k)));
+        }
+    }
+
+    @Test
+    public void test_dataset_gVGroupCountByOutKnowsCount() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            final Map<Object, Long> oltp = graph.traversal().V().groupCount().by(__.out("knows").count()).next();
+            final Map<Object, Long> olap = graph.traversal().withComputer().V().groupCount().by(__.out("knows").count()).next();
+            System.out.println("OLTP: " + oltp);
+            System.out.println("OLAP: " + olap);
+            Assert.assertTrue(oltp.keySet().containsAll(olap.keySet()));
+            Assert.assertEquals(oltp.keySet().size(), olap.keySet().size());
+            oltp.keySet().forEach(k -> Assert.assertEquals(oltp.get(k), olap.get(k)));
+        }
+    }
+
+    @Test
     public void testBarrier() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();

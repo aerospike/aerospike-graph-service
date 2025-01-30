@@ -191,7 +191,7 @@ public class BatchWorkerExecutor {
                                   final Memory memory,
                                   final boolean returnHaltedTraversers,
                                   final HaltedTraverserStrategy haltedTraverserStrategy) {
-        System.out.println(Thread.currentThread().getId() + " WorkerExecutor.drainStep step" + step +
+        System.out.println(Thread.currentThread().getId() + " WorkerExecutor.drainStep step " + step +
                 "; activeTraversers" + activeTraversers +
                 "; haltedTraversers" + haltedTraversers);
         // try execute in slave mode

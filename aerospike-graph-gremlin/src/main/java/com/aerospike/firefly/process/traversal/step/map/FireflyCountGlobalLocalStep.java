@@ -15,16 +15,19 @@ import java.util.Set;
 import java.util.function.BinaryOperator;
 
 public class FireflyCountGlobalLocalStep<S> extends ReducingBarrierStep<S, Long> {
-    final boolean isComputer;
-    final Direction direction;
+    private final Direction direction;
+    private final String[] edgeLabels;
 
-    public FireflyCountGlobalLocalStep(final Traversal.Admin traversal, final Direction direction, final Set<String> labels) {
+    public FireflyCountGlobalLocalStep(final Traversal.Admin traversal,
+                                       final Direction direction,
+                                       final Set<String> labels,
+                                       final String[] edgeLabels) {
         super(traversal);
         this.setSeedSupplier(new ConstantSupplier<>(0L));
         this.setReducingBiOperator((BinaryOperator) Operator.sumLong);
-        this.isComputer = ComputerHelper.onGraphComputer(traversal);
         this.direction = direction;
         this.labels = labels;
+        this.edgeLabels = edgeLabels;
     }
 
     @Override
@@ -36,7 +39,7 @@ public class FireflyCountGlobalLocalStep<S> extends ReducingBarrierStep<S, Long>
         } else {
             fireflyVertex = (FireflyVertex) element;
         }
-        return fireflyVertex.getEdgeCount(direction);
+        return fireflyVertex.getEdgeCount(direction, edgeLabels);
     }
 
     @Override

@@ -72,6 +72,30 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
+    public void testElementMap() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            System.out.println(graph.traversal().V().has("name", "marko").elementMap().toList());
+            List<?> output = graph.traversal().withComputer().V().has("name", "marko").elementMap().toList();
+            System.out.println(output);
+        }
+    }
+
+    @Test
+    public void testRepeat() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            System.out.println(graph.traversal().V().has("name", "marko").repeat(__.out()).until(__.hasLabel("person")).toList());
+            List<?> output = graph.traversal().withComputer().V().has("name", "marko").repeat(__.out()).until(__.hasLabel("person")).toList();
+            System.out.println(output);
+        }
+    }
+
+    @Test
     public void testBarrier() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();

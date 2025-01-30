@@ -4,12 +4,14 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_O_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
@@ -56,7 +58,12 @@ public class B_O_S_SE_SL_RowCodec extends RowCodec {
         } else {
             throw new RuntimeException("Error, decoder for " + row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) + " is not implemented");
         }
-        final Traverser traverser = traverserGenerator.generate(element, traversalMatrix.getStepById(step), bulk);
+        Step<Element, ?> actualStep = traversalMatrix.getStepById(step);
+        if (actualStep == null) {
+            // Can happen when halted, in which case the underlying generator calls for side effects and NPE's.
+            actualStep = EmptyStepSideEffect.instance(traversalMatrix.getTraversal());
+        }
+        final Traverser traverser = traverserGenerator.generate(element, actualStep, bulk);
         traverser.asAdmin().setStepId(step);
         return traverser;
     }

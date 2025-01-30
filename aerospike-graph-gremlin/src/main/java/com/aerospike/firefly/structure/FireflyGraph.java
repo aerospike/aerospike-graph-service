@@ -419,7 +419,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             if (e.getMessage() != null) {
                 LOG.error("========== See Error message for more details: {}", e.getMessage());
             } else {
-                LOG.error("========== Error did not contain message, please submit this stack trace to support", e);
+                LOG.error("========== Error did not contain message; please submit this stack trace to support", e);
             }
 
             // Signal to gremlin-server to shut down.
@@ -1136,7 +1136,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public void exportQuery(final DefaultTraversalMetrics metrics, final String scopeName, final String traversal) {
         if (this.zipkinExporter == null) {
             // This should never happen.
-            throw new IllegalStateException("Slow query logging was not initialized but was used. Please contact support.");
+            LOG.error("Query tracing was not enabled but usage was attempted. Please contact support.");
+            return;
         }
         this.zipkinExporter.exportQuery(metrics, scopeName, traversal);
     }

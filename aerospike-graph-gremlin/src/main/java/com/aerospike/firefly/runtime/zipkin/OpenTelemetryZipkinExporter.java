@@ -15,8 +15,12 @@ import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import io.opentelemetry.semconv.resource.attributes.ResourceAttributes;
 import org.apache.tinkerpop.gremlin.process.traversal.util.DefaultTraversalMetrics;
 import org.apache.tinkerpop.gremlin.process.traversal.util.Metrics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
@@ -26,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class OpenTelemetryZipkinExporter implements Closeable {
+    private static final Logger LOG = LoggerFactory.getLogger(OpenTelemetryZipkinExporter.class);
     // Name of the service
     private static final String SERVICE_NAME = "ags-trace";
     private static Map<String, OpenTelemetryZipkinExporter> INSTANCES = new ConcurrentHashMap<>();
@@ -63,6 +68,7 @@ public class OpenTelemetryZipkinExporter implements Closeable {
                                                                   final int minQueryThresholdMillis,
                                                                   final int samplingPercentage) {
         if (!INSTANCES.containsKey(graphId)) {
+            healthCheck(ip, port);
             final String endpoint = String.format("http://%s:%s/api/v2/spans", ip, port);
             final ZipkinSpanExporter zipkinExporter = ZipkinSpanExporter.builder().setEndpoint(endpoint).build();
 
@@ -77,8 +83,9 @@ public class OpenTelemetryZipkinExporter implements Closeable {
             final OpenTelemetrySdk openTelemetry =
                     OpenTelemetrySdk.builder().setTracerProvider(tracerProvider).build();
 
-            INSTANCES.put(graphId, new OpenTelemetryZipkinExporter(openTelemetry, tracerProvider, graphId,
-                    minQueryThresholdMillis, samplingPercentage));
+            final OpenTelemetryZipkinExporter exporter = new OpenTelemetryZipkinExporter(openTelemetry, tracerProvider,
+                    graphId, minQueryThresholdMillis, samplingPercentage);
+            INSTANCES.put(graphId, exporter);
         }
 
         // return the configured instance so it can be used for instrumentation.
@@ -86,20 +93,24 @@ public class OpenTelemetryZipkinExporter implements Closeable {
     }
 
     public void exportQuery(final DefaultTraversalMetrics metrics, final String scopeName, final String traversal) {
-        if (metrics.getDuration(TimeUnit.MILLISECONDS) >= this.minQueryThresholdMillis &&
-                querySampler.nextInt(100) < this.samplingPercentage) {
-            final Tracer tracer = this.openTelemetry.getTracerProvider().get(scopeName);
-            final SpanBuilder spanBuilder = tracer.spanBuilder(traversal);
+        try {
+            if (metrics.getDuration(TimeUnit.MILLISECONDS) >= this.minQueryThresholdMillis &&
+                    querySampler.nextInt(100) < this.samplingPercentage) {
+                final Tracer tracer = this.openTelemetry.getTracerProvider().get(scopeName);
+                final SpanBuilder spanBuilder = tracer.spanBuilder(traversal);
 
-            final AtomicReference<Instant> instant = new AtomicReference<>();
-            instant.set(Instant.now().minusNanos(metrics.getDuration(TimeUnit.NANOSECONDS)));
-            spanBuilder.setStartTimestamp(instant.get());
-            final Span span = spanBuilder.startSpan();
-            try (final Scope scope = span.makeCurrent()) {
-                writeSpan(metrics.getMetrics(), instant, tracer, span);
-            } finally {
-                span.end(instant.get());
+                final AtomicReference<Instant> instant = new AtomicReference<>();
+                instant.set(Instant.now().minusNanos(metrics.getDuration(TimeUnit.NANOSECONDS)));
+                spanBuilder.setStartTimestamp(instant.get());
+                final Span span = spanBuilder.startSpan();
+                try (final Scope scope = span.makeCurrent()) {
+                    writeSpan(metrics.getMetrics(), instant, tracer, span);
+                } finally {
+                    span.end(instant.get());
+                }
             }
+        } catch (final Exception e) {
+            LOG.error("Unexpected failure occurred during Query Tracing export. Please check your Query Tracing endpoint.", e);
         }
     }
 
@@ -136,6 +147,26 @@ public class OpenTelemetryZipkinExporter implements Closeable {
                 instant.set(instant.get().plusNanos(m.getDuration(TimeUnit.NANOSECONDS)));
                 span.end(instant.get());
             }
+        }
+    }
+
+    static private void healthCheck(final String ip, final int port) {
+        LOG.info("Query Tracing is enabled.");
+        LOG.info("Establishing connection to Query Tracing endpoint at IP {} and Port {}.", ip, port);
+        final String endpoint = String.format("http://%s:%s/health", ip, port);
+        int responseCode;
+        try {
+            final URL url = new URL(endpoint);
+            final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            responseCode = connection.getResponseCode();
+        } catch (final Exception e) {
+            throw new IllegalStateException("Connection to Query Tracing endpoint failed with no response. This is most likely due to an incorrect IP or Port. Error: " + e.getMessage(), e);
+        }
+        if (responseCode == 200) {
+            LOG.info("Connection to Query Tracing endpoint at IP {} and Port {} successful.", ip, port);
+        } else {
+            throw new IllegalStateException("Connection to Query Tracing endpoint failed with response code: " + responseCode);
         }
     }
 

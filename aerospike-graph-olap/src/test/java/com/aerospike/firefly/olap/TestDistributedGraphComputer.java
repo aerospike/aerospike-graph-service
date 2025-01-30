@@ -140,6 +140,69 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
+    public void test_VHasLabelGroupCountByOutKnowsCount() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            final Map<Object, Long> oltp = graph.traversal().V().hasLabel("person").groupCount().by(__.out("knows").count()).next();
+            final Map<Object, Long> olap = graph.traversal().withComputer().V().hasLabel("person").groupCount().by(__.out("knows").count()).next();
+            System.out.println("OLTP: " + oltp);
+            System.out.println("OLAP: " + olap);
+            Assert.assertTrue(oltp.keySet().containsAll(olap.keySet()));
+            Assert.assertEquals(oltp.keySet().size(), olap.keySet().size());
+            oltp.keySet().forEach(k -> Assert.assertEquals(oltp.get(k), olap.get(k)));
+        }
+    }
+
+    @Test
+    public void test_VHasLabelCount() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            final Long oltp = graph.traversal().V().hasLabel("person").count().next();
+            final Long olap = graph.traversal().withComputer().V().hasLabel("person").count().next();
+            System.out.println("OLTP: " + oltp);
+            System.out.println("OLAP: " + olap);
+            Assert.assertEquals(oltp, olap);
+        }
+    }
+
+    @Test
+    public void test_VHasLabelGroupCountBy() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            System.out.println(graph.traversal().V().has("name", "marko").elementMap().toList());
+            final Map<Object, Long> oltp = graph.traversal().V().hasLabel("person").groupCount().by("name").next();
+            final Map<Object, Long> olap = graph.traversal().withComputer().V().hasLabel("person").groupCount().by("name").next();
+            System.out.println("OLTP: " + oltp);
+            System.out.println("OLAP: " + olap);
+            Assert.assertTrue(oltp.keySet().containsAll(olap.keySet()));
+            Assert.assertEquals(oltp.keySet().size(), olap.keySet().size());
+            oltp.keySet().forEach(k -> Assert.assertEquals(oltp.get(k), olap.get(k)));
+        }
+    }
+
+    @Test
+    public void testVHasLabelOutGroupCountBy() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            final Map<Object, Long> oltp = graph.traversal().V().hasLabel("person").out("person").groupCount().by("name").next();
+            final Map<Object, Long> olap = graph.traversal().withComputer().V().hasLabel("person").out("person").groupCount().by("name").next();
+            System.out.println("OLTP: " + oltp);
+            System.out.println("OLAP: " + olap);
+            Assert.assertTrue(oltp.keySet().containsAll(olap.keySet()));
+            Assert.assertEquals(oltp.keySet().size(), olap.keySet().size());
+            oltp.keySet().forEach(k -> Assert.assertEquals(oltp.get(k), olap.get(k)));
+        }
+    }
+
+    @Test
     public void testBarrier() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();

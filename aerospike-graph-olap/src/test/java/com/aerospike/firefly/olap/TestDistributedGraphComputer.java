@@ -89,9 +89,9 @@ public class TestDistributedGraphComputer {
             graph.traversal().V().drop().iterate();
             final Graph tg = TinkerFactory.createModern();
             GraphHelper.cloneElements(tg, graph);
-            System.out.println(graph.traversal().V().has("name", "marko").repeat(__.out()).until(__.hasLabel("person")).toList());
             List<?> output = graph.traversal().withComputer().V().has("name", "marko").repeat(__.out()).until(__.hasLabel("person")).toList();
-            System.out.println(output);
+            System.out.println("expected: " + graph.traversal().V().has("name", "marko").repeat(__.out()).until(__.hasLabel("person")).toList());
+            System.out.println("got: " + output);
         }
     }
 

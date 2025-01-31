@@ -1,5 +1,6 @@
 package com.aerospike.firefly.olap;
 
+import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.InternalConfigs.V_LABEL_INDEX_NAME;
 import static org.junit.Assert.assertEquals;
 
 public class TestDistributedGraphComputer {
@@ -40,6 +42,9 @@ public class TestDistributedGraphComputer {
     public void beforeEach() {
         config = ConfigurationHelper.loadFromFile(Tokens.INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.getBaseGraph().dropGraphIndices(graph);
+        }
     }
 
     @Test
@@ -329,5 +334,60 @@ public class TestDistributedGraphComputer {
         df.show(false);
 
         spark.stop();
+    }
+
+    @Test
+    public void testLabelIndex() {
+        createLabelIndex();
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            List<FireflyIndexMetadata.IndexInfo> indexes = graph.fireflyIndexMetadata.getPropertyIndexInfos();
+            Assert.assertEquals(1, indexes.size());
+            Assert.assertEquals(graph.getBaseGraph().V_LABEL_INDEX_NAME, indexes.get(0).indexName);
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            List<Vertex> output = graph.traversal().withComputer().V().hasLabel("person").out().out().toList();
+            Assert.assertEquals(2, output.size());
+            System.out.println(output);
+        }
+    }
+
+    void createLabelIndex() {
+        config.setProperty("aerospike.graph.index.vertex.label.enabled", "true");
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.fireflyIndexMetadata.updateMetadata();
+            List<FireflyIndexMetadata.IndexInfo> indexes = graph.fireflyIndexMetadata.getPropertyIndexInfos();
+            Assert.assertEquals(1, indexes.size());
+            Assert.assertEquals(graph.getBaseGraph().V_LABEL_INDEX_NAME, indexes.get(0).indexName);
+        }
+    }
+
+    void createIndex(final String propertyName) {
+        config.setProperty("aerospike.graph.index.vertex.properties", propertyName);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            // 1 second to create index.
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+            }
+            graph.fireflyIndexMetadata.updateMetadata();
+            List<FireflyIndexMetadata.IndexInfo> indexes = graph.fireflyIndexMetadata.getPropertyIndexInfos();
+            Assert.assertEquals(2, indexes.size());
+            Assert.assertEquals(propertyName, indexes.get(0).key);
+            Assert.assertEquals(propertyName, indexes.get(1).key);
+        }
+    }
+
+    @Test
+    public void testPropertyIndex() {
+        createIndex("name");
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            List<Vertex> output = graph.traversal().withComputer().V().has("name", "marko").out().toList();
+            Assert.assertEquals(3, output.size());
+            System.out.println(output);
+        }
     }
 }

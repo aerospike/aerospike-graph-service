@@ -75,11 +75,11 @@ public class DistributedQueryExecutor {
         return queryRangeDataset.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             // Junk required.
             final Codec codec = new Codec(traversal.asAdmin().getTraverserRequirements());
-            final Filter filter = GraphQueryHelper.predicateToFilter(rootGraph.getBaseGraph(), hasContainer.getPredicate(), indexInfo);
             final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
 
             // Open graph.
             try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
+                final Filter filter = GraphQueryHelper.predicateToFilter(graph.getBaseGraph(), hasContainer.getPredicate(), indexInfo);
                 while (iterator.hasNext()) {
                     final Row row = iterator.next();
                     final PartitionFilter partitionFilter = PartitionFilter.range(
@@ -177,7 +177,6 @@ public class DistributedQueryExecutor {
                     policy.setTimeout(evaluationTimeout);
                     policy.filterExp = expression;
 
-                    System.out.println();
                     final PageFetcher<?> pageFetcher = new ScanPageFetcher<>(
                             graph,
                             policy,

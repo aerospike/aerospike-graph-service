@@ -94,7 +94,7 @@ public class DistributedGraphComputer implements GraphComputer {
     private boolean executed = false;
     private final DistributedConfigHelper configHelper;
 
-    public DistributedGraphComputer(final FireflyGraph graph) {
+    public DistributedGraphComputer(final FireflyGraph graph, final Object sparkSession) {
         this.graph = graph;
         final Map<String, Object> config = new HashMap<>();
         final Iterator<String> keys = graph.configuration().getKeys();
@@ -103,8 +103,11 @@ public class DistributedGraphComputer implements GraphComputer {
             config.put(key, graph.configuration().getString(key));
         }
         configHelper = new DistributedConfigHelper(config);
-
-        this.spark = buildSparkSession();
+        if (sparkSession != null) {
+            this.spark = (SparkSession) sparkSession;
+        } else {
+            this.spark = buildSparkSession();
+        }
     }
 
     private static SparkSession buildSparkSession() {

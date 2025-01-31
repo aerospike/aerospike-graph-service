@@ -63,7 +63,7 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
 
     @Override
     protected Iterator<Vertex> flatMap(final Traverser.Admin<Edge> traverser) {
-        if (first) {
+        if (first || !traversal.isRoot()) {
             precompute();
             first = false;
         }

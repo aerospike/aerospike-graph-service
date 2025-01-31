@@ -48,6 +48,24 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
+    public void play() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            long output = graph.traversal().withComputer()
+                    .V()
+                    .both().both()
+                    .count()
+                    .next();
+
+            System.out.println(output);
+            Assert.assertEquals(30L, output);
+        }
+    }
+
+    @Test
     public void testBasic() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();

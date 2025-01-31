@@ -10,7 +10,7 @@ import org.apache.tinkerpop.gremlin.features.AbstractGuiceFactory;
 import org.apache.tinkerpop.gremlin.features.World;
 import org.junit.runner.RunWith;
 
-// @RunWith(Cucumber.class)
+@RunWith(Cucumber.class)
 @CucumberOptions(
         tags = "not @RemoteOnly and not @GraphComputerOnly and not @AllowNullPropertyValues and "+
                 "not @TinkerServiceRegistry and not @StepRead and not @MultiProperties and " +
@@ -20,7 +20,7 @@ import org.junit.runner.RunWith;
                 "not @WithPartitionStrategy",
         glue = { "org.apache.tinkerpop.gremlin.features" },
         objectFactory = FireflyComputerFeatureTest.FireflyComputerGraphGuiceFactory.class,
-        features = { "classpath:/org/apache/tinkerpop/gremlin/test/features" },
+        features = { "classpath:/org/apache/tinkerpop/gremlin/test/features/map/ElementMap.feature" },
         plugin = {"progress", "junit:target/cucumber.xml"})
 public class FireflyComputerFeatureTest {
     public static class FireflyComputerGraphGuiceFactory extends AbstractGuiceFactory {

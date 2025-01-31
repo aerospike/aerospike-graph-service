@@ -41,7 +41,7 @@ public class FireflyCountGlobalLocalStrategy  extends FireflyStrategyBase {
                         TraversalHelper.replaceStep(
                                 traversal.getSteps().get(i),
                                 new FireflyCountGlobalLocalStep<>(
-                                        traversal, vertexStep.getDirection(), traversal.getSteps().get(i).getLabels()),
+                                        traversal, vertexStep.getDirection(), traversal.getSteps().get(i).getLabels(), vertexStep.getEdgeLabels()),
                                 traversal);
                         traversal.removeStep(vertexStep);
                     }

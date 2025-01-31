@@ -32,9 +32,14 @@ public class FireflyServer {
     private CompletableFuture<Void> serverStarted = null;
     private CompletableFuture<Void> serverStopped = null;
     private ServerMetrics serverMetrics;
+    private static Object sparkSession;
 
     public FireflyServer(final String file) {
         confPath = file;
+    }
+
+    public static void setSpark(final Object sparkSession) {
+        FireflyServer.sparkSession = sparkSession;
     }
 
     public static void main(final String[] args) {
@@ -43,6 +48,7 @@ public class FireflyServer {
 
     public static FireflyServer start(final String[] args) {
         if (args.length != 1) {
+            logger.error("FireflyServer failed to start, no configuration file provided.");
             System.err.println("Usage: Server <conf file>");
             System.exit(1);
         }
@@ -75,6 +81,7 @@ public class FireflyServer {
             final Set<String> graphs = graphManager.getGraphNames();
             for (final String graphName : graphs) {
                 final FireflyGraph graph = (FireflyGraph) graphManager.getGraph(graphName);
+                graph.setSparkSession(sparkSession);
                 String gts = graph.configuration().getString(TRAVERSAL_NAME);
                 if (gts == null) {
                     // default gts for default graph

@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.InternalConfigs.V_LABEL_INDEX_NAME;
 import static org.junit.Assert.assertEquals;
 
 public class TestDistributedGraphComputer {

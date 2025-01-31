@@ -48,6 +48,6 @@ public class FireflyCountGlobalLocalStrategy  extends FireflyStrategyBase {
 
                 }
             }
-    }
+        }
     }
 }

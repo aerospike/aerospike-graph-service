@@ -1,5 +1,6 @@
 package com.aerospike.firefly.olap.structure;
 
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
@@ -31,6 +32,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_P_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_S_SE_SL_TraverserGenerator;
@@ -267,6 +269,7 @@ public class DistributedGraphComputer implements GraphComputer {
 
         // TODO: Maybe smarter check.
         // Ensure requested workers are not larger than supported workers.
+        this.workers = spark.sparkContext().getExecutorMemoryStatus().size();
         if (this.workers > this.features().getMaxWorkers())
             throw GraphComputer.Exceptions.computerRequiresMoreWorkersThanSupported(this.workers, this.features().getMaxWorkers());
 
@@ -284,7 +287,7 @@ public class DistributedGraphComputer implements GraphComputer {
 
             // TODO https://aerospike.com/docs/server/reference/configuration#namespace__background-query-max-rps - We might want to jack this up for OLAP.
             // TODO: Partitions pull data directly.
-            // final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace);
+
             // final Dataset<Row> initialDataset = getInitialDataset(maxParallelSindexes, initialHasContainers);
 
 
@@ -301,32 +304,44 @@ public class DistributedGraphComputer implements GraphComputer {
             // Get TraverseRequirements and TraverserGenerator, this will be useful later when we go to traverser based approach.
             final Set<TraverserRequirement> traverserRequirements = pureTraversal.asAdmin().getTraverserRequirements();
             final TraverserGenerator traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirements);
-            final Step<?, ?> secondStep = pureTraversal.asAdmin().getStartStep().getNextStep();
 
+            final Step<?, ?> firstStep = pureTraversal.asAdmin().getStartStep();
+            if (!(firstStep instanceof GraphStep)) {
+                throw new RuntimeException("OLAP only supports starting on GraphStep, please contact support.");
+            }
+            final GraphStep graphStep = (GraphStep) firstStep;
+            if (graphStep.returnsEdge()) {
+                throw new RuntimeException("OLAP only supports starting on Vertices at this time (g.V()), not edges (g.E()).");
+            }
+
+            final Step<?, ?> secondStep = pureTraversal.asAdmin().getStartStep().getNextStep();
             final Codec codec = new Codec(traverserRequirements);
 
             // If we give partition info to workers, this can go away.
-            try (final PartitionIterator partitionIterator = builder.create()) {
-                while (partitionIterator.hasNext()) {
-                    final Optional<CloseableIterator<FireflyVertex>> optional = partitionIterator.next();
-                    if (optional.isEmpty()) {
-                        break;
-                    } else {
-                        try (final CloseableIterator<FireflyVertex> vertexIterator = optional.get()) {
-                            while (vertexIterator.hasNext()) {
-                                final FireflyVertex vertex = vertexIterator.next();
-                                vertices.add(codec.encode(vertex, secondStep.getId()));
-                            }
-                        }
-                    }
-                }
-            }
+            //try (final PartitionIterator partitionIterator = builder.create()) {
+            //    while (partitionIterator.hasNext()) {
+            //        final Optional<CloseableIterator<FireflyVertex>> optional = partitionIterator.next();
+            //        if (optional.isEmpty()) {
+            //            break;
+            //        } else {
+            //            try (final CloseableIterator<FireflyVertex> vertexIterator = optional.get()) {
+            //                while (vertexIterator.hasNext()) {
+            //                    final FireflyVertex vertex = vertexIterator.next();
+            //                    vertices.add(codec.encode(vertex, secondStep.getId()));
+            //                }
+            //            }
+            //        }
+            //    }
+            //}
 
             // Create basic schema.
             final StructType schema = codec.getSchema();
 
+            final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace);
+            Dataset<Row> df = DistributedQueryExecutor.getStartingPoint(spark, graph, configHelper, initialHasContainers, traversal.get(), schema, workers, maxParallelSindexes);
+
             // Generate Dataset.
-            Dataset<Row> df = spark.createDataFrame(vertices, schema);
+            df = spark.createDataFrame(df.rdd(), schema);
 
             // Create necessary things for execution (Memory, ResultGraph, Config, etc.)
             this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));

@@ -54,6 +54,33 @@ public class ScanPageFetcher<E extends Element> extends PageFetcher<E> {
         this.startTime = System.currentTimeMillis();
     }
 
+    public ScanPageFetcher(final FireflyGraph graph,
+                           final ScanPolicy policy,
+                           final String setName,
+                           final String indexName,
+                           final int maxPageSize,
+                           final String mapKey,
+                           final PartitionFilter partitionFilter,
+                           final ExecutorService readLoopExecutorService,
+                           final BlockingQueue<Page> pageQueue,
+                           final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
+        super(graph, transformKeyRecord, indexName, partitionFilter, readLoopExecutorService, pageQueue);
+        graph.getBaseGraph().configureScanPolicy(policy);
+        this.policy = policy;
+        this.policy.maxRecords = maxPageSize;
+        this.set = setName;
+        this.scanHitCounter = graph.getBaseGraph().getScanHitCounter();
+        if (mapKey != null) {
+            scanHitCounter.associateUUID(scanId, mapKey);
+            scanHitCounter.increment(mapKey);
+        }
+        this.metricsCallback = (start, stop) -> {
+            scanHitCounter.setScanTimings(scanId, start, stop);
+            return null;
+        };
+        this.startTime = System.currentTimeMillis();
+    }
+
     @Override
     protected void readPage() {
         final AtomicBoolean done = new AtomicBoolean(false);

@@ -8,6 +8,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -156,12 +157,11 @@ public class FireflyIndexMetadata implements FireflyMetadata {
     /**
      * Class to hold all relevant information about indexes.
      */
-    public static class IndexInfo {
+    public static class IndexInfo implements Serializable {
         public final String indexName;
         public final String key;
         public final IndexType indexType;
         public final String setName;
-
 
         /**
          * Default constructor, simply populates the info class.

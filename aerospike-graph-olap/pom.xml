@@ -9,6 +9,14 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
+    <repositories>
+        <repository>
+            <id>bintray</id>
+            <name>Bintray Repository</name>
+            <url>https://repos.spark-packages.org</url>
+        </repository>
+    </repositories>
+
     <artifactId>aerospike-graph-olap</artifactId>
     <name>Aerospike :: Graph OLAP</name>
     <dependencies>
@@ -89,6 +97,11 @@
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>
             <version>1.11.4</version>
+        </dependency>
+        <dependency>
+            <groupId>graphframes</groupId>
+            <artifactId>graphframes</artifactId>
+            <version>0.8.1-spark3.0-s_2.12</version>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>

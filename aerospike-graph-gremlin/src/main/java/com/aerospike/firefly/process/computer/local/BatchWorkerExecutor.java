@@ -124,7 +124,7 @@ public class BatchWorkerExecutor {
             });
         }
 
-        ComputerHelper.bulkAttach( (FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
+        ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                 traversalSideEffects, toProcessTraversers);
 
         ///////////////////////////////
@@ -159,10 +159,10 @@ public class BatchWorkerExecutor {
                     if (traverser.get() instanceof Element || traverser.get() instanceof Property) {      // GRAPH OBJECT
                         // if the element is remote, then message, else store it locally for re-processing
                         final Vertex hostingVertex = Host.getHostingVertex(traverser.get());
-                        if(!traverser.isHalted())
+                        if (!traverser.isHalted())
                             voteToHalt.set(false);
 //                        if (!vertices.contains(hostingVertex)) { // if its host is not the current vertex, then send the traverser to the hosting vertex
-                            //voteToHalt.set(false); // if message is passed, then don't vote to halt
+                        //voteToHalt.set(false); // if message is passed, then don't vote to halt
                         messenger.sendMessage(MessageScope.Global.of(hostingVertex), new TraverserSet<>(traverser.detach()));
 //                        } else {
 //                            // todo: helper
@@ -229,7 +229,8 @@ public class BatchWorkerExecutor {
                 final Barrier barrier = (Barrier) step;
                 if (barrier.hasNextBarrier()) {
                     while (barrier.hasNextBarrier()) {
-                        memory.add(step.getId(), barrier.nextBarrier());
+                        // barrier can produce non-serializable firefly elements
+                        memory.add(step.getId(), ReferenceFactory.detach(barrier.nextBarrier()));
                     }
                 } else {
                     // ensure the step id gets added to memory or else barriers that filter like order().by('no-exist')
@@ -246,12 +247,11 @@ public class BatchWorkerExecutor {
                         // if its a ReferenceFactory (one less iteration required)
                         ((returnHaltedTraversers || ReferenceFactory.class == haltedTraverserStrategy.getHaltedTraverserFactory()) &&
                                 (!(traverser.get() instanceof Element) && !(traverser.get() instanceof Property)) /*||
-                                vertices.contains(Host.getHostingVertex(traverser.get()))*/ )) {
+                                vertices.contains(Host.getHostingVertex(traverser.get()))*/)) {
                     if (returnHaltedTraversers) {
                         System.out.println("    memory.add");
                         memory.add(TraversalVertexProgram.HALTED_TRAVERSERS, new TraverserSet<>(haltedTraverserStrategy.halt(traverser)));
-                    }
-                    else {
+                    } else {
                         System.out.println("    haltedTraversers.add");
                         haltedTraversers.add(traverser.detach());
                     }

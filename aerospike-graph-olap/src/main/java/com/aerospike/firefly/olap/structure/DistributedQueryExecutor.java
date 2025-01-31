@@ -18,11 +18,14 @@ import com.aerospike.firefly.olap.codec.RowCodecFactory;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
+import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.TimeoutHelper;
 import com.amazonaws.services.logs.model.QueryInfo;
+import com.google.common.collect.Lists;
 import org.apache.hadoop.shaded.org.checkerframework.checker.nullness.Opt;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
 import org.apache.spark.sql.Dataset;
@@ -33,9 +36,12 @@ import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.traversal.Contains;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.io.Serializable;
@@ -136,7 +142,65 @@ public class DistributedQueryExecutor {
                                            final int maxParallelQuery,
                                            final int maxWorkers,
                                            final QueryInfo queryInfo) {
-        return null;
+        final List<Object> initialIds = queryInfo.ids.get();
+        System.out.println("IDS: " + initialIds);
+        final List<Object> ids = new ArrayList<>();
+        if (initialIds.size() == 1 && initialIds.get(0) instanceof P) {
+            final P p = (P) initialIds.get(0);
+            if (!p.getBiPredicate().toString().equals("within")) {
+                throw new IllegalArgumentException("Batch read only supports within predicate");
+            }
+            if (!(p.getValue() instanceof List)) {
+                throw new IllegalArgumentException("Batch read only supports a single list of keys");
+            }
+            ids.addAll((List) p.getValue());
+        } else {
+            ids.addAll(initialIds);
+        }
+        System.out.println("Actual ids: " + ids);
+        initialIds.clear();
+        final List<Row> rows = ids.stream().map(id -> RowFactory.create(id.toString(), RowCodec.getIdType(id).ordinal())).collect(Collectors.toList());
+        final StructType inputSchema = new StructType().
+                add(RowCodec.ID_COL, DataTypes.StringType, false).
+                add(RowCodec.ID_TYPEHINT_COL, DataTypes.IntegerType, false);
+        final Dataset<Row> idDataset = spark.createDataFrame(rows, inputSchema);
+        final GraphStep graphStep = (GraphStep) traversal.asAdmin().getStartStep();
+        final String startStep = traversal.asAdmin().getStartStep().getNextStep().getId();
+        return idDataset.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
+            final Codec codec = new Codec(traversal.asAdmin().getTraverserRequirements());
+            final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
+
+            try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
+                final List<FireflyId> ffids = new ArrayList<>();
+                while (iterator.hasNext()) {
+                    final Row row = iterator.next();
+                    final Object id = RowCodec.getId(
+                            row.getString(row.fieldIndex(RowCodec.ID_COL)),
+                            row.getInt(row.fieldIndex(RowCodec.ID_TYPEHINT_COL)));
+                    System.out.println("id: " + id);
+                    ffids.add(graphStep.returnsVertex() ? graph.getIdFactory().createVertexId(id) : graph.getIdFactory().createEdgeId(id));
+                }
+                final List<List<FireflyId>> partitionedFfidList = Lists.partition(ffids, graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE);
+                if (graphStep.returnsVertex()) {
+                    final List<Row> outputVertices = new ArrayList<>();
+                    for (final List<FireflyId> ffidList : partitionedFfidList) {
+                        // TODO: Pushdown.
+                        System.out.println("Reading " + ffidList);
+                        List<FireflyVertex> vertices = graph.readVertices(List.of(), ffidList, null);
+                        System.out.println("Output : " + vertices);
+                        vertices.forEach(vertex -> outputVertices.add(codec.encode(vertex, startStep)));
+                    }
+                    return outputVertices.iterator();
+                } else {
+                    final List<Row> outputEdges = new ArrayList<>();
+                    for (final List<FireflyId> ffidList : partitionedFfidList) {
+                        List<FireflyEdge> edges = graph.readEdges(List.of(), ffidList, null);
+                        edges.forEach(edge -> outputEdges.add(codec.encode(edge, startStep)));
+                    }
+                    return outputEdges.iterator();
+                }
+            }
+        }, RowEncoder.apply(outputSchema));
     }
 
     private static Dataset<Row> getScanQuery(final SparkSession spark,

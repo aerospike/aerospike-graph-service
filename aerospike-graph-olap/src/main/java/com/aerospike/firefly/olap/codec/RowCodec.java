@@ -117,7 +117,7 @@ public abstract class RowCodec {
             return ID_TYPE.STRING;
         } else {
             // TODO.
-            throw new IllegalArgumentException("Only Long string and integer types can be serialized at this time.");
+            throw new IllegalArgumentException("Only long string and integer types can be serialized at this time " + id.getClass().getName() + " is not supported.");
         }
     }
 

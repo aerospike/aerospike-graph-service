@@ -1011,7 +1011,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public <C extends GraphComputer> C compute(final Class<C> graphComputerClass) throws IllegalArgumentException {
         try {
             final Class<C> clazz = (Class<C>) Class.forName("com.aerospike.firefly.olap.structure.DistributedGraphComputer");
-            return clazz.getConstructor(FireflyGraph.class).newInstance(this, sparkSession);
+            return clazz.getConstructor(FireflyGraph.class, Object.class).newInstance(this, sparkSession);
         } catch (final InvocationTargetException | NoSuchMethodException | ClassNotFoundException | InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
             throw new IllegalStateException("ERROR: To use OLAP, use the docker image with OLAP support or a Spark cluster.", e);
@@ -1028,7 +1028,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         });
         try {
             final Class<? extends GraphComputer> clazz = (Class<? extends GraphComputer>) Class.forName("com.aerospike.firefly.olap.structure.DistributedGraphComputer");
-            return clazz.getConstructor(FireflyGraph.class).newInstance(this);
+            return clazz.getConstructor(FireflyGraph.class, Object.class).newInstance(this, sparkSession);
         } catch (final InvocationTargetException | NoSuchMethodException | ClassNotFoundException | InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
             throw new IllegalStateException("ERROR: To use OLAP, use the docker image with OLAP support or a Spark cluster.", e);

@@ -450,8 +450,12 @@ public class DistributedGraphComputer implements GraphComputer {
             // Send result and memory to computer result.
             return CompletableFuture.completedFuture(new DefaultComputerResult(resultGraph, memory));
         } catch (final Exception e) {
+            // Maybe remove this for L2.
+            spark.close();
+            spark = null;
+
             LOGGER.error("A global error occurred. Shutting down {}: {}", this, e.getMessage(), e);
-            return new CompletableFuture<>();
+            throw new RuntimeException("Global error '" + e.getMessage() + "' occurred during OLAP traversal.", e);
         }
     }
 

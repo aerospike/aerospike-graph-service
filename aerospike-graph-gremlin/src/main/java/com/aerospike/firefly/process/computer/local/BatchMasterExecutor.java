@@ -18,6 +18,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyKeyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyMapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyValueStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.SackStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ReducingBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.HaltedTraverserStrategy;
@@ -46,7 +47,15 @@ public class BatchMasterExecutor {
                 completedBarriers.add(step.getId());
                 if (!(step instanceof LocalBarrier)) {  // local barriers don't do any processing on the master traversal (they just lock on the workers)
                     final Barrier<Object> barrier = (Barrier<Object>) step;
-                    barrier.addBarrier(memory.get(key));
+                    // collecting barriers expect to consume TraverserSet, but spark serialize it as HashSet
+                    if (barrier instanceof CollectingBarrierStep) {
+                        final TraverserSet<?> traverserSet = new TraverserSet();
+                        ((HashSet)memory.get(key)).forEach(i-> {
+                            traverserSet.add((Traverser.Admin)i);
+                        } );
+                        barrier.addBarrier(traverserSet);
+                    } else
+                        barrier.addBarrier(memory.get(key));
                     step.forEachRemaining(toProcessTraversers::add);
                     // if it was a reducing barrier step, reset the barrier to its seed value
                     if (step instanceof ReducingBarrierStep)
@@ -79,7 +88,7 @@ public class BatchMasterExecutor {
                 traverser.setSideEffects(traversal.get().getSideEffects());
                 if (traverser.isHalted())
                     haltedTraversers.add(haltedTraverserStrategy.halt(traverser));
-                // stay local forever (!!!)
+                    // stay local forever (!!!)
 //                else if (isRemoteTraverser(traverser, traversalMatrix))  // this is so that patterns like order().name work as expected. try and stay local as long as possible
 //                    remoteActiveTraversers.add(traverser.detach());
                 else {
@@ -90,7 +99,7 @@ public class BatchMasterExecutor {
                             final Traverser.Admin<Object> result = previousStep.next();
                             if (result.isHalted())
                                 haltedTraversers.add(haltedTraverserStrategy.halt(result));
-                            // stay local forever (!!!)
+                                // stay local forever (!!!)
 //                            else if (isRemoteTraverser(result, traversalMatrix))
 //                                remoteActiveTraversers.add(result.detach());
                             else
@@ -107,7 +116,7 @@ public class BatchMasterExecutor {
                     final Traverser.Admin<Object> traverser = currentStep.next();
                     if (traverser.isHalted())
                         haltedTraversers.add(haltedTraverserStrategy.halt(traverser));
-                    // stay local forever (!!!)
+                        // stay local forever (!!!)
 //                    else if (isRemoteTraverser(traverser, traversalMatrix))
 //                        remoteActiveTraversers.add(traverser.detach());
                     else

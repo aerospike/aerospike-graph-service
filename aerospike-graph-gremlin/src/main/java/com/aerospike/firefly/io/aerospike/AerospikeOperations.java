@@ -80,6 +80,8 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
+import static com.aerospike.firefly.io.aerospike.FireflyTxn.commit;
+import static com.aerospike.firefly.io.aerospike.FireflyTxn.rollback;
 import static com.aerospike.firefly.io.aerospike.OperationReturnHandler.getValueAtIndex;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_DATA_SIZE;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_IN_KEY;
@@ -120,6 +122,15 @@ public class AerospikeOperations {
         final Txn txn = new Txn();
         txn.setTimeout(db.MRT_TIMEOUT);
         return txn;
+    }
+
+    private FireflyTxn getOrCreateFireflyTxn() {
+        final Txn txn = getOrCreateTxn();
+        if (txn == null) {
+            return null;
+        } else {
+            return new FireflyTxn(graph, txn);
+        }
     }
 
     //////////////// VERTEX OPERATIONS ///////////////
@@ -425,29 +436,47 @@ public class AerospikeOperations {
      * Remove vertex from Aerospike.
      */
     public void removeVertex(final FireflyVertex vertex) {
-        final Txn txn = getOrCreateTxn();
-
+        final FireflyTxn fireflyTxn = getOrCreateFireflyTxn();
         try {
-            // Collect edges in both directions and remove them all.
-            final Iterator<FireflyEdge> inEdges = new FireflyBatchEdgeIterator(graph, vertex.getEdgeIdsFromVertex(Direction.IN, Collections.emptySet(), Collections.emptyList()));
-            final Iterator<FireflyEdge> outEdges = new FireflyBatchEdgeIterator(graph, vertex.getEdgeIdsFromVertex(Direction.OUT, Collections.emptySet(), Collections.emptyList()));
-            // Remove the edges themselves and from the adjacent vertices' edge caches.
-            inEdges.forEachRemaining(e -> removeEdge(e, true, false, txn));
-            outEdges.forEachRemaining(e -> removeEdge(e, false, true, txn));
+            if (fireflyTxn != null && vertex.isEdgeCacheOverflowed()) {
+                // If the vertex is a supernode we can't remove its edges within the limit of a single MRT.
+                LOG.warn("Dropping supernode Vertex {}. All attached Edges will be dropped but some not as part of the MRT.", vertex.id());
+
+                // Remove supernode edges themselves and from the adjacent vertices' edge caches outside the MRT.
+                final Iterator<FireflyEdge> sindexedInEdges = new FireflyBatchEdgeIterator<>(graph, vertex.getSupernodeEdgeIds(Direction.IN, Collections.emptySet(), Collections.emptyList()));
+                final Iterator<FireflyEdge> sindexedOutEdges = new FireflyBatchEdgeIterator<>(graph, vertex.getSupernodeEdgeIds(Direction.OUT, Collections.emptySet(), Collections.emptyList()));
+                sindexedInEdges.forEachRemaining(e -> removeEdge(e, true, false, null));
+                sindexedOutEdges.forEachRemaining(e -> removeEdge(e, false, true, null));
+
+                // Remove cached edges themselves and from the adjacent vertices' edge caches within the MRT.
+                final Iterator<FireflyEdge> cachedInEdges = new FireflyBatchEdgeIterator<>(graph, vertex.getCachedEdgeIds(Direction.IN, Collections.emptySet()).iterator());
+                final Iterator<FireflyEdge> cachedOutEdges = new FireflyBatchEdgeIterator<>(graph, vertex.getCachedEdgeIds(Direction.OUT, Collections.emptySet()).iterator());
+                cachedInEdges.forEachRemaining(e -> removeEdge(e, true, false, fireflyTxn));
+                cachedOutEdges.forEachRemaining(e -> removeEdge(e, false, true, fireflyTxn));
+            } else {
+                // Collect edges in both directions and remove them all.
+                final Iterator<FireflyEdge> inEdges = new FireflyBatchEdgeIterator<>(graph, vertex.getEdgeIdsFromVertex(Direction.IN, Collections.emptySet(), Collections.emptyList()));
+                final Iterator<FireflyEdge> outEdges = new FireflyBatchEdgeIterator<>(graph, vertex.getEdgeIdsFromVertex(Direction.OUT, Collections.emptySet(), Collections.emptyList()));
+                // Remove the edges themselves and from the adjacent vertices' edge caches.
+                inEdges.forEachRemaining(e -> removeEdge(e, true, false, fireflyTxn));
+                outEdges.forEachRemaining(e -> removeEdge(e, false, true, fireflyTxn));
+            }
+
 
             // Remove vertex.
             LOG.debug("Removing vertex {}.", vertex.id);
+            final Txn txn = fireflyTxn == null ? null : fireflyTxn.aerospikeTxn;
             if (db.delete(FireflyRecord.getKey(db, db.VERTEX_AERO_SET, vertex.id), txn)) {
                 graph.fireflySummaryUpdater.addVertexRemoveToQueue(vertex.label());
             }
 
-            db.commit(txn);
+            commit(fireflyTxn);
 
             if (graph.getBaseGraph().IS_AUDIT_LOG_ENABLED) {
                 LOG.info("[{}] Dropped vertex with id: {}", graph.getUser(), vertex.id());
             }
         } catch (final RuntimeException e) {
-            db.rollback(txn);
+            rollback(fireflyTxn);
             throw e;
         }
     }
@@ -1077,8 +1106,14 @@ public class AerospikeOperations {
     /**
      * Remove edge from Aerospike.
      */
-    public void removeEdge(final FireflyEdge edge, final boolean fromOutV, final boolean fromInV, final Txn outerTxn) {
-        final Txn txn = outerTxn == null ? getOrCreateTxn() : outerTxn;
+    public void removeEdge(final FireflyEdge edge, final boolean fromOutV, final boolean fromInV, final FireflyTxn outerTxn) {
+        final FireflyTxn innerTxn = outerTxn == null ? getOrCreateFireflyTxn() : outerTxn;
+        final Txn txn;
+        if (innerTxn == null) {
+            txn = null;
+        } else {
+            txn = innerTxn.aerospikeTxn;
+        }
 
         final Key key = getKey(db, db.EDGE_AERO_SET, edge.id);
         final List<Operation> operations = new ArrayList<>();
@@ -1211,7 +1246,11 @@ public class AerospikeOperations {
                 // Check edgeData value was returned to protect against concurrent deletes.
                 // If this Edge was already removed edgeData returns null and this check returns false.
                 if (edgeData instanceof List) {
-                    graph.getIdFactory().recycleEdgeId(edge.id);
+                    if (innerTxn != null) {
+                        innerTxn.addIdToRecycle(edge.id);
+                    } else {
+                        graph.getIdFactory().recycleEdgeId(edge.id);
+                    }
                     final String label = (String) ((List<?>) edgeData).get(LABEL_POSITION);
                     graph.fireflySummaryUpdater.addEdgeRemoveToQueue(label);
                 } else if (edgeData != null) {
@@ -1241,7 +1280,7 @@ public class AerospikeOperations {
                     LOG.error(message);
                     throw new IllegalStateException(message);
                 }
-                removeEdge(edges.get(0), false, false, txn);
+                removeEdge(edges.get(0), false, false, innerTxn);
             }
             LOG.debug("Generation check retry failed when regenerating Edge with id {} since it was not found.", edge.id.getUserId());
         }
@@ -1254,14 +1293,16 @@ public class AerospikeOperations {
             if (fromInV) {
                 removeEdgeFromIn(edge, txn);
             }
-            edge.removed = true;
 
             // commit only own txn
-            if (outerTxn == null)
-                db.commit(txn);
+            if (outerTxn == null) {
+                commit(innerTxn);
+            }
+            edge.removed = true;
         } catch (final AerospikeGraphException e) {
-            if (outerTxn == null)
-                db.rollback(txn);
+            if (outerTxn == null) {
+                rollback(innerTxn);
+            }
             throw e;
         }
 

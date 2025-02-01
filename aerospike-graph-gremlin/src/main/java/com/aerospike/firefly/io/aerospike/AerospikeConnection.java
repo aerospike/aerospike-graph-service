@@ -2459,14 +2459,24 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public void commit(final Txn txn) {
-        if (txn != null) {
-            this.client.commit(txn);
+        try {
+            if (txn != null) {
+                this.client.commit(txn);
+            }
+        } catch (final AerospikeException e) {
+            LOG.error("Error - AerospikeException in transaction commit: {}", e.getMessage());
+            throw fromAerospikeException(e);
         }
     }
 
     public void rollback(final Txn txn) {
-        if (txn != null) {
-            this.client.abort(txn);
+        try {
+            if (txn != null) {
+                this.client.abort(txn);
+            }
+        } catch (final AerospikeException e) {
+            LOG.error("Error - AerospikeException in transaction abort: {}", e.getMessage());
+            throw fromAerospikeException(e);
         }
     }
 

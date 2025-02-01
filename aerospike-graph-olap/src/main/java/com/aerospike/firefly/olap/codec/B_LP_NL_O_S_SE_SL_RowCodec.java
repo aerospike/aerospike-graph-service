@@ -4,10 +4,8 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
-import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
@@ -16,10 +14,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
-import scala.collection.Seq;
 
-import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 public class B_LP_NL_O_S_SE_SL_RowCodec extends RowCodec {
@@ -66,6 +61,7 @@ public class B_LP_NL_O_S_SE_SL_RowCodec extends RowCodec {
             throw new RuntimeException("Error, decoder for " + row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) + " is not implemented");
         }
         final Traverser traverser = traverserGenerator.generate(element, traversalMatrix.getStepById(step), bulk);
+
         traverser.asAdmin().setStepId(step);
         return traverser;
     }

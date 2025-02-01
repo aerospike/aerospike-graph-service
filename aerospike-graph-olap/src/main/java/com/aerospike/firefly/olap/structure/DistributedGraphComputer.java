@@ -411,7 +411,7 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 // TODO: Ultimately probably don't want to do isEmpty() check here b/c we could have a query that pulls more data from graph later and
                 // we could screw it up.
-                if (this.vertexProgram.terminate(memory) || df.isEmpty()) {
+                if (this.vertexProgram.terminate(memory) || df.limit(1).isEmpty()) {
                     // Need to be very careful with this stuff. Spark is LAZY. It doesn't execute unless forced, so if we incr at the wrong time there is problems.
                     memory.incrIteration();
                     break;

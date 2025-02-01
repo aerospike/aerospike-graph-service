@@ -87,6 +87,37 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
+    public void testRepeatTimes() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List<Vertex> output = graph.traversal().withComputer()
+                    .V(1)
+                    .repeat(__.out())
+                    .times(2)
+                    .toList();
+
+            System.out.println(output);
+        }
+    }
+
+    @Test
+    public void testRepeatAsSelect() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List<?> output = graph.traversal().withComputer().
+                    V().repeat(__.both()).times(10).as("a").out().as("b").select("a", "b").toList();
+
+            System.out.println(output);
+        }
+    }
+
+    @Test
     public void testBasic() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();

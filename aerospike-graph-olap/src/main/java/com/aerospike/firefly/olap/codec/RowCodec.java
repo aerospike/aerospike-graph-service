@@ -31,6 +31,11 @@ public abstract class RowCodec {
     public static final String REF_COL = "~ref";
     public static final String STEP_COL = "~step";
     public static final String BULK_COL = "~bulk";
+    public static final String SL_COUNT_COL = "~slc";
+    public static final String SL_NAME_COL = "~sln";
+    public static final String NL_STEP_COL = "~nl_step";
+    public static final String NL_COUNT_COL = "~nl_count";
+    public static final String NL_NAME_COL = "~nl_name";
     public static final String PATH_ID_COL = "~path_id";
     public static final String PATH_ID_TYPEHINT_COL = "~path_id_typehint";
     public static final String PATH_OBJ_TYPE_COL = "~path_obj_type";

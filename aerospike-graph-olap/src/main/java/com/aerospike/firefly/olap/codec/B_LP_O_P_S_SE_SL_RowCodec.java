@@ -51,7 +51,9 @@ public class B_LP_O_P_S_SE_SL_RowCodec extends RowCodec {
                 .add(PATH_ID_COL, DataTypes.createArrayType(DataTypes.StringType), true)
                 .add(PATH_ID_TYPEHINT_COL, DataTypes.createArrayType(DataTypes.IntegerType), true)
                 .add(PATH_OBJ_TYPE_COL, DataTypes.createArrayType(DataTypes.IntegerType), true)
-                .add(PATH_LABELS_COL, DataTypes.createArrayType(DataTypes.createArrayType(DataTypes.StringType)), true);
+                .add(PATH_LABELS_COL, DataTypes.createArrayType(DataTypes.createArrayType(DataTypes.StringType)), true)
+                .add(SL_COUNT_COL, DataTypes.IntegerType, true)
+                .add(SL_NAME_COL, DataTypes.StringType, true);
     }
 
     /////////////////////////////////////////////////////////////////////

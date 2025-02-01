@@ -4,17 +4,30 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+import org.apache.tinkerpop.gremlin.process.traversal.Path;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.ImmutablePath;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_O_P_S_SE_SL_Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_O_S_SE_SL_Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_O_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public class B_LP_O_S_SE_SL_RowCodec extends RowCodec {
@@ -34,7 +47,13 @@ public class B_LP_O_S_SE_SL_RowCodec extends RowCodec {
     @Override
     public StructType getSchema() {
         return getBaseSchema().
-                add(BULK_COL, DataTypes.LongType, false);
+                add(BULK_COL, DataTypes.LongType, false)
+                .add(PATH_ID_COL, DataTypes.createArrayType(DataTypes.StringType), true)
+                .add(PATH_ID_TYPEHINT_COL, DataTypes.createArrayType(DataTypes.IntegerType), true)
+                .add(PATH_OBJ_TYPE_COL, DataTypes.createArrayType(DataTypes.IntegerType), true)
+                .add(PATH_LABELS_COL, DataTypes.createArrayType(DataTypes.createArrayType(DataTypes.StringType)), true)
+                .add(SL_COUNT_COL, DataTypes.IntegerType, true)
+                .add(SL_NAME_COL, DataTypes.StringType, true);
     }
 
     /////////////////////////////////////////////////////////////////////
@@ -43,8 +62,8 @@ public class B_LP_O_S_SE_SL_RowCodec extends RowCodec {
 
     @Override
     public Traverser decode(final Row row,
-                            final TraverserGenerator traverserGenerator,
-                            final TraversalMatrix traversalMatrix) {
+                            final TraverserGenerator tg,
+                            final TraversalMatrix tm) {
         if (row.getString(row.fieldIndex(ID_COL)) == null) {
             throw new RuntimeException("Error, only rows with id col populated are currently supported");
         }
@@ -60,9 +79,53 @@ public class B_LP_O_S_SE_SL_RowCodec extends RowCodec {
         } else {
             throw new RuntimeException("Error, decoder for " + row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) + " is not implemented");
         }
-        final Traverser traverser = traverserGenerator.generate(element, traversalMatrix.getStepById(step), bulk);
-        traverser.asAdmin().setStepId(step);
-        return traverser;
+        final List<String> pathIds = row.getList(row.fieldIndex(PATH_ID_COL));
+        final List<Integer> pathIdTypeHints = row.getList(row.fieldIndex(PATH_ID_TYPEHINT_COL));
+        final List<Integer> pathObjTypes = row.getList(row.fieldIndex(PATH_OBJ_TYPE_COL));
+        final List<Seq<String>> pathLabels = row.getList(row.fieldIndex(PATH_LABELS_COL));
+
+        final Step stepOrEmpty = Optional.ofNullable(tm.getStepById(step)).orElse(EmptyStep.instance());
+        final _B_LP_O_S_SE_SL_Traverser<?> pathTraverser = new _B_LP_O_S_SE_SL_Traverser<>(element, stepOrEmpty, bulk);
+        pathTraverser.setStepId(step);
+        if (pathIds != null) {
+            pathTraverser.setPath(pathIds, pathIdTypeHints, pathObjTypes, pathLabels);
+        }
+        final String slName = row.isNullAt(row.fieldIndex(SL_NAME_COL)) ? null : row.getString(row.fieldIndex(SL_NAME_COL));
+        final Integer slCount = row.isNullAt(row.fieldIndex(SL_COUNT_COL)) ? 0 : row.getInt(row.fieldIndex(SL_COUNT_COL));
+        if (slName != null) {
+            // Step label ignored unless nested loop.
+            pathTraverser.initialiseLoops(null, slName);
+        }
+        for (int i = 0; i < slCount; i++) {
+            pathTraverser.incrLoops();
+        }
+        return pathTraverser;
+    }
+
+    static class _B_LP_O_S_SE_SL_Traverser<T> extends B_LP_O_S_SE_SL_Traverser<T> {
+        public _B_LP_O_S_SE_SL_Traverser(final T t, final Step<T, ?> step, final long initialBulk) {
+            super(t, step, initialBulk);
+        }
+
+        public void setPath(final List<String> pathIds,
+                            final List<Integer> pathIdTypeHints,
+                            final List<Integer> pathObjTypes,
+                            final List<Seq<String>> pathLabels) {
+            this.path = ImmutablePath.make();
+            for (int i = 0; i < pathIds.size(); i++) {
+                final Element e = getReferenceElement(pathObjTypes.get(i), getId(pathIds.get(i), pathIdTypeHints.get(i)), null);
+                final Set<String> labels = new HashSet<>(JavaConverters.seqAsJavaListConverter(pathLabels.get(i)).asJava());
+                this.path = this.path.extend(e, labels);
+            }
+        }
+
+        public String getLoopName() {
+            return loopName;
+        }
+
+        public int getLoopCount() {
+            return loops;
+        }
     }
 
     /////////////////////////////////////////////////////////////////////
@@ -71,6 +134,33 @@ public class B_LP_O_S_SE_SL_RowCodec extends RowCodec {
 
     @Override
     public Row encode(final Traverser traverser) {
+        final _B_LP_O_S_SE_SL_Traverser<?> traverserAdmin = (_B_LP_O_S_SE_SL_Traverser) traverser.asAdmin();
+        final Path path = traverser.path();
+        final String loop = traverserAdmin.getLoopName();
+        final int loopCount = traverserAdmin.getLoopCount();
+        final List<String> ids = new ArrayList<>();
+        final List<Integer> idTypeHints = new ArrayList<>();
+        final List<Integer> objTypes = new ArrayList<>();
+        final List<Seq<String>> labelsList = new ArrayList<>();
+        for (final Object o : path.objects()) {
+            if (o instanceof Element) {
+                final Element e = (Element) o;
+                ids.add(e.id().toString());
+                idTypeHints.add(getIdType(e.id()).ordinal());
+                if (e instanceof Vertex) {
+                    objTypes.add(TRAVERSER_TYPE.VERTEX.ordinal());
+                } else if (e instanceof Edge) {
+                    objTypes.add(TRAVERSER_TYPE.EDGE.ordinal());
+                } else {
+                    throw new RuntimeException("Error, only elements are currently supported");
+                }
+            } else {
+                throw new RuntimeException("Error, only elements are currently supported");
+            }
+        }
+        for (final Set<String> labels : path.labels()) {
+            labelsList.add(JavaConverters.asScalaBufferConverter(new ArrayList<>(labels)).asScala());
+        }
         if (traverser.get() instanceof Vertex) {
             final Vertex vertex = (Vertex) traverser.get();
             return RowFactory.create(
@@ -80,7 +170,13 @@ public class B_LP_O_S_SE_SL_RowCodec extends RowCodec {
                     vertex.label(), // String label.
                     traverser.asAdmin().isHalted(), // Boolean halted.
                     traverser.asAdmin().getStepId(), // String step.
-                    traverser.bulk()); // Integer bulk.
+                    traverser.bulk(), // Integer bulk.
+                    JavaConverters.asScalaBufferConverter(ids).asScala(),
+                    JavaConverters.asScalaBufferConverter(idTypeHints).asScala(),
+                    JavaConverters.asScalaBufferConverter(objTypes).asScala(),
+                    JavaConverters.asScalaBufferConverter(labelsList).asScala(),
+                    loopCount, // Loop count for single loop.
+                    loop);// Loop name for single loop.
         } else if (traverser.get() instanceof Edge) {
             final Edge edge = (Edge) traverser.get();
             return RowFactory.create(
@@ -90,7 +186,13 @@ public class B_LP_O_S_SE_SL_RowCodec extends RowCodec {
                     edge.label(), // String label.
                     traverser.asAdmin().isHalted(), // Boolean halted.
                     traverser.asAdmin().getStepId(), // String step.
-                    traverser.bulk()); // Integer bulk.
+                    traverser.bulk(), // Integer bulk.
+                    JavaConverters.asScalaBufferConverter(ids).asScala(),
+                    JavaConverters.asScalaBufferConverter(idTypeHints).asScala(),
+                    JavaConverters.asScalaBufferConverter(objTypes).asScala(),
+                    JavaConverters.asScalaBufferConverter(labelsList).asScala(),
+                    loopCount, // Loop count for single loop.
+                    loop);// Loop name for single loop.
         } else {
             throw new RuntimeException("Error, encoder for " + traverser.get().getClass() + " is not implemented");
         }
@@ -98,12 +200,12 @@ public class B_LP_O_S_SE_SL_RowCodec extends RowCodec {
 
     @Override
     public Row encode(final Vertex vertex, final String step) {
-        return RowFactory.create(TRAVERSER_TYPE.VERTEX.ordinal(), vertex.id().toString(), getIdType(vertex.id()).ordinal(), vertex.label(), false, step, 1L);
+        return RowFactory.create(TRAVERSER_TYPE.VERTEX.ordinal(), vertex.id().toString(), getIdType(vertex.id()).ordinal(), vertex.label(), false, step, 1L, null, null, null, null, null, null);
     }
 
     @Override
     public Row encode(final Edge edge, final String step) {
-        return RowFactory.create(TRAVERSER_TYPE.EDGE.ordinal(), edge.id().toString(), getIdType(edge.id()).ordinal(), edge.label(), false, step, 1L);
+        return RowFactory.create(TRAVERSER_TYPE.EDGE.ordinal(), edge.id().toString(), getIdType(edge.id()).ordinal(), edge.label(), false, step, 1L, null, null, null, null, null, null);
     }
 
     /////////////////////////////////////////////////////////////////////

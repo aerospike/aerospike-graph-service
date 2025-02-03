@@ -82,7 +82,7 @@ public class ComputerHelper {
             for (final Object projection : ((ProjectedTraverser) traverser).getProjections())
                 if (projection instanceof Vertex)
                     vertexIds.add(((Vertex) projection).id());
-                else if (traverser.get() instanceof Edge)
+                else if (projection instanceof Edge)
                     edgeIds.add(((Edge) projection).id());
         }
     }

@@ -408,6 +408,7 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 //memory.set("gremlin.traversalVertexProgram.voteToHalt", true);
                 //memory.set(ACTIVE_TRAVERSERS, new IndexedTraverserSet.VertexIndexedTraverserSet());
+                df.show(false);
 
                 // TODO: Ultimately probably don't want to do isEmpty() check here b/c we could have a query that pulls more data from graph later and
                 // we could screw it up.

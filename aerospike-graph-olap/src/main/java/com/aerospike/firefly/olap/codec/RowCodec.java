@@ -1,25 +1,81 @@
 package com.aerospike.firefly.olap.codec;
 
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
-import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
+import scala.collection.Seq;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
+import static com.aerospike.firefly.olap.codec.RowCodecHelper.appendPathSchema;
+import static com.aerospike.firefly.olap.codec.RowCodecHelper.appendSingleLoopSchema;
+import static com.aerospike.firefly.olap.codec.RowCodecHelper.getId;
+import static com.aerospike.firefly.olap.codec.RowCodecHelper.setPath;
+
 public abstract class RowCodec {
+
+    final List<CodecRequirements> codecRequirements;
+    final Set<CodecRequirements> codecRequirementsSet = new HashSet<>();
+
+    interface TraverserEncoder {
+        void encode(final List<Object> o, final Traverser t);
+    }
+
+    interface TraverserDecoder {
+        Traverser decode(final Row o);
+    }
+
+    interface ElementEncoder {
+        void encode(final List<Object> o, final Element e, final String step);
+    }
+
+    final List<TraverserEncoder> orderedTraverserEncoders = new ArrayList<>();
+    final List<ElementEncoder> orderedElementEncoders = new ArrayList<>();
+
+    RowCodec(final List<CodecRequirements> requirements) {
+        this.codecRequirements = requirements;
+        for (CodecRequirements requirement : requirements) {
+            switch (requirement) {
+                case BASE:
+                    orderedTraverserEncoders.add(new BaseTraverserEncoder());
+                    orderedElementEncoders.add(new BaseElementEncoder());
+                    break;
+                case BULK:
+                    orderedTraverserEncoders.add(new BulkTraverserEncoder());
+                    orderedElementEncoders.add(new BulkElementEncoder());
+                    break;
+                case SINGLE_LOOP:
+                    orderedTraverserEncoders.add(new SingleLoopTraverserEncoder());
+                    orderedElementEncoders.add(new SingleLoopElementEncoder());
+                    break;
+                case PATH:
+                    orderedTraverserEncoders.add(new PathTraverserEncoder());
+                    orderedElementEncoders.add(new PathElementEncoder());
+                    break;
+            }
+        }
+        codecRequirementsSet.addAll(requirements);
+    }
 
     /////////////////////////////////////////////////////////////////////
     // Columns
     /////////////////////////////////////////////////////////////////////
+
     public static final String TRAVERSER_TYPE_COL = "~traverser_type";
     public static final String ID_COL = "~id";
     public static final String ID_TYPEHINT_COL = "~id_typehint";
@@ -41,36 +97,149 @@ public abstract class RowCodec {
     public static final String PATH_OBJ_TYPE_COL = "~path_obj_type";
     public static final String PATH_LABELS_COL = "~path_steps";
 
-
-    /////////////////////////////////////////////////////////////////////
-    // Schema
-    /////////////////////////////////////////////////////////////////////
-
-    protected StructType getBaseSchema() {
-        return new StructType()
-                .add(TRAVERSER_TYPE_COL, DataTypes.IntegerType, false)
-                .add(ID_COL, DataTypes.StringType, false)
-                .add(ID_TYPEHINT_COL, DataTypes.IntegerType, false)
-                .add(LABEL_COL, DataTypes.StringType, false)
-                .add(HALTED_COL, DataTypes.BooleanType, false)
-                .add(STEP_COL, DataTypes.StringType, false);
+    static class BulkTraverserEncoder implements TraverserEncoder {
+        @Override
+        public void encode(final List<Object> o, final Traverser t) {
+            RowCodecHelper.addBulk(o, t);
+        }
     }
 
-    abstract StructType getSchema();
+    class SingleLoopTraverserEncoder implements TraverserEncoder {
+        @Override
+        public void encode(final List<Object> o, final Traverser t) {
+            RowCodecHelper.SingleLoopInfo sli = RowCodecHelper.getSingleLoopInfo(t);
+            RowCodecHelper.addSingleLoop(o, sli);
+        }
+    }
+
+    class BaseTraverserEncoder implements TraverserEncoder {
+        @Override
+        public void encode(final List<Object> o, final Traverser t) {
+            RowCodecHelper.addBaseRow(o, t);
+        }
+    }
+
+    class PathTraverserEncoder implements TraverserEncoder {
+        @Override
+        public void encode(final List<Object> o, final Traverser t) {
+            final RowCodecHelper.PathInfo pi = RowCodecHelper.getPathInfo(t);
+            RowCodecHelper.addPath(o, pi);
+        }
+    }
+
+    class BaseElementEncoder implements ElementEncoder {
+        @Override
+        public void encode(final List<Object> o, final Element e, final String step) {
+            RowCodecHelper.addBaseRow(o, e, step);
+        }
+    }
+
+    class PathElementEncoder implements ElementEncoder {
+        @Override
+        public void encode(final List<Object> o, final Element e, final String step) {
+            o.add(null);
+            o.add(null);
+            o.add(null);
+            o.add(null);
+        }
+    }
+
+    class SingleLoopElementEncoder implements ElementEncoder {
+        @Override
+        public void encode(final List<Object> o, final Element e, final String step) {
+            o.add(null);
+            o.add(null);
+        }
+    }
+
+    class BulkElementEncoder implements ElementEncoder {
+        @Override
+        public void encode(final List<Object> o, final Element e, final String step) {
+            o.add(1L);
+        }
+    }
+
+    public StructType getSchema() {
+        StructType schema = RowCodecHelper.getBaseSchema();
+        for (final CodecRequirements requirements : codecRequirements) {
+            switch (requirements) {
+                case BULK:
+                    schema = schema.add(BULK_COL, DataTypes.LongType, false);
+                    break;
+                case SINGLE_LOOP:
+                    schema = appendSingleLoopSchema(schema);
+                    break;
+                case PATH:
+                    schema = appendPathSchema(schema);
+                    break;
+            }
+        }
+        return schema;
+    }
 
     /////////////////////////////////////////////////////////////////////
     // Decode
     /////////////////////////////////////////////////////////////////////
 
-    abstract Traverser decode(final Row row, final TraverserGenerator tg, final TraversalMatrix tm);
+    Traverser decode(final Row row, final TraverserGenerator tg, final TraversalMatrix tm) {
+        if (row.getString(row.fieldIndex(ID_COL)) == null) {
+            throw new RuntimeException("Error, only rows with id col populated are currently supported");
+        }
+        final Object id = getId(row.getString(row.fieldIndex(ID_COL)), row.getInt(row.fieldIndex(ID_TYPEHINT_COL)));
+        final String label = row.getString(row.fieldIndex(LABEL_COL));
+        final String step = row.getString(row.fieldIndex(STEP_COL));
+        final Step stepOrEmpty = Optional.ofNullable(tm.getStepById(step)).orElse(EmptyStep.instance());
+        final long bulk = codecRequirementsSet.contains(CodecRequirements.BULK) ? row.getLong(row.fieldIndex(BULK_COL)) : 1L;
+        final ReferenceElement element;
+        if (row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) == TRAVERSER_TYPE.VERTEX.ordinal()) {
+            element = new ReferenceVertex(id, label);
+        } else if (row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) == TRAVERSER_TYPE.EDGE.ordinal()) {
+            element = new ReferenceEdge(id, label, new ReferenceVertex("~empty"), new ReferenceVertex("~empty"));
+        } else {
+            throw new RuntimeException("Error, decoder for " + row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) + " is not implemented");
+        }
+        final Traverser traverser = tg.generate(element, stepOrEmpty, bulk);
+        traverser.asAdmin().setStepId(step);
+        if (codecRequirementsSet.contains(CodecRequirements.SINGLE_LOOP)) {
+            final String slName = row.isNullAt(row.fieldIndex(SL_NAME_COL)) ? null : row.getString(row.fieldIndex(SL_NAME_COL));
+            final Integer slCount = row.isNullAt(row.fieldIndex(SL_COUNT_COL)) ? 0 : row.getInt(row.fieldIndex(SL_COUNT_COL));
+            if (slName != null) {
+                traverser.asAdmin().initialiseLoops(null, slName);
+            }
+            for (int i = 0; i < slCount; i++) {
+                traverser.asAdmin().incrLoops();
+            }
+        }
+        if (codecRequirementsSet.contains(CodecRequirements.PATH)) {
+            final List<String> pathIds = row.getList(row.fieldIndex(PATH_ID_COL));
+            final List<Integer> pathIdTypeHints = row.getList(row.fieldIndex(PATH_ID_TYPEHINT_COL));
+            final List<Integer> pathObjTypes = row.getList(row.fieldIndex(PATH_OBJ_TYPE_COL));
+            final List<Seq<String>> pathLabels = row.getList(row.fieldIndex(PATH_LABELS_COL));
+            setPath(traverser, new RowCodecHelper.PathInfo(pathIds, pathIdTypeHints, pathObjTypes, pathLabels));
+        }
+
+        return traverser;
+    }
 
     /////////////////////////////////////////////////////////////////////
     // Encode
     /////////////////////////////////////////////////////////////////////
 
-    abstract Row encode(final Traverser traverser);
-    abstract Row encode(final Vertex vertex, final String step);
-    abstract Row encode(final Edge edge, final String step);
+    public Row encode(final Traverser traverser) {
+        final List<Object> objects = new ArrayList<>();
+        for (final TraverserEncoder encoder : orderedTraverserEncoders) {
+            encoder.encode(objects, traverser);
+        }
+        return RowFactory.create(objects.toArray(new Object[0]));
+    }
+
+    public Row encode(final Element vertex, final String step) {
+        final List<Object> objects = new ArrayList<>();
+        for (final ElementEncoder encoder : orderedElementEncoders) {
+            encoder.encode(objects, vertex, step);
+        }
+        return RowFactory.create(objects.toArray(new Object[0]));
+    }
 
     /////////////////////////////////////////////////////////////////////
     // Requirements
@@ -78,29 +247,14 @@ public abstract class RowCodec {
 
     abstract Set<TraverserRequirement> getRequirements();
 
-
-
-
-    public static Object getId(final String id, final int idTypeOrdinal) {
-        if (ID_TYPE.STRING.ordinal() == idTypeOrdinal) {
-            return id;
-        } else if (ID_TYPE.LONG.ordinal() == idTypeOrdinal) {
-            return Long.parseLong(id);
-        } else if (ID_TYPE.INTEGER.ordinal() == idTypeOrdinal) {
-            return Integer.parseInt(id);
-        } else {
-            // TODO.
-            throw new IllegalArgumentException("Only string int and long ids are supported in olap");
-        }
-    }
-
     /////////////////////////////////////////////////////////////////////
     // Constants
     /////////////////////////////////////////////////////////////////////
 
     public enum TRAVERSER_TYPE {
         VERTEX,
-        EDGE
+        EDGE,
+        VERTEX_PROPERTY
     }
 
     public enum ID_TYPE {
@@ -109,30 +263,14 @@ public abstract class RowCodec {
         LONG
     }
 
+    public enum CodecRequirements {
+        BASE,
+        BULK,
+        SINGLE_LOOP,
+        PATH
+    }
+
     /////////////////////////////////////////////////////////////////////
     // Utility
     /////////////////////////////////////////////////////////////////////
-
-    public static ID_TYPE getIdType(final Object id) {
-        if (id instanceof Long) {
-            return ID_TYPE.LONG;
-        } else if (id instanceof Integer) {
-            return ID_TYPE.INTEGER;
-        } else if (id instanceof  String) {
-            return ID_TYPE.STRING;
-        } else {
-            // TODO.
-            throw new IllegalArgumentException("Only long string and integer types can be serialized at this time " + id.getClass().getName() + " is not supported.");
-        }
-    }
-
-    public static ReferenceElement getReferenceElement(final int elementTypeOrdinal, final Object id, final String label) {
-        if (TRAVERSER_TYPE.VERTEX.ordinal() == elementTypeOrdinal) {
-            return new ReferenceVertex(id);
-        } else if (TRAVERSER_TYPE.EDGE.ordinal() == elementTypeOrdinal) {
-            return new ReferenceEdge(id, null, null, null);
-        } else {
-            throw new RuntimeException("Error, decoder for " + elementTypeOrdinal + " is not implemented");
-        }
-    }
 }

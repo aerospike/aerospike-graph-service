@@ -55,6 +55,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.aerospike.firefly.olap.codec.RowCodecHelper.getId;
+import static com.aerospike.firefly.olap.codec.RowCodecHelper.getIdType;
+
 public class DistributedQueryExecutor {
 
     private static final String START_COL = "~start";
@@ -159,7 +162,7 @@ public class DistributedQueryExecutor {
         }
         System.out.println("Actual ids: " + ids);
         initialIds.clear();
-        final List<Row> rows = ids.stream().map(id -> RowFactory.create(id.toString(), RowCodec.getIdType(id).ordinal())).collect(Collectors.toList());
+        final List<Row> rows = ids.stream().map(id -> RowFactory.create(id.toString(), getIdType(id).ordinal())).collect(Collectors.toList());
         final StructType inputSchema = new StructType().
                 add(RowCodec.ID_COL, DataTypes.StringType, false).
                 add(RowCodec.ID_TYPEHINT_COL, DataTypes.IntegerType, false);
@@ -169,12 +172,11 @@ public class DistributedQueryExecutor {
         return idDataset.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             final Codec codec = new Codec(traversal.asAdmin().getTraverserRequirements());
             final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
-
             try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
                 final List<FireflyId> ffids = new ArrayList<>();
                 while (iterator.hasNext()) {
                     final Row row = iterator.next();
-                    final Object id = RowCodec.getId(
+                    final Object id = getId(
                             row.getString(row.fieldIndex(RowCodec.ID_COL)),
                             row.getInt(row.fieldIndex(RowCodec.ID_TYPEHINT_COL)));
                     System.out.println("id: " + id);

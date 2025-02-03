@@ -15,6 +15,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.GraphComputing;
 import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.HaltedTraverserStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.ProjectedTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.IndexedTraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
@@ -230,7 +231,7 @@ public class BatchWorkerExecutor {
                 if (barrier.hasNextBarrier()) {
                     while (barrier.hasNextBarrier()) {
                         // barrier can produce non-serializable firefly elements
-                        memory.add(step.getId(), ReferenceFactory.detach(barrier.nextBarrier()));
+                        memory.add(step.getId(), detach(barrier.nextBarrier()));
                     }
                 } else {
                     // ensure the step id gets added to memory or else barriers that filter like order().by('no-exist')
@@ -264,5 +265,17 @@ public class BatchWorkerExecutor {
 
         System.out.println(Thread.currentThread().getId() + " WorkerExecutor.drainStep done. activeTraversers" + activeTraversers +
                 "; haltedTraversers" + haltedTraversers);
+    }
+
+    private static Object detach(final Object barrier) {
+        // not handled by ReferenceFactory
+        if (barrier instanceof TraverserSet) {
+            for (final Object t : (TraverserSet) barrier) {
+                if (t instanceof ProjectedTraverser) {
+                    ((ProjectedTraverser) t).detach();
+                }
+            }
+        }
+        return ReferenceFactory.detach(barrier);
     }
 }

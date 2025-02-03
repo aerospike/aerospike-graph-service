@@ -1,5 +1,7 @@
 package com.aerospike.firefly.process.computer.local;
 
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
+import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -23,6 +25,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ReducingBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.HaltedTraverserStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
+import org.apache.tinkerpop.gremlin.process.traversal.util.EmptyTraversalSideEffects;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
@@ -49,10 +52,12 @@ public class BatchMasterExecutor {
                     final Barrier<Object> barrier = (Barrier<Object>) step;
                     // collecting barriers expect to consume TraverserSet, but spark serialize it as HashSet
                     if (barrier instanceof CollectingBarrierStep) {
-                        final TraverserSet<?> traverserSet = new TraverserSet();
+                        final TraverserSet traverserSet = new TraverserSet();
                         ((HashSet)memory.get(key)).forEach(i-> {
                             traverserSet.add((Traverser.Admin)i);
                         } );
+                        ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
+                                EmptyTraversalSideEffects.instance(), traverserSet);
                         barrier.addBarrier(traverserSet);
                     } else
                         barrier.addBarrier(memory.get(key));

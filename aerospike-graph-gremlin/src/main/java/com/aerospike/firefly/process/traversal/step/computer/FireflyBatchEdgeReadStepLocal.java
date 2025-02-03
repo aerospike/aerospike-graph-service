@@ -39,8 +39,8 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> {
     public final List<HasContainer> aerospikeHasContainers;
     final Set<String> labels;
 
-    private final Map<FireflyId, FireflyEdge> cache = new HashMap<>();
-    private final List<Traverser.Admin<Vertex>> inputCache = new ArrayList<>();
+    private transient final Map<FireflyId, FireflyEdge> cache = new HashMap<>();
+    private transient final List<Traverser.Admin<Vertex>> inputCache = new ArrayList<>();
     private boolean first = true;
 
     public FireflyBatchEdgeReadStepLocal(final Traversal.Admin traversal,

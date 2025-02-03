@@ -4,8 +4,8 @@ port: 8181
 evaluationTimeout: 10000
 channelizer: org.apache.tinkerpop.gremlin.server.channel.WebSocketChannelizer
 graphs: {
-  graph: ../conf/test-metrics/aerospike-graph-metrics.properties}
-#  graph: /actions-runner/_work/firefly/firefly/conf/test-metrics/aerospike-graph-metrics.properties}
+#  graph: ../conf/test-metrics/aerospike-graph-metrics.properties}
+  graph: /actions-runner/_work/firefly/firefly/conf/test-metrics/aerospike-graph-metrics.properties}
 # little pool for testing
 threadPoolWorker: 2
 gremlinPool: 2

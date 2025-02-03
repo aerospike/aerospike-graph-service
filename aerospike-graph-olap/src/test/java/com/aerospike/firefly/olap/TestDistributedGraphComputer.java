@@ -47,20 +47,36 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
-    public void play() {
+    public void pathSerializationError() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();
             final Graph tg = TinkerFactory.createModern();
             GraphHelper.cloneElements(tg, graph);
 
-            long output = graph.traversal().withComputer()
+            List output = graph.traversal().withComputer()
                     .V()
-                    .both().both()
-                    .count()
-                    .next();
+                    .as("a").map(__.select("a"))
+                    .toList();
 
             System.out.println(output);
-            Assert.assertEquals(30L, output);
+            Assert.assertEquals(6L, output.size());
+        }
+    }
+
+    @Test
+    public void stackOverflow() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List output = graph.traversal().withComputer()
+                    .V()
+                    .match(__.as("a").out().as("b"))
+                    .toList();
+
+            System.out.println(output);
+            Assert.assertEquals(6L, output.size());
         }
     }
 

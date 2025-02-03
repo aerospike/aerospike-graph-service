@@ -270,9 +270,13 @@ public class BatchWorkerExecutor {
     private static Object detach(final Object barrier) {
         // not handled by ReferenceFactory
         if (barrier instanceof TraverserSet) {
-            for (final Object t : (TraverserSet) barrier) {
+            final TraverserSet original = (TraverserSet) barrier;
+            // iterate over copy to be able to add/remove items
+            for (final Object t : new HashSet<>(original)) {
                 if (t instanceof ProjectedTraverser) {
-                    ((ProjectedTraverser) t).detach();
+                    original.remove(t);
+                    original.add(new ProjectedTraverser((ProjectedTraverser.tryUnwrap((ProjectedTraverser) t)).detach(),
+                            ReferenceFactory.detach(((ProjectedTraverser) t).getProjections())));
                 }
             }
         }

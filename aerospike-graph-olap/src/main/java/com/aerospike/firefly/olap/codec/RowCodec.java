@@ -1,5 +1,6 @@
 package com.aerospike.firefly.olap.codec;
 
+import com.aerospike.firefly.olap.structure.DistributedReferenceVertexProperty;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.types.DataTypes;
@@ -18,6 +19,7 @@ import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertexProperty;
 import scala.collection.Seq;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -308,26 +310,6 @@ public abstract class RowCodec {
         SINGLE_LOOP,
         PATH,
         NESTED_LOOP
-    }
-
-    class DistributedReferenceVertexProperty<V> extends ReferenceVertexProperty<V> {
-        final ReferenceVertex vertex;
-        public DistributedReferenceVertexProperty(final Object id, final Object vertexId) {
-            super(id, null, null);
-            this.vertex = new ReferenceVertex(vertexId);
-        }
-
-        @Override
-        public Vertex element() {
-            return vertex;
-        }
-
-        @Override
-        public String toString() {
-            return "DistributedReferenceVertexProperty{" +
-                    "vertex=" + vertex +
-                    '}';
-        }
     }
 
     /////////////////////////////////////////////////////////////////////

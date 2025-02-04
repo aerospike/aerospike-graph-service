@@ -48,6 +48,7 @@ public class ComputerHelper {
 
     public static List<HasContainer> getInitialHasContainers(final Traversal.Admin<?, ?> traversal) {
         final List<HasContainer> hasContainers = new ArrayList<>();
+
         if (traversal.getStartStep() instanceof GraphStep && ((GraphStep<Vertex, Vertex>) traversal.getStartStep()).returnsVertex()) {
             if (Stream.of(((GraphStep) traversal.getStartStep()).getIds()).count() > 0)
                 hasContainers.add(new HasContainer(T.id.getAccessor(), P.eq(P.within(((GraphStep) traversal.getStartStep()).getIds()))));
@@ -60,10 +61,12 @@ public class ComputerHelper {
                             hasContainers.add(hasContainer);
                         }
                     } else {
-                        for (final HasContainer hasContainer : ((HasContainerHolder) currentStep).getHasContainers().stream()
-                                .filter(h -> h.getKey().equals(T.id.getAccessor()) || h.getValue() instanceof Number || h.getValue() instanceof Number ||
-                                        (h.getPredicate().getPredicateName().equals(P.eq(1).getPredicateName()))).collect(Collectors.toList())) {
-                            hasContainers.add(hasContainer);
+                        for (final HasContainer container : (((HasContainerHolder)currentStep).getHasContainers())) {
+                            hasContainers.add(container);
+                        //for (final HasContainer hasContainer : ((HasContainerHolder) currentStep).getHasContainers().stream()
+                                //.filter(h -> h.getKey().equals(T.id.getAccessor()) || h.getValue() instanceof Number || h.getValue() instanceof Number ||
+                                //        (h.getPredicate().getPredicateName().equals(P.eq(1).getPredicateName()))).collect(Collectors.toList())) {
+                        //    hasContainers.add(hasContainer);
                         }
                     }
                 }

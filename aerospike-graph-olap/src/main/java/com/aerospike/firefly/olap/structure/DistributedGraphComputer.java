@@ -315,7 +315,7 @@ public class DistributedGraphComputer implements GraphComputer {
             }
             final GraphStep graphStep = (GraphStep) firstStep;
             if (graphStep.returnsEdge()) {
-                throw new RuntimeException("OLAP only supports starting on Vertices at this time (g.V()), not edges (g.E()).");
+                LOGGER.warn("Edges do not support secondary indexes, you may experience poor performance.");
             }
 
             final Step<?, ?> secondStep = pureTraversal.asAdmin().getStartStep().getNextStep();

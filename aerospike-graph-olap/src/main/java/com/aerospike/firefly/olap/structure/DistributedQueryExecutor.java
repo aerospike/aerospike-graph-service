@@ -5,8 +5,10 @@ import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
 import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
@@ -19,6 +21,7 @@ import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -47,8 +50,10 @@ import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertexProperty;
 
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
@@ -84,6 +89,7 @@ public class DistributedQueryExecutor {
         final FireflyIndexMetadata.IndexInfo indexInfo = queryInfo.indexInfo.get();
         final HasContainer hasContainer = queryInfo.indexTopHasContainer.get();
         final String startStep = traversal.asAdmin().getStartStep().getNextStep().getId();
+        final List<HasContainer> hasContainers = queryInfo.fireflyHasContainers;
         return queryRangeDataset.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             // Junk required.
             final Codec codec = new Codec(traversal.asAdmin().getTraverserRequirements());
@@ -130,7 +136,10 @@ public class DistributedQueryExecutor {
                     page.keyRecords.forEachRemaining(keyRecord -> {
                         // TODO: Improve performance with ReferenceVertex.
                         final FireflyVertex vertex = graph.vertexFromRecord(keyRecord);
-                        outputRows.add(codec.encode(vertex, startStep));
+                        System.out.println("Testing " + hasContainers);
+                        if (HasContainer.testAll(vertex, hasContainers)) {
+                            outputRows.add(codec.encode(vertex, startStep));
+                        }
                     });
                 }
                 return outputRows.iterator();
@@ -172,6 +181,7 @@ public class DistributedQueryExecutor {
         final Dataset<Row> idDataset = spark.createDataFrame(rows, inputSchema);
         final GraphStep graphStep = (GraphStep) traversal.asAdmin().getStartStep();
         final String startStep = traversal.asAdmin().getStartStep().getNextStep().getId();
+        final List<HasContainer> hasContainers = queryInfo.fireflyHasContainers;
         return idDataset.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             final Codec codec = new Codec(traversal.asAdmin().getTraverserRequirements());
             final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
@@ -193,14 +203,14 @@ public class DistributedQueryExecutor {
                         System.out.println("Reading " + ffidList);
                         List<FireflyVertex> vertices = graph.readVertices(List.of(), ffidList, null);
                         System.out.println("Output : " + vertices);
-                        vertices.forEach(vertex -> outputVertices.add(codec.encode(vertex, startStep)));
+                        vertices.stream().filter(v -> HasContainer.testAll(v, hasContainers)).forEach(vertex -> outputVertices.add(codec.encode(vertex, startStep)));
                     }
                     return outputVertices.iterator();
                 } else {
                     final List<Row> outputEdges = new ArrayList<>();
                     for (final List<FireflyId> ffidList : partitionedFfidList) {
                         List<FireflyEdge> edges = graph.readEdges(List.of(), ffidList, null);
-                        edges.forEach(edge -> outputEdges.add(codec.encode(edge, startStep)));
+                        edges.stream().filter(e -> HasContainer.testAll(e, hasContainers)).forEach(edge -> outputEdges.add(codec.encode(edge, startStep)));
                     }
                     return outputEdges.iterator();
                 }
@@ -226,7 +236,7 @@ public class DistributedQueryExecutor {
         final Expression expression = queryInfo.expression.orElse(null);
         final String startStep = traversal.asAdmin().getStartStep().getNextStep().getId();
         final GraphStep graphStep = (GraphStep) traversal.asAdmin().getStartStep();
-
+        final List<HasContainer> hasContainers = queryInfo.fireflyHasContainers;
         return queryRangeDataset.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             // Junk required.
             final Codec codec = new Codec(traversal.asAdmin().getTraverserRequirements());
@@ -273,8 +283,39 @@ public class DistributedQueryExecutor {
                     }
                     page.keyRecords.forEachRemaining(keyRecord -> {
                         // TODO: Improve performance with ReferenceVertex.
-                        final FireflyVertex vertex = graph.vertexFromRecord(keyRecord);
-                        outputRows.add(codec.encode(vertex, startStep));
+                        if (graphStep.returnsVertex()) {
+                            final FireflyVertex vertex = graph.vertexFromRecord(keyRecord);
+                            System.out.println("Testing " + hasContainers);
+                            if (HasContainer.testAll(vertex, hasContainers))
+                                outputRows.add(codec.encode(vertex, startStep));
+                        } else {
+                            System.out.println(keyRecord.record.bins);
+                            final Map<ByteBuffer, List> edgeData = (Map<ByteBuffer, List>) keyRecord.record.getMap(graph.getBaseGraph().EDGE_DATA_BIN);
+                            // Implicitly assume that if the key is found for label, which is required, then the key exists for the
+                            // other phat edge maps, since they are all written in the same operate.
+                            for (final ByteBuffer edgeIdMapKey : edgeData.keySet()) {
+                                final String label = (String) edgeData.get(edgeIdMapKey).get(FireflyEdge.LABEL_POSITION);
+
+                                final String outV = (String) edgeData.get(edgeIdMapKey).get(FireflyEdge.OUT_V_POSITION);
+                                final FireflyId outVertex = graph.getIdFactory().createVertexIdFromHash(outV);
+
+                                final String inV = (String) edgeData.get(edgeIdMapKey).get(FireflyEdge.IN_V_POSITION);
+                                final FireflyId inVertex = graph.getIdFactory().createVertexIdFromHash(inV);
+
+                                final Map<String, Object> properties = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(FireflyEdge.PROPERTIES_POSITION);
+                                final Map<String, Object> typeHints = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(FireflyEdge.TYPE_HINTS_POSITION);
+
+                                final Map<ByteBuffer, String> outSupernodes = (Map<ByteBuffer, String>) keyRecord.record.getMap(graph.getBaseGraph().SUPERNODES_OUT_BIN);
+                                final Map<ByteBuffer, String> inSupernodes = (Map<ByteBuffer, String>) keyRecord.record.getMap(graph.getBaseGraph().SUPERNODES_IN_BIN);
+                                final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(edgeIdMapKey);
+                                final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(edgeIdMapKey);
+
+                                FireflyEdge edge = FireflyEdgeFactory.create(graph.getIdFactory().createEdgeId(edgeIdMapKey), label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, keyRecord.record.generation);
+                                if (HasContainer.testAll(edge, hasContainers))
+                                    outputRows.add(codec.encode(edge, startStep));
+                            }
+                        }
+
                     });
                 }
                 return outputRows.iterator();
@@ -292,7 +333,7 @@ public class DistributedQueryExecutor {
                                                 final int maxParallelQuery,
                                                 final int maxWorkers) {
         traversal.asAdmin().applyStrategies();
-        final QueryInfo queryInfo = QueryInfo.getQueryInfo(rootGraph, initialHasContainers);
+        final QueryInfo queryInfo = QueryInfo.getQueryInfo(rootGraph, (GraphStep) traversal.asAdmin().getStartStep(), initialHasContainers);
         switch (queryInfo.queryType) {
             case INDEX:
                 return getIndexQuery(spark, rootGraph, configHelper, initialHasContainers, traversal, outputSchema, maxParallelQuery, maxWorkers, queryInfo);
@@ -313,36 +354,54 @@ public class DistributedQueryExecutor {
         }
 
         private final QueryType queryType;
+        private final List<HasContainer> fireflyHasContainers;
         private final Optional<FireflyIndexMetadata.IndexInfo> indexInfo; // Only valid for index queries.
         private final Optional<HasContainer> indexTopHasContainer; // Only valid for index queries.
         private final Optional<List<Object>> ids; // Only valid for PI queries.
         private final Optional<Expression> expression; // Only valid for scan queries.
 
-        private QueryInfo(final FireflyIndexMetadata.IndexInfo indexInfo, final HasContainer hasContainer) {
+        private QueryInfo(final FireflyIndexMetadata.IndexInfo indexInfo,
+                          final HasContainer hasContainer,
+                          final List<HasContainer> initialHasContainers) {
             this.queryType = QueryType.INDEX;
             this.indexInfo = Optional.of(indexInfo);
             this.indexTopHasContainer = Optional.of(hasContainer);
             this.ids = Optional.empty();
             this.expression = Optional.empty();
+            this.fireflyHasContainers = initialHasContainers;
         }
 
-        private QueryInfo(final List<Object> ids) {
+        private QueryInfo(final List<Object> ids,
+                          final List<HasContainer> initialHasContainers) {
             this.queryType = QueryType.PI;
             this.indexInfo = Optional.empty();
             this.indexTopHasContainer = Optional.empty();
             this.ids = Optional.of(ids);
             this.expression = Optional.empty();
+            this.fireflyHasContainers = initialHasContainers;
         }
 
-        private QueryInfo(final Expression expression) {
+        private QueryInfo(final Expression expression,
+                          final List<HasContainer> initialHasContainers) {
             this.queryType = QueryType.SCAN;
             this.indexInfo = Optional.empty();
             this.indexTopHasContainer = Optional.empty();
             this.ids = Optional.empty();
             this.expression = Optional.ofNullable(expression);
+            this.fireflyHasContainers = initialHasContainers;
+        }
+
+        private QueryInfo(final List<HasContainer> initialHasContainers) {
+            this.queryType = QueryType.SCAN;
+            this.indexInfo = Optional.empty();
+            this.indexTopHasContainer = Optional.empty();
+            this.ids = Optional.empty();
+            this.expression = Optional.empty(); // Scan all.
+            this.fireflyHasContainers = initialHasContainers;
         }
 
         private static QueryInfo getQueryInfo(final FireflyGraph graph,
+                                              final GraphStep step,
                                               final List<HasContainer> initialHasContainers) {
             final List<HasContainer> positiveFilters = initialHasContainers.stream().filter(it -> !it.getBiPredicate().equals(Contains.without)).collect(Collectors.toList());
 
@@ -358,25 +417,30 @@ public class DistributedQueryExecutor {
 
                 // If there are id has containers, we can do a batch read.
                 if (!ids.isEmpty()) {
-                    return new QueryInfo(ids);
+                    return new QueryInfo(ids, initialHasContainers);
                 }
             }
 
-            final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, initialHasContainers);
-            final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
-            final HasContainer topContainer = aerospikeSideHasContainers.isEmpty() ? null : aerospikeSideHasContainers.get(0);
-            final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo = topContainer != null ?
-                    graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, topContainer.getKey(), topContainer.getValue()) :
-                    Optional.empty();
-            if (propertyIndexInfo.isPresent()) {
-                // Index.
-                // Remove top container since it is captured inside property index info.
-                aerospikeSideHasContainers.remove(0);
-                return new QueryInfo(propertyIndexInfo.get(), topContainer);
+            if (step.returnsVertex()) {
+                final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, initialHasContainers);
+                final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
+                final List<HasContainer> fireflySideHasContainers = FireflyBatchReadHelper.getFireflyHasContainers(sortedHasContainers);
+                final HasContainer topContainer = aerospikeSideHasContainers.isEmpty() ? null : aerospikeSideHasContainers.get(0);
+                final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo = topContainer != null ?
+                        graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, topContainer.getKey(), topContainer.getValue()) :
+                        Optional.empty();
+                if (propertyIndexInfo.isPresent()) {
+                    // Index.
+                    // Remove top container since it is captured inside property index info.
+                    aerospikeSideHasContainers.remove(0);
+                    return new QueryInfo(propertyIndexInfo.get(), topContainer, initialHasContainers);
+                } else {
+                    // Scan.
+                    final Expression expression = GraphQueryHelper.hasContainerListToExpression(graph.getBaseGraph(), aerospikeSideHasContainers, FireflyVertex.class);
+                    return new QueryInfo(expression, initialHasContainers);
+                }
             } else {
-                // Scan.
-                final Expression expression = GraphQueryHelper.hasContainerListToExpression(graph.getBaseGraph(), aerospikeSideHasContainers, FireflyVertex.class);
-                return new QueryInfo(expression);
+                return new QueryInfo(initialHasContainers);
             }
         }
     }

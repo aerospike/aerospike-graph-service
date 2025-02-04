@@ -292,14 +292,6 @@ public class DistributedGraphComputer implements GraphComputer {
             // TODO https://aerospike.com/docs/server/reference/configuration#namespace__background-query-max-rps - We might want to jack this up for OLAP.
             // TODO: Partitions pull data directly.
 
-            // final Dataset<Row> initialDataset = getInitialDataset(maxParallelSindexes, initialHasContainers);
-
-
-            final PartitionIterator.Builder builder = PartitionIterator.
-                    build(this.graph).
-                    containers(initialHasContainers).
-                    partitionSize(10000);
-            final List<Row> vertices = new ArrayList<>();
 
             // Get traversal and apply strategies.
             final Traversal pureTraversal = traversal.getPure().asAdmin().clone();
@@ -318,34 +310,18 @@ public class DistributedGraphComputer implements GraphComputer {
                 LOGGER.warn("Edges do not support secondary indexes, you may experience poor performance.");
             }
 
-            final Step<?, ?> secondStep = pureTraversal.asAdmin().getStartStep().getNextStep();
             final Codec codec = new Codec(traverserRequirements);
-
-            // If we give partition info to workers, this can go away.
-            //try (final PartitionIterator partitionIterator = builder.create()) {
-            //    while (partitionIterator.hasNext()) {
-            //        final Optional<CloseableIterator<FireflyVertex>> optional = partitionIterator.next();
-            //        if (optional.isEmpty()) {
-            //            break;
-            //        } else {
-            //            try (final CloseableIterator<FireflyVertex> vertexIterator = optional.get()) {
-            //                while (vertexIterator.hasNext()) {
-            //                    final FireflyVertex vertex = vertexIterator.next();
-            //                    vertices.add(codec.encode(vertex, secondStep.getId()));
-            //                }
-            //            }
-            //        }
-            //    }
-            //}
 
             // Create basic schema.
             final StructType schema = codec.getSchema();
 
             final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace);
             Dataset<Row> df = DistributedQueryExecutor.getStartingPoint(spark, graph, configHelper, initialHasContainers, traversal.get(), schema, workers, maxParallelSindexes);
+            df.cache();
 
             // Generate Dataset.
             df = spark.createDataFrame(df.rdd(), schema);
+            df.cache();
 
             // Create necessary things for execution (Memory, ResultGraph, Config, etc.)
             this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
@@ -409,7 +385,6 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 //memory.set("gremlin.traversalVertexProgram.voteToHalt", true);
                 //memory.set(ACTIVE_TRAVERSERS, new IndexedTraverserSet.VertexIndexedTraverserSet());
-                df.show(false);
 
                 // TODO: Ultimately probably don't want to do isEmpty() check here b/c we could have a query that pulls more data from graph later and
                 // we could screw it up.

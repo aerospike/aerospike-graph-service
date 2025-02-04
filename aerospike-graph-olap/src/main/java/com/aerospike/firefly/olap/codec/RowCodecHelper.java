@@ -232,7 +232,7 @@ public class RowCodecHelper {
                     objTypes.add(RowCodec.TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal());
                 }
             } else {
-                throw new RuntimeException("Error, only elements are currently supported");
+                throw new RuntimeException("Error, only elements are currently supported '" + o.getClass() + "' is not supported.");
             }
         }
         for (final Set<String> labels : path.labels()) {

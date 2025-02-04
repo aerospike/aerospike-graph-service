@@ -136,7 +136,6 @@ public class DistributedQueryExecutor {
                     page.keyRecords.forEachRemaining(keyRecord -> {
                         // TODO: Improve performance with ReferenceVertex.
                         final FireflyVertex vertex = graph.vertexFromRecord(keyRecord);
-                        System.out.println("Testing " + hasContainers);
                         if (HasContainer.testAll(vertex, hasContainers)) {
                             outputRows.add(codec.encode(vertex, startStep));
                         }
@@ -203,7 +202,15 @@ public class DistributedQueryExecutor {
                         System.out.println("Reading " + ffidList);
                         List<FireflyVertex> vertices = graph.readVertices(List.of(), ffidList, null);
                         System.out.println("Output : " + vertices);
-                        vertices.stream().filter(v -> HasContainer.testAll(v, hasContainers)).forEach(vertex -> outputVertices.add(codec.encode(vertex, startStep)));
+                        for (final Vertex vertex : vertices) {
+                            System.out.println("Vertex: " + vertex);
+                            if (HasContainer.testAll(vertex, hasContainers)) {
+                                outputVertices.add(codec.encode(vertex, startStep));
+                            } else {
+                                System.out.println("Did not match : " + hasContainers);
+                            }
+                        }
+                        // vertices.stream().filter(v -> HasContainer.testAll(v, hasContainers)).forEach(vertex -> outputVertices.add(codec.encode(vertex, startStep)));
                     }
                     return outputVertices.iterator();
                 } else {
@@ -285,7 +292,6 @@ public class DistributedQueryExecutor {
                         // TODO: Improve performance with ReferenceVertex.
                         if (graphStep.returnsVertex()) {
                             final FireflyVertex vertex = graph.vertexFromRecord(keyRecord);
-                            System.out.println("Testing " + hasContainers);
                             if (HasContainer.testAll(vertex, hasContainers))
                                 outputRows.add(codec.encode(vertex, startStep));
                         } else {
@@ -310,7 +316,7 @@ public class DistributedQueryExecutor {
                                 final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(edgeIdMapKey);
                                 final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(edgeIdMapKey);
 
-                                FireflyEdge edge = FireflyEdgeFactory.create(graph.getIdFactory().createEdgeId(edgeIdMapKey), label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, keyRecord.record.generation);
+                                final FireflyEdge edge = FireflyEdgeFactory.create(graph.getIdFactory().createEdgeId(edgeIdMapKey), label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, keyRecord.record.generation);
                                 if (HasContainer.testAll(edge, hasContainers))
                                     outputRows.add(codec.encode(edge, startStep));
                             }
@@ -417,7 +423,7 @@ public class DistributedQueryExecutor {
 
                 // If there are id has containers, we can do a batch read.
                 if (!ids.isEmpty()) {
-                    return new QueryInfo(ids, initialHasContainers);
+                    return new QueryInfo(ids, nonIdContainers);
                 }
             }
 

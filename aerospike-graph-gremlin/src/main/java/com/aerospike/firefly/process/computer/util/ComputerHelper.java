@@ -21,9 +21,11 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -87,6 +89,40 @@ public class ComputerHelper {
         }
     }
 
+    // todo: refactor
+    public static void bulkAttach(final FireflyGraph graph,
+                                  final TraversalSideEffects traversalSideEffects,
+                                  final List<Object> elements) {
+        final Set<Object> vertexIds = new HashSet<>();
+        final Set<Object> edgeIds = new HashSet<>();
+        elements.forEach(element -> {
+            if (element instanceof Vertex) {
+                vertexIds.add(((Vertex) element).id());
+            } else if (element instanceof Edge) {
+                edgeIds.add(((Edge) element).id());
+            }
+        });
+
+        final Map<Object, Element> vertexCache = new HashMap<>();
+        if (!vertexIds.isEmpty())
+            graph.vertices(vertexIds.toArray(new Object[vertexIds.size()])).forEachRemaining(vertex -> vertexCache.put(vertex.id(), vertex));
+
+        final Map<Object, Element> edgeCache = new HashMap<>();
+        if (!edgeIds.isEmpty())
+            graph.edges(edgeIds.toArray(new Object[edgeIds.size()])).forEachRemaining(edge -> edgeCache.put(edge.id(), edge));
+
+        final List copy = new ArrayList<>(elements);
+        for (int i = 0; i < copy.size(); i++) {
+            if (copy.get(i) instanceof Vertex && vertexCache.containsKey(((Vertex) copy.get(i)).id())) {
+                elements.remove(i);
+                elements.add(i, vertexCache.get(((Vertex) copy.get(i)).id()));
+            } else if (copy.get(i) instanceof Edge && edgeCache.containsKey(((Edge) copy.get(i)).id())) {
+                elements.remove(i);
+                elements.add(i, edgeCache.get(((Edge) copy.get(i)).id()));
+            }
+        }
+    }
+
     public static void bulkAttach(final FireflyGraph graph,
                                   final TraversalSideEffects traversalSideEffects,
                                   final TraverserSet<Object> traversers) {
@@ -129,5 +165,13 @@ public class ComputerHelper {
                 }
             }
         });
+    }
+
+    // some types can't be handled by
+    public static void prepareForDistributedMemory(final Traverser traverser) {
+        if (traverser.get() instanceof Map.Entry) {
+            final Map.Entry entry = (Map.Entry) traverser.get();
+            traverser.asAdmin().set(new AbstractMap.SimpleEntry(entry.getKey(), entry.getValue()));
+        }
     }
 }

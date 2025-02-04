@@ -251,6 +251,7 @@ public class BatchWorkerExecutor {
                                 vertices.contains(Host.getHostingVertex(traverser.get()))*/)) {
                     if (returnHaltedTraversers) {
                         System.out.println("    memory.add");
+                        ComputerHelper.prepareForDistributedMemory(traverser);
                         memory.add(TraversalVertexProgram.HALTED_TRAVERSERS, new TraverserSet<>(haltedTraverserStrategy.halt(traverser)));
                     } else {
                         System.out.println("    haltedTraversers.add");

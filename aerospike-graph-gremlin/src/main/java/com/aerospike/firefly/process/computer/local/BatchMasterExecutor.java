@@ -31,8 +31,10 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedFactory;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 public class BatchMasterExecutor {
@@ -59,8 +61,16 @@ public class BatchMasterExecutor {
                         ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                                 EmptyTraversalSideEffects.instance(), traverserSet);
                         barrier.addBarrier(traverserSet);
-                    } else
-                        barrier.addBarrier(memory.get(key));
+                    } else {
+                        // todo: attach more types if needed
+                        if (memory.get(key) instanceof List) {
+                            final List list = new ArrayList(memory.get(key));
+                            ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
+                                    EmptyTraversalSideEffects.instance(), list);
+                            barrier.addBarrier(list);
+                        } else
+                            barrier.addBarrier(memory.get(key));
+                    }
                     step.forEachRemaining(toProcessTraversers::add);
                     // if it was a reducing barrier step, reset the barrier to its seed value
                     if (step instanceof ReducingBarrierStep)

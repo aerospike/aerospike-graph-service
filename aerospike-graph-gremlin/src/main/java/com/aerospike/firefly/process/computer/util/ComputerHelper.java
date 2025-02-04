@@ -19,12 +19,14 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,12 +63,12 @@ public class ComputerHelper {
                             hasContainers.add(hasContainer);
                         }
                     } else {
-                        for (final HasContainer container : (((HasContainerHolder)currentStep).getHasContainers())) {
+                        for (final HasContainer container : (((HasContainerHolder) currentStep).getHasContainers())) {
                             hasContainers.add(container);
-                        //for (final HasContainer hasContainer : ((HasContainerHolder) currentStep).getHasContainers().stream()
-                                //.filter(h -> h.getKey().equals(T.id.getAccessor()) || h.getValue() instanceof Number || h.getValue() instanceof Number ||
-                                //        (h.getPredicate().getPredicateName().equals(P.eq(1).getPredicateName()))).collect(Collectors.toList())) {
-                        //    hasContainers.add(hasContainer);
+                            //for (final HasContainer hasContainer : ((HasContainerHolder) currentStep).getHasContainers().stream()
+                            //.filter(h -> h.getKey().equals(T.id.getAccessor()) || h.getValue() instanceof Number || h.getValue() instanceof Number ||
+                            //        (h.getPredicate().getPredicateName().equals(P.eq(1).getPredicateName()))).collect(Collectors.toList())) {
+                            //    hasContainers.add(hasContainer);
                         }
                     }
                 }
@@ -82,6 +84,8 @@ public class ComputerHelper {
             vertexIds.add(((Vertex) traverser.get()).id());
         else if (traverser.get() instanceof Edge)
             edgeIds.add(((Edge) traverser.get()).id());
+        else if (traverser.get() instanceof VertexProperty)
+            vertexIds.add(((VertexProperty) traverser.get()).element().id());
 
         if (traverser instanceof ProjectedTraverser) {
             for (final Object projection : ((ProjectedTraverser) traverser).getProjections())
@@ -89,6 +93,8 @@ public class ComputerHelper {
                     vertexIds.add(((Vertex) projection).id());
                 else if (projection instanceof Edge)
                     edgeIds.add(((Edge) projection).id());
+                else if (projection instanceof VertexProperty)
+                    vertexIds.add(((VertexProperty) projection).element().id());
         }
     }
 
@@ -151,6 +157,19 @@ public class ComputerHelper {
                 // todo: better attachment way for edges
                 traverser.attach(Attachable.Method.get(edge.outVertex()));
                 traverser.setSideEffects(traversalSideEffects);
+            } else if (traverser.get() instanceof VertexProperty && vertexCache.containsKey(((VertexProperty) traverser.get()).element().id())) {
+                final Vertex vertex = (Vertex) vertexCache.get(((VertexProperty) traverser.get()).element().id());
+                final Iterator<VertexProperty<Object>> itty = vertex.properties();
+                // todo: verify is firefly caches vertex properties
+                while (itty.hasNext()) {
+                    // vertex property attachment require key, so shortcut here
+                    final VertexProperty vp = itty.next();
+                    if (vp.id().equals(((VertexProperty<?>) traverser.get()).id())) {
+                        traverser.asAdmin().set(vp);
+                        traverser.setSideEffects(traversalSideEffects);
+                        break;
+                    }
+                }
             }
 
             if (traverser instanceof ProjectedTraverser) {

@@ -428,6 +428,8 @@ public class DistributedGraphComputer implements GraphComputer {
                     null != this.vertexProgram ? this.vertexProgram.getVertexComputeKeys() : Collections.emptySet());
             final Graph resultGraph = view.processResultGraphPersist(this.resultGraph, this.persist);
 
+            FireflyHelper.dropGraphComputerView(this.graph);
+
             // Send result and memory to computer result.
             return CompletableFuture.completedFuture(new DefaultComputerResult(resultGraph, memory));
         } catch (final Exception e) {

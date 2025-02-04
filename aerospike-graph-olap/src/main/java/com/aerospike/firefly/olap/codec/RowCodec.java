@@ -11,6 +11,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
@@ -82,8 +83,10 @@ public abstract class RowCodec {
     public static final String ID_COL = "~id";
     public static final String ID_TYPEHINT_COL = "~id_typehint";
     public static final String LABEL_COL = "~label";
-    public static final String VALUE_COL = "~value";
-    public static final String VALUE_TYPEHINT_COL = "~value_typehint";
+    public static final String ELEMENT_ID_COL = "~eid";
+    public static final String ELEMENT_ID_TYPEHINT_COL = "~eid_typehint";
+    public static final String VERTEX_ID_COL = "~vertex_id"; // ONLY FOR VertexPropery TRAVERSERS
+    public static final String VERTEX_ID_TYPEHINT_COL = "~vertex_id_typehint"; // ONLY FOR VertexPropery TRAVERSERS
     public static final String PROPERTIES_COL = "~properties";
     public static final String IN_COL = "~in";
     public static final String OUT_COL = "~out";
@@ -221,10 +224,10 @@ public abstract class RowCodec {
         } else if (traverserType == TRAVERSER_TYPE.EDGE.ordinal()) {
             element = new ReferenceEdge(id, label, new ReferenceVertex("~empty"), new ReferenceVertex("~empty"));
         } else if (traverserType == TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal()){
-            Object value = row.get(row.fieldIndex(VALUE_COL));
-            final int valueTypehint = row.getInt(row.fieldIndex(VALUE_TYPEHINT_COL));
-            value = getId(value.toString(), valueTypehint); // TODO: Update.
-            element = new ReferenceVertexProperty(id, label, value);
+            Object elementId = row.get(row.fieldIndex(ELEMENT_ID_COL));
+            final int elementIdTypehint = row.getInt(row.fieldIndex(ELEMENT_ID_TYPEHINT_COL));
+            elementId = getId(elementId.toString(), elementIdTypehint); // TODO: Update.
+            element = new DistributedReferenceVertexProperty(id, elementId);
         } else {
             throw new RuntimeException("Error, decoder for " + row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) + " is not implemented");
         }
@@ -305,6 +308,26 @@ public abstract class RowCodec {
         SINGLE_LOOP,
         PATH,
         NESTED_LOOP
+    }
+
+    class DistributedReferenceVertexProperty<V> extends ReferenceVertexProperty<V> {
+        final ReferenceVertex vertex;
+        public DistributedReferenceVertexProperty(final Object id, final Object vertexId) {
+            super(id, null, null);
+            this.vertex = new ReferenceVertex(vertexId);
+        }
+
+        @Override
+        public Vertex element() {
+            return vertex;
+        }
+
+        @Override
+        public String toString() {
+            return "DistributedReferenceVertexProperty{" +
+                    "vertex=" + vertex +
+                    '}';
+        }
     }
 
     /////////////////////////////////////////////////////////////////////

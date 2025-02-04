@@ -1,6 +1,5 @@
 package com.aerospike.firefly.olap.codec;
 
-import org.apache.commons.collections4.map.ReferenceMap;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
@@ -54,8 +53,8 @@ import static com.aerospike.firefly.olap.codec.RowCodec.SL_COUNT_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.SL_NAME_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.STEP_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.TRAVERSER_TYPE_COL;
-import static com.aerospike.firefly.olap.codec.RowCodec.VALUE_COL;
-import static com.aerospike.firefly.olap.codec.RowCodec.VALUE_TYPEHINT_COL;
+import static com.aerospike.firefly.olap.codec.RowCodec.ELEMENT_ID_COL;
+import static com.aerospike.firefly.olap.codec.RowCodec.ELEMENT_ID_TYPEHINT_COL;
 
 public class RowCodecHelper {
 
@@ -253,8 +252,9 @@ public class RowCodecHelper {
             row.add(null);
         } else if (element instanceof VertexProperty) {
             row.add(RowCodec.TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal()); // Integer traverser type.
-            row.add(((VertexProperty)element).value().toString());
-            row.add(getIdType(((VertexProperty)element).value()).ordinal());
+            final Vertex v = ((VertexProperty<?>) element).element();
+            row.add(v.id().toString());
+            row.add(getIdType(v.id()).ordinal());
         } else {
             throw new RuntimeException("Error, encoder for " + element.getClass() + " is not implemented");
         }
@@ -279,8 +279,9 @@ public class RowCodecHelper {
                 row.add(null);
             } else if (element instanceof VertexProperty) {
                 row.add(RowCodec.TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal()); // Integer traverser type.
-                row.add(((VertexProperty)element).value().toString());
-                row.add(getIdType(((VertexProperty)element).value()).ordinal());
+                final Vertex v = ((VertexProperty<?>) element).element();
+                row.add(v.id().toString());
+                row.add(getIdType(v.id()).ordinal());
             } else {
                 throw new RuntimeException("Error, encoder for " + t.getClass() + " is not implemented");
             }
@@ -363,8 +364,8 @@ public class RowCodecHelper {
     public static StructType getBaseSchema() {
         return new StructType()
                 .add(TRAVERSER_TYPE_COL, DataTypes.IntegerType, false)
-                .add(VALUE_COL, DataTypes.StringType, true)
-                .add(VALUE_TYPEHINT_COL, DataTypes.IntegerType, true)
+                .add(ELEMENT_ID_COL, DataTypes.StringType, true)
+                .add(ELEMENT_ID_TYPEHINT_COL, DataTypes.IntegerType, true)
                 .add(ID_COL, DataTypes.StringType, false)
                 .add(ID_TYPEHINT_COL, DataTypes.IntegerType, false)
                 .add(LABEL_COL, DataTypes.StringType, false)

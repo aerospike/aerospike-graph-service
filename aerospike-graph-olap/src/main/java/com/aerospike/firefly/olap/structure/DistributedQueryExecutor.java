@@ -43,10 +43,13 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertexProperty;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -162,7 +165,7 @@ public class DistributedQueryExecutor {
         }
         System.out.println("Actual ids: " + ids);
         initialIds.clear();
-        final List<Row> rows = ids.stream().map(id -> RowFactory.create(id.toString(), getIdType(id).ordinal())).collect(Collectors.toList());
+        final List<Row> rows = ids.stream().filter(Objects::nonNull).map(id -> RowFactory.create(id.toString(), getIdType(id).ordinal())).collect(Collectors.toList());
         final StructType inputSchema = new StructType().
                 add(RowCodec.ID_COL, DataTypes.StringType, false).
                 add(RowCodec.ID_TYPEHINT_COL, DataTypes.IntegerType, false);
@@ -414,5 +417,4 @@ public class DistributedQueryExecutor {
             return "[" + start + " - " + (start + count - 1) + "]";
         }
     }
-
 }

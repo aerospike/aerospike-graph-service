@@ -67,9 +67,9 @@ public class FireflyComputerWorld implements World {
         else if (graphData == LoadGraphWith.GraphData.SINK)
             return sink.traversal().withComputer();
         else if (graphData == LoadGraphWith.GraphData.GRATEFUL)
-            return grateful.traversal().withComputer();
+            throw new AssumptionViolatedException("grateful graph contains vertices with multi property not supported by Firefly.");
         else if (graphData == LoadGraphWith.GraphData.CLASSIC)
-            throw new UnsupportedOperationException("Classic graph contains Float property values not supported by Firefly.");
+            throw new AssumptionViolatedException("Classic graph contains Float property values not supported by Firefly.");
         else
             throw new UnsupportedOperationException("GraphData not supported: " + graphData.name());
     }

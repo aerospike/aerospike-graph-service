@@ -12,6 +12,7 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
@@ -47,6 +48,24 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
+    public void order() {
+
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List output = graph.traversal().withComputer()
+                    .V()
+                    .order().by("name", Order.asc).values("name")
+                    .toList();
+
+            System.out.println(output);
+            Assert.assertEquals(6L, output.size());
+        }
+    }
+
+    @Test
     public void pathSerializationError() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();
@@ -55,7 +74,8 @@ public class TestDistributedGraphComputer {
 
             List output = graph.traversal().withComputer()
                     .V()
-                    .as("a").map(__.select("a"))
+                    //.as("a").map(__.select("a"))
+                    .as("a").label().select("a")
                     .toList();
 
             System.out.println(output);

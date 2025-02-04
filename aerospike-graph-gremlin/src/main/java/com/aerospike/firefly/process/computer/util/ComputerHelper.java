@@ -6,12 +6,14 @@ import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalSideEffects;
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.ProjectedTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -68,17 +70,29 @@ public class ComputerHelper {
         return hasContainers;
     }
 
+    private static void collectIds(final Traverser traverser,
+                                   final Set<Object> vertexIds,
+                                   final Set<Object> edgeIds) {
+        if (traverser.get() instanceof Vertex)
+            vertexIds.add(((Vertex) traverser.get()).id());
+        else if (traverser.get() instanceof Edge)
+            edgeIds.add(((Edge) traverser.get()).id());
+
+        if (traverser instanceof ProjectedTraverser) {
+            for (final Object projection : ((ProjectedTraverser) traverser).getProjections())
+                if (projection instanceof Vertex)
+                    vertexIds.add(((Vertex) projection).id());
+                else if (projection instanceof Edge)
+                    edgeIds.add(((Edge) projection).id());
+        }
+    }
+
     public static void bulkAttach(final FireflyGraph graph,
                                   final TraversalSideEffects traversalSideEffects,
                                   final TraverserSet<Object> traversers) {
         final Set<Object> vertexIds = new HashSet<>();
         final Set<Object> edgeIds = new HashSet<>();
-        traversers.forEach(traverser -> {
-            if (traverser.get() instanceof Vertex)
-                vertexIds.add(((Vertex) traverser.get()).id());
-            else if (traverser.get() instanceof Edge)
-                edgeIds.add(((Edge) traverser.get()).id());
-        });
+        traversers.forEach(traverser -> collectIds(traverser, vertexIds, edgeIds));
 
         final Map<Object, Element> vertexCache = new HashMap<>();
         if (!vertexIds.isEmpty())
@@ -93,11 +107,26 @@ public class ComputerHelper {
                 final Vertex vertex = (Vertex) vertexCache.get(((Vertex) traverser.get()).id());
                 traverser.attach(Attachable.Method.get(vertex));
                 traverser.setSideEffects(traversalSideEffects);
-            } else if(traverser.get() instanceof Edge && edgeCache.containsKey(((Edge) traverser.get()).id())) {
+            } else if (traverser.get() instanceof Edge && edgeCache.containsKey(((Edge) traverser.get()).id())) {
                 final Edge edge = (Edge) edgeCache.get(((Edge) traverser.get()).id());
                 // todo: better attachment way for edges
                 traverser.attach(Attachable.Method.get(edge.outVertex()));
                 traverser.setSideEffects(traversalSideEffects);
+            }
+
+            if (traverser instanceof ProjectedTraverser) {
+                final List original = ((ProjectedTraverser) traverser).getProjections();
+                final List copy = new ArrayList<>(original);
+                for (int i = 0; i < copy.size(); i++) {
+                    final Object projection = copy.get(i);
+                    if (projection instanceof Vertex && vertexCache.containsKey(((Vertex) projection).id())) {
+                        original.remove(i);
+                        original.add(i, vertexCache.get(((Vertex) projection).id()));
+                    } else if (projection instanceof Edge && edgeCache.containsKey(((Edge) projection).id())) {
+                        original.remove(i);
+                        original.add(i, edgeCache.get(((Edge) projection).id()));
+                    }
+                }
             }
         });
     }

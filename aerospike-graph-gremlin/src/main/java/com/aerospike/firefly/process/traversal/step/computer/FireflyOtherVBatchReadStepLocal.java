@@ -31,8 +31,8 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
     private final List<HasContainer> fireflyHasContainers;
     private final List<HasContainer> aerospikeHasContainers;
 
-    private final Map<FireflyId, FireflyVertex> cache = new HashMap<>();
-    private final List<FireflyId> inputCache =new ArrayList<>();
+    private transient final Map<FireflyId, FireflyVertex> cache = new HashMap<>();
+    private transient final List<FireflyId> inputCache =new ArrayList<>();
     private boolean first = true;
 
     public FireflyOtherVBatchReadStepLocal(final Traversal.Admin traversal,

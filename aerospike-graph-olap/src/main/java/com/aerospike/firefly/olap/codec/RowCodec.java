@@ -14,6 +14,7 @@ import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertexProperty;
 import scala.collection.Seq;
 
 import java.util.ArrayList;
@@ -22,9 +23,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.aerospike.firefly.olap.codec.RowCodecHelper.appendNestedLoopSchema;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.appendPathSchema;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.appendSingleLoopSchema;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.getId;
+import static com.aerospike.firefly.olap.codec.RowCodecHelper.setNestedLoops;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.setPath;
 
 public abstract class RowCodec {
@@ -34,10 +37,6 @@ public abstract class RowCodec {
 
     interface TraverserEncoder {
         void encode(final List<Object> o, final Traverser t);
-    }
-
-    interface TraverserDecoder {
-        Traverser decode(final Row o);
     }
 
     interface ElementEncoder {
@@ -67,6 +66,9 @@ public abstract class RowCodec {
                     orderedTraverserEncoders.add(new PathTraverserEncoder());
                     orderedElementEncoders.add(new PathElementEncoder());
                     break;
+                case NESTED_LOOP:
+                    orderedTraverserEncoders.add(new NestedLoopTraverserEncoder());
+                    orderedElementEncoders.add(new NestedLoopElementEncoder());
             }
         }
         codecRequirementsSet.addAll(requirements);
@@ -80,6 +82,8 @@ public abstract class RowCodec {
     public static final String ID_COL = "~id";
     public static final String ID_TYPEHINT_COL = "~id_typehint";
     public static final String LABEL_COL = "~label";
+    public static final String VALUE_COL = "~value";
+    public static final String VALUE_TYPEHINT_COL = "~value_typehint";
     public static final String PROPERTIES_COL = "~properties";
     public static final String IN_COL = "~in";
     public static final String OUT_COL = "~out";
@@ -127,6 +131,14 @@ public abstract class RowCodec {
         }
     }
 
+    class NestedLoopTraverserEncoder implements TraverserEncoder {
+        @Override
+        public void encode(final List<Object> o, final Traverser t) {
+            final RowCodecHelper.NestedLoopInfo nli = RowCodecHelper.getNestedLoopInfo(t);
+            RowCodecHelper.addNestedLoops(o, nli);
+        }
+    }
+
     class BaseElementEncoder implements ElementEncoder {
         @Override
         public void encode(final List<Object> o, final Element e, final String step) {
@@ -159,6 +171,15 @@ public abstract class RowCodec {
         }
     }
 
+    class NestedLoopElementEncoder implements ElementEncoder {
+        @Override
+        public void encode(final List<Object> o, final Element e, final String step) {
+            o.add(null);
+            o.add(null);
+            o.add(null);
+        }
+    }
+
     public StructType getSchema() {
         StructType schema = RowCodecHelper.getBaseSchema();
         for (final CodecRequirements requirements : codecRequirements) {
@@ -171,6 +192,9 @@ public abstract class RowCodec {
                     break;
                 case PATH:
                     schema = appendPathSchema(schema);
+                    break;
+                case NESTED_LOOP:
+                    schema = appendNestedLoopSchema(schema);
                     break;
             }
         }
@@ -190,11 +214,17 @@ public abstract class RowCodec {
         final String step = row.getString(row.fieldIndex(STEP_COL));
         final Step stepOrEmpty = Optional.ofNullable(tm.getStepById(step)).orElse(EmptyStep.instance());
         final long bulk = codecRequirementsSet.contains(CodecRequirements.BULK) ? row.getLong(row.fieldIndex(BULK_COL)) : 1L;
+        final int traverserType = row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL));
         final ReferenceElement element;
-        if (row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) == TRAVERSER_TYPE.VERTEX.ordinal()) {
+        if (traverserType == TRAVERSER_TYPE.VERTEX.ordinal()) {
             element = new ReferenceVertex(id, label);
-        } else if (row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) == TRAVERSER_TYPE.EDGE.ordinal()) {
+        } else if (traverserType == TRAVERSER_TYPE.EDGE.ordinal()) {
             element = new ReferenceEdge(id, label, new ReferenceVertex("~empty"), new ReferenceVertex("~empty"));
+        } else if (traverserType == TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal()){
+            Object value = row.get(row.fieldIndex(VALUE_COL));
+            final int valueTypehint = row.getInt(row.fieldIndex(VALUE_TYPEHINT_COL));
+            value = getId(value.toString(), valueTypehint); // TODO: Update.
+            element = new ReferenceVertexProperty(id, label, value);
         } else {
             throw new RuntimeException("Error, decoder for " + row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) + " is not implemented");
         }
@@ -217,6 +247,12 @@ public abstract class RowCodec {
             final List<Seq<String>> pathLabels = row.getList(row.fieldIndex(PATH_LABELS_COL));
             setPath(traverser, new RowCodecHelper.PathInfo(pathIds, pathIdTypeHints, pathObjTypes, pathLabels));
         }
+        if (codecRequirementsSet.contains(CodecRequirements.NESTED_LOOP)) {
+            final List<String> nlSteps = row.getList(row.fieldIndex(NL_STEP_COL));
+            final List<String> nlNames = row.getList(row.fieldIndex(NL_NAME_COL));
+            final List<Integer> nlCounts = row.getList(row.fieldIndex(NL_COUNT_COL));
+            setNestedLoops(traverser, new RowCodecHelper.NestedLoopInfo(nlNames, nlCounts, nlSteps));
+        }
 
         return traverser;
     }
@@ -233,10 +269,10 @@ public abstract class RowCodec {
         return RowFactory.create(objects.toArray(new Object[0]));
     }
 
-    public Row encode(final Element vertex, final String step) {
+    public Row encode(final Element element, final String step) {
         final List<Object> objects = new ArrayList<>();
         for (final ElementEncoder encoder : orderedElementEncoders) {
-            encoder.encode(objects, vertex, step);
+            encoder.encode(objects, element, step);
         }
         return RowFactory.create(objects.toArray(new Object[0]));
     }
@@ -267,7 +303,8 @@ public abstract class RowCodec {
         BASE,
         BULK,
         SINGLE_LOOP,
-        PATH
+        PATH,
+        NESTED_LOOP
     }
 
     /////////////////////////////////////////////////////////////////////

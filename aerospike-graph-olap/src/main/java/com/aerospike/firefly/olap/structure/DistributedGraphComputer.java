@@ -106,7 +106,8 @@ public class DistributedGraphComputer implements GraphComputer {
         if (sparkSession != null) {
             this.spark = (SparkSession) sparkSession;
         } else {
-            this.spark = buildSparkSession();
+            if (this.spark == null)
+                this.spark = buildSparkSession();
         }
     }
 
@@ -452,8 +453,8 @@ public class DistributedGraphComputer implements GraphComputer {
             return CompletableFuture.completedFuture(new DefaultComputerResult(resultGraph, memory));
         } catch (final Exception e) {
             // Maybe remove this for L2.
-            spark.close();
-            spark = null;
+            //spark.close();
+            //spark = null;
 
             LOGGER.error("A global error occurred. Shutting down {}: {}", this, e.getMessage(), e);
             throw new RuntimeException("Global error '" + e.getMessage() + "' occurred during OLAP traversal.", e);

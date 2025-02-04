@@ -22,7 +22,7 @@ public class NL_O_OB_S_SE_SL_RowCodec extends RowCodec {
     }
 
     private NL_O_OB_S_SE_SL_RowCodec() {
-        super(List.of());
+        super(List.of(CodecRequirements.BASE, CodecRequirements.NESTED_LOOP, CodecRequirements.SINGLE_LOOP));
     }
 
     /////////////////////////////////////////////////////////////////////

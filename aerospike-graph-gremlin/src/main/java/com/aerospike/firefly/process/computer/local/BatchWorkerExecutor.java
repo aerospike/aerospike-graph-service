@@ -278,6 +278,9 @@ public class BatchWorkerExecutor {
                     original.remove(t);
                     original.add(new ProjectedTraverser((ProjectedTraverser.tryUnwrap((ProjectedTraverser) t)).detach(),
                             ReferenceFactory.detach(((ProjectedTraverser) t).getProjections())));
+                } else if (t instanceof Traverser.Admin) {
+                    original.remove(t);
+                    original.add(((Traverser.Admin<?>) t).detach());
                 }
             }
         }

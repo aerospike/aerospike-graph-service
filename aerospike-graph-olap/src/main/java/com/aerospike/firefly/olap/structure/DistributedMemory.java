@@ -54,7 +54,6 @@ public class DistributedMemory implements Memory.Admin, Serializable {
 
     @Override
     public Set<String> keys() {
-
         if (this.inExecute)
             return this.broadcast.getValue().keySet();
         else {

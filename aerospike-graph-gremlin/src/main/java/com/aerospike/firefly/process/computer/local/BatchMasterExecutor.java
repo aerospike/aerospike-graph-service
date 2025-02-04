@@ -68,8 +68,15 @@ public class BatchMasterExecutor {
                             ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                                     EmptyTraversalSideEffects.instance(), list);
                             barrier.addBarrier(list);
-                        } else
+                        } else if (memory.get(key) instanceof Set) {
+                            final TraverserSet ts = new TraverserSet();
+                            ts.addAll(memory.get(key));
+                            ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
+                                    EmptyTraversalSideEffects.instance(), ts);
+                            barrier.addBarrier(ts);
+                        } else {
                             barrier.addBarrier(memory.get(key));
+                        }
                     }
                     step.forEachRemaining(toProcessTraversers::add);
                     // if it was a reducing barrier step, reset the barrier to its seed value

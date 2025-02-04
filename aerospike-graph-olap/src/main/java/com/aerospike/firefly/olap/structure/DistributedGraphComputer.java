@@ -400,6 +400,8 @@ public class DistributedGraphComputer implements GraphComputer {
 
             try {
                 TraverserSet memoryTraversers = memory.get(HALTED_TRAVERSERS);
+                System.out.println("------MEMORY TRAVERSERS------");
+                memoryTraversers.forEach(System.out::println);
                 traversers.addAll(memoryTraversers);
             } catch (IllegalArgumentException e) {
                 // No data in memory.
@@ -407,6 +409,8 @@ public class DistributedGraphComputer implements GraphComputer {
 
             // Collect results.
             final List<Row> rows = results.collectAsList();
+            System.out.println("------RESULTS------");
+            rows.forEach(System.out::println);
 
             // Create traversers.
             final TraversalMatrix traversalMatrix = new TraversalMatrix<>(pureTraversal.asAdmin());

@@ -2497,8 +2497,7 @@ public class AerospikeConnection implements AutoCloseable {
 
             rollback(txn);
         } catch (final AerospikeGraphException e) {
-            // TODO: GRAPH-1453
-            throw new RuntimeException("Transactions are not supported by Aerospike. TODO: link to doc with how to configure MRT.");
+            throw new RuntimeException("Transactions are not supported by Aerospike. Aerospike database must be version 8 or newer with strong consistency mode enabled.");
         }
     }
 

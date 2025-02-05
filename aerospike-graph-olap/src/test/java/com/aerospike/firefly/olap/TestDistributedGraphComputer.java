@@ -28,6 +28,7 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,6 +98,157 @@ public class TestDistributedGraphComputer {
 
             System.out.println(output);
             Assert.assertEquals(6L, output.size());
+        }
+    }
+
+    @Test
+    public void testProperties() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List output = graph.traversal().withComputer()
+                    .V().both().properties().dedup().count().toList();
+
+            System.out.println(output);
+        }
+    }
+
+    @Test
+    public void testHasIdEmpty() {
+        // expected 6L
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            Long count1 = graph.traversal().V().hasId(Collections.emptyList()).count().next();
+            Long count = graph.traversal().withComputer().V().hasId(Collections.emptyList()).count().next();
+            System.out.println(count1);
+            System.out.println(count);
+        }
+    }
+
+    @Test
+    public void testAge() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            List<Vertex> v1 = graph.traversal().V().has("age", P.gt(18).and(P.lt(30)).or(P.gt(35))).toList();
+            List<Vertex> v2 = graph.traversal().withComputer().V().has("age", P.gt(18).and(P.lt(30)).or(P.gt(35))).toList();
+            System.out.println(v1);
+            System.out.println(v2);
+        }
+    }
+
+    @Test
+    public void testEdges() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            List<Edge> v1 = graph.traversal().E().toList();
+            List<Edge> v2 = graph.traversal().withComputer().E().toList();
+            System.out.println(v1);
+            System.out.println(v2);
+        }
+    }
+
+    @Test
+    public void testHasId1_hasId2() {
+        // expected 0
+    }
+
+    @Test
+    public void testUnion() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List output2 = graph.traversal()
+                    .union().toList();
+
+            System.out.println(output2);
+
+            List output = graph.traversal().withComputer()
+                    .union().toList();
+            System.out.println(output);
+        }
+    }
+
+    @Test
+    public void testSelect() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List output2 = graph.traversal().V().as("a").label().select("a").toList();
+
+            List output = graph.traversal().withComputer().V().as("a").label().select("a").toList();
+            System.out.println("outputOLAP : " + output);
+            System.out.println("outputOLTP : " + output2);
+        }
+    }
+
+    @Test
+    public void testNullid() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List<Vertex> output = graph.traversal()
+                    .V(1, null)
+                    .out()
+                    .toList();
+            System.out.println(output);
+
+            List<Vertex> output2 = graph.traversal().withComputer()
+                    .V(1, null)
+                    .out()
+                    .toList();
+
+            System.out.println(output2);
+        }
+    }
+
+    @Test
+    public void testOutLimit() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            Object id = graph.traversal().V().has("name", "marko").id().next();
+            List<Vertex> output = graph.traversal().withComputer().V(id).out().limit(2).toList();
+            Assert.assertEquals(2L, output.size());
+            System.out.println(output);
+        }
+    }
+
+    @Test
+    public void testIndex() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List<?> output = graph.traversal().withComputer()
+                    .V().hasLabel("software").index().unfold().toList();
+            System.out.println(output);
+        }
+    }
+
+    @Test
+    public void testOrderoutE() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            final List<?> output = graph.traversal().withComputer().V().outE().order().by("weight", Order.desc).values("weight").toList();
+            Assert.assertEquals(6, output.size());
         }
     }
 

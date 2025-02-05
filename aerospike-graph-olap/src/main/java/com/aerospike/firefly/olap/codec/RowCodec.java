@@ -17,6 +17,7 @@ import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertexProperty;
+import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
 import java.io.Serializable;
@@ -43,7 +44,7 @@ public abstract class RowCodec {
     }
 
     interface ElementEncoder {
-        void encode(final List<Object> o, final Element e, final String step);
+        void encode(final List<Object> o, final TraversalMatrix tm, final Element e, final String step);
     }
 
     final List<TraverserEncoder> orderedTraverserEncoders = new ArrayList<>();
@@ -146,24 +147,31 @@ public abstract class RowCodec {
 
     class BaseElementEncoder implements ElementEncoder {
         @Override
-        public void encode(final List<Object> o, final Element e, final String step) {
+        public void encode(final List<Object> o, TraversalMatrix tm, final Element e, final String step) {
             RowCodecHelper.addBaseRow(o, e, step);
         }
     }
 
     class PathElementEncoder implements ElementEncoder {
         @Override
-        public void encode(final List<Object> o, final Element e, final String step) {
+        public void encode(final List<Object> o, final TraversalMatrix tm, final Element e, final String step) {
+            final Step tStep = tm.getStepById(step);
+            final Step previousStep = tStep.getPreviousStep();
+            final Set<String> labels = previousStep.getLabels();
+            final List<Seq<String>> pathLabels = new ArrayList<>();
+            if (labels != null && !labels.isEmpty()) {
+                pathLabels.add(JavaConverters.asScalaBufferConverter(new ArrayList<>(labels)).asScala().seq());
+            }
             o.add(null);
             o.add(null);
             o.add(null);
-            o.add(null);
+            o.add(pathLabels.isEmpty() ? null : JavaConverters.asScalaBufferConverter((pathLabels)).asScala().seq());
         }
     }
 
     class SingleLoopElementEncoder implements ElementEncoder {
         @Override
-        public void encode(final List<Object> o, final Element e, final String step) {
+        public void encode(final List<Object> o, TraversalMatrix tm, final Element e, final String step) {
             o.add(null);
             o.add(null);
         }
@@ -171,14 +179,14 @@ public abstract class RowCodec {
 
     class BulkElementEncoder implements ElementEncoder {
         @Override
-        public void encode(final List<Object> o, final Element e, final String step) {
+        public void encode(final List<Object> o, TraversalMatrix tm, final Element e, final String step) {
             o.add(1L);
         }
     }
 
     class NestedLoopElementEncoder implements ElementEncoder {
         @Override
-        public void encode(final List<Object> o, final Element e, final String step) {
+        public void encode(final List<Object> o, TraversalMatrix tm, final Element e, final String step) {
             o.add(null);
             o.add(null);
             o.add(null);
@@ -274,10 +282,10 @@ public abstract class RowCodec {
         return RowFactory.create(objects.toArray(new Object[0]));
     }
 
-    public Row encode(final Element element, final String step) {
+    public Row encode(final Element element, final TraversalMatrix tm, final String step) {
         final List<Object> objects = new ArrayList<>();
         for (final ElementEncoder encoder : orderedElementEncoders) {
-            encoder.encode(objects, element, step);
+            encoder.encode(objects, tm, element, step);
         }
         return RowFactory.create(objects.toArray(new Object[0]));
     }

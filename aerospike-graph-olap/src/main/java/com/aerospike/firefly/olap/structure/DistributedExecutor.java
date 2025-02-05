@@ -84,7 +84,7 @@ public class DistributedExecutor {
                 pureTraversal.get().applyStrategies();
                 final Traversal traversal = pureTraversal.get();
                 //System.out.println("Size of traversal : " + getObjectSize(traversal));
-                final Codec codec = new Codec(traversal.asAdmin().getTraverserRequirements());
+                final Codec codec = new Codec(traversal);
                 final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.asAdmin());
                 final List<Row> output = new ArrayList<>();
 

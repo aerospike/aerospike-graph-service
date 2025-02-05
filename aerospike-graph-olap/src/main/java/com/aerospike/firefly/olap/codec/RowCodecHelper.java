@@ -3,6 +3,7 @@ package com.aerospike.firefly.olap.codec;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ImmutablePath;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_P_S_SE_SL_Traverser;
@@ -19,6 +20,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.LP_O_OB_S_SE_SL_
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.NL_O_OB_S_SE_SL_Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.O_OB_S_SE_SL_Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.LabelledCounter;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -37,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.ID_COL;
@@ -99,6 +102,11 @@ public class RowCodecHelper {
 
     public static void setPath(final Traverser t, final PathInfo info) {
         if (info.pathIds == null) {
+            if (info.pathLabels != null) {
+                for (final Seq<String> labels : info.pathLabels) {
+                    t.asAdmin().addLabels(new HashSet<>(JavaConverters.seqAsJavaList(labels)));
+                }
+            }
             return;
         }
         try {

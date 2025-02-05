@@ -314,7 +314,7 @@ public class DistributedGraphComputer implements GraphComputer {
                 LOGGER.warn("Edges do not support secondary indexes, you may experience poor performance.");
             }
 
-            final Codec codec = new Codec(traverserRequirements);
+            final Codec codec = new Codec(traversal.get());
 
             // Create basic schema.
             final StructType schema = codec.getSchema();
@@ -371,8 +371,12 @@ public class DistributedGraphComputer implements GraphComputer {
                 df.show(false);
 
                 results.unpersist();
-                results.union(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true)));
+                results = results.union(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true)));
+                results = spark.createDataFrame(results.rdd(), schema);
                 results.cache();
+
+                System.out.println("------RESULT-------");
+                results.show(false);
 
                 // Filter out vertices that are not halted.
                 df.unpersist();

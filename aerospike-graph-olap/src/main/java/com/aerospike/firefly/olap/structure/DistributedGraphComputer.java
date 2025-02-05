@@ -306,6 +306,7 @@ public class DistributedGraphComputer implements GraphComputer {
             if (graphStep.returnsEdge()) {
                 LOGGER.warn("Edges do not support secondary indexes, you may experience poor performance.");
             }
+            System.out.println("===== " + graphStep + " " + graphStep.returnsVertex() + " ===== " + pureTraversal.asAdmin().getSteps());
 
             final Codec codec = new Codec(traversal.get());
 

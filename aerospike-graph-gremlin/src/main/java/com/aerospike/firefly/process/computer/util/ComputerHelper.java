@@ -9,6 +9,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.TraversalSideEffects;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
@@ -52,8 +53,27 @@ public class ComputerHelper {
         final List<HasContainer> hasContainers = new ArrayList<>();
 
         if (traversal.getStartStep() instanceof GraphStep) {
-            if (Stream.of(((GraphStep) traversal.getStartStep()).getIds()).count() > 0)
+            if (Stream.of(((GraphStep) traversal.getStartStep()).getIds()).count() > 0) {
+                ((GraphStep) traversal.getStartStep()).getIds();
                 hasContainers.add(new HasContainer(T.id.getAccessor(), P.eq(P.within(((GraphStep) traversal.getStartStep()).getIds()))));
+            } else if (traversal.getStartStep().getNextStep() instanceof IdStep) {
+                Step currentStep = traversal.getStartStep().getNextStep().getNextStep();
+                while (currentStep instanceof HasStep) {
+                    HasStep currentHasStep = (HasStep) currentStep;
+                    final List<HasContainer> allHasContainers = currentHasStep.getHasContainers();
+                    final List<HasContainer> nonIdContainers = allHasContainers.stream().filter(c -> !c.getKey().equals(T.id.getAccessor())).collect(Collectors.toList());
+                    final List<HasContainer> idContainers = allHasContainers.stream().filter(c -> c.getKey().equals(T.id.getAccessor())).collect(Collectors.toList());
+                    hasContainers.addAll(nonIdContainers);
+                    if (!idContainers.isEmpty()) {
+                        final List<Object> ids = new ArrayList<>();
+                        for (final HasContainer idContainer : idContainers) {
+                            ids.add(idContainer.getPredicate().getValue());
+                        }
+                        hasContainers.add(new HasContainer(T.id.getAccessor(), P.eq(P.within(ids))));
+                    }
+                    currentStep = currentStep.getNextStep();
+                }
+            }
             for (Step<?, ?> currentStep = ((GraphStep) traversal.getStartStep()).getNextStep();
                  currentStep instanceof HasStep || currentStep instanceof NoOpBarrierStep || currentStep instanceof ProfileStep;
                  currentStep = currentStep.getNextStep()) {
@@ -65,10 +85,6 @@ public class ComputerHelper {
                     } else {
                         for (final HasContainer container : (((HasContainerHolder) currentStep).getHasContainers())) {
                             hasContainers.add(container);
-                            //for (final HasContainer hasContainer : ((HasContainerHolder) currentStep).getHasContainers().stream()
-                            //.filter(h -> h.getKey().equals(T.id.getAccessor()) || h.getValue() instanceof Number || h.getValue() instanceof Number ||
-                            //        (h.getPredicate().getPredicateName().equals(P.eq(1).getPredicateName()))).collect(Collectors.toList())) {
-                            //    hasContainers.add(hasContainer);
                         }
                     }
                 }

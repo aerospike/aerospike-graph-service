@@ -156,27 +156,14 @@ public class BatchWorkerExecutor {
                 while (traversers.hasNext()) {
                     final Traverser.Admin<Object> traverser = traversers.next();
                     traversers.remove();
+                    // todo: cleanup
                     // decide whether to message the traverser or to process it locally
                     if (traverser.get() instanceof Element || traverser.get() instanceof Property) {      // GRAPH OBJECT
                         // if the element is remote, then message, else store it locally for re-processing
                         final Vertex hostingVertex = Host.getHostingVertex(traverser.get());
                         if (!traverser.isHalted())
                             voteToHalt.set(false);
-//                        if (!vertices.contains(hostingVertex)) { // if its host is not the current vertex, then send the traverser to the hosting vertex
-                        //voteToHalt.set(false); // if message is passed, then don't vote to halt
                         messenger.sendMessage(MessageScope.Global.of(hostingVertex), new TraverserSet<>(traverser.detach()));
-//                        } else {
-//                            // todo: helper
-//                            Vertex vertex = null;
-//                            for (final Vertex v : vertices) {
-//                                if (ElementHelper.areEqual(v, traverser.get())) {
-//                                    vertex = v;
-//                                    break;
-//                                }
-//                            }
-//                            traverser.attach(Attachable.Method.get(vertex)); // necessary for select() steps that reference the current object
-//                            toProcessTraversers.add(traverser);
-//                        }
                     } else                                                                              // STANDARD OBJECT
                         toProcessTraversers.add(traverser);
                 }
@@ -204,8 +191,7 @@ public class BatchWorkerExecutor {
             final Barrier barrier = (Barrier) step;
             if (barrier.hasNextBarrier()) {
                 while (barrier.hasNextBarrier()) {
-                    // barrier can produce non-serializable firefly elements
-                    memory.add(step.getId(), detach(barrier.nextBarrier()));
+                    memory.add(step.getId(), barrier.nextBarrier());
                 }
             } else {
                 // ensure the step id gets added to memory or else barriers that filter like order().by('no-exist')
@@ -241,22 +227,4 @@ public class BatchWorkerExecutor {
                 "; haltedTraversers" + haltedTraversers);
     }
 
-    private static Object detach(final Object barrier) {
-        // not handled by ReferenceFactory
-        if (barrier instanceof TraverserSet) {
-            final TraverserSet original = (TraverserSet) barrier;
-            // iterate over copy to be able to add/remove items
-            for (final Object t : new HashSet<>(original)) {
-                if (t instanceof ProjectedTraverser) {
-                    original.remove(t);
-                    original.add(new ProjectedTraverser((ProjectedTraverser.tryUnwrap((ProjectedTraverser) t)).detach(),
-                            ReferenceFactory.detach(((ProjectedTraverser) t).getProjections())));
-                } else if (t instanceof Traverser.Admin) {
-                    original.remove(t);
-                    original.add(((Traverser.Admin<?>) t).detach());
-                }
-            }
-        }
-        return ReferenceFactory.detach(barrier);
-    }
 }

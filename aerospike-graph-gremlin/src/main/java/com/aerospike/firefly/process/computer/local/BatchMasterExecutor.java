@@ -20,6 +20,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyKeyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyMapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyValueStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.SackStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.SideEffectCapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ReducingBarrierStep;
@@ -30,6 +31,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedFactory;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -55,9 +57,9 @@ public class BatchMasterExecutor {
                     // collecting barriers expect to consume TraverserSet, but spark serialize it as HashSet
                     if (barrier instanceof CollectingBarrierStep) {
                         final TraverserSet traverserSet = new TraverserSet();
-                        ((HashSet)memory.get(key)).forEach(i-> {
-                            traverserSet.add((Traverser.Admin)i);
-                        } );
+                        ((HashSet) memory.get(key)).forEach(i -> {
+                            traverserSet.add((Traverser.Admin) i);
+                        });
                         ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                                 EmptyTraversalSideEffects.instance(), traverserSet);
                         barrier.addBarrier(traverserSet);
@@ -79,6 +81,13 @@ public class BatchMasterExecutor {
                         }
                     }
                     step.forEachRemaining(toProcessTraversers::add);
+
+                    // some steps can grab reference traversers from memory
+                    if (!toProcessTraversers.isEmpty() && step instanceof SideEffectCapStep) {
+                        ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
+                                EmptyTraversalSideEffects.instance(), toProcessTraversers);
+                    }
+
                     // if it was a reducing barrier step, reset the barrier to its seed value
                     if (step instanceof ReducingBarrierStep)
                         memory.set(step.getId(), ((ReducingBarrierStep) step).getSeedSupplier().get());

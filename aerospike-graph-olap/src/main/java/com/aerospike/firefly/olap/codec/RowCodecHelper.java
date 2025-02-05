@@ -146,8 +146,13 @@ public class RowCodecHelper {
         if (nli.loopNames == null) {
             return;
         }
+        if (nli.loopCounts.isEmpty() || nli.loopNames.isEmpty() || nli.loopSteps.isEmpty()) {
+            return;
+        }
         for (int i = nli.loopCounts.size() - 1; i >= 0; i--) {
-            t.asAdmin().initialiseLoops(nli.loopSteps.get(i), nli.loopNames.get(i));
+            final String loopStep = nli.loopSteps.get(i);
+            final String loopName = nli.loopNames.get(i);
+            t.asAdmin().initialiseLoops(loopName, loopStep.equals("~empty_loop") ? null : loopStep);
             for (int j = 0; j < nli.loopCounts.get(i); j++) {
                 t.asAdmin().incrLoops();
             }
@@ -205,15 +210,19 @@ public class RowCodecHelper {
             final org.apache.commons.collections.map.ReferenceMap loopNamesMap = (org.apache.commons.collections.map.ReferenceMap) loopNamesField.get(t);
             for (final String loopName : loopNames) {
                 final Iterator<Object> it = loopNamesMap.entrySet().iterator();
-                while (it.hasNext()) {
-                    Map.Entry<String, LabelledCounter> entry = (Map.Entry<String, LabelledCounter>) it.next();
-                    LabelledCounter lc = (LabelledCounter) entry.getValue();
-                    final Field loopLabel = LabelledCounter.class.getDeclaredField("label");
-                    loopLabel.setAccessible(true);
-                    final String subLoopName = (String) loopLabel.get(lc);
-                    if (loopName.equals(subLoopName)) {
-                        loopSteps.add(entry.getKey());
+                if (it.hasNext()) {
+                    while (it.hasNext()) {
+                        Map.Entry<String, LabelledCounter> entry = (Map.Entry<String, LabelledCounter>) it.next();
+                        LabelledCounter lc = (LabelledCounter) entry.getValue();
+                        final Field loopLabel = LabelledCounter.class.getDeclaredField("label");
+                        loopLabel.setAccessible(true);
+                        final String subLoopName = (String) loopLabel.get(lc);
+                        if (loopName.equals(subLoopName)) {
+                            loopSteps.add(entry.getKey());
+                        }
                     }
+                } else {
+                    loopSteps.add("~empty_loop");
                 }
             }
             return new NestedLoopInfo(loopNames, loopCounts, loopSteps);

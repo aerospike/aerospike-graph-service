@@ -57,11 +57,11 @@ public class TestDistributedGraphComputer {
 
             List output = graph.traversal().withComputer()
                     .V()
-                    .order().by("name", Order.asc).values("name")
+                    .properties().order().by(T.key, Order.desc).key()
                     .toList();
 
             System.out.println(output);
-            Assert.assertEquals(6L, output.size());
+            Assert.assertEquals(12L, output.size());
         }
     }
 

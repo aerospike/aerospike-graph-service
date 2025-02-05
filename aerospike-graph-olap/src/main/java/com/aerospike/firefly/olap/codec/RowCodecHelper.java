@@ -5,6 +5,7 @@ import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ImmutablePath;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_P_S_SE_SL_Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_S_SE_SL_Traverser;
@@ -251,7 +252,7 @@ public class RowCodecHelper {
         return new PathInfo(ids, idTypeHints, objTypes, labelsList);
     }
 
-    public static void addBaseRow(final List<Object> row, final Element element, final String step) {
+    public static void addBaseRow(final List<Object> row, TraversalMatrix tm, final Element element, final String step) {
         if (element instanceof Vertex) {
             row.add(RowCodec.TRAVERSER_TYPE.VERTEX.ordinal()); // Integer traverser type.
             row.add(null);
@@ -271,7 +272,7 @@ public class RowCodecHelper {
         row.add(element.id().toString()); // String id.
         row.add(getIdType(element.id()).ordinal()); // Integer ordinal.
         row.add(element.label()); // String label.
-        row.add(false); // Boolean halted. TODO: Is this always OK? What about g.V()?
+        row.add(tm.getStepById(step) instanceof EmptyStep || tm.getStepById(step) == null); // Boolean halted.
         row.add(step); // String step.
     }
 

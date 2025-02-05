@@ -51,7 +51,7 @@ public class ComputerHelper {
     public static List<HasContainer> getInitialHasContainers(final Traversal.Admin<?, ?> traversal) {
         final List<HasContainer> hasContainers = new ArrayList<>();
 
-        if (traversal.getStartStep() instanceof GraphStep && ((GraphStep<Vertex, Vertex>) traversal.getStartStep()).returnsVertex()) {
+        if (traversal.getStartStep() instanceof GraphStep) {
             if (Stream.of(((GraphStep) traversal.getStartStep()).getIds()).count() > 0)
                 hasContainers.add(new HasContainer(T.id.getAccessor(), P.eq(P.within(((GraphStep) traversal.getStartStep()).getIds()))));
             for (Step<?, ?> currentStep = ((GraphStep) traversal.getStartStep()).getNextStep();

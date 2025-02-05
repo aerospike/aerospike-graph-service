@@ -42,6 +42,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Contains;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -292,7 +293,6 @@ public class DistributedQueryExecutor {
                             if (HasContainer.testAll(vertex, hasContainers))
                                 outputRows.add(codec.encode(vertex, startStep));
                         } else {
-                            System.out.println(keyRecord.record.bins);
                             final Map<ByteBuffer, List> edgeData = (Map<ByteBuffer, List>) keyRecord.record.getMap(graph.getBaseGraph().EDGE_DATA_BIN);
                             // Implicitly assume that if the key is found for label, which is required, then the key exists for the
                             // other phat edge maps, since they are all written in the same operate.
@@ -314,6 +314,7 @@ public class DistributedQueryExecutor {
                                 final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(edgeIdMapKey);
 
                                 final FireflyEdge edge = FireflyEdgeFactory.create(graph.getIdFactory().createEdgeId(edgeIdMapKey), label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, keyRecord.record.generation);
+                                // TODO: g.E().hasLabel("knows") ?
                                 if (HasContainer.testAll(edge, hasContainers))
                                     outputRows.add(codec.encode(edge, startStep));
                             }

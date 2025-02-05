@@ -336,11 +336,19 @@ public class DistributedGraphComputer implements GraphComputer {
             memory.broadcastMemory(new JavaSparkContext(spark.sparkContext()));
 
             // Set results to initially empty.
-            Dataset<Row> results = spark.emptyDataset(RowEncoder.apply(schema));
+            Dataset<Row> results = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true));
+            results = spark.createDataFrame(results.rdd(), schema);
+            results.cache();
+
+            df = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false));
+            Dataset<Row> ds = spark.createDataFrame(df.rdd(), schema);
+            ds.cache();
+            df.unpersist();
+            df = ds;
 
             // PartitionIterator pulls initial step data, so we can start on step 2.
             memory.incrIteration();
-            while (true) {
+            while (!ds.limit(1).isEmpty()) {
                 if (Thread.interrupted()) {
                     // If query is cancelled, cancel all spark jobs and throw an exception.
                     spark.sparkContext().cancelAllJobs();
@@ -351,8 +359,11 @@ public class DistributedGraphComputer implements GraphComputer {
                 memory.setInExecute(true);
                 System.out.println("------BEFORE EXEC------");
                 df.show(false);
+                ds = spark.createDataFrame(df.rdd(), schema);
+                ds.cache();
                 df.unpersist();
-                df = spark.createDataFrame(df.rdd(), schema);
+                df = ds;
+
                 System.out.println("Size of dataset " + getObjectSize(df));
 
                 df = DistributedExecutor.execute(df,
@@ -361,8 +372,10 @@ public class DistributedGraphComputer implements GraphComputer {
                         vertexProgramConfiguration,
                         //pureTraversal,
                         schema);
-                df = spark.createDataFrame(df.rdd(), schema);
-                df.cache();
+                ds = spark.createDataFrame(df.rdd(), schema);
+                ds.cache();
+                df.unpersist();
+                df = ds;
 
                 memory.setInExecute(false);
 
@@ -370,19 +383,21 @@ public class DistributedGraphComputer implements GraphComputer {
                 System.out.println("------AFTER EXEC------");
                 df.show(false);
 
-                results.unpersist();
                 results = results.union(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true)));
-                results = spark.createDataFrame(results.rdd(), schema);
-                results.cache();
+                ds = spark.createDataFrame(results.rdd(), schema);
+                ds.cache();
+                results.unpersist();
+                results = ds;
 
                 System.out.println("------RESULT-------");
                 results.show(false);
 
                 // Filter out vertices that are not halted.
-                df.unpersist();
                 df = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false));
-                df = spark.createDataFrame(df.rdd(), schema);
-                df.cache();
+                ds = spark.createDataFrame(df.rdd(), schema);
+                ds.cache();
+                df.unpersist();
+                df = ds;
 
                 // TODO: Ultimately probably don't want to do isEmpty() check here b/c we could have a query that pulls more data from graph later and
                 // we could screw it up.

@@ -23,8 +23,10 @@ import scala.collection.Seq;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -37,6 +39,8 @@ import static com.aerospike.firefly.olap.codec.RowCodecHelper.setNestedLoops;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.setPath;
 
 public abstract class RowCodec {
+
+    public Map<String, Integer> columnToOrdinal = new HashMap<>();
 
     final List<CodecRequirements> codecRequirements;
     final Set<CodecRequirements> codecRequirementsSet = new HashSet<>();
@@ -54,27 +58,47 @@ public abstract class RowCodec {
 
     RowCodec(final List<CodecRequirements> requirements) {
         this.codecRequirements = requirements;
+        int i = 0;
         for (CodecRequirements requirement : requirements) {
             switch (requirement) {
                 case BASE:
                     orderedTraverserEncoders.add(new BaseTraverserEncoder());
                     orderedElementEncoders.add(new BaseElementEncoder());
+                    columnToOrdinal.put(TRAVERSER_TYPE_COL, i++);
+                    columnToOrdinal.put(ELEMENT_ID_COL, i++);
+                    columnToOrdinal.put(ELEMENT_ID_TYPEHINT_COL, i++);
+                    columnToOrdinal.put(ID_COL, i++);
+                    columnToOrdinal.put(ID_TYPEHINT_COL, i++);
+                    columnToOrdinal.put(LABEL_COL, i++);
+                    columnToOrdinal.put(HALTED_COL, i++);
+                    columnToOrdinal.put(STEP_COL, i++);
                     break;
                 case BULK:
                     orderedTraverserEncoders.add(new BulkTraverserEncoder());
                     orderedElementEncoders.add(new BulkElementEncoder());
+                    columnToOrdinal.put(BULK_COL, i++);
                     break;
                 case SINGLE_LOOP:
                     orderedTraverserEncoders.add(new SingleLoopTraverserEncoder());
                     orderedElementEncoders.add(new SingleLoopElementEncoder());
+                    columnToOrdinal.put(TRAVERSER_TYPE_COL, columnToOrdinal.size());
+                    columnToOrdinal.put(SL_COUNT_COL, i++);
+                    columnToOrdinal.put(SL_NAME_COL, i++);
                     break;
                 case PATH:
                     orderedTraverserEncoders.add(new PathTraverserEncoder());
                     orderedElementEncoders.add(new PathElementEncoder());
+                    columnToOrdinal.put(PATH_ID_COL, i++);
+                    columnToOrdinal.put(PATH_ID_TYPEHINT_COL, i++);
+                    columnToOrdinal.put(PATH_OBJ_TYPE_COL, i++);
+                    columnToOrdinal.put(PATH_LABELS_COL, i++);
                     break;
                 case NESTED_LOOP:
                     orderedTraverserEncoders.add(new NestedLoopTraverserEncoder());
                     orderedElementEncoders.add(new NestedLoopElementEncoder());
+                    columnToOrdinal.put(NL_COUNT_COL, i++);
+                    columnToOrdinal.put(NL_NAME_COL, i++);
+                    columnToOrdinal.put(NL_STEP_COL, i++);
             }
         }
         codecRequirementsSet.addAll(requirements);
@@ -150,7 +174,7 @@ public abstract class RowCodec {
     class BaseElementEncoder implements ElementEncoder {
         @Override
         public void encode(final List<Object> o, TraversalMatrix tm, final Element e, final String step) {
-            RowCodecHelper.addBaseRow(o, e, step);
+            RowCodecHelper.addBaseRow(o, tm, e, step);
         }
     }
 

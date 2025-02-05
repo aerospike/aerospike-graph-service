@@ -3,6 +3,7 @@ package com.aerospike.firefly.olap.codec;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ImmutablePath;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_P_S_SE_SL_Traverser;
@@ -19,12 +20,15 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.LP_O_OB_S_SE_SL_
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.NL_O_OB_S_SE_SL_Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.O_OB_S_SE_SL_Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.LabelledCounter;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceProperty;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
@@ -37,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.ID_COL;
@@ -99,6 +104,11 @@ public class RowCodecHelper {
 
     public static void setPath(final Traverser t, final PathInfo info) {
         if (info.pathIds == null) {
+            if (info.pathLabels != null) {
+                for (final Seq<String> labels : info.pathLabels) {
+                    t.asAdmin().addLabels(new HashSet<>(JavaConverters.seqAsJavaList(labels)));
+                }
+            }
             return;
         }
         try {
@@ -282,15 +292,32 @@ public class RowCodecHelper {
                 final Vertex v = ((VertexProperty<?>) element).element();
                 row.add(v.id().toString());
                 row.add(getIdType(v.id()).ordinal());
-            } else {
-                throw new RuntimeException("Error, encoder for " + t.getClass() + " is not implemented");
             }
             row.add(element.id().toString()); // String id.
             row.add(getIdType(element.id()).ordinal()); // Integer ordinal.
             row.add(element.label()); // String label.
             row.add(traverser.asAdmin().isHalted()); // Boolean halted. TODO: Is this always OK? What about g.V()?
             row.add(traverser.asAdmin().getStepId()); // String step.
-        } else {
+        } else if (t instanceof Property) {
+            final Property property = (Property) t;
+            final Element e = property.element();
+            if (e instanceof VertexProperty) {
+                throw new RuntimeException("Vertex meta properties are not implemented at this time. Please contact support.");
+                //final Vertex v = ((VertexProperty<?>) e).element();
+                //row.add(e.id().toString());
+                //row.add(getIdType(e.id()).ordinal());
+                //row.add(RowCodec.TRAVERSER_TYPE.META_PROPERTY.ordinal()); // Integer traverser type.
+            } else {
+                row.add(RowCodec.TRAVERSER_TYPE.EDGE_PROPERTY.ordinal()); // Integer traverser type.
+                row.add(e.id().toString());
+                row.add(getIdType(e.id()).ordinal());
+            }
+            row.add(property.key()); // String id.
+            row.add(getIdType(property.key()).ordinal()); // Integer ordinal.
+            row.add(null); // String label.
+            row.add(traverser.asAdmin().isHalted()); // Boolean halted. TODO: Is this always OK? What about g.V()?
+            row.add(traverser.asAdmin().getStepId()); // String step.
+        }else {
             throw new RuntimeException("Error, encoder for " + t.getClass() + " is not implemented");
         }
     }
@@ -368,7 +395,7 @@ public class RowCodecHelper {
                 .add(ELEMENT_ID_TYPEHINT_COL, DataTypes.IntegerType, true)
                 .add(ID_COL, DataTypes.StringType, false)
                 .add(ID_TYPEHINT_COL, DataTypes.IntegerType, false)
-                .add(LABEL_COL, DataTypes.StringType, false)
+                .add(LABEL_COL, DataTypes.StringType, true)
                 .add(HALTED_COL, DataTypes.BooleanType, false)
                 .add(STEP_COL, DataTypes.StringType, false);
     }

@@ -43,11 +43,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
-import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
-import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertexProperty;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -56,8 +53,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
@@ -92,8 +87,8 @@ public class DistributedQueryExecutor {
         final List<HasContainer> hasContainers = queryInfo.fireflyHasContainers;
         return queryRangeDataset.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             // Junk required.
-            final Codec codec = new Codec(traversal.asAdmin().getTraverserRequirements());
             final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
+            final Codec codec = new Codec(traversal);
 
             // Open graph.
             try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
@@ -182,8 +177,10 @@ public class DistributedQueryExecutor {
         final String startStep = traversal.asAdmin().getStartStep().getNextStep().getId();
         final List<HasContainer> hasContainers = queryInfo.fireflyHasContainers;
         return idDataset.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
-            final Codec codec = new Codec(traversal.asAdmin().getTraverserRequirements());
             final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
+            final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.asAdmin());
+            final Codec codec = new Codec(traversal);
+
             try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
                 final List<FireflyId> ffids = new ArrayList<>();
                 while (iterator.hasNext()) {
@@ -246,8 +243,8 @@ public class DistributedQueryExecutor {
         final List<HasContainer> hasContainers = queryInfo.fireflyHasContainers;
         return queryRangeDataset.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             // Junk required.
-            final Codec codec = new Codec(traversal.asAdmin().getTraverserRequirements());
             final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
+            final Codec codec = new Codec(traversal);
 
             // Open graph.
             try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {

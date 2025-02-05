@@ -67,6 +67,24 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
+    public void edgeOrder() {
+
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List output = graph.traversal().withComputer()
+                    .E()
+                    .properties().value()
+                    .toList();
+
+            System.out.println(output);
+            Assert.assertEquals(12L, output.size());
+        }
+    }
+
+    @Test
     public void pathSerializationError() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();

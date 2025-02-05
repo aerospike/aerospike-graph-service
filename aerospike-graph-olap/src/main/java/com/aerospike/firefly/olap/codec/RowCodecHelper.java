@@ -23,10 +23,12 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.LabelledCou
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceProperty;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
@@ -290,15 +292,32 @@ public class RowCodecHelper {
                 final Vertex v = ((VertexProperty<?>) element).element();
                 row.add(v.id().toString());
                 row.add(getIdType(v.id()).ordinal());
-            } else {
-                throw new RuntimeException("Error, encoder for " + t.getClass() + " is not implemented");
             }
             row.add(element.id().toString()); // String id.
             row.add(getIdType(element.id()).ordinal()); // Integer ordinal.
             row.add(element.label()); // String label.
             row.add(traverser.asAdmin().isHalted()); // Boolean halted. TODO: Is this always OK? What about g.V()?
             row.add(traverser.asAdmin().getStepId()); // String step.
-        } else {
+        } else if (t instanceof Property) {
+            final Property property = (Property) t;
+            final Element e = property.element();
+            if (e instanceof VertexProperty) {
+                throw new RuntimeException("Vertex meta properties are not implemented at this time. Please contact support.");
+                //final Vertex v = ((VertexProperty<?>) e).element();
+                //row.add(e.id().toString());
+                //row.add(getIdType(e.id()).ordinal());
+                //row.add(RowCodec.TRAVERSER_TYPE.META_PROPERTY.ordinal()); // Integer traverser type.
+            } else {
+                row.add(RowCodec.TRAVERSER_TYPE.EDGE_PROPERTY.ordinal()); // Integer traverser type.
+                row.add(e.id().toString());
+                row.add(getIdType(e.id()).ordinal());
+            }
+            row.add(property.key()); // String id.
+            row.add(getIdType(property.key()).ordinal()); // Integer ordinal.
+            row.add(null); // String label.
+            row.add(traverser.asAdmin().isHalted()); // Boolean halted. TODO: Is this always OK? What about g.V()?
+            row.add(traverser.asAdmin().getStepId()); // String step.
+        }else {
             throw new RuntimeException("Error, encoder for " + t.getClass() + " is not implemented");
         }
     }
@@ -376,7 +395,7 @@ public class RowCodecHelper {
                 .add(ELEMENT_ID_TYPEHINT_COL, DataTypes.IntegerType, true)
                 .add(ID_COL, DataTypes.StringType, false)
                 .add(ID_TYPEHINT_COL, DataTypes.IntegerType, false)
-                .add(LABEL_COL, DataTypes.StringType, false)
+                .add(LABEL_COL, DataTypes.StringType, true)
                 .add(HALTED_COL, DataTypes.BooleanType, false)
                 .add(STEP_COL, DataTypes.StringType, false);
     }

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.olap.codec;
 
+import com.aerospike.firefly.olap.structure.DistributedReferenceEdgeProperty;
 import com.aerospike.firefly.olap.structure.DistributedReferenceVertexProperty;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
@@ -31,6 +32,7 @@ import static com.aerospike.firefly.olap.codec.RowCodecHelper.appendNestedLoopSc
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.appendPathSchema;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.appendSingleLoopSchema;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.getId;
+import static com.aerospike.firefly.olap.codec.RowCodecHelper.getReferenceElement;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.setNestedLoops;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.setPath;
 
@@ -228,7 +230,7 @@ public abstract class RowCodec {
         final Step stepOrEmpty = Optional.ofNullable(tm.getStepById(step)).orElse(EmptyStep.instance());
         final long bulk = codecRequirementsSet.contains(CodecRequirements.BULK) ? row.getLong(row.fieldIndex(BULK_COL)) : 1L;
         final int traverserType = row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL));
-        final ReferenceElement element;
+        final Object element;
         if (traverserType == TRAVERSER_TYPE.VERTEX.ordinal()) {
             element = new ReferenceVertex(id, label);
         } else if (traverserType == TRAVERSER_TYPE.EDGE.ordinal()) {
@@ -238,6 +240,11 @@ public abstract class RowCodec {
             final int elementIdTypehint = row.getInt(row.fieldIndex(ELEMENT_ID_TYPEHINT_COL));
             elementId = getId(elementId.toString(), elementIdTypehint); // TODO: Update.
             element = new DistributedReferenceVertexProperty(id, elementId);
+        } else if (traverserType == TRAVERSER_TYPE.EDGE_PROPERTY.ordinal()) {
+            Object elementId = row.get(row.fieldIndex(ELEMENT_ID_COL));
+            final int elementIdTypehint = row.getInt(row.fieldIndex(ELEMENT_ID_TYPEHINT_COL));
+            elementId = getId(elementId.toString(), elementIdTypehint); // TODO: Update.
+            element = new DistributedReferenceEdgeProperty<>(id.toString(), (ReferenceEdge) getReferenceElement(TRAVERSER_TYPE.EDGE.ordinal(), elementId, "~empty"));
         } else {
             throw new RuntimeException("Error, decoder for " + row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) + " is not implemented");
         }
@@ -267,6 +274,9 @@ public abstract class RowCodec {
             setNestedLoops(traverser, new RowCodecHelper.NestedLoopInfo(nlNames, nlCounts, nlSteps));
         }
 
+        if (traverser == null) {
+            throw new RuntimeException("Error, traverser is null");
+        }
         return traverser;
     }
 
@@ -303,7 +313,9 @@ public abstract class RowCodec {
     public enum TRAVERSER_TYPE {
         VERTEX,
         EDGE,
-        VERTEX_PROPERTY
+        VERTEX_PROPERTY,
+        META_PROPERTY,
+        EDGE_PROPERTY
     }
 
     public enum ID_TYPE {

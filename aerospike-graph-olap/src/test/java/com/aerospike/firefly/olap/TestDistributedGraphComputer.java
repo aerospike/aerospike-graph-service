@@ -48,20 +48,34 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
-    public void order() {
-
+    public void aggregate() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();
             final Graph tg = TinkerFactory.createModern();
             GraphHelper.cloneElements(tg, graph);
 
             List output = graph.traversal().withComputer()
-                    .V()
-                    .properties().order().by(T.key, Order.desc).key()
+                    .V().values("name").aggregate("x").cap("x")
                     .toList();
 
             System.out.println(output);
-            Assert.assertEquals(12L, output.size());
+            Assert.assertEquals(6L, output.size());
+        }
+    }
+
+    @Test
+    public void edge() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List output = graph.traversal().withComputer()
+                    .E().hasLabel("knows")
+                    .toList();
+
+            System.out.println(output);
+            Assert.assertEquals(2L, output.size());
         }
     }
 

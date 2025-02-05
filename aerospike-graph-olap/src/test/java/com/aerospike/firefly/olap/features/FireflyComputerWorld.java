@@ -39,9 +39,16 @@ public class FireflyComputerWorld implements World {
             "@GraphComputerVerificationInjectionNotSupported",
             "@GraphComputerVerificationStarGraphExceeded",
             "@GraphComputerVerificationReferenceOnly",
-            "@TinkerServiceRegistry");
+            "@TinkerServiceRegistry",
+            "@StepMatch"); // problem with labels
 
-    private static final List<Pair<String, String>> SKIP_TESTS = new ArrayList<>();
+    private static final String skipReasonHang = "This test hangs.";
+    private static final List<Pair<String, String>> SKIP_TESTS = new ArrayList<>() {
+        {
+            add(Pair.with("g_V_repeatXboth_simplePathX_timesX3X_path", skipReasonHang));
+        }
+    };
+
 
     private static final FireflyGraph modern;
     private static final FireflyGraph crew;

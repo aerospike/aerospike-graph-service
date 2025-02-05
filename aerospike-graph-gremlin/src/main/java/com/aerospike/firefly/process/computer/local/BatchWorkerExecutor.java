@@ -197,50 +197,23 @@ public class BatchWorkerExecutor {
                 "; haltedTraversers" + haltedTraversers);
         // try execute in slave mode
         GraphComputing.atMaster(step, false);
-        if (step instanceof Barrier) {
+        if (step instanceof Barrier && !(step instanceof LocalBarrier)) {
             if (step instanceof Bypassing)
                 ((Bypassing) step).setBypass(true);
 
-            if (step instanceof LocalBarrier) {
-                // todo: local barrier
-                // local barrier traversers are stored on the vertex until the master traversal synchronizes the system
-//                final LocalBarrier<Object> barrier = (LocalBarrier<Object>) step;
-//                final TraverserSet<Object> localBarrierTraversers = vertex.<TraverserSet<Object>>property(TraversalVertexProgram.ACTIVE_TRAVERSERS).orElse(new TraverserSet<>());
-//                System.out.println(Thread.currentThread().getId() + " WorkerExecutor.drainStep localBarrierTraversers: " + localBarrierTraversers);
-//                vertex.property(TraversalVertexProgram.ACTIVE_TRAVERSERS, localBarrierTraversers);
-//                while (barrier.hasNextBarrier()) {
-//                    final TraverserSet<Object> barrierSet = barrier.nextBarrier();
-//                    System.out.println(Thread.currentThread().getId() + " WorkerExecutor.drainStep barrierSet: " + barrierSet);
-//                    IteratorUtils.removeOnNext(barrierSet.iterator()).forEachRemaining(traverser -> {
-//                        traverser.addLabels(step.getLabels());  // this might need to be generalized for working with global barriers too
-//                        if (traverser.isHalted() &&
-//                                (returnHaltedTraversers ||
-//                                        (!(traverser.get() instanceof Element) && !(traverser.get() instanceof Property)) ||
-//                                        Host.getHostingVertex(traverser.get()).equals(vertex))) {
-//                            if (returnHaltedTraversers)
-//                                memory.add(TraversalVertexProgram.HALTED_TRAVERSERS, new TraverserSet<>(haltedTraverserStrategy.halt(traverser)));
-//                            else
-//                                haltedTraversers.add(traverser.detach());
-//                        } else
-//                            localBarrierTraversers.add(traverser.detach());
-//                    });
-//                }
-//                memory.add(BatchTraversalVertexProgram.MUTATED_MEMORY_KEYS, new HashSet<>(Collections.singleton(step.getId())));
-            } else {
-                final Barrier barrier = (Barrier) step;
-                if (barrier.hasNextBarrier()) {
-                    while (barrier.hasNextBarrier()) {
-                        // barrier can produce non-serializable firefly elements
-                        memory.add(step.getId(), detach(barrier.nextBarrier()));
-                    }
-                } else {
-                    // ensure the step id gets added to memory or else barriers that filter like order().by('no-exist')
-                    // will end in error when that memory key can't be found by MasterExecutor.processMemory()
-                    memory.add(step.getId(), new TraverserSet<>());
+            final Barrier barrier = (Barrier) step;
+            if (barrier.hasNextBarrier()) {
+                while (barrier.hasNextBarrier()) {
+                    // barrier can produce non-serializable firefly elements
+                    memory.add(step.getId(), detach(barrier.nextBarrier()));
                 }
-
-                memory.add(BatchTraversalVertexProgram.MUTATED_MEMORY_KEYS, new HashSet<>(Collections.singleton(step.getId())));
+            } else {
+                // ensure the step id gets added to memory or else barriers that filter like order().by('no-exist')
+                // will end in error when that memory key can't be found by MasterExecutor.processMemory()
+                memory.add(step.getId(), new TraverserSet<>());
             }
+
+            memory.add(BatchTraversalVertexProgram.MUTATED_MEMORY_KEYS, new HashSet<>(Collections.singleton(step.getId())));
         } else { // LOCAL PROCESSING
             step.forEachRemaining(traverser -> {
                 System.out.println("  working on " + traverser + "; halted: " + traverser.isHalted());

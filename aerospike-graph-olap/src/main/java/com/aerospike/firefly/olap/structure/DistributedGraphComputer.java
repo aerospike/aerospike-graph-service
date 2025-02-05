@@ -61,6 +61,8 @@ import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -119,7 +121,8 @@ public class DistributedGraphComputer implements GraphComputer {
         conf.setAppName("aerospike-graph-olap")
                 .set("spark.driver.allowMultipleContexts", "false")
                 .set("spark.ui.enabled", "true")
-                .set("mapreduce.fileoutputcommitter.algorithm.version", "2");
+                .set("mapreduce.fileoutputcommitter.algorithm.version", "2")
+                .set("spark.executor.extraJavaOptions", "-Dlog4j.logger.org.apache.spark.serializer=DEBUG -Dlog4j.logger.org.apache.spark.util.ClosureCleaner=DEBUG");
 
         final SparkSession.Builder builder = SparkSession.builder().config(conf);
         builder.config("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
@@ -281,6 +284,7 @@ public class DistributedGraphComputer implements GraphComputer {
         // this.memory = new LocalMemory(this.vertexProgram, this.mapReducers);
         this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
         this.persist = GraphComputerHelper.getPersistState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.persist));
+        int i = 0;
         try {
             final PureTraversal<?, ?> traversal = ((BatchTraversalVertexProgram) vertexProgram).getTraversal().clone();
             final List<HasContainer> initialHasContainers = ComputerHelper.getInitialHasContainers(traversal.get());
@@ -317,10 +321,8 @@ public class DistributedGraphComputer implements GraphComputer {
 
             final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace);
             Dataset<Row> df = DistributedQueryExecutor.getStartingPoint(spark, graph, configHelper, initialHasContainers, traversal.get(), schema, workers, maxParallelSindexes);
-            df.cache();
 
             // Generate Dataset.
-            df = spark.createDataFrame(df.rdd(), schema);
             df.cache();
 
             // Create necessary things for execution (Memory, ResultGraph, Config, etc.)
@@ -347,47 +349,40 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 // Set inExecute to true, execute the vertex program, and set inExecute to false.
                 memory.setInExecute(true);
-                df.count();
                 System.out.println("------BEFORE EXEC------");
                 df.show(false);
+                df.unpersist();
+                df = spark.createDataFrame(df.rdd(), schema);
+                System.out.println("Size of dataset " + getObjectSize(df));
+
                 df = DistributedExecutor.execute(df,
                         memory,
                         configHelper,
                         vertexProgramConfiguration,
-                        pureTraversal,
+                        //pureTraversal,
                         schema);
+                df = spark.createDataFrame(df.rdd(), schema);
                 df.cache();
 
                 memory.setInExecute(false);
 
                 // Filter out halted vertices.
-                Dataset<Row> halted = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true));
+                System.out.println("------AFTER EXEC------");
+                df.show(false);
+
+                results.unpersist();
+                results.union(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true)));
+                results.cache();
 
                 // Filter out vertices that are not halted.
+                df.unpersist();
                 df = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false));
-
-                // Create new dataframe with schema (without reapplying schema there are issues).
-                df.count();
                 df = spark.createDataFrame(df.rdd(), schema);
-                if (!halted.isEmpty()) {
-                    // Apply schema to halted vertices and union, then apply schema to results.
-                    halted = spark.createDataFrame(halted.rdd(), schema);
-                    results = results.union(halted);
-                    results = spark.createDataFrame(results.rdd(), schema);
-                }
-
-                // Persist results.
-                results.persist();
-                // This is a workaround for the fact spark is lazy. This forces evaluation, without it none of the
-                // above actions would have actually executed yet and the below vertexProgram.terminate check will be
-                // erroneous.
-                results.count();
-
-                //memory.set("gremlin.traversalVertexProgram.voteToHalt", true);
-                //memory.set(ACTIVE_TRAVERSERS, new IndexedTraverserSet.VertexIndexedTraverserSet());
+                df.cache();
 
                 // TODO: Ultimately probably don't want to do isEmpty() check here b/c we could have a query that pulls more data from graph later and
                 // we could screw it up.
+                System.out.println("Loop " + i++);
                 if (this.vertexProgram.terminate(memory) || df.limit(1).isEmpty()) {
                     // Need to be very careful with this stuff. Spark is LAZY. It doesn't execute unless forced, so if we incr at the wrong time there is problems.
                     memory.incrIteration();
@@ -438,6 +433,7 @@ public class DistributedGraphComputer implements GraphComputer {
             //spark = null;
 
             LOGGER.error("A global error occurred. Shutting down {}: {}", this, e.getMessage(), e);
+            e.printStackTrace();
             throw new RuntimeException("Global error '" + e.getMessage() + "' occurred during OLAP traversal.", e);
         }
     }
@@ -541,6 +537,18 @@ public class DistributedGraphComputer implements GraphComputer {
         @Override
         public String toString() {
             return "[" + start + " - " + (start + count - 1) + "]";
+        }
+    }
+
+    public static long getObjectSize(Object obj) {
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ObjectOutputStream oos = new ObjectOutputStream(baos);
+            oos.writeObject(obj);
+            oos.close();
+            return baos.size();
+        } catch (Exception e) {
+            return -1;
         }
     }
 }

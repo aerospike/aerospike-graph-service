@@ -268,8 +268,7 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
 
     public void execute(final TraverserSet<Object> activeTraversers,
                         final BatchMessenger<TraverserSet<Object>> messenger,
-                        final Memory memory,
-                        final Predicate workerIdFilter) {
+                        final Memory memory) {
         // if any global halted traversers, simply don't use them as they were handled by master setup()
         // these halted traversers are typically from a previous OLAP job that yielded traversers at the master traversal
         if (null != this.haltedTraversers)
@@ -310,10 +309,10 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
                 graphStep.reset();
                 activeTraversers.forEach(traverser -> graphStep.addStart((Traverser.Admin) traverser));
                 activeTraversers.clear();
-                if (graphStep.returnsVertex()) {
-                    graphStep.setPartitionFilter(workerIdFilter);
-                    //graphStep.setIteratorSupplier(() -> (Iterator) IteratorUtils.filter(vertices, v -> ElementHelper.idExists(v.id(), graphStep.getIds())).iterator());
-                }
+                //if (graphStep.returnsVertex()) {
+                //    graphStep.setPartitionFilter(workerIdFilter);
+                //    //graphStep.setIteratorSupplier(() -> (Iterator) IteratorUtils.filter(vertices, v -> ElementHelper.idExists(v.id(), graphStep.getIds())).iterator());
+                //}
                 // todo: start with edges
 //                else
 //                    graphStep.setIteratorSupplier(() -> (Iterator) IteratorUtils.filter(vertex.edges(Direction.OUT), edge -> ElementHelper.idExists(edge.id(), graphStep.getIds())));

@@ -187,8 +187,7 @@ public class LocalGraphComputer implements GraphComputer {
             vertexProgram.execute(
                     messageBoard.getActiveTraversers(),
                     new BatchMessenger<>(messageBoard, vertexProgram.getMessageCombiner()),
-                    workerMemory,
-                    workerIdFilter);
+                    workerMemory);
 
             vertexProgram.workerIterationEnd(workerMemory.asImmutable());
             workerMemory.complete();

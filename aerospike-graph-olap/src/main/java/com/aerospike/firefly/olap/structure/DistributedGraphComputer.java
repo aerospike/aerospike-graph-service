@@ -1,7 +1,6 @@
 package com.aerospike.firefly.olap.structure;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.olap.config.DistributedConfiguration;
@@ -9,14 +8,10 @@ import com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.RowFactory;
-import org.apache.spark.sql.catalyst.encoders.RowEncoder;
-import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.computer.ComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
@@ -57,13 +52,11 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -320,10 +313,7 @@ public class DistributedGraphComputer implements GraphComputer {
             final StructType schema = codec.getSchema();
 
             final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace);
-            Dataset<Row> df = DistributedQueryExecutor.getStartingPoint(spark, graph, configHelper, initialHasContainers, traversal.get(), schema, workers, maxParallelSindexes);
-
-            // Generate Dataset.
-            df.cache();
+            Dataset<Row> df = magicSwap(DistributedQueryExecutor.getStartingPoint(spark, graph, configHelper, initialHasContainers, traversal.get(), schema, workers, maxParallelSindexes));
 
             // Create necessary things for execution (Memory, ResultGraph, Config, etc.)
             this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
@@ -336,19 +326,13 @@ public class DistributedGraphComputer implements GraphComputer {
             memory.broadcastMemory(new JavaSparkContext(spark.sparkContext()));
 
             // Set results to initially empty.
-            Dataset<Row> results = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true));
-            results = spark.createDataFrame(results.rdd(), schema);
-            results.cache();
+            Dataset<Row> results = magicSwap(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true)));
 
-            df = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false));
-            Dataset<Row> ds = spark.createDataFrame(df.rdd(), schema);
-            ds.cache();
-            df.unpersist();
-            df = ds;
+            df = magicSwap(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false)));
 
             // PartitionIterator pulls initial step data, so we can start on step 2.
             memory.incrIteration();
-            while (!ds.limit(1).isEmpty()) {
+            while (!df.limit(1).isEmpty()) {
                 if (Thread.interrupted()) {
                     // If query is cancelled, cancel all spark jobs and throw an exception.
                     spark.sparkContext().cancelAllJobs();
@@ -359,45 +343,23 @@ public class DistributedGraphComputer implements GraphComputer {
                 memory.setInExecute(true);
                 System.out.println("------BEFORE EXEC------");
                 df.show(false);
-                ds = spark.createDataFrame(df.rdd(), schema);
-                ds.cache();
-                df.unpersist();
-                df = ds;
 
                 System.out.println("Size of dataset " + getObjectSize(df));
 
-                df = DistributedExecutor.execute(df,
-                        memory,
-                        configHelper,
-                        vertexProgramConfiguration,
-                        //pureTraversal,
-                        schema);
-                ds = spark.createDataFrame(df.rdd(), schema);
-                ds.cache();
-                df.unpersist();
-                df = ds;
+                df = magicSwap(DistributedExecutor.execute(df, memory, configHelper, vertexProgramConfiguration, schema));
 
                 memory.setInExecute(false);
 
                 // Filter out halted vertices.
                 System.out.println("------AFTER EXEC------");
-                df.show(false);
 
-                results = results.union(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true)));
-                ds = spark.createDataFrame(results.rdd(), schema);
-                ds.cache();
-                results.unpersist();
-                results = ds;
+                results = magicSwap(results.union(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true))));
 
                 System.out.println("------RESULT-------");
                 results.show(false);
 
                 // Filter out vertices that are not halted.
-                df = df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false));
-                ds = spark.createDataFrame(df.rdd(), schema);
-                ds.cache();
-                df.unpersist();
-                df = ds;
+                df = magicSwap(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false)));
 
                 // TODO: Ultimately probably don't want to do isEmpty() check here b/c we could have a query that pulls more data from graph later and
                 // we could screw it up.
@@ -442,8 +404,6 @@ public class DistributedGraphComputer implements GraphComputer {
                     null != this.vertexProgram ? this.vertexProgram.getVertexComputeKeys() : Collections.emptySet());
             final Graph resultGraph = view.processResultGraphPersist(this.resultGraph, this.persist);
 
-            FireflyHelper.dropGraphComputerView(this.graph);
-
             // Send result and memory to computer result.
             return CompletableFuture.completedFuture(new DefaultComputerResult(resultGraph, memory));
         } catch (final Exception e) {
@@ -454,6 +414,9 @@ public class DistributedGraphComputer implements GraphComputer {
             LOGGER.error("A global error occurred. Shutting down {}: {}", this, e.getMessage(), e);
             e.printStackTrace();
             throw new RuntimeException("Global error '" + e.getMessage() + "' occurred during OLAP traversal.", e);
+        } finally {
+            // memory.complete ?
+            FireflyHelper.dropGraphComputerView(this.graph);
         }
     }
 
@@ -506,57 +469,15 @@ public class DistributedGraphComputer implements GraphComputer {
     public static String PARTITION_START_COL = "partition_start";
     public static String PARTITION_COUNT_COL = "partition_count";
 
-    private Dataset<Row> getInitialDataset(final int maxParallelQueries, final List<HasContainer> hasContainers) {
-        // Create basic schema.
-        final StructType sindexSchema = new StructType()
-                .add(PARTITION_START_COL, DataTypes.IntegerType, false)
-                .add(PARTITION_COUNT_COL, DataTypes.IntegerType, false);
-
-        // Leave some space.
-        // Should assert maxParallelQueries > ??
-        List<Range> ranges = Range.splitPartitions(4096, maxParallelQueries - 10);
-        final List<Row> rows = new ArrayList<>();
-        for (Range range : ranges) {
-            rows.add(RowFactory.create(range.start, range.count));
+    Dataset<Row> magicSwap(final Dataset<Row> transform) {
+        final Dataset<Row> output = transform.cache();
+        try {
+            output.rdd().countApprox(1, 0.5);
+        } catch (Exception e) {
+            // Do nothing.
+            // Failed to count in 1 second. Who cares.
         }
-        return spark.createDataFrame(rows, sindexSchema);
-    }
-
-
-
-    static class Range {
-        private final int start;
-        private final int count;
-
-        public Range(final int start, final int count) {
-            this.start = start;
-            this.count = count;
-        }
-
-        public static List<Range> splitPartitions(int totalPartitions, int numberOfWorkers) {
-            final List<Range> ranges = new ArrayList<>();
-            final int partitionsPerWorker = totalPartitions / numberOfWorkers;
-            int remainder = totalPartitions % numberOfWorkers;
-
-            int count;
-            for (int start = 0; start < totalPartitions; start+=count) {
-                count = partitionsPerWorker;
-
-                // Distribute the remainder
-                if (remainder > 0) {
-                    count++;
-                    remainder--;
-                }
-                ranges.add(new Range(start, count));
-            }
-
-            return ranges;
-        }
-
-        @Override
-        public String toString() {
-            return "[" + start + " - " + (start + count - 1) + "]";
-        }
+        return output;
     }
 
     public static long getObjectSize(Object obj) {

@@ -81,7 +81,6 @@ public abstract class RowCodec {
                 case SINGLE_LOOP:
                     orderedTraverserEncoders.add(new SingleLoopTraverserEncoder());
                     orderedElementEncoders.add(new SingleLoopElementEncoder());
-                    columnToOrdinal.put(TRAVERSER_TYPE_COL, columnToOrdinal.size());
                     columnToOrdinal.put(SL_COUNT_COL, i++);
                     columnToOrdinal.put(SL_NAME_COL, i++);
                     break;
@@ -245,38 +244,38 @@ public abstract class RowCodec {
     /////////////////////////////////////////////////////////////////////
 
     Traverser decode(final Row row, final TraverserGenerator tg, final TraversalMatrix tm) {
-        if (row.getString(row.fieldIndex(ID_COL)) == null) {
+        if (row.getString(columnToOrdinal.get(ID_COL)) == null) {
             throw new RuntimeException("Error, only rows with id col populated are currently supported");
         }
-        final Object id = getId(row.getString(row.fieldIndex(ID_COL)), row.getInt(row.fieldIndex(ID_TYPEHINT_COL)));
-        final String label = row.getString(row.fieldIndex(LABEL_COL));
-        final String step = row.getString(row.fieldIndex(STEP_COL));
+        final Object id = getId(row.getString(columnToOrdinal.get(ID_COL)), row.getInt(columnToOrdinal.get(ID_TYPEHINT_COL)));
+        final String label = row.getString(columnToOrdinal.get(LABEL_COL));
+        final String step = row.getString(columnToOrdinal.get(STEP_COL));
         final Step stepOrEmpty = Optional.ofNullable(tm.getStepById(step)).orElse(EmptyStep.instance());
-        final long bulk = codecRequirementsSet.contains(CodecRequirements.BULK) ? row.getLong(row.fieldIndex(BULK_COL)) : 1L;
-        final int traverserType = row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL));
+        final long bulk = codecRequirementsSet.contains(CodecRequirements.BULK) ? row.getLong(columnToOrdinal.get(BULK_COL)) : 1L;
+        final int traverserType = row.getInt(columnToOrdinal.get(TRAVERSER_TYPE_COL));
         final Object element;
         if (traverserType == TRAVERSER_TYPE.VERTEX.ordinal()) {
             element = new ReferenceVertex(id, label);
         } else if (traverserType == TRAVERSER_TYPE.EDGE.ordinal()) {
             element = new ReferenceEdge(id, label, new ReferenceVertex("~empty"), new ReferenceVertex("~empty"));
         } else if (traverserType == TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal()){
-            Object elementId = row.get(row.fieldIndex(ELEMENT_ID_COL));
-            final int elementIdTypehint = row.getInt(row.fieldIndex(ELEMENT_ID_TYPEHINT_COL));
+            Object elementId = row.get(columnToOrdinal.get(ELEMENT_ID_COL));
+            final int elementIdTypehint = row.getInt(columnToOrdinal.get(ELEMENT_ID_TYPEHINT_COL));
             elementId = getId(elementId.toString(), elementIdTypehint); // TODO: Update.
             element = new DistributedReferenceVertexProperty(id, elementId);
         } else if (traverserType == TRAVERSER_TYPE.EDGE_PROPERTY.ordinal()) {
-            Object elementId = row.get(row.fieldIndex(ELEMENT_ID_COL));
-            final int elementIdTypehint = row.getInt(row.fieldIndex(ELEMENT_ID_TYPEHINT_COL));
+            Object elementId = row.get(columnToOrdinal.get(ELEMENT_ID_COL));
+            final int elementIdTypehint = row.getInt(columnToOrdinal.get(ELEMENT_ID_TYPEHINT_COL));
             elementId = getId(elementId.toString(), elementIdTypehint); // TODO: Update.
             element = new DistributedReferenceEdgeProperty<>(id.toString(), (ReferenceEdge) getReferenceElement(TRAVERSER_TYPE.EDGE.ordinal(), elementId, "~empty"));
         } else {
-            throw new RuntimeException("Error, decoder for " + row.getInt(row.fieldIndex(TRAVERSER_TYPE_COL)) + " is not implemented");
+            throw new RuntimeException("Error, decoder for " + row.getInt(columnToOrdinal.get(TRAVERSER_TYPE_COL)) + " is not implemented");
         }
         final Traverser traverser = tg.generate(element, stepOrEmpty, bulk);
         traverser.asAdmin().setStepId(step);
         if (codecRequirementsSet.contains(CodecRequirements.SINGLE_LOOP)) {
-            final String slName = row.isNullAt(row.fieldIndex(SL_NAME_COL)) ? null : row.getString(row.fieldIndex(SL_NAME_COL));
-            final Integer slCount = row.isNullAt(row.fieldIndex(SL_COUNT_COL)) ? 0 : row.getInt(row.fieldIndex(SL_COUNT_COL));
+            final String slName = row.isNullAt(columnToOrdinal.get(SL_NAME_COL)) ? null : row.getString(columnToOrdinal.get(SL_NAME_COL));
+            final Integer slCount = row.isNullAt(columnToOrdinal.get(SL_COUNT_COL)) ? 0 : row.getInt(columnToOrdinal.get(SL_COUNT_COL));
             if (slName != null) {
                 traverser.asAdmin().initialiseLoops(null, slName);
             }
@@ -285,16 +284,16 @@ public abstract class RowCodec {
             }
         }
         if (codecRequirementsSet.contains(CodecRequirements.PATH)) {
-            final List<String> pathIds = row.getList(row.fieldIndex(PATH_ID_COL));
-            final List<Integer> pathIdTypeHints = row.getList(row.fieldIndex(PATH_ID_TYPEHINT_COL));
-            final List<Integer> pathObjTypes = row.getList(row.fieldIndex(PATH_OBJ_TYPE_COL));
-            final List<Seq<String>> pathLabels = row.getList(row.fieldIndex(PATH_LABELS_COL));
+            final List<String> pathIds = row.getList(columnToOrdinal.get(PATH_ID_COL));
+            final List<Integer> pathIdTypeHints = row.getList(columnToOrdinal.get(PATH_ID_TYPEHINT_COL));
+            final List<Integer> pathObjTypes = row.getList(columnToOrdinal.get(PATH_OBJ_TYPE_COL));
+            final List<Seq<String>> pathLabels = row.getList(columnToOrdinal.get(PATH_LABELS_COL));
             setPath(traverser, new RowCodecHelper.PathInfo(pathIds, pathIdTypeHints, pathObjTypes, pathLabels));
         }
         if (codecRequirementsSet.contains(CodecRequirements.NESTED_LOOP)) {
-            final List<String> nlSteps = row.getList(row.fieldIndex(NL_STEP_COL));
-            final List<String> nlNames = row.getList(row.fieldIndex(NL_NAME_COL));
-            final List<Integer> nlCounts = row.getList(row.fieldIndex(NL_COUNT_COL));
+            final List<String> nlSteps = row.getList(columnToOrdinal.get(NL_STEP_COL));
+            final List<String> nlNames = row.getList(columnToOrdinal.get(NL_NAME_COL));
+            final List<Integer> nlCounts = row.getList(columnToOrdinal.get(NL_COUNT_COL));
             setNestedLoops(traverser, new RowCodecHelper.NestedLoopInfo(nlNames, nlCounts, nlSteps));
         }
 

@@ -12,6 +12,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.ProjectedTraverser;
@@ -22,9 +23,12 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceFactory;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -93,24 +97,29 @@ public class ComputerHelper {
         return hasContainers;
     }
 
+    private static void collectIds(final Object object,
+                                   final Set<Object> vertexIds,
+                                   final Set<Object> edgeIds) {
+        if (object instanceof Vertex)
+            vertexIds.add(((Vertex) object).id());
+        else if (object instanceof Edge)
+            edgeIds.add(((Edge) object).id());
+        else if (object instanceof VertexProperty)
+            vertexIds.add(((VertexProperty) object).element().id());
+        else if (object instanceof Collection) {
+            for (final Object nested : (Collection) object)
+                collectIds(nested, vertexIds, edgeIds);
+        }
+    }
+
     private static void collectIds(final Traverser traverser,
                                    final Set<Object> vertexIds,
                                    final Set<Object> edgeIds) {
-        if (traverser.get() instanceof Vertex)
-            vertexIds.add(((Vertex) traverser.get()).id());
-        else if (traverser.get() instanceof Edge)
-            edgeIds.add(((Edge) traverser.get()).id());
-        else if (traverser.get() instanceof VertexProperty)
-            vertexIds.add(((VertexProperty) traverser.get()).element().id());
+        collectIds(traverser.get(), vertexIds, edgeIds);
 
         if (traverser instanceof ProjectedTraverser) {
             for (final Object projection : ((ProjectedTraverser) traverser).getProjections())
-                if (projection instanceof Vertex)
-                    vertexIds.add(((Vertex) projection).id());
-                else if (projection instanceof Edge)
-                    edgeIds.add(((Edge) projection).id());
-                else if (projection instanceof VertexProperty)
-                    vertexIds.add(((VertexProperty) projection).element().id());
+                collectIds(projection, vertexIds, edgeIds);
         }
     }
 
@@ -120,13 +129,7 @@ public class ComputerHelper {
                                   final List<Object> elements) {
         final Set<Object> vertexIds = new HashSet<>();
         final Set<Object> edgeIds = new HashSet<>();
-        elements.forEach(element -> {
-            if (element instanceof Vertex) {
-                vertexIds.add(((Vertex) element).id());
-            } else if (element instanceof Edge) {
-                edgeIds.add(((Edge) element).id());
-            }
-        });
+        elements.forEach(element -> collectIds(element, vertexIds, edgeIds));
 
         final Map<Object, Element> vertexCache = new HashMap<>();
         if (!vertexIds.isEmpty())
@@ -186,6 +189,20 @@ public class ComputerHelper {
                         break;
                     }
                 }
+            } else if (traverser.get() instanceof BulkSet) {
+                final BulkSet attached = new BulkSet();
+                ((BulkSet) traverser.get()).forEach((element, bulk) -> {
+                    Object result = element;
+                    if (element instanceof Vertex && vertexCache.containsKey(((Vertex) element).id()))
+                        result = vertexCache.get(((Vertex) element).id());
+                    else if (element instanceof Edge && edgeCache.containsKey(((Edge) element).id()))
+                        result = edgeCache.get(((Edge) element).id());
+                    else if (element instanceof VertexProperty && vertexCache.containsKey(((VertexProperty) element).element().id()))
+                        result = vertexCache.get(((VertexProperty) element).element().id());
+
+                    attached.add(result, (long) bulk);
+                });
+                traverser.set(attached);
             }
 
             if (traverser instanceof ProjectedTraverser) {
@@ -203,6 +220,25 @@ public class ComputerHelper {
                 }
             }
         });
+    }
+
+    public static Object detach(final Object barrier) {
+        // not handled by ReferenceFactory
+        if (barrier instanceof TraverserSet) {
+            final TraverserSet original = (TraverserSet) barrier;
+            // iterate over copy to be able to add/remove items
+            for (final Object t : new HashSet<>(original)) {
+                if (t instanceof ProjectedTraverser) {
+                    original.remove(t);
+                    original.add(new ProjectedTraverser((ProjectedTraverser.tryUnwrap((ProjectedTraverser) t)).detach(),
+                            ReferenceFactory.detach(((ProjectedTraverser) t).getProjections())));
+                } else if (t instanceof Traverser.Admin) {
+                    original.remove(t);
+                    original.add(((Traverser.Admin<?>) t).detach());
+                }
+            }
+        }
+        return ReferenceFactory.detach(barrier);
     }
 
     // some types can't be handled by

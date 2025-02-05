@@ -1,5 +1,6 @@
 package com.aerospike.firefly.olap.structure;
 
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.util.AccumulatorV2;
@@ -110,7 +111,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
             if (rr instanceof DistributedIndexedTraverserSet) {
                 return (R) new IndexedTraverserSet<>(((DistributedIndexedTraverserSet)rr).indexingFunction);
             } else {
-                return r.get();
+                return rr;
             }
         }
     }
@@ -118,10 +119,11 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     @Override
     public void add(final String key, final Object value) {
         checkKeyValue(key, value);
+        final Object detachedValue = ComputerHelper.detach(value);
         if (this.inExecute) {
             if (key.equals(HALTED_TRAVERSERS))
-                System.out.println("~~~Adding halted " + value);
-            this.sparkMemory.get(key).add(new DistributedMemoryEntry<>(value));
+                System.out.println("~~~Adding halted " + detachedValue);
+            this.sparkMemory.get(key).add(new DistributedMemoryEntry<>(detachedValue));
         } else
             throw Memory.Exceptions.memoryAddOnlyDuringVertexProgramExecute(key);
     }

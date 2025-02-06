@@ -12,7 +12,8 @@ import org.junit.runner.RunWith;
 
 @RunWith(Cucumber.class)
 @CucumberOptions(
-        tags = "not @RemoteOnly and not @GraphComputerOnly and not @AllowNullPropertyValues and "+
+        tags = "not @RemoteOnly and not @GraphComputerOnly and "+
+                "not @AllowNullPropertyValues and not @GraphComputerVerificationElementSupported and "+
                 "not @TinkerServiceRegistry and not @StepRead and not @MultiProperties and " +
                 "not @UserSuppliedVertexPropertyIds and not @InsertionOrderingRequired and " +
                 "not @UserSuppliedEdgeIds and " +
@@ -20,7 +21,7 @@ import org.junit.runner.RunWith;
                 "not @WithPartitionStrategy",
         glue = { "org.apache.tinkerpop.gremlin.features" },
         objectFactory = FireflyComputerFeatureTest.FireflyComputerGraphGuiceFactory.class,
-        features = { "classpath:/org/apache/tinkerpop/gremlin/test/features/sideEffect/Aggregate.feature" }, // /map/Order.feature
+        features = { "classpath:/org/apache/tinkerpop/gremlin/test/features" }, // /filter/Dedup.feature
         plugin = {"progress", "junit:target/cucumber.xml"})
 public class FireflyComputerFeatureTest {
     public static class FireflyComputerGraphGuiceFactory extends AbstractGuiceFactory {

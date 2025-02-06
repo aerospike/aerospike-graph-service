@@ -371,7 +371,7 @@ public class RowCodecHelper {
         if (RowCodec.TRAVERSER_TYPE.VERTEX.ordinal() == elementTypeOrdinal) {
             return new ReferenceVertex(id);
         } else if (RowCodec.TRAVERSER_TYPE.EDGE.ordinal() == elementTypeOrdinal) {
-            return new ReferenceEdge(id, null, null, null);
+            return new ReferenceEdge(id, "~empty", new ReferenceVertex("~empty"), new ReferenceVertex("~empty"));
         } else {
             throw new RuntimeException("Error, decoder for " + elementTypeOrdinal + " is not implemented for path references.");
         }

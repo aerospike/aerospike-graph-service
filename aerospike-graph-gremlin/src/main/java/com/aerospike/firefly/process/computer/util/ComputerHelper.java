@@ -19,11 +19,14 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.ProjectedTravers
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceFactory;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceProperty;
+import scala.xml.Elem;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -106,7 +109,9 @@ public class ComputerHelper {
             edgeIds.add(((Edge) object).id());
         else if (object instanceof VertexProperty)
             vertexIds.add(((VertexProperty) object).element().id());
-        else if (object instanceof Collection) {
+        else if (object instanceof ReferenceProperty) {
+            collectIds(((ReferenceProperty) object).element(), vertexIds, edgeIds);
+        } else if (object instanceof Collection) {
             for (final Object nested : (Collection) object)
                 collectIds(nested, vertexIds, edgeIds);
         }
@@ -121,6 +126,40 @@ public class ComputerHelper {
             for (final Object projection : ((ProjectedTraverser) traverser).getProjections())
                 collectIds(projection, vertexIds, edgeIds);
         }
+    }
+
+    private static Object getFromCache(final Object object,
+                                       final Map<Object, Element> vertexCache,
+                                       final Map<Object, Element> edgeCache) {
+        if (object instanceof Vertex && vertexCache.containsKey(((Vertex) object).id())) {
+            return vertexCache.get(((Vertex) object).id());
+        } else if (object instanceof Edge && edgeCache.containsKey(((Edge) object).id())) {
+            return edgeCache.get(((Edge) object).id());
+        } else if (object instanceof VertexProperty && vertexCache.containsKey(((VertexProperty) object).element().id())) {
+            final Vertex vertex = (Vertex) vertexCache.get(((VertexProperty) object).element().id());
+            final Iterator<VertexProperty<Object>> itty = vertex.properties();
+            // todo: verify is firefly caches vertex properties
+            while (itty.hasNext()) {
+                // vertex property attachment require key, so shortcut here
+                final VertexProperty vp = itty.next();
+                if (vp.id().equals(((VertexProperty<?>) object).id())) {
+                    return vp;
+                }
+            }
+            return object;
+        } else if (object instanceof ReferenceProperty && edgeCache.containsKey(((ReferenceProperty) object).element().id())) {
+            final Edge edge = (Edge) edgeCache.get(((ReferenceProperty) object).element().id());
+            final Iterator<Property<Object>> itty = edge.properties();
+            while (itty.hasNext()) {
+                // vertex property attachment require key, so shortcut here
+                final Property p = itty.next();
+                if (p.key().equals(((Property<?>) object).key())) {
+                    return p;
+                }
+            }
+        }
+
+        return object;
     }
 
     // todo: refactor
@@ -153,6 +192,38 @@ public class ComputerHelper {
 
     public static void bulkAttach(final FireflyGraph graph,
                                   final TraversalSideEffects traversalSideEffects,
+                                  final Map elements) {
+        final Set<Object> vertexIds = new HashSet<>();
+        final Set<Object> edgeIds = new HashSet<>();
+        elements.forEach((k, v) -> {
+            collectIds(k, vertexIds, edgeIds);
+            if (v instanceof Traverser)
+                collectIds((Traverser) v, vertexIds, edgeIds);
+        });
+
+        final Map<Object, Element> vertexCache = new HashMap<>();
+        if (!vertexIds.isEmpty())
+            graph.vertices(vertexIds.toArray(new Object[vertexIds.size()])).forEachRemaining(vertex -> vertexCache.put(vertex.id(), vertex));
+
+        final Map<Object, Element> edgeCache = new HashMap<>();
+        if (!edgeIds.isEmpty())
+            graph.edges(edgeIds.toArray(new Object[edgeIds.size()])).forEachRemaining(edge -> edgeCache.put(edge.id(), edge));
+
+        final Map<?, ?> copy = new HashMap<>(elements);
+        for (final Map.Entry entry : copy.entrySet()) {
+            final Object newKey = getFromCache(entry.getKey(), vertexCache, edgeCache);
+            Object newValue = entry.getValue();
+            if (newValue instanceof Traverser) {
+                ((Traverser) newValue).asAdmin().set(getFromCache(((Traverser) newValue).get(), vertexCache, edgeCache));
+                ((Traverser) newValue).asAdmin().setSideEffects(traversalSideEffects);
+            }
+            elements.remove(entry.getKey());
+            elements.put(newKey, newValue);
+        }
+    }
+
+    public static void bulkAttach(final FireflyGraph graph,
+                                  final TraversalSideEffects traversalSideEffects,
                                   final TraverserSet<Object> traversers) {
         final Set<Object> vertexIds = new HashSet<>();
         final Set<Object> edgeIds = new HashSet<>();
@@ -167,42 +238,17 @@ public class ComputerHelper {
             graph.edges(edgeIds.toArray(new Object[edgeIds.size()])).forEachRemaining(edge -> edgeCache.put(edge.id(), edge));
 
         traversers.forEach(traverser -> {
-            if (traverser.get() instanceof Vertex && vertexCache.containsKey(((Vertex) traverser.get()).id())) {
-                final Vertex vertex = (Vertex) vertexCache.get(((Vertex) traverser.get()).id());
-                traverser.attach(Attachable.Method.get(vertex));
+            if (traverser.get() instanceof Element || traverser.get() instanceof Property) {
+                final Object newValue = getFromCache(traverser.get(), vertexCache, edgeCache);
+                traverser.set(newValue);
                 traverser.setSideEffects(traversalSideEffects);
-            } else if (traverser.get() instanceof Edge && edgeCache.containsKey(((Edge) traverser.get()).id())) {
-                final Edge edge = (Edge) edgeCache.get(((Edge) traverser.get()).id());
-                // todo: better attachment way for edges
-                traverser.attach(Attachable.Method.get(edge.outVertex()));
-                traverser.setSideEffects(traversalSideEffects);
-            } else if (traverser.get() instanceof VertexProperty && vertexCache.containsKey(((VertexProperty) traverser.get()).element().id())) {
-                final Vertex vertex = (Vertex) vertexCache.get(((VertexProperty) traverser.get()).element().id());
-                final Iterator<VertexProperty<Object>> itty = vertex.properties();
-                // todo: verify is firefly caches vertex properties
-                while (itty.hasNext()) {
-                    // vertex property attachment require key, so shortcut here
-                    final VertexProperty vp = itty.next();
-                    if (vp.id().equals(((VertexProperty<?>) traverser.get()).id())) {
-                        traverser.asAdmin().set(vp);
-                        traverser.setSideEffects(traversalSideEffects);
-                        break;
-                    }
-                }
             } else if (traverser.get() instanceof BulkSet) {
                 final BulkSet attached = new BulkSet();
-                ((BulkSet) traverser.get()).forEach((element, bulk) -> {
-                    Object result = element;
-                    if (element instanceof Vertex && vertexCache.containsKey(((Vertex) element).id()))
-                        result = vertexCache.get(((Vertex) element).id());
-                    else if (element instanceof Edge && edgeCache.containsKey(((Edge) element).id()))
-                        result = edgeCache.get(((Edge) element).id());
-                    else if (element instanceof VertexProperty && vertexCache.containsKey(((VertexProperty) element).element().id()))
-                        result = vertexCache.get(((VertexProperty) element).element().id());
-
-                    attached.add(result, (long) bulk);
-                });
+                ((BulkSet) traverser.get()).forEach((element, bulk) ->
+                        attached.add(getFromCache(element, vertexCache, edgeCache), (long) bulk)
+                );
                 traverser.set(attached);
+                traverser.setSideEffects(traversalSideEffects);
             }
 
             if (traverser instanceof ProjectedTraverser) {

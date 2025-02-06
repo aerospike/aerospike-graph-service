@@ -34,9 +34,11 @@ import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedFactory;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class BatchMasterExecutor {
@@ -64,20 +66,27 @@ public class BatchMasterExecutor {
                                 EmptyTraversalSideEffects.instance(), traverserSet);
                         barrier.addBarrier(traverserSet);
                     } else {
+                        final Object memoryBarrier = memory.get(key);
                         // todo: attach more types if needed
-                        if (memory.get(key) instanceof List) {
-                            final List list = new ArrayList(memory.get(key));
+                        if (memoryBarrier instanceof List) {
+                            final List list = new ArrayList((List) memoryBarrier);
                             ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                                     EmptyTraversalSideEffects.instance(), list);
                             barrier.addBarrier(list);
-                        } else if (memory.get(key) instanceof Set) {
+                        } else if (memoryBarrier instanceof Map) {
+                            // for debup barrier it's map obj->traverser
+                            final Map map = new HashMap((Map) memoryBarrier);
+                            ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
+                                    EmptyTraversalSideEffects.instance(), map);
+                            barrier.addBarrier(map);
+                        } else if (memoryBarrier instanceof Set) {
                             final TraverserSet ts = new TraverserSet();
-                            ts.addAll(memory.get(key));
+                            ts.addAll((Set) memoryBarrier);
                             ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                                     EmptyTraversalSideEffects.instance(), ts);
                             barrier.addBarrier(ts);
                         } else {
-                            barrier.addBarrier(memory.get(key));
+                            barrier.addBarrier(memoryBarrier);
                         }
                     }
                     step.forEachRemaining(toProcessTraversers::add);

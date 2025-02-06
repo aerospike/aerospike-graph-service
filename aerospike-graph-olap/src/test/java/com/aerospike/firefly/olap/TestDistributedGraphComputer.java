@@ -49,18 +49,39 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
-    public void aggregate() {
+    public void properties() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();
             final Graph tg = TinkerFactory.createModern();
             GraphHelper.cloneElements(tg, graph);
 
             List output = graph.traversal().withComputer()
-                    .V().values("name").aggregate("x").cap("x")
+                    .E().properties().order().value()
                     .toList();
 
             System.out.println(output);
             Assert.assertEquals(6L, output.size());
+        }
+    }
+
+    @Test
+    public void path() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List output = graph.traversal().withComputer()
+                    .V().outE().as("e")
+                    .inV().as("v")
+                    .select("e").order().by("weight", Order.asc)
+                    // select got reference path here and fails on next step
+                    .select("v") // .values("name")
+                    //.dedup()
+                    .toList();
+
+            System.out.println(output);
+            Assert.assertEquals(4L, output.size());
         }
     }
 

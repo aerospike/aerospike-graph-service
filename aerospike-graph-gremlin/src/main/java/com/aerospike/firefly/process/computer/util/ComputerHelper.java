@@ -1,8 +1,10 @@
 package com.aerospike.firefly.process.computer.util;
 
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.ReflectionHelper;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.TraversalVertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalSideEffects;
@@ -14,7 +16,10 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.ImmutablePath;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.MutablePath;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_O_S_SE_SL_Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.ProjectedTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -25,6 +30,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceFactory;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferencePath;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceProperty;
 import scala.xml.Elem;
 
@@ -103,6 +109,9 @@ public class ComputerHelper {
     private static void collectIds(final Object object,
                                    final Set<Object> vertexIds,
                                    final Set<Object> edgeIds) {
+        if (object == null)
+            return;
+
         if (object instanceof Vertex)
             vertexIds.add(((Vertex) object).id());
         else if (object instanceof Edge)
@@ -111,6 +120,8 @@ public class ComputerHelper {
             vertexIds.add(((VertexProperty) object).element().id());
         else if (object instanceof ReferenceProperty) {
             collectIds(((ReferenceProperty) object).element(), vertexIds, edgeIds);
+        } else if (object instanceof ReferencePath) {
+            ((ReferencePath) object).forEach((obj, labels) -> collectIds(obj, vertexIds, edgeIds));
         } else if (object instanceof Collection) {
             for (final Object nested : (Collection) object)
                 collectIds(nested, vertexIds, edgeIds);
@@ -126,6 +137,8 @@ public class ComputerHelper {
             for (final Object projection : ((ProjectedTraverser) traverser).getProjections())
                 collectIds(projection, vertexIds, edgeIds);
         }
+
+        collectIds(traverser.path(), vertexIds, edgeIds);
     }
 
     private static Object getFromCache(final Object object,
@@ -199,6 +212,10 @@ public class ComputerHelper {
             collectIds(k, vertexIds, edgeIds);
             if (v instanceof Traverser)
                 collectIds((Traverser) v, vertexIds, edgeIds);
+            else if (v instanceof List) {
+                // group by can have list of elements
+                ((List) v).forEach(i -> collectIds(i, vertexIds, edgeIds));
+            }
         });
 
         final Map<Object, Element> vertexCache = new HashMap<>();
@@ -216,6 +233,8 @@ public class ComputerHelper {
             if (newValue instanceof Traverser) {
                 ((Traverser) newValue).asAdmin().set(getFromCache(((Traverser) newValue).get(), vertexCache, edgeCache));
                 ((Traverser) newValue).asAdmin().setSideEffects(traversalSideEffects);
+            } else if (newValue instanceof List) {
+                ((List) newValue).replaceAll(object -> getFromCache(object, vertexCache, edgeCache));
             }
             elements.remove(entry.getKey());
             elements.put(newKey, newValue);
@@ -251,6 +270,8 @@ public class ComputerHelper {
                 traverser.setSideEffects(traversalSideEffects);
             }
 
+            attachPath(traverser, vertexCache, edgeCache);
+
             if (traverser instanceof ProjectedTraverser) {
                 final List original = ((ProjectedTraverser) traverser).getProjections();
                 final List copy = new ArrayList<>(original);
@@ -266,6 +287,22 @@ public class ComputerHelper {
                 }
             }
         });
+    }
+
+    private static void attachPath(final Traverser traverser,
+                                   final Map<Object, Element> vertexCache,
+                                   final Map<Object, Element> edgeCache) {
+        final Path path = traverser.path();
+        if (path == null || path.isEmpty())
+            return;
+
+        final Path attached = MutablePath.make();
+        path.forEach((obj, labels) ->
+                attached.extend(getFromCache(obj, vertexCache, edgeCache), labels)
+        );
+
+        final Traverser.Admin t = ProjectedTraverser.tryUnwrap(traverser.asAdmin());
+        ReflectionHelper.setFieldValue(t, "path", attached);
     }
 
     public static Object detach(final Object barrier) {

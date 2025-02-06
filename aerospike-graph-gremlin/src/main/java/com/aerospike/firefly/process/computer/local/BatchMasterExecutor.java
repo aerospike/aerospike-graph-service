@@ -124,7 +124,7 @@ public class BatchMasterExecutor {
             while (traversers.hasNext()) {
                 final Traverser.Admin<Object> traverser = traversers.next();
                 traversers.remove();
-                traverser.set(DetachedFactory.detach(traverser.get(), true)); // why?
+                // traverser.set(DetachedFactory.detach(traverser.get(), true)); // why? following steps will screw up
                 traverser.setSideEffects(traversal.get().getSideEffects());
                 if (traverser.isHalted())
                     haltedTraversers.add(haltedTraverserStrategy.halt(traverser));

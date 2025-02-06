@@ -130,9 +130,18 @@ public class RowCodecHelper {
             Path path = ImmutablePath.make();
             pathField.set(t, path);
             for (int i = 0; i < info.pathIds.size(); i++) {
-                final Element e = getReferenceElement(info.pathObjTypes.get(i), getId(info.pathIds.get(i), info.pathIdTypeHints.get(i)), null);
+                int pathType = info.pathObjTypes.get(i);
+                Object value;
+                if (pathType == RowCodec.TRAVERSER_TYPE.EDGE.ordinal() ||pathType == RowCodec.TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal() ||
+                        pathType == RowCodec.TRAVERSER_TYPE.VERTEX.ordinal()) {
+                    value = getReferenceElement(info.pathObjTypes.get(i), getId(info.pathIds.get(i), info.pathIdTypeHints.get(i)), null);
+                } else if (pathType == RowCodec.TRAVERSER_TYPE.INTEGER.ordinal() || pathType == RowCodec.TRAVERSER_TYPE.STRING.ordinal()) {
+                    value = getId(info.pathIds.get(i), info.pathIdTypeHints.get(i));
+                } else {
+                    throw new RuntimeException("Error, path type '" + pathType + "' is not supported.");
+                }
                 final Set<String> labels = new HashSet<>(JavaConverters.seqAsJavaListConverter(info.pathLabels.get(i)).asJava());
-                path = path.extend(e, labels);
+                path = path.extend(value, labels);
                 pathField.set(t, path);
             }
         } catch (NoSuchFieldException e) {
@@ -251,6 +260,14 @@ public class RowCodecHelper {
                 } else if (e instanceof VertexProperty) {
                     objTypes.add(RowCodec.TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal());
                 }
+            } else if (o instanceof Integer) {
+                ids.add(o.toString());
+                idTypeHints.add(RowCodec.ID_TYPE.INTEGER.ordinal());
+                objTypes.add(RowCodec.TRAVERSER_TYPE.INTEGER.ordinal());;
+            } else if (o instanceof String) {
+                ids.add(o.toString());
+                idTypeHints.add(RowCodec.ID_TYPE.STRING.ordinal());
+                objTypes.add(RowCodec.TRAVERSER_TYPE.STRING.ordinal());
             } else {
                 throw new RuntimeException("Error, only elements are currently supported '" + o.getClass() + "' is not supported.");
             }

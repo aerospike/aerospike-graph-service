@@ -338,7 +338,9 @@ public abstract class RowCodec {
         EDGE,
         VERTEX_PROPERTY,
         META_PROPERTY,
-        EDGE_PROPERTY
+        EDGE_PROPERTY,
+        STRING,
+        INTEGER
     }
 
     public enum ID_TYPE {

@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 import static org.junit.Assert.assertEquals;
 
 public class TestDistributedGraphComputer {
@@ -144,6 +145,84 @@ public class TestDistributedGraphComputer {
                     .V().both().properties().dedup().count().toList();
 
             System.out.println(output);
+        }
+    }
+
+    Edge getEdge(final GraphTraversalSource g, final String outVertexName, final String inVertexName, final String edgeLabel) {
+        return g.V().has("name", outVertexName).outE(edgeLabel).as("e").inV().has("name", inVertexName).<Edge>select("e").toList().get(0);
+    }
+
+    @Test
+    public void testE11outVoutE() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            final Edge e10 = getEdge(graph.traversal(), "josh", "ripple", "created");
+            final Edge e11 = getEdge(graph.traversal(), "josh", "lop", "created");
+
+            Object output = graph.traversal().withComputer().E(e11.id()).outV().outE().has(T.id, e10.id()).next();
+
+            System.out.println(output);
+        }
+    }
+
+    @Test
+    public void testKnows() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List output = graph.traversal().withComputer().E().hasLabel("knows").toList();
+
+            System.out.println(output);
+        }
+    }
+
+    @Test
+    public void failures() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List output = graph.traversal().withComputer()
+                    .V().repeat(__.repeat(out("created")).until(__.has("name", "ripple"))).emit().values("lang").toList();
+            System.out.println(output);
+            //Long count = graph.traversal().V().bothE().properties().dedup().count().next();
+            //System.out.println(count);
+        }
+    }
+
+    @Test
+    public void testids() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List output = graph.traversal().withComputer()
+                    .V().id().hasId(1).hasId(2).toList(); //id1 id2
+
+            List<?> output2 = graph.traversal().withComputer()
+                    .V().id().hasId(List.of()).toList(); //id1 id2
+            System.out.println(output);
+            //Long count = graph.traversal().V().bothE().properties().dedup().count().next();
+            //System.out.println(count);
+        }
+    }
+
+    @Test
+    public void testF() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            graph.traversal().withComputer().V().repeat(__.both()).times(10).as("a").out().as("b").select("a", "b").count().next();
+            //Long count = graph.traversal().V().bothE().properties().dedup().count().next();
+            //System.out.println(count);
         }
     }
 
@@ -317,6 +396,36 @@ public class TestDistributedGraphComputer {
                     .V(1)
                     .repeat(__.out())
                     .times(2)
+                    .toList();
+
+            System.out.println(output);
+        }
+    }
+
+    @Test
+    public void testEKnows() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List<Edge> output = graph.traversal().withComputer()
+                    .E().hasLabel("knows")
+                    .toList();
+
+            System.out.println(output);
+        }
+    }
+
+    @Test
+    public void testE() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List<Edge> output = graph.traversal().withComputer()
+                    .E()
                     .toList();
 
             System.out.println(output);

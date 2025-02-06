@@ -239,87 +239,92 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public FireflyGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
-        this.gremlinServerSettings = gremlinServerSettings;
-        this.configuration = conf;
-        db.createGraphIndexes();
-        this.db = db;
-        this.operations = new AerospikeOperations(this);
-        graphQuery = new GraphQuery(this);
-        this.idFactory = db.getIdFactory();
-        this.bulkLoaderFlag = db.getBulkLoaderFlag();
-        this.bulkLoadIdBufferSize = ConfigurationHelper.getOrDefaultInt(BULK_LOAD_ID_BUFFER_SIZE, conf);
+        try {
+            this.gremlinServerSettings = gremlinServerSettings;
+            this.configuration = conf;
+            this.db = db;
+            db.createGraphIndexes();
+            this.operations = new AerospikeOperations(this);
+            graphQuery = new GraphQuery(this);
+            this.idFactory = db.getIdFactory();
+            this.bulkLoaderFlag = db.getBulkLoaderFlag();
+            this.bulkLoadIdBufferSize = ConfigurationHelper.getOrDefaultInt(BULK_LOAD_ID_BUFFER_SIZE, conf);
 
-        this.variables = new FireflyGraphVariables(this);
-        this.features = new FireflyFeatures();
+            this.variables = new FireflyGraphVariables(this);
+            this.features = new FireflyFeatures();
 
-        // Create index metadata background task that will populate indexes for the named graph on the fly.
-        fireflyIndexMetadata = new FireflyIndexMetadata(db);
-        final TimerTask indexMetadataTimerTask = new FireflyMetadataTask(fireflyIndexMetadata);
-        fireflyIndexMetadataTask.schedule(indexMetadataTimerTask, 0, db.INDEX_METADATA_UPDATE_FREQUENCY);
+            // Create index metadata background task that will populate indexes for the named graph on the fly.
+            fireflyIndexMetadata = new FireflyIndexMetadata(db);
+            final TimerTask indexMetadataTimerTask = new FireflyMetadataTask(fireflyIndexMetadata);
+            fireflyIndexMetadataTask.schedule(indexMetadataTimerTask, 0, db.INDEX_METADATA_UPDATE_FREQUENCY);
 
-        // If bulk loading, only create indexes for the first bulk loader graph initialization. Otherwise they spam 1000's of times.
-        if (db.shouldCreateIndexes()) {
-            // Grab user defined vertex property indexes from the configuration and create them.
-            final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
-            createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
+            // If bulk loading, only create indexes for the first bulk loader graph initialization. Otherwise they spam 1000's of times.
+            if (db.shouldCreateIndexes()) {
+                // Grab user defined vertex property indexes from the configuration and create them.
+                final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
+                createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
 
-            // Grab user defined edge property indexes from the configuration and create them.
-            final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
-            if (edgePropertyIndexes != null && !edgePropertyIndexes.isEmpty()) {
-                // TODO: Edge indexes.
-                throw new RuntimeException("Edge property indexes are not currently supported.");
+                // Grab user defined edge property indexes from the configuration and create them.
+                final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
+                if (edgePropertyIndexes != null && !edgePropertyIndexes.isEmpty()) {
+                    // TODO: Edge indexes.
+                    throw new RuntimeException("Edge property indexes are not currently supported.");
+                }
+                createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
             }
-            createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
-        }
 
-        // Create ttl background task.
-        this.ttlHandler = new FireflyTtlHandler(this);
+            // Create ttl background task.
+            this.ttlHandler = new FireflyTtlHandler(this);
 
-        // Create cardinality metadata background task that will populate cardinality for the named graph on the fly.
-        fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX_NAME, db.E_LABEL_INDEX_NAME, fireflyIndexMetadata);
-        final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
+            // Create cardinality metadata background task that will populate cardinality for the named graph on the fly.
+            fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX_NAME, db.E_LABEL_INDEX_NAME, fireflyIndexMetadata);
+            final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
 
-        fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
-        fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
-        fireflyRecordLockHandler = new FireflyRecordLockHandler(db);
+            fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
+            fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
+            fireflyRecordLockHandler = new FireflyRecordLockHandler(db);
 
-        if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
-            final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
-            final String[] plugins = pluginConfigString.split(",");
-            for (final String plugin : plugins) {
-                PluginUtil.loadPlugin(plugin, conf, this);
-            }
-        }
-
-        if (!db.WARMUP_MODE && !db.getBulkLoaderFlag()) {
-            // Create usage statistics background task. Only one per server
-            if (usageStats == null) {
-                synchronized (this) {
-                    if (usageStats == null) {
-                        usageStats = new FireflyUsageStats(db);
-                    }
+            if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
+                final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
+                final String[] plugins = pluginConfigString.split(",");
+                for (final String plugin : plugins) {
+                    PluginUtil.loadPlugin(plugin, conf, this);
                 }
             }
 
-            // Register admin services graph metrics since it will bootstrap the server.
-            adminServiceRegistry = new AdminServiceRegistry(this);
+            if (!db.WARMUP_MODE && !db.getBulkLoaderFlag()) {
+                // Create usage statistics background task. Only one per server
+                if (usageStats == null) {
+                    synchronized (this) {
+                        if (usageStats == null) {
+                            usageStats = new FireflyUsageStats(db);
+                        }
+                    }
+                }
 
-            // do not start http server if disabled in config or for bulk loader
-            final boolean httpEnabled = ConfigurationHelper.getOrDefaultBool(HTTP_ENABLED, conf);
-            if (httpEnabled) {
-                HttpServer.getInstance().start(this);
-                httpStarted = true;
-            }
+                // Register admin services graph metrics since it will bootstrap the server.
+                adminServiceRegistry = new AdminServiceRegistry(this);
 
-            final int queryTracingMinMillis = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_LOG_THRESHOLD, conf);
-            if (queryTracingMinMillis >= 0) {
-                this.queryTracingEnabled = true;
-                final int queryTracingSamplePercent = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_SAMPLE_PERCENT, conf);
-                final String queryTracingLogHost = ConfigurationHelper.getOrDefaultString(QUERY_TRACING_LOG_HOST, conf);
-                final int queryTracingLogPort = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_LOG_PORT, conf);
-                this.zipkinExporter = OpenTelemetryZipkinExporter.create(db.GRAPH_ID, queryTracingLogHost,
-                        queryTracingLogPort, queryTracingMinMillis, queryTracingSamplePercent);
+                // do not start http server if disabled in config or for bulk loader
+                final boolean httpEnabled = ConfigurationHelper.getOrDefaultBool(HTTP_ENABLED, conf);
+                if (httpEnabled) {
+                    HttpServer.getInstance().start(this);
+                    httpStarted = true;
+                }
+
+                final int queryTracingMinMillis = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_LOG_THRESHOLD, conf);
+                if (queryTracingMinMillis >= 0) {
+                    this.queryTracingEnabled = true;
+                    final int queryTracingSamplePercent = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_SAMPLE_PERCENT, conf);
+                    final String queryTracingLogHost = ConfigurationHelper.getOrDefaultString(QUERY_TRACING_LOG_HOST, conf);
+                    final int queryTracingLogPort = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_LOG_PORT, conf);
+                    this.zipkinExporter = OpenTelemetryZipkinExporter.create(db.GRAPH_ID, queryTracingLogHost,
+                            queryTracingLogPort, queryTracingMinMillis, queryTracingSamplePercent);
+                }
             }
+        } catch (final Exception e) {
+            close();
+            throw e;
         }
     }
 
@@ -419,7 +424,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             if (e.getMessage() != null) {
                 LOG.error("========== See Error message for more details: {}", e.getMessage());
             } else {
-                LOG.error("========== Error did not contain message, please submit this stack trace to support", e);
+                LOG.error("========== Error did not contain message; please submit this stack trace to support", e);
             }
 
             // Signal to gremlin-server to shut down.
@@ -1136,7 +1141,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public void exportQuery(final DefaultTraversalMetrics metrics, final String scopeName, final String traversal) {
         if (this.zipkinExporter == null) {
             // This should never happen.
-            throw new IllegalStateException("Slow query logging was not initialized but was used. Please contact support.");
+            LOG.error("Query tracing was not enabled but usage was attempted. Please contact support.");
+            return;
         }
         this.zipkinExporter.exportQuery(metrics, scopeName, traversal);
     }
@@ -1149,14 +1155,17 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     @Override
     public void close() {
         // GremlinServer try to close Graph 2 times, we should be prepared
-        if (this.closed.getAndSet(true))
+        if (this.closed.getAndSet(true)) {
             return;
+        }
 
         LOG.info("Closing FireflyGraph {}.", getBaseGraph().GRAPH_ID);
 
         this.fireflyCardinalityMetadataTask.cancel();
         this.fireflyIndexMetadataTask.cancel();
-        this.fireflySummaryUpdater.close();
+        if (this.fireflySummaryUpdater != null) {
+            this.fireflySummaryUpdater.close();
+        }
 
         if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && this.usageStats != null) {
             synchronized (this) {
@@ -1171,7 +1180,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             HttpServer.getInstance().close();
         }
 
-        this.ttlHandler.close();
+        if (this.ttlHandler != null) {
+            this.ttlHandler.close();
+        }
 
         if (this.zipkinExporter != null) {
             this.zipkinExporter.close();

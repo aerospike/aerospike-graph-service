@@ -14,10 +14,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
     private static final Logger LOG = LoggerFactory.getLogger(RecyclingBufferedNumericIdManager.class);
-    private final long bufferSize;
+    protected final long bufferSize;
     private final BufferedNumericIdManager uniqueIdManager;
-    private final BufferedNumericIdManager recyclingIdManager;
-    private final ConcurrentLinkedQueue<Long> recycledIds = new ConcurrentLinkedQueue<>();
+    protected final BufferedNumericIdManager recyclingIdManager;
+    protected final ConcurrentLinkedQueue<Long> recycledIds = new ConcurrentLinkedQueue<>();
 
     protected RecyclingBufferedNumericIdManager(final String recyclingIdCounterName,
                                              final String uniqueIdCounterName,
@@ -64,13 +64,13 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
             throw new IllegalArgumentException(message);
         }
         if (this.recycledIds.size() >= bufferSize) {
-            LOG.warn("Recycled IDs buffer is full. Recycling ID " + recycledId + " will be dropped.");
+            LOG.warn("Recycled IDs buffer is full. Recycling ID {} will be dropped.", recycledId);
             return;
         }
         this.recycledIds.add(recycledId);
     }
 
-    private long getRecycledId(final FireflyGraph graph) {
+    protected long getRecycledId(final FireflyGraph graph) {
         final Long recycledId = this.recycledIds.poll();
         return recycledId != null ? recycledId : this.recyclingIdManager.getNextId(graph);
     }

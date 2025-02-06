@@ -100,11 +100,12 @@ public class BatchWorkerExecutor {
         // these are traversers that have been messaged to the vertex from another vertex
         final Iterator<TraverserSet<Object>> messages = messenger.receiveMessages();
         while (messages.hasNext()) {
+            final TraverserSet memoryTraversers = new TraverserSet<>();
             IteratorUtils.removeOnNext(messages.next().iterator()).forEachRemaining(traverser -> {
                 System.out.println(Thread.currentThread().getId() + "   message: " + traverser + "; bulk: " + traverser.bulk());
                 if (traverser.isHalted()) {
                     if (returnHaltedTraversers)
-                        memory.add(TraversalVertexProgram.HALTED_TRAVERSERS, new TraverserSet<>(haltedTraverserStrategy.halt(traverser)));
+                        memoryTraversers.add(haltedTraverserStrategy.halt(traverser));
                     else
                         haltedTraversers.add(traverser); // the traverser has already been detached so no need to detach it again
                 } else {
@@ -121,6 +122,9 @@ public class BatchWorkerExecutor {
 //                    traverser.attach(Attachable.Method.get(vertex));
 //                    traverser.setSideEffects(traversalSideEffects);
                     toProcessTraversers.add(traverser);
+                }
+                if (!memoryTraversers.isEmpty()) {
+                    memory.add(TraversalVertexProgram.HALTED_TRAVERSERS, memoryTraversers);
                 }
             });
         }

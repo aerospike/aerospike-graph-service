@@ -201,8 +201,9 @@ public class BatchWorkerExecutor {
 
             memory.add(BatchTraversalVertexProgram.MUTATED_MEMORY_KEYS, new HashSet<>(Collections.singleton(step.getId())));
         } else { // LOCAL PROCESSING
+            final TraverserSet memoryTraversers = new TraverserSet<>();
             step.forEachRemaining(traverser -> {
-                System.out.println("  working on " + traverser + "; halted: " + traverser.isHalted());
+                System.out.println("  working on " + traverser + "; halted: " + traverser.isHalted() + "; bulk: " + traverser.bulk());
                 if (traverser.isHalted() &&
                         // if its a ReferenceFactory (one less iteration required)
                         ((returnHaltedTraversers || ReferenceFactory.class == haltedTraverserStrategy.getHaltedTraverserFactory()) &&
@@ -211,7 +212,7 @@ public class BatchWorkerExecutor {
                     if (returnHaltedTraversers) {
                         System.out.println("    memory.add");
                         ComputerHelper.prepareForDistributedMemory(traverser);
-                        memory.add(TraversalVertexProgram.HALTED_TRAVERSERS, new TraverserSet<>(haltedTraverserStrategy.halt(traverser)));
+                        memoryTraversers.add(haltedTraverserStrategy.halt(traverser));
                     } else {
                         System.out.println("    haltedTraversers.add");
                         haltedTraversers.add(traverser.detach());
@@ -221,6 +222,8 @@ public class BatchWorkerExecutor {
                     activeTraversers.add(traverser);
                 }
             });
+            if (!memoryTraversers.isEmpty())
+                memory.add(TraversalVertexProgram.HALTED_TRAVERSERS, memoryTraversers);
         }
 
         System.out.println(Thread.currentThread().getId() + " WorkerExecutor.drainStep done. activeTraversers" + activeTraversers +

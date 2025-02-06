@@ -7,6 +7,7 @@ import com.aerospike.firefly.olap.config.DistributedConfiguration;
 import com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
+import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -280,7 +281,6 @@ public class DistributedGraphComputer implements GraphComputer {
         int i = 0;
         try {
             final PureTraversal<?, ?> traversal = ((BatchTraversalVertexProgram) vertexProgram).getTraversal().clone();
-            final List<HasContainer> initialHasContainers = ComputerHelper.getInitialHasContainers(traversal.get());
 
             // TODO Configurable page size w/ ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE
             // TODO: Ultimately reworking this logic so that we can distribute the partition to the spark workers to run a sindex again
@@ -299,10 +299,10 @@ public class DistributedGraphComputer implements GraphComputer {
             final TraverserGenerator traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirements);
 
             final Step<?, ?> firstStep = pureTraversal.asAdmin().getStartStep();
-            if (!(firstStep instanceof GraphStep)) {
+            if (!(firstStep instanceof FireflyGraphStep)) {
                 throw new RuntimeException("OLAP only supports starting on GraphStep, please contact support.");
             }
-            final GraphStep graphStep = (GraphStep) firstStep;
+            final FireflyGraphStep graphStep = (FireflyGraphStep) firstStep;
             if (graphStep.returnsEdge()) {
                 LOGGER.warn("Edges do not support secondary indexes, you may experience poor performance.");
             }
@@ -314,7 +314,7 @@ public class DistributedGraphComputer implements GraphComputer {
             final StructType schema = codec.getSchema();
 
             final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace);
-            Dataset<Row> df = magicSwap(DistributedQueryExecutor.getStartingPoint(spark, graph, configHelper, initialHasContainers, traversal.get(), schema, workers, maxParallelSindexes));
+            Dataset<Row> df = magicSwap(DistributedQueryExecutor.getStartingPoint(spark, graph, configHelper, graphStep.getHasContainers(), graphStep.getIds(), traversal.get(), schema, workers, maxParallelSindexes));
 
             // Create necessary things for execution (Memory, ResultGraph, Config, etc.)
             this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));

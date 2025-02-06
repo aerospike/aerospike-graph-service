@@ -332,12 +332,13 @@ public class DistributedQueryExecutor {
                                                 final FireflyGraph rootGraph,
                                                 final DistributedConfigHelper configHelper,
                                                 final List<HasContainer> initialHasContainers,
+                                                final Object[] ids,
                                                 final Traversal<?, ?> traversal,
                                                 final StructType outputSchema,
                                                 final int maxParallelQuery,
                                                 final int maxWorkers) {
         traversal.asAdmin().applyStrategies();
-        final QueryInfo queryInfo = QueryInfo.getQueryInfo(rootGraph, (GraphStep) traversal.asAdmin().getStartStep(), initialHasContainers);
+        final QueryInfo queryInfo = QueryInfo.getQueryInfo(rootGraph, (GraphStep) traversal.asAdmin().getStartStep(), initialHasContainers, ids);
         switch (queryInfo.queryType) {
             case INDEX:
                 return getIndexQuery(spark, rootGraph, configHelper, initialHasContainers, traversal, outputSchema, maxParallelQuery, maxWorkers, queryInfo);
@@ -406,8 +407,14 @@ public class DistributedQueryExecutor {
 
         private static QueryInfo getQueryInfo(final FireflyGraph graph,
                                               final GraphStep step,
-                                              final List<HasContainer> initialHasContainers) {
+                                              final List<HasContainer> initialHasContainers,
+                                              final Object[] idsInput) {
             final List<HasContainer> positiveFilters = initialHasContainers.stream().filter(it -> !it.getBiPredicate().equals(Contains.without)).collect(Collectors.toList());
+
+            if (idsInput != null && idsInput.length > 0) {
+                final List<Object> ids = Stream.of(idsInput).collect(Collectors.toList());
+                return new QueryInfo(ids, initialHasContainers);
+            }
 
             // Check for PI query based on hasContainers.
             if (!positiveFilters.isEmpty()) {

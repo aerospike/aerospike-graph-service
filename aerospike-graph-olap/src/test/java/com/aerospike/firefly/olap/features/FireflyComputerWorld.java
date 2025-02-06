@@ -44,10 +44,12 @@ public class FireflyComputerWorld implements World {
 
     private static final String skipReasonHang = "This test hangs.";
     private static final String skipStackOverflow = "Stack overflow.";
+    private static final String skipUnion = "Union is not supported..";
     private static final List<Pair<String, String>> SKIP_TESTS = new ArrayList<>() {
         {
             add(Pair.with("g_V_repeatXboth_simplePathX_timesX3X_path", skipReasonHang));
             add(Pair.with("g_V_repeatXbothX_timesX10X_asXaX_out_asXbX_selectXa_bX", skipStackOverflow));
+            add(Pair.with("g_unionXX", skipUnion));
         }
     };
 

@@ -309,7 +309,7 @@ public class DistributedGraphComputer implements GraphComputer {
             }
             System.out.println("===== " + graphStep + " " + graphStep.returnsVertex() + " ===== " + pureTraversal.asAdmin().getSteps());
 
-            final Codec codec = new Codec(traversal.get());
+            final Codec codec = new Codec(pureTraversal);
 
             // Create basic schema.
             final StructType schema = codec.getSchema();

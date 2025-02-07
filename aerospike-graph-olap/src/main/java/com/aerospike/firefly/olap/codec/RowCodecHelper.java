@@ -104,14 +104,6 @@ public class RowCodecHelper {
     }
 
     public static void setPath(final Traverser t, final PathInfo info) {
-        if (info.pathIds == null) {
-            if (info.pathLabels != null) {
-                for (final Seq<String> labels : info.pathLabels) {
-                    t.asAdmin().addLabels(new HashSet<>(JavaConverters.seqAsJavaList(labels)));
-                }
-            }
-            return;
-        }
         try {
             Class clazz;
             if (t instanceof LP_O_OB_P_S_SE_SL_Traverser) {
@@ -125,14 +117,28 @@ public class RowCodecHelper {
             } else {
                 throw new RuntimeException("Error, traverser type '" + t.getClass() + "' does not support paths.");
             }
-            Field pathField = clazz.getDeclaredField("path");
+
+            if (info.pathIds == null) {
+                if (info.pathLabels != null) {
+                    for (final Seq<String> labels : info.pathLabels) {
+                        final Field pathField = clazz.getDeclaredField("path");
+                        pathField.setAccessible(true);
+                        Path path = ImmutablePath.make();
+                        final Object obj = t.asAdmin().get();
+                        path = path.extend(obj, new HashSet<>(JavaConverters.seqAsJavaList(labels)));
+                        pathField.set(t, path);
+                    }
+                }
+                return;
+            }
+            final Field pathField = clazz.getDeclaredField("path");
             pathField.setAccessible(true);
             Path path = ImmutablePath.make();
             pathField.set(t, path);
             for (int i = 0; i < info.pathIds.size(); i++) {
                 int pathType = info.pathObjTypes.get(i);
                 Object value;
-                if (pathType == RowCodec.TRAVERSER_TYPE.EDGE.ordinal() ||pathType == RowCodec.TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal() ||
+                if (pathType == RowCodec.TRAVERSER_TYPE.EDGE.ordinal() || pathType == RowCodec.TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal() ||
                         pathType == RowCodec.TRAVERSER_TYPE.VERTEX.ordinal()) {
                     value = getReferenceElement(info.pathObjTypes.get(i), getId(info.pathIds.get(i), info.pathIdTypeHints.get(i)), null);
                 } else if (pathType == RowCodec.TRAVERSER_TYPE.INTEGER.ordinal() || pathType == RowCodec.TRAVERSER_TYPE.STRING.ordinal()) {
@@ -263,7 +269,7 @@ public class RowCodecHelper {
             } else if (o instanceof Integer) {
                 ids.add(o.toString());
                 idTypeHints.add(RowCodec.ID_TYPE.INTEGER.ordinal());
-                objTypes.add(RowCodec.TRAVERSER_TYPE.INTEGER.ordinal());;
+                objTypes.add(RowCodec.TRAVERSER_TYPE.INTEGER.ordinal());
             } else if (o instanceof String) {
                 ids.add(o.toString());
                 idTypeHints.add(RowCodec.ID_TYPE.STRING.ordinal());
@@ -344,7 +350,7 @@ public class RowCodecHelper {
             row.add(null); // String label.
             row.add(traverser.asAdmin().isHalted()); // Boolean halted. TODO: Is this always OK? What about g.V()?
             row.add(traverser.asAdmin().getStepId()); // String step.
-        }else {
+        } else {
             throw new RuntimeException("Error, encoder for " + t.getClass() + " is not implemented");
         }
     }
@@ -353,7 +359,7 @@ public class RowCodecHelper {
         row.add(traverser.bulk()); // Integer bulk.
     }
 
-    public static void addSingleLoop(final List<Object> row , final SingleLoopInfo sli) {
+    public static void addSingleLoop(final List<Object> row, final SingleLoopInfo sli) {
         row.add(sli.loopCount); // Loop count for single loop.
         row.add(sli.loopName);// Loop name for single loop.
     }
@@ -376,7 +382,7 @@ public class RowCodecHelper {
             return RowCodec.ID_TYPE.LONG;
         } else if (id instanceof Integer) {
             return RowCodec.ID_TYPE.INTEGER;
-        } else if (id instanceof  String) {
+        } else if (id instanceof String) {
             return RowCodec.ID_TYPE.STRING;
         } else {
             // TODO.

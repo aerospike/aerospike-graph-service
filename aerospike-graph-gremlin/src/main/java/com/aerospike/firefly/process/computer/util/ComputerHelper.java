@@ -29,6 +29,7 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceFactory;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferencePath;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceProperty;
@@ -303,6 +304,28 @@ public class ComputerHelper {
 
         final Traverser.Admin t = ProjectedTraverser.tryUnwrap(traverser.asAdmin());
         ReflectionHelper.setFieldValue(t, "path", attached);
+    }
+
+    public static void prepareEdgesForFeatureTests(final FireflyGraph graph,
+                                                   final TraverserSet<Object> traversers) {
+        final Set<Object> edgeIds = new HashSet<>();
+        traversers.forEach(traverser -> {
+            // we care only about ReferenceEdge for now
+            if (traverser.get() instanceof ReferenceEdge) {
+                edgeIds.add(((ReferenceEdge) traverser.get()).id());
+            }
+        });
+
+        final Map<Object, Edge> edgeCache = new HashMap<>();
+        if (!edgeIds.isEmpty())
+            graph.edges(edgeIds.toArray(new Object[edgeIds.size()])).forEachRemaining(edge -> edgeCache.put(edge.id(), edge));
+
+        traversers.forEach(traverser -> {
+            if (traverser.get() instanceof ReferenceEdge && edgeCache.containsKey(((ReferenceEdge) traverser.get()).id())) {
+                final Edge edge = edgeCache.get(((ReferenceEdge) traverser.get()).id());
+                traverser.asAdmin().set(ReferenceFactory.detach(edge));
+            }
+        });
     }
 
     public static Object detach(final Object barrier) {

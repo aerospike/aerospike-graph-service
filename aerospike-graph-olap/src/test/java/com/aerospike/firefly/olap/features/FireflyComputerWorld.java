@@ -8,6 +8,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.features.World;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.strategy.optimization.MessagePassingReductionStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -72,11 +73,11 @@ public class FireflyComputerWorld implements World {
         if (null == graphData)
             throw new AssumptionViolatedException("GraphComputer does not support mutation");
         else if (graphData == LoadGraphWith.GraphData.CREW)
-            return crew.traversal().withComputer();
+            return crew.traversal().withComputer().withoutStrategies(MessagePassingReductionStrategy.class);
         else if (graphData == LoadGraphWith.GraphData.MODERN)
-            return modern.traversal().withComputer();
+            return modern.traversal().withComputer().withoutStrategies(MessagePassingReductionStrategy.class);
         else if (graphData == LoadGraphWith.GraphData.SINK)
-            return sink.traversal().withComputer();
+            return sink.traversal().withComputer().withoutStrategies(MessagePassingReductionStrategy.class);
         else if (graphData == LoadGraphWith.GraphData.GRATEFUL)
             throw new AssumptionViolatedException("grateful graph contains vertices with multi property not supported by Firefly.");
         else if (graphData == LoadGraphWith.GraphData.CLASSIC)

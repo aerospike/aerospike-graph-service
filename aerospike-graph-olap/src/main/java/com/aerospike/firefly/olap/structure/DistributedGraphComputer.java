@@ -394,8 +394,8 @@ public class DistributedGraphComputer implements GraphComputer {
             rows.stream().forEach(row -> {
                 traversers.add(codec.decode(row, traverserGenerator, traversalMatrix).asAdmin());
             });
-            ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
-                    traversal.get().getSideEffects(), traversers);
+
+            ComputerHelper.prepareEdgesForFeatureTests((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(), traversers);
 
             // Set all traversers as halted and complete memory.
             memory.set(HALTED_TRAVERSERS, traversers);

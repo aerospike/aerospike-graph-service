@@ -286,6 +286,7 @@ public class AerospikeConnection implements AutoCloseable {
 
     private final boolean bulkLoaderFlag;
     private final boolean bulkLoaderInitializerFlag;
+    private final boolean olapEnabledFlag;
 
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
@@ -572,6 +573,7 @@ public class AerospikeConnection implements AutoCloseable {
 
         bulkLoaderFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf);
         bulkLoaderInitializerFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_INITIALIZER_FLAG, conf);
+        olapEnabledFlag = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.OLAP_ENABLED, conf);
 
         idFactory = new FireflyIdFactory(this);
 
@@ -1419,7 +1421,11 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public boolean shouldCreateIndexes() {
-        return !bulkLoaderFlag || bulkLoaderInitializerFlag;
+        if (bulkLoaderFlag) {
+            return bulkLoaderInitializerFlag;
+        } else {
+            return olapEnabledFlag;
+        }
     }
 
     /**
@@ -2456,6 +2462,10 @@ public class AerospikeConnection implements AutoCloseable {
 
     public boolean getBulkLoaderFlag() {
         return this.bulkLoaderFlag;
+    }
+
+    public boolean getOlapFlag() {
+        return this.olapEnabledFlag;
     }
 
     public long incrementAndGetBadEdgeCount(final long amount) {

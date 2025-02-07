@@ -125,7 +125,6 @@ public class DistributedGraphComputerMain {
         }
 
         FireflyServer fireflyServer = FireflyServer.start(List.of(outputServerYaml).toArray(new String[]{}));
-
     }
 
     private static String getServerYaml() {

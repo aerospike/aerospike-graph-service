@@ -483,7 +483,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                     printGraphSummaryTicker();
                 } catch (final AerospikeGraphException e) {
                     // This should work but in case it doesn't, continue into standard operation.
-                    if (this.db.getBulkLoaderFlag()) {
+                    if (this.db.getBulkLoaderFlag() && this.db.getOlapFlag()) {
                         // This is okay for now since this is a failing edge case and the code within is fast, but
                         // may need to add more complex logic to synchronize on unique graph names in the future.
                         synchronized (LAST_SUMMARY_TICKER_EXCEPTION) {

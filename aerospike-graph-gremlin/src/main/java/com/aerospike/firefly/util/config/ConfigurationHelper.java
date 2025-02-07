@@ -157,6 +157,9 @@ public final class ConfigurationHelper {
         public static final String OLAP_PAGINATION_WORKERS = "aerospike.graph.olap.pagination.index.workers";
         public static final String OLAP_WORKERS = "aerospike.graph.olap.workers";
 
+        // OLAP configuration flags.
+        public static final String OLAP_ENABLED = "aerospike.graph.olap.enabled";
+
         // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "aerospike.graph.auto.preheat.enabled";
         public static final String WARMUP_MODE = "aerospike.graph.warmup.mode.enabled";
@@ -354,6 +357,7 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY, "true");
         put(Keys.ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY, "true");
         put(Keys.ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY, "true");
+        put(Keys.OLAP_ENABLED, "false");
         put(Keys.ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, "true");

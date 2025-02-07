@@ -53,7 +53,7 @@ public class DistributedGraphComputerMain {
         System.out.println("       +-----------------------------------------------------+      ");
         System.out.println("                   |                             |                  ");
         System.out.println("        +----------------------+        +-------------------+       ");
-        System.out.println("        |     APACHE SPARK     |        |     TINKERPOP     |       ");
+        System.out.println("        |     APACHE SPARK     |<------>|     TINKERPOP     |       ");
         System.out.println("        +----------------------+        +-------------------+       ");
         System.out.println();
 

@@ -48,6 +48,7 @@ public class FireflyComputerWorld implements World {
     private static final String skipUnion = "Union is not supported.";
     private static final String skipIndex = "Index is not supported.";
     private static final String skipPathEncoding = "Path encoding is not supported."; //g.V().has("person","name","marko").path().as("a").union(identity(),identity()).select("a").unfold().toList();
+    private static final String skipSack = "Sack encoding is not supported.";
     private static final List<Pair<String, String>> SKIP_TESTS = new ArrayList<>() {
         {
             add(Pair.with("g_V_repeatXboth_simplePathX_timesX3X_path", skipReasonHang));
@@ -59,6 +60,10 @@ public class FireflyComputerWorld implements World {
             add(Pair.with("g_V_hasLabelXpersonX_name_fold_orderXlocalX_index_withXmapX", skipIndex));
             add(Pair.with("g_VX1X_valuesXageX_index_unfold_unfold", skipIndex));
             add(Pair.with("g_V_hasXperson_name_markoX_elementMapXnameX_asXaX_unionXidentity_identityX_selectXaX_selectXnameX", skipPathEncoding));
+            add(Pair.with("g_withSackX0X_V_outE_sackXsumX_byXweightX_inV_sack_sum", skipSack));
+            add(Pair.with("g_withSackX0X_V_repeatXoutE_sackXsumX_byXweightX_inVX_timesX2X_sack", skipSack));
+            add(Pair.with("g_V_sackXassignX_byXageX_sack", skipSack));
+            add(Pair.with("g_withSackXhelloX_V_outE_sackXassignX_byXlabelX_inV_sack", skipSack));
         }
     };
 

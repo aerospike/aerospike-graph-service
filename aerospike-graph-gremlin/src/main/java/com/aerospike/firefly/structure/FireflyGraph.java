@@ -291,7 +291,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             }
         }
 
-        if (!db.WARMUP_MODE && !db.getBulkLoaderFlag()) {
+        if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && !db.getOlapFlag()) {
             // Create usage statistics background task. Only one per server
             if (usageStats == null) {
                 synchronized (this) {
@@ -1171,7 +1171,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.fireflyIndexMetadataTask.cancel();
         this.fireflySummaryUpdater.close();
 
-        if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && this.usageStats != null) {
+        if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && !db.getOlapFlag() && this.usageStats != null) {
             synchronized (this) {
                 if (this.usageStats != null) {
                     this.usageStats.close();

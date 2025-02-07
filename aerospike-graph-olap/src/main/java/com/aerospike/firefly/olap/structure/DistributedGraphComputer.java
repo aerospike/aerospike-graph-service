@@ -10,6 +10,7 @@ import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.FireflyHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -71,6 +72,7 @@ import java.util.concurrent.Future;
 
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
 import static com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram.VOTE_TO_HALT;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.OLAP_ENABLED;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
@@ -99,6 +101,9 @@ public class DistributedGraphComputer implements GraphComputer {
             final String key = keys.next();
             config.put(key, graph.configuration().getString(key));
         }
+        config.put(ConfigurationHelper.Keys.OLAP_ENABLED.toLowerCase(), true);
+        config.put(ConfigurationHelper.Keys.AUTO_PRE_HEAT.toLowerCase(), "false");
+        config.put(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
         configHelper = new DistributedConfigHelper(config);
         if (sparkSession != null) {
             this.spark = (SparkSession) sparkSession;

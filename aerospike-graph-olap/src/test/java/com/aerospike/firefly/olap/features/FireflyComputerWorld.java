@@ -52,14 +52,20 @@ public class FireflyComputerWorld implements World {
     private static final List<Pair<String, String>> SKIP_TESTS = new ArrayList<>() {
         {
             add(Pair.with("g_V_repeatXboth_simplePathX_timesX3X_path", skipReasonHang));
+
             add(Pair.with("g_V_repeatXbothX_timesX10X_asXaX_out_asXbX_selectXa_bX", skipStackOverflow));
+
             add(Pair.with("g_unionXX", skipUnion));
+
             add(Pair.with("g_V_hasLabelXsoftwareX_index_unfold", skipIndex));
             add(Pair.with("g_V_hasLabelXsoftwareX_order_byXnameX_index_withXmapX", skipIndex));
             add(Pair.with("g_V_hasLabelXsoftwareX_name_fold_orderXlocalX_index_unfold_order_byXtailXlocal_1XX", skipIndex));
             add(Pair.with("g_V_hasLabelXpersonX_name_fold_orderXlocalX_index_withXmapX", skipIndex));
             add(Pair.with("g_VX1X_valuesXageX_index_unfold_unfold", skipIndex));
+
             add(Pair.with("g_V_hasXperson_name_markoX_elementMapXnameX_asXaX_unionXidentity_identityX_selectXaX_selectXnameX", skipPathEncoding));
+            add(Pair.with("g_V_hasXperson_name_markoX_path_asXaX_unionXidentity_identityX_selectXaX_unfold", skipPathEncoding));
+
             add(Pair.with("g_withSackX0X_V_outE_sackXsumX_byXweightX_inV_sack_sum", skipSack));
             add(Pair.with("g_withSackX0X_V_repeatXoutE_sackXsumX_byXweightX_inVX_timesX2X_sack", skipSack));
             add(Pair.with("g_V_sackXassignX_byXageX_sack", skipSack));

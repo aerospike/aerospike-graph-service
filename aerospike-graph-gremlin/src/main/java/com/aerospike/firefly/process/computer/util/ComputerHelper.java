@@ -123,9 +123,13 @@ public class ComputerHelper {
             collectIds(((ReferenceProperty) object).element(), vertexIds, edgeIds);
         } else if (object instanceof ReferencePath) {
             ((ReferencePath) object).forEach((obj, labels) -> collectIds(obj, vertexIds, edgeIds));
+        } else if (object instanceof Map) {
+            ((Map) object).forEach((k, v) -> {
+                collectIds(k, vertexIds, edgeIds);
+                collectIds(v, vertexIds, edgeIds);
+            });
         } else if (object instanceof Collection) {
-            for (final Object nested : (Collection) object)
-                collectIds(nested, vertexIds, edgeIds);
+            ((Collection) object).forEach(i -> collectIds(i, vertexIds, edgeIds));
         }
     }
 
@@ -275,7 +279,14 @@ public class ComputerHelper {
             } else if (traverser.get() instanceof BulkSet) {
                 final BulkSet attached = new BulkSet();
                 ((BulkSet) traverser.get()).forEach((element, bulk) ->
-                        attached.add(getFromCache(element, vertexCache, edgeCache), (long) bulk)
+                    attached.add(getFromCache(element, vertexCache, edgeCache), (long) bulk)
+                );
+                traverser.set(attached);
+                traverser.setSideEffects(traversalSideEffects);
+            } else if (traverser.get() instanceof Map) {
+                final HashMap attached = new HashMap();
+                ((HashMap) traverser.get()).forEach((key, value) ->
+                    attached.put(getFromCache(key, vertexCache, edgeCache), getFromCache(value, vertexCache, edgeCache))
                 );
                 traverser.set(attached);
                 traverser.setSideEffects(traversalSideEffects);

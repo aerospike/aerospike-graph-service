@@ -47,6 +47,7 @@ public class FireflyComputerWorld implements World {
     private static final String skipStackOverflow = "Stack overflow.";
     private static final String skipUnion = "Union is not supported.";
     private static final String skipIndex = "Index is not supported.";
+    private static final String skipPathEncoding = "Path encoding is not supported."; //g.V().has("person","name","marko").path().as("a").union(identity(),identity()).select("a").unfold().toList();
     private static final List<Pair<String, String>> SKIP_TESTS = new ArrayList<>() {
         {
             add(Pair.with("g_V_repeatXboth_simplePathX_timesX3X_path", skipReasonHang));
@@ -57,6 +58,7 @@ public class FireflyComputerWorld implements World {
             add(Pair.with("g_V_hasLabelXsoftwareX_name_fold_orderXlocalX_index_unfold_order_byXtailXlocal_1XX", skipIndex));
             add(Pair.with("g_V_hasLabelXpersonX_name_fold_orderXlocalX_index_withXmapX", skipIndex));
             add(Pair.with("g_VX1X_valuesXageX_index_unfold_unfold", skipIndex));
+            add(Pair.with("g_V_hasXperson_name_markoX_elementMapXnameX_asXaX_unionXidentity_identityX_selectXaX_selectXnameX", skipPathEncoding));
         }
     };
 

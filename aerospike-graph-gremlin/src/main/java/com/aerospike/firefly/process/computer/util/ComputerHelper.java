@@ -354,6 +354,15 @@ public class ComputerHelper {
                 }
             }
         }
+        // ReferenceFactory don't detach traversers
+        if (barrier instanceof Map) {
+            for (final Map.Entry<Object, Object> entry : ((Map<Object, Object>) barrier).entrySet()) {
+                if (entry.getValue() instanceof Map)
+                    detach(entry.getValue());
+                else if (entry.getValue() instanceof Traverser)
+                    ((Traverser) entry.getValue()).asAdmin().detach();
+            }
+        }
         return ReferenceFactory.detach(barrier);
     }
 

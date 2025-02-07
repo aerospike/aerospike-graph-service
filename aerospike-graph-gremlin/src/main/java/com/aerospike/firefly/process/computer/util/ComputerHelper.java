@@ -236,6 +236,16 @@ public class ComputerHelper {
                 ((Traverser) newValue).asAdmin().setSideEffects(traversalSideEffects);
             } else if (newValue instanceof List) {
                 ((List) newValue).replaceAll(object -> getFromCache(object, vertexCache, edgeCache));
+            } else if (newValue instanceof Set) {
+                // need to transform incoming Set to TraverserSet
+                // todo: attachment
+                final TraverserSet temp = new TraverserSet<>();
+                ((Set) entry.getValue()).forEach(t -> {
+                    if (t instanceof Traverser.Admin)
+                        temp.add((Traverser.Admin) t);
+                });
+                if (!temp.isEmpty() && temp.size() == ((Set<?>) newValue).size())
+                    newValue = temp;
             }
             elements.remove(entry.getKey());
             elements.put(newKey, newValue);

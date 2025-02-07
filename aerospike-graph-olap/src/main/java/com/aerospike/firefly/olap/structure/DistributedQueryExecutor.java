@@ -18,6 +18,8 @@ import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.codec.RowCodec;
 import com.aerospike.firefly.olap.codec.RowCodecFactory;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
+import com.aerospike.firefly.olap.config.DistributedConfiguration;
+import com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -38,12 +40,14 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.Contains;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
@@ -339,6 +343,10 @@ public class DistributedQueryExecutor {
                                                 final int maxWorkers) {
         traversal.asAdmin().applyStrategies();
         final QueryInfo queryInfo = QueryInfo.getQueryInfo(rootGraph, (GraphStep) traversal.asAdmin().getStartStep(), initialHasContainers, ids);
+        // Special case for returning something like g.V().hasId(List.of())
+        if (queryInfo == null) {
+            return spark.createDataFrame(new ArrayList<Row>(), outputSchema);
+        }
         switch (queryInfo.queryType) {
             case INDEX:
                 return getIndexQuery(spark, rootGraph, configHelper, initialHasContainers, traversal, outputSchema, maxParallelQuery, maxWorkers, queryInfo);
@@ -411,6 +419,10 @@ public class DistributedQueryExecutor {
                                               final Object[] idsInput) {
             final List<HasContainer> positiveFilters = initialHasContainers.stream().filter(it -> !it.getBiPredicate().equals(Contains.without)).collect(Collectors.toList());
 
+            // Special case.
+            if (idsInput == null) {
+                return null;
+            }
             if (idsInput != null && idsInput.length > 0) {
                 final List<Object> ids = Stream.of(idsInput).collect(Collectors.toList());
                 return new QueryInfo(ids, initialHasContainers);

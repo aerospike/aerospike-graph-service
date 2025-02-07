@@ -76,7 +76,7 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
     public static final String HALTED_TRAVERSERS = "gremlin.traversalVertexProgram.haltedTraversers";
     public static final String ACTIVE_TRAVERSERS = "gremlin.traversalVertexProgram.activeTraversers";
     protected static final String MUTATED_MEMORY_KEYS = "gremlin.traversalVertexProgram.mutatedMemoryKeys";
-    private static final String VOTE_TO_HALT = "gremlin.traversalVertexProgram.voteToHalt";
+    public static final String VOTE_TO_HALT = "gremlin.traversalVertexProgram.voteToHalt";
     private static final String COMPLETED_BARRIERS = "gremlin.traversalVertexProgram.completedBarriers";
 
     // TODO: if not an adjacent traversal, use Local message scope -- a dual messaging system.

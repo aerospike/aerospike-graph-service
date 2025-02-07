@@ -70,6 +70,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
+import static com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram.VOTE_TO_HALT;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
@@ -333,6 +334,12 @@ public class DistributedGraphComputer implements GraphComputer {
 
             // PartitionIterator pulls initial step data, so we can start on step 2.
             memory.incrIteration();
+
+            if (df.limit(1).isEmpty()) {
+                memory.set(VOTE_TO_HALT, true);
+                vertexProgram.terminate(memory);
+            }
+
             while (!df.limit(1).isEmpty()) {
                 if (Thread.interrupted()) {
                     // If query is cancelled, cancel all spark jobs and throw an exception.

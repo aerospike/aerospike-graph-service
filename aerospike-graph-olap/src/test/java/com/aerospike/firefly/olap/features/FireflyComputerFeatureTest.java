@@ -21,7 +21,7 @@ import org.junit.runner.RunWith;
                 "not @WithPartitionStrategy",
         glue = { "org.apache.tinkerpop.gremlin.features" },
         objectFactory = FireflyComputerFeatureTest.FireflyComputerGraphGuiceFactory.class,
-        features = { "classpath:/org/apache/tinkerpop/gremlin/test/features" }, // /filter/Dedup.feature
+        features = { "classpath:/org/apache/tinkerpop/gremlin/test/features" },
         plugin = {"progress", "junit:target/cucumber.xml"})
 public class FireflyComputerFeatureTest {
     public static class FireflyComputerGraphGuiceFactory extends AbstractGuiceFactory {

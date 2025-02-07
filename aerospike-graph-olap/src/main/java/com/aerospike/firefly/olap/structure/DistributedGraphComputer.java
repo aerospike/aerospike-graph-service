@@ -28,8 +28,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_P_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_O_P_S_SE_SL_TraverserGenerator;
@@ -402,7 +400,7 @@ public class DistributedGraphComputer implements GraphComputer {
                 traversers.add(codec.decode(row, traverserGenerator, traversalMatrix).asAdmin());
             });
 
-            ComputerHelper.prepareEdgesForFeatureTests((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(), traversers);
+            ComputerHelper.prepareEdgesForResult((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(), traversers);
 
             // Set all traversers as halted and complete memory.
             memory.set(HALTED_TRAVERSERS, traversers);

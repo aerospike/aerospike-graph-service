@@ -125,7 +125,10 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements S
     protected Iterator<Vertex> flatMap(final Traverser.Admin<Vertex> traverser) {
         System.out.println("FireflyCompositeIdStepLocal.flatMap: " + traverser);
 
-        if (first || !traversal.isRoot()) {
+        if (!traversal.isRoot()) {
+            inputCache.add(traverser);
+            precompute();
+        } else if (first) {
             precompute();
             first = false;
         }

@@ -121,7 +121,10 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> {
 
     @Override
     protected Iterator<Edge> flatMap(final Traverser.Admin<Vertex> traverser) {
-        if (first || !traversal.isRoot()) {
+        if (!traversal.isRoot()) {
+            inputCache.add(traverser);
+            precompute();
+        } else if (first) {
             precompute();
             first = false;
         }

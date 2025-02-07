@@ -16,10 +16,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.ImmutablePath;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.MutablePath;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_O_S_SE_SL_Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.ProjectedTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -28,21 +26,18 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
-import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceFactory;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferencePath;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceProperty;
-import scala.xml.Elem;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -327,8 +322,8 @@ public class ComputerHelper {
         ReflectionHelper.setFieldValue(t, "path", attached);
     }
 
-    public static void prepareEdgesForFeatureTests(final FireflyGraph graph,
-                                                   final TraverserSet<Object> traversers) {
+    public static void prepareEdgesForResult(final FireflyGraph graph,
+                                             final TraverserSet<Object> traversers) {
         final Set<Object> edgeIds = new HashSet<>();
         traversers.forEach(traverser -> {
             // we care only about ReferenceEdge for now
@@ -352,19 +347,27 @@ public class ComputerHelper {
     public static Object detach(final Object barrier) {
         // not handled by ReferenceFactory
         if (barrier instanceof TraverserSet) {
-            final TraverserSet original = (TraverserSet) barrier;
+            final LinkedHashSet detached = new LinkedHashSet();
             // iterate over copy to be able to add/remove items
-            for (final Object t : new HashSet<>(original)) {
+            for (final Object t : (TraverserSet) barrier) {
                 if (t instanceof ProjectedTraverser) {
-                    original.remove(t);
-                    original.add(new ProjectedTraverser((ProjectedTraverser.tryUnwrap((ProjectedTraverser) t)).detach(),
-                            ReferenceFactory.detach(((ProjectedTraverser) t).getProjections())));
+                    (ProjectedTraverser.tryUnwrap((ProjectedTraverser) t)).detach();
+                    ReflectionHelper.setFieldValue(ProjectedTraverser.class, t, "projections",
+                            ReferenceFactory.detach(((ProjectedTraverser) t).getProjections()));
                 } else if (t instanceof Traverser.Admin) {
-                    original.remove(t);
-                    original.add(((Traverser.Admin<?>) t).detach());
+                    final Traverser.Admin traverser = (Traverser.Admin) t;
+                    if (traverser.get() instanceof Map.Entry) {
+                        final Map.Entry entry = (Map.Entry) traverser.get();
+                        traverser.set(new AbstractMap.SimpleEntry(entry.getKey(), entry.getValue()));
+                    }
+                    ((Traverser.Admin<?>) t).detach();
                 }
+                detached.add(t);
             }
+
+            return detached;
         }
+
         // ReferenceFactory don't detach traversers
         if (barrier instanceof Map) {
             for (final Map.Entry<Object, Object> entry : ((Map<Object, Object>) barrier).entrySet()) {
@@ -374,14 +377,7 @@ public class ComputerHelper {
                     ((Traverser) entry.getValue()).asAdmin().detach();
             }
         }
-        return ReferenceFactory.detach(barrier);
-    }
 
-    // some types can't be handled by
-    public static void prepareForDistributedMemory(final Traverser traverser) {
-        if (traverser.get() instanceof Map.Entry) {
-            final Map.Entry entry = (Map.Entry) traverser.get();
-            traverser.asAdmin().set(new AbstractMap.SimpleEntry(entry.getKey(), entry.getValue()));
-        }
+        return ReferenceFactory.detach(barrier);
     }
 }

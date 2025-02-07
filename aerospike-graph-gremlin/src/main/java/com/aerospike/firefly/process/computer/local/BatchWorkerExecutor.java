@@ -215,7 +215,7 @@ public class BatchWorkerExecutor {
                                 vertices.contains(Host.getHostingVertex(traverser.get()))*/)) {
                     if (returnHaltedTraversers) {
                         System.out.println("    memory.add");
-                        ComputerHelper.prepareForDistributedMemory(traverser);
+                        // haltedTraverserStrategy is no-op here,detachment is in DistributedMemory
                         memoryTraversers.add(haltedTraverserStrategy.halt(traverser));
                     } else {
                         System.out.println("    haltedTraversers.add");

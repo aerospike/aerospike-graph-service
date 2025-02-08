@@ -347,8 +347,6 @@ public class ComputerHelper {
     public static Object detach(final Object barrier) {
         // not handled by ReferenceFactory
         if (barrier instanceof TraverserSet) {
-            final LinkedHashSet detached = new LinkedHashSet();
-            // iterate over copy to be able to add/remove items
             for (final Object t : (TraverserSet) barrier) {
                 if (t instanceof ProjectedTraverser) {
                     (ProjectedTraverser.tryUnwrap((ProjectedTraverser) t)).detach();
@@ -362,10 +360,9 @@ public class ComputerHelper {
                     }
                     ((Traverser.Admin<?>) t).detach();
                 }
-                detached.add(t);
             }
 
-            return detached;
+            return barrier;
         }
 
         // ReferenceFactory don't detach traversers

@@ -58,13 +58,9 @@ public class BatchMasterExecutor {
                     final Barrier<Object> barrier = (Barrier<Object>) step;
                     // collecting barriers expect to consume TraverserSet, but spark serialize it as HashSet
                     if (barrier instanceof CollectingBarrierStep) {
-                        final TraverserSet traverserSet = new TraverserSet();
-                        ((HashSet) memory.get(key)).forEach(i -> {
-                            traverserSet.add((Traverser.Admin) i);
-                        });
                         ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
-                                EmptyTraversalSideEffects.instance(), traverserSet);
-                        barrier.addBarrier(traverserSet);
+                                EmptyTraversalSideEffects.instance(), (TraverserSet) memory.get(key));
+                        barrier.addBarrier(memory.get(key));
                     } else {
                         final Object memoryBarrier = memory.get(key);
                         // todo: attach more types if needed
@@ -80,6 +76,7 @@ public class BatchMasterExecutor {
                                     EmptyTraversalSideEffects.instance(), map);
                             barrier.addBarrier(map);
                         } else if (memoryBarrier instanceof Set) {
+                            // todo: check incoming TraverserSet?
                             final TraverserSet ts = new TraverserSet();
                             ts.addAll((Set) memoryBarrier);
                             ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),

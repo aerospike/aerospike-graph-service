@@ -38,7 +38,7 @@ import static com.aerospike.firefly.olap.codec.RowCodecHelper.getReferenceElemen
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.setNestedLoops;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.setPath;
 
-public abstract class RowCodec {
+public class RowCodec {
 
     public Map<String, Integer> columnToOrdinal = new HashMap<>();
 
@@ -55,11 +55,12 @@ public abstract class RowCodec {
 
     final List<TraverserEncoder> orderedTraverserEncoders = new ArrayList<>();
     final List<ElementEncoder> orderedElementEncoders = new ArrayList<>();
+    final Set<TraverserRequirement> traverserRequirements;
 
-    RowCodec(final List<CodecRequirements> requirements) {
-        this.codecRequirements = requirements;
+    RowCodec(final List<CodecRequirements> codecRequirements, final Set<TraverserRequirement> traverserRequirements) {
+        this.codecRequirements = codecRequirements;
         int i = 0;
-        for (CodecRequirements requirement : requirements) {
+        for (CodecRequirements requirement : codecRequirements) {
             switch (requirement) {
                 case BASE:
                     orderedTraverserEncoders.add(new BaseTraverserEncoder());
@@ -100,7 +101,8 @@ public abstract class RowCodec {
                     columnToOrdinal.put(NL_STEP_COL, i++);
             }
         }
-        codecRequirementsSet.addAll(requirements);
+        codecRequirementsSet.addAll(codecRequirements);
+        this.traverserRequirements = traverserRequirements;
     }
 
     /////////////////////////////////////////////////////////////////////
@@ -327,7 +329,9 @@ public abstract class RowCodec {
     // Requirements
     /////////////////////////////////////////////////////////////////////
 
-    abstract Set<TraverserRequirement> getRequirements();
+    public Set<TraverserRequirement> getRequirements() {
+        return traverserRequirements;
+    }
 
     /////////////////////////////////////////////////////////////////////
     // Constants

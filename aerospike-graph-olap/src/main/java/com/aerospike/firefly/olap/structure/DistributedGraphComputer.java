@@ -352,22 +352,18 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 // Set inExecute to true, execute the vertex program, and set inExecute to false.
                 memory.setInExecute(true);
-                System.out.println("------BEFORE EXEC------");
-                df.show(false);
-
-                System.out.println("Size of dataset " + getObjectSize(df));
+                if (LOGGER.isDebugEnabled())
+                    df.show(true);
 
                 df = magicSwap(DistributedExecutor.execute(df, memory, configHelper, vertexProgramConfiguration, schema));
 
                 memory.setInExecute(false);
 
                 // Filter out halted vertices.
-                System.out.println("------AFTER EXEC------");
-
                 results = magicSwap(results.union(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true))));
 
-                System.out.println("------RESULT-------");
-                results.show(false);
+                if (LOGGER.isDebugEnabled())
+                    results.show(true);
 
                 // Filter out vertices that are not halted.
                 df = magicSwap(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false)));
@@ -387,8 +383,6 @@ public class DistributedGraphComputer implements GraphComputer {
 
             try {
                 TraverserSet memoryTraversers = memory.get(HALTED_TRAVERSERS);
-                System.out.println("------MEMORY TRAVERSERS------");
-                memoryTraversers.forEach(System.out::println);
                 traversers.addAll(memoryTraversers);
             } catch (IllegalArgumentException e) {
                 // No data in memory.
@@ -396,8 +390,6 @@ public class DistributedGraphComputer implements GraphComputer {
 
             // Collect results.
             final List<Row> rows = results.collectAsList();
-            System.out.println("------RESULTS------");
-            rows.forEach(System.out::println);
 
             // Create traversers.
             final TraversalMatrix traversalMatrix = new TraversalMatrix<>(pureTraversal.asAdmin());

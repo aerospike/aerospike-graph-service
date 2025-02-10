@@ -4,10 +4,8 @@ import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
-import org.abego.treelayout.internal.util.java.util.IteratorUtil;
 import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
@@ -125,7 +123,6 @@ public class LocalWorkerPool implements AutoCloseable {
                                     final List<Element> output = executeVertexProgram.execute(trueVP, workerMemory,
                                             // id -> ((Integer)id) % numberOfWorkers == index);
                                             id -> batchIds.contains(id));
-                                    System.out.println("LocalWorkerPool " + index + " output: " + output);
                                     if (output != null) {
                                         results.addAll(output);
                                         counter.addAndGet(output.size());
@@ -134,8 +131,6 @@ public class LocalWorkerPool implements AutoCloseable {
                                 LOG.info("Worker {} processed {} vertices, total={}", index, count, counter.get());
                             } catch (final Exception e) {
                                 LOG.error("Worker {} failed on {} vertex of partition", index, count, e);
-                            } finally {
-
                             }
                         } else {
                             break;

@@ -121,8 +121,6 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         checkKeyValue(key, value);
         final Object detachedValue = ComputerHelper.detach(value);
         if (this.inExecute) {
-            if (key.equals(HALTED_TRAVERSERS))
-                System.out.println("~~~Adding halted " + detachedValue);
             this.sparkMemory.get(key).add(new DistributedMemoryEntry<>(detachedValue));
         } else
             throw Memory.Exceptions.memoryAddOnlyDuringVertexProgramExecute(key);

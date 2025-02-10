@@ -38,8 +38,6 @@ public class FireflyCountGlobalLocalStep<S> extends ReducingBarrierStep<S, Long>
         } else {
             fireflyVertex = (FireflyVertex) element;
         }
-        System.out.println("FireflyCountGlobalLocalStep.projectTraverser for " + traverser
-                + " returns " + fireflyVertex.getEdgeCount(direction, edgeLabels));
         return fireflyVertex.getEdgeCount(direction, edgeLabels) * traverser.bulk();
     }
 

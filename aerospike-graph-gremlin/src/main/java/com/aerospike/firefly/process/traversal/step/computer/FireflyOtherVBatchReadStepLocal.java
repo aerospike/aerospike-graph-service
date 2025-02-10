@@ -57,7 +57,6 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
     @Override
     public void addStart(final Traverser.Admin<Edge> start) {
         super.addStart(start);
-        System.out.println("FireflyCompositeIdStepLocal.addStart: " + start);
         add(start);
     }
 

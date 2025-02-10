@@ -22,7 +22,6 @@ import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.Traversa
 import org.apache.tinkerpop.gremlin.process.computer.traversal.strategy.decoration.VertexProgramStrategy;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.strategy.finalization.ComputerFinalizationStrategy;
 import org.apache.tinkerpop.gremlin.process.computer.util.AbstractVertexProgramBuilder;
-import org.apache.tinkerpop.gremlin.process.computer.util.SingleMessenger;
 import org.apache.tinkerpop.gremlin.process.computer.util.VertexProgramHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Operator;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -34,7 +33,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.Barrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.MapReducer;
 import org.apache.tinkerpop.gremlin.process.traversal.step.MemoryComputing;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.ProfileSideEffectStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
@@ -49,16 +47,14 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.ScriptTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
-import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
-import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.function.MutableMetricsSupplier;
-import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -68,7 +64,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Predicate;
 
 public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<Object>> {
 
@@ -95,6 +90,7 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
     // handle current profile metrics if profile is true
     private MutableMetrics iterationMetrics;
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(BatchTraversalVertexProgram.class);
 
     private BatchTraversalVertexProgram() {
     }
@@ -294,7 +290,7 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
 //            vertex.property(VertexProperty.Cardinality.single, HALTED_TRAVERSERS, haltedTraversers);
 //        }
         //////////////////
-        System.out.println("\nIteration: " +  memory.getIteration());
+        LOGGER.info("\nIteration: " + memory.getIteration());
         if (memory.isInitialIteration()) {    // ITERATION 1
             activeTraversers.clear(); // todo:
             // if halted traversers are being sent from a previous VertexProgram in an OLAP chain (distributed traversers), get them into the flow
@@ -303,7 +299,8 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
                 activeTraversers.add(traverser);
             });
             assert haltedTraversers.isEmpty();
-            // for g.V()/E()
+            // for g.V()/E().
+            // Now seeding traversers produced on Master.
             if (this.traversal.get().getStartStep() instanceof FireflyGraphStep) {
                 final FireflyGraphStep<Element, Element> graphStep = (FireflyGraphStep<Element, Element>) this.traversal.get().getStartStep();
                 graphStep.reset();
@@ -329,13 +326,9 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
             memory.add(VOTE_TO_HALT, activeTraversers.isEmpty()
                     || BatchWorkerExecutor.execute(new BatchSingleMessenger<>(messenger, activeTraversers), this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));
         } else {  // ITERATION 1+
-            final Boolean voteToHalt2 = BatchWorkerExecutor.execute(new BatchSingleMessenger<>(messenger, activeTraversers), this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy);
-            System.out.println("VoteToHalt: " + voteToHalt2);
-            memory.add(VOTE_TO_HALT, voteToHalt2);
+            memory.add(VOTE_TO_HALT,
+                    BatchWorkerExecutor.execute(new BatchSingleMessenger<>(messenger, activeTraversers), this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));
         }
-        // save space by not having an empty halted traversers property
-//        if (this.returnHaltedTraversers || haltedTraversers.isEmpty())
-//            vertex.<TraverserSet>property(HALTED_TRAVERSERS).remove();
     }
 
     @Override

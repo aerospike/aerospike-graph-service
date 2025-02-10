@@ -5,7 +5,6 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

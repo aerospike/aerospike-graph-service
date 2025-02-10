@@ -53,25 +53,6 @@ public class DistributedExecutor {
                                 final DistributedConfigHelper configHelper,
                                 final Configuration vertexProgramConfig,
                                 final StructType schema) {
-        //System.out.println("Size of input : " + getObjectSize(input));
-        //System.out.println("Size of memory : " + getObjectSize(memory));
-        //System.out.println("Size of configHelper : " + getObjectSize(configHelper));
-        //System.out.println("Size of vertexProgramConfig : " + getObjectSize(vertexProgramConfig));
-        //System.out.println("Size of schema : " + getObjectSize(schema));
-//
-        //try {
-        //    TraverserSet haltedTraversers = memory.get(HALTED_TRAVERSERS);
-        //    System.out.println("Size of haltedTraversers : " + getObjectSize(haltedTraversers));
-        //} catch (Exception e) {
-        //    // No data in memory.
-        //}
-        //try {
-        //    TraverserSet activeTraversers = memory.get(ACTIVE_TRAVERSERS);
-        //    System.out.println("Size of activeTraversers : " + getObjectSize(activeTraversers));
-        //} catch (Exception e) {
-        //    // No data in memory.
-        //}
-
         System.out.println("Starting with " + input.rdd().partitions().length + " partitions.");
         return input.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             logDebuggingMessage("starting with " + (iterator.hasNext() ? "non-empty" : "empty") + " partition.");
@@ -83,7 +64,6 @@ public class DistributedExecutor {
                 final PureTraversal<?, ?> pureTraversal = ((BatchTraversalVertexProgram) vertexProgram).getTraversal().clone();
                 pureTraversal.get().applyStrategies();
                 final Traversal traversal = pureTraversal.get();
-                //System.out.println("Size of traversal : " + getObjectSize(traversal));
                 final Codec codec = new Codec(traversal);
                 final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.asAdmin());
                 final List<Row> output = new ArrayList<>();
@@ -112,13 +92,10 @@ public class DistributedExecutor {
                     traverserSet.add(codec.decode(r, traverserGenerator, traversalMatrix).asAdmin());
                 }
 
-                logDebuggingMessage("Input TraverserSet: " + traverserSet);
+                logDebuggingMessage("Input TraverserSet size: " + traverserSet.size());
                 if (!traverserSet.isEmpty()) {
                     logDebuggingMessage("Step: " + new ArrayList<>(traverserSet).get(0).getStepId());
                 }
-                //System.out.println("Size of traverserSet : " + getObjectSize(traverserSet));
-                //System.out.println("Size of memory inside : " + getObjectSize(memory));
-                //System.out.println("Size of vertexProgramConfig insize : " + getObjectSize(vertexProgramConfig));
                 workerVertexProgram.execute(
                         traverserSet,
                         messenger,
@@ -132,10 +109,6 @@ public class DistributedExecutor {
 
                 // TODO: Is this correct for all cases ?
                 final TraverserSet<Traverser.Admin<?>> traversers = messageBoard.getActiveTraversers();
-                logDebuggingMessage("Output traverserSet size : " + traversers.size());
-                if (traversers.size() > 0) {
-                    logDebuggingMessage("Step: " + traversers.stream().collect(Collectors.toList()).get(0).getStepId());
-                }
                 traversers.forEach(t -> output.add(codec.encode(t)));
 
                 // Return results.
@@ -147,17 +120,5 @@ public class DistributedExecutor {
                 throw e;
             }
         }, RowEncoder.apply(schema));
-    }
-
-    public static long getObjectSize(Object obj) {
-        try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(baos);
-            oos.writeObject(obj);
-            oos.close();
-            return baos.size();
-        } catch (Exception e) {
-            return -1;
-        }
     }
 }

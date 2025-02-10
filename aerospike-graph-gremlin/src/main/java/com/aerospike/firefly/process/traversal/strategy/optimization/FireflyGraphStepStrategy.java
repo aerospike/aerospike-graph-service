@@ -32,10 +32,6 @@ public class FireflyGraphStepStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
-        // FireflyGraphStepStrategy is never disabled, no flag to set disabled.
-//        if (ComputerHelper.onGraphComputer(traversal))
-//            return;
-
         final boolean propertyRemovalValid = isPropertyRemovalValid(traversal);
 
         for (final GraphStep originalGraphStep : TraversalHelper.getStepsOfClass(GraphStep.class, traversal)) {

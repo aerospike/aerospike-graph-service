@@ -3,7 +3,6 @@ package com.aerospike.firefly.structure;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
-import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -35,7 +34,6 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -44,7 +42,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
@@ -125,14 +122,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         }
 
         return FireflyCloseableIteratorUtils.asIterator(vertexPropertyList);
-    }
-
-    public Map<String, String> getRawVertexStringPropertyValues() {
-        final Map<String, String> rawVertexStringPropertyValues = new HashMap<>();
-        for (final Map.Entry<String, Object> vertexProperty : vertexPropertyValues.entrySet()) {
-            rawVertexStringPropertyValues.put(vertexProperty.getKey(), vertexProperty.getValue().toString());
-        }
-        return rawVertexStringPropertyValues;
     }
 
     /**
@@ -452,37 +441,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             }
         }
         return cachedIds;
-    }
-
-    // OLAP only.
-    public Map<String, List<byte[]>> getCachedIdMap(final Direction direction) {
-        final Map<String, List<byte[]>> cachedIds = new HashMap<>();
-        if (direction == Direction.OUT) {
-            for (final String key : outEdgeIds.keySet()) {
-                cachedIds.putIfAbsent(key, new ArrayList<>());
-                for (final LazyIdTransform id : outEdgeIds.get(key)) {
-                    cachedIds.get(key).add((byte[])id.transform().getCachedId());
-                }
-            }
-        } else if (direction == Direction.IN) {
-            for (final String key : inEdgeIds.keySet()) {
-                cachedIds.putIfAbsent(key, new ArrayList<>());
-                for (final LazyIdTransform id : inEdgeIds.get(key)) {
-                    cachedIds.get(key).add((byte[])id.transform().getCachedId());
-                }
-            }
-        } else {
-            // Should never happen. They'd overwrite each other.
-            // TODO: Better exception.
-            throw new RuntimeException("Cannot call this with Direction.BOTH");
-        }
-        return cachedIds;
-    }
-
-    private static List<Byte> toSeq(byte[] byteArray) {
-        return IntStream.range(0, byteArray.length)
-                .mapToObj(i -> byteArray[i])
-                .collect(Collectors.toList());
     }
 
     /**

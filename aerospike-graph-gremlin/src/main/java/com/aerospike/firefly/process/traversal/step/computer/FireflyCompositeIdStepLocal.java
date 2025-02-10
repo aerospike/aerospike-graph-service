@@ -75,12 +75,10 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements S
     @Override
     public void addStart(final Traverser.Admin<Vertex> start) {
         super.addStart(start);
-        System.out.println("FireflyCompositeIdStepLocal.addStart: " + start);
         inputCache.add(start);
     }
 
     private void precompute() {
-        System.out.println("FireflyCompositeIdStepLocal.precompute");
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
 
         // Info is used to keep track of how many output items we assign for each input (executed in order).
@@ -115,7 +113,6 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements S
             }
         }
 
-        System.out.println("  reading: " + fireflyIdList);
         // Drain data to output.
         FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
                 fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache, graph::readVertices, requiredProperties);
@@ -123,7 +120,6 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements S
 
     @Override
     protected Iterator<Vertex> flatMap(final Traverser.Admin<Vertex> traverser) {
-        System.out.println("FireflyCompositeIdStepLocal.flatMap: " + traverser);
 
         if (!traversal.isRoot()) {
             inputCache.add(traverser);
@@ -145,7 +141,6 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements S
             }
         });
 
-        System.out.println("  output: " + output);
         return FireflyCloseableIteratorUtils.filter(output.iterator(), v -> HasContainer.testAll(v, fireflyHasContainers));
     }
 }

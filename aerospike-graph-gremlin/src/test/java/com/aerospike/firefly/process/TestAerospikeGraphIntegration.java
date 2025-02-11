@@ -138,28 +138,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     }
 
     @Test
-    public void olap() throws InterruptedException {
-        Graph tg = TinkerFactory.createModern();
-
-        GraphHelper.cloneElements(tg, graph);
-
-        Computer computer = Computer.compute(LocalGraphComputer.class).workers(2);
-
-        List c0 = g.withComputer(computer)
-                .V(1, 2)
-                .out()
-                .toList();
-        System.out.println(c0);
-    }
-
-    @Test
-    public void req() {
-        var t = g.V(1,2).out().path();
-        t.asAdmin().applyStrategies();
-        System.out.println(t.asAdmin().getTraverserRequirements());
-    }
-
-    @Test
     public void g_V_out_out_path_byXnameX_byXageX() {
         Graph tg = TinkerFactory.createModern();
 

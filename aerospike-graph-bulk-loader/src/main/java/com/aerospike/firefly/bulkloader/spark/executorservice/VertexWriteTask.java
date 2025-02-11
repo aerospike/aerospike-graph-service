@@ -25,13 +25,16 @@ public class VertexWriteTask {
     final boolean edgeCacheEnabled;
     final SparkFireflyVertex sparkVertex;
     final FireflyId fireflyId;
+    final int partitionId;
+
     public VertexWriteTask(
-            ExponentialBackoffRetry retry,
+            final ExponentialBackoffRetry retry,
             final String nullValue,
             final FireflyGraph graph,
             final GenericRowWithSchema fireflyRow,
             final GenericRowWithSchema metadataRow,
-            final Set<Object> supernodes) {
+            final Set<Object> supernodes,
+            final int partitionId) {
         this.retry = retry;
         this.nullValue = nullValue;
         this.graph = graph;
@@ -41,11 +44,12 @@ public class VertexWriteTask {
         this.edgeCacheEnabled = this.graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG;
         sparkVertex = SparkFireflyVertex.createVertex(this.fireflyRow, this.nullValue);
         fireflyId = sparkVertex.getFireflyId(this.graph.getBaseGraph());
+        this.partitionId = partitionId;
     }
 
     public CompletionStage<Void> writeIncremental(final ScheduledExecutorService service) {
         final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
-            graph.bulkWriteMergeVertex(sparkVertex.getId(), sparkVertex.getLabel(), sparkVertex.getProperties());
+            graph.bulkWriteMergeVertex(sparkVertex.getId(), sparkVertex.getLabel(), sparkVertex.getProperties(), partitionId);
             return null;
         }, service);
         return retry.withRetries(supplier, service).exceptionally(e -> {
@@ -58,7 +62,7 @@ public class VertexWriteTask {
     public CompletionStage<Void> write(final ScheduledExecutorService service) {
         final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
             this.graph.bulkWriteVertex(fireflyId, sparkVertex.getLabel(),
-                    sparkVertex.getProperties(), isSupernode());
+                    sparkVertex.getProperties(), isSupernode(), partitionId);
             return null;
         }, service);
         return retry.withRetries(supplier, service).exceptionally(e -> {

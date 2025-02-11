@@ -186,8 +186,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     // docs changes, config updates, etc, and isn't worth it right now.
     public static final String PRODUCT_NAME = "Aerospike Graph";
     private static final Logger LOG = LoggerFactory.getLogger(PRODUCT_NAME);
-
     public static String FIREFLY_VERSION = "2.5.0-SNAPSHOT";
+
+    // Doesn't use hidden key token ~ due to internal Tinkerpop MergeStep validation
+    public static final String BULK_LOAD_VERTEX_ADD_KEY = "___bulkLoadMergeVIdentifier";
+
     public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final Timer fireflyIndexMetadataTask = new Timer(true);
@@ -516,7 +519,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return operations.writeVertex(idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
     }
 
-    public void bulkWriteMergeVertex(final Object id, final String label, final List<Map.Entry<String, Object>> properties) {
+    public void bulkWriteMergeVertex(final Object id, final String label, final List<Map.Entry<String, Object>> properties, final int partitionId) {
         int tryCount = 0;
         while (true) {
             try {
@@ -526,6 +529,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 properties.forEach(entry -> propertiesCreate.put(entry.getKey(), entry.getValue()));
                 propertiesCreate.put(T.id, id);
                 propertiesCreate.put(T.label, label);
+                propertiesCreate.put(BULK_LOAD_VERTEX_ADD_KEY, partitionId);
                 propertiesMatch.remove(T.id);
                 propertiesMatch.remove(T.label);
                 traversal().mergeV(CollectionUtil.asMap(T.id, id))
@@ -553,11 +557,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public void bulkWriteVertex(final FireflyId idValue,
                                 final String label,
                                 final List<Map.Entry<String, Object>> properties,
-                                final boolean supernode) {
+                                final boolean supernode,
+                                final int partitionId) {
         try {
             // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
             // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
-            operations.writeVertex(idValue, label, properties, getTypeHint(), false, supernode);
+            operations.writeVertex(idValue, label, properties, getTypeHint(), false, supernode, partitionId);
         } catch (final AerospikeGraphException e) {
             throw new FireflyLoadingException(e);
         }
@@ -704,7 +709,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public void bulkWriteEdge(final byte[] edgeId, final String label, final List<Map.Entry<String, Object>> properties,
                               final Object inVertexId, final Object outVertexId, final boolean inVSupernode,
-                              final boolean outVSupernode) {
+                              final boolean outVSupernode, final int partitionId) {
         FireflyGraph.LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertexId, label, inVertexId, properties);
         final FireflyId id = getIdFactory().createEdgeId(edgeId);
         final FireflyId inId = getIdFactory().createVertexId(inVertexId);
@@ -773,7 +778,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } catch (final AerospikeGraphException e) {
             throw new FireflyLoadingException(e);
         }
-        fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
+        fireflySummaryUpdater.stageEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()), partitionId);
     }
 
     /**

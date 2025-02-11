@@ -7,6 +7,7 @@ import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.util.exceptions.GraphError;
+import com.aerospike.firefly.util.exceptions.TtlArgumentException;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -15,8 +16,6 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -166,13 +165,14 @@ public class FireflyEdge extends FireflyElement implements Edge {
             if (!db.TTL_ENABLED_FLAG) {
                 throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
             }
+            if (value == null) {
+                return Property.empty();
+            }
             if (Number.class.isAssignableFrom(value.getClass())) {
                 graph.operations.setEdgeTTL(this, ((Number) value).longValue());
                 return Property.empty();
             } else {
-                throw new IllegalArgumentException(
-                        String.format("Property value [%s] for key %s is of type %s and must be numeric", value, key,
-                                value.getClass()));
+                throw new TtlArgumentException(value);
             }
         }
 

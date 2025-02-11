@@ -1,6 +1,5 @@
 package com.aerospike.firefly.runtime.tasks;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
@@ -14,13 +13,17 @@ import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
 import com.aerospike.client.cdt.MapWriteFlags;
+import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -80,6 +83,8 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     public Map<String, Set<String>> vertexProperties = new ConcurrentHashMap<>();
     public Map<String, AtomicLong> edgeCounts = new ConcurrentHashMap<>();
     public Map<String, AtomicLong> vertexCounts = new ConcurrentHashMap<>();
+    public Map<Integer, Map<String, AtomicLong>> vertexPartitionCounts = new ConcurrentHashMap<>();
+    public Map<Integer, Map<String, AtomicLong>> edgePartitionCounts = new ConcurrentHashMap<>();
 
     private final Key V_SUMMARY_KEY;
     private final Key E_SUMMARY_KEY;
@@ -125,6 +130,12 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                     SHUTDOWN.set(false);
                     EXECUTOR_SERVICE.submit(getUpdateRunnable());
                 }
+                final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(db, db.SUMMARY_SET);
+                for (final String index : setIndex) {
+                    if (!"ok".equals(index)) {
+                        LOG.error("Error creating set index: {}", index);
+                    }
+                }
             }
         }
     }
@@ -139,14 +150,16 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             edgeProperties.clear();
             vertexCounts.clear();
             edgeCounts.clear();
+            vertexPartitionCounts.clear();
+            edgePartitionCounts.clear();
             TRUNCATION.set(false);
         }
     }
 
     /**
-     * Update the number of vertices or edges that exist under the provided label in the summary record.
+     * Update the number of vertices that exist under the provided label in the summary record.
      *
-     * @param label      The label of the vertex or edge to update.
+     * @param label      The label of the vertex to update.
      * @param properties The properties of the vertex to update.
      */
     public void addVertexWriteToQueue(final String label, final Set<String> properties) {
@@ -162,9 +175,28 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     /**
-     * Update the number of vertices or edges that exist under the provided label in the summary record.
+     * Stage an update to the number of vertices that exist under the provided label in the summary record.
      *
-     * @param label      The label of the vertex or edge to update.
+     * @param label      The label of the vertex to update.
+     * @param properties The properties of the vertex to update.
+     */
+    public void stageVertexWriteToQueue(final String label, final Set<String> properties, final int partitionId) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
+            return;
+        }
+
+        vertexPartitionCounts.computeIfAbsent(partitionId, k -> new ConcurrentHashMap<>());
+        vertexPartitionCounts.get(partitionId).computeIfAbsent(label, k -> new AtomicLong(0));
+        vertexPartitionCounts.get(partitionId).get(label).addAndGet(1);
+        vertexProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
+        vertexProperties.get(label).addAll(properties);
+        COUNTDOWN_LATCH.countDown();
+    }
+
+    /**
+     * Update the number of vertices that exist under the provided label in the summary record.
+     *
+     * @param label The label of the vertex to remove.
      */
     public void addVertexRemoveToQueue(final String label) {
         if (!db.SUMMARY_ENABLED_FLAG) {
@@ -177,9 +209,9 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     /**
-     * Update the number of vertices or edges that exist under the provided label in the summary record.
+     * Update the number of edges that exist under the provided label in the summary record.
      *
-     * @param label      The label of the vertex or edge to update.
+     * @param label      The label of the edge to update.
      * @param properties The properties of the edge to update.
      */
     public void addEdgeWriteToQueue(final String label, final Set<String> properties) {
@@ -192,6 +224,110 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         edgeProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
         edgeProperties.get(label).addAll(properties);
         COUNTDOWN_LATCH.countDown();
+    }
+
+    /**
+     * Stage an update the number of edges that exist under the provided label in the summary record.
+     *
+     * @param label      The label of the edge to update.
+     * @param properties The properties of the edge to update.
+     */
+    public void stageEdgeWriteToQueue(final String label, final Set<String> properties, final int partitionId) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
+            return;
+        }
+
+        edgePartitionCounts.computeIfAbsent(partitionId, k -> new ConcurrentHashMap<>());
+        edgePartitionCounts.get(partitionId).computeIfAbsent(label, k -> new AtomicLong(0));
+        edgePartitionCounts.get(partitionId).get(label).addAndGet(1);
+        edgeProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
+        edgeProperties.get(label).addAll(properties);
+        COUNTDOWN_LATCH.countDown();
+    }
+
+    public void startVertexPartition(final int partitionId) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
+            return;
+        }
+
+        // Need to kill what is in Aerospike because this is from a failed partition if it exists.
+        final Key vertexPartitionKey = getVertexPartitionKey(partitionId);
+        db.delete(vertexPartitionKey, null);
+    }
+
+    public void completeVertexPartition(final int partitionId) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
+            return;
+        }
+
+        // Need to get what is in Aerospike for this partition and move it to the main dataset.
+        final Key vertexPartitionKey = getVertexPartitionKey(partitionId);
+        final Map<String, Long> labelToCount = getPartitionCounts(vertexPartitionKey);
+        if (vertexPartitionCounts.containsKey(partitionId)) {
+            for (final String label : vertexPartitionCounts.get(partitionId).keySet()) {
+                vertexCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+                vertexCounts.get(label).addAndGet(vertexPartitionCounts.get(partitionId).get(label).get());
+            }
+        }
+        for (final String label : labelToCount.keySet()) {
+            vertexCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+            vertexCounts.get(label).addAndGet(labelToCount.get(label));
+        }
+        db.delete(vertexPartitionKey, null);
+        while (COUNTDOWN_LATCH.getCount() > 0) {
+            COUNTDOWN_LATCH.countDown();
+        }
+    }
+
+    public void startEdgePartition(final int partitionId) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
+            return;
+        }
+        // Need to kill what is in Aerospike because this is from a failed partition if it exists.
+        final Key edgePartitionKey = getEdgePartitionKey(partitionId);
+        db.delete(edgePartitionKey, null);
+    }
+
+    public void completeEdgePartition(final int partitionId) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
+            return;
+        }
+
+        // Need to get what is in Aerospike for this partition and move it to the main dataset.
+        final Key edgePartitionKey = getEdgePartitionKey(partitionId);
+        final Map<String, Long> labelToCount = getPartitionCounts(edgePartitionKey);
+        if (edgePartitionCounts.containsKey(partitionId)) {
+            for (final String label : edgePartitionCounts.get(partitionId).keySet()) {
+                edgeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+                edgeCounts.get(label).addAndGet(edgePartitionCounts.get(partitionId).get(label).get());
+            }
+        }
+        for (final String label : labelToCount.keySet()) {
+            edgeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+            edgeCounts.get(label).addAndGet(labelToCount.get(label));
+        }
+        db.delete(edgePartitionKey, null);
+        while (COUNTDOWN_LATCH.getCount() > 0) {
+            COUNTDOWN_LATCH.countDown();
+        }
+    }
+
+    private Key getEdgePartitionKey(final int partitionId) {
+        return new Key(db.getNamespace(), db.SUMMARY_SET, EP_PROPERTY_PREFIX + "PART_" + partitionId);
+    }
+
+    private Key getVertexPartitionKey(final int partitionId) {
+        return new Key(db.getNamespace(), db.SUMMARY_SET, VP_PROPERTY_PREFIX + "PART_" + partitionId);
+    }
+
+    private Map<String, Long> getPartitionCounts(final Key key) {
+        final Record record = db.read(key, null);
+
+        if (record != null && record.bins.containsKey(SUMMARY_LABEL_BIN)) {
+            return (Map<String, Long>) record.bins.get(SUMMARY_LABEL_BIN);
+        } else {
+            return new HashMap<>();
+        }
     }
 
     /**
@@ -274,6 +410,160 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             Thread.currentThread().interrupt();
             LOG.warn("Interrupted while waiting for summary updater to exit.");
         }
+
+        if (!vertexCounts.isEmpty() || !edgeCounts.isEmpty())
+            doWrite();
+    }
+
+    /**
+     * Write summary updater information to Aerospike Database.
+     *
+     * @return if the summary updating process should continue.
+     */
+    private boolean doWrite() {
+        try {
+            synchronized (FireflyGraphSummaryUpdater.class) {
+                // Take the data from update info into a map.
+                final Map<String, LabelCountInfo> vertexUpdates = new HashMap<>();
+                final Map<String, LabelCountInfo> edgeUpdates = new HashMap<>();
+
+                // At this point we are about to take all the data out of the maps and put them into a new map.
+                // We did not synchronize this, but we don't care about exacts, only roughly how much is coming in,
+                // so now is an appropriate time to reset the latch.
+                COUNTDOWN_LATCH = new CountDownLatch(HIGH_WATERMARK);
+
+                final Map<String, AtomicLong> vertexCountsToUse = vertexCounts;
+                final Map<String, Set<String>> vertexPropertiesToUse = vertexProperties;
+                if (vertexCounts.keySet().size() > MAP_RECYCLE_SIZE ||
+                        vertexProperties.keySet().size() > MAP_RECYCLE_SIZE) {
+                    // Ideally we don't want to have to do this, but we don't want the map to grow infinitely in the case
+                    // that firefly never gets shut down and the customer for some odd reason keeps using new labels.
+                    vertexCounts = new ConcurrentHashMap<>();
+                    vertexProperties = new ConcurrentHashMap<>();
+                }
+
+                final Set<String> vertexKeys = new HashSet<>(vertexCountsToUse.keySet());
+                vertexKeys.addAll(vertexPropertiesToUse.keySet());
+                for (final String key : vertexKeys) {
+                    vertexCountsToUse.computeIfAbsent(key, k -> new AtomicLong(0));
+                    final long count = vertexCountsToUse.get(key).getAndSet(0);
+                    final Set<String> properties = vertexPropertiesToUse.getOrDefault(key, Collections.emptySet());
+                    vertexUpdates.put(key, new LabelCountInfo(key, count, properties));
+                }
+
+                final Map<String, AtomicLong> edgeCountsToUse = edgeCounts;
+                final Map<String, Set<String>> edgePropertiesToUse = edgeProperties;
+                if (edgeCounts.keySet().size() > MAP_RECYCLE_SIZE ||
+                        edgeProperties.keySet().size() > MAP_RECYCLE_SIZE) {
+                    // Ideally we don't want to have to do this, but we don't want the map to grow infinitely in the case
+                    // that firefly never gets shut down and the customer for some odd reason keeps using new labels.
+                    edgeCounts = new ConcurrentHashMap<>();
+                    edgeProperties = new ConcurrentHashMap<>();
+                }
+
+                final Set<String> edgeKeys = new HashSet<>(edgeCountsToUse.keySet());
+                edgeKeys.addAll(edgePropertiesToUse.keySet());
+                for (final String key : edgeKeys) {
+                    edgeCountsToUse.computeIfAbsent(key, k -> new AtomicLong(0));
+                    final long count = edgeCountsToUse.get(key).getAndSet(0);
+                    final Set<String> properties = edgePropertiesToUse.getOrDefault(key, Collections.emptySet());
+                    edgeUpdates.put(key, new LabelCountInfo(key, count, properties));
+                }
+
+                // Perform the write operations. If these fail put their data back into the map.
+                // Could do something fancy like exponential backoff here, but this runs two risks:
+                //   1. If the failed data is not quickly placed back in queue and given an opportunity to come back
+                //      around with more data aggregated together, there is a risk of queue overflow in high write
+                //      volume.
+                //   2. If a poison pill was injected and Firefly is waiting to exit, the exponential backoff could
+                //      cause this to take a long time.
+                boolean failed = false;
+                if (didFunctionFail(() -> writeLabelCountOperations(new HashSet<>(vertexUpdates.values()), V_SUMMARY_KEY))) {
+                    failed = true;
+                    for (final LabelCountInfo labelCountInfo : vertexUpdates.values()) {
+                        vertexCounts.putIfAbsent(labelCountInfo.label, new AtomicLong(0));
+                        vertexCounts.get(labelCountInfo.label).addAndGet(labelCountInfo.count);
+                    }
+                }
+
+                if (didFunctionFail(() -> writeLabelCountOperations(new HashSet<>(edgeUpdates.values()), E_SUMMARY_KEY))) {
+                    failed = true;
+                    for (final LabelCountInfo labelCountInfo : edgeUpdates.values()) {
+                        edgeCounts.putIfAbsent(labelCountInfo.label, new AtomicLong(0));
+                        edgeCounts.get(labelCountInfo.label).addAndGet(labelCountInfo.count);
+                    }
+                }
+
+                if (didFunctionFail(() -> writeLabelPropertiesOperations(new HashSet<>(vertexUpdates.values()), vertexLabelToProperties, VP_SUMMARY_KEY))) {
+                    failed = true;
+                    // We don't need to re-insert these because they weren't removed.
+                }
+
+                if (didFunctionFail(() -> writeLabelPropertiesOperations(new HashSet<>(edgeUpdates.values()), edgeLabelToProperties, EP_SUMMARY_KEY))) {
+                    failed = true;
+                    // We don't need to re-insert these because they weren't removed.
+                }
+
+                for (final Integer partition : vertexPartitionCounts.keySet()) {
+                    final Map<String, LabelCountInfo> partitionVertexUpdates = new HashMap<>();
+                    final Map<String, AtomicLong> partitionVertexCounts = vertexPartitionCounts.getOrDefault(partition, new ConcurrentHashMap<>());
+                    for (final String key : partitionVertexCounts.keySet()) {
+                        final long count = partitionVertexCounts.get(key).getAndSet(0);
+                        partitionVertexUpdates.put(key, new LabelCountInfo(key, count, new HashSet<>()));
+                    }
+
+                    if (didFunctionFail(() -> writeLabelCountOperations(new HashSet<>(partitionVertexUpdates.values()), getVertexPartitionKey(partition)))) {
+                        failed = true;
+                        for (final LabelCountInfo labelCountInfo : partitionVertexUpdates.values()) {
+                            vertexPartitionCounts.putIfAbsent(partition, new ConcurrentHashMap<>());
+                            vertexPartitionCounts.get(partition).putIfAbsent(labelCountInfo.label, new AtomicLong(0));
+                            vertexPartitionCounts.get(partition).get(labelCountInfo.label).addAndGet(labelCountInfo.count);
+                        }
+                    }
+                }
+
+                for (final Integer partition : edgePartitionCounts.keySet()) {
+                    final Map<String, LabelCountInfo> partitionEdgeUpdates = new HashMap<>();
+                    final Map<String, AtomicLong> partitionEdgeCounts = edgePartitionCounts.getOrDefault(partition, new ConcurrentHashMap<>());
+                    for (final String key : partitionEdgeCounts.keySet()) {
+                        final long count = partitionEdgeCounts.get(key).getAndSet(0);
+                        partitionEdgeUpdates.put(key, new LabelCountInfo(key, count, new HashSet<>()));
+                    }
+
+                    if (didFunctionFail(() -> writeLabelCountOperations(new HashSet<>(partitionEdgeUpdates.values()), getEdgePartitionKey(partition)))) {
+                        failed = true;
+                        for (final LabelCountInfo labelCountInfo : partitionEdgeUpdates.values()) {
+                            edgePartitionCounts.putIfAbsent(partition, new ConcurrentHashMap<>());
+                            edgePartitionCounts.get(partition).putIfAbsent(labelCountInfo.label, new AtomicLong(0));
+                            edgePartitionCounts.get(partition).get(labelCountInfo.label).addAndGet(labelCountInfo.count);
+                        }
+                    }
+                }
+
+                // If shutdown signal have been asserted, exit the loop.
+                //
+                // We also check that the countdown has not been moved. Now this isn't a perfect system since we
+                // actually re-assign the CountDownLatch before we empty the maps, so we can't say for sure we need
+                // to loop again, but if the countdown is equal to the HIGH_WATERMARK, we can say for sure that we
+                // don't need to loop again, therefore if we come around again we will exit properly.
+                //
+                // We add an or failed check because if Aerospike is seemingly not responding and firefly has been
+                // signaled to shut down, we should just exit.
+                if (SHUTDOWN.get() && (COUNTDOWN_LATCH.getCount() == HIGH_WATERMARK || failed)) {
+                    // This is worst case scenario for timing of a shutdown signal and not having written data. Since the
+                    // write failed, Aerospike could be down. Either way the loop needs to exit.
+                    if (failed) {
+                        LOG.warn("Failed to write all metadata to the summary vertex before taking poison pill. This may cause metadata skew.");
+                    }
+
+                    return false;
+                }
+            }
+        } catch (final Exception e) {
+            // A completely unexpected exception occurred here - keep the summary updater runner alive and return true.
+            LOG.error("Error writing metadata to Aerospike.", e);
+        }
+        return true;
     }
 
     public static class FireflyElementMetadata {
@@ -367,40 +657,101 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
     public static class FireflyPropertiesAndCount {
         public final Set<String> properties;
-        public final long count;
+        public long count;
 
         public FireflyPropertiesAndCount(final Set<String> properties, final long count) {
             this.properties = properties;
             this.count = count;
         }
+
+        private void increment(final long count) {
+            this.count += count;
+        }
+    }
+
+    private List<KeyRecord> getPartitionRecords(final String set) {
+        final List<KeyRecord> keyRecords = new ArrayList<>();
+        final ScanPolicy scanPolicy = new ScanPolicy();
+        scanPolicy.sendKey = true;
+        db.scanAll(scanPolicy, set, (key, record) -> {
+            // If the previous metadata was written without sendKey == true, this won't be populated.
+            if (key.userKey == null) {
+                return;
+            }
+
+            // If not a partition piece, skip.
+            if (!key.userKey.toString().startsWith(VP_PROPERTY_PREFIX + "PART_") &&
+                    !key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_")) {
+                return;
+            }
+
+            keyRecords.add(new KeyRecord(key, record));
+        });
+        return keyRecords;
+    }
+
+    private Map<String, Long> getEdgePartitionCounts(final List<KeyRecord> recordList) {
+        final Map<String, Long> edgePartitionCounts = new HashMap<>();
+        for (final KeyRecord keyRecord : recordList) {
+            if (keyRecord.key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_")) {
+                if (keyRecord.record.bins.keySet().contains(SUMMARY_LABEL_BIN)) {
+                    final Map<String, Long> edgeLabelCountMapkeyRecord = (Map) keyRecord.record.getMap(SUMMARY_LABEL_BIN);
+                    for (final String label : edgeLabelCountMapkeyRecord.keySet()) {
+                        edgePartitionCounts.putIfAbsent(label, 0L);
+                        edgePartitionCounts.put(label, edgePartitionCounts.get(label) + edgeLabelCountMapkeyRecord.get(label));
+                    }
+                }
+            }
+        }
+        return edgePartitionCounts;
+    }
+
+    private Map<String, Long> getVertexPartitionCounts(final List<KeyRecord> recordList) {
+        final Map<String, Long> vertexPartitionCounts = new HashMap<>();
+        for (final KeyRecord keyRecord : recordList) {
+            if (keyRecord.key.userKey.toString().startsWith(VP_PROPERTY_PREFIX + "PART_")) {
+                if (keyRecord.record.bins.keySet().contains(SUMMARY_LABEL_BIN)) {
+                    final Map<String, Long> vertexLabelCountMap = (Map) keyRecord.record.getMap(SUMMARY_LABEL_BIN);
+                    for (final String label : vertexLabelCountMap.keySet()) {
+                        vertexPartitionCounts.putIfAbsent(label, 0L);
+                        vertexPartitionCounts.put(label, vertexPartitionCounts.get(label) + vertexLabelCountMap.get(label));
+                    }
+                }
+            }
+        }
+        return vertexPartitionCounts;
     }
 
     public FireflyElementMetadata getFireflyStatistics() {
+        return getFireflyStatistics(false);
+    }
+
+    public FireflyElementMetadata getFireflyStatistics(final boolean isBulkLoaderRunning) {
         // Grab vertex metadata.
         final Record vertexLabelSummaryRecord = db.read(V_SUMMARY_KEY, null);
         final Record vertexPropertySummaryRecord = db.read(VP_SUMMARY_KEY, null);
         final Map<String, FireflyPropertiesAndCount> vertexMetadata = new HashMap<>();
-        if (vertexLabelSummaryRecord != null && vertexLabelSummaryRecord.bins.containsKey(SUMMARY_LABEL_BIN)) {
-            final Map<String, Long> vertexCountByLabel = (Map<String, Long>) vertexLabelSummaryRecord.bins.get(SUMMARY_LABEL_BIN);
-            final Map<String, List<String>> vertexPropertiesByLabel;
+        if ((vertexLabelSummaryRecord != null && vertexLabelSummaryRecord.bins.containsKey(SUMMARY_LABEL_BIN)) ||
+                (vertexPropertySummaryRecord != null && vertexPropertySummaryRecord.bins.containsKey(SUMMARY_PROPERTY_BIN))) {
+            Map<String, Long> vertexCountByLabel = new HashMap<>();
+            if (vertexLabelSummaryRecord != null && vertexLabelSummaryRecord.bins.containsKey(SUMMARY_LABEL_BIN)) {
+                vertexCountByLabel = (Map<String, Long>) vertexLabelSummaryRecord.bins.get(SUMMARY_LABEL_BIN);
+            }
+            Map<String, List<String>> vertexPropertiesByLabel = new HashMap<>();
             if (vertexPropertySummaryRecord != null && vertexPropertySummaryRecord.bins.containsKey(SUMMARY_PROPERTY_BIN)) {
                 vertexPropertiesByLabel = (Map<String, List<String>>) vertexPropertySummaryRecord.bins.get(SUMMARY_PROPERTY_BIN);
-            } else {
-                vertexPropertiesByLabel = new HashMap<>();
             }
-            for (final String vertexLabel : vertexCountByLabel.keySet()) {
-                if (vertexPropertiesByLabel != null) {
-                    if (vertexPropertiesByLabel.containsKey(vertexLabel)) {
-                        vertexMetadata.put(vertexLabel, new FireflyPropertiesAndCount(
-                                new HashSet<>(vertexPropertiesByLabel.get(vertexLabel)), vertexCountByLabel.get(vertexLabel)));
-                    } else {
-                        vertexMetadata.put(vertexLabel, new FireflyPropertiesAndCount(
-                                Set.of(), vertexCountByLabel.get(vertexLabel)));
-                    }
-                } else {
-                    vertexMetadata.put(vertexLabel, new FireflyPropertiesAndCount(
-                            Set.of(), vertexCountByLabel.get(vertexLabel)));
-                }
+            final Set<String> vertexKeys = new HashSet<>();
+            vertexKeys.addAll(vertexCountByLabel.keySet());
+            vertexKeys.addAll(vertexPropertiesByLabel.keySet());
+            for (final String vertexLabel : vertexKeys) {
+                final long count = vertexCountByLabel.getOrDefault(vertexLabel, 0L);
+                final Set<String> properties = new HashSet<>(vertexPropertiesByLabel.getOrDefault(vertexLabel, new ArrayList<>()));
+                vertexMetadata.put(vertexLabel, new FireflyPropertiesAndCount(properties, count));
+            }
+            for (final String label : vertexPropertiesByLabel.keySet()) {
+                vertexLabelToProperties.putIfAbsent(label, new HashSet<>());
+                vertexLabelToProperties.get(label).addAll(vertexPropertiesByLabel.get(label));
             }
         }
 
@@ -408,27 +759,36 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         final Record edgeLabelSummaryRecord = db.read(E_SUMMARY_KEY, null);
         final Record edgePropertySummaryRecord = db.read(EP_SUMMARY_KEY, null);
         final Map<String, FireflyPropertiesAndCount> edgeMetadata = new HashMap<>();
-        if (edgeLabelSummaryRecord != null && edgeLabelSummaryRecord.bins.containsKey(SUMMARY_LABEL_BIN)) {
-            final Map<String, Long> edgeCountByLabel = (Map<String, Long>) edgeLabelSummaryRecord.bins.get(SUMMARY_LABEL_BIN);
-            final Map<String, List<String>> edgePropertiesByLabel;
-            if (edgePropertySummaryRecord != null && edgePropertySummaryRecord.bins.containsKey(SUMMARY_PROPERTY_BIN)) {
-                edgePropertiesByLabel = (Map<String, List<String>>) edgePropertySummaryRecord.bins.get(SUMMARY_PROPERTY_BIN);
-            } else {
-                edgePropertiesByLabel = new HashMap<>();
+        if ((edgeLabelSummaryRecord != null && edgeLabelSummaryRecord.bins.containsKey(SUMMARY_LABEL_BIN)) ||
+                (edgePropertySummaryRecord != null && edgePropertySummaryRecord.bins.containsKey(SUMMARY_PROPERTY_BIN))) {
+            final Map<String, Long> edgeCountByLabel = edgeLabelSummaryRecord == null ? new HashMap<>() : (Map) edgeLabelSummaryRecord.bins.get(SUMMARY_LABEL_BIN);
+            final Map<String, List<String>> edgePropertiesByLabel = edgePropertySummaryRecord == null ? new HashMap<>() : (Map) edgePropertySummaryRecord.bins.get(SUMMARY_PROPERTY_BIN);
+            final Set<String> edgeLabels = new HashSet<>();
+            edgeLabels.addAll(edgeCountByLabel.keySet());
+            edgeLabels.addAll(edgePropertiesByLabel.keySet());
+            for (final String edgeLabel : edgeLabels) {
+                final long count = edgeCountByLabel.getOrDefault(edgeLabel, 0L);
+                final Set<String> properties = new HashSet<>(edgePropertiesByLabel.getOrDefault(edgeLabel, new ArrayList<>()));
+                edgeMetadata.put(edgeLabel, new FireflyPropertiesAndCount(properties, count));
             }
-            for (final String edgeLabel : edgeCountByLabel.keySet()) {
-                if (edgePropertiesByLabel != null) {
-                    if (edgePropertiesByLabel.containsKey(edgeLabel)) {
-                        edgeMetadata.put(edgeLabel, new FireflyPropertiesAndCount(
-                                new HashSet<>(edgePropertiesByLabel.get(edgeLabel)), edgeCountByLabel.get(edgeLabel)));
-                    } else {
-                        edgeMetadata.put(edgeLabel, new FireflyPropertiesAndCount(
-                                Set.of(), edgeCountByLabel.get(edgeLabel)));
-                    }
-                } else {
-                    edgeMetadata.put(edgeLabel, new FireflyPropertiesAndCount(
-                            Set.of(), edgeCountByLabel.get(edgeLabel)));
-                }
+            for (final String label : edgePropertiesByLabel.keySet()) {
+                edgeLabelToProperties.putIfAbsent(label, new HashSet<>());
+                edgeLabelToProperties.get(label).addAll(edgePropertiesByLabel.get(label));
+            }
+        }
+
+        // If bulk loader is running, get staged partition counts and insert.
+        if (isBulkLoaderRunning) {
+            final List<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+            final Map<String, Long> vertexPartitionCounts = getVertexPartitionCounts(partitionRecords);
+            final Map<String, Long> edgePartitionCounts = getEdgePartitionCounts(partitionRecords);
+            for (final String label : vertexPartitionCounts.keySet()) {
+                vertexMetadata.computeIfAbsent(label, k -> new FireflyPropertiesAndCount(Set.of(), 0));
+                vertexMetadata.get(label).increment(vertexPartitionCounts.get(label));
+            }
+            for (final String label : edgePartitionCounts.keySet()) {
+                edgeMetadata.computeIfAbsent(label, k -> new FireflyPropertiesAndCount(Set.of(), 0));
+                edgeMetadata.get(label).increment(edgePartitionCounts.get(label));
             }
         }
 
@@ -516,99 +876,8 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                     }
                     continue;
                 }
-
-                synchronized (FireflyGraphSummaryUpdater.class) {
-                    // Take the data from update info into a map.
-                    final Map<String, LabelCountInfo> vertexUpdates = new HashMap<>();
-                    final Map<String, LabelCountInfo> edgeUpdates = new HashMap<>();
-
-                    // At this point we are about to take all the data out of the maps and put them into a new map.
-                    // We did not synchronize this, but we don't care about exacts, only roughly how much is coming in,
-                    // so now is an appropriate time to reset the latch.
-                    COUNTDOWN_LATCH = new CountDownLatch(HIGH_WATERMARK);
-
-                    final Map<String, AtomicLong> vertexCountsToUse = vertexCounts;
-                    final Map<String, Set<String>> vertexPropertiesToUse = vertexProperties;
-                    if (vertexCounts.keySet().size() > MAP_RECYCLE_SIZE ||
-                            vertexProperties.keySet().size() > MAP_RECYCLE_SIZE) {
-                        // Ideally we don't want to have to do this, but we don't want the map to grow infinitely in the case
-                        // that firefly never gets shut down and the customer for some odd reason keeps using new labels.
-                        vertexCounts = new ConcurrentHashMap<>();
-                        vertexProperties = new ConcurrentHashMap<>();
-                    }
-                    for (final String key: vertexCountsToUse.keySet()) {
-                        final long count = vertexCountsToUse.get(key).getAndSet(0);
-                        final Set<String> properties = vertexPropertiesToUse.get(key);
-                        vertexUpdates.put(key, new LabelCountInfo(key, count, properties));
-                    }
-
-                    final Map<String, AtomicLong> edgeCountsToUse = edgeCounts;
-                    final Map<String, Set<String>> edgePropertiesToUse = edgeProperties;
-                    if (edgeCounts.keySet().size() > MAP_RECYCLE_SIZE ||
-                            edgeProperties.keySet().size() > MAP_RECYCLE_SIZE) {
-                        // Ideally we don't want to have to do this, but we don't want the map to grow infinitely in the case
-                        // that firefly never gets shut down and the customer for some odd reason keeps using new labels.
-                        edgeCounts = new ConcurrentHashMap<>();
-                        edgeProperties = new ConcurrentHashMap<>();
-                    }
-
-                    for (final String key: edgeCountsToUse.keySet()) {
-                        final long count = edgeCountsToUse.get(key).getAndSet(0);
-                        final Set<String> properties = edgePropertiesToUse.get(key);
-                        edgeUpdates.put(key, new LabelCountInfo(key, count, properties));
-                    }
-
-                    // Perform the write operations. If these fail put their data back into the map.
-                    // Could do something fancy like exponential backoff here, but this runs two risks:
-                    //   1. If the failed data is not quickly placed back in queue and given an opportunity to come back
-                    //      around with more data aggregated together, there is a risk of queue overflow in high write
-                    //      volume.
-                    //   2. If a poison pill was injected and Firefly is waiting to exit, the exponential backoff could
-                    //      cause this to take a long time.
-                    boolean failed = false;
-                    if (didFunctionFail(() -> writeLabelCountOperations(new HashSet<>(vertexUpdates.values()), V_SUMMARY_KEY))) {
-                        failed = true;
-                        for (final LabelCountInfo labelCountInfo : vertexUpdates.values()) {
-                            vertexCounts.putIfAbsent(labelCountInfo.label, new AtomicLong(0));
-                            vertexCounts.get(labelCountInfo.label).addAndGet(labelCountInfo.count);
-                        }
-                    }
-
-                    if (didFunctionFail(() -> writeLabelCountOperations(new HashSet<>(edgeUpdates.values()), E_SUMMARY_KEY))) {
-                        failed = true;
-                        for (final LabelCountInfo labelCountInfo : edgeUpdates.values()) {
-                            edgeCounts.putIfAbsent(labelCountInfo.label, new AtomicLong(0));
-                            edgeCounts.get(labelCountInfo.label).addAndGet(labelCountInfo.count);
-                        }
-                    }
-
-                    if (didFunctionFail(() -> writeLabelPropertiesOperations(new HashSet<>(vertexUpdates.values()), vertexLabelToProperties, VP_SUMMARY_KEY))) {
-                        failed = true;
-                        // We don't need to re-insert these because they weren't removed.
-                    }
-
-                    if (didFunctionFail(() -> writeLabelPropertiesOperations(new HashSet<>(edgeUpdates.values()), edgeLabelToProperties, EP_SUMMARY_KEY))) {
-                        failed = true;
-                        // We don't need to re-insert these because they weren't removed.
-                    }
-
-                    // If shutdown signal have been asserted, exit the loop.
-                    //
-                    // We also check that the countdown has not been moved. Now this isn't a perfect system since we
-                    // actually re-assign the CountDownLatch before we empty the maps, so we can't say for sure we need
-                    // to loop again, but if the countdown is equal to the HIGH_WATERMARK, we can say for sure that we
-                    // don't need to loop again, therefore if we come around again we will exit properly.
-                    //
-                    // We add an or failed check because if Aerospike is seemingly not responding and firefly has been
-                    // signaled to shut down, we should just exit.
-                    if (SHUTDOWN.get() && (COUNTDOWN_LATCH.getCount() == HIGH_WATERMARK || failed)) {
-                        // This is worst case scenario for timing of a shutdown signal and not having written data. Since the
-                        // write failed, Aerospike could be down. Either way the loop needs to exit.
-                        if (failed) {
-                            LOG.warn("Failed to write all metadata to the summary vertex before taking poison pill. This may cause metadata skew.");
-                        }
-                        break;
-                    }
+                if (!doWrite()) {
+                    break;
                 }
             }
             EXITED.set(true);
@@ -634,6 +903,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     private void writeLabelCountOperations(final Set<LabelCountInfo> updates, final Key key) {
         // Standard write policy.
         final WritePolicy writePolicy = new WritePolicy();
+        writePolicy.sendKey = true;
 
         // Write the updates to the summary record.
         for (final LabelCountInfo countInfo : updates) {
@@ -662,6 +932,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     private void writeLabelPropertiesOperations(final Set<LabelCountInfo> updates, final Map<String, Set<String>> propertyMappings, final Key key) {
         // Standard write policy.
         final WritePolicy writePolicy = new WritePolicy();
+        writePolicy.sendKey = true;
 
         // Write the updates to the summary record.
         for (final LabelCountInfo updateInfo : updates) {
@@ -692,6 +963,22 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                     propertyMappings.get(updateInfo.label).add(property);
                 }
             }
+        }
+    }
+
+    public void clearVertexPartitionData() {
+        final List<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+        for (final KeyRecord keyRecord : partitionRecords) {
+            if (keyRecord.key.userKey.toString().startsWith(VP_PROPERTY_PREFIX + "PART_"))
+                db.delete(keyRecord.key, null);
+        }
+    }
+
+    public void clearEdgePartitionData() {
+        final List<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+        for (final KeyRecord keyRecord : partitionRecords) {
+            if (keyRecord.key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_"))
+                db.delete(keyRecord.key, null);
         }
     }
 }

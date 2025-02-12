@@ -12,13 +12,14 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.GraphHelper;
-import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SeedStrategy;
+import org.apache.tinkerpop.gremlin.structure.Column;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -144,6 +145,40 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
+    public void groupCount() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List output = graph.traversal().withComputer().withoutStrategies(MessagePassingReductionStrategy.class)
+                    .V().outE().values("weight").groupCount().select(Column.keys).unfold()
+                    .toList();
+
+            System.out.println(output);
+            Assert.assertEquals(4L, output.size());
+        }
+    }
+
+    @Test
+    public void sample() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            List output = graph.traversal().withComputer()
+                    .withStrategies(new SeedStrategy(999999))
+                    .V().group().by(T.label).by(__.bothE().values("weight").order().sample(2).fold()).unfold()
+                    .toList();
+
+            System.out.println(output);
+            Assert.assertEquals(2L, output.size());
+        }
+    }
+
+
+    @Test
     public void properties() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();
@@ -170,9 +205,8 @@ public class TestDistributedGraphComputer {
                     .V().outE().as("e")
                     .inV().as("v")
                     .select("e").order().by("weight", Order.asc)
-                    // select got reference path here and fails on next step
-                    .select("v") // .values("name")
-                    //.dedup()
+                    .select("v").values("name")
+                    .dedup()
                     .toList();
 
             System.out.println(output);

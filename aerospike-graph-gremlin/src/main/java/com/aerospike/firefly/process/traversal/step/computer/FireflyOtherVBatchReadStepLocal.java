@@ -59,6 +59,7 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
     public void addStart(final Traverser.Admin<Edge> start) {
         super.addStart(start);
         add(start);
+        first = true;
     }
 
     @Override
@@ -67,6 +68,8 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
             add(traverser);
             precompute();
         } else if (first) {
+            // TODO: Be smarter b/c we should keep some of this if there's intersections.
+            cache.clear();
             precompute();
             first = false;
         }

@@ -84,6 +84,7 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements S
             graph.logMessage("adding first start.", LOGGER);
         }
         inputCache.add(start);
+        first = true;
     }
 
     private void precompute() {
@@ -135,6 +136,7 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements S
             inputCache.add(traverser);
             precompute();
         } else if (first) {
+            cache.clear();
             precompute();
             first = false;
         }

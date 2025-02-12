@@ -74,6 +74,7 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> {
     public void addStart(final Traverser.Admin<Vertex> start) {
         super.addStart(start);
         inputCache.add(start);
+        first = true;
     }
 
     private void precompute() {
@@ -126,6 +127,7 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> {
             inputCache.add(traverser);
             precompute();
         } else if (first) {
+            cache.clear();
             precompute();
             first = false;
         }

@@ -12,6 +12,7 @@ import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
 import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
+import com.aerospike.firefly.io.aerospike.query.paged.PaginationIterator;
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionedSindexPageFetcher;
 import com.aerospike.firefly.io.aerospike.query.paged.ScanPageFetcher;
 import com.aerospike.firefly.olap.codec.Codec;
@@ -32,6 +33,7 @@ import com.aerospike.firefly.util.TimeoutHelper;
 import com.amazonaws.services.logs.model.QueryInfo;
 import com.google.common.collect.Lists;
 import org.apache.hadoop.shaded.org.checkerframework.checker.nullness.Opt;
+import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -50,6 +52,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -67,9 +71,21 @@ import static com.aerospike.firefly.olap.codec.RowCodecHelper.getId;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.getIdType;
 
 public class DistributedQueryExecutor {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DistributedQueryExecutor.class);
 
     private static final String START_COL = "~start";
     private static final String COUNT_COL = "~count";
+
+    private static String getTaskInfo() {
+        return String.format("Task %d - [%s %s %s]", TaskContext.getPartitionId(),
+                TaskContext.get().taskAttemptId(),
+                TaskContext.get().attemptNumber(),
+                TaskContext.get().stageId());
+    }
+
+    private static void logDebuggingMessage(final String message) {
+        LOGGER.info(getTaskInfo() + " " + message);
+    }
 
     private static Dataset<Row> getIndexQuery(final SparkSession spark,
                                               final FireflyGraph rootGraph,
@@ -80,72 +96,107 @@ public class DistributedQueryExecutor {
                                               final int maxParallelQuery,
                                               final int maxWorkers,
                                               final QueryInfo queryInfo) {
+        System.out.println("Max workers: " + maxWorkers);
+        System.out.println("Max parallel query: " + maxParallelQuery);
         final List<Row> queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, maxWorkers)).
                 stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
+        System.out.println("Query ranges: " + queryRanges.size());
         final StructType inputSchema = new StructType().
                 add(START_COL, DataTypes.IntegerType, false).
                 add(COUNT_COL, DataTypes.IntegerType, false);
-        final Dataset<Row> queryRangeDataset = spark.createDataFrame(queryRanges, inputSchema);
+        Dataset<Row> queryRangeDataset = spark.createDataFrame(queryRanges, inputSchema);
         final FireflyIndexMetadata.IndexInfo indexInfo = queryInfo.indexInfo.get();
         final HasContainer hasContainer = queryInfo.indexTopHasContainer.get();
         final String startStep = traversal.asAdmin().getStartStep().getNextStep().getId();
         final List<HasContainer> hasContainers = queryInfo.fireflyHasContainers;
+        System.out.println("Starting query with " + queryRangeDataset.rdd().partitions().length + " partitions.");
+        queryRangeDataset = DistributedGraphComputer.magicSwap(queryRangeDataset.repartition(queryRanges.size()));
+        System.out.println("Repartitioned query with " + queryRangeDataset.rdd().partitions().length + " partitions.");
         return queryRangeDataset.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             // Junk required.
-            final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
             final Codec codec = new Codec(traversal);
 
             // Open graph.
             try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
-                final Filter filter = GraphQueryHelper.predicateToFilter(graph.getBaseGraph(), hasContainer.getPredicate(), indexInfo);
-                while (iterator.hasNext()) {
-                    final Row row = iterator.next();
-                    final PartitionFilter partitionFilter = PartitionFilter.range(
-                            row.getInt(row.fieldIndex(START_COL)),
-                            row.getInt(row.fieldIndex(COUNT_COL)));
-
-                    // TODO: Can omit some bins here.
-                    final int evaluationTimeout = Long.valueOf(TimeoutHelper.calculate(traversal.asAdmin())).intValue();
-                    final QueryPolicy policy = new QueryPolicy();
-                    policy.setTimeout(evaluationTimeout);
-                    final PageFetcher<?> pageFetcher = new PartitionedSindexPageFetcher<>(
-                            graph,
-                            policy,
-                            indexInfo.setName,
-                            graph.getBaseGraph().getNamespace(),
-                            filter,
-                            graph.getBaseGraph().PAGINATION_PAGE_SIZE,
-                            graph::vertexFromRecord,
-                            indexInfo.indexName,
-                            partitionFilter,
-                            pageQueue);
-
-                    // Intentionally not using return value here.
-                    pageFetcher.startQueryDirect();
-                }
-
                 final List<Row> outputRows = new ArrayList<>();
-                while (true) {
-                    final PageFetcher.Page page = pageQueue.take();
-                    if (page instanceof PageFetcher.ErrorPage) {
-                        final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
-                        throw new RuntimeException("Error fetching page: " + errorPage.errorMessage, errorPage.exception);
-                    } else if (page instanceof PageFetcher.PoisonPill) {
-                        break;
-                    }
-                    page.keyRecords.forEachRemaining(keyRecord -> {
-                        // TODO: Improve performance with ReferenceVertex.
-                        final FireflyVertex vertex = graph.vertexFromRecord(keyRecord);
-                        if (HasContainer.testAll(vertex, hasContainers)) {
-                            outputRows.add(codec.encode(vertex, startStep));
-                        }
-                    });
+                final Filter filter = GraphQueryHelper.predicateToFilter(graph.getBaseGraph(), hasContainer.getPredicate(), indexInfo);
+                final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
+                final List<Row> rows = new ArrayList<>();
+                while (iterator.hasNext()) {
+                    rows.add(iterator.next());
                 }
+
+                for (final Row row : rows) {
+                    int attemptCount = 0;
+                    while (true) {
+                        try {
+                            final PartitionFilter partitionFilter = PartitionFilter.range(
+                                    row.getInt(row.fieldIndex(START_COL)),
+                                    row.getInt(row.fieldIndex(COUNT_COL)));
+
+                            logDebuggingMessage("Attempt count " + attemptCount + " => Partition filter: " + partitionFilter.getBegin() + "-" + (partitionFilter.getCount() + partitionFilter.getBegin()));
+
+                            // TODO: Can omit some bins here.
+                            final int evaluationTimeout = Long.valueOf(TimeoutHelper.calculate(traversal.asAdmin())).intValue();
+                            final QueryPolicy policy = new QueryPolicy();
+                            policy.setTimeout(evaluationTimeout);
+                            attemptCount++;
+                            final PageFetcher<?> pageFetcher = new PartitionedSindexPageFetcher<>(
+                                    graph,
+                                    policy,
+                                    indexInfo.setName,
+                                    graph.getBaseGraph().getNamespace(),
+                                    filter,
+                                    graph.getBaseGraph().PAGINATION_PAGE_SIZE,
+                                    graph::vertexFromRecord,
+                                    indexInfo.indexName,
+                                    partitionFilter,
+                                    pageQueue);
+
+                            // Intentionally not using return value here.
+                            pageFetcher.startQueryDirect();
+                            final List<Row> output = new ArrayList<>();
+                            while (true) {
+                                final PageFetcher.Page page = pageQueue.take();
+                                if (page instanceof PageFetcher.ErrorPage) {
+                                    final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
+                                    throw new RuntimeException("Error fetching page: " + errorPage.errorMessage, errorPage.exception);
+                                } else if (page instanceof PageFetcher.PoisonPill) {
+                                    break;
+                                }
+                                page.keyRecords.forEachRemaining(keyRecord -> {
+                                    // TODO: Improve performance with ReferenceVertex.
+                                    final FireflyVertex vertex = graph.vertexFromRecord(keyRecord);
+                                    if (HasContainer.testAll(vertex, hasContainers)) {
+                                        output.add(codec.encode(vertex, startStep));
+                                    }
+                                });
+                                final PaginationIterator pi = (PaginationIterator) page.keyRecords;
+                                pi.close();
+                            }
+
+                            logDebuggingMessage("Awaiting shutdown");
+                            pageFetcher.shutdownAwait();
+                            logDebuggingMessage("Shutdown complete. Adding " + output.size() + " rows to output.");
+                            outputRows.addAll(output);
+                            output.clear();
+                            break;
+                        } catch (final Exception e) {
+                            logDebuggingMessage("Got exception " + e.getMessage());
+                            if (attemptCount > 10) {
+                                throw new RuntimeException("Failed to run query after " + attemptCount + " attempts.", e);
+                            } else if (e.getMessage().contains("Operation not allowed at this time")) {
+                                logDebuggingMessage("Sleeping.");
+                                Thread.sleep(1000L * (attemptCount + 1));
+                            }
+                        }
+                    }
+                }
+                System.out.println("Final output size: " + outputRows.size());
                 return outputRows.iterator();
             }
         }, RowEncoder.apply(outputSchema));
     }
-
 
     private static Dataset<Row> getPiQuery(final SparkSession spark,
                                            final FireflyGraph rootGraph,
@@ -177,10 +228,13 @@ public class DistributedQueryExecutor {
         final StructType inputSchema = new StructType().
                 add(RowCodec.ID_COL, DataTypes.StringType, false).
                 add(RowCodec.ID_TYPEHINT_COL, DataTypes.IntegerType, false);
-        final Dataset<Row> idDataset = spark.createDataFrame(rows, inputSchema);
+        Dataset<Row> idDataset = spark.createDataFrame(rows, inputSchema);
         final GraphStep graphStep = (GraphStep) traversal.asAdmin().getStartStep();
         final String startStep = traversal.asAdmin().getStartStep().getNextStep().getId();
         final List<HasContainer> hasContainers = queryInfo.fireflyHasContainers;
+        System.out.println("Starting query with " + idDataset.rdd().partitions().length + " partitions.");
+        idDataset = idDataset.repartition(maxParallelQuery);
+        System.out.println("Repartitioned query with " + idDataset.rdd().partitions().length + " partitions.");
         return idDataset.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
             final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal.asAdmin());
@@ -241,11 +295,14 @@ public class DistributedQueryExecutor {
         final StructType inputSchema = new StructType().
                 add(START_COL, DataTypes.IntegerType, false).
                 add(COUNT_COL, DataTypes.IntegerType, false);
-        final Dataset<Row> queryRangeDataset = spark.createDataFrame(queryRanges, inputSchema);
+        Dataset<Row> queryRangeDataset = spark.createDataFrame(queryRanges, inputSchema);
         final Expression expression = queryInfo.expression.orElse(null);
         final String startStep = traversal.asAdmin().getStartStep().getNextStep().getId();
         final GraphStep graphStep = (GraphStep) traversal.asAdmin().getStartStep();
         final List<HasContainer> hasContainers = queryInfo.fireflyHasContainers;
+        System.out.println("Starting query with " + queryRangeDataset.rdd().partitions().length + " partitions.");
+        queryRangeDataset = queryRangeDataset.repartition(queryRanges.size());
+        System.out.println("Repartitioned query with " + queryRangeDataset.rdd().partitions().length + " partitions.");
         return queryRangeDataset.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             // Junk required.
             final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
@@ -253,78 +310,101 @@ public class DistributedQueryExecutor {
 
             // Open graph.
             try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
+
+                final List<Row> rows = new ArrayList<>();
                 while (iterator.hasNext()) {
                     final Row row = iterator.next();
-                    final PartitionFilter partitionFilter = PartitionFilter.range(
-                            row.getInt(row.fieldIndex(START_COL)),
-                            row.getInt(row.fieldIndex(COUNT_COL)));
-
-                    // TODO: Can omit some bins here.
-                    final int evaluationTimeout = Long.valueOf(TimeoutHelper.calculate(traversal.asAdmin())).intValue();
-                    final ScanPolicy policy = new ScanPolicy();
-                    policy.setTimeout(evaluationTimeout);
-                    policy.filterExp = expression;
-
-                    final PageFetcher<?> pageFetcher = new ScanPageFetcher<>(
-                            graph,
-                            policy,
-                            graphStep.returnsVertex() ? graph.getBaseGraph().VERTEX_AERO_SET : graph.getBaseGraph().EDGE_AERO_SET,
-                            null,
-                            graph.getBaseGraph().PAGINATION_PAGE_SIZE,
-                            null,
-                            partitionFilter,
-                            Executors.newSingleThreadExecutor(),
-                            pageQueue,
-                            graph::vertexFromRecord);
-
-                    // Intentionally not using return value here.
-                    pageFetcher.startQueryDirect();
+                    rows.add(row);
                 }
 
                 final List<Row> outputRows = new ArrayList<>();
-                while (true) {
-                    final PageFetcher.Page page = pageQueue.take();
-                    if (page instanceof PageFetcher.ErrorPage) {
-                        final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
-                        throw new RuntimeException("Error fetching page: " + errorPage.errorMessage, errorPage.exception);
-                    } else if (page instanceof PageFetcher.PoisonPill) {
-                        break;
-                    }
-                    page.keyRecords.forEachRemaining(keyRecord -> {
-                        // TODO: Improve performance with ReferenceVertex.
-                        if (graphStep.returnsVertex()) {
-                            final FireflyVertex vertex = graph.vertexFromRecord(keyRecord);
-                            if (HasContainer.testAll(vertex, hasContainers))
-                                outputRows.add(codec.encode(vertex, startStep));
-                        } else {
-                            final Map<ByteBuffer, List> edgeData = (Map<ByteBuffer, List>) keyRecord.record.getMap(graph.getBaseGraph().EDGE_DATA_BIN);
-                            // Implicitly assume that if the key is found for label, which is required, then the key exists for the
-                            // other phat edge maps, since they are all written in the same operate.
-                            for (final ByteBuffer edgeIdMapKey : edgeData.keySet()) {
-                                final String label = (String) edgeData.get(edgeIdMapKey).get(FireflyEdge.LABEL_POSITION);
+                for (final Row row : rows) {
 
-                                final String outV = (String) edgeData.get(edgeIdMapKey).get(FireflyEdge.OUT_V_POSITION);
-                                final FireflyId outVertex = graph.getIdFactory().createVertexIdFromHash(outV);
+                    int attemptCount = 0;
+                    while (true) {
+                        attemptCount++;
+                        final PartitionFilter partitionFilter = PartitionFilter.range(
+                                row.getInt(row.fieldIndex(START_COL)),
+                                row.getInt(row.fieldIndex(COUNT_COL)));
 
-                                final String inV = (String) edgeData.get(edgeIdMapKey).get(FireflyEdge.IN_V_POSITION);
-                                final FireflyId inVertex = graph.getIdFactory().createVertexIdFromHash(inV);
+                        // TODO: Can omit some bins here.
+                        final int evaluationTimeout = Long.valueOf(TimeoutHelper.calculate(traversal.asAdmin())).intValue();
+                        final ScanPolicy policy = new ScanPolicy();
+                        policy.setTimeout(evaluationTimeout);
+                        policy.filterExp = expression;
 
-                                final Map<String, Object> properties = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(FireflyEdge.PROPERTIES_POSITION);
-                                final Map<String, Object> typeHints = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(FireflyEdge.TYPE_HINTS_POSITION);
+                        try {
+                            final PageFetcher<?> pageFetcher = new ScanPageFetcher<>(
+                                    graph,
+                                    policy,
+                                    graphStep.returnsVertex() ? graph.getBaseGraph().VERTEX_AERO_SET : graph.getBaseGraph().EDGE_AERO_SET,
+                                    null,
+                                    graph.getBaseGraph().PAGINATION_PAGE_SIZE,
+                                    null,
+                                    partitionFilter,
+                                    Executors.newSingleThreadExecutor(),
+                                    pageQueue,
+                                    graph::vertexFromRecord);
 
-                                final Map<ByteBuffer, String> outSupernodes = (Map<ByteBuffer, String>) keyRecord.record.getMap(graph.getBaseGraph().SUPERNODES_OUT_BIN);
-                                final Map<ByteBuffer, String> inSupernodes = (Map<ByteBuffer, String>) keyRecord.record.getMap(graph.getBaseGraph().SUPERNODES_IN_BIN);
-                                final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(edgeIdMapKey);
-                                final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(edgeIdMapKey);
+                            // Intentionally not using return value here.
+                            pageFetcher.startQueryDirect();
 
-                                final FireflyEdge edge = FireflyEdgeFactory.create(graph.getIdFactory().createEdgeId(edgeIdMapKey), label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, keyRecord.record.generation);
-                                // TODO: g.E().hasLabel("knows") ?
-                                if (HasContainer.testAll(edge, hasContainers))
-                                    outputRows.add(codec.encode(edge, startStep));
+                            final List<Row> output = new ArrayList<>();
+                            while (true) {
+                                final PageFetcher.Page page = pageQueue.take();
+                                if (page instanceof PageFetcher.ErrorPage) {
+                                    final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
+                                    throw new RuntimeException("Error fetching page: " + errorPage.errorMessage, errorPage.exception);
+                                } else if (page instanceof PageFetcher.PoisonPill) {
+                                    break;
+                                }
+                                page.keyRecords.forEachRemaining(keyRecord -> {
+                                    // TODO: Improve performance with ReferenceVertex.
+                                    if (graphStep.returnsVertex()) {
+                                        final FireflyVertex vertex = graph.vertexFromRecord(keyRecord);
+                                        if (HasContainer.testAll(vertex, hasContainers))
+                                            output.add(codec.encode(vertex, startStep));
+                                    } else {
+                                        final Map<ByteBuffer, List> edgeData = (Map<ByteBuffer, List>) keyRecord.record.getMap(graph.getBaseGraph().EDGE_DATA_BIN);
+                                        // Implicitly assume that if the key is found for label, which is required, then the key exists for the
+                                        // other phat edge maps, since they are all written in the same operate.
+                                        for (final ByteBuffer edgeIdMapKey : edgeData.keySet()) {
+                                            final String label = (String) edgeData.get(edgeIdMapKey).get(FireflyEdge.LABEL_POSITION);
+
+                                            final String outV = (String) edgeData.get(edgeIdMapKey).get(FireflyEdge.OUT_V_POSITION);
+                                            final FireflyId outVertex = graph.getIdFactory().createVertexIdFromHash(outV);
+
+                                            final String inV = (String) edgeData.get(edgeIdMapKey).get(FireflyEdge.IN_V_POSITION);
+                                            final FireflyId inVertex = graph.getIdFactory().createVertexIdFromHash(inV);
+
+                                            final Map<String, Object> properties = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(FireflyEdge.PROPERTIES_POSITION);
+                                            final Map<String, Object> typeHints = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(FireflyEdge.TYPE_HINTS_POSITION);
+
+                                            final Map<ByteBuffer, String> outSupernodes = (Map<ByteBuffer, String>) keyRecord.record.getMap(graph.getBaseGraph().SUPERNODES_OUT_BIN);
+                                            final Map<ByteBuffer, String> inSupernodes = (Map<ByteBuffer, String>) keyRecord.record.getMap(graph.getBaseGraph().SUPERNODES_IN_BIN);
+                                            final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(edgeIdMapKey);
+                                            final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(edgeIdMapKey);
+
+                                            final FireflyEdge edge = FireflyEdgeFactory.create(graph.getIdFactory().createEdgeId(edgeIdMapKey), label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, keyRecord.record.generation);
+                                            // TODO: g.E().hasLabel("knows") ?
+                                            if (HasContainer.testAll(edge, hasContainers))
+                                                output.add(codec.encode(edge, startStep));
+                                        }
+                                    }
+                                });
+                            }
+                            pageFetcher.shutdownAwait();
+                            outputRows.addAll(output);
+                            output.clear();
+                            break;
+                        } catch (final Exception e) {
+                            if (attemptCount > 10) {
+                                throw new RuntimeException("Failed to run query after " + attemptCount + " attempts.", e);
+                            } else if (e.getMessage().contains("Operation not allowed at this time")) {
+                                Thread.sleep(1000L * (attemptCount + 1));
                             }
                         }
-
-                    });
+                    }
                 }
                 return outputRows.iterator();
             }

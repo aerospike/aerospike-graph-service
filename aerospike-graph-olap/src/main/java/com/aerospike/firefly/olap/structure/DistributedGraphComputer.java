@@ -15,6 +15,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.storage.StorageLevel;
 import org.apache.tinkerpop.gremlin.process.computer.ComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.spark.SparkConf;
@@ -57,6 +58,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -113,12 +115,17 @@ public class DistributedGraphComputer implements GraphComputer {
 
     private static SparkSession buildSparkSession() {
         // TODO: Remove null support and replace commandline with configs or something.
+        System.out.println("Building spark session in DistributedGraphComputer.");
         final SparkConf conf = new SparkConf();
         conf.setMaster("local[*]");
 
         conf.setAppName("aerospike-graph-olap")
                 .set("spark.driver.allowMultipleContexts", "false")
                 .set("spark.ui.enabled", "true")
+                .set("spark.executor.instances", String.valueOf(100))
+                .set("spark.scheduler.minRegisteredResourcesRatio", String.valueOf(1.0))
+                .set("spark.scheduler.maxRegisteredResourcesWaitingTime", String.valueOf(60000))
+                .set("spark.dynamicAllocation.enabled", "false")
                 .set("mapreduce.fileoutputcommitter.algorithm.version", "2")
                 .set("spark.executor.extraJavaOptions", "-Dlog4j.logger.org.apache.spark.serializer=DEBUG -Dlog4j.logger.org.apache.spark.util.ClosureCleaner=DEBUG");
 
@@ -275,6 +282,8 @@ public class DistributedGraphComputer implements GraphComputer {
         // TODO: Maybe smarter check.
         // Ensure requested workers are not larger than supported workers.
         this.workers = spark.sparkContext().getExecutorMemoryStatus().size();
+        System.out.println("Workers: " + this.workers);
+        System.out.println("Memory: " + spark.sparkContext().getExecutorMemoryStatus());
         if (this.workers > this.features().getMaxWorkers())
             throw GraphComputer.Exceptions.computerRequiresMoreWorkersThanSupported(this.workers, this.features().getMaxWorkers());
 
@@ -283,6 +292,7 @@ public class DistributedGraphComputer implements GraphComputer {
         this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
         this.persist = GraphComputerHelper.getPersistState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.persist));
         int i = 0;
+        System.out.println("Configuration: "  + Arrays.toString(spark.sparkContext().getConf().getAll()));
         try {
             final PureTraversal<?, ?> traversal = ((BatchTraversalVertexProgram) vertexProgram).getTraversal().clone();
 
@@ -317,8 +327,8 @@ public class DistributedGraphComputer implements GraphComputer {
             // Create basic schema.
             final StructType schema = codec.getSchema();
 
-            final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace);
-            Dataset<Row> df = magicSwap(DistributedQueryExecutor.getStartingPoint(spark, graph, configHelper, graphStep.getHasContainers(), graphStep.getIds(), traversal.get(), schema, workers, maxParallelSindexes));
+            final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace) - 4; // Leave some room.
+            Dataset<Row> df = magicSwap(DistributedQueryExecutor.getStartingPoint(spark, graph, configHelper, graphStep.getHasContainers(), graphStep.getIds(), traversal.get(), schema, maxParallelSindexes, workers));
 
             // Create necessary things for execution (Memory, ResultGraph, Config, etc.)
             this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
@@ -338,12 +348,12 @@ public class DistributedGraphComputer implements GraphComputer {
             // PartitionIterator pulls initial step data, so we can start on step 2.
             memory.incrIteration();
 
-            if (df.limit(1).isEmpty()) {
+            if (df.count() == 0) {
                 memory.set(VOTE_TO_HALT, true);
                 vertexProgram.terminate(memory);
             }
 
-            while (!df.limit(1).isEmpty()) {
+            while (df.count() != 0) {
                 if (Thread.interrupted()) {
                     // If query is cancelled, cancel all spark jobs and throw an exception.
                     spark.sparkContext().cancelAllJobs();
@@ -351,22 +361,30 @@ public class DistributedGraphComputer implements GraphComputer {
                 }
 
                 // Set inExecute to true, execute the vertex program, and set inExecute to false.
+                //if (LOGGER.isDebugEnabled())
+                //System.out.println("====================== DF1 ======================");
+                //df.show();
+
                 memory.setInExecute(true);
-                if (LOGGER.isDebugEnabled())
-                    df.show(true);
-
-                df = magicSwap(DistributedExecutor.execute(df, memory, configHelper, vertexProgramConfiguration, schema));
-
+                System.out.println("==================> TOTAL COUNT: " + df.count());
+                df = magicSwap(DistributedExecutor.execute(df, memory, configHelper, vertexProgramConfiguration, schema, workers));
                 memory.setInExecute(false);
 
-                // Filter out halted vertices.
-                results = magicSwap(results.union(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true))));
+                final Dataset<Row> resultsTemp = magicSwap(
+                        df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true)));
 
-                if (LOGGER.isDebugEnabled())
-                    results.show(true);
+                // Filter out halted vertices.
+                results = magicSwap(results.union(resultsTemp));
+
+                //if (LOGGER.isDebugEnabled())
+                //System.out.println("====================== Results ======================");
+                //results.show();
 
                 // Filter out vertices that are not halted.
                 df = magicSwap(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false)));
+
+                //System.out.println("====================== DF2 ======================");
+                //df.show();
 
                 // TODO: Ultimately probably don't want to do isEmpty() check here b/c we could have a query that pulls more data from graph later and
                 // we could screw it up.
@@ -387,6 +405,7 @@ public class DistributedGraphComputer implements GraphComputer {
             } catch (IllegalArgumentException e) {
                 // No data in memory.
             }
+            System.out.println("Memory traversers: " + traversers.size());
 
             // Collect results.
             final List<Row> rows = results.collectAsList();
@@ -396,7 +415,9 @@ public class DistributedGraphComputer implements GraphComputer {
             rows.stream().forEach(row -> {
                 traversers.add(codec.decode(row, traverserGenerator, traversalMatrix).asAdmin());
             });
+            System.out.println("Results: " + rows.size());
 
+            System.out.println("Traversers: " + traversers);
             ComputerHelper.prepareEdgesForResult((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(), traversers);
 
             // Set all traversers as halted and complete memory.
@@ -425,59 +446,10 @@ public class DistributedGraphComputer implements GraphComputer {
         }
     }
 
-
-    public TraverserGenerator getTraverserGenerator(final Set<TraverserRequirement> requirements) {
-        if (requirements.contains(TraverserRequirement.ONE_BULK)) {
-            if (O_OB_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
-                return O_OB_S_SE_SL_TraverserGenerator.instance();
-
-            if (NL_O_OB_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
-                return NL_O_OB_S_SE_SL_TraverserGenerator.instance();
-
-            if (LP_O_OB_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
-                return LP_O_OB_S_SE_SL_TraverserGenerator.instance();
-
-            if (LP_NL_O_OB_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
-                return LP_NL_O_OB_S_SE_SL_TraverserGenerator.instance();
-
-            if (LP_O_OB_P_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
-                return LP_O_OB_P_S_SE_SL_TraverserGenerator.instance();
-
-            if (LP_NL_O_OB_P_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
-                return LP_NL_O_OB_P_S_SE_SL_TraverserGenerator.instance();
-        } else {
-            if (B_O_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
-                return B_O_TraverserGenerator.instance();
-
-            if (B_O_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
-                return B_O_S_SE_SL_TraverserGenerator.instance();
-
-            if (B_NL_O_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
-                return B_NL_O_S_SE_SL_TraverserGenerator.instance();
-
-            if (B_LP_O_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
-                return B_LP_O_S_SE_SL_TraverserGenerator.instance();
-
-            if (B_LP_NL_O_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
-                return B_LP_NL_O_S_SE_SL_TraverserGenerator.instance();
-
-            if (B_LP_O_P_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
-                return B_LP_O_P_S_SE_SL_TraverserGenerator.instance();
-
-            if (B_LP_NL_O_P_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
-                return B_LP_NL_O_P_S_SE_SL_TraverserGenerator.instance();
-        }
-
-        throw new IllegalStateException("The provided traverser generator factory does not support the requirements of the traversal: " + this.getClass().getCanonicalName() + requirements);
-    }
-
-    public static String PARTITION_START_COL = "partition_start";
-    public static String PARTITION_COUNT_COL = "partition_count";
-
-    Dataset<Row> magicSwap(final Dataset<Row> transform) {
-        final Dataset<Row> output = transform.cache();
+    public static Dataset<Row> magicSwap(final Dataset<Row> transform) {
+        final Dataset<Row> output = transform.persist(StorageLevel.MEMORY_AND_DISK());
         try {
-            output.rdd().countApprox(1, 0.5);
+            output.count();
         } catch (Exception e) {
             // Do nothing.
             // Failed to count in 1 second. Who cares.

@@ -124,6 +124,7 @@ public class DistributedGraphComputerMain {
             System.exit(1);
         }
 
+        FireflyServer.setSpark(spark);
         FireflyServer fireflyServer = FireflyServer.start(List.of(outputServerYaml).toArray(new String[]{}));
     }
 
@@ -628,6 +629,14 @@ public class DistributedGraphComputerMain {
         conf.setAppName("aerospike-graph-olap")
                 .set("spark.driver.allowMultipleContexts", "false")
                 .set("spark.ui.enabled", "true")
+                //.set("spark.dynamicAllocation.enabled", "false")
+                // .set("spark.executor.instances", String.valueOf(Integer.MAX_VALUE))
+                // .set("spark.scheduler.minRegisteredResourcesRatio", String.valueOf(1.0))
+                .set("spark.dynamicAllocation.enabled", "true")
+                .set("spark.speculation", "false")
+                .set("spark.dynamicAllocation.minExecutors", String.valueOf(64))
+                .set("spark.dynamicAllocation.initialExecutors", String.valueOf(64))
+                .set("spark.dynamicAllocation.maxExecutors", String.valueOf(64))
                 .set("mapreduce.fileoutputcommitter.algorithm.version", "2");
 
         final SparkSession.Builder builder = SparkSession.builder().config(conf);

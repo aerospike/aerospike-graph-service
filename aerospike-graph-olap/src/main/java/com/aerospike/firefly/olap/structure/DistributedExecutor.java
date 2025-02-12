@@ -44,16 +44,34 @@ import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalV
 public class DistributedExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(DistributedExecutor.class);
 
-    private static void logDebuggingMessage(final String message) {
-        System.out.println("Task " + TaskContext.getPartitionId() + " - " + message);
+    private static String getTaskInfo() {
+
+        return String.format("Task %d - [%s %s %s]", TaskContext.getPartitionId(),
+                TaskContext.get().taskAttemptId(),
+                TaskContext.get().attemptNumber(),
+                TaskContext.get().stageId());
     }
 
-    static Dataset<Row> execute(final Dataset<Row> input,
+    private static void logDebuggingMessage(final String message) {
+        LOGGER.info(getTaskInfo() + " " + message);
+    }
+
+    private static int getPartitionId() {
+        return TaskContext.getPartitionId();
+    }
+
+    static Dataset<Row> execute(Dataset<Row> input,
                                 final DistributedMemory memory,
                                 final DistributedConfigHelper configHelper,
                                 final Configuration vertexProgramConfig,
-                                final StructType schema) {
+                                final StructType schema,
+                                final int workerCount) {
         System.out.println("Starting with " + input.rdd().partitions().length + " partitions.");
+        if (input.rdd().partitions().length < workerCount / 2) {
+            System.out.println("Repartitioning to " + workerCount + " partitions.");
+            input = DistributedGraphComputer.magicSwap(input.repartition(workerCount));
+        }
+        System.out.println("Ending with " + input.rdd().partitions().length + " partitions.");
         return input.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             logDebuggingMessage("starting with " + (iterator.hasNext() ? "non-empty" : "empty") + " partition.");
 

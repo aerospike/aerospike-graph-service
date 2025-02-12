@@ -958,11 +958,13 @@ public class AerospikeConnection implements AutoCloseable {
                         if (config.containsKey(QUERY_THREADS_LIMIT)) {
                             queryThreadsLimit = Integer.parseInt(config.get(QUERY_THREADS_LIMIT));
                         }
-                        if (config.containsKey(SINGLE_QUERY_THREADS)) {
+                        if (config.containsKey(SINGLE_QUERY_THREADS))
                             singleQueryThreads = Integer.parseInt(config.get(SINGLE_QUERY_THREADS));
-                        }
-                        maxParallelSindexes = Math.min(maxParallelSindexes, queryThreadsLimit / singleQueryThreads);
                     }
+                    maxParallelSindexes = Math.min(maxParallelSindexes, queryThreadsLimit / singleQueryThreads);
+                    System.out.println("Query threads limit: " + queryThreadsLimit);
+                    System.out.println("Single query threads: " + singleQueryThreads);
+                    System.out.println("maxParallelSindexes: " + maxParallelSindexes);
                 }
                 return maxParallelSindexes;
             } catch (final AerospikeException e) {
@@ -1424,7 +1426,7 @@ public class AerospikeConnection implements AutoCloseable {
         if (bulkLoaderFlag) {
             return bulkLoaderInitializerFlag;
         } else {
-            return olapEnabledFlag;
+            return !olapEnabledFlag;
         }
     }
 
@@ -2407,12 +2409,15 @@ public class AerospikeConnection implements AutoCloseable {
         policy.connectTimeout = CONNECT_TIMEOUT;
         policy.timeoutDelay = TIMEOUT_DELAY;
         policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
-        if (!bulkLoading) {
-            policy.totalTimeout = READ_TOTAL_TIMEOUT;
-            policy.socketTimeout = READ_SOCKET_TIMEOUT;
-        } else {
+        if (bulkLoading) {
             policy.totalTimeout = READ_TOTAL_TIMEOUT_BULK_LOAD;
             policy.socketTimeout = READ_SOCKET_TIMEOUT_BULK_LOAD;
+        } else if (olapEnabledFlag) {
+            policy.totalTimeout = READ_TOTAL_TIMEOUT_BULK_LOAD;
+            policy.socketTimeout = READ_SOCKET_TIMEOUT_BULK_LOAD;
+        } else {
+            policy.totalTimeout = READ_TOTAL_TIMEOUT;
+            policy.socketTimeout = READ_SOCKET_TIMEOUT;
         }
     }
 

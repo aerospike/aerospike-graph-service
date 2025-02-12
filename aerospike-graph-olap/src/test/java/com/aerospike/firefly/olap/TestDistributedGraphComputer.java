@@ -12,6 +12,7 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -28,12 +29,17 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
+import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 import static org.junit.Assert.assertEquals;
 
@@ -45,8 +51,96 @@ public class TestDistributedGraphComputer {
         config = ConfigurationHelper.loadFromFile(Tokens.INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            graph.getBaseGraph().dropGraphIndices(graph);
+            //graph.getBaseGraph().dropGraphIndices(graph);
         }
+    }
+
+
+    private static final int INSERT_COUNT = 200000;
+
+    public static void insertPersons(final GraphTraversalSource g) {
+        for (int i = 0; i < INSERT_COUNT; i++) {
+            final Vertex v1 = g.addV("Person").property("name", "person" + i).next();
+            final Vertex v2 = g.addV("Person").property("name", "person" + (i + 1)).next();
+            g.addE("knows").from(v1).to(v2).property("weight", i).next();
+        }
+    }
+
+    public static void loadGraph(final GraphTraversalSource g) throws InterruptedException {
+        final ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        for (int i = 0; i < Runtime.getRuntime().availableProcessors(); i++) {
+            executorService.submit(() -> insertPersons(g));
+        }
+        executorService.shutdown();
+        executorService.awaitTermination(10, TimeUnit.MINUTES);
+    }
+
+    @Test
+    public void testLargerInfo() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final GraphTraversalSource g = graph.traversal();
+            for (int i = 0; i < 1_000_000; i++) {
+            }
+        }
+    }
+
+    @Test
+    public void testSparkCluster2() throws Exception {
+        final Instant instant = Instant.now();
+        GraphTraversalSource g = null;
+        try {
+            g = traversal().withRemote(DriverRemoteConnection.using("34.28.227.50", 8182, "g"));
+            //g.withComputer().V().hasLabel("asdf").toList();
+            //System.out.println("Result: " + g.
+            //        withComputer().
+            //        with("evaluationTimeout", 24 * 3600 * 1000).
+            //        V().hasLabel("Person").groupCount().by(__.out("HasCat").count()).
+            //        toList());
+            Vertex v = g.V().hasLabel("Person").limit(1).next();
+            System.out.println("cnt : " + g.with("evaluationTimeout", 24 * 3600 * 1000).V().hasLabel("Person").count().next());
+            System.out.println("Vid: " + v.id());
+            System.out.println("Result: " + g.
+                    withComputer().
+                    with("evaluationTimeout", 24 * 3600 * 1000).
+                    V(v.id()).out().
+                    toList());
+        } catch (Exception e ){
+            System.out.println("Failed " + e);
+            if (g != null) {
+                g.close();
+            }
+        }
+        System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
+
+    }
+
+    @Test
+    public void testSparkCluster() throws Exception {
+        final Instant instant = Instant.now();
+        GraphTraversalSource g = null;
+        try {
+            g = traversal().withRemote(DriverRemoteConnection.using("34.28.227.50", 8182, "g"));
+            //g.withComputer().V().hasLabel("asdf").toList();
+            //System.out.println("Result: " + g.
+            //        withComputer().
+            //        with("evaluationTimeout", 24 * 3600 * 1000).
+            //        V().hasLabel("Person").groupCount().by(__.out("HasCat").count()).
+            //        toList());
+            System.out.println("Result: " + g.
+                    withComputer().
+                    with("evaluationTimeout", 24 * 3600 * 1000).
+                    V().hasLabel("Person").
+                    count().
+                    toList());
+        } catch (Exception e) {
+            System.out.println("Failed " + e);
+            if (g != null) {
+                g.close();
+            }
+        }
+        System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
+
     }
 
     @Test
@@ -538,8 +632,8 @@ public class TestDistributedGraphComputer {
             graph.traversal().V().drop().iterate();
             final Graph tg = TinkerFactory.createModern();
             GraphHelper.cloneElements(tg, graph);
-            final Map<Object, Long> oltp = graph.traversal().V().groupCount().by(__.out().count()).next();
-            final Map<Object, Long> olap = graph.traversal().withComputer().V().groupCount().by(__.out().count()).next();
+            final Map<Object, Long> oltp = graph.traversal().V().groupCount().by(__.out("knows").count()).next();
+            final Map<Object, Long> olap = graph.traversal().withComputer().V().groupCount().by(__.out("knows").count()).next();
             System.out.println("OLTP: " + oltp);
             System.out.println("OLAP: " + olap);
             Assert.assertTrue(oltp.keySet().containsAll(olap.keySet()));
@@ -777,6 +871,14 @@ public class TestDistributedGraphComputer {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.fireflyIndexMetadata.updateMetadata();
             List<FireflyIndexMetadata.IndexInfo> indexes = graph.fireflyIndexMetadata.getPropertyIndexInfos();
+            while (indexes.size() == 0) {
+                try {
+                    graph.fireflyIndexMetadata.updateMetadata();
+                    indexes = graph.fireflyIndexMetadata.getPropertyIndexInfos();
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                }
+            }
             Assert.assertEquals(1, indexes.size());
             Assert.assertEquals(graph.getBaseGraph().V_LABEL_INDEX_NAME, indexes.get(0).indexName);
         }

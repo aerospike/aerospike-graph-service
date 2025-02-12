@@ -4,7 +4,7 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.olap.config.DistributedConfiguration;
-import com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram;
+import com.aerospike.firefly.olap.process.BatchTraversalVertexProgram;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
@@ -30,19 +30,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_P_S_SE_SL_TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_NL_O_S_SE_SL_TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_O_P_S_SE_SL_TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_LP_O_S_SE_SL_TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_NL_O_S_SE_SL_TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_O_S_SE_SL_TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_O_TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.LP_NL_O_OB_P_S_SE_SL_TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.LP_NL_O_OB_S_SE_SL_TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.LP_O_OB_P_S_SE_SL_TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.LP_O_OB_S_SE_SL_TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.NL_O_OB_S_SE_SL_TraverserGenerator;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.O_OB_S_SE_SL_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTraverserGeneratorFactory;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
@@ -71,8 +58,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
-import static com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram.VOTE_TO_HALT;
-import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.OLAP_ENABLED;
+import static com.aerospike.firefly.olap.process.BatchTraversalVertexProgram.VOTE_TO_HALT;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
@@ -341,6 +327,7 @@ public class DistributedGraphComputer implements GraphComputer {
             memory.broadcastMemory(new JavaSparkContext(spark.sparkContext()));
 
             // Set results to initially empty.
+
             Dataset<Row> results = magicSwap(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true)));
 
             df = magicSwap(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false)));
@@ -352,6 +339,9 @@ public class DistributedGraphComputer implements GraphComputer {
                 memory.set(VOTE_TO_HALT, true);
                 vertexProgram.terminate(memory);
             }
+
+            // 100 seconds for ~200 GB
+            // 50 TB -> 2500 * 100 = 250,000 seconds = 69 hours
 
             while (df.count() != 0) {
                 if (Thread.interrupted()) {

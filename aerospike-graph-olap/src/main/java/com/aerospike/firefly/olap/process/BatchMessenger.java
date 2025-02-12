@@ -1,5 +1,6 @@
-package com.aerospike.firefly.process.computer.local;
+package com.aerospike.firefly.olap.process;
 
+import com.aerospike.firefly.process.computer.local.LocalMessageBoard;
 import org.apache.tinkerpop.gremlin.process.computer.MessageCombiner;
 import org.apache.tinkerpop.gremlin.process.computer.MessageScope;
 import org.apache.tinkerpop.gremlin.process.computer.Messenger;

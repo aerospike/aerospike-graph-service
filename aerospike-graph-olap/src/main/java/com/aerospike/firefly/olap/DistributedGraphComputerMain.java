@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -123,6 +124,10 @@ public class DistributedGraphComputerMain {
             LOGGER.error("Failed to invoke python script for configuration.", e);
             System.exit(1);
         }
+        int workers = spark.sparkContext().getExecutorMemoryStatus().size();
+        System.out.println("Workers: " + workers);
+        System.out.println("Memory: " + spark.sparkContext().getExecutorMemoryStatus());
+        System.out.println("Configuration: "  + Arrays.toString(spark.sparkContext().getConf().getAll()));
 
         FireflyServer.setSpark(spark);
         FireflyServer fireflyServer = FireflyServer.start(List.of(outputServerYaml).toArray(new String[]{}));
@@ -633,7 +638,6 @@ public class DistributedGraphComputerMain {
                 // .set("spark.executor.instances", String.valueOf(Integer.MAX_VALUE))
                 // .set("spark.scheduler.minRegisteredResourcesRatio", String.valueOf(1.0))
                 .set("spark.dynamicAllocation.enabled", "true")
-                .set("spark.speculation", "false")
                 .set("spark.dynamicAllocation.minExecutors", String.valueOf(64))
                 .set("spark.dynamicAllocation.initialExecutors", String.valueOf(64))
                 .set("spark.dynamicAllocation.maxExecutors", String.valueOf(64))

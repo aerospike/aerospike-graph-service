@@ -7,6 +7,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.TraversalVertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -14,6 +15,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -31,6 +34,7 @@ import java.util.stream.Collectors;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements Serializable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(FireflyCompositeIdStepLocal.class);
     private final Direction direction;
     private final Set<String> edgeLabels;
 
@@ -75,18 +79,22 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements S
     @Override
     public void addStart(final Traverser.Admin<Vertex> start) {
         super.addStart(start);
+        if (inputCache.isEmpty()) {
+            final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
+            graph.logMessage("adding first start.", LOGGER);
+        }
         inputCache.add(start);
     }
 
     private void precompute() {
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
-
         // Info is used to keep track of how many output items we assign for each input (executed in order).
         final List<FireflyBatchReadHelper.ReadStepInfo<?>> fireflyCompositeIdStepInfos = new ArrayList<>();
         final List<FireflyId> fireflyIdList = new ArrayList<>();
         final Set<FireflyId> uniqueIdSet = new HashSet<>();
         final Map<FireflyId, FireflyVertex> fireflyVertexMap = new TreeMap<>();
 
+        graph.logMessage("Precompute starting " + inputCache.size(), LOGGER);
         for (final Traverser.Admin<Vertex> traverser : inputCache) {
             // Get next input traverser and get the FireflyVertex form of it.
             final FireflyVertex vertex = (FireflyVertex) traverser.get();
@@ -116,12 +124,14 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements S
         // Drain data to output.
         FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
                 fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache, graph::readVertices, requiredProperties);
+        graph.logMessage("Precompute complete " + cache.size(), LOGGER);
+        inputCache.clear();
     }
 
     @Override
     protected Iterator<Vertex> flatMap(final Traverser.Admin<Vertex> traverser) {
-
-        if (!traversal.isRoot()) {
+        // final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
+        if (!traversal.isRoot() && !(traversal.getParent() instanceof TraversalVertexProgramStep)) {
             inputCache.add(traverser);
             precompute();
         } else if (first) {

@@ -12,6 +12,8 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.strategy.optimization.MessagePassingReductionStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -121,7 +123,7 @@ public class TestDistributedGraphComputer {
         final Instant instant = Instant.now();
         GraphTraversalSource g = null;
         try {
-            g = traversal().withRemote(DriverRemoteConnection.using("34.28.227.50", 8182, "g"));
+            g = traversal().withRemote(DriverRemoteConnection.using("34.57.65.16", 8182, "g"));
             //g.withComputer().V().hasLabel("asdf").toList();
             //System.out.println("Result: " + g.
             //        withComputer().
@@ -131,9 +133,48 @@ public class TestDistributedGraphComputer {
             System.out.println("Result: " + g.
                     withComputer().
                     with("evaluationTimeout", 24 * 3600 * 1000).
-                    V().hasLabel("Person").
-                    count().
+                    V().hasLabel("Person").groupCount().by(__.out("HasCat").count()).
                     toList());
+        } catch (Exception e) {
+            System.out.println("Failed " + e);
+            if (g != null) {
+                g.close();
+            }
+        }
+        System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
+
+    }
+
+    @Test
+    public void testlocalasdf() throws Exception {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            final GraphTraversalSource g = graph.traversal();
+            System.out.println("Result: " + g.
+                    withComputer().
+                    V().hasLabel("person").out("knows").groupCount().by("age").toList());
+        }
+
+    }
+
+    @Test
+    public void testSparkCluster3() throws Exception {
+        final Instant instant = Instant.now();
+        GraphTraversalSource g = null;
+        try {
+            g = traversal().withRemote(DriverRemoteConnection.using("34.57.65.16", 8182, "g"));
+            //g.withComputer().V().hasLabel("asdf").toList();
+            //System.out.println("Result: " + g.
+            //        withComputer().
+            //        with("evaluationTimeout", 24 * 3600 * 1000).
+            //        V().hasLabel("Person").groupCount().by(__.out("HasCat").count()).
+            //        toList());
+            System.out.println("Result: " + g.
+                    withComputer().
+                    with("evaluationTimeout", 24 * 3600 * 1000).
+                    V().hasLabel("Person").out("LikesCoffee").groupCount().by("country").toList());
         } catch (Exception e) {
             System.out.println("Failed " + e);
             if (g != null) {

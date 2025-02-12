@@ -7,6 +7,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.TraversalVertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -62,7 +63,7 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
 
     @Override
     protected Iterator<Vertex> flatMap(final Traverser.Admin<Edge> traverser) {
-        if (!traversal.isRoot()) {
+        if (!traversal.isRoot() && !(traversal.getParent() instanceof TraversalVertexProgramStep)) {
             add(traverser);
             precompute();
         } else if (first) {

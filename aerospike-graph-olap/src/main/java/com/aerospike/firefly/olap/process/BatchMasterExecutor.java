@@ -1,4 +1,4 @@
-package com.aerospike.firefly.process.computer.local;
+package com.aerospike.firefly.olap.process;
 
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -30,8 +30,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.EmptyTraversalSideEff
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
-import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedFactory;
-import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class BatchMasterExecutor {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BatchMasterExecutor.class);
 
     private BatchMasterExecutor() {
 

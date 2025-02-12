@@ -28,6 +28,13 @@ public class LocalMessageBoard<M> {
         this.currentMessageScopes = new HashSet<>();
     }
 
+    public void clear() {
+        this.sendMessages.clear();
+        this.receiveMessages.clear();
+        this.previousMessageScopes.clear();
+        this.currentMessageScopes.clear();
+    }
+
     public List<Vertex> getVerticesWithTraversers() {
         final List<Vertex> result = new ArrayList<>();
         for (final MessageScope messageScope : sendMessages.keySet()) {

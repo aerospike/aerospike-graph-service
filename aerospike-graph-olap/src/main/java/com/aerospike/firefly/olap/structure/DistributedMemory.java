@@ -1,5 +1,6 @@
 package com.aerospike.firefly.olap.structure;
 
+import com.aerospike.firefly.olap.helper.TaskLogger;
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -25,25 +26,12 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram.HALTED_TRAVERSERS;
-
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  * Most of the Distributed* classes are adapted from the Spark* in TinkerPop from by Marko A. Rodriguez (http://markorodriguez.com)
  */
 public class DistributedMemory implements Memory.Admin, Serializable {
     private static final Logger LOGGER = LoggerFactory.getLogger(DistributedQueryExecutor.class);
-
-    private static String getTaskInfo() {
-        return String.format("Task %d - [%s %s %s]", TaskContext.getPartitionId(),
-                TaskContext.get().taskAttemptId(),
-                TaskContext.get().attemptNumber(),
-                TaskContext.get().stageId());
-    }
-
-    private static void logDebuggingMessage(final String message) {
-        LOGGER.info(getTaskInfo() + " " + message);
-    }
 
     public final Map<String, MemoryComputeKey> memoryComputeKeys = new HashMap<>();
     private final Map<String, AccumulatorV2<DistributedMemoryEntry, DistributedMemoryEntry>> sparkMemory = new HashMap<>();
@@ -138,7 +126,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         final Object detachedValue = ComputerHelper.detach(value);
         if (this.inExecute) {
             if (key.endsWith(")"))
-                logDebuggingMessage("Adding " + key + " to broadcast memory: " + detachedValue + " (from " + value + ").");
+                TaskLogger.logDebuggingMessage("Adding " + key + " to broadcast memory: " + detachedValue + " (from " + value + ").", LOGGER);
             this.sparkMemory.get(key).add(new DistributedMemoryEntry<>(detachedValue));
         } else
             throw Memory.Exceptions.memoryAddOnlyDuringVertexProgramExecute(key);

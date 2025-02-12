@@ -1,4 +1,4 @@
-package com.aerospike.firefly.process.computer.local;
+package com.aerospike.firefly.olap.process;
 
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.util.ReflectionHelper;

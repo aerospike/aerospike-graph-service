@@ -2,8 +2,9 @@ package com.aerospike.firefly.olap.structure;
 
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
-import com.aerospike.firefly.process.computer.local.BatchMessenger;
-import com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram;
+import com.aerospike.firefly.olap.helper.TaskLogger;
+import com.aerospike.firefly.olap.process.BatchMessenger;
+import com.aerospike.firefly.olap.process.BatchTraversalVertexProgram;
 import com.aerospike.firefly.process.computer.local.LocalMessageBoard;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
@@ -23,19 +24,12 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTrav
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
-import org.apache.tinkerpop.gremlin.structure.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-
-import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.ACTIVE_TRAVERSERS;
-import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -43,22 +37,6 @@ import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalV
  */
 public class DistributedExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(DistributedExecutor.class);
-
-    private static String getTaskInfo() {
-
-        return String.format("Task %d - [%s %s %s]", TaskContext.getPartitionId(),
-                TaskContext.get().taskAttemptId(),
-                TaskContext.get().attemptNumber(),
-                TaskContext.get().stageId());
-    }
-
-    private static void logDebuggingMessage(final String message) {
-        LOGGER.info(getTaskInfo() + " " + message);
-    }
-
-    private static int getPartitionId() {
-        return TaskContext.getPartitionId();
-    }
 
     static Dataset<Row> execute(Dataset<Row> input,
                                 final DistributedMemory memory,
@@ -73,10 +51,11 @@ public class DistributedExecutor {
         }
         System.out.println("Ending with " + input.rdd().partitions().length + " partitions.");
         return input.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
-            logDebuggingMessage("starting with " + (iterator.hasNext() ? "non-empty" : "empty") + " partition.");
+            TaskLogger.logDebuggingMessage("starting with " + (iterator.hasNext() ? "non-empty" : "empty") + " partition.", LOGGER);
 
             // Open graph.
             try (FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
+                graph.logInfo = TaskLogger.instance;
                 final VertexProgram vertexProgram = VertexProgram.createVertexProgram(graph, vertexProgramConfig);
 
                 final PureTraversal<?, ?> pureTraversal = ((BatchTraversalVertexProgram) vertexProgram).getTraversal().clone();
@@ -105,19 +84,30 @@ public class DistributedExecutor {
 
                 // Loop through input rows, transform to vertices, and execute workerVertexProgram.
                 final TraverserSet<Object> traverserSet = new TraverserSet<>();
-                while (iterator.hasNext()) {
-                    final Row r = iterator.next();
-                    traverserSet.add(codec.decode(r, traverserGenerator, traversalMatrix).asAdmin());
-                }
 
-                logDebuggingMessage("Input TraverserSet size: " + traverserSet.size());
-                if (!traverserSet.isEmpty()) {
-                    logDebuggingMessage("Step: " + new ArrayList<>(traverserSet).get(0).getStepId());
+                int runningTotal = 0;
+                while (iterator.hasNext()) {
+                    while (traverserSet.size() < 5000 && iterator.hasNext()) {
+                        final Row r = iterator.next();
+                        traverserSet.add(codec.decode(r, traverserGenerator, traversalMatrix).asAdmin());
+                    }
+
+                    runningTotal += traverserSet.size();
+                    TaskLogger.logDebuggingMessage("Input TraverserSet size: " + traverserSet.size() + "/" + runningTotal, LOGGER);
+                    if (!traverserSet.isEmpty()) {
+                        TaskLogger.logDebuggingMessage("Step: " + new ArrayList<>(traverserSet).get(0).getStepId(), LOGGER);
+                    }
+                    workerVertexProgram.execute(
+                            traverserSet,
+                            messenger,
+                            memory);
+                    traverserSet.clear();
+
+                    // TODO: Is this correct for all cases ?
+                    final TraverserSet<Traverser.Admin<?>> traversers = messageBoard.getActiveTraversers();
+                    traversers.forEach(t -> output.add(codec.encode(t)));
+                    messageBoard.clear();
                 }
-                workerVertexProgram.execute(
-                        traverserSet,
-                        messenger,
-                        memory);
 
                 // End worker iteration.
                 workerVertexProgram.workerIterationEnd(memory.asImmutable());
@@ -125,15 +115,11 @@ public class DistributedExecutor {
                 // Set memory is not in execute.
                 memory.setInExecute(false);
 
-                // TODO: Is this correct for all cases ?
-                final TraverserSet<Traverser.Admin<?>> traversers = messageBoard.getActiveTraversers();
-                traversers.forEach(t -> output.add(codec.encode(t)));
-
                 // Return results.
-                logDebuggingMessage("ending with " + output.size() + " rows.");
+                TaskLogger.logDebuggingMessage("ending with " + output.size() + " rows.", LOGGER);
                 return output.iterator();
             } catch (Exception e) {
-                logDebuggingMessage("ERROR");
+                TaskLogger.logDebuggingMessage("ERROR", LOGGER);
                 e.printStackTrace();
                 throw e;
             }

@@ -1,4 +1,4 @@
-package com.aerospike.firefly.process.computer.local;
+package com.aerospike.firefly.olap.process;
 
 import org.apache.tinkerpop.gremlin.process.computer.MessageScope;
 import org.apache.tinkerpop.gremlin.process.computer.Messenger;

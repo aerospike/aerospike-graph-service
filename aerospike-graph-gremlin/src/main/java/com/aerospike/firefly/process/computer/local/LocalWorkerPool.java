@@ -107,9 +107,6 @@ public class LocalWorkerPool implements AutoCloseable {
                 this.completionService.submit(() -> {
                     long count = 0;
                     final VertexProgram<?> vp = this.vertexProgramPool.take();
-                    final BatchTraversalVertexProgram trueVP = vp instanceof BatchTraversalVertexProgram
-                            ? (BatchTraversalVertexProgram) vp
-                            : new BatchTraversalVertexProgram((TraversalVertexProgram) vp);
                     final LocalWorkerMemory workerMemory = this.workerMemoryPool.poll();
                     while (true) {
                         final Optional<CloseableIterator<FireflyVertex>> option = partitions.next();
@@ -120,7 +117,7 @@ public class LocalWorkerPool implements AutoCloseable {
                                 count += batch.size();
                                 final List<Object> batchIds = batch.stream().map(e->e.id()).collect(Collectors.toList());
                                 if (!batch.isEmpty()) {
-                                    final List<Element> output = executeVertexProgram.execute(trueVP, workerMemory,
+                                    final List<Element> output = executeVertexProgram.execute(null, workerMemory,
                                             // id -> ((Integer)id) % numberOfWorkers == index);
                                             id -> batchIds.contains(id));
                                     if (output != null) {

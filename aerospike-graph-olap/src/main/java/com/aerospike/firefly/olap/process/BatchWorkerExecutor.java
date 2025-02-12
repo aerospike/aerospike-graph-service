@@ -1,5 +1,7 @@
-package com.aerospike.firefly.process.computer.local;
+package com.aerospike.firefly.olap.process;
 
+import com.aerospike.firefly.olap.helper.TaskLogger;
+import com.aerospike.firefly.olap.structure.DistributedExecutor;
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
@@ -23,6 +25,8 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.Host;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -30,6 +34,7 @@ import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BatchWorkerExecutor {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BatchWorkerExecutor.class);
 
     private BatchWorkerExecutor() {
 
@@ -124,6 +129,7 @@ public class BatchWorkerExecutor {
                                   final HaltedTraverserStrategy haltedTraverserStrategy) {
         // try execute in slave mode
         GraphComputing.atMaster(step, false);
+        TaskLogger.logDebuggingMessage("Drain step: " + step, LOGGER);
         if (step instanceof Barrier && !(step instanceof LocalBarrier)) {
             if (step instanceof Bypassing)
                 ((Bypassing) step).setBypass(true);
@@ -160,5 +166,7 @@ public class BatchWorkerExecutor {
             if (!memoryTraversers.isEmpty())
                 memory.add(TraversalVertexProgram.HALTED_TRAVERSERS, memoryTraversers);
         }
+        final String info = String.format("Drain step complete: %s [%d %d]", step, activeTraversers.size(), haltedTraversers.size());
+        TaskLogger.logDebuggingMessage(info, LOGGER);
     }
 }

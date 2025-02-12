@@ -1,7 +1,6 @@
 package com.aerospike.firefly.process.computer.local;
 
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionIterator;
-import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphFilterStrategy;
 import com.aerospike.firefly.process.traversal.strategy.verification.FireflyComputerVerificationStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -9,7 +8,6 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.computer.ComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
@@ -26,35 +24,26 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
-import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.IndexedTraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
-import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
-import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -69,7 +58,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -85,7 +73,6 @@ public class LocalGraphComputer implements GraphComputer {
     private ResultGraph resultGraph = null;
     private Persist persist = null;
 
-    private BatchTraversalVertexProgram vertexProgram;
     private final FireflyGraph graph;
     private LocalMemory memory;
     private final LocalMessageBoard messageBoard = new LocalMessageBoard();
@@ -131,7 +118,6 @@ public class LocalGraphComputer implements GraphComputer {
 
     @Override
     public GraphComputer program(final VertexProgram vertexProgram) {
-        this.vertexProgram = new BatchTraversalVertexProgram((TraversalVertexProgram) vertexProgram);
         return this;
     }
 
@@ -177,20 +163,9 @@ public class LocalGraphComputer implements GraphComputer {
                 traversal1.asAdmin().applyStrategies();
         }
 
-        public List<Element> execute(final BatchTraversalVertexProgram vertexProgram,
+        public List<Element> execute(final Object vertexProgram,
                                      final LocalWorkerMemory workerMemory,
                                      final Predicate workerIdFilter) throws Exception {
-            vertexProgram.workerIterationStart(workerMemory.asImmutable());
-
-            if (Thread.interrupted()) throw new TraversalInterruptedException();
-
-            vertexProgram.execute(
-                    messageBoard.getActiveTraversers(),
-                    new BatchMessenger<>(messageBoard, vertexProgram.getMessageCombiner()),
-                    workerMemory);
-
-            vertexProgram.workerIterationEnd(workerMemory.asImmutable());
-            workerMemory.complete();
             return messageBoard.getVerticesWithTraversers();
         }
     }
@@ -223,170 +198,7 @@ public class LocalGraphComputer implements GraphComputer {
 
     @Override
     public Future<ComputerResult> submit() {
-        LOG.info("GRAPH COMPUTER FILTER STRATEGY CONFIGURATION:\n" +
-                        "\tVertexProgram to execute: {}\n" +
-                        "\tNumber of workers available: {}\n" +
-                        "\tGraphComputer strategies applied: {}\n" +
-                        "\tGraph filters computed:\n" +
-                        "\t\tvertices: {}\n" +
-                        "\t\tedges: {}",
-                null == this.vertexProgram ? "N/A" : this.vertexProgram.toString(),
-                this.workers,
-                TraversalStrategies.GlobalCache.getStrategies(LocalGraphComputer.class).toList().toString(),
-                this.graphFilter.getVertexFilter(),
-                this.graphFilter.getEdgeFilter());
-        // a graph computer can only be executed once
-        if (this.executed)
-            throw Exceptions.computerHasAlreadyBeenSubmittedAVertexProgram();
-        else
-            this.executed = true;
-        // it is not possible execute a computer if it has no vertex program nor mapreducers
-        if (null == this.vertexProgram && this.mapReducers.isEmpty())
-            throw GraphComputer.Exceptions.computerHasNoVertexProgramNorMapReducers();
-        // it is possible to run mapreducers without a vertex program
-        if (null != this.vertexProgram) {
-            GraphComputerHelper.validateProgramOnComputer(this, this.vertexProgram);
-            this.mapReducers.addAll(this.vertexProgram.getMapReducers());
-        }
-        // get the result graph and persist state to use for the computation
-        this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
-        this.persist = GraphComputerHelper.getPersistState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.persist));
-        // if (!this.features().supportsResultGraphPersistCombination(this.resultGraph, this.persist))
-        // throw GraphComputer.Exceptions.resultGraphPersistCombinationNotSupported(this.resultGraph, this.persist);
-        // ensure requested workers are not larger than supported workers
-        if (this.workers > this.features().getMaxWorkers())
-            throw GraphComputer.Exceptions.computerRequiresMoreWorkersThanSupported(this.workers, this.features().getMaxWorkers());
-        // initialize the memory
-        this.memory = new LocalMemory(this.vertexProgram, this.mapReducers);
-        try {
-            final PureTraversal<?, ?> traversal = vertexProgram.getTraversal().clone();
-            final List<HasContainer> initialHasContainers = getInitialHasContainers(traversal.get());
-            final Future<ComputerResult> result = computerService.submit(() -> {
-                final long time = System.currentTimeMillis();
-                // create logical view over graph maintaining graph computer global state data
-                final LocalGraphComputerView view = FireflyHelper.createGraphComputerView(this.graph, this.graphFilter, null != this.vertexProgram ? this.vertexProgram.getVertexComputeKeys() : Collections.emptySet());
-
-                // create thread pool of workers (single machine)
-                final LocalWorkerPool workers = new LocalWorkerPool(this.graph, this.memory, this.workers);
-
-                try {
-                    final AtomicLong vertexCount = new AtomicLong(-1); // stores final iteration vertex count (used for mapreduce parittion size calculation)
-                    if (null != this.vertexProgram) {
-                        // execute the vertex program
-                        this.vertexProgram.setup(this.memory);
-                        List<Element> previousResult = null;
-                        while (true) {
-                            vertexCount.set(0L);
-                            if (Thread.interrupted()) throw new TraversalInterruptedException();
-                            this.memory.completeSubRound();
-                            workers.setVertexProgram(this.vertexProgram);
-                            previousResult = workers.executeVertexProgram(
-                                    new ExecuteVertexProgram(this.messageBoard, traversal),
-                                    this.memory.isInitialIteration(),
-                                    previousResult,
-                                    this.graphFilter,
-                                    initialHasContainers);
-                            this.messageBoard.completeIteration();
-                            this.memory.completeSubRound();
-                            if (this.vertexProgram.terminate(this.memory)) {
-                                this.memory.incrIteration();
-                                final TraverserSet halted = new TraverserSet();
-                                this.messageBoard.getHaltedTraversers().forEach(t -> halted.add(((Traverser) t).asAdmin()));
-                                // todo: fix wrong shortcut
-                                this.memory.set(HALTED_TRAVERSERS, halted);
-                                break;
-                            } else {
-                                this.memory.incrIteration();
-                            }
-                        }
-                        view.complete(); // drop all transient vertex compute keys (i.e. drop global state)
-                    }
-
-                    // execute mapreduce jobs
-                    final int mapPartitionSize = Math.max(
-                            (vertexCount.get() > 0 ? ((int) Math.ceil((double) vertexCount.get() / (double) this.workers)) : this.previousPartitionSize),
-                            ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, this.graph.configuration()));
-                    LOG.info("MAPREDUCE STAGE PARTITION CONFIGURATION:\n\t" +
-                            "Vertices in final vertex program iteration: {}\n\t" +
-                            "Number of available workers: {}\n\t" +
-                            "Computed partition size: {}", vertexCount.get(), this.workers, mapPartitionSize);
-                    for (final MapReduce mapReduce : mapReducers) {
-                        final LocalMapEmitter<?, ?> mapEmitter = new LocalMapEmitter<>(mapReduce.doStage(MapReduce.Stage.REDUCE));
-                        workers.setMapReduce(mapReduce);
-                        workers.executeMapReduce(workerMapReduce -> {
-                            workerMapReduce.workerStart(MapReduce.Stage.MAP);
-                            try (final PartitionIterator partitions = PartitionIterator.build(this.graph)
-                                    .filters(this.graphFilter)
-                                    .partitionSize(mapPartitionSize)
-                                    .create()) {
-                                while (partitions.hasNext()) {
-                                    final Optional<CloseableIterator<FireflyVertex>> optional = partitions.next();
-                                    if (optional.isEmpty())
-                                        break;
-                                    else {
-                                        try (final CloseableIterator<FireflyVertex> itty = optional.get()) {
-                                            while (itty.hasNext()) {
-                                                if (Thread.interrupted()) throw new TraversalInterruptedException();
-                                                final Vertex vertex = itty.next();
-                                                workerMapReduce.map(ComputerGraph.mapReduce(vertex), mapEmitter);
-                                            }
-                                        }
-                                    }
-
-                                }
-                                workerMapReduce.workerEnd(MapReduce.Stage.MAP);
-                            }
-                        });
-
-                        // sort results if a map output sort is defined
-                        mapEmitter.complete(mapReduce);
-
-                        // no need to run combiners as this is single machine
-                        if (mapReduce.doStage(MapReduce.Stage.REDUCE)) {
-                            final LocalReduceEmitter<?, ?> reduceEmitter = new LocalReduceEmitter<>();
-                            try (final SynchronizedIterator<Map.Entry<?, Queue<?>>> keyValues = new SynchronizedIterator<Map.Entry<?, Queue<?>>>((Iterator) mapEmitter.reduceMap.entrySet().iterator())) {
-                                workers.executeMapReduce(workerMapReduce -> {
-                                    workerMapReduce.workerStart(MapReduce.Stage.REDUCE);
-                                    while (true) {
-                                        if (Thread.interrupted()) throw new TraversalInterruptedException();
-                                        final Map.Entry<?, Queue<?>> entry = keyValues.next();
-                                        if (null == entry) break;
-                                        workerMapReduce.reduce(entry.getKey(), entry.getValue().iterator(), reduceEmitter);
-                                    }
-                                    workerMapReduce.workerEnd(MapReduce.Stage.REDUCE);
-                                });
-                            }
-                            reduceEmitter.complete(mapReduce); // sort results if a reduce output sort is defined
-                            mapReduce.addResultToMemory(this.memory, reduceEmitter.reduceQueue.iterator());
-                        } else {
-                            mapReduce.addResultToMemory(this.memory, mapEmitter.mapQueue.iterator());
-                        }
-
-                    }
-                    // update runtime and return the newly computed graph
-                    this.memory.setRuntime(System.currentTimeMillis() - time);
-                    this.memory.complete(); // drop all transient properties and set iteration
-                    // determine the resultant graph based on the result graph/persist state
-                    final Graph resultGraph = view.processResultGraphPersist(this.resultGraph, this.persist);
-                    FireflyHelper.dropGraphComputerView(this.graph); // drop the view from the original source graph
-                    return new DefaultComputerResult(resultGraph, this.memory.asImmutable());
-                } catch (final InterruptedException ie) {
-                    workers.closeNow();
-                    throw new TraversalInterruptedException();
-                } catch (final Exception ex) {
-                    workers.closeNow();
-                    throw new RuntimeException(ex);
-                } finally {
-                    workers.close();
-                    this.computerService.shutdown();
-                    this.graph.configuration().setProperty(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, this.previousPartitionSize);
-                }
-            });
-            return result;
-        } catch (final Exception e) {
-            LOG.error("A global error occurred. Shutting down {}: {}", this, e.getMessage());
-            return new CompletableFuture<>();
-        }
+        return null;
     }
 
     @Override

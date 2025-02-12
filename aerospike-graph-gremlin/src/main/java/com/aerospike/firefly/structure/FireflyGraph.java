@@ -37,6 +37,7 @@ import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.runtime.zipkin.OpenTelemetryZipkinExporter;
+import com.aerospike.firefly.structure.util.LogInfo;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.runtime.tasks.FireflyMetadataTask;
@@ -219,6 +220,15 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final GraphQuery graphQuery;
     private boolean queryTracingEnabled = false;
     private OpenTelemetryZipkinExporter zipkinExporter;
+    public LogInfo logInfo = null;
+
+    public void logMessage(final String message, final Logger logger) {
+        if (logInfo != null) {
+            logInfo.debuggingMessage(message, logger);
+        } else {
+            LOG.info(message);
+        }
+    }
 
     public static class ExitManager {
         public void exit(final int code) {

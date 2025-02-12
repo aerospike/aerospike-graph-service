@@ -30,6 +30,8 @@ import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceFactory;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferencePath;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -45,6 +47,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ComputerHelper {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ComputerHelper.class);
     public static boolean onGraphComputer(Traversal.Admin<?, ?> traversal) {
         while (!(traversal.isRoot())) {
             if (traversal.getParent() instanceof TraversalVertexProgramStep)
@@ -179,6 +182,7 @@ public class ComputerHelper {
     public static void bulkAttach(final FireflyGraph graph,
                                   final TraversalSideEffects traversalSideEffects,
                                   final List<Object> elements) {
+        graph.logMessage("Bulk attach element list " + elements.size(), LOGGER);
         final Set<Object> vertexIds = new HashSet<>();
         final Set<Object> edgeIds = new HashSet<>();
         elements.forEach(element -> collectIds(element, vertexIds, edgeIds));
@@ -206,6 +210,7 @@ public class ComputerHelper {
     public static void bulkAttach(final FireflyGraph graph,
                                   final TraversalSideEffects traversalSideEffects,
                                   final Map elements) {
+        graph.logMessage("Bulk attach element Map " + elements.size(), LOGGER);
         final Set<Object> vertexIds = new HashSet<>();
         final Set<Object> edgeIds = new HashSet<>();
         elements.forEach((k, v) -> {
@@ -254,6 +259,7 @@ public class ComputerHelper {
     public static void bulkAttach(final FireflyGraph graph,
                                   final TraversalSideEffects traversalSideEffects,
                                   final TraverserSet<Object> traversers) {
+        graph.logMessage("Bulk attach TraverserSet " + traversers.size(), LOGGER);
         final Set<Object> vertexIds = new HashSet<>();
         final Set<Object> edgeIds = new HashSet<>();
         traversers.forEach(traverser -> collectIds(traverser, vertexIds, edgeIds));

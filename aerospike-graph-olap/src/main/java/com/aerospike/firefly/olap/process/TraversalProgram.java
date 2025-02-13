@@ -65,7 +65,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<Object>> {
+public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
 
     public static final String TRAVERSAL = "gremlin.traversalVertexProgram.traversal";
     public static final String HALTED_TRAVERSERS = "gremlin.traversalVertexProgram.haltedTraversers";
@@ -90,13 +90,13 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
     // handle current profile metrics if profile is true
     private MutableMetrics iterationMetrics;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(BatchTraversalVertexProgram.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(TraversalProgram.class);
 
-    private BatchTraversalVertexProgram() {
+    private TraversalProgram() {
     }
 
     // todo: temporary hack
-    public BatchTraversalVertexProgram(final TraversalVertexProgram traversalVertexProgram) {
+    public TraversalProgram(final TraversalVertexProgram traversalVertexProgram) {
         this.traversal = traversalVertexProgram.getTraversal();
         this.traversalMatrix = new TraversalMatrix<>(this.traversal.get());
 
@@ -262,9 +262,7 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    public void execute(final TraverserSet<Object> activeTraversers,
-                        final BatchMessenger<TraverserSet<Object>> messenger,
-                        final Memory memory) {
+    public void execute(final BatchJob job, final Memory memory) {
         // if any global halted traversers, simply don't use them as they were handled by master setup()
         // these halted traversers are typically from a previous OLAP job that yielded traversers at the master traversal
         if (null != this.haltedTraversers)
@@ -280,19 +278,11 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
         }
         // define halted traversers
         final TraverserSet<Object> haltedTraversers = new TraverserSet<>();
-        // todo: used by local barriers
-//        final VertexProperty<TraverserSet<Object>> property = vertex.property(HALTED_TRAVERSERS);
-//        final TraverserSet<Object> haltedTraversers;
-//        if (property.isPresent()) {
-//            haltedTraversers = property.value();
-//        } else {
-//            haltedTraversers = new TraverserSet<>();
-//            vertex.property(VertexProperty.Cardinality.single, HALTED_TRAVERSERS, haltedTraversers);
-//        }
+
         //////////////////
         LOGGER.info("\nIteration: " + memory.getIteration());
         if (memory.isInitialIteration()) {    // ITERATION 1
-            activeTraversers.clear(); // todo:
+            final TraverserSet activeTraversers = new TraverserSet();
             // if halted traversers are being sent from a previous VertexProgram in an OLAP chain (distributed traversers), get them into the flow
             IteratorUtils.removeOnNext(haltedTraversers.iterator()).forEachRemaining(traverser -> {
                 traverser.setStepId(this.traversal.get().getStartStep().getId());
@@ -320,14 +310,15 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
                         else
                             haltedTraversers.add((Traverser.Admin) traverser.detach());
                     } else
-                        activeTraversers.add((Traverser.Admin) traverser);
+                        activeTraversers.add(traverser);
                 });
             }
+            job.setStarts(activeTraversers);
             memory.add(VOTE_TO_HALT, activeTraversers.isEmpty()
-                    || BatchWorkerExecutor.execute(new BatchSingleMessenger<>(messenger, activeTraversers), this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));
+                    || BatchWorkerExecutor.execute(job, this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));
         } else {  // ITERATION 1+
             memory.add(VOTE_TO_HALT,
-                    BatchWorkerExecutor.execute(new BatchSingleMessenger<>(messenger, activeTraversers), this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));
+                    BatchWorkerExecutor.execute(job, this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));
         }
     }
 
@@ -425,9 +416,9 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
     }
 
     @Override
-    public BatchTraversalVertexProgram clone() {
+    public TraversalProgram clone() {
         try {
-            final BatchTraversalVertexProgram clone = (BatchTraversalVertexProgram) super.clone();
+            final TraversalProgram clone = (TraversalProgram) super.clone();
             clone.traversal = this.traversal.clone();
             if (!clone.traversal.get().isLocked())
                 clone.traversal.get().applyStrategies();
@@ -475,26 +466,26 @@ public class BatchTraversalVertexProgram implements VertexProgram<TraverserSet<O
 
     //////////////
 
-    public static BatchTraversalVertexProgram.Builder build() {
-        return new BatchTraversalVertexProgram.Builder();
+    public static TraversalProgram.Builder build() {
+        return new TraversalProgram.Builder();
     }
 
     public final static class Builder extends AbstractVertexProgramBuilder<TraversalVertexProgram.Builder> {
 
         private Builder() {
-            super(BatchTraversalVertexProgram.class);
+            super(TraversalProgram.class);
         }
 
-        public BatchTraversalVertexProgram.Builder haltedTraversers(final TraverserSet<Object> haltedTraversers) {
+        public TraversalProgram.Builder haltedTraversers(final TraverserSet<Object> haltedTraversers) {
             storeHaltedTraversers(this.configuration, haltedTraversers);
             return this;
         }
 
-        public BatchTraversalVertexProgram.Builder traversal(final TraversalSource traversalSource, final String scriptEngine, final String traversalScript, final Object... bindings) {
+        public TraversalProgram.Builder traversal(final TraversalSource traversalSource, final String scriptEngine, final String traversalScript, final Object... bindings) {
             return this.traversal(new ScriptTraversal<>(traversalSource, scriptEngine, traversalScript, bindings));
         }
 
-        public BatchTraversalVertexProgram.Builder traversal(Traversal.Admin<?, ?> traversal) {
+        public TraversalProgram.Builder traversal(Traversal.Admin<?, ?> traversal) {
             // this is necessary if the job was submitted via TraversalVertexProgram.build() instead of TraversalVertexProgramStep.
             if (!(traversal.getParent() instanceof TraversalVertexProgramStep)) {
                 final MemoryTraversalSideEffects memoryTraversalSideEffects = new MemoryTraversalSideEffects(traversal.getSideEffects());

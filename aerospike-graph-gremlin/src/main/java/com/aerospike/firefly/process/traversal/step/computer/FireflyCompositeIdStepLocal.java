@@ -153,6 +153,7 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements S
             }
         });
 
-        return FireflyCloseableIteratorUtils.filter(output.iterator(), v -> HasContainer.testAll(v, fireflyHasContainers));
+        // return FireflyCloseableIteratorUtils.filter(output.iterator(), v -> HasContainer.testAll(v, fireflyHasContainers));
+        return output.iterator();
     }
 }

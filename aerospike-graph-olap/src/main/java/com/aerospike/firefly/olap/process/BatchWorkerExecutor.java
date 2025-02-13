@@ -1,12 +1,9 @@
 package com.aerospike.firefly.olap.process;
 
 import com.aerospike.firefly.olap.helper.TaskLogger;
-import com.aerospike.firefly.olap.structure.DistributedExecutor;
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
-import org.apache.tinkerpop.gremlin.process.computer.MessageScope;
-import org.apache.tinkerpop.gremlin.process.computer.Messenger;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalSideEffects;
@@ -21,8 +18,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSe
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Property;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.util.Host;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
@@ -40,7 +35,7 @@ public class BatchWorkerExecutor {
 
     }
 
-    protected static boolean execute(final Messenger<TraverserSet<Object>> messenger,
+    protected static boolean execute(final BatchJob job,
                                      final TraversalMatrix<?, ?> traversalMatrix,
                                      final Memory memory,
                                      final boolean returnHaltedTraversers,
@@ -55,25 +50,20 @@ public class BatchWorkerExecutor {
         // GENERATE LOCAL TRAVERSERS //
         ///////////////////////////////
 
-        // TRAVERSER MESSAGES (WORKER -> WORKER)
-        // these are traversers that have been messaged to the vertex from another vertex
-        final Iterator<TraverserSet<Object>> messages = messenger.receiveMessages();
-        while (messages.hasNext()) {
-            final TraverserSet memoryTraversers = new TraverserSet<>();
-            IteratorUtils.removeOnNext(messages.next().iterator()).forEachRemaining(traverser -> {
-                if (traverser.isHalted()) {
-                    if (returnHaltedTraversers)
-                        memoryTraversers.add(haltedTraverserStrategy.halt(traverser));
-                    else
-                        haltedTraversers.add(traverser); // the traverser has already been detached so no need to detach it again
-                } else {
-                    toProcessTraversers.add(traverser);
-                }
-                if (!memoryTraversers.isEmpty()) {
-                    memory.add(TraversalVertexProgram.HALTED_TRAVERSERS, memoryTraversers);
-                }
-            });
-        }
+        final TraverserSet memoryTraversers = new TraverserSet<>();
+        IteratorUtils.removeOnNext(job.getStarts().iterator()).forEachRemaining(traverser -> {
+            if (traverser.isHalted()) {
+                if (returnHaltedTraversers)
+                    memoryTraversers.add(haltedTraverserStrategy.halt(traverser));
+                else
+                    haltedTraversers.add(traverser); // the traverser has already been detached so no need to detach it again
+            } else {
+                toProcessTraversers.add(traverser);
+            }
+            if (!memoryTraversers.isEmpty()) {
+                memory.add(TraversalVertexProgram.HALTED_TRAVERSERS, memoryTraversers);
+            }
+        });
 
         ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                 traversalSideEffects, toProcessTraversers);
@@ -104,14 +94,13 @@ public class BatchWorkerExecutor {
                 while (traversers.hasNext()) {
                     final Traverser.Admin<Object> traverser = traversers.next();
                     traversers.remove();
-                    // todo: cleanup messenger
+                    // todo: investigate processing elements locally always (!!!)
                     // decide whether to message the traverser or to process it locally
                     if (traverser.get() instanceof Element || traverser.get() instanceof Property) {      // GRAPH OBJECT
-                        // if the element is remote, then message, else store it locally for re-processing
-                        final Vertex hostingVertex = Host.getHostingVertex(traverser.get());
+                        // if the element is remote, then send as result, else store it locally for re-processing
                         if (!traverser.isHalted())
                             voteToHalt.set(false);
-                        messenger.sendMessage(MessageScope.Global.of(hostingVertex), new TraverserSet<>(traverser.detach()));
+                        job.addResult(traverser);
                     } else                                                                              // STANDARD OBJECT
                         toProcessTraversers.add(traverser);
                 }
@@ -145,7 +134,7 @@ public class BatchWorkerExecutor {
                 memory.add(step.getId(), new TraverserSet<>());
             }
 
-            memory.add(BatchTraversalVertexProgram.MUTATED_MEMORY_KEYS, new HashSet<>(Collections.singleton(step.getId())));
+            memory.add(TraversalProgram.MUTATED_MEMORY_KEYS, new HashSet<>(Collections.singleton(step.getId())));
         } else { // LOCAL PROCESSING
             final TraverserSet memoryTraversers = new TraverserSet<>();
             step.forEachRemaining(traverser -> {

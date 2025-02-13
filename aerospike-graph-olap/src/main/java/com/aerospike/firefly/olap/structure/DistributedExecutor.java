@@ -3,12 +3,10 @@ package com.aerospike.firefly.olap.structure;
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.olap.helper.TaskLogger;
-import com.aerospike.firefly.olap.process.BatchMessenger;
-import com.aerospike.firefly.olap.process.BatchTraversalVertexProgram;
-import com.aerospike.firefly.process.computer.local.LocalMessageBoard;
+import com.aerospike.firefly.olap.process.BatchJob;
+import com.aerospike.firefly.olap.process.TraversalProgram;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -58,7 +56,7 @@ public class DistributedExecutor {
                 graph.logInfo = TaskLogger.instance;
                 final VertexProgram vertexProgram = VertexProgram.createVertexProgram(graph, vertexProgramConfig);
 
-                final PureTraversal<?, ?> pureTraversal = ((BatchTraversalVertexProgram) vertexProgram).getTraversal().clone();
+                final PureTraversal<?, ?> pureTraversal = ((TraversalProgram) vertexProgram).getTraversal().clone();
                 pureTraversal.get().applyStrategies();
                 final Traversal traversal = pureTraversal.get();
                 final Codec codec = new Codec(traversal);
@@ -70,17 +68,13 @@ public class DistributedExecutor {
 
                 // Set memory is in execute.
                 memory.setInExecute(true);
-                final LocalMessageBoard messageBoard = new LocalMessageBoard();
 
                 // Create VertexProgram for worker and prset iteration start.
-                final BatchTraversalVertexProgram workerVertexProgram = vertexProgram instanceof BatchTraversalVertexProgram
-                        ? (BatchTraversalVertexProgram) vertexProgram
-                        : new BatchTraversalVertexProgram((TraversalVertexProgram) vertexProgram);
+                final TraversalProgram workerVertexProgram = vertexProgram instanceof TraversalProgram
+                        ? (TraversalProgram) vertexProgram
+                        : new TraversalProgram((TraversalVertexProgram) vertexProgram);
 
                 workerVertexProgram.workerIterationStart(memory.asImmutable());
-
-                // Create distributed messenger.
-                final BatchMessenger messenger = new BatchMessenger<>(messageBoard, workerVertexProgram.getMessageCombiner());
 
                 // Loop through input rows, transform to vertices, and execute workerVertexProgram.
                 final TraverserSet<Object> traverserSet = new TraverserSet<>();
@@ -97,16 +91,15 @@ public class DistributedExecutor {
                     if (!traverserSet.isEmpty()) {
                         TaskLogger.logDebuggingMessage("Step: " + new ArrayList<>(traverserSet).get(0).getStepId(), LOGGER);
                     }
-                    workerVertexProgram.execute(
-                            traverserSet,
-                            messenger,
-                            memory);
+
+                    final BatchJob job  = new BatchJob(traverserSet);
+                    workerVertexProgram.execute(job, memory);
                     traverserSet.clear();
 
                     // TODO: Is this correct for all cases ?
-                    final TraverserSet<Traverser.Admin<?>> traversers = messageBoard.getActiveTraversers();
+                    final TraverserSet<Traverser.Admin> traversers = job.getResults();
                     traversers.forEach(t -> output.add(codec.encode(t)));
-                    messageBoard.clear();
+                    job.clear();
                 }
 
                 // End worker iteration.

@@ -4,7 +4,7 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.olap.config.DistributedConfiguration;
-import com.aerospike.firefly.olap.process.BatchTraversalVertexProgram;
+import com.aerospike.firefly.olap.process.TraversalProgram;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
@@ -58,7 +58,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
-import static com.aerospike.firefly.olap.process.BatchTraversalVertexProgram.VOTE_TO_HALT;
+import static com.aerospike.firefly.olap.process.TraversalProgram.VOTE_TO_HALT;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
@@ -108,10 +108,6 @@ public class DistributedGraphComputer implements GraphComputer {
         conf.setAppName("aerospike-graph-olap")
                 .set("spark.driver.allowMultipleContexts", "false")
                 .set("spark.ui.enabled", "true")
-                .set("spark.executor.instances", String.valueOf(100))
-                .set("spark.scheduler.minRegisteredResourcesRatio", String.valueOf(1.0))
-                .set("spark.scheduler.maxRegisteredResourcesWaitingTime", String.valueOf(60000))
-                .set("spark.dynamicAllocation.enabled", "false")
                 .set("mapreduce.fileoutputcommitter.algorithm.version", "2")
                 .set("spark.executor.extraJavaOptions", "-Dlog4j.logger.org.apache.spark.serializer=DEBUG -Dlog4j.logger.org.apache.spark.util.ClosureCleaner=DEBUG");
 
@@ -141,7 +137,7 @@ public class DistributedGraphComputer implements GraphComputer {
 
     @Override
     public GraphComputer program(final VertexProgram vertexProgram) {
-        this.vertexProgram = new BatchTraversalVertexProgram((TraversalVertexProgram) vertexProgram);
+        this.vertexProgram = new TraversalProgram((TraversalVertexProgram) vertexProgram);
         return this;
     }
 
@@ -280,7 +276,7 @@ public class DistributedGraphComputer implements GraphComputer {
         int i = 0;
         System.out.println("Configuration: "  + Arrays.toString(spark.sparkContext().getConf().getAll()));
         try {
-            final PureTraversal<?, ?> traversal = ((BatchTraversalVertexProgram) vertexProgram).getTraversal().clone();
+            final PureTraversal<?, ?> traversal = ((TraversalProgram) vertexProgram).getTraversal().clone();
 
             // TODO Configurable page size w/ ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE
             // TODO: Ultimately reworking this logic so that we can distribute the partition to the spark workers to run a sindex again

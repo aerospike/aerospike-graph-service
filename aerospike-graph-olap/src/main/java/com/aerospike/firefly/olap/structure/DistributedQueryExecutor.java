@@ -26,7 +26,9 @@ import com.aerospike.firefly.util.TimeoutHelper;
 import com.google.common.collect.Lists;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
+import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
@@ -87,8 +89,17 @@ public class DistributedQueryExecutor {
         final String startStep = traversal.asAdmin().getStartStep().getNextStep().getId();
         final List<HasContainer> hasContainers = queryInfo.fireflyHasContainers;
         System.out.println("Starting query with " + queryRangeDataset.rdd().partitions().length + " partitions.");
-        queryRangeDataset = DistributedGraphComputer.magicSwap(queryRangeDataset.repartition(queryRanges.size()));
+        queryRangeDataset = DistributedGraphComputer.magicSwap(queryRangeDataset.repartitionByRange(queryRanges.size(), new Column(START_COL)));
+        //queryRangeDataset.
         System.out.println("Repartitioned query with " + queryRangeDataset.rdd().partitions().length + " partitions.");
+        System.out.println("Partition balancing for index: " + queryRangeDataset.javaRDD().mapPartitions(iter -> {
+            long count = 0;
+            while (iter.hasNext()) {
+                iter.next();
+                count++;
+            }
+            return java.util.Collections.singletonList(count).iterator();
+        }).collect());
         return queryRangeDataset.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             // Junk required.
             final Codec codec = new Codec(traversal);
@@ -99,10 +110,15 @@ public class DistributedQueryExecutor {
                 final Filter filter = GraphQueryHelper.predicateToFilter(graph.getBaseGraph(), hasContainer.getPredicate(), indexInfo);
                 final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
                 final List<Row> rows = new ArrayList<>();
+                if (!iterator.hasNext()) {
+                    TaskLogger.logDebuggingMessage("No rows to process.", LOGGER);
+                    return outputRows.iterator();
+                }
                 while (iterator.hasNext()) {
                     rows.add(iterator.next());
                 }
 
+                int rowCount = 0;
                 for (final Row row : rows) {
                     int attemptCount = 0;
                     while (true) {
@@ -111,6 +127,7 @@ public class DistributedQueryExecutor {
                                     row.getInt(row.fieldIndex(START_COL)),
                                     row.getInt(row.fieldIndex(COUNT_COL)));
 
+                            TaskLogger.logDebuggingMessage("Row number " + rowCount++, LOGGER);
                             TaskLogger.logDebuggingMessage("Attempt count " + attemptCount + " => Partition filter: " + partitionFilter.getBegin() + "-" + (partitionFilter.getCount() + partitionFilter.getBegin()), LOGGER);
 
                             // TODO: Can omit some bins here.
@@ -151,10 +168,6 @@ public class DistributedQueryExecutor {
                                 final PaginationIterator pi = (PaginationIterator) page.keyRecords;
                                 pi.close();
                             }
-
-                            // Memory: Map(lyndon-olap-load-32g-m.us-central1-a.c.firefly-aerospike.internal:33465 -> (10119177830,10119134980), lyndon-olap-load-32g-w-7.us-central1-a.c.firefly-aerospike.internal:39501 -> (8830687641,8830687641), lyndon-olap-load-32g-w-2.us-central1-a.c.firefly-aerospike.internal:35677 -> (8830687641,8830644791))
-                            //Configuration: [(spark.eventLog.enabled,true), (spark.org.apache.hadoop.yarn.server.webproxy.amfilter.AmIpFilter.param.PROXY_HOSTS,lyndon-olap-load-32g-m.us-central1-a.c.firefly-aerospike.internal.), (spark.dataproc.sql.joinConditionReorder.enabled,true), (spark.history.fs.logDirectory,gs://dataproc-temp-us-central1-1026366180403-0djxeili/3b639663-2cf6-4ff0-a692-2586dd3e9ab1/spark-job-history), (spark.app.initial.jar.urls,spark://lyndon-olap-load-32g-m.us-central1-a.c.firefly-aerospike.internal:39421/jars/dataproc-empty-jar-1739382172940.jar), (spark.dataproc.sql.local.rank.pushdown.enabled,true), (spark.dynamicAllocation.maxExecutors,64), (spark.dynamicAllocation.minExecutors,64), (spark.yarn.unmanagedAM.enabled,true), (spark.yarn.dist.jars,file:///tmp/0fbdc701eda140a882ab9e46a8a90b72/aerospike-graph-olap-2.5.0-test27.jar), (spark.app.submitTime,1739382179118), (spark.ui.filters,org.apache.hadoop.yarn.server.webproxy.amfilter.AmIpFilter), (spark.org.apache.hadoop.yarn.server.webproxy.amfilter.AmIpFilter.param.PROXY_URI_BASES,http://lyndon-olap-load-32g-m.us-central1-a.c.firefly-aerospike.internal.:8088/proxy/application_1739377084470_0015), (spark.sql.optimizer.runtime.bloomFilter.join.pattern.enabled,true), (spark.driver.port,39421), (spark.executor.memory,14g), (spark.jars,file:/tmp/0fbdc701eda140a882ab9e46a8a90b72/dataproc-empty-jar-1739382172940.jar), (spark.metrics.namespace,app_name:${spark.app.name}.app_id:${spark.app.id}), (spark.dataproc.sql.optimizer.join.fusion.enabled,true), (spark.ui.enabled,true), (spark.dataproc.sql.optimizer.leftsemijoin.conversion.enabled,true), (spark.yarn.secondary.jars,aerospike-graph-olap-2.5.0-test27.jar), (spark.executor.id,driver), (spark.hadoop.hive.execution.engine,mr), (spark.driver.allowMultipleContexts,false), (spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version,2), (spark.driver.appUIAddress,http://lyndon-olap-load-32g-m.us-central1-a.c.firefly-aerospike.internal:33021), (spark.eventLog.dir,gs://dataproc-temp-us-central1-1026366180403-0djxeili/3b639663-2cf6-4ff0-a692-2586dd3e9ab1/spark-job-history), (spark.yarn.historyServer.address,lyndon-olap-load-32g-m:18080), (spark.sql.catalogImplementation,hive), (spark.speculation,false), (spark.sql.parquet.enableNestedColumnVectorizedReader,true), (spark.yarn.tags,dataproc_hash_21c72efd-eb1b-3e50-9620-1114bfb65f14,dataproc_job_0fbdc701eda140a882ab9e46a8a90b72,dataproc_job_attempt_timestamp_1739382172940,dataproc_master_index_0,dataproc_uuid_a76e9155-14ff-38ec-9a39-083bc55eb206), (spark.executor.extraJavaOptions,-XX:+IgnoreUnrecognizedVMOptions --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.nio.cs=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED), (spark.repl.local.jars,file:///tmp/0fbdc701eda140a882ab9e46a8a90b72/aerospike-graph-olap-2.5.0-test27.jar), (spark.executorEnv.OPENBLAS_NUM_THREADS,1), (spark.history.fs.gs.outputstream.type,FLUSHABLE_COMPOSITE), (fs.s3.impl,org.apache.hadoop.fs.s3a.S3AFileSystem), (spark.sql.cbo.enabled,true), (spark.dynamicAllocation.enabled,false), (spark.driver.extraJavaOptions,-XX:+IgnoreUnrecognizedVMOptions --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.nio.cs=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED), (spark.dataproc.sql.parquet.enableFooterCache,true), (spark.yarn.am.memory,640m), (spark.checkpoint.compress,true), (spark.dataproc.advanced.infer.filter.enabled,true), (google.cloud.auth.service.account.enable,true), (spark.task.cpus,2), (mapreduce.fileoutputcommitter.algorithm.version,2), (spark.executor.instances,2), (spark.dataproc.listeners,com.google.cloud.spark.performance.DataprocMetricsListener), (spark.app.name,aerospike-graph-olap), (spark.driver.memory,16384m), (spark.app.startTime,1739382179240), (spark.submit.deployMode,client), (spark.driver.maxResultSize,8192m), (spark.plugins.defaultList,com.google.cloud.dataproc.DataprocSparkPlugin), (spark.dataproc.metrics.listener.metrics.collector.hostname,lyndon-olap-load-32g-m), (spark.sql.cbo.joinReorder.enabled,true), (spark.shuffle.service.enabled,true), (spark.scheduler.mode,FAIR), (spark.sql.adaptive.enabled,true), (spark.yarn.jars,local:/usr/lib/spark/jars/*), (spark.scheduler.minRegisteredResourcesRatio,0.0), (spark.sql.warehouse.dir,file:/tmp/0fbdc701eda140a882ab9e46a8a90b72/spark-warehouse), (spark.executor.cores,2), (spark.master,yarn), (spark.ui.port,0), (spark.sql.autoBroadcastJoinThreshold,200m), (fs.gs.impl,com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem), (spark.rpc.message.maxSize,512), (spark.driver.host,lyndon-olap-load-32g-m.us-central1-a.c.firefly-aerospike.internal), (spark.dynamicAllocation.initialExecutors,64), (spark.submit.pyFiles,), (spark.app.id,application_1739377084470_0015), (spark.dataproc.sql.optimizer.scalar.subquery.fusion.enabled,true)]
-                            //===== FireflyGraphStep(vertex,SCAN,[~label.eq(Person)]) true ===== [FireflyGraphStep(vertex,SCAN,[~label.eq(Person)]), CountGlobalStep]
 
                             TaskLogger.logDebuggingMessage("Awaiting shutdown", LOGGER);
                             pageFetcher.shutdownAwait();
@@ -282,7 +295,7 @@ public class DistributedQueryExecutor {
         final GraphStep graphStep = (GraphStep) traversal.asAdmin().getStartStep();
         final List<HasContainer> hasContainers = queryInfo.fireflyHasContainers;
         System.out.println("Starting query with " + queryRangeDataset.rdd().partitions().length + " partitions.");
-        queryRangeDataset = queryRangeDataset.repartition(queryRanges.size());
+        queryRangeDataset = DistributedGraphComputer.magicSwap(queryRangeDataset.repartitionByRange(queryRanges.size(), new Column(START_COL)));
         System.out.println("Repartitioned query with " + queryRangeDataset.rdd().partitions().length + " partitions.");
         return queryRangeDataset.mapPartitions((MapPartitionsFunction<Row, Row>) iterator -> {
             // Junk required.

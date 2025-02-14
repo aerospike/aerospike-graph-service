@@ -309,9 +309,6 @@ public class DistributedGraphComputer implements GraphComputer {
             // Create basic schema.
             final StructType schema = codec.getSchema();
 
-            final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace) - 4; // Leave some room.
-            Dataset<Row> df = magicSwap(DistributedQueryExecutor.getStartingPoint(spark, graph, configHelper, graphStep.getHasContainers(), graphStep.getIds(), traversal.get(), schema, maxParallelSindexes, workers));
-
             // Create necessary things for execution (Memory, ResultGraph, Config, etc.)
             this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
             final DistributedMemory memory = new DistributedMemory(this.vertexProgram, this.mapReducers, new JavaSparkContext(spark.sparkContext()));
@@ -322,24 +319,14 @@ public class DistributedGraphComputer implements GraphComputer {
             // Broadcast spark context.
             memory.broadcastMemory(new JavaSparkContext(spark.sparkContext()));
 
-            // Set results to initially empty.
-
-            Dataset<Row> results = magicSwap(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true)));
-
-            df = magicSwap(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false)));
-
-            // PartitionIterator pulls initial step data, so we can start on step 2.
             memory.incrIteration();
+            final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace) - 4; // Leave some room.
 
-            if (df.count() == 0) {
-                memory.set(VOTE_TO_HALT, true);
-                vertexProgram.terminate(memory);
-            }
-
-            // 100 seconds for ~200 GB
-            // 50 TB -> 2500 * 100 = 250,000 seconds = 69 hours
-
-            while (df.count() != 0) {
+            Dataset<Row> df = null;
+            Dataset<Row> results = null;
+            int iterationCount = 0;
+            do {
+                iterationCount++;
                 if (Thread.interrupted()) {
                     // If query is cancelled, cancel all spark jobs and throw an exception.
                     spark.sparkContext().cancelAllJobs();
@@ -352,15 +339,36 @@ public class DistributedGraphComputer implements GraphComputer {
                 //df.show();
 
                 memory.setInExecute(true);
+                df = magicSwap(DistributedWorkerExecutor.execute(
+                        spark,
+                        graph,
+                        configHelper,
+                        graphStep.getHasContainers(),
+                        graphStep.getIds(),
+                        traversal.get(),
+                        schema,
+                        maxParallelSindexes,
+                        iterationCount == 1,
+                        df,
+                        memory,
+                        vertexProgramConfiguration,
+                        schema,
+                        workers));
+                df.show();
+
                 System.out.println("==================> TOTAL COUNT: " + df.count());
-                df = magicSwap(DistributedExecutor.execute(df, memory, configHelper, vertexProgramConfiguration, schema, workers));
                 memory.setInExecute(false);
 
                 final Dataset<Row> resultsTemp = magicSwap(
                         df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true)));
 
                 // Filter out halted vertices.
-                results = magicSwap(results.union(resultsTemp));
+                if (results == null) {
+                    results = resultsTemp;
+                } else {
+                    results = magicSwap(results.union(resultsTemp));
+
+                }
 
                 //if (LOGGER.isDebugEnabled())
                 //System.out.println("====================== Results ======================");
@@ -382,9 +390,9 @@ public class DistributedGraphComputer implements GraphComputer {
                 } else {
                     memory.incrIteration();
                 }
-            }
-            final TraverserSet traversers = new TraverserSet();
+            } while (df.count() != 0);
 
+            final TraverserSet traversers = new TraverserSet();
             try {
                 TraverserSet memoryTraversers = memory.get(HALTED_TRAVERSERS);
                 traversers.addAll(memoryTraversers);

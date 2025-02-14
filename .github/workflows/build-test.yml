@@ -550,6 +550,10 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           mvn install -DskipTests
+      - name: Test Summary Updater TTL Exclusion
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyGraphSummaryUpdaterTest --no-transfer-progress
       - name: Test Client Event Loop Configuration
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts

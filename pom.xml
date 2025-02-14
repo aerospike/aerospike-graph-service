@@ -197,6 +197,7 @@
                         <exclude>**/TestMRTSupported</exclude>
                         <exclude>**/FireflyMRTFeatureTest</exclude>
                         <exclude>**/TestAerospikeOperations</exclude>
+                        <exclude>**/FireflyGraphSummaryUpdaterTest</exclude>
                     </excludes>
                 </configuration>
             </plugin>

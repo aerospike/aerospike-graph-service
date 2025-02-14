@@ -353,9 +353,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         if (System.getenv("FIREFLY_TESTING") != null &&
                 System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
             logLevel = "WARN";
-            // Audit log and warmup test needs to check output of logs.
+            // Tests that need to check output of logs.
             for (final StackTraceElement e : Thread.currentThread().getStackTrace()) {
-                if (e.getClassName().contains("TestAuditLog") || e.getClassName().contains("TestWarmup") || e.getClassName().contains("TestShutdown")) {
+                if (e.getClassName().contains("TestAuditLog") || e.getClassName().contains("TestWarmup")
+                        || e.getClassName().contains("TestShutdown") || e.getClassName().contains("FireflyGraphSummaryUpdaterTest")) {
                     logLevel = "INFO";
                     break;
                 }

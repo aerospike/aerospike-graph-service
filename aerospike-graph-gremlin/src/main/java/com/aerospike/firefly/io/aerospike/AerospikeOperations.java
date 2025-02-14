@@ -726,6 +726,12 @@ public class AerospikeOperations {
                                          final Txn txn) {
         LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertex.id(), label, inVertex.id(), properties);
 
+        final List<Operation> operations = new ArrayList<>();
+        // CREATE_ONLY as writing an edge will always have a newly-generated unique ID.
+        final Value edgeIdkey = Value.get(((FireflyEdgeId) edgeId).getEdgeIdBytes());
+        final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED,
+                MapWriteFlags.CREATE_ONLY | MapWriteFlags.NO_FAIL | MapWriteFlags.PARTIAL);
+
         final Map<String, Object> propertyMap = new TreeMap<>();
         final Map<String, Object> typeHints = new TreeMap<>();
         properties.forEach(property -> {
@@ -736,21 +742,33 @@ public class AerospikeOperations {
                 propertyMap.remove(key);
                 typeHints.remove(key);
             } else {
-                final Object typeHint = getTypeHintOf(value);
-                if (typeHint != null) {
-                    typeHints.put(key, typeHint);
+                if (key.equals(TTL_PROPERTY_KEY)) {
+                    if (!db.TTL_ENABLED_FLAG) {
+                        throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
+                    }
+                    if (Number.class.isAssignableFrom(value.getClass())) {
+                        final long ttlValueLong = ((Number) value).longValue();
+                        final long expirationTime = System.currentTimeMillis() + (ttlValueLong * 1000);
+                        final Operation writeTtl = MapOperation.put(edgeMapPolicy, db.TTL_BIN, edgeIdkey,
+                                Value.get(expirationTime));
+                        operations.add(writeTtl);
+                    } else {
+                        throw new TtlArgumentException(value);
+                    }
+                } else {
+                    final Object typeHint = getTypeHintOf(value);
+                    if (typeHint != null) {
+                        typeHints.put(key, typeHint);
+                    }
+                    propertyMap.put(key, value);
                 }
-                propertyMap.put(key, value);
             }
         });
+        final List<Map.Entry<String, Object>> validProperties = new ArrayList<>();
+        propertyMap.forEach((propertyKey, propertyValue) ->
+                validProperties.add(new AbstractMap.SimpleEntry<>(propertyKey, propertyValue)));
 
         final List<Value> edgeData = new ArrayList<>(EDGE_DATA_SIZE);
-
-        final List<Operation> operations = new ArrayList<>();
-        // CREATE_ONLY as writing an edge will always have a newly-generated unique ID.
-        final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED,
-                MapWriteFlags.CREATE_ONLY | MapWriteFlags.NO_FAIL | MapWriteFlags.PARTIAL);
-
         // Add label to Edge data.
         edgeData.add(LABEL_POSITION, Value.get(label));
         // Add IN and OUT to Edge data.
@@ -758,7 +776,6 @@ public class AerospikeOperations {
         edgeData.add(OUT_V_POSITION, Value.get(outVertex.id.getKeyHashString()));
 
         // Write to supernodes bin if vertex cache overflowed.
-        final Value edgeIdkey = Value.get(((FireflyEdgeId) edgeId).getEdgeIdBytes());
         if (!inVertexCacheWrite) {
             final Operation writeInVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_IN_BIN,
                     edgeIdkey, Value.get(inVertex.id.getKeyHashString()));
@@ -768,25 +785,6 @@ public class AerospikeOperations {
             final Operation writeOutVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_OUT_BIN,
                     edgeIdkey, Value.get(outVertex.id.getKeyHashString()));
             operations.add(writeOutVSupernode);
-        }
-
-        // Handle TTL.
-        long ttlValueLong;
-        if (propertyMap.containsKey(TTL_PROPERTY_KEY)) {
-            if (!db.TTL_ENABLED_FLAG) {
-                throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
-            }
-            final Object ttlValue = propertyMap.remove(TTL_PROPERTY_KEY);
-            typeHints.remove(TTL_PROPERTY_KEY);
-            if (Number.class.isAssignableFrom(ttlValue.getClass())) {
-                ttlValueLong = ((Number) ttlValue).longValue();
-                final long expirationTime = System.currentTimeMillis() + (ttlValueLong * 1000);
-                final Operation writeTtl = MapOperation.put(edgeMapPolicy, db.TTL_BIN, edgeIdkey,
-                        Value.get(expirationTime));
-                operations.add(writeTtl);
-            } else {
-                throw new TtlArgumentException(ttlValue);
-            }
         }
 
         // Write to filterable supernode bin if necessary.
@@ -808,11 +806,10 @@ public class AerospikeOperations {
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
         try {
             final Record record = db.writeOperate(writePolicy, key, operations.toArray(new Operation[0]));
-            graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey)
+            graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, validProperties.stream().map(Map.Entry::getKey)
                     .collect(Collectors.toSet()));
-            final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id,
+            return FireflyEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id,
                     propertyMap, typeHints, !outVertexCacheWrite, !inVertexCacheWrite, record.generation);
-            return edge;
         } catch (final AerospikeGraphRecordSizeExceededException e) {
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingEdge((AerospikeException) e.getCause(), db, key, edgeId);

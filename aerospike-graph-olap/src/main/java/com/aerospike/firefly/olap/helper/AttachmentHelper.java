@@ -14,10 +14,16 @@ import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedEdge;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedProperty;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceFactory;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferencePath;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceProperty;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertexProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,13 +47,13 @@ public class AttachmentHelper {
         if (object == null)
             return;
 
-        if (object instanceof Vertex)
+        if (object instanceof ReferenceVertex || object instanceof DetachedVertex)
             vertexIds.add(((Vertex) object).id());
-        else if (object instanceof Edge)
+        else if (object instanceof ReferenceEdge || object instanceof DetachedEdge)
             edgeIds.add(((Edge) object).id());
-        else if (object instanceof VertexProperty)
+        else if (object instanceof ReferenceVertexProperty || object instanceof DetachedVertexProperty)
             vertexIds.add(((VertexProperty) object).element().id());
-        else if (object instanceof ReferenceProperty) {
+        else if (object instanceof ReferenceProperty || object instanceof DetachedProperty) {
             collectIds(((ReferenceProperty) object).element(), vertexIds, edgeIds);
         } else if (object instanceof ReferencePath) {
             ((ReferencePath) object).forEach((obj, labels) -> collectIds(obj, vertexIds, edgeIds));
@@ -84,7 +90,6 @@ public class AttachmentHelper {
         } else if (object instanceof VertexProperty && vertexCache.containsKey(((VertexProperty) object).element().id())) {
             final Vertex vertex = (Vertex) vertexCache.get(((VertexProperty) object).element().id());
             final Iterator<VertexProperty<Object>> itty = vertex.properties();
-            // todo: verify is firefly caches vertex properties
             while (itty.hasNext()) {
                 // vertex property attachment require key, so shortcut here
                 final VertexProperty vp = itty.next();

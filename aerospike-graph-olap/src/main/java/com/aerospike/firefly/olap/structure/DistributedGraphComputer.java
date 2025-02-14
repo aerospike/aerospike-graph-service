@@ -80,6 +80,7 @@ public class DistributedGraphComputer implements GraphComputer {
     private final DistributedConfigHelper configHelper;
 
     public DistributedGraphComputer(final FireflyGraph graph, final Object sparkSession) {
+        System.out.println("???ASFDASFASF???");
         this.graph = graph;
         final Map<String, Object> config = new HashMap<>();
         final Iterator<String> keys = graph.configuration().getKeys();
@@ -353,8 +354,8 @@ public class DistributedGraphComputer implements GraphComputer {
                         memory,
                         vertexProgramConfiguration,
                         schema,
-                        workers));
-                df.show();
+                        Math.max(1, workers - 1)));
+                //df.show();
 
                 System.out.println("==================> TOTAL COUNT: " + df.count());
                 memory.setInExecute(false);

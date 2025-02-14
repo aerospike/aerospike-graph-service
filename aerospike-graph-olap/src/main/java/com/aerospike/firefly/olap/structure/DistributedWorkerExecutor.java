@@ -14,6 +14,10 @@ import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.codec.RowCodec;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.olap.helper.TaskLogger;
+import com.aerospike.firefly.olap.iterators.IndexIterator;
+import com.aerospike.firefly.olap.iterators.PIIterator;
+import com.aerospike.firefly.olap.iterators.QueryInfo;
+import com.aerospike.firefly.olap.iterators.ScanIterator;
 import com.aerospike.firefly.olap.process.BatchJob;
 import com.aerospike.firefly.olap.process.TraversalProgram;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
@@ -36,6 +40,7 @@ import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.Contains;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
@@ -46,6 +51,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTrav
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
+import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,17 +61,24 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.aerospike.firefly.olap.codec.RowCodecHelper.getIdType;
+import static com.aerospike.firefly.olap.iterators.QueryInfo.QueryType.INDEX;
+import static com.aerospike.firefly.olap.iterators.QueryInfo.QueryType.SCAN;
+import static com.aerospike.firefly.olap.iterators.QueryInfo.QueryType.PI;
+import static com.aerospike.firefly.olap.structure.DistributedGraphComputer.magicSwap;
+
 public class DistributedWorkerExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(DistributedWorkerExecutor.class);
 
-    private static final String START_COL = "~start";
-    private static final String COUNT_COL = "~count";
+    public static final String START_COL = "~start";
+    public static final String COUNT_COL = "~count";
 
     public static Dataset<Row> execute(final SparkSession spark,
                                        final FireflyGraph rootGraph,
@@ -89,7 +102,7 @@ public class DistributedWorkerExecutor {
             System.out.println("Starting with " + input.rdd().partitions().length + " partitions.");
             if (input.rdd().partitions().length < workerCount / 2) {
                 System.out.println("Repartitioning to " + workerCount + " partitions.");
-                input = DistributedGraphComputer.magicSwap(input.repartition(workerCount));
+                input = magicSwap(input.repartition(workerCount));
             }
             System.out.println("Ending with " + input.rdd().partitions().length + " partitions.");
         } else if (isFirst) {
@@ -99,7 +112,8 @@ public class DistributedWorkerExecutor {
             if (queryInfo == null) {
                 return spark.createDataFrame(new ArrayList<Row>(), outputSchema);
             }
-            if (queryInfo.queryType.equals(QueryInfo.QueryType.INDEX) || queryInfo.queryType.equals(QueryInfo.QueryType.SCAN)) {
+            System.out.println("Query type: " + queryInfo.queryType.toString());
+            if (queryInfo.queryType.equals(INDEX) || queryInfo.queryType.equals(QueryInfo.QueryType.SCAN)) {
                 final List<Row> queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount)).
                         stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
                 System.out.println("Query ranges: " + queryRanges.size());
@@ -108,7 +122,7 @@ public class DistributedWorkerExecutor {
                         add(COUNT_COL, DataTypes.IntegerType, false);
                 Dataset<Row> queryRangeDataset = spark.createDataFrame(queryRanges, inputSchema);
                 System.out.println("Starting query with " + queryRangeDataset.rdd().partitions().length + " partitions.");
-                queryRangeDataset = DistributedGraphComputer.magicSwap(queryRangeDataset.repartitionByRange(queryRanges.size(), new Column(START_COL)));
+                queryRangeDataset = magicSwap(queryRangeDataset.repartitionByRange(queryRanges.size(), new Column(START_COL)));
                 //queryRangeDataset.
                 System.out.println("Repartitioned query with " + queryRangeDataset.rdd().partitions().length + " partitions.");
                 System.out.println("Partition balancing for index: " + queryRangeDataset.javaRDD().mapPartitions(iter -> {
@@ -121,7 +135,31 @@ public class DistributedWorkerExecutor {
                 }).collect());
                 df = queryRangeDataset;
             } else {
-                throw new RuntimeException("Error, input is null and this is not the first step. Please contact support.");
+                final List<Object> initialIds = queryInfo.ids;
+                System.out.println("IDS: " + initialIds);
+                final List<Object> idsList = new ArrayList<>();
+                if (initialIds.size() == 1 && initialIds.get(0) instanceof P) {
+                    final P p = (P) initialIds.get(0);
+                    if (!p.getBiPredicate().toString().equals("within")) {
+                        throw new IllegalArgumentException("Batch read only supports within predicate");
+                    }
+                    if (!(p.getValue() instanceof List)) {
+                        throw new IllegalArgumentException("Batch read only supports a single list of keys");
+                    }
+                    idsList.addAll((List) p.getValue());
+                } else {
+                    idsList.addAll(initialIds);
+                }
+                System.out.println("Actual ids: " + ids);
+                initialIds.clear();
+                final List<Row> rows = idsList.stream().filter(Objects::nonNull).map(id -> RowFactory.create(id.toString(), getIdType(id).ordinal())).collect(Collectors.toList());
+                final StructType inputSchema = new StructType().
+                        add(RowCodec.ID_COL, DataTypes.StringType, false).
+                        add(RowCodec.ID_TYPEHINT_COL, DataTypes.IntegerType, false);
+                Dataset<Row> idDataset = spark.createDataFrame(rows, inputSchema);
+                System.out.println("Starting query with " + idDataset.rdd().partitions().length + " partitions.");
+                df = magicSwap(idDataset.repartition(maxParallelQuery));
+                System.out.println("Repartitioned query with " + idDataset.rdd().partitions().length + " partitions.");
             }
         } else {
             queryInfo = null;
@@ -157,12 +195,37 @@ public class DistributedWorkerExecutor {
                                     traversal,
                                     traversalMatrix,
                                     traverserGenerator);
-                            break;
-                        case PI:
-                            iterator = IteratorUtils.emptyIterator();
+                            iterator = FireflyCloseableIteratorUtils.filter(iterator, t -> {
+                                final Element e = (Element) t.get();
+                                return HasContainer.testAll(e, queryInfo.fireflyHasContainers);
+                            });
                             break;
                         case SCAN:
-                            iterator = IteratorUtils.emptyIterator();
+                            iterator = new ScanIterator(
+                                    graph,
+                                    (GraphStep) traversal.asAdmin().getStartStep(),
+                                    queryInfo.indexTopHasContainer,
+                                    queryInfo.fireflyHasContainers,
+                                    traversal.asAdmin().getStartStep().getNextStep().getId(),
+                                    codec,
+                                    itty,
+                                    traversal,
+                                    traversalMatrix,
+                                    queryInfo.expression,
+                                    traverserGenerator);
+                            iterator = FireflyCloseableIteratorUtils.filter(iterator, t -> {
+                                final Element e = (Element) t.get();
+                                return HasContainer.testAll(e, queryInfo.fireflyHasContainers);
+                            });
+                            break;
+                        case PI:
+                            iterator = PIIterator.getIterator(
+                                    graph,
+                                    (GraphStep) traversal.asAdmin().getStartStep(),
+                                    queryInfo.fireflyHasContainers,
+                                    traversal.asAdmin().getStartStep().getNextStep(),
+                                    traverserGenerator,
+                                    itty);
                             break;
                         default:
                             throw new IllegalStateException("Unknown query type: " + queryInfo.queryType);
@@ -191,10 +254,8 @@ public class DistributedWorkerExecutor {
                 int runningTotal = 0;
                 while (iterator.hasNext()) {
                     while (traverserSet.size() < 5000 && iterator.hasNext()) {
-                        System.out.println("Adding traverser");
                         traverserSet.add(iterator.next().asAdmin());
                     }
-                    System.out.println("traverserSet: " + traverserSet);
 
                     runningTotal += traverserSet.size();
                     TaskLogger.logDebuggingMessage("Input TraverserSet size: " + traverserSet.size() + "/" + runningTotal, LOGGER);
@@ -227,271 +288,6 @@ public class DistributedWorkerExecutor {
                 throw e;
             }
         }, RowEncoder.apply(schema));
-    }
-
-    static class IndexIterator implements CloseableIterator<Traverser> {
-        final FireflyGraph graph;
-        final Filter filter;
-        final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
-        final List<Row> rows = new ArrayList<>();
-        int rowCount = 0;
-        final List<HasContainer> hasContainers;
-        final String startStep;
-        final Codec codec;
-        final Traversal traversal;
-        final FireflyIndexMetadata.IndexInfo indexInfo;
-        final TraverserGenerator tg;
-        final TraversalMatrix tm;
-        PageFetcher<?> pageFetcher = null;
-        PageFetcher.Page page = null;
-
-        IndexIterator(final FireflyGraph graph,
-                      final HasContainer hasContainer,
-                      final List<HasContainer> hasContainers,
-                      final String startStep,
-                      final Codec codec,
-                      final FireflyIndexMetadata.IndexInfo indexInfo,
-                      final Iterator<Row> iterator,
-                      final Traversal traversal,
-                      final TraversalMatrix tm,
-                      final TraverserGenerator tg) {
-            this.tg = tg;
-            this.tm = tm;
-            this.indexInfo = indexInfo;
-            this.graph = graph;
-            this.filter = GraphQueryHelper.predicateToFilter(graph.getBaseGraph(), hasContainer.getPredicate(), indexInfo);
-            while (iterator.hasNext()) {
-                rows.add(iterator.next());
-            }
-            this.hasContainers = hasContainers;
-            this.startStep = startStep;
-            this.codec = codec;
-            this.traversal = traversal;
-        }
-
-        @Override
-        public boolean hasNext() {
-            System.out.println("hasNext");
-            if (rows.isEmpty() || rows.size() == rowCount) {
-                return false;
-            }
-
-            if (page != null) {
-                if (page.keyRecords.hasNext()) {
-                    return true;
-                } else {
-                    final PaginationIterator pi = (PaginationIterator) page.keyRecords;
-                    pi.close();
-                }
-            }
-
-            // Now current index.
-            if (pageFetcher == null) {
-                int attemptCount = 0;
-                while (true) {
-                    try {
-                        System.out.println("???");
-                        final Row row = rows.get(rowCount);
-                        final PartitionFilter partitionFilter = PartitionFilter.range(
-                                row.getInt(row.fieldIndex(START_COL)),
-                                row.getInt(row.fieldIndex(COUNT_COL)));
-
-                        TaskLogger.logDebuggingMessage("Row number " + rowCount, LOGGER);
-
-                        // TODO: Can omit some bins here.
-                        final int evaluationTimeout = Long.valueOf(TimeoutHelper.calculate(traversal.asAdmin())).intValue();
-                        final QueryPolicy policy = new QueryPolicy();
-                        policy.setTimeout(evaluationTimeout);
-                        attemptCount++;
-                        pageFetcher = new PartitionedSindexPageFetcher<>(
-                                graph,
-                                policy,
-                                indexInfo.setName,
-                                graph.getBaseGraph().getNamespace(),
-                                filter,
-                                graph.getBaseGraph().PAGINATION_PAGE_SIZE,
-                                graph::vertexFromRecord,
-                                indexInfo.indexName,
-                                partitionFilter,
-                                pageQueue);
-
-                        // Intentionally not using return value here.
-                        pageFetcher.startQueryDirect();
-                        break;
-                    } catch (final Exception e) {
-                        TaskLogger.logDebuggingMessage("Got exception " + e.getMessage(), LOGGER);
-                        if (attemptCount > 10) {
-                            throw new RuntimeException("Failed to run query after " + attemptCount + " attempts.", e);
-                        } else if (e.getMessage().contains("Operation not allowed at this time")) {
-                            TaskLogger.logDebuggingMessage("Sleeping.", LOGGER);
-                            try {
-                                Thread.sleep(1000L * (attemptCount + 1));
-                            } catch (InterruptedException e1) {
-                                throw new RuntimeException(e1);
-                            }
-                        }
-                    }
-                }
-            }
-
-            try {
-                page = pageQueue.take();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            if (page instanceof PageFetcher.ErrorPage) {
-                System.out.println("Error page");
-                final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
-                throw new RuntimeException("Error fetching page: " + errorPage.errorMessage, errorPage.exception);
-            } else if (page instanceof PageFetcher.PoisonPill) {
-                System.out.println("Poison pill");
-                pageFetcher.shutdownAwait();
-                pageFetcher = null;
-                page = null;
-                rowCount++;
-            }
-
-            return hasNext();
-        }
-
-        @Override
-        public Traverser next() {
-            System.out.println("next");
-            if (hasNext()) {
-                if (!page.keyRecords.hasNext()) {
-                    throw new NoSuchElementException("No more elements. Please contact support.");
-                }
-                final KeyRecord kr = page.keyRecords.next();
-                final FireflyVertex vertex = graph.vertexFromRecord(kr);
-                System.out.println("Creating traverser " + vertex.id.getUserId());
-                Traverser t = tg.generate(vertex, tm.getStepById(startStep), 1L);
-                t.asAdmin().setStepId(startStep);
-                return t;
-            } else {
-                throw new NoSuchElementException("No more elements.");
-            }
-        }
-
-        @Override
-        public void close() {
-            if (page != null) {
-                final PaginationIterator pi = (PaginationIterator) page.keyRecords;
-                pi.close();
-            }
-            if (pageFetcher != null) {
-                pageFetcher.shutdownAwait();
-            }
-        }
-    }
-
-
-    public static class QueryInfo implements Serializable {
-        enum QueryType implements Serializable {
-            INDEX,
-            SCAN,
-            PI
-        }
-
-        private final QueryInfo.QueryType queryType;
-        private final List<HasContainer> fireflyHasContainers;
-        private final FireflyIndexMetadata.IndexInfo indexInfo; // Only valid for index queries.
-        private final HasContainer indexTopHasContainer; // Only valid for index queries.
-        private final List<Object> ids; // Only valid for PI queries.
-        private final Expression expression; // Only valid for scan queries.
-
-        private QueryInfo(final FireflyIndexMetadata.IndexInfo indexInfo,
-                          final HasContainer hasContainer,
-                          final List<HasContainer> initialHasContainers) {
-            this.queryType = QueryInfo.QueryType.INDEX;
-            this.indexInfo = indexInfo;
-            this.indexTopHasContainer = hasContainer;
-            this.ids = null;
-            this.expression = null;
-            this.fireflyHasContainers = initialHasContainers;
-        }
-
-        private QueryInfo(final List<Object> ids,
-                          final List<HasContainer> initialHasContainers) {
-            this.queryType = QueryInfo.QueryType.PI;
-            this.indexInfo = null;
-            this.indexTopHasContainer = null;
-            this.ids = ids;
-            this.expression = null;
-            this.fireflyHasContainers = initialHasContainers;
-        }
-
-        private QueryInfo(final Expression expression,
-                          final List<HasContainer> initialHasContainers) {
-            this.queryType = QueryInfo.QueryType.SCAN;
-            this.indexInfo = null;
-            this.indexTopHasContainer = null;
-            this.ids = null;
-            this.expression = expression;
-            this.fireflyHasContainers = initialHasContainers;
-        }
-
-        private QueryInfo(final List<HasContainer> initialHasContainers) {
-            this.queryType = QueryInfo.QueryType.SCAN;
-            this.indexInfo = null;
-            this.indexTopHasContainer = null;
-            this.ids = null;
-            this.expression = null; // Scan all.
-            this.fireflyHasContainers = initialHasContainers;
-        }
-
-        private static QueryInfo getQueryInfo(final FireflyGraph graph,
-                                              final GraphStep step,
-                                              final List<HasContainer> initialHasContainers,
-                                              final Object[] idsInput) {
-            final List<HasContainer> positiveFilters = initialHasContainers.stream().filter(it -> !it.getBiPredicate().equals(Contains.without)).collect(Collectors.toList());
-
-            // Special case.
-            if (idsInput == null) {
-                return null;
-            }
-            if (idsInput != null && idsInput.length > 0) {
-                final List<Object> ids = Stream.of(idsInput).collect(Collectors.toList());
-                return new QueryInfo(ids, initialHasContainers);
-            }
-
-            // Check for PI query based on hasContainers.
-            if (!positiveFilters.isEmpty()) {
-                final List<Object> ids = positiveFilters
-                        .stream()
-                        .filter(it -> "~id".equals(it.getKey()))
-                        .map(HasContainer::getValue)
-                        .flatMap(it -> it instanceof List ? ((List<?>) it).stream() : Stream.of(it))
-                        .collect(Collectors.toList());
-                final List<HasContainer> nonIdContainers = initialHasContainers.stream().filter(it -> !"~id".equals(it.getKey())).collect(Collectors.toList());
-
-                // If there are id has containers, we can do a batch read.
-                if (!ids.isEmpty()) {
-                    return new QueryInfo(ids, nonIdContainers);
-                }
-            }
-
-            if (step.returnsVertex()) {
-                final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, initialHasContainers);
-                final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
-                final List<HasContainer> fireflySideHasContainers = FireflyBatchReadHelper.getFireflyHasContainers(sortedHasContainers);
-                final HasContainer topContainer = aerospikeSideHasContainers.isEmpty() ? null : aerospikeSideHasContainers.get(0);
-                final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo = topContainer != null ?
-                        graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, topContainer.getKey(), topContainer.getValue()) :
-                        Optional.empty();
-                if (propertyIndexInfo.isPresent()) {
-                    // Index.
-                    // Remove top container since it is captured inside property index info.
-                    aerospikeSideHasContainers.remove(0);
-                    return new QueryInfo(propertyIndexInfo.get(), topContainer, initialHasContainers);
-                } else {
-                    // Scan.
-                    final Expression expression = GraphQueryHelper.hasContainerListToExpression(graph.getBaseGraph(), aerospikeSideHasContainers, FireflyVertex.class);
-                    return new QueryInfo(expression, initialHasContainers);
-                }
-            } else {
-                return new QueryInfo(initialHasContainers);
-            }
-        }
     }
 
     public static class Range {

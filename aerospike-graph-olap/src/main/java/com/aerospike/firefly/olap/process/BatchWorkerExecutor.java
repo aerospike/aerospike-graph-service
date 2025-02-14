@@ -1,7 +1,7 @@
 package com.aerospike.firefly.olap.process;
 
+import com.aerospike.firefly.olap.helper.AttachmentHelper;
 import com.aerospike.firefly.olap.helper.TaskLogger;
-import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
@@ -65,7 +65,7 @@ public class BatchWorkerExecutor {
             }
         });
 
-        ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
+        AttachmentHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                 traversalSideEffects, toProcessTraversers);
 
         ///////////////////////////////
@@ -97,7 +97,6 @@ public class BatchWorkerExecutor {
                     // todo: investigate processing elements locally always (!!!)
                     // decide whether to message the traverser or to process it locally
                     if (traverser.get() instanceof Element || traverser.get() instanceof Property) {      // GRAPH OBJECT
-                        // if the element is remote, then send as result, else store it locally for re-processing
                         if (!traverser.isHalted())
                             voteToHalt.set(false);
                         job.addResult(traverser);
@@ -138,10 +137,11 @@ public class BatchWorkerExecutor {
         } else { // LOCAL PROCESSING
             final TraverserSet memoryTraversers = new TraverserSet<>();
             step.forEachRemaining(traverser -> {
-                if (traverser.isHalted() &&
+                if (traverser.isHalted()
                         // if its a ReferenceFactory (one less iteration required)
-                        ((returnHaltedTraversers || ReferenceFactory.class == haltedTraverserStrategy.getHaltedTraverserFactory()) &&
-                                (!(traverser.get() instanceof Element) && !(traverser.get() instanceof Property)))) {
+                        && (returnHaltedTraversers || ReferenceFactory.class == haltedTraverserStrategy.getHaltedTraverserFactory()
+                            && !(traverser.get() instanceof Element)
+                            && !(traverser.get() instanceof Property))) {
                     if (returnHaltedTraversers) {
                         // todo: double check detachment
                         memoryTraversers.add(haltedTraverserStrategy.halt(traverser));

@@ -4,9 +4,9 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.olap.config.DistributedConfiguration;
+import com.aerospike.firefly.olap.helper.AttachmentHelper;
 import com.aerospike.firefly.olap.process.TraversalProgram;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
-import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.FireflyHelper;
@@ -404,7 +404,7 @@ public class DistributedGraphComputer implements GraphComputer {
             System.out.println("Results: " + rows.size());
 
             System.out.println("Traversers: " + traversers);
-            ComputerHelper.prepareEdgesForResult((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(), traversers);
+            AttachmentHelper.prepareEdgesForResult((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(), traversers);
 
             // Set all traversers as halted and complete memory.
             memory.set(HALTED_TRAVERSERS, traversers);

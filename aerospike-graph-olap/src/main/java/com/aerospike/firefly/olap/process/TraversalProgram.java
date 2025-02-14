@@ -84,6 +84,7 @@ public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
     private TraversalMatrix<?, ?> traversalMatrix;
     private final Set<MapReduce> mapReducers = new HashSet<>();
     private TraverserSet<Object> haltedTraversers;
+    // true for last or single Program
     private boolean returnHaltedTraversers = false;
     private HaltedTraverserStrategy haltedTraverserStrategy;
     private boolean profile = false;

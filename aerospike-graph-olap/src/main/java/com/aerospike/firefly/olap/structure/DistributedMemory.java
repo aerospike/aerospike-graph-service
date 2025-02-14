@@ -1,8 +1,7 @@
 package com.aerospike.firefly.olap.structure;
 
+import com.aerospike.firefly.olap.helper.AttachmentHelper;
 import com.aerospike.firefly.olap.helper.TaskLogger;
-import com.aerospike.firefly.process.computer.util.ComputerHelper;
-import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.util.AccumulatorV2;
@@ -123,7 +122,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     @Override
     public void add(final String key, final Object value) {
         checkKeyValue(key, value);
-        final Object detachedValue = ComputerHelper.detach(value);
+        final Object detachedValue = AttachmentHelper.detach(value);
         if (this.inExecute) {
             if (key.endsWith(")"))
                 TaskLogger.logDebuggingMessage("Adding " + key + " to broadcast memory: " + detachedValue + " (from " + value + ").", LOGGER);

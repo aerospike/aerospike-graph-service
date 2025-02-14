@@ -1,6 +1,6 @@
 package com.aerospike.firefly.olap.process;
 
-import com.aerospike.firefly.process.computer.util.ComputerHelper;
+import com.aerospike.firefly.olap.helper.AttachmentHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
@@ -59,7 +59,7 @@ public class BatchMasterExecutor {
                     final Barrier<Object> barrier = (Barrier<Object>) step;
                     // collecting barriers expect to consume TraverserSet, but spark serialize it as HashSet
                     if (barrier instanceof CollectingBarrierStep) {
-                        ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
+                        AttachmentHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                                 EmptyTraversalSideEffects.instance(), (TraverserSet) memory.get(key));
                         barrier.addBarrier(memory.get(key));
                     } else {
@@ -67,7 +67,7 @@ public class BatchMasterExecutor {
                         // todo: attach more types if needed
                         if (memoryBarrier instanceof List) {
                             final List list = new ArrayList((List) memoryBarrier);
-                            ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
+                            AttachmentHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                                     EmptyTraversalSideEffects.instance(), list);
                             barrier.addBarrier(list);
                         } else if (memoryBarrier instanceof Map) {
@@ -146,14 +146,14 @@ public class BatchMasterExecutor {
                             //        at com.aerospike.firefly.process.computer.local.BatchTraversalVertexProgram.terminate(BatchTraversalVertexProgram.java:350) ~[aerospike-graph-olap-2.5.0-test14.jar:?]
                             //        at com.aerospike.firefly.olap.structure.DistributedGraphComputer.submit(DistributedGraphComputer.java:388) ~[aerospike-graph-olap-2.5.0-test14.jar:?]
                             //        ... 16 more
-                            ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
+                            AttachmentHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                                     EmptyTraversalSideEffects.instance(), map);
                             barrier.addBarrier(map);
                         } else if (memoryBarrier instanceof Set) {
                             // todo: check incoming TraverserSet?
                             final TraverserSet ts = new TraverserSet();
                             ts.addAll((Set) memoryBarrier);
-                            ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
+                            AttachmentHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                                     EmptyTraversalSideEffects.instance(), ts);
                             barrier.addBarrier(ts);
                         } else {
@@ -164,7 +164,7 @@ public class BatchMasterExecutor {
 
                     // some steps can grab reference traversers from memory
                     if (!toProcessTraversers.isEmpty() && step instanceof SideEffectCapStep) {
-                        ComputerHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
+                        AttachmentHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                                 EmptyTraversalSideEffects.instance(), toProcessTraversers);
                     }
 

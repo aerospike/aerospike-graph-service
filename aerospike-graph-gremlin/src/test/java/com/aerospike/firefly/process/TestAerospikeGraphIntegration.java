@@ -51,6 +51,7 @@ import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.Is;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,26 +138,16 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         RANDOM_STRING = stringBuilder.toString();
     }
 
+    @Ignore
     @Test
-    public void olap() throws InterruptedException {
+    public void playTest() {
         Graph tg = TinkerFactory.createModern();
-
         GraphHelper.cloneElements(tg, graph);
+        GraphTraversalSource g = graph.traversal();
 
-        Computer computer = Computer.compute(LocalGraphComputer.class).workers(2);
+        var result = g.V().local(outE().count()).toList();
 
-        List c0 = g.withComputer(computer)
-                .V(1, 2)
-                .out()
-                .toList();
-        System.out.println(c0);
-    }
-
-    @Test
-    public void req() {
-        var t = g.V(1,2).out().path();
-        t.asAdmin().applyStrategies();
-        System.out.println(t.asAdmin().getTraverserRequirements());
+        System.out.println(result);
     }
 
     @Test

@@ -1,6 +1,5 @@
 package com.aerospike.firefly.olap.process;
 
-import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.util.ReflectionHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.Computer;
@@ -47,7 +46,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.ScriptTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
-import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -277,46 +275,13 @@ public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
             if (step instanceof Barrier)
                 ((Barrier) this.traversalMatrix.getStepById(stepId)).done();
         }
-        // define halted traversers
+        // define halted traversers. /dev/null for now.
         final TraverserSet<Object> haltedTraversers = new TraverserSet<>();
 
         //////////////////
         LOGGER.info("\nIteration: " + memory.getIteration());
         if (memory.isInitialIteration()) {    // ITERATION 1
-            final TraverserSet activeTraversers = new TraverserSet();
-            // if halted traversers are being sent from a previous VertexProgram in an OLAP chain (distributed traversers), get them into the flow
-            IteratorUtils.removeOnNext(haltedTraversers.iterator()).forEachRemaining(traverser -> {
-                traverser.setStepId(this.traversal.get().getStartStep().getId());
-                activeTraversers.add(traverser);
-            });
-            assert haltedTraversers.isEmpty();
-            // for g.V()/E().
-            // Now seeding traversers produced on Master.
-            if (this.traversal.get().getStartStep() instanceof FireflyGraphStep) {
-                final FireflyGraphStep<Element, Element> graphStep = (FireflyGraphStep<Element, Element>) this.traversal.get().getStartStep();
-                graphStep.reset();
-                activeTraversers.forEach(traverser -> graphStep.addStart((Traverser.Admin) traverser));
-                activeTraversers.clear();
-                //if (graphStep.returnsVertex()) {
-                //    graphStep.setPartitionFilter(workerIdFilter);
-                //    //graphStep.setIteratorSupplier(() -> (Iterator) IteratorUtils.filter(vertices, v -> ElementHelper.idExists(v.id(), graphStep.getIds())).iterator());
-                //}
-                // todo: start with edges
-//                else
-//                    graphStep.setIteratorSupplier(() -> (Iterator) IteratorUtils.filter(vertex.edges(Direction.OUT), edge -> ElementHelper.idExists(edge.id(), graphStep.getIds())));
-                graphStep.forEachRemaining(traverser -> {
-                    if (traverser.isHalted()) {
-                        if (this.returnHaltedTraversers)
-                            memory.add(HALTED_TRAVERSERS, new TraverserSet<>(this.haltedTraverserStrategy.halt(traverser)));
-                        else
-                            haltedTraversers.add((Traverser.Admin) traverser.detach());
-                    } else
-                        activeTraversers.add(traverser);
-                });
-            }
-            job.setStarts(activeTraversers);
-            memory.add(VOTE_TO_HALT, activeTraversers.isEmpty()
-                    || BatchWorkerExecutor.execute(job, this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));
+            throw new IllegalStateException("Worker got initial iteration. Please contact support.");
         } else {  // ITERATION 1+
             memory.add(VOTE_TO_HALT,
                     BatchWorkerExecutor.execute(job, this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));

@@ -60,10 +60,10 @@ public class BatchWorkerExecutor {
             } else {
                 toProcessTraversers.add(traverser);
             }
-            if (!memoryTraversers.isEmpty()) {
-                memory.add(TraversalVertexProgram.HALTED_TRAVERSERS, memoryTraversers);
-            }
         });
+        if (!memoryTraversers.isEmpty()) {
+            memory.add(TraversalVertexProgram.HALTED_TRAVERSERS, memoryTraversers);
+        }
 
         AttachmentHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                 traversalSideEffects, toProcessTraversers);

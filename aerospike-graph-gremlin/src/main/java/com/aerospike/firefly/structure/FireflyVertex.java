@@ -646,7 +646,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     }
 
     public long getEdgeCount(final Direction direction) {
-       return getCachedEdgeCount(direction, null);
+       return getEdgeCount(direction, null);
     }
 
     public long getEdgeCount(final Direction direction, final String[] edgeLabels) {

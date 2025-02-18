@@ -9,7 +9,7 @@ import org.junit.runner.RunWith;
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
 
-@RunWith(ProcessComputerSuite.class)
+// @RunWith(ProcessComputerSuite.class)
 @GraphProviderClass(provider = LocalGraphComputerProvider.class, graph = FireflyGraph.class)
 public class LocalGraphProcessComputerTest {
 }

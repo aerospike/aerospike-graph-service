@@ -186,6 +186,7 @@ public class DistributedWorkerExecutor {
                         case INDEX:
                             iterator = new IndexIterator(
                                     graph,
+                                    (GraphStep) traversal.asAdmin().getStartStep(),
                                     queryInfo.indexTopHasContainer,
                                     queryInfo.fireflyHasContainers,
                                     traversal.asAdmin().getStartStep().getNextStep().getId(),

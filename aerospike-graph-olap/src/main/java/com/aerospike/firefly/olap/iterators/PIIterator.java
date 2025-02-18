@@ -50,7 +50,7 @@ public class PIIterator {
                 List<FireflyVertex> vertices = graph.readVertices(List.of(), ffidList, null);
                 for (final Vertex vertex : vertices) {
                     if (HasContainer.testAll(vertex, hasContainers)) {
-                        Traverser t = tg.generate(vertex, startStep, 1l);
+                        Traverser t = tg.generate(vertex, graphStep, 1l);
                         t.asAdmin().setStepId(startStep.getId());
                         traversers.add(t);
                     }

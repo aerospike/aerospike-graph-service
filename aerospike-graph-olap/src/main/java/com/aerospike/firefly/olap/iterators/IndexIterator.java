@@ -18,6 +18,7 @@ import org.apache.spark.sql.Row;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
@@ -45,12 +46,14 @@ public class IndexIterator implements CloseableIterator<Traverser> {
     final Codec codec;
     final Traversal traversal;
     final FireflyIndexMetadata.IndexInfo indexInfo;
+    private final GraphStep graphStep;
     final TraverserGenerator tg;
     final TraversalMatrix tm;
     PageFetcher<?> pageFetcher = null;
     PageFetcher.Page page = null;
 
     public IndexIterator(final FireflyGraph graph,
+                         final GraphStep graphStep,
                          final HasContainer hasContainer,
                          final List<HasContainer> hasContainers,
                          final String startStep,
@@ -60,6 +63,7 @@ public class IndexIterator implements CloseableIterator<Traverser> {
                          final Traversal traversal,
                          final TraversalMatrix tm,
                          final TraverserGenerator tg) {
+        this.graphStep = graphStep;
         this.tg = tg;
         this.tm = tm;
         this.indexInfo = indexInfo;
@@ -163,7 +167,7 @@ public class IndexIterator implements CloseableIterator<Traverser> {
             }
             final KeyRecord kr = page.keyRecords.next();
             final FireflyVertex vertex = graph.vertexFromRecord(kr);
-            Traverser t = tg.generate(vertex, tm.getStepById(startStep), 1L);
+            Traverser t = tg.generate(vertex, graphStep, 1L);
             t.asAdmin().setStepId(startStep);
             return t;
         } else {

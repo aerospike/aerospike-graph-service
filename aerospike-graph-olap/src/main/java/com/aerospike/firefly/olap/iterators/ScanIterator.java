@@ -185,7 +185,7 @@ public class ScanIterator implements CloseableIterator<Traverser> {
         if (graphStep.returnsVertex()) {
             final KeyRecord keyRecord = page.keyRecords.next();
             final FireflyVertex vertex = graph.vertexFromRecord(keyRecord);
-            Traverser t = tg.generate(vertex, tm.getStepById(startStep), 1L);
+            Traverser t = tg.generate(vertex, graphStep, 1L);
             t.asAdmin().setStepId(startStep);
             return t;
         } else {
@@ -214,7 +214,7 @@ public class ScanIterator implements CloseableIterator<Traverser> {
             final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(entry.getKey());
 
             final FireflyEdge edge = FireflyEdgeFactory.create(graph.getIdFactory().createEdgeId(entry.getKey()), label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, kr.record.generation);
-            Traverser t = tg.generate(edge, tm.getStepById(startStep), 1L);
+            Traverser t = tg.generate(edge, graphStep, 1L);
             t.asAdmin().setStepId(startStep);
             return t;
         }

@@ -176,20 +176,29 @@ public class ScanIterator implements CloseableIterator<Traverser> {
         return hasNext();
     }
 
+    private void verifyPageHasNext() {
+        if (page == null || !page.keyRecords.hasNext()) {
+            throw new NoSuchElementException("No more elements. Please contact support.");
+        }
+    }
+
     @Override
     public Traverser next() {
-        if (page == null || !page.keyRecords.hasNext()) {
-            throw new NoSuchElementException("Please contact support.");
+        if (!hasNext()) {
+            throw new NoSuchElementException("No more elements.");
         }
-            // TODO: Improve performance with ReferenceVertex.
+
+        // TODO: Improve performance with ReferenceVertex.
         if (graphStep.returnsVertex()) {
+            verifyPageHasNext();
             final KeyRecord keyRecord = page.keyRecords.next();
             final FireflyVertex vertex = graph.vertexFromRecord(keyRecord);
             Traverser t = tg.generate(vertex, graphStep, 1L);
             t.asAdmin().setStepId(startStep);
             return t;
         } else {
-            if (!edgeIterator.hasNext()) {
+            if (edgeIterator == null || !edgeIterator.hasNext()) {
+                verifyPageHasNext();
                 final KeyRecord keyRecord = page.keyRecords.next();
                 final Map<ByteBuffer, List> edgeData = (Map<ByteBuffer, List>) keyRecord.record.getMap(graph.getBaseGraph().EDGE_DATA_BIN);
                 edgeIterator = edgeData.entrySet().iterator();

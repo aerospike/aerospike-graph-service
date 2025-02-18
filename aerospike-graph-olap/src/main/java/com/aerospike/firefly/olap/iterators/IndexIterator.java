@@ -161,18 +161,17 @@ public class IndexIterator implements CloseableIterator<Traverser> {
 
     @Override
     public Traverser next() {
-        if (hasNext()) {
-            if (!page.keyRecords.hasNext()) {
-                throw new NoSuchElementException("No more elements. Please contact support.");
-            }
-            final KeyRecord kr = page.keyRecords.next();
-            final FireflyVertex vertex = graph.vertexFromRecord(kr);
-            Traverser t = tg.generate(vertex, graphStep, 1L);
-            t.asAdmin().setStepId(startStep);
-            return t;
-        } else {
+        if (!hasNext())
             throw new NoSuchElementException("No more elements.");
+
+        if (!page.keyRecords.hasNext()) {
+            throw new NoSuchElementException("No more elements. Please contact support.");
         }
+        final KeyRecord kr = page.keyRecords.next();
+        final FireflyVertex vertex = graph.vertexFromRecord(kr);
+        Traverser t = tg.generate(vertex, graphStep, 1L);
+        t.asAdmin().setStepId(startStep);
+        return t;
     }
 
     @Override

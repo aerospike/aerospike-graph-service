@@ -47,6 +47,8 @@ public class AttachmentHelper {
         if (object == null)
             return;
 
+        if (object instanceof Traverser)
+            collectIds((Traverser) object, vertexIds, edgeIds);
         if (object instanceof ReferenceVertex || object instanceof DetachedVertex)
             vertexIds.add(((Vertex) object).id());
         else if (object instanceof ReferenceEdge || object instanceof DetachedEdge)

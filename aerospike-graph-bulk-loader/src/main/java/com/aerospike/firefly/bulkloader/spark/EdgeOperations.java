@@ -144,6 +144,7 @@ public class EdgeOperations implements Serializable {
             LOGGER.info("Starting to write EdgeDataset in PartitionId: " + partitionId);
 
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
+                graph.fireflySummaryUpdater.startEdgePartition(partitionId);
                 LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
@@ -179,7 +180,7 @@ public class EdgeOperations implements Serializable {
                     try {
                         final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
                                 providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
-                                metadataRow, usePersistedEdgeId);
+                                metadataRow, usePersistedEdgeId, partitionId);
                         futures.add(ewt.write(executor).thenRunAsync(() -> ewt.updateCacheMap(), executor));
                     } catch (final BadCsvEntryException e) {
                         if (allowBadEntryCount == 0) {
@@ -209,6 +210,7 @@ public class EdgeOperations implements Serializable {
                     LOGGER.info("Writing edge partition complete for partitionId: {}", partitionId);
                     RecoveryUtil.writeEdgePartitionComplete(graph.getBaseGraph(), partitionId);
                 }
+                graph.fireflySummaryUpdater.completeEdgePartition(partitionId);
                 LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
             }
         });

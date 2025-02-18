@@ -64,7 +64,7 @@ public class TestFireflyDropStrategyIntegration {
         SETUP_GRAPH.getOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "owns", Collections.emptyList(),
                 mycroft, lyndon);
         // Write a stray edge that normal drop traversal would not remove
-        SETUP_GRAPH.bulkWriteEdge(getEdgeId(), "stray", Collections.emptyList(), 5, 5, false, false);
+        SETUP_GRAPH.bulkWriteEdge(getEdgeId(), "stray", Collections.emptyList(), 5, 5, false, false, 1);
     }
 
     @After

@@ -53,7 +53,7 @@ public class ProgressBar extends TimerTask {
             this.graph = graph;
             if (incrementalMode) {
                 final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata =
-                        graph.fireflySummaryUpdater.getFireflyStatistics();
+                        graph.fireflySummaryUpdater.getFireflyStatistics(true);
                 verticesInitial = elementMetadata.totalVertexCount();
                 edgesInitial = elementMetadata.totalEdgeCount();
             }
@@ -287,7 +287,7 @@ public class ProgressBar extends TimerTask {
                 if (graph == null) {
                     return;
                 }
-                final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata = graph.fireflySummaryUpdater.getFireflyStatistics();
+                final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata = graph.fireflySummaryUpdater.getFireflyStatistics(true);
                 LOGGER.info("\n\tBulk Loader Progress:\n" +
                         getResumeableLoadProgress() +
                         getPreFlightCheckProgress() +

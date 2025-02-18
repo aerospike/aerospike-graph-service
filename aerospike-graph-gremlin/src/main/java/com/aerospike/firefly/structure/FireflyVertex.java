@@ -16,6 +16,7 @@ import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromInd
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
 import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.util.exceptions.GraphError;
+import com.aerospike.firefly.util.exceptions.TtlArgumentException;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -526,13 +527,14 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             if (!db.TTL_ENABLED_FLAG) {
                 throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
             }
+            if (value == null) {
+                return VertexProperty.empty();
+            }
             if (Number.class.isAssignableFrom(value.getClass())) {
                 graph.operations.setTtl(this, ((Number) value).longValue());
                 return VertexProperty.empty();
             } else {
-                throw new IllegalArgumentException(
-                        String.format("Property value [%s] for key %s is of type %s and must be numeric", value, key,
-                                value.getClass()));
+                throw new TtlArgumentException(value);
             }
         }
 

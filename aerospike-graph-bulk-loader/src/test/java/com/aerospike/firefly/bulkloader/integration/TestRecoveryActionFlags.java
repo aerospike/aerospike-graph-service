@@ -69,7 +69,7 @@ public class TestRecoveryActionFlags {
         Configuration config = getTestConfig();
         graph = FireflyGraph.open(config);
         graph.traversal().V().drop().iterate();
-        RecoveryUtil.truncate(graph.getBaseGraph());
+        RecoveryUtil.truncate(graph);
     }
 
     @After
@@ -97,7 +97,7 @@ public class TestRecoveryActionFlags {
             graph.traversal().addV("test").property("test", "test").next();
         }
         // Truncate recovery info, in complete state there is none available.
-        RecoveryUtil.truncate(graph.getBaseGraph());
+        RecoveryUtil.truncate(graph);
     }
 
     @Test

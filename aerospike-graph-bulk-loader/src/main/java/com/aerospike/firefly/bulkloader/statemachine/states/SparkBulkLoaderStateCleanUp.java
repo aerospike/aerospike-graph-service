@@ -14,7 +14,7 @@ public class SparkBulkLoaderStateCleanUp extends SparkBulkLoaderState {
         // User must cleanup their own data in HDFS.
         if (!sparkBulkLoaderStateMachine.readOnly) {
             sparkBulkLoaderStateMachine.edgeDataset.unpersist();
-            RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
+            RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph);
         }
     }
 

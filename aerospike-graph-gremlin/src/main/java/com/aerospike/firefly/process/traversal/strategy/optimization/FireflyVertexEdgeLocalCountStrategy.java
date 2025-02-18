@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY;
+
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
@@ -27,14 +29,12 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
-        if (!traversal.isRoot()) {
-            final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
-            if (!graph.getBaseGraph().ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY) {
-                return;
-            }
-        }
+    public String getStrategyEnabledKey() {
+        return ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY;
+    }
 
+    @Override
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         if (ComputerHelper.onGraphComputer(traversal))
             return;
 

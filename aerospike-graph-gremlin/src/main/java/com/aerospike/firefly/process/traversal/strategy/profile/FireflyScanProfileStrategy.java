@@ -17,8 +17,8 @@ import java.util.Optional;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyScanProfileStrategy extends FireflyStrategyBase {
-    public FireflyScanProfileStrategy() {
 
+    public FireflyScanProfileStrategy() {
     }
 
     @Override
@@ -27,8 +27,7 @@ public class FireflyScanProfileStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
-
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         if (ComputerHelper.onGraphComputer(traversal))
             return;
 

@@ -34,7 +34,7 @@ import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterf
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputer;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
 import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.runtime.zipkin.OpenTelemetryZipkinExporter;
 import com.aerospike.firefly.structure.util.LogInfo;
@@ -61,6 +61,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.LambdaRestrictionStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.DefaultTraversalMetrics;
 import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -104,6 +105,7 @@ import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
+import static com.aerospike.firefly.process.traversal.strategy.util.FireflyStrategyUtil.FIREFLY_STRATEGIES;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_DATA_SIZE;
 import static com.aerospike.firefly.structure.FireflyEdge.IN_V_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.LABEL_POSITION;
@@ -188,8 +190,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     // docs changes, config updates, etc, and isn't worth it right now.
     public static final String PRODUCT_NAME = "Aerospike Graph";
     private static final Logger LOG = LoggerFactory.getLogger(PRODUCT_NAME);
-
     public static String FIREFLY_VERSION = "2.5.0-SNAPSHOT";
+
+    // Doesn't use hidden key token ~ due to internal Tinkerpop MergeStep validation
+    public static final String BULK_LOAD_VERTEX_ADD_KEY = "___bulkLoadMergeVIdentifier";
+
     public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final Timer fireflyIndexMetadataTask = new Timer(true);
@@ -243,7 +248,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         synchronized (TraversalStrategies.GlobalCache.class) {
             TraversalStrategies.GlobalCache.registerStrategies(
                     FireflyGraph.class, TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                            .addStrategies(new FireflyContentionHandlingStrategy())
+                            .addStrategies(LambdaRestrictionStrategy.instance())
+                            .addStrategies(FIREFLY_STRATEGIES.toArray(new FireflyStrategyBase[0]))
                             .addStrategies(OptionsStrategy.build().create()));
         }
     }
@@ -326,57 +332,58 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     //===== FireflyGraphStep(vertex,SCAN,[~label.eq(Person)]) true ===== [FireflyGraphStep(vertex,SCAN,[~label.eq(Person)]), GroupCountStep([FireflyCountGlobalLocalStep])]
 
     public FireflyGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
-        this.gremlinServerSettings = gremlinServerSettings;
-        this.configuration = conf;
-        db.createGraphIndexes();
-        this.db = db;
-        this.operations = new AerospikeOperations(this);
-        graphQuery = new GraphQuery(this);
-        this.idFactory = db.getIdFactory();
-        this.bulkLoaderFlag = db.getBulkLoaderFlag();
-        this.bulkLoadIdBufferSize = ConfigurationHelper.getOrDefaultInt(BULK_LOAD_ID_BUFFER_SIZE, conf);
+        try {
+            this.gremlinServerSettings = gremlinServerSettings;
+            this.configuration = conf;
+            this.db = db;
+            db.createGraphIndexes();
+            this.operations = new AerospikeOperations(this);
+            graphQuery = new GraphQuery(this);
+            this.idFactory = db.getIdFactory();
+            this.bulkLoaderFlag = db.getBulkLoaderFlag();
+            this.bulkLoadIdBufferSize = ConfigurationHelper.getOrDefaultInt(BULK_LOAD_ID_BUFFER_SIZE, conf);
 
-        this.variables = new FireflyGraphVariables(this);
-        this.features = new FireflyFeatures();
+            this.variables = new FireflyGraphVariables(this);
+            this.features = new FireflyFeatures();
 
-        // Create index metadata background task that will populate indexes for the named graph on the fly.
-        fireflyIndexMetadata = new FireflyIndexMetadata(db);
-        final TimerTask indexMetadataTimerTask = new FireflyMetadataTask(fireflyIndexMetadata);
-        fireflyIndexMetadataTask.schedule(indexMetadataTimerTask, 0, db.INDEX_METADATA_UPDATE_FREQUENCY);
+            // Create index metadata background task that will populate indexes for the named graph on the fly.
+            fireflyIndexMetadata = new FireflyIndexMetadata(db);
+            final TimerTask indexMetadataTimerTask = new FireflyMetadataTask(fireflyIndexMetadata);
+            fireflyIndexMetadataTask.schedule(indexMetadataTimerTask, 0, db.INDEX_METADATA_UPDATE_FREQUENCY);
 
-        // If bulk loading, only create indexes for the first bulk loader graph initialization. Otherwise they spam 1000's of times.
-        if (db.shouldCreateIndexes()) {
-            // Grab user defined vertex property indexes from the configuration and create them.
-            final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
-            createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
+            // If bulk loading, only create indexes for the first bulk loader graph initialization. Otherwise they spam 1000's of times.
+            if (db.shouldCreateIndexes()) {
+                // Grab user defined vertex property indexes from the configuration and create them.
+                final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
+                createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
 
-            // Grab user defined edge property indexes from the configuration and create them.
-            final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
-            if (edgePropertyIndexes != null && !edgePropertyIndexes.isEmpty()) {
-                // TODO: Edge indexes.
-                throw new RuntimeException("Edge property indexes are not currently supported.");
+                // Grab user defined edge property indexes from the configuration and create them.
+                final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
+                if (edgePropertyIndexes != null && !edgePropertyIndexes.isEmpty()) {
+                    // TODO: Edge indexes.
+                    throw new RuntimeException("Edge property indexes are not currently supported.");
+                }
+                createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
             }
-            createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
-        }
 
-        // Create ttl background task.
-        this.ttlHandler = new FireflyTtlHandler(this);
+            // Create ttl background task.
+            this.ttlHandler = new FireflyTtlHandler(this);
 
-        // Create cardinality metadata background task that will populate cardinality for the named graph on the fly.
-        fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX_NAME, db.E_LABEL_INDEX_NAME, fireflyIndexMetadata);
-        final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
+            // Create cardinality metadata background task that will populate cardinality for the named graph on the fly.
+            fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX_NAME, db.E_LABEL_INDEX_NAME, fireflyIndexMetadata);
+            final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
 
-        fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
-        fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
-        fireflyRecordLockHandler = new FireflyRecordLockHandler(db);
+            fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
+            fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
+            fireflyRecordLockHandler = new FireflyRecordLockHandler(db);
 
-        if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
-            final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
-            final String[] plugins = pluginConfigString.split(",");
-            for (final String plugin : plugins) {
-                PluginUtil.loadPlugin(plugin, conf, this);
+            if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
+                final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
+                final String[] plugins = pluginConfigString.split(",");
+                for (final String plugin : plugins) {
+                    PluginUtil.loadPlugin(plugin, conf, this);
+                }
             }
-        }
 
         if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && !db.getOlapFlag()) {
             // Create usage statistics background task. Only one per server
@@ -388,29 +395,33 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 }
             }
 
-            // Register admin services graph metrics since it will bootstrap the server.
-            adminServiceRegistry = new AdminServiceRegistry(this);
+                // Register admin services graph metrics since it will bootstrap the server.
+                adminServiceRegistry = new AdminServiceRegistry(this);
 
-            // do not start http server if disabled in config or for bulk loader
-            final boolean httpEnabled = ConfigurationHelper.getOrDefaultBool(HTTP_ENABLED, conf);
-            if (httpEnabled) {
-                HttpServer.getInstance().start(this);
-                httpStarted = true;
-            }
+                // do not start http server if disabled in config or for bulk loader
+                final boolean httpEnabled = ConfigurationHelper.getOrDefaultBool(HTTP_ENABLED, conf);
+                if (httpEnabled) {
+                    HttpServer.getInstance().start(this);
+                    httpStarted = true;
+                }
 
-            final int queryTracingMinMillis = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_LOG_THRESHOLD, conf);
-            if (queryTracingMinMillis >= 0) {
-                this.queryTracingEnabled = true;
-                final int queryTracingSamplePercent = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_SAMPLE_PERCENT, conf);
-                final String queryTracingLogHost = ConfigurationHelper.getOrDefaultString(QUERY_TRACING_LOG_HOST, conf);
-                final int queryTracingLogPort = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_LOG_PORT, conf);
-                this.zipkinExporter = OpenTelemetryZipkinExporter.create(queryTracingLogHost,
-                        queryTracingLogPort, queryTracingMinMillis, queryTracingSamplePercent);
+                final int queryTracingMinMillis = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_LOG_THRESHOLD, conf);
+                if (queryTracingMinMillis >= 0) {
+                    this.queryTracingEnabled = true;
+                    final int queryTracingSamplePercent = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_SAMPLE_PERCENT, conf);
+                    final String queryTracingLogHost = ConfigurationHelper.getOrDefaultString(QUERY_TRACING_LOG_HOST, conf);
+                    final int queryTracingLogPort = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_LOG_PORT, conf);
+                    this.zipkinExporter = OpenTelemetryZipkinExporter.create(db.GRAPH_ID, queryTracingLogHost,
+                            queryTracingLogPort, queryTracingMinMillis, queryTracingSamplePercent);
+                }
             }
+        } catch (final Exception e) {
+            close();
+            throw e;
         }
     }
 
-    public void setSparkSession(final Object sparkSession) {
+     public void setSparkSession(final Object sparkSession) {
         this.sparkSession = sparkSession;
     }
 
@@ -436,9 +447,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         if (System.getenv("FIREFLY_TESTING") != null &&
                 System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
             logLevel = "WARN";
-            // Audit log and warmup test needs to check output of logs.
+            // Tests that need to check output of logs.
             for (final StackTraceElement e : Thread.currentThread().getStackTrace()) {
-                if (e.getClassName().contains("TestAuditLog") || e.getClassName().contains("TestWarmup") || e.getClassName().contains("TestShutdown")) {
+                if (e.getClassName().contains("TestAuditLog") || e.getClassName().contains("TestWarmup")
+                        || e.getClassName().contains("TestShutdown") || e.getClassName().contains("FireflyGraphSummaryUpdaterTest")) {
                     logLevel = "INFO";
                     break;
                 }
@@ -510,7 +522,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             if (e.getMessage() != null) {
                 LOG.error("========== See Error message for more details: {}", e.getMessage());
             } else {
-                LOG.error("========== Error did not contain message, please submit this stack trace to support", e);
+                LOG.error("========== Error did not contain message; please submit this stack trace to support", e);
             }
 
             // Signal to gremlin-server to shut down.
@@ -602,7 +614,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return operations.writeVertex(idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
     }
 
-    public void bulkWriteMergeVertex(final Object id, final String label, final List<Map.Entry<String, Object>> properties) {
+    public void bulkWriteMergeVertex(final Object id, final String label, final List<Map.Entry<String, Object>> properties, final int partitionId) {
         int tryCount = 0;
         while (true) {
             try {
@@ -612,6 +624,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 properties.forEach(entry -> propertiesCreate.put(entry.getKey(), entry.getValue()));
                 propertiesCreate.put(T.id, id);
                 propertiesCreate.put(T.label, label);
+                propertiesCreate.put(BULK_LOAD_VERTEX_ADD_KEY, partitionId);
                 propertiesMatch.remove(T.id);
                 propertiesMatch.remove(T.label);
                 traversal().mergeV(CollectionUtil.asMap(T.id, id))
@@ -639,11 +652,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public void bulkWriteVertex(final FireflyId idValue,
                                 final String label,
                                 final List<Map.Entry<String, Object>> properties,
-                                final boolean supernode) {
+                                final boolean supernode,
+                                final int partitionId) {
         try {
             // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
             // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
-            operations.writeVertex(idValue, label, properties, getTypeHint(), false, supernode);
+            operations.writeVertex(idValue, label, properties, getTypeHint(), false, supernode, partitionId);
         } catch (final AerospikeGraphException e) {
             throw new FireflyLoadingException(e);
         }
@@ -790,7 +804,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public void bulkWriteEdge(final byte[] edgeId, final String label, final List<Map.Entry<String, Object>> properties,
                               final Object inVertexId, final Object outVertexId, final boolean inVSupernode,
-                              final boolean outVSupernode) {
+                              final boolean outVSupernode, final int partitionId) {
         FireflyGraph.LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertexId, label, inVertexId, properties);
         final FireflyId id = getIdFactory().createEdgeId(edgeId);
         final FireflyId inId = getIdFactory().createVertexId(inVertexId);
@@ -859,7 +873,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } catch (final AerospikeGraphException e) {
             throw new FireflyLoadingException(e);
         }
-        fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
+        fireflySummaryUpdater.stageEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()), partitionId);
     }
 
     /**
@@ -1235,7 +1249,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public void exportQuery(final DefaultTraversalMetrics metrics, final String scopeName, final String traversal) {
         if (this.zipkinExporter == null) {
             // This should never happen.
-            throw new IllegalStateException("Slow query logging was not initialized but was used. Please contact support.");
+            LOG.error("Query tracing was not enabled but usage was attempted. Please contact support.");
+            return;
         }
         this.zipkinExporter.exportQuery(metrics, scopeName, traversal);
     }
@@ -1248,14 +1263,17 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     @Override
     public void close() {
         // GremlinServer try to close Graph 2 times, we should be prepared
-        if (this.closed.getAndSet(true))
+        if (this.closed.getAndSet(true)) {
             return;
+        }
 
         LOG.info("Closing FireflyGraph {}.", getBaseGraph().GRAPH_ID);
 
         this.fireflyCardinalityMetadataTask.cancel();
         this.fireflyIndexMetadataTask.cancel();
-        this.fireflySummaryUpdater.close();
+        if (this.fireflySummaryUpdater != null) {
+            this.fireflySummaryUpdater.close();
+        }
 
         if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && !db.getOlapFlag() && this.usageStats != null) {
             synchronized (this) {
@@ -1270,7 +1288,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             HttpServer.getInstance().close();
         }
 
-        this.ttlHandler.close();
+        if (this.ttlHandler != null) {
+            this.ttlHandler.close();
+        }
 
         if (this.zipkinExporter != null) {
             this.zipkinExporter.close();

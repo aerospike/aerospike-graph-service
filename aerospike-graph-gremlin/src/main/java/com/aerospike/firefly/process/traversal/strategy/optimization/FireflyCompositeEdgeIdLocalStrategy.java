@@ -35,9 +35,7 @@ public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
-        final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
-
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         if (!ComputerHelper.onGraphComputer(traversal))
             return;
 

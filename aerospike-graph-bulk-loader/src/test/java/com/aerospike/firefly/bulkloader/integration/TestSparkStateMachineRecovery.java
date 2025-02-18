@@ -52,7 +52,7 @@ public class TestSparkStateMachineRecovery {
     public void beforeEach() {
         Configuration config = getTestConfig();
         graph = FireflyGraph.open(config);
-        RecoveryUtil.truncate(graph.getBaseGraph());
+        RecoveryUtil.truncate(graph);
     }
 
     @BeforeClass
@@ -223,6 +223,7 @@ public class TestSparkStateMachineRecovery {
 
         // Should have loaded any vertex partitions but no edge partitions.
         Assert.assertFalse(stateMachine.completedVertexPartitions.isEmpty());
+        Assert.assertFalse(stateMachine.completedEdgePartitions.contains(3L));
         Assert.assertFalse(stateMachine.completedEdgePartitions.isEmpty());
         final SparkBulkLoaderState nextState = state.transitionState();
         Assert.assertTrue(nextState instanceof SparkBulkLoaderStateWriteEdges);

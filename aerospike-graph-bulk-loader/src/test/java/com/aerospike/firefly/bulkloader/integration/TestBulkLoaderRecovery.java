@@ -51,7 +51,7 @@ public class TestBulkLoaderRecovery {
         Configuration config = getTestConfig();
         graph = FireflyGraph.open(config);
         graph.traversal().V().drop().iterate();
-        RecoveryUtil.truncate(graph.getBaseGraph());
+        RecoveryUtil.truncate(graph);
     }
 
     @BeforeClass

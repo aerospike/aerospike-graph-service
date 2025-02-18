@@ -16,6 +16,7 @@ import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromInd
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
 import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.util.exceptions.GraphError;
+import com.aerospike.firefly.util.exceptions.TtlArgumentException;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -354,7 +355,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     }
 
     /**
-     * Get all edge ids from vertex for given Direction. This considers supernode ids and cached ids,
+     * Get all adjacent vertex ids from vertex for given Direction. This considers supernode ids and cached ids,
      * handling index/scanning under the hood.
      *
      * @param direction Direction to get edge ids for.
@@ -375,24 +376,16 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      * Important note about this function: It only returns ids that are NOT cached in the vertex.
      * To get an exhaustive list of all ids you must call this in conjunction with getCachedEdgeIds.
      */
-    private Iterator<FireflyId> getSupernodeEdgeIds(final Direction direction, final Set<String> labels,
+    public Iterator<FireflyId> getSupernodeEdgeIds(final Direction direction, final Set<String> labels,
                                                 final List<HasContainer> hasContainers) {
         return getSupernodeIds(direction, labels, FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, hasContainers);
-    }
-
-    /**
-     * Important note about this function: It only returns ids that are NOT cached in the vertex.
-     * To get an exhaustive list of all ids you must call this in conjunction with getSupernodeVertexIds.
-     */
-    public Iterator<FireflyId> getSupernodeVertexIds(final Direction direction, final Set<String> labels) {
-        return getSupernodeIds(direction, labels, FireflyPhatEdgeIdIteratorFromVertex.OutputType.VERTEX_ID, Collections.emptyList());
     }
 
     /**
      * Important note about this function: It only returns ids that are cached in the vertex.
      * To get an exhaustive list of all ids you must call this in conjunction with getSupernodeVertexIds.
      */
-    private List<FireflyId> getCachedEdgeIds(final Direction direction, final Set<String> labels) {
+    public List<FireflyId> getCachedEdgeIds(final Direction direction, final Set<String> labels) {
         return getCachedIds(direction, labels).stream().map(id -> {
             if (id instanceof FireflyIdComposite) {
                 return ((FireflyIdComposite) id).getEdgeId();
@@ -403,8 +396,16 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     }
 
     /**
-     * Important note about this function: It only returns ids that are cached in the vertex.
+     * Important note about this function: It only returns ids that are NOT cached in the vertex.
      * To get an exhaustive list of all ids you must call this in conjunction with getCachedVertexIds.
+     */
+    public Iterator<FireflyId> getSupernodeVertexIds(final Direction direction, final Set<String> labels) {
+        return getSupernodeIds(direction, labels, FireflyPhatEdgeIdIteratorFromVertex.OutputType.VERTEX_ID, Collections.emptyList());
+    }
+
+    /**
+     * Important note about this function: It only returns ids that are cached in the vertex.
+     * To get an exhaustive list of all ids you must call this in conjunction with getSupernodeVertexIds.
      */
     private List<FireflyId> getCachedVertexIds(final Direction direction, final Set<String> labels) {
         return getCachedIds(direction, labels).stream().map(id -> ((FireflyIdComposite) id).getAdjacentId()).collect(Collectors.toList());
@@ -526,13 +527,14 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             if (!db.TTL_ENABLED_FLAG) {
                 throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
             }
+            if (value == null) {
+                return VertexProperty.empty();
+            }
             if (Number.class.isAssignableFrom(value.getClass())) {
                 graph.operations.setTtl(this, ((Number) value).longValue());
                 return VertexProperty.empty();
             } else {
-                throw new IllegalArgumentException(
-                        String.format("Property value [%s] for key %s is of type %s and must be numeric", value, key,
-                                value.getClass()));
+                throw new TtlArgumentException(value);
             }
         }
 

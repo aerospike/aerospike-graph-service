@@ -602,10 +602,19 @@ public class AerospikeConnection implements AutoCloseable {
         int onRecordIdLimit;
         try {
             onRecordIdLimit = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf);
+            if (MRT_ENABLED && onRecordIdLimit > 1023) {
+                LOG.warn("The provided value for '{}' could not be used and has been instead set to the maximum allowed value of 1023 for when '{}' is set as true.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, MRT_ENABLED_FLAG);
+            }
         } catch (final ConfigurationRuntimeException ignored) {
             // If it was not manually configured, dynamically adjust it relative to the max-record-size configuration of Aerospike
             final long onRecordIdDefaultLimit = getRecordIdLimitFromAerospike(.45);
             onRecordIdLimit = onRecordIdDefaultLimit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) onRecordIdDefaultLimit;
+        }
+
+        // MRT operation can handle only 4096 records, so for Vertex drop we can touch no more than 1023 edges
+        // (1023*2*2+1) < 4096
+        if (MRT_ENABLED && onRecordIdLimit > 1023) {
+            onRecordIdLimit = 1023;
         }
         LOG.info("{} configured to {}.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, onRecordIdLimit);
         ON_RECORD_ID_LIMIT = onRecordIdLimit;
@@ -2495,14 +2504,24 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public void commit(final Txn txn) {
-        if (txn != null) {
-            this.client.commit(txn);
+        try {
+            if (txn != null) {
+                this.client.commit(txn);
+            }
+        } catch (final AerospikeException e) {
+            LOG.error("Error - AerospikeException in transaction commit: {}", e.getMessage());
+            throw fromAerospikeException(e);
         }
     }
 
     public void rollback(final Txn txn) {
-        if (txn != null) {
-            this.client.abort(txn);
+        try {
+            if (txn != null) {
+                this.client.abort(txn);
+            }
+        } catch (final AerospikeException e) {
+            LOG.error("Error - AerospikeException in transaction abort: {}", e.getMessage());
+            throw fromAerospikeException(e);
         }
     }
 
@@ -2523,7 +2542,7 @@ public class AerospikeConnection implements AutoCloseable {
 
             rollback(txn);
         } catch (final AerospikeGraphException e) {
-            throw new RuntimeException("Transactions are not supported by Aerospike. TODO: link to doc with how to configure MRT.");
+            throw new RuntimeException("Transactions are not supported by Aerospike. Aerospike database must be version 8 or newer with strong consistency mode enabled.");
         }
     }
 

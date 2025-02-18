@@ -13,6 +13,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.lang.reflect.Field;
 import java.util.List;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -22,9 +23,11 @@ public class FireflyQueryTracingStrategyTest {
     static private FireflyGraph SETUP_GRAPH;
 
     @BeforeClass
-    static public void beforeAll() {
-        CONFIG.setProperty(ConfigurationHelper.Keys.QUERY_TRACING_LOG_THRESHOLD, "500");
+    static public void beforeAll() throws Exception {
         SETUP_GRAPH = FireflyGraph.open(CONFIG);
+        final Field mrtEnabled = SETUP_GRAPH.getClass().getDeclaredField("queryTracingEnabled");
+        mrtEnabled.setAccessible(true);
+        mrtEnabled.set(SETUP_GRAPH, true);
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
         final GraphTraversalSource g = SETUP_GRAPH.traversal();
         Vertex v1 = g.addV("v1").next();

@@ -99,9 +99,10 @@ public class FireflyGraphDropStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
-        if (!(traversal.isRoot()) || ComputerHelper.onGraphComputer(traversal))
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
+        if (!(traversal.isRoot()) || ComputerHelper.onGraphComputer(traversal)) {
             return;
+        }
         final List<Step> steps = traversal.getSteps();
         if (matchesToListNextIterate(steps)) {
             LOG.debug("Applying FireflyGraphDropStrategy");

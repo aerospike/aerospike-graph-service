@@ -2,7 +2,6 @@ package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalLocalStep;
-import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.CountGlobalStep;
@@ -22,14 +21,8 @@ public class FireflyCountGlobalLocalStrategy  extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
-        if (!traversal.isRoot()) {
-            final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
-            if (!graph.getBaseGraph().ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY) {
-                return;
-            }
-        }
 
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         if (!ComputerHelper.onGraphComputer(traversal))
             return;
         for (int i = 0; i < traversal.getSteps().size(); i++) {

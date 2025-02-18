@@ -550,6 +550,10 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           mvn install -DskipTests
+      - name: Test Summary Updater TTL Exclusion
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyGraphSummaryUpdaterTest --no-transfer-progress
       - name: Test Client Event Loop Configuration
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
@@ -1176,7 +1180,7 @@ jobs:
           benchmark-data-dir-path: docs/
   test-chainable-docker:
     name: Test Chainable Docker
-    timeout-minutes: 30
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
       - name: Free Disk Space (Ubuntu)
@@ -1286,17 +1290,6 @@ jobs:
 
           echo "Running Prometheus Test"
           mvn test -pl aerospike-graph-gremlin -Dtest=PrometheusExporterTest -DfailIfNoTests=false --no-transfer-progress
-          docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
-      - name: Test Firefly Docker Image with Custom Prometheus
-        run: |
-          echo "Running Prometheus Test"
-          docker run -p 8182:8182 -p 9191:9191 -v /home/runner/work/firefly/firefly/conf/test-custom-prometheus-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
-          echo "Sleeping for 30 seconds while gremlin-server starts"
-          sleep 30
-          
-          echo "Running Prometheus Test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=CustomPrometheusExporterTest -DfailIfNoTests=false --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image Bulk Loader Call

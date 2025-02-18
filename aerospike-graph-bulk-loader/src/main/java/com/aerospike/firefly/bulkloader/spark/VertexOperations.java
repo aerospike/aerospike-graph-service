@@ -96,6 +96,7 @@ public class VertexOperations implements Serializable {
 
             LOGGER.info("Starting to write VertexDataset in PartitionId: " + partitionId);
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
+                graph.fireflySummaryUpdater.startVertexPartition(partitionId);
                 final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);
                 final long allowBadEntryCount = this.config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
                 final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
@@ -123,7 +124,7 @@ public class VertexOperations implements Serializable {
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next().copy();
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNS_TO_REMOVE);
                     try {
-                        final VertexWriteTask vwt = new VertexWriteTask(retry, nullValue, graph, fireflyRow, metadataRow, supernodes);
+                        final VertexWriteTask vwt = new VertexWriteTask(retry, nullValue, graph, fireflyRow, metadataRow, supernodes, partitionId);
                         if (config.hasAction(BulkLoaderConfigHelper.INCREMENTAL_LOAD)) {
                             futures.add(vwt.writeIncremental(executor));
                         } else {
@@ -150,6 +151,7 @@ public class VertexOperations implements Serializable {
                     LOGGER.info("Writing vertex partition complete for partitionId: {}", partitionId);
                     RecoveryUtil.writeVertexPartitionComplete(graph.getBaseGraph(), partitionId);
                 }
+                graph.fireflySummaryUpdater.completeVertexPartition(partitionId);
                 LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
             }
         });

@@ -17,7 +17,7 @@ public class TestRecoveryUtil {
     @Test
     public void testInfo() {
         try (FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(DEFAULT_CONFIG))) {
-            RecoveryUtil.truncate(graph.getBaseGraph());
+            RecoveryUtil.truncate(graph);
 
             graph.traversal().V().drop().iterate();
 
@@ -67,7 +67,7 @@ public class TestRecoveryUtil {
     @Test
     public void testState() {
         try (FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(DEFAULT_CONFIG))) {
-            RecoveryUtil.truncate(graph.getBaseGraph());
+            RecoveryUtil.truncate(graph);
 
             RecoveryUtil.updateState(graph.getBaseGraph(), RecoveryUtil.RecoveryState.DETECT_SUPERNODES);
             RecoveryUtil.RecoveryInfo recoveryInfo = RecoveryUtil.recover(graph.getBaseGraph());
@@ -89,7 +89,7 @@ public class TestRecoveryUtil {
             recoveryInfo = RecoveryUtil.recover(graph.getBaseGraph());
             Assert.assertEquals(RecoveryUtil.RecoveryState.EDGE_VERIFY.name(), recoveryInfo.getState());
 
-            RecoveryUtil.truncate(graph.getBaseGraph());
+            RecoveryUtil.truncate(graph);
             recoveryInfo = RecoveryUtil.recover(graph.getBaseGraph());
             Assert.assertNull(recoveryInfo.getState());
         }

@@ -4,6 +4,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.Container;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.Frame;
@@ -180,9 +181,23 @@ public class DockerUtil {
 
         final String dockerImageName = "test-graph";
         // If there is a container of the same name, remove it.
-        try {
-            dockerClient.removeContainerCmd(dockerImageName).withForce(true).exec();
-        } catch (Exception ignored) {
+        int attempt = 0;
+        while (true) {
+            try {
+                dockerClient.removeContainerCmd(dockerImageName).withForce(true).exec();
+                break;
+            } catch (final NotFoundException ignored) {
+                break;
+            } catch (final Exception e) {
+                LOG.error("Failed to shut down existing Docker container. Retrying...", e);
+                if (attempt++ > 5) {
+                    throw e;
+                }
+                try {
+                    Thread.sleep(4000);
+                } catch (InterruptedException ignored) {
+                }
+            }
         }
 
         // Create port bindings and expose port 8182.

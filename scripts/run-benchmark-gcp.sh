@@ -24,4 +24,4 @@ cd firefly && sudo python3 scripts/build-docker.py --tags firefly
 sudo docker run --name firefly -d -p 8182:8182 -p 9090:9090 -e aerospike.client.host="$(cat ./scripts/hosts.txt)" -e aerospike.graph.index.vertex.label.enabled=true -e aerospike.graph.index.vertex.properties=macAddress firefly
 
 # Run Benchmark
-sudo mvn test -Dfirefly.host=localhost -Ddataset.size="$(cat ./data_size.txt)" -Dstorage.type="$(cat ./storage_type.txt)" -Dtest="$(cat ./benchmark_name.txt)" -DfailIfNoTests=false --no-transfer-progress
+sudo mvn test -pl aerospike-graph-gremlin -Dfirefly.host=localhost -Ddataset.size="$(cat ./data_size.txt)" -Dstorage.type="$(cat ./storage_type.txt)" -Dtest="$(cat ./benchmark_name.txt)" -DfailIfNoTests=false --no-transfer-progress

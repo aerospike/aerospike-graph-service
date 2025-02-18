@@ -16,11 +16,14 @@ public class SparkBulkLoaderStateWriteEdges extends SparkBulkLoaderState {
         }
 
         // Write edges to Aerospike.
+        // Clear incomplete partition data from summary updater in case we're resuming from a previously failed load.
+        sparkBulkLoaderStateMachine.initializerGraph.fireflySummaryUpdater.clearEdgePartitionData();
         sparkBulkLoaderStateMachine.edgeOperations.writeEdgeToDB(
                 sparkBulkLoaderStateMachine.edgeDataset,
                 sparkBulkLoaderStateMachine.completedEdgePartitions,
                 sparkBulkLoaderStateMachine.readOnly);
         sparkBulkLoaderStateMachine.progressBar.setEdgeLoadComplete();
+        sparkBulkLoaderStateMachine.initializerGraph.fireflySummaryUpdater.clearEdgePartitionData();
     }
 
     @Override

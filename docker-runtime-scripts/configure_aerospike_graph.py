@@ -1,5 +1,6 @@
 import os, sys, multiprocessing
 import re
+import yaml
 
 
 def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, output_java_options_file):
@@ -193,8 +194,8 @@ def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_co
     set_performance_mode(yaml_properties)
 
     # Read yaml lines.
-    with open(default_yaml_file) as yaml:
-        lines = [line.rstrip() for line in yaml]
+    with open(default_yaml_file) as default_yaml:
+        lines = [line.rstrip() for line in default_yaml]
 
     for property in yaml_properties:
         key = property.split("=")[0]
@@ -266,16 +267,25 @@ processors:
 
     lines = lines + rewritten_lines
 
-    with open(output_yaml_file, "w") as yaml:
+    with open(output_yaml_file, "w") as default_yaml:
         for line in lines:
-            yaml.write(line + "\n")
+            default_yaml.write(line + "\n")
 
     with open(output_yaml_file, "r") as prop:
         output_yaml_str = prop.read()
         output_yaml_print = ""
         lines = output_yaml_str.split('\n')
         for line in lines:
-            if "aerospike.graph-service.auth.jwt.secret" in line:
+            if line.startswith("ssl:"):
+                try:
+                    ssl_dict = yaml.safe_load(line)
+                    for key in ssl_dict["ssl"]:
+                        if "password" in key.lower():
+                            ssl_dict["ssl"][key] = "********"
+                    output_yaml_print += yaml.dump(ssl_dict)
+                except:
+                    output_yaml_print += "ssl: ********\n"
+            elif "aerospike.graph-service.auth.jwt.secret" in line:
                 output_yaml_print += "    aerospike.graph-service.auth.jwt.secret: ********\n"
             elif "aerospike.graph-service.auth.jwt.issuer" in line:
                 output_yaml_print += "    aerospike.graph-service.auth.jwt.issuer: ********\n"
@@ -380,7 +390,25 @@ def generate_java_options(java_options_file_path, max_heap, min_heap):
 
     user_java_options = os.environ.get("JAVA_OPTIONS")
     if user_java_options is not None:
-        print("Appending user provided JAVA_OPTIONS: " + user_java_options + " to java options.")
+        lower_options = user_java_options.lower()
+        password_indexes = [(i+9) for i in range(len(lower_options)) if lower_options.startswith('password=', i)]
+        printable_options = ''
+        password_character = False
+        for i in range(len(user_java_options)):
+            if i in password_indexes:
+                if password_character:
+                    # This should never happen unless the environment variable is malformed.
+                    raise Exception("Unexpected problem when parsing JAVA_OPTIONS from environment variables. Please check the format and retry.")
+                password_character = True
+            if password_character and user_java_options[i] == ' ':
+                password_character = False
+
+            if password_character:
+                printable_options += '*'
+            else:
+                printable_options += user_java_options[i]
+
+        print("Appending user provided JAVA_OPTIONS: " + printable_options + " to java options.")
         java_options += user_java_options
     java_options += " --add-exports java.base/sun.nio.ch=ALL-UNNAMED "
 

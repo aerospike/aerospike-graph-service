@@ -25,6 +25,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
+
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  * Most of the Distributed* classes are adapted from the Spark* in TinkerPop from by Marko A. Rodriguez (http://markorodriguez.com)
@@ -122,7 +124,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     @Override
     public void add(final String key, final Object value) {
         checkKeyValue(key, value);
-        final Object detachedValue = AttachmentHelper.detach(value);
+        final Object detachedValue = AttachmentHelper.detach(value, !key.equals(HALTED_TRAVERSERS));
         if (this.inExecute) {
             if (key.endsWith(")"))
                 TaskLogger.logDebuggingMessage("Adding " + key + " to broadcast memory: " + detachedValue + " (from " + value + ").", LOGGER);

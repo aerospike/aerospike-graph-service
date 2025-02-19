@@ -63,13 +63,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.ACTIVE_TRAVERSERS;
+import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
+
 public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
 
-    public static final String TRAVERSAL = "gremlin.traversalVertexProgram.traversal";
-    public static final String HALTED_TRAVERSERS = "gremlin.traversalVertexProgram.haltedTraversers";
-    public static final String ACTIVE_TRAVERSERS = "gremlin.traversalVertexProgram.activeTraversers";
+    private static final String TRAVERSAL = "gremlin.traversalVertexProgram.traversal";
     protected static final String MUTATED_MEMORY_KEYS = "gremlin.traversalVertexProgram.mutatedMemoryKeys";
-    public static final String VOTE_TO_HALT = "gremlin.traversalVertexProgram.voteToHalt";
+    private static final String VOTE_TO_HALT = "gremlin.traversalVertexProgram.voteToHalt";
     private static final String COMPLETED_BARRIERS = "gremlin.traversalVertexProgram.completedBarriers";
 
     // TODO: if not an adjacent traversal, use Local message scope -- a dual messaging system.
@@ -99,6 +100,7 @@ public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
         this.traversal = traversalVertexProgram.getTraversal();
         this.traversalMatrix = new TraversalMatrix<>(this.traversal.get());
 
+        // used only when more than 1 VertexProgram
         this.haltedTraversers = (TraverserSet<Object>)ReflectionHelper.getFieldValue(traversalVertexProgram, "haltedTraversers");
         this.returnHaltedTraversers = (boolean)ReflectionHelper.getFieldValue(traversalVertexProgram, "returnHaltedTraversers");
 

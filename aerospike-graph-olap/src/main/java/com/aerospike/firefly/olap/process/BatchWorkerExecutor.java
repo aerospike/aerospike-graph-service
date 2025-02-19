@@ -28,6 +28,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static com.aerospike.firefly.olap.process.TraversalProgram.*;
+
 public class BatchWorkerExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(BatchWorkerExecutor.class);
 
@@ -133,7 +135,7 @@ public class BatchWorkerExecutor {
                 memory.add(step.getId(), new TraverserSet<>());
             }
 
-            memory.add(TraversalProgram.MUTATED_MEMORY_KEYS, new HashSet<>(Collections.singleton(step.getId())));
+            memory.add(MUTATED_MEMORY_KEYS, new HashSet<>(Collections.singleton(step.getId())));
         } else { // LOCAL PROCESSING
             final TraverserSet memoryTraversers = new TraverserSet<>();
             step.forEachRemaining(traverser -> {

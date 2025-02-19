@@ -9,12 +9,14 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.MutablePath;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.ProjectedTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
+import org.apache.tinkerpop.gremlin.process.traversal.util.EmptyTraversalSideEffects;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedEdge;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedFactory;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedProperty;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertexProperty;
@@ -36,6 +38,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 public class AttachmentHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(AttachmentHelper.class);
@@ -56,7 +59,7 @@ public class AttachmentHelper {
         else if (object instanceof ReferenceVertexProperty || object instanceof DetachedVertexProperty)
             vertexIds.add(((VertexProperty) object).element().id());
         else if (object instanceof ReferenceProperty || object instanceof DetachedProperty) {
-            collectIds(((ReferenceProperty) object).element(), vertexIds, edgeIds);
+            collectIds(((Property) object).element(), vertexIds, edgeIds);
         } else if (object instanceof ReferencePath) {
             ((ReferencePath) object).forEach((obj, labels) -> collectIds(obj, vertexIds, edgeIds));
         } else if (object instanceof Map) {
@@ -100,8 +103,8 @@ public class AttachmentHelper {
                 }
             }
             return object;
-        } else if (object instanceof ReferenceProperty && edgeCache.containsKey(((ReferenceProperty) object).element().id())) {
-            final Edge edge = (Edge) edgeCache.get(((ReferenceProperty) object).element().id());
+        } else if (object instanceof Property && edgeCache.containsKey(((Property) object).element().id())) {
+            final Edge edge = (Edge) edgeCache.get(((Property) object).element().id());
             final Iterator<Property<Object>> itty = edge.properties();
             while (itty.hasNext()) {
                 // vertex property attachment require key, so shortcut here
@@ -205,22 +208,24 @@ public class AttachmentHelper {
             if (traverser.get() instanceof Element || traverser.get() instanceof Property) {
                 final Object newValue = getFromCache(traverser.get(), vertexCache, edgeCache);
                 traverser.set(newValue);
-                traverser.setSideEffects(traversalSideEffects);
             } else if (traverser.get() instanceof BulkSet) {
                 final BulkSet attached = new BulkSet();
                 ((BulkSet) traverser.get()).forEach((element, bulk) ->
                         attached.add(getFromCache(element, vertexCache, edgeCache), (long) bulk)
                 );
                 traverser.set(attached);
-                traverser.setSideEffects(traversalSideEffects);
             } else if (traverser.get() instanceof Map) {
                 final HashMap attached = new HashMap();
                 ((HashMap) traverser.get()).forEach((key, value) ->
                         attached.put(getFromCache(key, vertexCache, edgeCache), getFromCache(value, vertexCache, edgeCache))
                 );
                 traverser.set(attached);
-                traverser.setSideEffects(traversalSideEffects);
+            } else if (traverser.get() instanceof Path) {
+                final Path attached = buildPath((Path) traverser.get(), vertexCache, edgeCache);
+                traverser.set(attached);
             }
+
+            traverser.setSideEffects(traversalSideEffects);
 
             attachPath(traverser, vertexCache, edgeCache);
 
@@ -228,88 +233,95 @@ public class AttachmentHelper {
                 final List original = ((ProjectedTraverser) traverser).getProjections();
                 final List copy = new ArrayList<>(original);
                 for (int i = 0; i < copy.size(); i++) {
-                    final Object projection = copy.get(i);
-                    if (projection instanceof Vertex && vertexCache.containsKey(((Vertex) projection).id())) {
+                    final Object newValue = getFromCache(copy.get(i), vertexCache, edgeCache);
+                    if (copy.get(i) != newValue) {
                         original.remove(i);
-                        original.add(i, vertexCache.get(((Vertex) projection).id()));
-                    } else if (projection instanceof Edge && edgeCache.containsKey(((Edge) projection).id())) {
-                        original.remove(i);
-                        original.add(i, edgeCache.get(((Edge) projection).id()));
+                        original.add(i, newValue);
                     }
                 }
             }
         });
     }
 
-    private static void attachPath(final Traverser traverser,
+    private static Path buildPath(final Path path,
                                    final Map<Object, Element> vertexCache,
                                    final Map<Object, Element> edgeCache) {
-        final Path path = traverser.path();
         if (path == null || path.isEmpty())
-            return;
+            return path;
 
         final Path attached = MutablePath.make();
         path.forEach((obj, labels) ->
                 attached.extend(getFromCache(obj, vertexCache, edgeCache), labels)
         );
 
-        final Traverser.Admin t = ProjectedTraverser.tryUnwrap(traverser.asAdmin());
-        ReflectionHelper.setFieldValue(t, "path", attached);
+        return attached;
     }
 
-    public static void prepareEdgesForResult(final FireflyGraph graph,
-                                             final TraverserSet<Object> traversers) {
-        final Set<Object> edgeIds = new HashSet<>();
-        traversers.forEach(traverser -> {
-            // we care only about ReferenceEdge for now
-            if (traverser.get() instanceof ReferenceEdge) {
-                edgeIds.add(((ReferenceEdge) traverser.get()).id());
-            }
-        });
-
-        final Map<Object, Edge> edgeCache = new HashMap<>();
-        if (!edgeIds.isEmpty())
-            graph.edges(edgeIds.toArray(new Object[edgeIds.size()])).forEachRemaining(edge -> edgeCache.put(edge.id(), edge));
-
-        traversers.forEach(traverser -> {
-            if (traverser.get() instanceof ReferenceEdge && edgeCache.containsKey(((ReferenceEdge) traverser.get()).id())) {
-                final Edge edge = edgeCache.get(((ReferenceEdge) traverser.get()).id());
-                traverser.asAdmin().set(ReferenceFactory.detach(edge));
-            }
-        });
+    private static void attachPath(final Traverser traverser,
+                                   final Map<Object, Element> vertexCache,
+                                   final Map<Object, Element> edgeCache) {
+        final Path attached = buildPath(traverser.path(), vertexCache, edgeCache);
+        if (attached != traverser.path()) {
+            final Traverser.Admin t = ProjectedTraverser.tryUnwrap(traverser.asAdmin());
+            ReflectionHelper.setFieldValue(t, "path", attached);
+        }
     }
 
-    public static Object detach(final Object barrier) {
+    public static void makeDetachedElements(final FireflyGraph graph,
+                                            final TraverserSet<Object> traversers) {
+        bulkAttach(graph,  EmptyTraversalSideEffects.instance(), traversers);
+        // for TraverserSet detach modify incoming object
+        detach(traversers, false);
+    }
+
+    public static Object detach(final Object value, final Boolean useReference) {
+        final Function<Object, Object> detacher = useReference
+                ? ReferenceFactory::detach
+                : (o) -> DetachedFactory.detach(o, true);
+        return detach(value, detacher);
+    }
+
+    private static Object detach(final Object value, Function<Object, Object> detacher) {
         // not handled by ReferenceFactory
-        if (barrier instanceof TraverserSet) {
-            for (final Object t : (TraverserSet) barrier) {
+        if (value instanceof TraverserSet) {
+            for (final Object t : (TraverserSet) value) {
                 if (t instanceof ProjectedTraverser) {
                     (ProjectedTraverser.tryUnwrap((ProjectedTraverser) t)).detach();
                     ReflectionHelper.setFieldValue(ProjectedTraverser.class, t, "projections",
-                            ReferenceFactory.detach(((ProjectedTraverser) t).getProjections()));
-                } else if (t instanceof Traverser.Admin) {
-                    final Traverser.Admin traverser = (Traverser.Admin) t;
+                            detacher.apply(((ProjectedTraverser) t).getProjections()));
+                } else if (t instanceof Traverser) {
+                    final Traverser.Admin traverser = ((Traverser) t).asAdmin();
                     if (traverser.get() instanceof Map.Entry) {
                         final Map.Entry entry = (Map.Entry) traverser.get();
                         traverser.set(new AbstractMap.SimpleEntry(entry.getKey(), entry.getValue()));
                     }
-                    ((Traverser.Admin<?>) t).detach();
+
+                    // we need only traversal value to be detached, path can be reference
+                    final Object detached = detacher.apply(traverser.get());
+                    traverser.detach();
+                    traverser.set(detached);
                 }
             }
 
-            return barrier;
+            return value;
         }
 
         // ReferenceFactory don't detach traversers
-        if (barrier instanceof Map) {
-            for (final Map.Entry<Object, Object> entry : ((Map<Object, Object>) barrier).entrySet()) {
+        if (value instanceof Map) {
+            final Map<Object, Object> map = (Map<Object, Object>) value;
+            for (final Map.Entry<Object, Object> entry : map.entrySet()) {
                 if (entry.getValue() instanceof Map)
-                    detach(entry.getValue());
-                else if (entry.getValue() instanceof Traverser)
-                    ((Traverser) entry.getValue()).asAdmin().detach();
+                    map.put(entry.getKey(), detach(entry.getValue(), detacher));
+                else if (entry.getValue() instanceof Traverser) {
+                    final Traverser.Admin traverser = ((Traverser) entry.getValue()).asAdmin();
+                    // used only by barriers, so it's ok to always use default traverser.detach here
+                    // final Object detached = detacher.apply(traverser.get());
+                    traverser.detach();
+                    // traverser.set(detached);
+                }
             }
         }
 
-        return ReferenceFactory.detach(barrier);
+        return detacher.apply(value);
     }
 }

@@ -41,6 +41,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.aerospike.firefly.olap.process.TraversalProgram.MUTATED_MEMORY_KEYS;
+
 public class BatchMasterExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(BatchMasterExecutor.class);
 
@@ -50,8 +52,8 @@ public class BatchMasterExecutor {
 
     protected static void processMemory(final TraversalMatrix<?, ?> traversalMatrix, final Memory memory, final TraverserSet<Object> toProcessTraversers, final Set<String> completedBarriers) {
         // handle traversers and data that were sent from the workers to the master traversal via memory
-        if (memory.exists(TraversalProgram.MUTATED_MEMORY_KEYS)) {
-            for (final String key : memory.<Set<String>>get(TraversalProgram.MUTATED_MEMORY_KEYS)) {
+        if (memory.exists(MUTATED_MEMORY_KEYS)) {
+            for (final String key : memory.<Set<String>>get(MUTATED_MEMORY_KEYS)) {
                 final Step<Object, Object> step = traversalMatrix.getStepById(key);
                 assert step instanceof Barrier;
                 completedBarriers.add(step.getId());
@@ -101,7 +103,7 @@ public class BatchMasterExecutor {
                 }
             }
         }
-        memory.set(TraversalProgram.MUTATED_MEMORY_KEYS, new HashSet<>());
+        memory.set(MUTATED_MEMORY_KEYS, new HashSet<>());
     }
 
     protected static void processTraversers(final PureTraversal<?, ?> traversal,

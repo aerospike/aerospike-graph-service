@@ -58,7 +58,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
-import static com.aerospike.firefly.olap.process.TraversalProgram.VOTE_TO_HALT;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
@@ -413,7 +412,7 @@ public class DistributedGraphComputer implements GraphComputer {
             System.out.println("Results: " + rows.size());
 
             System.out.println("Traversers: " + traversers);
-            AttachmentHelper.prepareEdgesForResult((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(), traversers);
+            AttachmentHelper.makeDetachedElements((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(), traversers);
 
             // Set all traversers as halted and complete memory.
             memory.set(HALTED_TRAVERSERS, traversers);

@@ -145,22 +145,6 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.search.path.ShortestPathVertexProgramTest", method = "*", reason = "Firefly does not support persisting edges to new graph", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.InjectTest$Traversals", method = "*", reason = "Firefly does not support arbitrary object starts", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.TraversalInterruptionComputerTest", method = "*", reason = "Firefly does not support thread interruption ?? why not ??", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.WriteTest",
-        method = "*",
-        reason = "The io() step is not supported generally by GraphComputer",
-        computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ReadTest",
-        method = "*",
-        reason = "The io() step is not supported generally by GraphComputer",
-        computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ProfileTest",
-        method = "*",
-        reason = "todo: fix profile serialization stack overflow",
-        computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-
 
 // Tests that require lambda support
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.SerializationTest$GraphSONV1Test", method = "shouldSerializePath", reason = "Test requires Lambda support which is disabled for security.", computers = {"ALL"})

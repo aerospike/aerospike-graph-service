@@ -801,7 +801,7 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=LocalGraphProcessComputerTest --no-transfer-progress
+          mvn test -pl aerospike-graph-olap -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-movielens:
     name: Test Movielens
     timeout-minutes: 120

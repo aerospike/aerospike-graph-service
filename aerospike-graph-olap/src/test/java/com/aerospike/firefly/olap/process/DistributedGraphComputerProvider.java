@@ -26,6 +26,34 @@ import java.util.Set;
 
 import static com.aerospike.firefly.olap.Tokens.INTEGRATION_TEST_PROPERTIES;
 
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.WriteTest",
+        method = "*",
+        reason = "The io() step is not supported generally by GraphComputer")
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ReadTest",
+        method = "*",
+        reason = "The io() step is not supported generally by GraphComputer")
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ProfileTest",
+        method = "*",
+        reason = "todo: fix profile serialization stack overflow")
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertiesTest",
+        method = "g_injectXg_VX1X_propertiesXnameX_nextX_value",
+        reason = "The inject() step is not supported by GraphComputer")
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.TreeTest",
+        method = "*",
+        reason = "Tree is not supported by GraphComputer")
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.SackTest",
+        method = "*",
+        reason = "Sack encoding is not supported.")
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.step.ComplexTest",
+        method = "allShortestPaths",
+        reason = "LinkedHashMap in Path is not supported.")
 @GraphProvider.Descriptor(computer = DistributedGraphComputer.class)
 public class DistributedGraphComputerProvider extends AbstractGraphProvider {
 

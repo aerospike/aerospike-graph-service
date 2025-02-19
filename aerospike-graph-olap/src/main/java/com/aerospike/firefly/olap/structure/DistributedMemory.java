@@ -124,7 +124,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     @Override
     public void add(final String key, final Object value) {
         checkKeyValue(key, value);
-        final Object detachedValue = AttachmentHelper.detach(value, !key.equals(HALTED_TRAVERSERS));
+        final Object detachedValue = AttachmentHelper.detach(value, true); // !key.equals(HALTED_TRAVERSERS)
         if (this.inExecute) {
             if (key.endsWith(")"))
                 TaskLogger.logDebuggingMessage("Adding " + key + " to broadcast memory: " + detachedValue + " (from " + value + ").", LOGGER);

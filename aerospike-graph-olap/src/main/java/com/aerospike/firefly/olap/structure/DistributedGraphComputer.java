@@ -30,6 +30,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTraverserGeneratorFactory;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
@@ -76,11 +77,19 @@ public class DistributedGraphComputer implements GraphComputer {
     private int workers;
     private final GraphFilter graphFilter = new GraphFilter();
     private boolean executed = false;
-    private final DistributedConfigHelper configHelper;
 
     public DistributedGraphComputer(final FireflyGraph graph, final Object sparkSession) {
-        System.out.println("???ASFDASFASF???");
         this.graph = graph;
+        if (sparkSession != null) {
+            this.spark = (SparkSession) sparkSession;
+        } else {
+            if (this.spark == null)
+                this.spark = buildSparkSession();
+        }
+    }
+
+    private DistributedConfigHelper generateConfigHelper() {
+        // Get config from Firefly.
         final Map<String, Object> config = new HashMap<>();
         final Iterator<String> keys = graph.configuration().getKeys();
         while (keys.hasNext()) {
@@ -90,13 +99,14 @@ public class DistributedGraphComputer implements GraphComputer {
         config.put(ConfigurationHelper.Keys.OLAP_ENABLED.toLowerCase(), true);
         config.put(ConfigurationHelper.Keys.AUTO_PRE_HEAT.toLowerCase(), "false");
         config.put(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
-        configHelper = new DistributedConfigHelper(config);
-        if (sparkSession != null) {
-            this.spark = (SparkSession) sparkSession;
-        } else {
-            if (this.spark == null)
-                this.spark = buildSparkSession();
-        }
+
+        // Get config from traversal.
+        final Map<String, Object> traversalOptions = new HashMap<>();
+        ((TraversalProgram) this.vertexProgram).getTraversal().get().getStrategies().
+                getStrategy(OptionsStrategy.class).ifPresent(
+                        optionsStrategy -> traversalOptions.putAll(optionsStrategy.getOptions()));
+
+        return new DistributedConfigHelper(config, traversalOptions);
     }
 
     private static SparkSession buildSparkSession() {
@@ -274,6 +284,7 @@ public class DistributedGraphComputer implements GraphComputer {
         this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
         this.persist = GraphComputerHelper.getPersistState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.persist));
         int i = 0;
+        final DistributedConfigHelper configHelper = generateConfigHelper();
         System.out.println("Configuration: "  + Arrays.toString(spark.sparkContext().getConf().getAll()));
         try {
             final PureTraversal<?, ?> traversal = ((TraversalProgram) vertexProgram).getTraversal().clone();
@@ -333,11 +344,11 @@ public class DistributedGraphComputer implements GraphComputer {
                     throw new TraversalInterruptedException();
                 }
 
-                // Set inExecute to true, execute the vertex program, and set inExecute to false.
-                //if (LOGGER.isDebugEnabled())
-                //System.out.println("====================== DF1 ======================");
-                //df.show();
+                if (configHelper.isDebugDf()) {
+                    df.show();
+                }
 
+                // Set inExecute to true, execute the vertex program, and set inExecute to false.
                 memory.setInExecute(true);
                 df = magicSwap(DistributedWorkerExecutor.execute(
                         spark,
@@ -354,8 +365,10 @@ public class DistributedGraphComputer implements GraphComputer {
                         vertexProgramConfiguration,
                         schema,
                         Math.max(1, workers - 1)));
-                //df.show();
 
+                if (configHelper.isDebugDf()) {
+                    df.show();
+                }
                 System.out.println("==================> TOTAL COUNT: " + df.count());
                 memory.setInExecute(false);
 
@@ -449,17 +462,5 @@ public class DistributedGraphComputer implements GraphComputer {
             // Failed to count in 1 second. Who cares.
         }
         return output;
-    }
-
-    public static long getObjectSize(Object obj) {
-        try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(baos);
-            oos.writeObject(obj);
-            oos.close();
-            return baos.size();
-        } catch (Exception e) {
-            return -1;
-        }
     }
 }

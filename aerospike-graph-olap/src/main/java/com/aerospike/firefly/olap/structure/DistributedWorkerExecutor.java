@@ -1,15 +1,5 @@
 package com.aerospike.firefly.olap.structure;
 
-import com.aerospike.client.exp.Expression;
-import com.aerospike.client.policy.QueryPolicy;
-import com.aerospike.client.query.Filter;
-import com.aerospike.client.query.KeyRecord;
-import com.aerospike.client.query.PartitionFilter;
-import com.aerospike.firefly.io.FireflyIndexMetadata;
-import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
-import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
-import com.aerospike.firefly.io.aerospike.query.paged.PaginationIterator;
-import com.aerospike.firefly.io.aerospike.query.paged.PartitionedSindexPageFetcher;
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.codec.RowCodec;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
@@ -20,13 +10,8 @@ import com.aerospike.firefly.olap.iterators.QueryInfo;
 import com.aerospike.firefly.olap.iterators.ScanIterator;
 import com.aerospike.firefly.olap.process.BatchJob;
 import com.aerospike.firefly.olap.process.TraversalProgram;
-import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
-import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
-import com.aerospike.firefly.util.TimeoutHelper;
-import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
 import org.apache.spark.sql.Column;
@@ -39,7 +24,6 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
-import org.apache.tinkerpop.gremlin.process.traversal.Contains;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -52,26 +36,19 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSe
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
+import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.getIdType;
-import static com.aerospike.firefly.olap.iterators.QueryInfo.QueryType.INDEX;
-import static com.aerospike.firefly.olap.iterators.QueryInfo.QueryType.SCAN;
-import static com.aerospike.firefly.olap.iterators.QueryInfo.QueryType.PI;
 import static com.aerospike.firefly.olap.structure.DistributedGraphComputer.magicSwap;
 
 public class DistributedWorkerExecutor {
@@ -94,76 +71,42 @@ public class DistributedWorkerExecutor {
                                        final Configuration vertexProgramConfig,
                                        final StructType schema,
                                        final int workerCount) {
-        QueryInfo queryInfo;
+        final Optional<Integer> partitions = configHelper.getPartitions();
         Dataset<Row> df = null;
+        QueryInfo queryInfo;
         if (input != null) {
-            df = input;
             queryInfo = null;
-            System.out.println("Starting with " + input.rdd().partitions().length + " partitions.");
-            if (input.rdd().partitions().length < workerCount / 2) {
-                System.out.println("Repartitioning to " + workerCount + " partitions.");
-                input = magicSwap(input.repartition(workerCount));
+            df = input;
+            if (configHelper.isDebugDf()) {
+                System.out.println("Starting with " + input.rdd().partitions().length + " partitions.");
             }
-            System.out.println("Ending with " + input.rdd().partitions().length + " partitions.");
-        } else if (isFirst) {
-            traversal.asAdmin().applyStrategies();
-            queryInfo = QueryInfo.getQueryInfo(rootGraph, (GraphStep) traversal.asAdmin().getStartStep(), initialHasContainers, ids);
-            // Special case for returning something like g.V().hasId(List.of())
-            if (queryInfo == null) {
-                return spark.createDataFrame(new ArrayList<Row>(), outputSchema);
-            }
-            System.out.println("Query type: " + queryInfo.queryType.toString());
-            if (queryInfo.queryType.equals(INDEX) || queryInfo.queryType.equals(QueryInfo.QueryType.SCAN)) {
-                final List<Row> queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount)).
-                        stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
-                System.out.println("Query ranges: " + queryRanges.size());
-                final StructType inputSchema = new StructType().
-                        add(START_COL, DataTypes.IntegerType, false).
-                        add(COUNT_COL, DataTypes.IntegerType, false);
-                Dataset<Row> queryRangeDataset = spark.createDataFrame(queryRanges, inputSchema);
-                System.out.println("Starting query with " + queryRangeDataset.rdd().partitions().length + " partitions.");
-                queryRangeDataset = magicSwap(queryRangeDataset.repartitionByRange(queryRanges.size(), new Column(START_COL)));
-                //queryRangeDataset.
-                System.out.println("Repartitioned query with " + queryRangeDataset.rdd().partitions().length + " partitions.");
-                System.out.println("Partition balancing for index: " + queryRangeDataset.javaRDD().mapPartitions(iter -> {
-                    long count = 0;
-                    while (iter.hasNext()) {
-                        iter.next();
-                        count++;
-                    }
-                    return java.util.Collections.singletonList(count).iterator();
-                }).collect());
-                df = queryRangeDataset;
+            if (partitions.isPresent()) {
+                df = magicSwap(df.repartition(partitions.get()));
             } else {
-                final List<Object> initialIds = queryInfo.ids;
-                System.out.println("IDS: " + initialIds);
-                final List<Object> idsList = new ArrayList<>();
-                if (initialIds.size() == 1 && initialIds.get(0) instanceof P) {
-                    final P p = (P) initialIds.get(0);
-                    if (!p.getBiPredicate().toString().equals("within")) {
-                        throw new IllegalArgumentException("Batch read only supports within predicate");
-                    }
-                    if (!(p.getValue() instanceof List)) {
-                        throw new IllegalArgumentException("Batch read only supports a single list of keys");
-                    }
-                    idsList.addAll((List) p.getValue());
-                } else {
-                    idsList.addAll(initialIds);
-                }
-                System.out.println("Actual ids: " + ids);
-                initialIds.clear();
-                final List<Row> rows = idsList.stream().filter(Objects::nonNull).map(id -> RowFactory.create(id.toString(), getIdType(id).ordinal())).collect(Collectors.toList());
-                final StructType inputSchema = new StructType().
-                        add(RowCodec.ID_COL, DataTypes.StringType, false).
-                        add(RowCodec.ID_TYPEHINT_COL, DataTypes.IntegerType, false);
-                Dataset<Row> idDataset = spark.createDataFrame(rows, inputSchema);
-                System.out.println("Starting query with " + idDataset.rdd().partitions().length + " partitions.");
-                df = magicSwap(idDataset.repartition(maxParallelQuery));
-                System.out.println("Repartitioned query with " + idDataset.rdd().partitions().length + " partitions.");
+                df = magicSwap(df.repartition(workerCount));
             }
         } else {
-            queryInfo = null;
-            throw new RuntimeException("Error, input is null and this is not the first step. Please contact support.");
+            final Pair<Dataset<Row>, QueryInfo> initialInfo = getInitialDataset(spark,
+                    rootGraph,
+                    configHelper,
+                    initialHasContainers,
+                    ids,
+                    traversal,
+                    outputSchema,
+                    maxParallelQuery,
+                    isFirst,
+                    workerCount);
+            df = initialInfo.getValue0();
+            queryInfo = initialInfo.getValue1();
+            if (configHelper.isDebugDf()) {
+                System.out.println("Starting with " + df.rdd().partitions().length + " partitions.");
+            }
+            if (partitions.isPresent()) {
+                df = magicSwap(df.repartition(partitions.get()));
+            }
+        }
+        if (configHelper.isDebugDf()) {
+            System.out.println("Ending with " + df.rdd().partitions().length + " partitions.");
         }
         return df.mapPartitions((MapPartitionsFunction<Row, Row>) itty -> {
             TaskLogger.logDebuggingMessage("starting with " + (itty.hasNext() ? "non-empty" : "empty") + " partition.", LOGGER);
@@ -324,6 +267,90 @@ public class DistributedWorkerExecutor {
         @Override
         public String toString() {
             return "[" + start + " - " + (start + count - 1) + "]";
+        }
+    }
+
+    private static Pair<Dataset<Row>, QueryInfo> getInitialDataset(final SparkSession spark,
+                                                                   final FireflyGraph rootGraph,
+                                                                   final DistributedConfigHelper configHelper,
+                                                                   final List<HasContainer> initialHasContainers,
+                                                                   final Object[] ids,
+                                                                   final Traversal<?, ?> traversal,
+                                                                   final StructType outputSchema,
+                                                                   final int maxParallelQuery,
+                                                                   final boolean isFirst,
+                                                                   final int workerCount) {
+        QueryInfo queryInfo;
+        if (isFirst) {
+            traversal.asAdmin().applyStrategies();
+            queryInfo = QueryInfo.getQueryInfo(rootGraph, (GraphStep) traversal.asAdmin().getStartStep(), initialHasContainers, ids);
+            // Special case for returning something like g.V().hasId(List.of())
+            if (queryInfo == null) {
+                return new Pair<>(spark.createDataFrame(new ArrayList<>(), outputSchema), queryInfo);
+            }
+            if (configHelper.isDebugDf()) {
+                System.out.println("Query type: " + queryInfo.queryType.toString());
+            }
+            if (queryInfo.queryType.equals(QueryInfo.QueryType.INDEX) || queryInfo.queryType.equals(QueryInfo.QueryType.SCAN)) {
+                final List<Row> queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount)).
+                        stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
+                if (configHelper.isDebugDf()) {
+                    System.out.println("Query ranges: " + queryRanges.size());
+                }
+                final StructType inputSchema = new StructType().
+                        add(START_COL, DataTypes.IntegerType, false).
+                        add(COUNT_COL, DataTypes.IntegerType, false);
+                Dataset<Row> queryRangeDataset = spark.createDataFrame(queryRanges, inputSchema);
+                if (configHelper.isDebugDf()) {
+                    System.out.println("Starting query with " + queryRangeDataset.rdd().partitions().length + " partitions.");
+                }
+                queryRangeDataset = magicSwap(queryRangeDataset.repartitionByRange(queryRanges.size(), new Column(START_COL)));
+                if (configHelper.isDebugDf()) {
+                    System.out.println("Repartitioned query with " + queryRangeDataset.rdd().partitions().length + " partitions.");
+                    System.out.println("Partition balancing for index: " + queryRangeDataset.javaRDD().mapPartitions(iter -> {
+                        long count = 0;
+                        while (iter.hasNext()) {
+                            iter.next();
+                            count++;
+                        }
+                        return java.util.Collections.singletonList(count).iterator();
+                    }).collect());
+                }
+                return new Pair<>(queryRangeDataset, queryInfo);
+            } else {
+                final List<Object> initialIds = queryInfo.ids;
+                if (configHelper.isDebugDf()) {
+                    System.out.println("IDS: " + initialIds);
+                }
+                final List<Object> idsList = new ArrayList<>();
+                if (initialIds.size() == 1 && initialIds.get(0) instanceof P) {
+                    final P p = (P) initialIds.get(0);
+                    if (!p.getBiPredicate().toString().equals("within")) {
+                        throw new IllegalArgumentException("Batch read only supports within predicate");
+                    }
+                    if (!(p.getValue() instanceof List)) {
+                        throw new IllegalArgumentException("Batch read only supports a single list of keys");
+                    }
+                    idsList.addAll((List) p.getValue());
+                } else {
+                    idsList.addAll(initialIds);
+                }
+                if (configHelper.isDebugDf()) {
+                    System.out.println("Actual ids: " + ids);
+                }
+                initialIds.clear();
+                final List<Row> rows = idsList.stream().filter(Objects::nonNull).map(id -> RowFactory.create(id.toString(), getIdType(id).ordinal())).collect(Collectors.toList());
+                final StructType inputSchema = new StructType().
+                        add(RowCodec.ID_COL, DataTypes.StringType, false).
+                        add(RowCodec.ID_TYPEHINT_COL, DataTypes.IntegerType, false);
+                Dataset<Row> idDataset = spark.createDataFrame(rows, inputSchema);
+                if (configHelper.isDebugDf()) {
+                    System.out.println("Starting query with " + idDataset.rdd().partitions().length + " partitions.");
+                }
+                return new Pair<>(magicSwap(idDataset.repartition(maxParallelQuery)), queryInfo);
+            }
+        } else {
+            throw new RuntimeException("Error, input is null and this is not the first step. Please contact support.");
         }
     }
 }

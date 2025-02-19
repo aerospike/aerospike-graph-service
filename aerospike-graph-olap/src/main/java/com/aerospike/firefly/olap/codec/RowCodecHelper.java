@@ -1,5 +1,7 @@
 package com.aerospike.firefly.olap.codec;
 
+import com.aerospike.firefly.olap.structure.DistributedReferenceEdgeProperty;
+import com.aerospike.firefly.olap.structure.DistributedReferenceVertexProperty;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
@@ -31,6 +33,7 @@ import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceProperty;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertexProperty;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
@@ -63,6 +66,7 @@ import static com.aerospike.firefly.olap.codec.RowCodec.ELEMENT_ID_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.ELEMENT_ID_TYPEHINT_COL;
 
 public class RowCodecHelper {
+    private static final String ENCODE_TOKEN = "~.~";
 
     public static class PathInfo {
         private final List<String> pathIds;
@@ -138,10 +142,22 @@ public class RowCodecHelper {
             for (int i = 0; i < info.pathIds.size(); i++) {
                 int pathType = info.pathObjTypes.get(i);
                 Object value;
-                if (pathType == RowCodec.TRAVERSER_TYPE.EDGE.ordinal() || pathType == RowCodec.TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal() ||
-                        pathType == RowCodec.TRAVERSER_TYPE.VERTEX.ordinal()) {
+                if (pathType == RowCodec.TRAVERSER_TYPE.EDGE.ordinal() || pathType == RowCodec.TRAVERSER_TYPE.VERTEX.ordinal()) {
                     value = getReferenceElement(info.pathObjTypes.get(i), getId(info.pathIds.get(i), info.pathIdTypeHints.get(i)), null);
-                } else if (pathType == RowCodec.TRAVERSER_TYPE.INTEGER.ordinal() || pathType == RowCodec.TRAVERSER_TYPE.STRING.ordinal()) {
+                } else if (pathType == RowCodec.TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal()) {
+                    // Encoded as '<vertex id><ENCODE_TOKEN><vertex property id>'
+                    final String id = info.pathIds.get(i);
+                    final String[] idKeyPair = id.split(ENCODE_TOKEN);
+                    final Long vpId = Long.parseLong(idKeyPair[1]);
+                    value = new DistributedReferenceVertexProperty<>(vpId, getId(idKeyPair[0], info.pathIdTypeHints.get(i)));
+                } else if (pathType == RowCodec.TRAVERSER_TYPE.EDGE_PROPERTY.ordinal()) {
+                    // Encoded as '<edge id><ENCODE_TOKEN><key>'
+                    final String id = info.pathIds.get(i);
+                    final String[] idKeyPair = id.split(ENCODE_TOKEN);
+                    final ReferenceEdge edge = (ReferenceEdge) getReferenceElement(
+                            RowCodec.TRAVERSER_TYPE.EDGE.ordinal(), getId(idKeyPair[0], info.pathIdTypeHints.get(i)), null);
+                    value = new DistributedReferenceEdgeProperty<>(idKeyPair[1], edge);
+                }else if (pathType == RowCodec.TRAVERSER_TYPE.INTEGER.ordinal() || pathType == RowCodec.TRAVERSER_TYPE.STRING.ordinal()) {
                     value = getId(info.pathIds.get(i), info.pathIdTypeHints.get(i));
                 } else {
                     throw new RuntimeException("Error, path type '" + pathType + "' is not supported.");
@@ -255,7 +271,7 @@ public class RowCodecHelper {
         final List<Integer> objTypes = new ArrayList<>();
         final List<Seq<String>> labelsList = new ArrayList<>();
         for (final Object o : path.objects()) {
-            if (o instanceof Element) {
+            if (o instanceof Element && !(o instanceof VertexProperty)) {
                 final Element e = (Element) o;
                 ids.add(e.id().toString());
                 idTypeHints.add(getIdType(e.id()).ordinal());
@@ -263,8 +279,6 @@ public class RowCodecHelper {
                     objTypes.add(RowCodec.TRAVERSER_TYPE.VERTEX.ordinal());
                 } else if (e instanceof Edge) {
                     objTypes.add(RowCodec.TRAVERSER_TYPE.EDGE.ordinal());
-                } else if (e instanceof VertexProperty) {
-                    objTypes.add(RowCodec.TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal());
                 }
             } else if (o instanceof Integer) {
                 ids.add(o.toString());
@@ -274,7 +288,20 @@ public class RowCodecHelper {
                 ids.add(o.toString());
                 idTypeHints.add(RowCodec.ID_TYPE.STRING.ordinal());
                 objTypes.add(RowCodec.TRAVERSER_TYPE.STRING.ordinal());
-            } else {
+            } else if (o instanceof VertexProperty) {
+                final VertexProperty vp = (VertexProperty) o;
+                final Object id = vp.element().id();
+                ids.add(id.toString() + ENCODE_TOKEN + vp.id().toString());
+                idTypeHints.add(getIdType(id).ordinal());
+                objTypes.add(RowCodec.TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal());
+            } else if (o instanceof Property) {
+                final Property p = (Property) o;
+                final Object id = p.element().id();
+                ids.add(id.toString() + ENCODE_TOKEN + p.key());
+                idTypeHints.add(getIdType(id).ordinal());
+                objTypes.add(RowCodec.TRAVERSER_TYPE.EDGE_PROPERTY.ordinal());
+            }
+            else {
                 throw new RuntimeException("Error, only elements are currently supported '" + o.getClass() + "' is not supported.");
             }
         }

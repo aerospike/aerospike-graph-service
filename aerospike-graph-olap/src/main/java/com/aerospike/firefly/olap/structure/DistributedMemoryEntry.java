@@ -17,7 +17,6 @@ public class DistributedMemoryEntry<R> implements Serializable {
     private R value;
 
     public DistributedMemoryEntry() {
-
     }
 
     public DistributedMemoryEntry(final R value) {

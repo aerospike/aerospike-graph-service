@@ -9,6 +9,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
+    <artifactId>aerospike-graph-olap</artifactId>
+    <name>Aerospike :: Graph OLAP</name>
 
     <repositories>
         <repository>
@@ -18,8 +20,6 @@
         </repository>
     </repositories>
 
-    <artifactId>aerospike-graph-olap</artifactId>
-    <name>Aerospike :: Graph OLAP</name>
     <dependencies>
         <dependency>
             <groupId>com.aerospike</groupId>

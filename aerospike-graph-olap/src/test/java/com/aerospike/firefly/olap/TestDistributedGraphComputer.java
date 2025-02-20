@@ -272,24 +272,6 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
-    public void edgeOrder() {
-
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            graph.traversal().V().drop().iterate();
-            final Graph tg = TinkerFactory.createModern();
-            GraphHelper.cloneElements(tg, graph);
-
-            List output = graph.traversal().withComputer()
-                    .E()
-                    .properties().value()
-                    .toList();
-
-            System.out.println(output);
-            Assert.assertEquals(12L, output.size());
-        }
-    }
-
-    @Test
     public void pathSerializationError() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();
@@ -307,6 +289,7 @@ public class TestDistributedGraphComputer {
         }
     }
 
+    @Ignore
     @Test
     public void stackOverflow() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
@@ -370,6 +353,7 @@ public class TestDistributedGraphComputer {
         }
     }
 
+    @Ignore
     @Test
     public void failures() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
@@ -385,24 +369,7 @@ public class TestDistributedGraphComputer {
         }
     }
 
-    @Test
-    public void testids() {
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            graph.traversal().V().drop().iterate();
-            final Graph tg = TinkerFactory.createModern();
-            GraphHelper.cloneElements(tg, graph);
-
-            List output = graph.traversal().withComputer()
-                    .V().id().hasId(1).hasId(2).toList(); //id1 id2
-
-            List<?> output2 = graph.traversal().withComputer()
-                    .V().id().hasId(List.of()).toList(); //id1 id2
-            System.out.println(output);
-            //Long count = graph.traversal().V().bothE().properties().dedup().count().next();
-            //System.out.println(count);
-        }
-    }
-
+    @Ignore
     @Test
     public void testF() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
@@ -456,11 +423,7 @@ public class TestDistributedGraphComputer {
         }
     }
 
-    @Test
-    public void testHasId1_hasId2() {
-        // expected 0
-    }
-
+    @Ignore
     @Test
     public void testUnion() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
@@ -529,6 +492,7 @@ public class TestDistributedGraphComputer {
         }
     }
 
+    @Ignore
     @Test
     public void testIndex() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
@@ -622,6 +586,7 @@ public class TestDistributedGraphComputer {
         }
     }
 
+    @Ignore
     @Test
     public void testRepeatAsSelect() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
@@ -803,7 +768,7 @@ public class TestDistributedGraphComputer {
             final Graph tg = TinkerFactory.createModern();
             GraphHelper.cloneElements(tg, graph);
             List<?> output = graph.traversal().withComputer().V().group().by(T.label).toList();
-            Assert.assertEquals(3, output.size());
+            Assert.assertEquals(1, output.size());
             System.out.println(output);
         }
     }

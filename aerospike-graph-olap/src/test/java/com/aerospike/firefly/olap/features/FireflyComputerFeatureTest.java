@@ -10,7 +10,7 @@ import org.apache.tinkerpop.gremlin.features.AbstractGuiceFactory;
 import org.apache.tinkerpop.gremlin.features.World;
 import org.junit.runner.RunWith;
 
-@RunWith(Cucumber.class)
+// @RunWith(Cucumber.class)
 @CucumberOptions(
         tags = "not @RemoteOnly and not @GraphComputerOnly and "+
                 "not @AllowNullPropertyValues and not @GraphComputerVerificationElementSupported and "+

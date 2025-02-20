@@ -516,6 +516,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (final Exception e) {
+            if (ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf)) {
+                ConfigurationHelper.restoreLogLevel(conf);
+                throw e;
+            }
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");
             LOG.error("========== Aerospike Graph Service failing to start is usually a result of an incorrect configuration.");
             if (e.getMessage() != null) {
@@ -1261,41 +1265,48 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public void close() {
-        // GremlinServer try to close Graph 2 times, we should be prepared
-        if (this.closed.getAndSet(true)) {
-            return;
-        }
+        try {
+            // GremlinServer try to close Graph 2 times, we should be prepared
+            if (this.closed.getAndSet(true)) {
+                return;
+            }
 
-        LOG.info("Closing FireflyGraph {}.", getBaseGraph().GRAPH_ID);
+            LOG.info("Closing FireflyGraph {}.", getBaseGraph().GRAPH_ID);
 
-        this.fireflyCardinalityMetadataTask.cancel();
-        this.fireflyIndexMetadataTask.cancel();
-        if (this.fireflySummaryUpdater != null) {
-            this.fireflySummaryUpdater.close();
-        }
+            this.fireflyCardinalityMetadataTask.cancel();
+            this.fireflyIndexMetadataTask.cancel();
+            if (this.fireflySummaryUpdater != null) {
+                this.fireflySummaryUpdater.close();
+            }
 
-        if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && !db.getOlapFlag() && this.usageStats != null) {
-            synchronized (this) {
-                if (this.usageStats != null) {
-                    this.usageStats.close();
-                    this.usageStats = null;
+            if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && !db.getOlapFlag() && this.usageStats != null) {
+                synchronized (this) {
+                    if (this.usageStats != null) {
+                        this.usageStats.close();
+                        this.usageStats = null;
+                    }
                 }
             }
-        }
 
-        if (httpStarted) {
-            HttpServer.getInstance().close();
-        }
+            if (httpStarted) {
+                HttpServer.getInstance().close();
+            }
 
-        if (this.ttlHandler != null) {
-            this.ttlHandler.close();
-        }
+            if (this.ttlHandler != null) {
+                this.ttlHandler.close();
+            }
 
-        if (this.zipkinExporter != null) {
-            this.zipkinExporter.close();
-        }
+            if (this.zipkinExporter != null) {
+                this.zipkinExporter.close();
+            }
 
-        this.db.close();
+            this.db.close();
+        } finally {
+            // Restore log level if this was a warmup graph.
+            if (this.db.WARMUP_MODE) {
+                ConfigurationHelper.restoreLogLevel(this.configuration);
+            }
+        }
     }
 
     @Override

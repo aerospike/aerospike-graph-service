@@ -95,13 +95,11 @@ public class FireflyServer {
                 // let's graph know his config file path to use with bulk loader
                 graph.setConfigFilePath(settings.graphs.get(graphName));
 
-                if (FireflyGraph.NEED_PREHEAT) {
-                    final boolean needPreheat = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, graph.configuration());
-                    if (needPreheat) {
-                        WarmupUtil.create(graph.configuration()).preheat(WarmupUtil.passes);
-                        FireflyGraph.NEED_PREHEAT = false;
-                        logger.info("Warmup is complete.");
-                    }
+                if (FireflyGraph.NEED_PREHEAT && ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, graph.configuration())) {
+                    logger.info("Starting warmup...");
+                    WarmupUtil.create(graph.configuration()).preheat(WarmupUtil.passes);
+                    FireflyGraph.NEED_PREHEAT = false;
+                    logger.info("Warmup is complete.");
                 }
             }
             FireflyGraph.NEED_PREHEAT = false;

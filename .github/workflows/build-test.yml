@@ -1274,7 +1274,7 @@ jobs:
       - name: Test Firefly Docker Image with Security Enabled
         run: |
           echo "Running docker image with security enabled"
-          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-security/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
+          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-security/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e aerospike.graph.audit.log.enabled=true firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 

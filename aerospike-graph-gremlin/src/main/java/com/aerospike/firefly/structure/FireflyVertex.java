@@ -344,7 +344,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final Iterator<FireflyId> adjacentEdgeIds;
         if (isEdgeCacheOverflowed) {
             final Iterator<FireflyId> sindexEdgeIds = new FireflyPhatEdgeIdIteratorFromIndexedVertex(
-                    graph.operations.getEdgeKeyRecordsByIndex(this, direction, labels,
+                    graph.operations.getEdgeKeyRecordsByIndex(this.id, direction, labels,
                             FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, aerospikeHasContainers, adjacent),
                     this.db, direction, this.id, labels, FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, adjacent);
             adjacentEdgeIds = FireflyCloseableIteratorUtils.concat(edgeIds.iterator(), sindexEdgeIds);
@@ -642,27 +642,39 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                                                         final Set<String> labels,
                                                         final FireflyPhatEdgeIdIteratorFromVertex.OutputType outputType,
                                                         final List<HasContainer> hasContainers) {
-        return graph.operations.getEdgeKeyRecordsByIndex(this, direction, labels, outputType, hasContainers, null);
+        return graph.operations.getEdgeKeyRecordsByIndex(this.id, direction, labels, outputType, hasContainers, null);
     }
 
     public long getEdgeCount(final Direction direction) {
+       return getEdgeCount(direction, null);
+    }
+
+    public long getEdgeCount(final Direction direction, final String[] edgeLabels) {
         if (direction == Direction.BOTH) {
             LOG.warn("getEdgeCount invoked with direction BOTH - the return value will be correct, but this method " +
                     "is only supposed to be invoked by FireflyVertexLocalCountStep which should never pass in BOTH.");
-            return getEdgeCount(Direction.IN) + getEdgeCount(Direction.OUT);
+            return getEdgeCount(Direction.IN, edgeLabels) + getEdgeCount(Direction.OUT, edgeLabels);
         }
 
-        final long baseCount = getCachedEdgeCount(direction);
+        final long baseCount = getCachedEdgeCount(direction, edgeLabels);
         return this.isEdgeCacheOverflowed ?
                 baseCount + FireflyCloseableIteratorUtils.count(getSupernodeEdgeIds(direction, Set.of(), Collections.emptyList())) :
                 baseCount;
     }
 
-    private long getCachedEdgeCount(final Direction direction) {
+    private long getCachedEdgeCount(final Direction direction, final String[] edgeLabels) {
         final Map<String, List<LazyIdTransform>> edgeCache = direction == Direction.IN ? this.inEdgeIds : this.outEdgeIds;
         long size = 0;
-        for (final List<LazyIdTransform> ids : edgeCache.values()) {
-            size += ids.size();
+
+        if (edgeLabels == null || edgeLabels.length == 0) {
+            for (final List<LazyIdTransform> ids : edgeCache.values()) {
+                size += ids.size();
+            }
+        } else {
+            for (final String edgeLabel : edgeLabels) {
+                if (edgeCache.containsKey(edgeLabel))
+                    size += edgeCache.get(edgeLabel).size();
+            }
         }
         return size;
     }

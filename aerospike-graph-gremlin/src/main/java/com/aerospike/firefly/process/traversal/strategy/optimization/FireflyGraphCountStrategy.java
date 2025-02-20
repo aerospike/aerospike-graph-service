@@ -1,6 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.computer.local.ComputerHelper;
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;

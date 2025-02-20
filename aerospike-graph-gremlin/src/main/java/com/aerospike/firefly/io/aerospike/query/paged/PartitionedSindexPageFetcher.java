@@ -12,6 +12,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PartitionedSindexPageFetcher<R> extends SindexPageFetcher<R> {
@@ -38,6 +39,23 @@ public class PartitionedSindexPageFetcher<R> extends SindexPageFetcher<R> {
         this.lock = lock;
         this.allCompleted = allCompleted;
         this.workerCount = workerCount;
+    }
+
+    // Olap single threaded partition reader.
+    public PartitionedSindexPageFetcher(final FireflyGraph graph,
+                                        final QueryPolicy policy,
+                                        final String setName,
+                                        final String namespace,
+                                        final Filter filter,
+                                        final int maxPageSize,
+                                        final FireflyGraph.TransformKeyRecord<R> transformKeyRecord,
+                                        final String indexName,
+                                        final PartitionFilter partitionFilter,
+                                        final BlockingQueue<Page> pageQueue) {
+        super(graph, policy, setName, namespace, filter, maxPageSize, transformKeyRecord, indexName, partitionFilter, Executors.newSingleThreadExecutor(), pageQueue);
+        this.lock = new Object();
+        this.allCompleted = List.of(new AtomicBoolean(false));
+        this.workerCount = 1;
     }
 
     @Override

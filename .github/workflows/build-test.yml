@@ -802,7 +802,7 @@ jobs:
           bash -x scripts/start_aerospike.sh
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn clean install -DskipTests --no-transfer-progress
-          mvn test -pl aerospike-graph-olap -Dintegration.test.properties=packed --no-transfer-progress
+          mvn test -pl aerospike-graph-olap --no-transfer-progress
   test-firefly-movielens:
     name: Test Movielens
     timeout-minutes: 120

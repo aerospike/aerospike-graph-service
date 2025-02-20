@@ -93,7 +93,7 @@ public class TestDistributedGraphComputer {
         final Instant instant = Instant.now();
         GraphTraversalSource g = null;
         try {
-            g = traversal().withRemote(DriverRemoteConnection.using("34.28.227.50", 8182, "g"));
+            g = traversal().withRemote(DriverRemoteConnection.using("35.202.200.21", 8182, "g"));
             //g.withComputer().V().hasLabel("asdf").toList();
             //System.out.println("Result: " + g.
             //        withComputer().
@@ -123,7 +123,7 @@ public class TestDistributedGraphComputer {
         final Instant instant = Instant.now();
         GraphTraversalSource g = null;
         try {
-            g = traversal().withRemote(DriverRemoteConnection.using("34.57.65.16", 8182, "g"));
+            g = traversal().withRemote(DriverRemoteConnection.using("35.202.200.21", 8182, "g"));
             //g.withComputer().V().hasLabel("asdf").toList();
             //System.out.println("Result: " + g.
             //        withComputer().
@@ -164,7 +164,7 @@ public class TestDistributedGraphComputer {
         final Instant instant = Instant.now();
         GraphTraversalSource g = null;
         try {
-            g = traversal().withRemote(DriverRemoteConnection.using("34.57.65.16", 8182, "g"));
+            g = traversal().withRemote(DriverRemoteConnection.using("35.202.200.21", 8182, "g"));
             //g.withComputer().V().hasLabel("asdf").toList();
             //System.out.println("Result: " + g.
             //        withComputer().
@@ -192,12 +192,17 @@ public class TestDistributedGraphComputer {
             final Graph tg = TinkerFactory.createModern();
             GraphHelper.cloneElements(tg, graph);
 
-            List output = graph.traversal().withComputer().withoutStrategies(MessagePassingReductionStrategy.class)
-                    .V().outE().values("weight").groupCount().select(Column.keys).unfold()
+            List output = graph.traversal()
+                    .withComputer()
+                    .with("hello", "there")
+                    .V()
                     .toList();
 
-            System.out.println(output);
-            Assert.assertEquals(4L, output.size());
+            graph.traversal().withComputer().E().properties("weight").as("a").select("a").by(T.key).toList();
+
+            graph.traversal().withComputer().V().properties("age").as("a").select("a").by(T.key).toList();
+
+            //System.out.println(output);
         }
     }
 
@@ -427,6 +432,19 @@ public class TestDistributedGraphComputer {
             Long count = graph.traversal().withComputer().V().hasId(Collections.emptyList()).count().next();
             System.out.println(count1);
             System.out.println(count);
+        }
+    }
+
+    @Test
+    public void tesasdftAge() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            List<Vertex> v1 = graph.traversal().V().has("age", P.gt(18).and(P.lt(30)).or(P.gt(35))).toList();
+            List<Vertex> v2 = graph.traversal().withComputer().V(1, 2, 3, 4, 5, "1").toList();
+            System.out.println(v1);
+            System.out.println(v2);
         }
     }
 

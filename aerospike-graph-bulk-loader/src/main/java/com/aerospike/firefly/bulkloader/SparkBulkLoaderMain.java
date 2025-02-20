@@ -50,6 +50,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
                 state.executeState();
                 state = state.transitionState();
             }
+            sparkBulkLoaderStateMachine.progressBar.printProgress();
             final String output = formatErrorCount(sparkBulkLoaderStateMachine.initializerGraph);
             if (!output.equals(BULK_LOAD_SUCCESS)) {
                 LOGGER.warn(output);

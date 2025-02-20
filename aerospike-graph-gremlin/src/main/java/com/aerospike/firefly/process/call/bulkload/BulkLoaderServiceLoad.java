@@ -401,7 +401,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                     "\n\t\tduplicate-vertex-id-count: " + duplicateVertexIdCount +
                     "\n\t\tbad-edge-count: " + badEdgeCount +
                     "\n\t\tbad-entry-count: " + badEntryCount +
-                    "\n\t\tUse the g.call(\""+ new BulkLoaderServiceErrors<>(graph).getName() + "\") command for details.";
+                    "\n\t\tUse the g.call(\"" + new BulkLoaderServiceErrors<>(graph).getName() + "\") command for details.";
             return sb;
         }
     }

@@ -53,9 +53,8 @@
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-<!--        <aerospike-client.version>7.2.1</aerospike-client.version>-->
         <aerospike-client.version>9.0.4</aerospike-client.version>
-        <tinkerpop.version>3.7.2</tinkerpop.version>
+        <tinkerpop.version>3.7.3</tinkerpop.version>
         <junit.version>4.13.1</junit.version>
         <awaitly.version>4.2.0</awaitly.version>
         <logback.version>1.2.13</logback.version>

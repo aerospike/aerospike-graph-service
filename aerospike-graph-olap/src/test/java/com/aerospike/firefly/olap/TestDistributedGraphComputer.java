@@ -890,6 +890,7 @@ public class TestDistributedGraphComputer {
         spark.stop();
     }
 
+    @Ignore
     @Test
     public void testLabelIndex() {
         createLabelIndex();

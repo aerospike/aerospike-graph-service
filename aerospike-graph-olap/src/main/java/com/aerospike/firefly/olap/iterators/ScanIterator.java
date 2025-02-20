@@ -48,7 +48,7 @@ import static com.aerospike.firefly.olap.structure.DistributedWorkerExecutor.STA
 public class ScanIterator implements CloseableIterator<Traverser> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScanIterator.class);
     final FireflyGraph graph;
-    final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
+    final LinkedBlockingQueue<PageFetcher.Page> pageQueue;
     final List<Row> rows = new ArrayList<>();
     int rowCount = 0;
     final List<HasContainer> hasContainers;
@@ -87,6 +87,7 @@ public class ScanIterator implements CloseableIterator<Traverser> {
         this.traversal = traversal;
         this.graphStep = graphStep;
         this.expression = expression;
+        pageQueue = new LinkedBlockingQueue<>(graph.getBaseGraph().PAGINATION_PAGE_QUEUE_SIZE);
     }
 
     @Override

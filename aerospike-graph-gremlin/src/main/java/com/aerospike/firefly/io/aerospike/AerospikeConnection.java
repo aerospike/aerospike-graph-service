@@ -814,6 +814,7 @@ public class AerospikeConnection implements AutoCloseable {
             public static final String INDEXNAME = "indexname";
             public static final String RESULT = "result";
             public static final String GET_CONFIG = "get-config:context=namespace;id=";
+            public static final String GET_SERVICE = "get-config:context=service";
             public static final String SHOW_ALL_QUERY = "query-show";
             public static final String QUERY_ABORT = "query-abort:trid=";
         }
@@ -952,29 +953,33 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         public static int getMaxParallelSindexes(final AerospikeConnection db, final String namespace) {
-            final String requestKey = Keys.GET_CONFIG + namespace;
+            final String namespaceConfigKey = Keys.GET_CONFIG + namespace;
+            final String serviceConfigKey = Keys.GET_SERVICE;
             int maxParallelSindexes = Integer.MAX_VALUE;
 
             try {
                 final IAerospikeClient client = db.client;
                 for (final Node node : client.getNodes()) {
-                    LOG.debug("Info.request: {}", requestKey);
-                    final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
-                    final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
-                    int queryThreadsLimit = 128; // https://aerospike.com/docs/server/reference/configuration#service__query-threads-limit
-                    int singleQueryThreads = 4; // https://aerospike.com/docs/server/reference/configuration#namespace__single-query-threads
+                    LOG.debug("Info.request: {}", namespaceConfigKey);
+                    final String singleQueryThreads = Info.request(new InfoPolicy(), node, namespaceConfigKey);
+                    List<Map<String, String>> listOfConfigs = parseRaw(singleQueryThreads);
+                    int singleQueryThreadsValue = 4; // https://aerospike.com/docs/server/reference/configuration#namespace__single-query-threads
                     for (final Map<String, String> config : listOfConfigs) {
-                        if (config.containsKey(QUERY_THREADS_LIMIT)) {
-                            queryThreadsLimit = Integer.parseInt(config.get(QUERY_THREADS_LIMIT));
-                        }
                         if (config.containsKey(SINGLE_QUERY_THREADS))
-                            singleQueryThreads = Integer.parseInt(config.get(SINGLE_QUERY_THREADS));
+                            singleQueryThreadsValue = Integer.parseInt(config.get(SINGLE_QUERY_THREADS));
                     }
-                    maxParallelSindexes = Math.min(maxParallelSindexes, queryThreadsLimit / singleQueryThreads);
-                    System.out.println("Query threads limit: " + queryThreadsLimit);
-                    System.out.println("Single query threads: " + singleQueryThreads);
-                    System.out.println("maxParallelSindexes: " + maxParallelSindexes);
+                    LOG.debug("Info.request: {}", namespaceConfigKey);
+                    final String queryThreadsLimit = Info.request(new InfoPolicy(), node, serviceConfigKey);
+                    listOfConfigs = parseRaw(queryThreadsLimit);
+                    int queryThreadsLimitValue = 128; // https://aerospike.com/docs/server/reference/configuration#service__query-threads-limit
+                    for (final Map<String, String> config : listOfConfigs) {
+                        if (config.containsKey(QUERY_THREADS_LIMIT))
+                            queryThreadsLimitValue = Integer.parseInt(config.get(QUERY_THREADS_LIMIT));
+                    }
+
+                    maxParallelSindexes = Math.min(maxParallelSindexes, queryThreadsLimitValue / singleQueryThreadsValue);
                 }
+                System.out.println("Max parallel sindexes: " + maxParallelSindexes);
                 return maxParallelSindexes;
             } catch (final AerospikeException e) {
                 throw fromAerospikeException(e);

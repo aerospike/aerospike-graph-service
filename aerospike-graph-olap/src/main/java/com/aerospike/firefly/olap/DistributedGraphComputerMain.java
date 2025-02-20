@@ -634,10 +634,6 @@ public class DistributedGraphComputerMain {
         conf.setAppName("aerospike-graph-olap")
                 .set("spark.driver.allowMultipleContexts", "false")
                 .set("spark.ui.enabled", "true")
-                .set("spark.dynamicAllocation.enabled", "true")
-                .set("spark.dynamicAllocation.minExecutors", String.valueOf(64))
-                .set("spark.dynamicAllocation.initialExecutors", String.valueOf(64))
-                .set("spark.dynamicAllocation.maxExecutors", String.valueOf(64))
                 .set("mapreduce.fileoutputcommitter.algorithm.version", "2");
 
         final SparkSession.Builder builder = SparkSession.builder().config(conf);

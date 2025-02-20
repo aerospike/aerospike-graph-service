@@ -130,21 +130,21 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_COMPUTER)
 
 // GraphComputer OptOuts
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.GraphComputerTest", method = "*", reason = "Firefly does not support persisting edges to new graph", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.branch.RepeatTest", method = "g_V_repeatXbothX_timesX10X_asXaX_out_asXbX_selectXa_bX", reason = "stack overflow", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "*", reason = "REMOVE -- currently here for faster testing", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest$GreedyMatchTraversals", method = "*", reason = "REMOVE -- currently here for faster testing", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest$CountMatchTraversals", method = "*", reason = "REMOVE -- currently here for faster testing", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ConnectedComponentTest$Traversals", method = "*", reason = "Firefly does not support persisting edges to new graph", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.PageRankTest$Traversals", method = "*", reason = "Firefly does not support persisting edges to new graph", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.PeerPressureTest$Traversals", method = "*", reason = "Firefly does not support persisting edges to new graph", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ProgramTest$Traversals", method = "*", reason = "Firefly does not support persisting edges to new graph", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ShortestPathTest$Traversals", method = "*", reason = "Firefly does not support persisting edges to new graph", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.ranking.pagerank.PageRankVertexProgramTest", method = "*", reason = "Firefly does not support persisting edges to new graph", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.ranking.pagerank.PageRankVertexProgramTest", method = "*", reason = "Firefly does not support persisting edges to new graph", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.search.path.ShortestPathVertexProgramTest", method = "*", reason = "Firefly does not support persisting edges to new graph", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.InjectTest$Traversals", method = "*", reason = "Firefly does not support arbitrary object starts", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.TraversalInterruptionComputerTest", method = "*", reason = "Firefly does not support thread interruption ?? why not ??", computers ={"com.aerospike.firefly.process.computer.local.LocalGraphComputer","com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.GraphComputerTest", method = "*", reason = "Firefly does not support persisting edges to new graph", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.branch.RepeatTest", method = "g_V_repeatXbothX_timesX10X_asXaX_out_asXbX_selectXa_bX", reason = "stack overflow", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "*", reason = "REMOVE -- currently here for faster testing", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest$GreedyMatchTraversals", method = "*", reason = "REMOVE -- currently here for faster testing", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest$CountMatchTraversals", method = "*", reason = "REMOVE -- currently here for faster testing", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ConnectedComponentTest$Traversals", method = "*", reason = "Firefly does not support persisting edges to new graph", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.PageRankTest$Traversals", method = "*", reason = "Firefly does not support persisting edges to new graph", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.PeerPressureTest$Traversals", method = "*", reason = "Firefly does not support persisting edges to new graph", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ProgramTest$Traversals", method = "*", reason = "Firefly does not support persisting edges to new graph", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ShortestPathTest$Traversals", method = "*", reason = "Firefly does not support persisting edges to new graph", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.ranking.pagerank.PageRankVertexProgramTest", method = "*", reason = "Firefly does not support persisting edges to new graph", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.ranking.pagerank.PageRankVertexProgramTest", method = "*", reason = "Firefly does not support persisting edges to new graph", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.search.path.ShortestPathVertexProgramTest", method = "*", reason = "Firefly does not support persisting edges to new graph", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.InjectTest$Traversals", method = "*", reason = "Firefly does not support arbitrary object starts", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.TraversalInterruptionComputerTest", method = "*", reason = "Firefly does not support thread interruption ?? why not ??", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
 
 // Tests that require lambda support
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.SerializationTest$GraphSONV1Test", method = "shouldSerializePath", reason = "Test requires Lambda support which is disabled for security.", computers = {"ALL"})
@@ -176,8 +176,8 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldHaveExceptionConsistencyWhenFindEdgeByIdThatIsNonExistentViaIterator", reason = "Firefly does not expect Edge id lookups of random types", computers = {"ALL"})
 
 // TODO: Should fix these tests in OLAP.
-@Graph.OptOut(test="org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupCountTest", method="g_V_both_groupCountXaX_byXlabelX_asXbX_barrier_whereXselectXaX_selectXsoftwareX_isXgtX2XXX_selectXbX_name", reason="Temporary, will fix.", computers={"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})
-@Graph.OptOut(test="org.apache.tinkerpop.gremlin.process.traversal.step.map.SelectTest", method="g_V_outXcreatedX_unionXasXinternaldataset_inXcreatedX_hasXname_markoX_selectXinternaldataset__asXinternaldataset_inXcreatedX_inXknowsX_hasXname_markoX_selectXinternaldatasetX_groupCount_byXnameX", reason="Temporary, will fix.", computers={"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupCountTest", method = "g_V_both_groupCountXaX_byXlabelX_asXbX_barrier_whereXselectXaX_selectXsoftwareX_isXgtX2XXX_selectXbX_name", reason = "Temporary, will fix.", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.SelectTest", method = "g_V_outXcreatedX_unionXasXinternaldataset_inXcreatedX_hasXname_markoX_selectXinternaldataset__asXinternaldataset_inXcreatedX_inXknowsX_hasXname_markoX_selectXinternaldatasetX_groupCount_byXnameX", reason = "Temporary, will fix.", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})
 
 public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static final String FIREFLY_CONFIGURATION_VARIABLE_NAME = "FIREFLY_CONFIGURATION";
@@ -252,83 +252,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                             .addStrategies(OptionsStrategy.build().create()));
         }
     }
-    // [
-    // (spark.eventLog.enabled,true),
-    //
-    // (spark.dynamicAllocation.minExecutors,1),
-    // (spark.org.apache.hadoop.yarn.server.webproxy.amfilter.AmIpFilter.param.PROXY_HOSTS,lyndon-olap-load-32g-m.us-central1-a.c.firefly-aerospike.internal.),
-    // (spark.dataproc.sql.joinConditionReorder.enabled,true),
-    // (spark.org.apache.hadoop.yarn.server.webproxy.amfilter.AmIpFilter.param.PROXY_URI_BASES,http://lyndon-olap-load-32g-m.us-central1-a.c.firefly-aerospike.internal.:8088/proxy/application_1739377084470_0037),
-    // (spark.history.fs.logDirectory,gs://dataproc-temp-us-central1-1026366180403-0djxeili/3b639663-2cf6-4ff0-a692-2586dd3e9ab1/spark-job-history),
-    // (spark.dataproc.sql.local.rank.pushdown.enabled,true),
-    // (spark.app.initial.jar.urls,spark://lyndon-olap-load-32g-m.us-central1-a.c.firefly-aerospike.internal:42869/jars/dataproc-empty-jar-1739491726047.jar),
-    // (spark.repl.local.jars,file:///tmp/a02aa2d7abc84b20af0956a1ce0b120e/aerospike-graph-olap-2.5.0-SNAPSHOT.jar),
-    // (spark.yarn.unmanagedAM.enabled,true),
-    // (spark.scheduler.minRegisteredResourcesRatio,1.0),
-    // (spark.driver.port,42869),
-    // (spark.ui.filters,org.apache.hadoop.yarn.server.webproxy.amfilter.AmIpFilter),
-    // (spark.app.submitTime,1739491730436),
-    // (spark.sql.optimizer.runtime.bloomFilter.join.pattern.enabled,true),
-    // (spark.metrics.namespace,app_name:$
-    // {spark.app.name}.app_id:$
-    // {spark.app.id}),
-    // (spark.dataproc.sql.optimizer.join.fusion.enabled,true),
-    // (spark.executor.memory,4g),
-    // (spark.ui.enabled,true),
-    // (spark.yarn.secondary.jars,aerospike-graph-olap-2.5.0-SNAPSHOT.jar),
-    // (spark.dataproc.sql.optimizer.leftsemijoin.conversion.enabled,true),
-    // (spark.hadoop.hive.execution.engine,mr),
-    // (spark.yarn.dist.jars,file:///tmp/a02aa2d7abc84b20af0956a1ce0b120e/aerospike-graph-olap-2.5.0-SNAPSHOT.jar),
-    // (spark.executor.id,driver),
-    // (spark.driver.allowMultipleContexts,false),
-    // (spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version,2),
-    // (spark.dynamicAllocation.maxExecutors,10000),
-    // (spark.eventLog.dir,gs://dataproc-temp-us-central1-1026366180403-0djxeili/3b639663-2cf6-4ff0-a692-2586dd3e9ab1/spark-job-history),
-    // (spark.yarn.historyServer.address,lyndon-olap-load-32g-m:18080),
-    // (spark.sql.catalogImplementation,hive),
-    // (spark.speculation,false),
-    // (spark.sql.parquet.enableNestedColumnVectorizedReader,true),
-    // (spark.executor.extraJavaOptions,-XX:+IgnoreUnrecognizedVMOptions --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.nio.cs=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED),
-    // (spark.jars,file:/tmp/a02aa2d7abc84b20af0956a1ce0b120e/dataproc-empty-jar-1739491726047.jar),
-    // (spark.executorEnv.OPENBLAS_NUM_THREADS,1),
-    // (spark.history.fs.gs.outputstream.type,FLUSHABLE_COMPOSITE), (fs.s3.impl,org.apache.hadoop.fs.s3a.S3AFileSystem),
-    // (spark.sql.cbo.enabled,true),
-    // (spark.driver.extraJavaOptions,-XX:+IgnoreUnrecognizedVMOptions --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.nio.cs=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED),
-    // (spark.app.id,application_1739377084470_0037),
-    // (spark.dataproc.sql.parquet.enableFooterCache,true),
-    // (spark.yarn.am.memory,640m),
-    // (spark.checkpoint.compress,true),
-    // (spark.dataproc.advanced.infer.filter.enabled,true),
-    // (spark.executor.cores,4), (google.cloud.auth.service.account.enable,true),
-    // (spark.sql.warehouse.dir,file:/tmp/a02aa2d7abc84b20af0956a1ce0b120e/spark-warehouse), (mapreduce.fileoutputcommitter.algorithm.version,2),
-    // (spark.dataproc.listeners,com.google.cloud
-    // .spark.performance.DataprocMetricsListener),
-    // (spark.scheduler.mode,FIFO),
-    // (spark.app.name,aerospike-graph-olap),
-    // (spark.driver.memory,16384m),
-    // (spark.submit.deployMode,client),
-    // (spark.yarn.tags,dataproc_hash_8b306925-ac14-37e9-a1da-6324d728f28a,dataproc_job_a02aa2d7abc84b20af0956a1ce0b120e,dataproc_job_attempt_timestamp_1739491726046,dataproc_master_index_0,dataproc_uuid_dc264c40-f19f-387f-8c87-e577eb580c11),
-    // (spark.driver.maxResultSize,8192m),
-    // (spark.plugins.defaultList,com.google.cloud.dataproc.DataprocSparkPlugin),
-    // (spark.executor.instances,64),
-    // (spark.app.startTime,1739491730566),
-    // (spark.dataproc.metrics.listener.metrics.collector.hostname,lyndon-olap-load-32g-m),
-    // (spark.sql.cbo.joinReorder.enabled,true),
-    // (spark.shuffle.service.enabled,true),
-    // (spark.driver.appUIAddress,http://lyndon-olap-load-32g-m.us-central1-a.c.firefly-aerospike.internal:44897),
-    // (spark.sql.adaptive.enabled,true),
-    // (spark.yarn.jars,local:/usr/lib/spark/jars/*),
-    // (spark.master,yarn),
-    // (spark.ui.port,0),
-    // (spark.sql.autoBroadcastJoinThreshold,200m), (fs.gs.impl,com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem),
-    // (spark.rpc.message.maxSize,512),
-    // (spark.task.cpus,1),
-    // (spark.driver.host,lyndon-olap-load-32g-m.us-central1-a.c.firefly-aerospike.internal),
-    // (spark.dynamicAllocation.initialExecutors,64),
-    // (spark.submit.pyFiles,),
-    // (spark.dynamicAllocation.enabled,true),
-    // (spark.dataproc.sql.optimizer.scalar.subquery.fusion.enabled,true)]
-    //===== FireflyGraphStep(vertex,SCAN,[~label.eq(Person)]) true ===== [FireflyGraphStep(vertex,SCAN,[~label.eq(Person)]), GroupCountStep([FireflyCountGlobalLocalStep])]
 
     public FireflyGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
         try {
@@ -384,15 +307,15 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 }
             }
 
-        if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && !db.getOlapFlag()) {
-            // Create usage statistics background task. Only one per server
-            if (usageStats == null) {
-                synchronized (this) {
-                    if (usageStats == null) {
-                        usageStats = new FireflyUsageStats(db);
+            if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && !db.getOlapFlag()) {
+                // Create usage statistics background task. Only one per server
+                if (usageStats == null) {
+                    synchronized (this) {
+                        if (usageStats == null) {
+                            usageStats = new FireflyUsageStats(db);
+                        }
                     }
                 }
-            }
 
                 // Register admin services graph metrics since it will bootstrap the server.
                 adminServiceRegistry = new AdminServiceRegistry(this);
@@ -420,7 +343,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
     }
 
-     public void setSparkSession(final Object sparkSession) {
+    public void setSparkSession(final Object sparkSession) {
         this.sparkSession = sparkSession;
     }
 
@@ -1016,6 +939,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public AerospikeConnection getBaseGraph() {
         return db;
     }
+
     public AerospikeOperations getOperations() {
         return operations;
     }
@@ -1116,7 +1040,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         try {
             final Class<C> clazz = (Class<C>) Class.forName("com.aerospike.firefly.olap.structure.DistributedGraphComputer");
             return clazz.getConstructor(FireflyGraph.class, Object.class).newInstance(this, sparkSession);
-        } catch (final InvocationTargetException | NoSuchMethodException | ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+        } catch (final InvocationTargetException | NoSuchMethodException | ClassNotFoundException |
+                       InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
             throw new IllegalStateException("ERROR: To use OLAP, use the docker image with OLAP support or a Spark cluster.", e);
         }
@@ -1132,7 +1057,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         try {
             final Class<? extends GraphComputer> clazz = (Class<? extends GraphComputer>) Class.forName("com.aerospike.firefly.olap.structure.DistributedGraphComputer");
             return clazz.getConstructor(FireflyGraph.class, Object.class).newInstance(this, sparkSession);
-        } catch (final InvocationTargetException | NoSuchMethodException | ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+        } catch (final InvocationTargetException | NoSuchMethodException | ClassNotFoundException |
+                       InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
             throw new IllegalStateException("ERROR: To use OLAP, use the docker image with OLAP support or a Spark cluster.", e);
         }

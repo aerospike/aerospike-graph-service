@@ -344,10 +344,6 @@ public class DistributedGraphComputer implements GraphComputer {
                     throw new TraversalInterruptedException();
                 }
 
-                if (configHelper.isDebugDf()) {
-                    df.show();
-                }
-
                 // Set inExecute to true, execute the vertex program, and set inExecute to false.
                 memory.setInExecute(true);
                 df = magicSwap(DistributedWorkerExecutor.execute(

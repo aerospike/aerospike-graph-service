@@ -38,7 +38,7 @@ public class IndexIterator implements CloseableIterator<Traverser> {
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexIterator.class);
     final FireflyGraph graph;
     final Filter filter;
-    final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
+    final LinkedBlockingQueue<PageFetcher.Page> pageQueue;
     final List<Row> rows = new ArrayList<>();
     int rowCount = 0;
     final List<HasContainer> hasContainers;
@@ -76,6 +76,7 @@ public class IndexIterator implements CloseableIterator<Traverser> {
         this.startStep = startStep;
         this.codec = codec;
         this.traversal = traversal;
+        this.pageQueue = new LinkedBlockingQueue<>(graph.getBaseGraph().PAGINATION_PAGE_QUEUE_SIZE);
     }
 
     @Override

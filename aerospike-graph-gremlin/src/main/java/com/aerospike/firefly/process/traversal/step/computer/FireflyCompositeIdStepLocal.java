@@ -79,10 +79,6 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements S
     @Override
     public void addStart(final Traverser.Admin<Vertex> start) {
         super.addStart(start);
-        if (inputCache.isEmpty()) {
-            final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
-            graph.logMessage("adding first start.", LOGGER);
-        }
         inputCache.add(start);
         first = true;
     }
@@ -95,7 +91,6 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements S
         final Set<FireflyId> uniqueIdSet = new HashSet<>();
         final Map<FireflyId, FireflyVertex> fireflyVertexMap = new TreeMap<>();
 
-        graph.logMessage("Precompute starting " + inputCache.size(), LOGGER);
         for (final Traverser.Admin<Vertex> traverser : inputCache) {
             // Get next input traverser and get the FireflyVertex form of it.
             final FireflyVertex vertex = (FireflyVertex) traverser.get();
@@ -125,13 +120,11 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements S
         // Drain data to output.
         FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
                 fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache, graph::readVertices, requiredProperties);
-        graph.logMessage("Precompute complete " + cache.size(), LOGGER);
         inputCache.clear();
     }
 
     @Override
     protected Iterator<Vertex> flatMap(final Traverser.Admin<Vertex> traverser) {
-        // final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         if (!traversal.isRoot() && !(traversal.getParent() instanceof TraversalVertexProgramStep)) {
             inputCache.add(traverser);
             precompute();
@@ -153,7 +146,6 @@ public class FireflyCompositeIdStepLocal extends VertexStep<Vertex> implements S
             }
         });
 
-        // return FireflyCloseableIteratorUtils.filter(output.iterator(), v -> HasContainer.testAll(v, fireflyHasContainers));
         return output.iterator();
     }
 }

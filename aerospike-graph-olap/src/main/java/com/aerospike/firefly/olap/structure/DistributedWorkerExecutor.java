@@ -41,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -109,7 +110,7 @@ public class DistributedWorkerExecutor {
             System.out.println("Ending with " + df.rdd().partitions().length + " partitions.");
         }
         return df.mapPartitions((MapPartitionsFunction<Row, Row>) itty -> {
-            TaskLogger.logDebuggingMessage("starting with " + (itty.hasNext() ? "non-empty" : "empty") + " partition.", LOGGER);
+            TaskLogger.logDebuggingMessage("Starting with " + (itty.hasNext() ? "non-empty" : "empty") + " partition.", LOGGER);
 
             // Open graph.
             Iterator<Traverser> iterator;
@@ -196,14 +197,20 @@ public class DistributedWorkerExecutor {
                 final TraverserSet<Object> traverserSet = new TraverserSet<>();
 
                 int runningTotal = 0;
+                final Runtime runtime = Runtime.getRuntime();
                 while (iterator.hasNext()) {
+                    if (configHelper.isDebugDf()) {
+                        TaskLogger.logDebuggingMessage("Input TraverserSet size: " + traverserSet.size() + "/" + runningTotal
+                                + " Total allocated=" + runtime.totalMemory() / (1024 * 1024 * 1024) +
+                                ", Free memory=" + runtime.freeMemory() / (1024 * 1024 * 1024) +
+                                " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024 * 1024), LOGGER);
+                    }
                     while (traverserSet.size() < 5000 && iterator.hasNext()) {
                         traverserSet.add(iterator.next().asAdmin());
                     }
 
                     runningTotal += traverserSet.size();
-                    TaskLogger.logDebuggingMessage("Input TraverserSet size: " + traverserSet.size() + "/" + runningTotal, LOGGER);
-                    if (!traverserSet.isEmpty()) {
+                    if (configHelper.isDebugDf() && !traverserSet.isEmpty()) {
                         TaskLogger.logDebuggingMessage("Step: " + new ArrayList<>(traverserSet).get(0).getStepId(), LOGGER);
                     }
 
@@ -224,7 +231,7 @@ public class DistributedWorkerExecutor {
                 memory.setInExecute(false);
 
                 // Return results.
-                TaskLogger.logDebuggingMessage("ending with " + output.size() + " rows.", LOGGER);
+                TaskLogger.logDebuggingMessage("Ending with " + output.size() + " rows.", LOGGER);
                 return output.iterator();
             } catch (Exception e) {
                 TaskLogger.logDebuggingMessage("ERROR", LOGGER);
@@ -291,6 +298,7 @@ public class DistributedWorkerExecutor {
             if (configHelper.isDebugDf()) {
                 System.out.println("Query type: " + queryInfo.queryType.toString());
             }
+            System.out.println("Generating query ranges for " + maxParallelQuery + " max parallel queries and " + workerCount + " workers.");
             if (queryInfo.queryType.equals(QueryInfo.QueryType.INDEX) || queryInfo.queryType.equals(QueryInfo.QueryType.SCAN)) {
                 final List<Row> queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount)).
                         stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
@@ -336,7 +344,7 @@ public class DistributedWorkerExecutor {
                     idsList.addAll(initialIds);
                 }
                 if (configHelper.isDebugDf()) {
-                    System.out.println("Actual ids: " + ids);
+                    System.out.println("Actual ids: " + Arrays.toString(ids));
                 }
                 initialIds.clear();
                 final List<Row> rows = idsList.stream().filter(Objects::nonNull).map(id -> RowFactory.create(id.toString(), getIdType(id).ordinal())).collect(Collectors.toList());

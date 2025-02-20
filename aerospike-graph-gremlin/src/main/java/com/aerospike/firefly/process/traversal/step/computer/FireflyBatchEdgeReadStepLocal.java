@@ -141,7 +141,6 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> {
             }
         });
 
-        // return FireflyCloseableIteratorUtils.filter(output.iterator(), e -> HasContainer.testAll(e, fireflyHasContainers));
         return output.iterator();
     }
 }

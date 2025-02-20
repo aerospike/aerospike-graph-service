@@ -21,10 +21,6 @@ public class ReflectionHelper {
         return getFieldValue(object.getClass(), object, fieldName);
     }
 
-    public static Object getSuperFieldValue(final Object object, final String fieldName) {
-        return getFieldValue(object.getClass().getSuperclass(), object, fieldName);
-    }
-
     public static void setFieldValue(final Class clazz, final Object object, final String fieldName, final Object value) {
         try {
             final Field field = clazz.getDeclaredField(fieldName);

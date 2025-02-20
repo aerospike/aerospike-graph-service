@@ -118,19 +118,13 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
             if (mutableParams.get(CONFIG_DIRECTORY_KEY).equals(graph.getConfigFilePath())) {
                 return;
             }
-            FireflyGraph bulkLoadGraph = null;
             try {
                 // only need when customer provide custom config
                 final Configuration config = ConfigurationHelper.loadFromFile((String) mutableParams.get(CONFIG_DIRECTORY_KEY));
-                config.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "OFF");
-                config.setProperty(ConfigurationHelper.Keys.AUTO_PRE_HEAT.toLowerCase(), "false");
-                config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
-                config.setProperty(ConfigurationHelper.Keys.WARMUP_MODE, "true");
-
-                bulkLoadGraph = FireflyGraph.open(config);
-                if (!bulkLoadGraph.getBaseGraph().GRAPH_ID.equals(graph.getBaseGraph().GRAPH_ID)) {
+                final String configGraphId = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.GRAPH_ID, config);
+                if (!graph.getBaseGraph().GRAPH_ID.equals(configGraphId)) {
                     throw new IllegalStateException("Error, attempting to load graph id '"
-                            + bulkLoadGraph.getBaseGraph().GRAPH_ID
+                            + configGraphId
                             + "' through call step on graph id '" + graph.getBaseGraph().GRAPH_ID + "'.");
                 }
             } catch (final IllegalStateException e) {
@@ -141,10 +135,6 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                 }
                 // This should never happen.
                 throw new RuntimeException("Invalid CONFIG_DIRECTORY_KEY, please contact support.");
-            } finally {
-                if (bulkLoadGraph != null) {
-                    bulkLoadGraph.close();
-                }
             }
         }
     }
@@ -411,7 +401,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                     "\n\t\tduplicate-vertex-id-count: " + duplicateVertexIdCount +
                     "\n\t\tbad-edge-count: " + badEdgeCount +
                     "\n\t\tbad-entry-count: " + badEntryCount +
-                    "\n\t\tUse the g.call(\"aerospike.graphloader.admin.bulk-load.errors\") command for details.";
+                    "\n\t\tUse the g.call(\""+ new BulkLoaderServiceErrors<>(graph).getName() + "\") command for details.";
             return sb;
         }
     }

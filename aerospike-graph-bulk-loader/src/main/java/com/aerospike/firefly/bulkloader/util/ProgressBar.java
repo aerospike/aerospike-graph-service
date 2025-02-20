@@ -281,7 +281,7 @@ public class ProgressBar extends TimerTask {
         }
     }
 
-    private void printProgress() {
+    public void printProgress() {
         synchronized (ProgressBar.class) {
             try {
                 if (graph == null) {

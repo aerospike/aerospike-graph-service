@@ -1,7 +1,6 @@
 package com.aerospike.firefly.util;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import ch.qos.logback.classic.Level;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.configuration2.Configuration;
@@ -16,6 +15,8 @@ import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,6 +31,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.values
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class WarmupUtil {
+    private static final Logger LOG = LoggerFactory.getLogger(WarmupUtil.class);
     public static final int passes = 16;
     private final Configuration conf;
     private static FireflyGraph graph = null;
@@ -48,24 +50,14 @@ public class WarmupUtil {
 
     public void preheat(final int passes) {
         // Allow warmup to be disabled.
-        if (!ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_ENABLED, conf)) {
+        if (!ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf)) {
             return;
         }
-
-        final Level logLevel = LoggerUtil.getLogLevel();
 
         try {
             if (graph == null) {
                 final Configuration warmupConfig = ConfigurationUtils.cloneConfiguration(conf);
-                final String warmupArena = getWarmupArenaName();
-                warmupConfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), warmupArena);
                 warmupConfig.setProperty(ConfigurationHelper.Keys.WARMUP_MODE.toLowerCase(), "true");
-                warmupConfig.setProperty(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG.toLowerCase(), "false");
-                warmupConfig.setProperty(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG.toLowerCase(), "false");
-                warmupConfig.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "OFF");
-                warmupConfig.setProperty(ConfigurationHelper.Keys.AUTO_PRE_HEAT.toLowerCase(), "false");
-                warmupConfig.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
-                warmupConfig.setProperty(ConfigurationHelper.Keys.AUTHENTICATION_ENABLED.toLowerCase(), "false");
                 graph = FireflyGraph.open(warmupConfig);
             }
             IntStream.range(0, passes).forEach(i -> {
@@ -73,15 +65,16 @@ public class WarmupUtil {
                 phase2();
             });
         } catch (final Throwable e) {
-            System.out.println("Error during warmup: " + e.getMessage());
+            ConfigurationHelper.restoreLogLevel(conf);
+            LOG.error("Error during warmup: {}", e.getMessage());
         } finally {
             if (graph != null) {
                 graph.close();
                 graph = null;
+            } else {
+                // Need to restore log level manually if graph.close() cannot be invoked.
+                ConfigurationHelper.restoreLogLevel(conf);
             }
-
-            // need to restore log level
-            LoggerUtil.setLogLevel(logLevel);
         }
     }
 

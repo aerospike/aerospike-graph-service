@@ -32,6 +32,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getDefaultThreadPoolSize;
+import static com.aerospike.firefly.util.WarmupUtil.getWarmupArenaName;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -160,7 +161,6 @@ public final class ConfigurationHelper {
         // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "aerospike.graph.auto.preheat.enabled";
         public static final String WARMUP_MODE = "aerospike.graph.warmup.mode.enabled";
-        public static final String WARMUP_ENABLED = "aerospike.graph.warmup.enabled";
         public static final String ENABLE_CUSTOM_PROFILE = "aerospike.graph.strategy.profile.custom.enabled";
         public static final String ASCLIENT_LOG_ENABLED = "aerospike.client.logging.enabled";
         public static final String ON_RECORD_ID_LIMIT = "aerospike.graph.vertex.edge.cache.size";
@@ -325,7 +325,7 @@ public final class ConfigurationHelper {
             Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY
     );
 
-    private static final Map<Object, String> defaultValues = new HashMap<>() {{
+    private static final Map<Object, String> DEFAULT_VALUES = new HashMap<>() {{
         put(Keys.AEROSPIKE_HOST, "localhost");
         put(Keys.AEROSPIKE_NAMESPACE, "test");
         put(Keys.AEROSPIKE_USER, "");
@@ -387,7 +387,6 @@ public final class ConfigurationHelper {
         put(Keys.REDACT_SCRIPT_LITERALS_ENABLED, "false");
         put(Keys.TLS, "false");
         put(Keys.AUTO_PRE_HEAT, "true");
-        put(Keys.WARMUP_ENABLED, "true");
         put(Keys.WARMUP_MODE, "false");
         put(Keys.ENABLE_CUSTOM_PROFILE, "true");
         put(Keys.CLIENT_FAILURE_TEST, "false");
@@ -444,6 +443,16 @@ public final class ConfigurationHelper {
         put(Keys.QUERY_TRACING_LOG_PORT, "9411");
         put(Keys.QUERY_TRACING_LOG_THRESHOLD, "-1");
         put(Keys.QUERY_TRACING_SAMPLE_PERCENT, "100");
+    }};
+
+    private static final Map<Object, String> WARMUP_VALUES = new HashMap<>() {{
+        put(Keys.GRAPH_ID, getWarmupArenaName());
+        put(Keys.SUMMARY_ENABLED_FLAG, "false");
+        put(Keys.SUMMARY_TICKER_ENABLED_FLAG, "false");
+        put(Keys.LOG_LEVEL, "OFF");
+        put(Keys.HTTP_ENABLED, "false");
+        put(Keys.AUTHENTICATION_ENABLED, "false");
+        put(Keys.AUDIT_LOG_ENABLED, "false");
     }};
 
     private static final Map<Object, String> BULK_LOAD_DEFAULTS = new HashMap<>() {{
@@ -562,15 +571,27 @@ public final class ConfigurationHelper {
         // Debug mode is a special case.
         if (key.equalsIgnoreCase(Keys.DEBUG_MODE_FLAG)) {
             return (config.containsKey(Keys.DEBUG_MODE_FLAG)) ?
-                    config.getString(Keys.DEBUG_MODE_FLAG) : defaultValues.get(Keys.DEBUG_MODE_FLAG);
+                    config.getString(Keys.DEBUG_MODE_FLAG) : DEFAULT_VALUES.get(Keys.DEBUG_MODE_FLAG);
         }
         if (key.equalsIgnoreCase(Keys.BULK_LOADER_FLAG)) {
             return (config.containsKey(Keys.BULK_LOADER_FLAG)) ?
-                    config.getString(Keys.BULK_LOADER_FLAG) : defaultValues.get(Keys.BULK_LOADER_FLAG);
+                    config.getString(Keys.BULK_LOADER_FLAG) : DEFAULT_VALUES.get(Keys.BULK_LOADER_FLAG);
         }
 
         final String lowerKey = key.toLowerCase();
         final String upperKey = key.toUpperCase();
+
+        // Warmup mode
+        final boolean warmupMode = config.containsKey(Keys.WARMUP_MODE) && parseBool(Keys.WARMUP_MODE, config.getString(Keys.WARMUP_MODE));
+        if (lowerKey.equals(Keys.WARMUP_MODE)) {
+            return warmupMode;
+        }
+        if (warmupMode) {
+            if (WARMUP_VALUES.containsKey(lowerKey)) {
+                return WARMUP_VALUES.get(lowerKey);
+            }
+        }
+
         final boolean debugMode = getOrDefaultBool(Keys.DEBUG_MODE_FLAG, config);
 
         if (System.getenv().containsKey(lowerKey) ||
@@ -587,7 +608,7 @@ public final class ConfigurationHelper {
         } else if (!config.containsKey(lowerKey) &&
                 !config.containsKey(upperKey) &&
                 !config.containsKey(key) &&
-                !defaultValues.containsKey(key) &&
+                !DEFAULT_VALUES.containsKey(key) &&
                 !checkInternalKeys(key)) {
             throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
         } else if (config.containsKey(lowerKey) || config.containsKey(upperKey) || config.containsKey(key)) {
@@ -622,10 +643,10 @@ public final class ConfigurationHelper {
         if (BULK_LOAD_DEFAULTS.containsKey(key) && getOrDefaultBool(Keys.BULK_LOADER_FLAG, config)) {
             return BULK_LOAD_DEFAULTS.get(key);
         }
-        return defaultValues.get(key);
+        return DEFAULT_VALUES.get(key);
     }
 
-    public static String getOrDefaultString(final String key, Configuration config) {
+    public static String getOrDefaultString(final String key, final Configuration config) {
         final Object value = getOrDefault(key, config);
         if (value != null)
             return value.toString();
@@ -633,14 +654,22 @@ public final class ConfigurationHelper {
             return null;
     }
 
-    public static int getOrDefaultInt(final String key, Configuration config) {
+    public static int getOrDefaultInt(final String key, final Configuration config) {
         final String value = (String) getOrDefault(key, config);
         return INTEGER_CONFIG_VALIDATOR.validate(key, value);
     }
 
-    public static boolean getOrDefaultBool(final String key, Configuration config) {
-        final String value = (String) getOrDefault(key, config);
-        // Use our own parser here to be more strict and robust
+    public static boolean getOrDefaultBool(final String key, final Configuration config) {
+        final Object value = getOrDefault(key, config);
+        if (value instanceof Boolean) {
+            return (boolean) value;
+        } else {
+            // Use our own parser here to be more strict and robust
+            return parseBool(key, (String) value);
+        }
+    }
+
+    private static boolean parseBool(final String key, final String value) {
         if ("true".equals(value.toLowerCase().trim())) {
             return true;
         } else if ("false".equals(value.toLowerCase().trim())) {
@@ -652,25 +681,25 @@ public final class ConfigurationHelper {
         }
     }
 
-    public static String getPrefix(Configuration config) {
-        return config.containsKey(Keys.GRAPH_ID.toLowerCase()) ? config.get(String.class, Keys.GRAPH_ID.toLowerCase()) + "_" : defaultValues.get(Keys.GRAPH_ID) + "_";
+    public static String getPrefix(final Configuration config) {
+        return config.containsKey(Keys.GRAPH_ID.toLowerCase()) ? config.get(String.class, Keys.GRAPH_ID.toLowerCase()) + "_" : DEFAULT_VALUES.get(Keys.GRAPH_ID) + "_";
     }
 
-    public static String aerospikeNamespace(Configuration c) {
+    public static String aerospikeNamespace(final Configuration c) {
         return c.get(String.class, Keys.AEROSPIKE_NAMESPACE.toLowerCase());
     }
 
-    public static int aerospikePort(Configuration c) {
+    public static int aerospikePort(final Configuration c) {
         return c.get(Integer.class, Keys.AEROSPIKE_PORT.toLowerCase());
     }
 
-    public static String aerospikeHost(Configuration c) {
+    public static String aerospikeHost(final Configuration c) {
         return c.get(String.class, Keys.AEROSPIKE_HOST.toLowerCase());
     }
 
     public static String dumpDefaults() {
         final Properties props = new Properties();
-        props.putAll(defaultValues);
+        props.putAll(DEFAULT_VALUES);
         final StringWriter sw = new StringWriter();
         try {
             props.store(sw, "FireflyGraph Configuration Defaults");
@@ -729,5 +758,19 @@ public final class ConfigurationHelper {
     public static void setOnRecordIdLimit(final long limit) {
         final int intLimit = limit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) limit;
         INTEGER_CONFIG_VALIDATOR.addConfig(Keys.ON_RECORD_ID_LIMIT, 0, intLimit);
+    }
+
+    /**
+     * Used to restore the logging level after being modified by a warmup Graph.
+     * @param config Configuration for the Graph.
+     */
+    public static void restoreLogLevel(final Configuration config) {
+        final String level;
+        if (config.containsKey(Keys.LOG_LEVEL)) {
+            level = config.getString(Keys.LOG_LEVEL);
+        } else {
+            level = DEFAULT_VALUES.get(Keys.LOG_LEVEL);
+        }
+        LoggerUtil.setLogLevel(Level.toLevel(level));
     }
 }

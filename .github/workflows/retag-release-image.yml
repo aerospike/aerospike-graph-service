@@ -94,8 +94,8 @@ jobs:
           GCLOUD_IMAGE_BASE=$GCLOUD_REPOSITORY_NAME/$GCLOUD_IMAGE_NAME
           
           # Convert image base to lower case.
-          DOCKERHUB_IMAGE_BASE=$(echo DOCKERHUB_IMAGE_BASE | tr '[A-Z]' '[a-z]')
-          GCLOUD_IMAGE_BASE=$(echo GCLOUD_IMAGE_BASE | tr '[A-Z]' '[a-z]')
+          DOCKERHUB_IMAGE_BASE=$(echo $DOCKERHUB_IMAGE_BASE | tr '[A-Z]' '[a-z]')
+          GCLOUD_IMAGE_BASE=$(echo $GCLOUD_IMAGE_BASE | tr '[A-Z]' '[a-z]')
           
           # Create image names.
           DOCKERHUB_OUTPUT_IMAGE=$DOCKERHUB_IMAGE_BASE:$VERSION

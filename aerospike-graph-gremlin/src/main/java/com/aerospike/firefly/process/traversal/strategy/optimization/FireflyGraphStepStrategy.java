@@ -1,6 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.computer.local.ComputerHelper;
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -23,6 +23,7 @@ import java.util.List;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyGraphStepStrategy extends FireflyStrategyBase {
+
     /**
      * Default constructor for FireflyGraphStepStrategy.
      */
@@ -31,10 +32,6 @@ public class FireflyGraphStepStrategy extends FireflyStrategyBase {
 
     @Override
     protected void doApply(final Traversal.Admin<?, ?> traversal) {
-        if (ComputerHelper.onGraphComputer(traversal)) {
-            return;
-        }
-
         final boolean propertyRemovalValid = isPropertyRemovalValid(traversal);
 
         for (final GraphStep originalGraphStep : TraversalHelper.getStepsOfClass(GraphStep.class, traversal)) {

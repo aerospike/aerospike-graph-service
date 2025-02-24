@@ -286,6 +286,7 @@ public class AerospikeConnection implements AutoCloseable {
 
     private final boolean bulkLoaderFlag;
     private final boolean bulkLoaderInitializerFlag;
+    private final boolean olapEnabledFlag;
 
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
@@ -572,6 +573,7 @@ public class AerospikeConnection implements AutoCloseable {
 
         bulkLoaderFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf);
         bulkLoaderInitializerFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_INITIALIZER_FLAG, conf);
+        olapEnabledFlag = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.OLAP_ENABLED, conf);
 
         idFactory = new FireflyIdFactory(this);
 
@@ -812,6 +814,7 @@ public class AerospikeConnection implements AutoCloseable {
             public static final String INDEXNAME = "indexname";
             public static final String RESULT = "result";
             public static final String GET_CONFIG = "get-config:context=namespace;id=";
+            public static final String GET_SERVICE = "get-config:context=service";
             public static final String SHOW_ALL_QUERY = "query-show";
             public static final String QUERY_ABORT = "query-abort:trid=";
         }
@@ -827,6 +830,8 @@ public class AerospikeConnection implements AutoCloseable {
         private static final String QUERY_ABORT_RESULT = "result";
         private static final String QUERY_ABORT_SUCCESS = "OK";
         private static final String QUERY_ABORT_TRID_INACTIVE = "trid-not-active";
+        private static final String QUERY_THREADS_LIMIT = "query-threads-limit";
+        private static final String SINGLE_QUERY_THREADS = "single-query-threads";
 
         //Parse the whole infoResponse and return it as a List of Maps
         public static List<Map<String, String>> parseRaw(final String infoResponse) {
@@ -942,6 +947,40 @@ public class AerospikeConnection implements AutoCloseable {
                     }
                 }
                 return indexList;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        public static int getMaxParallelSindexes(final AerospikeConnection db, final String namespace) {
+            final String namespaceConfigKey = Keys.GET_CONFIG + namespace;
+            final String serviceConfigKey = Keys.GET_SERVICE;
+            int maxParallelSindexes = Integer.MAX_VALUE;
+
+            try {
+                final IAerospikeClient client = db.client;
+                for (final Node node : client.getNodes()) {
+                    LOG.debug("Info.request: {}", namespaceConfigKey);
+                    final String singleQueryThreads = Info.request(new InfoPolicy(), node, namespaceConfigKey);
+                    List<Map<String, String>> listOfConfigs = parseRaw(singleQueryThreads);
+                    int singleQueryThreadsValue = 4; // https://aerospike.com/docs/server/reference/configuration#namespace__single-query-threads
+                    for (final Map<String, String> config : listOfConfigs) {
+                        if (config.containsKey(SINGLE_QUERY_THREADS))
+                            singleQueryThreadsValue = Integer.parseInt(config.get(SINGLE_QUERY_THREADS));
+                    }
+                    LOG.debug("Info.request: {}", namespaceConfigKey);
+                    final String queryThreadsLimit = Info.request(new InfoPolicy(), node, serviceConfigKey);
+                    listOfConfigs = parseRaw(queryThreadsLimit);
+                    int queryThreadsLimitValue = 128; // https://aerospike.com/docs/server/reference/configuration#service__query-threads-limit
+                    for (final Map<String, String> config : listOfConfigs) {
+                        if (config.containsKey(QUERY_THREADS_LIMIT))
+                            queryThreadsLimitValue = Integer.parseInt(config.get(QUERY_THREADS_LIMIT));
+                    }
+
+                    maxParallelSindexes = Math.min(maxParallelSindexes, queryThreadsLimitValue / singleQueryThreadsValue);
+                }
+                System.out.println("Max parallel sindexes: " + maxParallelSindexes);
+                return maxParallelSindexes;
             } catch (final AerospikeException e) {
                 throw fromAerospikeException(e);
             }
@@ -1398,7 +1437,11 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public boolean shouldCreateIndexes() {
-        return !bulkLoaderFlag || bulkLoaderInitializerFlag;
+        if (bulkLoaderFlag) {
+            return bulkLoaderInitializerFlag;
+        } else {
+            return !olapEnabledFlag;
+        }
     }
 
     /**
@@ -2380,12 +2423,15 @@ public class AerospikeConnection implements AutoCloseable {
         policy.connectTimeout = CONNECT_TIMEOUT;
         policy.timeoutDelay = TIMEOUT_DELAY;
         policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
-        if (!bulkLoading) {
-            policy.totalTimeout = READ_TOTAL_TIMEOUT;
-            policy.socketTimeout = READ_SOCKET_TIMEOUT;
-        } else {
+        if (bulkLoading) {
             policy.totalTimeout = READ_TOTAL_TIMEOUT_BULK_LOAD;
             policy.socketTimeout = READ_SOCKET_TIMEOUT_BULK_LOAD;
+        } else if (olapEnabledFlag) {
+            policy.totalTimeout = READ_TOTAL_TIMEOUT_BULK_LOAD;
+            policy.socketTimeout = READ_SOCKET_TIMEOUT_BULK_LOAD;
+        } else {
+            policy.totalTimeout = READ_TOTAL_TIMEOUT;
+            policy.socketTimeout = READ_SOCKET_TIMEOUT;
         }
     }
 
@@ -2435,6 +2481,10 @@ public class AerospikeConnection implements AutoCloseable {
 
     public boolean getBulkLoaderFlag() {
         return this.bulkLoaderFlag;
+    }
+
+    public boolean getOlapFlag() {
+        return this.olapEnabledFlag;
     }
 
     public long incrementAndGetBadEdgeCount(final long amount) {

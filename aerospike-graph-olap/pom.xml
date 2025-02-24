@@ -35,7 +35,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.101.Final</version>
+            <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -233,6 +233,13 @@
             <artifactId>annotations</artifactId>
             <version>17.0.0</version>
             <scope>compile</scope>
+        </dependency>
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMNIMBUSDS-6247633 in gremlin-test@3.7.1 -->
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>9.37.3</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.tinkerpop</groupId>

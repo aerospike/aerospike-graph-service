@@ -1,0 +1,86 @@
+package com.aerospike.firefly.io.cache;
+
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+
+public class TestSupernodeStackOverflow {
+    private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+    private static FireflyGraph GRAPH;
+
+    @BeforeClass
+    static public void beforeAll() throws InterruptedException {
+        GRAPH = FireflyGraph.open(CONFIG);
+        GRAPH.getBaseGraph().dropDatabase(GRAPH, false);
+        final var g = GRAPH.traversal();
+        final Vertex[] vertices = new Vertex[6];
+        for (int i = 0; i < 6; i++) {
+            vertices[i] = g.addV("vertex").property(T.id, i).next();
+        }
+        final AtomicBoolean finished = new AtomicBoolean(false);
+        final Random random = new Random();
+        for (int i = 0; i < 6; i++) {
+            new Thread(() -> {
+                while (!finished.get()) {
+                    final int id1 = random.nextInt(6);
+                    int id2 = id1;
+                    while (id2 == id1) {
+                        id2 = random.nextInt(6);
+                    }
+                    try {
+                        final String label = id1 == 0 ? "bar" : "foo";
+                        g.addE(label).from(vertices[id1]).to(vertices[id2]).iterate();
+                    } catch (final Exception ignored) {
+
+                    }
+                }
+            }).start();
+        }
+        final List<Thread> threads = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            final Thread t = new Thread(() -> {
+                for (int j = 0; j < 100000; j++) {
+                    final int id = random.nextInt(5) + 1;
+                    g.addE("bar").from(vertices[0]).to(vertices[id]).iterate();
+                }
+            });
+            t.start();
+            threads.add(t);
+        }
+        for (final Thread t : threads) {
+            t.join();
+        }
+        finished.set(true);
+    }
+
+    @AfterClass
+    static public void afterAll() {
+        if (GRAPH != null) {
+            GRAPH.getBaseGraph().dropDatabase(GRAPH, false);
+            GRAPH.close();
+        }
+    }
+
+    @Test
+    public void testStackOverflow() {
+        GRAPH = FireflyGraph.open(CONFIG);
+        final var g = GRAPH.traversal();
+        final List outE = g.V(0).outE("foo").toList();
+        Assert.assertTrue(outE.isEmpty());
+        final Long count = g.V(0).outE().count().next();
+        Assert.assertTrue(count > 600000);
+    }
+}

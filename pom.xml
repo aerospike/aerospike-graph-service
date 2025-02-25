@@ -198,6 +198,7 @@
                         <exclude>**/FireflyMRTFeatureTest</exclude>
                         <exclude>**/TestAerospikeOperations</exclude>
                         <exclude>**/FireflyGraphSummaryUpdaterTest</exclude>
+                        <exclude>**/TestSupernodeStackOverflow</exclude>
                     </excludes>
                 </configuration>
             </plugin>

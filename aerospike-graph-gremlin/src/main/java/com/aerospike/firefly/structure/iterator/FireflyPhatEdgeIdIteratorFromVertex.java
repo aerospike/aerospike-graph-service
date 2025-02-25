@@ -4,8 +4,6 @@ import com.aerospike.client.Record;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyIdPoly;
-import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 
@@ -61,36 +59,38 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
     protected void getNextKeyRecords() {
         final List<Object> outputIds = new ArrayList<>();
 
-        final Record record = this.keyRecords.next().record;
-        final Map<ByteBuffer, List<?>> edgeIdToData = (Map<ByteBuffer, List<?>>) record.getMap(db.EDGE_DATA_BIN);
+        //while (outputIds.isEmpty() && this.keyRecords.hasNext()) {
+            final Record record = this.keyRecords.next().record;
+            final Map<ByteBuffer, List<?>> edgeIdToData = (Map<ByteBuffer, List<?>>) record.getMap(db.EDGE_DATA_BIN);
 
-        if (this.direction == Direction.OUT || this.direction == Direction.BOTH) {
-            final Set<ByteBuffer> outEdgeIds = getIndividualEdgeIdsAttachedToVertex(record, Direction.OUT);
-            for (final ByteBuffer edgeId : outEdgeIds) {
-                if (labels.isEmpty() || labels.contains((String) edgeIdToData.get(edgeId).get(LABEL_POSITION))) {
-                    if (outputType == OutputType.VERTEX_ID) {
-                        final String vertexId = (String) edgeIdToData.get(edgeId).get(IN_V_POSITION);
-                        outputIds.add(vertexId);
-                    } else {
-                        outputIds.add(edgeId);
+            if (this.direction == Direction.OUT || this.direction == Direction.BOTH) {
+                final Set<ByteBuffer> outEdgeIds = getIndividualEdgeIdsAttachedToVertex(record, Direction.OUT);
+                for (final ByteBuffer edgeId : outEdgeIds) {
+                    if (labels.isEmpty() || labels.contains((String) edgeIdToData.get(edgeId).get(LABEL_POSITION))) {
+                        if (outputType == OutputType.VERTEX_ID) {
+                            final String vertexId = (String) edgeIdToData.get(edgeId).get(IN_V_POSITION);
+                            outputIds.add(vertexId);
+                        } else {
+                            outputIds.add(edgeId);
+                        }
                     }
                 }
             }
-        }
 
-        if (this.direction == Direction.IN || this.direction == Direction.BOTH) {
-            final Set<ByteBuffer> inEdgeIds = getIndividualEdgeIdsAttachedToVertex(record, Direction.IN);
-            for (final ByteBuffer edgeId : inEdgeIds) {
-                if (labels.isEmpty() || labels.contains((String) edgeIdToData.get(edgeId).get(LABEL_POSITION))) {
-                    if (outputType == OutputType.VERTEX_ID) {
-                        final String vertexId = (String) edgeIdToData.get(edgeId).get(OUT_V_POSITION);
-                        outputIds.add(vertexId);
-                    } else {
-                        outputIds.add(edgeId);
+            if (this.direction == Direction.IN || this.direction == Direction.BOTH) {
+                final Set<ByteBuffer> inEdgeIds = getIndividualEdgeIdsAttachedToVertex(record, Direction.IN);
+                for (final ByteBuffer edgeId : inEdgeIds) {
+                    if (labels.isEmpty() || labels.contains((String) edgeIdToData.get(edgeId).get(LABEL_POSITION))) {
+                        if (outputType == OutputType.VERTEX_ID) {
+                            final String vertexId = (String) edgeIdToData.get(edgeId).get(OUT_V_POSITION);
+                            outputIds.add(vertexId);
+                        } else {
+                            outputIds.add(edgeId);
+                        }
                     }
                 }
             }
-        }
+        //}
 
         this.currentRecordIds = outputIds.iterator();
     }

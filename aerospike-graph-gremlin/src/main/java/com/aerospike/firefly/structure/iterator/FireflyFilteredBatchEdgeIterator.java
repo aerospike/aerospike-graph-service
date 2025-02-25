@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure.iterator;
 
-import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;

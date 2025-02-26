@@ -1357,6 +1357,27 @@ jobs:
         run: |
           bash -x scripts/start_aerospike_default_ttl.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeTTL -DfailIfNoTests=false --no-transfer-progress
+  snyk-test:
+    name: Snyk Vulnerability Scan
+    runs-on: ubuntu-latest
+    if: github.head_ref == '2.x-snyk'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
+      - name: Snyk Test
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          mvn clean install -DskipTests
+          mvn snyk:test@snyk-test
   stop-runner-movielens:
     name: Stop Movielens Runner
     needs:

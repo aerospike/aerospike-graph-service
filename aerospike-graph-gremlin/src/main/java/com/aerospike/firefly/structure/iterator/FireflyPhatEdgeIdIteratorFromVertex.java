@@ -59,7 +59,7 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
     protected void getNextKeyRecords() {
         final List<Object> outputIds = new ArrayList<>();
 
-        //while (outputIds.isEmpty() && this.keyRecords.hasNext()) {
+        while (outputIds.isEmpty() && this.keyRecords.hasNext()) {
             final Record record = this.keyRecords.next().record;
             final Map<ByteBuffer, List<?>> edgeIdToData = (Map<ByteBuffer, List<?>>) record.getMap(db.EDGE_DATA_BIN);
 
@@ -90,7 +90,7 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
                     }
                 }
             }
-        //}
+        }
 
         this.currentRecordIds = outputIds.iterator();
     }

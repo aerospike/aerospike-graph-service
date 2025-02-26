@@ -76,7 +76,6 @@ public class TestSupernodeStackOverflow {
 
     @Test
     public void testStackOverflow() {
-        GRAPH = FireflyGraph.open(CONFIG);
         final var g = GRAPH.traversal();
         final List outE = g.V(0).outE("foo").toList();
         Assert.assertTrue(outE.isEmpty());

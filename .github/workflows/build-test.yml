@@ -563,6 +563,10 @@ jobs:
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
+      - name: Test Stack Overflow Maven
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestSupernodeStackOverflow -DfailIfNoTests=false --no-transfer-progress
       - name: Test TLS Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts

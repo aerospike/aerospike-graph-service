@@ -36,7 +36,7 @@ public class TestFoo {
         config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
         config.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "info");
         config.setProperty("aerospike.graph.index.vertex.label.enabled", "true");
-        config.setProperty("aerospike.graph.index.vertex.properties", "ip");
+        config.setProperty("aerospike.graph.index.vertex.properties", "ip,application");
         config.setProperty("aerospike.client.scan.max.wait", "20000");
         config.setProperty("aerospike.client.clientPolicy.timeout", "20000");
         config.setProperty("aerospike.client.policy.read.socketTimeout", "500");
@@ -108,13 +108,199 @@ public class TestFoo {
     }
 
     @Test
+    public void query3() {
+        /// "MATCH (srcVM:VM)-[:HAS_INTERFACE]->(srcInterface:Interface) WHERE srcInterface.ip = $src OR  $src IN split(srcInterface.ip, ',') WITH srcVM, srcInterface
+        //OPTIONAL MATCH (srcVM:VM)<-[:HAS_VM]-(srcHv:HyperVisor)<-[:HAS_HYPERVISOR] -(srcRack:Rack)<-[:HAS_RACK]-(srcFloor:Floor)<-[:HAS_FLOOR]-(srcDC:Datacenter)
+        //OPTIONAL MATCH (srcInterface:Interface)-[:BELONGS_TO_CIDR]->(srcCIDR:CIDR)-[sendsTraffic:SENDS_TRAFFIC]-(fwInterface:Interface)
+        //WITH sendsTraffic, srcVM, srcDC, srcFloor, srcRack, srcHv, srcInterface
+        //OPTIONAL MATCH (destCIDR:CIDR)<-[forwardsTraffic:FORWARDS_TRAFFIC]-(fwInterface:Interface) WHERE sendsTraffic.ruleHash = forwardsTraffic.ruleHash
+        //OPTIONAL MATCH (fwInterface)<-[:HAS_INTERFACE]-(firewall:Firewall)
+        //OPTIONAL MATCH (destVMInterface)-[:BELONGS_TO_CIDR]->(destCIDR)
+        //MATCH (destVM:VM)-[:HAS_INTERFACE]->(destVMInterface) WHERE destVMInterface.ip = $dest OR $dest IN split(destVMInterface.ip, ',')
+        //OPTIONAL MATCH (destDC:Datacenter)-[:HAS_FLOOR]->(destFloor:Floor)-[:HAS_RACK]->(destRack:Rack)-[:HAS_HYPERVISOR]->(destHv:HyperVisor)-[:HAS_VM]->(destVM)
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal().with("evaluationTimeout", 24 * 60 * 60 * 1000);
+
+            Instant start = Instant.now();
+
+            ExecutorService executorService = Executors.newFixedThreadPool(3);
+            Future<List<Path>> output1 = executorService.submit(new RunQuery(g.V().hasLabel("Interface").has("ip", "10.194.18.160").as("srcInterface").
+                    out("BELONGS_TO_CIDR").hasLabel("CIDR").as("srcCIDR")
+                    .outE("SENDS_TRAFFIC").as("sendsTraffic")
+                    .inV().hasLabel("Interface").as("fwInterface").path()));
+
+            Future<List<Path>> output2 = executorService.submit(new RunQuery(g.V().hasLabel("Interface").has("ip", "10.1.20.208").as("destInterface").
+                    out("BELONGS_TO_CIDR").as("destCIDR").
+                    inE("FORWARDS_TRAFFIC").as("forwardsTraffic").
+                    outV().as("fwInterface").path()));
+
+            Future<List<Path>> output3 = executorService.submit(new RunQuery(
+                    g.V().hasLabel("Interface").has("ip", "10.1.20.208").as("destInterface").
+                    in("HAS_INTERFACE").as("destVM").
+                    in("HAS_VM").as("destHv").
+                    in("HAS_HYPERVISOR").as("destRack").
+                    in("HAS_RACK").as("destFloor").
+                    in("HAS_FLOOR").as("destDC").path()));
+            //OPTIONAL MATCH (destDC:Datacenter)-[:HAS_FLOOR]->(destFloor:Floor)-[:HAS_RACK]->(destRack:Rack)-[:HAS_HYPERVISOR]->(destHv:HyperVisor)-[:HAS_VM]->(destVM)
+
+            try {
+                List<Path> fwInterface1 = output1.get();
+                List<Path> fwInterface2 = output2.get();
+                List<Path> fwInterface3 = output3.get();
+                assert fwInterface3.size() == 1;
+                List<Path> intersectedPath = new ArrayList<>();
+                System.out.println("fwInterface1: " + fwInterface1.size());
+                System.out.println("fwInterface2: " + fwInterface2.size());
+
+                for (final Path fw1 : fwInterface1) {
+                    final Object o1 = fw1.objects().get(fw1.objects().size() - 1);
+                    for (final Path fw2 : fwInterface2) {
+                        final Object o2 = fw2.objects().get(fw2.objects().size() - 1);
+                        if (o1.equals(o2)) {
+                            final Path mutablePath = MutablePath.make();
+                            final List<Object> objects = fw1.objects();
+                            final List<Set<String>> labels = fw1.labels();
+                            for (int i = 0; i < objects.size(); i++) {
+                                mutablePath.extend(objects.get(i), labels.get(i));
+                            }
+                            for (int i = fw2.objects().size() - 2; i >= 0; i--) {
+                                mutablePath.extend(fw2.objects().get(i), fw2.labels().get(i));
+                            }
+                            // Since the last path is directly attached to the ending node, we can just add it.
+                            final Path p3 = fwInterface3.get(0);
+                            for (int i = 1; i < p3.objects().size(); i++) {
+                                mutablePath.extend(p3.objects().get(i), p3.labels().get(i));
+                            }
+                            intersectedPath.add(mutablePath);
+                        }
+                    }
+                }
+
+                System.out.println("Time taken: " + (Instant.now().toEpochMilli() - start.toEpochMilli()));
+                System.out.println("fwInterface1: " + fwInterface1.size());
+                System.out.println("fwInterface2: " + fwInterface2.size());
+                System.out.println("intersectedPath: " + intersectedPath.size());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            executorService.shutdown();
+        }
+    }
+
+    @Test
+    public void query4() {
+        // App name search:
+        //MATCH (srcVM:VM)-[srcHasInterface:HAS_INTERFACE]->(srcInterface:Interface) where srcVM.application = $src
+        //WITH distinct srcInterface, srcVM
+        //OPTIONAL MATCH (srcVM:VM)<-[srcHasVM:HAS_VM]-(srcHv:HyperVisor)
+        //OPTIONAL MATCH (srcRack:Rack)-[srcHasHv:HAS_HYPERVISOR]->(srcHv:HyperVisor)
+        //OPTIONAL MATCH (srcFloor:Floor)-[srcHasRack:HAS_RACK]-> (srcRack:Rack)
+        //OPTIONAL MATCH (srcDC:Datacenter)-[srcHasFloor:HAS_FLOOR]->(srcFloor:Floor)
+        //OPTIONAL MATCH (srcInterface:Interface)-[srcBelongsTo:BELONGS_TO_CIDR]->(srcCIDR:CIDR)
+        //OPTIONAL MATCH (fwInterface:Interface)<-[sendsTraffic:SENDS_TRAFFIC ]-(srcCIDR)
+        //WITH sendsTraffic, srcVM, srcDC, srcFloor, srcRack, srcHv, srcInterface
+        //MATCH (fwInterface:Interface)-[forwardsTraffic:FORWARDS_TRAFFIC]->(destCIDR:CIDR)
+        //WHERE sendsTraffic.ruleHash = forwardsTraffic.ruleHash
+        //OPTIONAL MATCH (fwInterface)<-[:HAS_INTERFACE]-(firewall:Firewall)
+        //WITH distinct destCIDR, sendsTraffic, srcVM, srcDC, srcFloor, srcRack, srcHv, srcInterface, firewall, fwInterface
+        //MATCH (destVMInterface)-[destBelongsTo:BELONGS_TO_CIDR]->(destCIDR)
+        //WITH distinct destVMInterface, destCIDR, sendsTraffic, srcVM, srcDC, srcFloor, srcRack, srcHv, srcInterface, firewall, fwInterface
+        //MATCH (destVM:VM)-[destHasInterface:HAS_INTERFACE]->(destVMInterface) WHERE destVM.application = $dest
+        //OPTIONAL MATCH (destDC:Datacenter)-[destHasFloor:HAS_FLOOR]->(destFloor:Floor)-[destHasRack:HAS_RACK]->(destRack:Rack)-[destHasHv:HAS_HYPERVISOR]->(destHv:HyperVisor)-[destHasVM:HAS_VM]->(destVM)
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal().with("evaluationTimeout", 24 * 60 * 60 * 1000);
+
+            Instant start = Instant.now();
+
+            //final Object application1Id = g.V().hasLabel("VM").has("application", "Electronic Toll Collection (ETOLL)").id().next();
+            //final Object application2Id = g.V().hasLabel("VM").has("application", "<TODO app 2>").id().next();
+
+            final Object application1Id = 6143;
+            final Object application2Id = 10060;
+
+            ExecutorService executorService = Executors.newFixedThreadPool(4);
+            Future<List<Path>> output1 = executorService.submit(new RunQuery(g.V(application1Id).as("srcVM").
+                    out("HAS_INTERFACE").as("srcInterface").
+                    out("BELONGS_TO_CIDR").as("srcCIDR").
+                    outE("SENDS_TRAFFIC").as("sendsTraffic").
+                    inV().hasLabel("Interface").as("fwInterface").path()));
+
+            Future<List<Path>> output2 = executorService.submit(new RunQuery(g.V(application2Id).as("destVM").
+                    out("HAS_INTERFACE").as("destInterface").
+                    out("BELONGS_TO_CIDR").as("destCIDR").
+                    inE("FORWARDS_TRAFFIC").as("forwardsTraffic").
+                    outV().as("fwInterface").path()));
+
+            Future<List<Path>> output3 = executorService.submit(new RunQuery(
+                    g.V(application1Id).as("vms").
+                            in("HAS_VM").as("hvs").
+                            in("HAS_HYPERVISOR").as("racks").
+                            in("HAS_RACK").as("floors").
+                            in("HAS_FLOOR").as("dcs").path()));
+
+            Future<List<Path>> output4 = executorService.submit(new RunQuery(
+                    g.V(application2Id).as("vms").
+                            in("HAS_VM").as("hvs").
+                            in("HAS_HYPERVISOR").as("racks").
+                            in("HAS_RACK").as("floors").
+                            in("HAS_FLOOR").as("dcs").path()));
+            //OPTIONAL MATCH (destDC:Datacenter)-[:HAS_FLOOR]->(destFloor:Floor)-[:HAS_RACK]->(destRack:Rack)-[:HAS_HYPERVISOR]->(destHv:HyperVisor)-[:HAS_VM]->(destVM)
+
+            try {
+                List<Path> fwInterface1 = output1.get();
+                List<Path> fwInterface2 = output2.get();
+                List<Path> fwInterface3 = output3.get();
+                List<Path> fwInterface4 = output4.get();
+                assert fwInterface3.size() == 1;
+                assert fwInterface4.size() == 1;
+                List<Path> intersectedPath = new ArrayList<>();
+                System.out.println("fwInterface1: " + fwInterface1.size());
+                System.out.println("fwInterface2: " + fwInterface2.size());
+
+                for (final Path fw1 : fwInterface1) {
+                    final Object o1 = fw1.objects().get(fw1.objects().size() - 1);
+                    for (final Path fw2 : fwInterface2) {
+                        final Object o2 = fw2.objects().get(fw2.objects().size() - 1);
+                        if (o1.equals(o2)) {
+                            // Since the first path is directly attached to the starting node, we can just add it.
+                            final Path mutablePath = MutablePath.make();
+                            final Path p3 = fwInterface3.get(0);
+                            for (int i = 1; i < p3.objects().size(); i++) {
+                                mutablePath.extend(p3.objects().get(i), p3.labels().get(i));
+                            }
+                            final List<Object> objects = fw1.objects();
+                            final List<Set<String>> labels = fw1.labels();
+                            for (int i = 0; i < objects.size(); i++) {
+                                mutablePath.extend(objects.get(i), labels.get(i));
+                            }
+                            for (int i = fw2.objects().size() - 2; i >= 0; i--) {
+                                mutablePath.extend(fw2.objects().get(i), fw2.labels().get(i));
+                            }
+                            // Since the last path is directly attached to the ending node, we can just add it.
+                            final Path p4 = fwInterface4.get(0);
+                            for (int i = 1; i < p4.objects().size(); i++) {
+                                mutablePath.extend(p4.objects().get(i), p4.labels().get(i));
+                            }
+                            intersectedPath.add(mutablePath);
+                        }
+                    }
+                }
+
+                System.out.println("Time taken: " + (Instant.now().toEpochMilli() - start.toEpochMilli()));
+                System.out.println("fwInterface1: " + fwInterface1.size());
+                System.out.println("fwInterface2: " + fwInterface2.size());
+
+                // TODO: One of the paths is going to be backwards (either p3 or p4), most likely should just return values anyway.
+                System.out.println("intersectedPath: " + intersectedPath.size());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            executorService.shutdown();
+        }
+    }
+
+    @Test
     public void query5() {
-        config.setProperty("aerospike.graph.index.vertex.label.enabled", "true");
-        config.setProperty("aerospike.graph.index.vertex.properties", "ip");
-        config.setProperty("aerospike.client.scan.max.wait", "20000");
-        config.setProperty("aerospike.client.clientPolicy.timeout", "20000");
-        config.setProperty("aerospike.client.policy.read.socketTimeout", "500");
-        config.setProperty("aerospike.client.policy.read.totalTimeout", "1500");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = graph.traversal().with("evaluationTimeout", 24 * 60 * 60 * 1000);
 

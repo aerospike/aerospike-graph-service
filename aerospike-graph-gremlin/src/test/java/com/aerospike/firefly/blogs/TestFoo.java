@@ -1,15 +1,18 @@
 package com.aerospike.firefly.blogs;
 
 import com.aerospike.firefly.Tokens;
+import com.aerospike.firefly.process.traversal.step.util.TaskLogger;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.MutablePath;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 
@@ -41,6 +44,7 @@ public class TestFoo {
         config.setProperty("aerospike.client.clientPolicy.timeout", "20000");
         config.setProperty("aerospike.client.policy.read.socketTimeout", "500");
         config.setProperty("aerospike.client.policy.read.totalTimeout", "1500");
+        config.setProperty("aerospike.graph.log.supernode.warning", "false");
     }
 
     static class RunQuery implements Callable {
@@ -188,6 +192,63 @@ public class TestFoo {
     }
 
     @Test
+    public void fooV() {
+        // App name search:
+        //MATCH (srcVM:VM)-[srcHasInterface:HAS_INTERFACE]->(srcInterface:Interface) where srcVM.application = $src
+        //WITH distinct srcInterface, srcVM
+        //OPTIONAL MATCH (srcVM:VM)<-[srcHasVM:HAS_VM]-(srcHv:HyperVisor)
+        //OPTIONAL MATCH (srcRack:Rack)-[srcHasHv:HAS_HYPERVISOR]->(srcHv:HyperVisor)
+        //OPTIONAL MATCH (srcFloor:Floor)-[srcHasRack:HAS_RACK]-> (srcRack:Rack)
+        //OPTIONAL MATCH (srcDC:Datacenter)-[srcHasFloor:HAS_FLOOR]->(srcFloor:Floor)
+        //OPTIONAL MATCH (srcInterface:Interface)-[srcBelongsTo:BELONGS_TO_CIDR]->(srcCIDR:CIDR)
+        //OPTIONAL MATCH (fwInterface:Interface)<-[sendsTraffic:SENDS_TRAFFIC ]-(srcCIDR)
+        //WITH sendsTraffic, srcVM, srcDC, srcFloor, srcRack, srcHv, srcInterface
+        //MATCH (fwInterface:Interface)-[forwardsTraffic:FORWARDS_TRAFFIC]->(destCIDR:CIDR)
+        //WHERE sendsTraffic.ruleHash = forwardsTraffic.ruleHash
+        //OPTIONAL MATCH (fwInterface)<-[:HAS_INTERFACE]-(firewall:Firewall)
+        //WITH distinct destCIDR, sendsTraffic, srcVM, srcDC, srcFloor, srcRack, srcHv, srcInterface, firewall, fwInterface
+        //MATCH (destVMInterface)-[destBelongsTo:BELONGS_TO_CIDR]->(destCIDR)
+        //WITH distinct destVMInterface, destCIDR, sendsTraffic, srcVM, srcDC, srcFloor, srcRack, srcHv, srcInterface, firewall, fwInterface
+        //MATCH (destVM:VM)-[destHasInterface:HAS_INTERFACE]->(destVMInterface) WHERE destVM.application = $dest
+        //OPTIONAL MATCH (destDC:Datacenter)-[destHasFloor:HAS_FLOOR]->(destFloor:Floor)-[destHasRack:HAS_RACK]->(destRack:Rack)-[destHasHv:HAS_HYPERVISOR]->(destHv:HyperVisor)-[destHasVM:HAS_VM]->(destVM)
+
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal().with("evaluationTimeout", 24 * 60 * 60 * 1000);
+            final List<Object> applicationOptimus = g.V().has("application", "Optimus").id().toList();
+
+            //for (int i = 0; i < 5; i++) {
+            //    Instant start2 = Instant.now();
+            //    List<Object> ruleHashes = g.V(applicationOptimus).
+            //            out("HAS_INTERFACE").dedup().
+            //            out("BELONGS_TO_CIDR").dedup().
+            //            outE("SENDS_TRAFFIC").values("ruleHash").dedup().toList();
+            //    System.out.println("Time taken: " + (Instant.now().toEpochMilli() - start2.toEpochMilli()));
+            //}
+
+            for (int i = 0; i < 10; i++) {
+                Instant start1 = Instant.now();
+
+                final List<Path> test1 = g.V(applicationOptimus).as("srcVM").
+                        out("HAS_INTERFACE").as("srcInterface").
+                        out("BELONGS_TO_CIDR").as("srcCIDR").
+                        outE("SENDS_TRAFFIC").as("sendsTraffic").
+                        inV().hasLabel("Interface").as("fwInterface").path().by(T.id).by(T.id).by(T.id).by("ruleHash").by(T.id).toList();
+
+                //Set<Object> ruleHashes = test1.stream().map(p -> p.objects().get(p.size() - 2)).collect(Collectors.toSet());
+
+                final List<Path> intersectedPaths = g.V().has("application", "DevOps").as("destVM").
+                        out("HAS_INTERFACE").as("destInterface").
+                        out("BELONGS_TO_CIDR").as("destCIDR").
+                        inE("FORWARDS_TRAFFIC").as("forwardsTraffic").
+                        outV().as("fwInterface").path().by(T.id).by(T.id).by(T.id).by("ruleHash").by(T.id).toList();
+
+
+                System.out.println("Time taken: " + (Instant.now().toEpochMilli() - start1.toEpochMilli()));
+            }
+        }
+    }
+
+    @Test
     public void query4() {
         // App name search:
         //MATCH (srcVM:VM)-[srcHasInterface:HAS_INTERFACE]->(srcInterface:Interface) where srcVM.application = $src
@@ -214,9 +275,38 @@ public class TestFoo {
 
             //final Object application1Id = g.V().hasLabel("VM").has("application", "Electronic Toll Collection (ETOLL)").id().next();
             //final Object application2Id = g.V().hasLabel("VM").has("application", "<TODO app 2>").id().next();
+            final List<Object> applicationOptimus = g.V().has("application", "Optimus").id().toList();
 
             final Object application1Id = 6143;
             final Object application2Id = 10060;
+
+
+            Instant start1 = Instant.now();
+            final List<Path> test1 = g.V(applicationOptimus).as("srcVM").
+                    out("HAS_INTERFACE").as("srcInterface").
+                    out("BELONGS_TO_CIDR").as("srcCIDR").
+                    outE("SENDS_TRAFFIC").as("sendsTraffic").
+                    inV().hasLabel("Interface").as("fwInterface").path().by(T.id).by(T.id).by(T.id).by("ruleHash").by(T.id).toList();
+            System.out.println("Time taken: " + (Instant.now().toEpochMilli() - start1.toEpochMilli()));
+            Set<Object> ruleHashes = test1.stream().map(p -> p.objects().get(p.size() - 2)).collect(Collectors.toSet());
+
+
+            final List<Path> intersectedPaths = g.V().has("application", "DevOps").as("destVM").
+                    out("HAS_INTERFACE").as("destInterface").
+                    out("BELONGS_TO_CIDR").as("destCIDR").
+                    inE("FORWARDS_TRAFFIC").as("forwardsTraffic").
+                    where(__.values("ruleHash").is(P.within(ruleHashes))).
+                    outV().as("fwInterface").path().by(T.id).by(T.id).by(T.id).by("ruleHash").by(T.id).toList();
+
+            final List<Path> testIntersectedPaths = g.V().has("application", "DevOps").as("destVM").
+                    out("HAS_INTERFACE").as("destInterface").
+                    out("BELONGS_TO_CIDR").as("destCIDR").
+                    inE("FORWARDS_TRAFFIC").as("forwardsTraffic").
+                    where(__.values("ruleHash").is(P.within(Set.of("5935e9085033c3dc1d1e770a88ab08c2")))).
+                    outV().as("fwInterface").path().by(T.id).by(T.id).by(T.id).by("ruleHash").by(T.id).toList();
+
+
+
 
             ExecutorService executorService = Executors.newFixedThreadPool(4);
             Future<List<Path>> output1 = executorService.submit(new RunQuery(g.V(application1Id).as("srcVM").

@@ -2,6 +2,7 @@ package com.aerospike.firefly.process.traversal.step;
 
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
+import com.aerospike.firefly.process.traversal.step.util.TaskLogger;
 import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -16,6 +17,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.EmptyTraver
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
@@ -46,6 +48,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                                     final List<HasContainer> hasContainers,
                                     final int barrierSize) {
         super(traversal, barrierSize);
+        TaskLogger.reset();
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
         this.labels = new HashSet<>(labels);
@@ -77,7 +80,21 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         final List<FireflyId> fireflyIdList = new ArrayList<>();
         final Set<FireflyId> uniqueIdSet = new HashSet<>();
         final Map<FireflyId, FireflyEdge> fireflyEdgeMap = new HashMap<>();
+        final Map<Element, List<FireflyId>> duplicateIdMap = new HashMap<>();
+        final Set<Element> input = new HashSet<>();
+        for (final Traverser.Admin<Edge> e : set) {
+            if (input.contains(e.get())) {
+                duplicateIdMap.putIfAbsent(e.get(), null);
+            } else {
+                input.add(e.get());
+            }
+        }
 
+        if (set.size() != input.size()) {
+            System.out.println("Set size: " + set.size() + " Input size: " + input.size());
+        }
+
+        TaskLogger.complete("start");
         while (!set.isEmpty()) {
             // Get next input traverser and get the FireflyVertex form of it.
             final Traverser.Admin<Edge> traverser = set.remove();
@@ -85,10 +102,20 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
 
             // Latch the size of the current id list.
             final int previousSize = fireflyIdList.size();
-
             TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
-            // TODO GRAPH-1139: The entire iterator is consumed here and may OOM.
-            vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, fireflyIdList, aerospikeHasContainers);
+
+            if (duplicateIdMap.containsKey(vertex) && duplicateIdMap.get(vertex) != null) {
+                fireflyIdList.addAll(duplicateIdMap.get(vertex));
+            } else {
+                // TODO GRAPH-1139: The entire iterator is consumed here and may OOM.
+                vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, fireflyIdList, aerospikeHasContainers);
+                if (duplicateIdMap.containsKey(vertex)) {
+                    final List<FireflyId> subList = new ArrayList<>(fireflyIdList.subList(previousSize, fireflyIdList.size()));
+                    duplicateIdMap.put(vertex, subList);
+                }
+            }
+            TaskLogger.complete("index");
+
             for (int i = previousSize; i < fireflyIdList.size(); i++) {
                 final FireflyId id = fireflyIdList.get(i);
                 if (!fireflyEdgeMap.containsKey(id)) {
@@ -113,12 +140,18 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                 fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, output, graph::readEdges, null);
 
+        TaskLogger.complete("drain");
+
         if (output.isEmpty()) {
             set.add(EmptyTraverser.instance());
         } else {
             set.addAll(output);
             output.clear(); // Force garbage collection.
         }
+
+        TaskLogger.complete("assign");
+
+        TaskLogger.log(graph);
     }
 
     @Override

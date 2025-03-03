@@ -30,6 +30,8 @@ public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
         this.keyRecords = keyRecordIterator;
     }
 
+    static int n = 0;
+
     @Override
     public boolean hasNext() {
         if (!currentRecordIds.hasNext()) {
@@ -37,6 +39,8 @@ public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
                 return false;
             } else {
                 getNextKeyRecords();
+                n++;
+                if (n % 1000 == 0) System.out.println("n: " + n);
                 return hasNext();
             }
         } else {

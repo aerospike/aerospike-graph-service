@@ -64,4 +64,22 @@ public class CacheInterationTest extends AbstractFireflySuite {
         Assert.assertEquals(1, cache.getMissCount());
         Assert.assertEquals(miss, hit);
     }
+
+    @Test
+    public void testCacheIntegration() {
+        final Graph tg = TinkerFactory.createModern();
+        GraphHelper.cloneElements(tg, graph);
+        graph.traversal().V().has("name", "marko").out().in().toList();
+        Assert.assertEquals(1L, graph.getBaseGraph().transactionCache.get().getHitCount());
+        Assert.assertEquals(5L, graph.getBaseGraph().transactionCache.get().getMissCount());
+        graph.traversal().V().has("name", "marko").out().in().toList();
+        Assert.assertEquals(1L, graph.getBaseGraph().transactionCache.get().getHitCount());
+        Assert.assertEquals(5L, graph.getBaseGraph().transactionCache.get().getMissCount());
+        graph.traversal().V().has("name", "marko").out().in().toList();
+        Assert.assertEquals(1L, graph.getBaseGraph().transactionCache.get().getHitCount());
+        Assert.assertEquals(5L, graph.getBaseGraph().transactionCache.get().getMissCount());
+        graph.traversal().V().has("name", "marko").out().in().toList();
+        Assert.assertEquals(1L, graph.getBaseGraph().transactionCache.get().getHitCount());
+        Assert.assertEquals(5L, graph.getBaseGraph().transactionCache.get().getMissCount());
+    }
 }

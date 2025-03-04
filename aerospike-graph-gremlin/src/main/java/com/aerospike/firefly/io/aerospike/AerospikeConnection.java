@@ -209,6 +209,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final int TTL_PURGE_INTERVAL_SECONDS;
     public final boolean SUPERNODE_TRAVERSAL_LOG_WARNING;
     public final boolean REDACT_SCRIPT_LITERALS_ENABLED;
+    public long lastQueryMissCount = 0; // For testing
+    public long lastQueryHitCount = 0; // For testing
 
     private final int AEROSPIKE_MAX_RETRIES;
     private final int WRITE_SLEEP_BETWEEN_RETRY;

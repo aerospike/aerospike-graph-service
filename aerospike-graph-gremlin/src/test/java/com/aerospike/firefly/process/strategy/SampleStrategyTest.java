@@ -3,7 +3,6 @@ package com.aerospike.firefly.process.strategy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeSampleLimitReadStep;
-import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdLimitSampleStep;
 import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
@@ -418,28 +417,24 @@ public class SampleStrategyTest {
 
     public void assertStepsSample(List<Step> steps, final boolean sampleFirst, final boolean hasHas, final boolean isVertex) {
         if (!hasHas) {
-            // Graph step, composite id step, limit step, cache step.
-            Assert.assertEquals(4, steps.size());
+            // Graph step, composite id step, limit step
+            Assert.assertEquals(3, steps.size());
             Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
-            Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
         } else if (!sampleFirst) {
             if (!isVertex) {
-                Assert.assertEquals(4, steps.size());
-                // Graph step, limit step, has step, cache step.
+                Assert.assertEquals(3, steps.size());
+                // Graph step, limit step, has step
                 Assert.assertTrue(steps.get(2) instanceof SampleGlobalStep);
-                Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
             } else {
-                Assert.assertEquals(4, steps.size());
-                // Graph step, composite id step, limit step, has step, cache step.
+                Assert.assertEquals(3, steps.size());
+                // Graph step, composite id step, limit step, has step
                 Assert.assertTrue(steps.get(2) instanceof SampleGlobalStep);
-                Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
             }
         } else {
-            // Graph step, composite id step, has step, sample step, cache step.
-            Assert.assertEquals(5, steps.size());
+            // Graph step, composite id step, has step, sample step
+            Assert.assertEquals(4, steps.size());
             Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
             Assert.assertTrue(steps.get(3) instanceof HasStep);
-            Assert.assertTrue(steps.get(4) instanceof FireflyCacheGCStep);
         }
         Assert.assertTrue(steps.get(0) instanceof FireflyGraphStep);
         if (isVertex) {
@@ -459,28 +454,24 @@ public class SampleStrategyTest {
 
     public void assertStepsLimit(List<Step> steps, final boolean limitFirst, final boolean hasHas, final boolean isVertex) {
         if (!hasHas) {
-            // Graph step, composite id step, limit step, cache step.
-            Assert.assertEquals(4, steps.size());
+            // Graph step, composite id step, limit step
+            Assert.assertEquals(3, steps.size());
             Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
-            Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
         } else if (!limitFirst) {
             if (!isVertex) {
-                Assert.assertEquals(4, steps.size());
-                // Graph step, limit step, has step, cache step.
+                Assert.assertEquals(3, steps.size());
+                // Graph step, limit step, has step
                 Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
-                Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
             } else {
-                Assert.assertEquals(4, steps.size());
-                // Graph step, composite id step, limit step, has step, cache step.
+                Assert.assertEquals(3, steps.size());
+                // Graph step, composite id step, limit step, has step
                 Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
-                Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
             }
         } else {
-            // Graph step, composite id step, has step, sample step, cache step.
-            Assert.assertEquals(5, steps.size());
+            // Graph step, composite id step, has step, sample step
+            Assert.assertEquals(4, steps.size());
             Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
             Assert.assertTrue(steps.get(3) instanceof HasStep);
-            Assert.assertTrue(steps.get(4) instanceof FireflyCacheGCStep);
         }
         Assert.assertTrue(steps.get(0) instanceof FireflyGraphStep);
         if (isVertex) {

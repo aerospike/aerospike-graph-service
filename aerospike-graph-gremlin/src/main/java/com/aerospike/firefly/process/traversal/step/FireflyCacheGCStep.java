@@ -26,6 +26,14 @@ public class FireflyCacheGCStep extends AbstractStep {
 
     @Override
     protected Traverser.Admin processNextStart() throws NoSuchElementException {
+
+        Traverser.Admin t;
+        if (this.starts.hasNext()) {
+            t = starts.next();
+        } else {
+            throw FastNoSuchElementException.instance();
+        }
+
         final AerospikeConnection db = ((FireflyGraph) traversal.getGraph().get()).getBaseGraph();
         final FireflyCache cache = db.transactionCache.get();
         final FireflyCache noPropsCache = db.emptyPropsTransactionCache.get();
@@ -44,11 +52,7 @@ public class FireflyCacheGCStep extends AbstractStep {
         db.emptyPropsTransactionCache.remove();
         db.transactionCache.remove();
 
-        if (this.starts.hasNext()) {
-            return this.starts.next();
-        } else {
-            throw FastNoSuchElementException.instance();
-        }
+        return t;
     }
 
     @Override

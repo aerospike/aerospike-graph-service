@@ -234,14 +234,14 @@ public class TestFoo {
                         outE("SENDS_TRAFFIC").as("sendsTraffic").
                         inV().hasLabel("Interface").as("fwInterface").path().by(T.id).by(T.id).by(T.id).by("ruleHash").by(T.id).toList();
 
-                //Set<Object> ruleHashes = test1.stream().map(p -> p.objects().get(p.size() - 2)).collect(Collectors.toSet());
+                Set<Object> ruleHashes = test1.stream().map(p -> p.objects().get(p.size() - 2)).collect(Collectors.toSet());
 
-                final List<Path> intersectedPaths = g.V().has("application", "DevOps").as("destVM").
+                final List<Path> test2 = g.V().has("application", "DevOps").as("destVM").
                         out("HAS_INTERFACE").as("destInterface").
                         out("BELONGS_TO_CIDR").as("destCIDR").
                         inE("FORWARDS_TRAFFIC").as("forwardsTraffic").
                         outV().as("fwInterface").path().by(T.id).by(T.id).by(T.id).by("ruleHash").by(T.id).toList();
-
+                List<Path> intersections = test2.stream().filter(p -> ruleHashes.contains(p.objects().get(p.size() - 2))).collect(Collectors.toList());
 
                 System.out.println("Time taken: " + (Instant.now().toEpochMilli() - start1.toEpochMilli()));
             }

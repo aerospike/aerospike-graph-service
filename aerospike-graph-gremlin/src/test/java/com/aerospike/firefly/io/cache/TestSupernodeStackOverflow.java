@@ -16,6 +16,9 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.READ_SOCKET_TIMEOUT;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.READ_TOTAL_TIMEOUT;
 
 public class TestSupernodeStackOverflow {
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -23,6 +26,8 @@ public class TestSupernodeStackOverflow {
 
     @BeforeClass
     static public void beforeAll() throws InterruptedException {
+        CONFIG.setProperty(READ_TOTAL_TIMEOUT, 1500);
+        CONFIG.setProperty(READ_SOCKET_TIMEOUT, 500);
         GRAPH = FireflyGraph.open(CONFIG);
         GRAPH.getBaseGraph().dropDatabase(GRAPH, false);
         final var g = GRAPH.traversal();
@@ -53,8 +58,12 @@ public class TestSupernodeStackOverflow {
         for (int i = 0; i < 6; i++) {
             final Thread t = new Thread(() -> {
                 for (int j = 0; j < 100000; j++) {
-                    final int id = random.nextInt(5) + 1;
-                    g.addE("bar").from(vertices[0]).to(vertices[id]).iterate();
+                    try {
+                        final int id = random.nextInt(5) + 1;
+                        g.addE("bar").from(vertices[0]).to(vertices[id]).iterate();
+                    } catch (final Exception ignored) {
+
+                    }
                 }
             });
             t.start();

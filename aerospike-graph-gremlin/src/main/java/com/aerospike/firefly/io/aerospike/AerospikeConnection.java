@@ -61,6 +61,7 @@ import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.DiagnosticUtil;
 import com.aerospike.firefly.util.WarmupUtil;
+import com.aerospike.firefly.util.config.FireflyConfiguration;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.GraphError;
 import io.netty.channel.epoll.EpollEventLoopGroup;
@@ -399,15 +400,14 @@ public class AerospikeConnection implements AutoCloseable {
      *
      * @param conf Apache Configuration
      */
-    public AerospikeConnection(final Configuration conf,
+    private AerospikeConnection(final FireflyConfiguration conf,
                                final AerospikeClient client,
                                final EventLoops eventLoops,
                                final ExecutorService threadedReadExecutor) {
         LOG.info("Initializing AerospikeConnection.");
         LOG.debug("CONFIGURATION:");
         conf.getKeys().forEachRemaining(key -> {
-            final String lowerKey = key.toLowerCase();
-            if (lowerKey.contains("password") || lowerKey.contains("secret") || lowerKey.contains("token") || lowerKey.contains("passkey")) {
+            if (key.contains("password") || key.contains("secret") || key.contains("token") || key.contains("passkey")) {
                 LOG.debug("\tconfig: [{}]:[{}]", key, "********");
             } else {
                 LOG.debug("\tconfig: [{}]:[{}]", key, conf.get(String.class, key));
@@ -635,7 +635,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param eventLoops Aerospike Event Loops
      * @return Database connection handle
      */
-    public static AerospikeConnection connect(final Configuration conf,
+    public static AerospikeConnection connect(final FireflyConfiguration conf,
                                               final AerospikeClient client,
                                               final EventLoops eventLoops,
                                               final ExecutorService threadedReadExecutor) {
@@ -650,8 +650,10 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Database connection handle
      */
     public static AerospikeConnection connect(final Configuration conf) {
-        final AerospikeClientProvider provider = DefaultAerospikeClientProvider.connect(conf);
-        return connect(conf, provider.getAerospikeClient(conf), provider.getEventLoops(conf), provider.getThreadedExecutorService(conf));
+        final FireflyConfiguration fireflyConfig = FireflyConfiguration.fromConfiguration(conf);
+        final AerospikeClientProvider provider = DefaultAerospikeClientProvider.connect(fireflyConfig);
+        return connect(fireflyConfig, provider.getAerospikeClient(fireflyConfig), provider.getEventLoops(fireflyConfig),
+                provider.getThreadedExecutorService(fireflyConfig));
     }
 
 
@@ -2656,7 +2658,7 @@ public class AerospikeConnection implements AutoCloseable {
         private DefaultAerospikeClientProvider() {
         }
 
-        public static AerospikeClientProvider connect(final Configuration conf) {
+        public static AerospikeClientProvider connect(final FireflyConfiguration conf) {
             synchronized (DefaultAerospikeClientProvider.class) {
                 if (OPEN_COUNT.get() == 0) {
                     final String eventLoopTypeName = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.EVENT_LOOP_TYPE, conf);

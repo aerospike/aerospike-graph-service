@@ -3,6 +3,7 @@ package com.aerospike.firefly.util;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
+import com.aerospike.firefly.util.config.FireflyConfiguration;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
@@ -27,7 +28,7 @@ public class TestInvalidConfig {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.query-tracing.threshold-ms", "0");
         try (final AerospikeConnection db = AerospikeConnection.connect(config)) {
-            GraphFactory.createGraph(db, config);
+            GraphFactory.createGraph(db, FireflyConfiguration.fromConfiguration(config));
             fail("Error, graph should not have opened with a failed query tracing healthcheck.");
         } catch (final IllegalStateException e) {
             Assert.assertTrue(e.getMessage().contains("Connection to Query Tracing endpoint failed with no response. This is most likely due to an incorrect IP or Port"));

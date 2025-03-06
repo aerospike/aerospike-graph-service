@@ -7,6 +7,7 @@ import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.aerospike.ReadThroughRecordCache;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -14,7 +15,9 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public class CacheInterationTest extends AbstractFireflySuite {
@@ -69,17 +72,17 @@ public class CacheInterationTest extends AbstractFireflySuite {
     public void testCacheIntegration() {
         final Graph tg = TinkerFactory.createModern();
         GraphHelper.cloneElements(tg, graph);
+        // Start on marko, received via scan (so not cached, also not a hit or miss).
+        // out to lop/josh/vadas (3 missses).
+        // in to marko x3, josh, peter (miss on peter/marko (x3 will be optimized to read once), hit on josh).
+        // Total: 5 misses, 1 hit.
         graph.traversal().V().has("name", "marko").out().in().toList();
         Assert.assertEquals(1L, graph.getBaseGraph().transactionCache.get().getHitCount());
         Assert.assertEquals(5L, graph.getBaseGraph().transactionCache.get().getMissCount());
-        graph.traversal().V().has("name", "marko").out().in().toList();
-        Assert.assertEquals(1L, graph.getBaseGraph().transactionCache.get().getHitCount());
-        Assert.assertEquals(5L, graph.getBaseGraph().transactionCache.get().getMissCount());
-        graph.traversal().V().has("name", "marko").out().in().toList();
-        Assert.assertEquals(1L, graph.getBaseGraph().transactionCache.get().getHitCount());
-        Assert.assertEquals(5L, graph.getBaseGraph().transactionCache.get().getMissCount());
-        graph.traversal().V().has("name", "marko").out().in().toList();
-        Assert.assertEquals(1L, graph.getBaseGraph().transactionCache.get().getHitCount());
-        Assert.assertEquals(5L, graph.getBaseGraph().transactionCache.get().getMissCount());
+        graph.traversal().V().has("name", "marko").out().in().out().toList();
+        // out to vadas, lop, josh, ripple, (3 hits, 1 miss on ripple).
+        // Total 6 misses, 4 hits.
+        Assert.assertEquals(4L, graph.getBaseGraph().transactionCache.get().getHitCount());
+        Assert.assertEquals(6L, graph.getBaseGraph().transactionCache.get().getMissCount());
     }
 }

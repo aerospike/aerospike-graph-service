@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.READ_SOCKET_TIMEOUT;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.READ_TOTAL_TIMEOUT;
 
@@ -28,6 +29,7 @@ public class TestSupernodeStackOverflow {
     static public void beforeAll() throws InterruptedException {
         CONFIG.setProperty(READ_TOTAL_TIMEOUT, 1500);
         CONFIG.setProperty(READ_SOCKET_TIMEOUT, 500);
+        CONFIG.setProperty(FIREFLY_READ_THROUGH_CACHE_WEIGHT, "10000");
         GRAPH = FireflyGraph.open(CONFIG);
         GRAPH.getBaseGraph().dropDatabase(GRAPH, false);
         final var g = GRAPH.traversal();

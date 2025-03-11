@@ -1,7 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
-import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -56,7 +55,6 @@ public final class FireflyGraphCountStrategy extends FireflyStrategyBase {
         if (ComputerHelper.onGraphComputer(traversal))
             return;
         final List<Step> steps = new ArrayList<>(traversal.getSteps());
-        steps.removeIf(step -> step.getClass().equals(FireflyCacheGCStep.class));
 
         // Must be at least GraphStep and CountGlobalStep.
         if (steps.size() < 2 || !(steps.get(0) instanceof GraphStep))

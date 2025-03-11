@@ -51,7 +51,7 @@ public class TestScanHitCounter extends AbstractFireflySuite {
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("this", "that").profile().next();
         Collection<? extends Metrics> m = p.getMetrics();
-        Metrics fm = (Metrics) p.getMetrics().toArray()[4];
+        Metrics fm = (Metrics) p.getMetrics().toArray()[3];
         System.out.println(p);
         Metrics nested = fm.getNested("FireflyMetrics");
         assertEquals(3, nested.getAnnotations().size());
@@ -76,7 +76,7 @@ public class TestScanHitCounter extends AbstractFireflySuite {
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("a", "b").profile().next();
-        Metrics fm = (Metrics) prof.getMetrics().toArray()[4];
+        Metrics fm = (Metrics) prof.getMetrics().toArray()[3];
         assertEquals(3, fm.getNested("FireflyMetrics").getAnnotations().size());
         System.out.println(prof);
     }

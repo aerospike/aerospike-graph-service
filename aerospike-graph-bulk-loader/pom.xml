@@ -16,6 +16,7 @@
             <groupId>com.aerospike</groupId>
             <artifactId>aerospike-graph-gremlin</artifactId>
             <version>${project.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -27,26 +28,31 @@
             <groupId>org.apache.tinkerpop</groupId>
             <artifactId>tinkergraph-gremlin</artifactId>
             <version>${tinkerpop.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>${guava.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-core</artifactId>
             <version>${logback.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>${logback.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
@@ -71,6 +77,7 @@
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>
             <version>${netty.version}</version>
+            <scope>provided</scope>
         </dependency>
         <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEZOOKEEPER-5961102 in spark-core_2.12@3.4.3 -->
         <dependency>
@@ -149,7 +156,7 @@
             <groupId>com.google.cloud.bigdataoss</groupId>
             <artifactId>gcs-connector</artifactId>
             <version>hadoop3-2.2.25</version>
-            <classifier>shaded</classifier>
+            <scope>provided</scope>
         </dependency>
         <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGCODEHAUSJETTISON-3168085 in spark-hadoop-cloud_2.12@3.4.3 -->
         <dependency>
@@ -160,6 +167,7 @@
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-hadoop-cloud_2.12</artifactId>
+            <scope>provided</scope>
             <version>3.4.3</version>
         </dependency>
         <dependency>

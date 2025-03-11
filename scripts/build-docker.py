@@ -109,7 +109,6 @@ def parse_args():
 def run_command(command):
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=os.environ.copy(),
                                shell=True, text=True)
-
     for line in iter(process.stdout.readline, ''):
         print(line, end='')
 
@@ -132,12 +131,7 @@ def fetch_dependencies():
 
 
 def build_jars(build_args):
-    if not build_args.slim:
-        run_command(
-            "mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -DskipTests=true clean install "
-            "--no-transfer-progress")
-    else:
-        run_command("mvn -pl aerospike-graph-gremlin -am -DskipTests=true clean install --no-transfer-progress")
+    run_command("mvn -DskipTests=true clean install --no-transfer-progress")
 
 
 def build_docker(build_args, graph_jar, bulk_loader_jar):
@@ -148,7 +142,8 @@ def build_docker(build_args, graph_jar, bulk_loader_jar):
         "SPARK_ZIP": SPARK_ZIP,
         "SPARK_VERSION": SPARK_VERSION
     } if not build_args.slim else {
-        "FIREFLY_GRAPH": graph_jar
+        "FIREFLY_GRAPH": graph_jar,
+        "BULKLOADER": bulk_loader_jar
     }
     # See https://gabrieldemarmiesse.github.io/python-on-whales/sub-commands/buildx/ for help.
     docker_file = "docker/Dockerfile-slim" if build_args.slim else "docker/Dockerfile"

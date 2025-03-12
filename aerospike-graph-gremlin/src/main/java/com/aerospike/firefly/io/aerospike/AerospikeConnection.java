@@ -281,7 +281,6 @@ public class AerospikeConnection implements AutoCloseable {
     public boolean isMergeEdgeDataModelEnabled = true;
     public final List<String> vertexNonPropertyBins = new ArrayList<>();
     public final List<String> vertexPropertyBins = new ArrayList<>();
-    public final List<String> edgeBins = new ArrayList<>();
 
     public final String QUERY_IMPL;
 
@@ -596,11 +595,6 @@ public class AerospikeConnection implements AutoCloseable {
         vertexNonPropertyBins.add(USER_KEY_BIN); // 13
         vertexNonPropertyBins.add(LABEL_BIN); // 14
         vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_ID_BIN);// 17
-
-        edgeBins.add(EDGE_DATA_BIN);
-        //edgeBins.add(SUPERNODE_EDGE_PROPERTIES_BIN);
-        edgeBins.add(SUPERNODES_OUT_BIN);
-        edgeBins.add(SUPERNODES_IN_BIN);
 
         // Set Edge cache size
         final long onRecordIdMaxLimit = getRecordIdLimitFromAerospike(.9);
@@ -1608,12 +1602,6 @@ public class AerospikeConnection implements AutoCloseable {
         final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
         batchPolicy.sendKey = false;
         configureReadPolicy(batchPolicy);
-        if (keys[0].setName.equals(EDGE_AERO_SET)) {
-            final List<Operation> operations = new ArrayList<>();
-            edgeBins.forEach(bin -> operations.add(MapOperation.getByIndexRange(
-                    bin, Value.get(0).toInteger(), Value.get(Integer.MAX_VALUE).toInteger(), MapReturnType.UNORDERED_MAP)));
-            return client.get(batchPolicy, keys, operations.toArray(Operation[]::new));
-        }
         try {
             return (cache != null) ? cache.read(keys, batchPolicy) : client.get(batchPolicy, keys);
         } catch (final AerospikeException e) {

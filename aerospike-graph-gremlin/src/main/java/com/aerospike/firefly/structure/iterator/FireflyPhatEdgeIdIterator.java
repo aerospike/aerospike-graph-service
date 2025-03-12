@@ -40,7 +40,7 @@ public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
             } else {
                 getNextKeyRecords();
                 n++;
-                if (n % 1000 == 0) System.out.println("n: " + n);
+                //if (n % 1000 == 0) System.out.println("n: " + n);
                 return hasNext();
             }
         } else {

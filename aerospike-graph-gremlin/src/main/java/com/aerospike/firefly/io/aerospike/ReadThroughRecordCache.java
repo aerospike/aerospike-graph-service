@@ -272,6 +272,8 @@ public class ReadThroughRecordCache extends FireflyCache {
      */
     @Override
     public void invalidateAll() {
+        hitCounter.set(0);
+        missCounter.set(0);
         cache.invalidateAll();
     }
 }

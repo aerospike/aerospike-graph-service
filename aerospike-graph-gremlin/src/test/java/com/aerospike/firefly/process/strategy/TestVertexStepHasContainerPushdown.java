@@ -1,7 +1,6 @@
 package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
-import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.GraphHelper;
@@ -171,7 +170,7 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
                 Assert.assertEquals(2, batchEdgeReadStep.fireflyHasContainers.size());
             } else if (found) {
                 // Expect all Has step to not be pulled into batch edge read.
-                Assert.assertTrue((step instanceof HasStep || step instanceof FireflyCacheGCStep));
+                Assert.assertTrue(step instanceof HasStep);
             }
         }
         Assert.assertTrue(found);
@@ -200,7 +199,7 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
                 Assert.assertEquals(1, batchEdgeReadStep.fireflyHasContainers.size());
             } else if (found) {
                 // Expect all Has step to not be pulled into batch edge read.
-                Assert.assertTrue((step instanceof HasStep || step instanceof FireflyCacheGCStep));
+                Assert.assertTrue(step instanceof HasStep);
             }
         }
         Assert.assertTrue(found);
@@ -239,7 +238,7 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
                 Assert.assertEquals(2, batchEdgeReadStep.fireflyHasContainers.size());
             } else if (found) {
                 // Expect all Has step to not be pulled into batch edge read.
-                Assert.assertTrue((step instanceof HasStep || step instanceof FireflyCacheGCStep));
+                Assert.assertTrue(step instanceof HasStep);
             }
         }
         Assert.assertTrue(found);

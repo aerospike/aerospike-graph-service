@@ -4,6 +4,7 @@ import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import org.apache.spark.sql.Column;
 import org.slf4j.Logger;
@@ -17,6 +18,7 @@ import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.INCREMENTA
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.RECOVERY_INFO_NO_CLEAR_EXISTING_DATA_FLAG_OR_RESUME;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.RESUME_AND_CLEAR_EXISTING_DATA;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.RESUME_WITHOUT_RECOVERY_INFO;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CLEAR_EXISTING_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
@@ -250,5 +252,10 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
     @Override
     public SparkBulkLoaderState transitionState() {
         return nextState;
+    }
+
+    @Override
+    protected BulkLoadStateStatusMap getStateMap() {
+        return new BulkLoadStateStatusMap("initializing", false, BULK_LOAD_STATUS_IN_PROGRESS);
     }
 }

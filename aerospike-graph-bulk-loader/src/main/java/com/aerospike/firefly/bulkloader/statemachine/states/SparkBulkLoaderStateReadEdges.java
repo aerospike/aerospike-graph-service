@@ -3,6 +3,9 @@ package com.aerospike.firefly.bulkloader.statemachine.states;
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
+
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
 
 public class SparkBulkLoaderStateReadEdges extends SparkBulkLoaderState {
 
@@ -26,5 +29,10 @@ public class SparkBulkLoaderStateReadEdges extends SparkBulkLoaderState {
     @Override
     public SparkBulkLoaderState transitionState() {
         return new SparkBulkLoaderStatePreflight(sparkBulkLoaderStateMachine);
+    }
+
+    @Override
+    protected BulkLoadStateStatusMap getStateMap() {
+        return new BulkLoadStateStatusMap("processing edges", false, BULK_LOAD_STATUS_IN_PROGRESS);
     }
 }

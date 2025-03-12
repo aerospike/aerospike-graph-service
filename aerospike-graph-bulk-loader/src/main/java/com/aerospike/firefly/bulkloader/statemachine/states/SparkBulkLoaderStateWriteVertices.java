@@ -1,7 +1,10 @@
 package com.aerospike.firefly.bulkloader.statemachine.states;
 
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
+
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
 
 public class SparkBulkLoaderStateWriteVertices extends SparkBulkLoaderState {
     public SparkBulkLoaderStateWriteVertices(final SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine) {
@@ -30,5 +33,12 @@ public class SparkBulkLoaderStateWriteVertices extends SparkBulkLoaderState {
     @Override
     public SparkBulkLoaderState transitionState() {
         return new SparkBulkLoaderStateVerifyVertices(sparkBulkLoaderStateMachine);
+    }
+
+    @Override
+    protected BulkLoadStateStatusMap getStateMap() {
+        return new BulkLoadStateStatusMap("writing vertices", false, BULK_LOAD_STATUS_IN_PROGRESS,
+                this.sparkBulkLoaderStateMachine.progressBar.getVertexPartitionWritePercentage(),
+                this.sparkBulkLoaderStateMachine.progressBar.getVerticesWritten());
     }
 }

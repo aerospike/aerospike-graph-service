@@ -3,8 +3,12 @@ package com.aerospike.firefly.bulkloader;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderState;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateDone;
+import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateError;
 import com.aerospike.firefly.bulkloader.statemachine.states.SparkBulkLoaderStateStart;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceErrors;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,15 +20,16 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
-import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad.BULK_LOAD_SUCCESS;
-import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad.formatErrorCount;
 
 public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderMain.class);
 
+    public static final String BULK_LOAD_SUCCESS = "Success";
     private static final Map<String, Future<SparkBulkLoaderStateMachine>> RUNNING_JOBS = new HashMap<>();
+    private static final AtomicReference<SparkBulkLoaderState> CURRENT_STATE = new AtomicReference<>();
 
     public static void main(final String[] args) {
         // Create new Object so we can invoke non-static method load()
@@ -41,20 +46,12 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
         final ExecutorService executor = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder().setDaemon(true).build());
         final String uuid = UUID.randomUUID().toString();
+        RUNNING_JOBS.put(uuid, executor.submit(() -> new SparkBulkLoaderStateMachine(args)));
         SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine = null;
+        boolean stateMachineInitialized = false;
         try {
-            RUNNING_JOBS.put(uuid, executor.submit(() -> new SparkBulkLoaderStateMachine(args)));
             sparkBulkLoaderStateMachine = RUNNING_JOBS.get(uuid).get();
-            SparkBulkLoaderState state = new SparkBulkLoaderStateStart(sparkBulkLoaderStateMachine);
-            while (!(state instanceof SparkBulkLoaderStateDone)) {
-                state.executeState();
-                state = state.transitionState();
-            }
-            sparkBulkLoaderStateMachine.progressBar.printProgress();
-            final String output = formatErrorCount(sparkBulkLoaderStateMachine.initializerGraph);
-            if (!output.equals(BULK_LOAD_SUCCESS)) {
-                LOGGER.warn(output);
-            }
+            stateMachineInitialized = true;
         } catch (final ExecutionException ee) {
             // Drill into exception and throw the root exception. Should be a RuntimeException generally.
             Throwable cause = ee;
@@ -73,20 +70,100 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             LOGGER.error(message);
             throw new RuntimeException(message, ie);
         } finally {
-            if (sparkBulkLoaderStateMachine != null) {
-                sparkBulkLoaderStateMachine.cleanup();
+            if (!stateMachineInitialized) {
+                cleanup(sparkBulkLoaderStateMachine, uuid);
+            } else if (!sparkBulkLoaderStateMachine.isL2Mode) {
+                shutdownExecutor(executor);
             }
-            executor.shutdown();
+        }
+        if (sparkBulkLoaderStateMachine.isL2Mode) {
+            loadL2Async(sparkBulkLoaderStateMachine, uuid, executor);
+        } else {
+            loadL3Sync(sparkBulkLoaderStateMachine, uuid);
+        }
+    }
+
+    private void loadL3Sync(final SparkBulkLoaderStateMachine stateMachine, final String uuid) {
+        try {
+            SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
+            while (!(state instanceof SparkBulkLoaderStateDone)) {
+                state.executeState();
+                state = state.transitionState();
+            }
+            stateMachine.progressBar.printProgress();
+            final String output = formatErrorCount(stateMachine.initializerGraph);
+            if (!output.equals(BULK_LOAD_SUCCESS)) {
+                LOGGER.warn(output);
+            }
+        } finally {
+            cleanup(stateMachine, uuid);
+        }
+    }
+
+    private void loadL2Async(final SparkBulkLoaderStateMachine stateMachine, final String uuid,
+                             final ExecutorService executor) {
+        final SparkBulkLoaderState startingState = new SparkBulkLoaderStateStart(stateMachine);
+        CURRENT_STATE.set(startingState);
+        executor.submit(() -> {
+            SparkBulkLoaderState state = null;
             try {
-                boolean shutdownSucceeded = executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS);
-                if (!shutdownSucceeded) {
-                    LOGGER.error("Failed to shutdown executor.");
+                state = startingState;
+                try {
+                    while (!(state instanceof SparkBulkLoaderStateDone)) {
+                        state.executeState();
+                        state = state.transitionState();
+                        if (!(state instanceof SparkBulkLoaderStateDone)) {
+                            CURRENT_STATE.set(state);
+                        }
+                    }
+                } catch (final Exception e) {
+                    LOGGER.error("L2 bulk load failed", e);
+                    state = new SparkBulkLoaderStateError(stateMachine, e);
                 }
-            } catch (final InterruptedException e) {
-                LOGGER.error("Failed to shutdown executor", e);
+                stateMachine.progressBar.printProgress();
+            } finally {
+                cleanup(stateMachine, uuid);
+                // We put this after cleanup (No RUNNING_JOBS) for Done and Error states since they mark the bulk load as complete
+                CURRENT_STATE.set(state);
+                shutdownExecutor(executor);
             }
-            System.clearProperty("BULK_LOADING");
-            RUNNING_JOBS.remove(uuid);
+        });
+    };
+
+    private void cleanup(final SparkBulkLoaderStateMachine stateMachine, final String uuid) {
+        if (stateMachine != null) {
+            stateMachine.cleanup();
+        }
+        System.clearProperty("BULK_LOADING");
+        RUNNING_JOBS.remove(uuid);
+    }
+
+    private void shutdownExecutor(final ExecutorService executor) {
+        executor.shutdown();
+        try {
+            boolean shutdownSucceeded = executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS);
+            if (!shutdownSucceeded) {
+                LOGGER.error("Failed to shutdown executor.");
+            }
+        } catch (final InterruptedException e) {
+            LOGGER.error("Failed to shutdown executor", e);
+        }
+    }
+
+    public static String formatErrorCount(final FireflyGraph graph) {
+        final AerospikeConnection db = graph.getBaseGraph();
+        final long badEntryCount = db.incrementAndGetBadEntryCount(0);
+        final long duplicateVertexIdCount = db.incrementAndGetDuplicateVertexIdCount(0);
+        final long badEdgeCount = db.incrementAndGetBadEdgeCount(0);
+        if (badEntryCount == 0 && duplicateVertexIdCount == 0 && badEdgeCount == 0) {
+            return BULK_LOAD_SUCCESS;
+        } else {
+            final String errorCount = "Warning: Errors were encountered during bulk loading." +
+                    "\n\t\tduplicate-vertex-id-count: " + duplicateVertexIdCount +
+                    "\n\t\tbad-edge-count: " + badEdgeCount +
+                    "\n\t\tbad-entry-count: " + badEntryCount +
+                    "\n\t\tUse the g.call(\"" + new BulkLoaderServiceErrors<>(graph).getName() + "\") command for details.";
+            return errorCount;
         }
     }
 
@@ -105,5 +182,13 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
+    }
+
+    public Map<String, Object> getStatus() {
+        final SparkBulkLoaderState state = CURRENT_STATE.get();
+        if (state == null) {
+            throw new IllegalStateException("No bulk loading jobs have been started");
+        }
+        return state.getStateStatus();
     }
 }

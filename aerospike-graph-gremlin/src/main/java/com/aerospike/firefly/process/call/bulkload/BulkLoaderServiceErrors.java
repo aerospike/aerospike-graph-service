@@ -7,9 +7,9 @@ import java.util.Set;
 
 public class BulkLoaderServiceErrors<I, R> extends BulkLoaderServiceBase<I, R> {
     private static final String KEY = "type";
-    private static final String DUPLICATE_VID = "duplicate-vertex-ids";
-    private static final String BAD_ENTRY = "bad-entries";
-    private static final String BAD_EDGE = "bad-edges";
+    public static final String DUPLICATE_VID = "duplicate-vertex-ids";
+    public static final String BAD_ENTRY = "bad-entries";
+    public static final String BAD_EDGE = "bad-edges";
     private static final Set<String> VALUES = Set.of(DUPLICATE_VID, BAD_ENTRY, BAD_EDGE);
 
     public BulkLoaderServiceErrors(final FireflyGraph graph) {

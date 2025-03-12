@@ -1,7 +1,10 @@
 package com.aerospike.firefly.bulkloader.statemachine.states;
 
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
+
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
 
 public class SparkBulkLoaderStateWriteEdges extends SparkBulkLoaderState {
     public SparkBulkLoaderStateWriteEdges(final SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine) {
@@ -29,5 +32,12 @@ public class SparkBulkLoaderStateWriteEdges extends SparkBulkLoaderState {
     @Override
     public SparkBulkLoaderState transitionState() {
         return new SparkBulkLoaderStateVerifyEdges(sparkBulkLoaderStateMachine);
+    }
+
+    @Override
+    protected BulkLoadStateStatusMap getStateMap() {
+        return new BulkLoadStateStatusMap("writing edges", false, BULK_LOAD_STATUS_IN_PROGRESS,
+                this.sparkBulkLoaderStateMachine.progressBar.getEdgePartitionWritePercentage(),
+                this.sparkBulkLoaderStateMachine.progressBar.getEdgesWritten());
     }
 }

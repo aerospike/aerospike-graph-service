@@ -7,8 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.TimerTask;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class ProgressBar extends TimerTask {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProgressBar.class);
@@ -32,6 +30,8 @@ public class ProgressBar extends TimerTask {
     private long verticesInitial = 0L;
     private int vertexPartitions = 0;
     private int edgePartitions = 0;
+    private Double vertexPartitionWritePercentage = null;
+    private Double edgePartitionWritePercentage = null;
     private AerospikeGraphException lastException = null;
 
     public ProgressBar(final int intervalMillis) {
@@ -148,17 +148,44 @@ public class ProgressBar extends TimerTask {
         }
     }
 
-    private String getPartitionProgress(final int totalPartitions, final int completePartitions) {
+    public int getVertexPartitionWritePercentage() {
+        if (this.vertexPartitionWritePercentage == null) {
+            return 0;
+        } else {
+            return Double.valueOf(vertexPartitionWritePercentage * 100).intValue();
+        }
+    }
+
+    public int getEdgePartitionWritePercentage() {
+        if (this.edgePartitionWritePercentage == null) {
+            return 0;
+        } else {
+            return Double.valueOf(edgePartitionWritePercentage * 100).intValue();
+        }
+    }
+
+    public long getVerticesWritten() {
+        return this.verticesWritten;
+    }
+
+    public long getEdgesWritten() {
+        return this.edgesWritten;
+    }
+
+    private Double getPartitionProgressPercentage(final int totalPartitions, final int completePartitions) {
         if (graph == null || totalPartitions <= 0) {
             return null;
         } else {
-            final double percentComplete = (double) completePartitions / totalPartitions;
-            final int blocksComplete = (int) (percentComplete * 20);
-            final String partitionProgress = IntStream.range(0, 20)
-                    .mapToObj(i -> i < blocksComplete ? "■" : "□")
-                    .collect(Collectors.joining());
-            return "\t\t\t[" + partitionProgress + "]\n" +
-                    "\t\t\t" + completePartitions + " of " + totalPartitions + " partitions complete (" +
+            return (double) completePartitions / totalPartitions;
+        }
+    }
+
+
+    private String getPartitionProgress(final int totalPartitions, final int completePartitions, final Double percentComplete) {
+        if (graph == null || totalPartitions <= 0 || percentComplete == null) {
+            return null;
+        } else {
+            return "\t\t\t" + completePartitions + " of " + totalPartitions + " partitions complete (" +
                     String.format("%.2f", percentComplete * 100) + "%)\n";
         }
     }
@@ -178,7 +205,8 @@ public class ProgressBar extends TimerTask {
                         "\t\t\tTotal of " + verticesWritten + " vertices have been successfully written\n";
                 final int totalPartitions = vertexPartitions;
                 final int completePartitions = RecoveryUtil.completedVertexPartitions(graph.getBaseGraph()).size();
-                final String partitionProgress = getPartitionProgress(totalPartitions, completePartitions);
+                vertexPartitionWritePercentage = getPartitionProgressPercentage(totalPartitions, completePartitions);
+                final String partitionProgress = getPartitionProgress(totalPartitions, completePartitions, vertexPartitionWritePercentage);
                 return output + (partitionProgress == null ? "" : partitionProgress);
             }
         } else {
@@ -222,7 +250,8 @@ public class ProgressBar extends TimerTask {
                     }
                 }
                 final int completePartitions = RecoveryUtil.completedEdgePartitions(graph.getBaseGraph()).size();
-                final String partitionProgress = getPartitionProgress(totalPartitions, completePartitions);
+                edgePartitionWritePercentage = getPartitionProgressPercentage(totalPartitions, completePartitions);
+                final String partitionProgress = getPartitionProgress(totalPartitions, completePartitions, edgePartitionWritePercentage);
                 return output + (partitionProgress == null ? "" : partitionProgress);
             }
         } else {

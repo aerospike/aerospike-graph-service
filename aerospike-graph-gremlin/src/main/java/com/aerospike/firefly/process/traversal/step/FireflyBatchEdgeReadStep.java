@@ -80,7 +80,12 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                 getStrategy(OptionsStrategy.class).ifPresent(
                         optionsStrategy -> traversalOptions.putAll(optionsStrategy.getOptions()));
         if (traversalOptions.containsKey("aerospike.graph.parallelize")) {
-            executorService = Executors.newFixedThreadPool(Integer.parseInt(traversalOptions.get("aerospike.graph.parallelize").toString()));
+            executorService = Executors.newFixedThreadPool(Integer.parseInt(traversalOptions.get("aerospike.graph.parallelize").toString()), r -> {
+                final Thread t = new Thread(r);
+                t.setName("Aerospike-Graph-BatchEdgeRead-Worker-" + t.getId());
+                t.setDaemon(true);
+                return t;
+            });
         } else {
             executorService = null;
         }
@@ -291,27 +296,39 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         }
 
         final Set<FireflyId> uniqueIds3 = new HashSet<>();
+        List<Future> test = new ArrayList<>();
         for (final List<FireflyId> entry : duplicateIdMap.values()) {
             for (final FireflyId id : entry) {
                 if (!fireflyEdgeMap.containsKey(id))
                     uniqueIds3.add(id);
             }
-            uniqueIds3.addAll(entry);
+            if (uniqueIds3.size() > graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+                final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds3);
+                test.add(executorService.submit(() -> {
+                            final List<FireflyEdge> edges = graph.readEdges(aerospikeHasContainers, idsToRead, null);
+                            for (final FireflyEdge edge : edges) {
+                                fireflyEdgeMap.put(edge.id, edge);
+                            }
+                        }
+                ));
+                uniqueIds3.clear();
+            }
         }
-        Future test = null;
-        if (uniqueIds3.size() > graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+        if (!uniqueIds3.isEmpty()) {
             final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds3);
-            test = executorService.submit(() -> {
+            test.add(executorService.submit(() -> {
                         final List<FireflyEdge> edges = graph.readEdges(aerospikeHasContainers, idsToRead, null);
                         for (final FireflyEdge edge : edges) {
                             fireflyEdgeMap.put(edge.id, edge);
                         }
                     }
-            );
+            ));
         }
-        if (test != null) {
+        if (!test.isEmpty()) {
             try {
-                test.get();
+                for (final Future future : test) {
+                    future.get();
+                }
             } catch (final Exception e) {
                 throw new RuntimeException(e);
             }

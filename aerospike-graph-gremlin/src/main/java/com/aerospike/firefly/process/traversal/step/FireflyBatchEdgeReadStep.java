@@ -48,6 +48,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
     public final List<HasContainer> aerospikeHasContainers;
     private final int barrierSize;
     ExecutorService executorService;
+    boolean debug = false;
 
     public FireflyBatchEdgeReadStep(final Traversal.Admin traversal,
                                     final Direction direction,
@@ -82,11 +83,21 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         } else {
             executorService = null;
         }
+        if (traversalOptions.containsKey("aerospike.graph.debug")) {
+            debug = Boolean.parseBoolean(traversalOptions.get("aerospike.graph.debug").toString());
+        }
     }
+
 
     private void parallelConsumer(final TraverserSet<Edge> set) {
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
+        if (debug) {
+            TaskLogger.reset();
+        }
         FireflyBatchReadHelper.pullFromLeft(traversal, graph, set, barrierSize);
+        if (debug) {
+            TaskLogger.complete("pull");
+        }
 
         // Create output traverser set since we cant append to the input while we are iterating.
         final List<TraverserSet<Edge>> output = new ArrayList<>();
@@ -117,6 +128,9 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                 }));
             }
         }
+        if (debug) {
+            TaskLogger.complete("launch");
+        }
 
         List<Future<?>> futures2 = new ArrayList<>();
         for (final Pair<Element, Traverser.Admin> pair : orderedElements) {
@@ -133,6 +147,9 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                 }
             } catch (final Exception e) {
                 throw new RuntimeException(e);
+            }
+            if (debug) {
+                TaskLogger.complete("awaitIndex");
             }
             for (int i = previousSize; i < fireflyIdList.size(); i++) {
                 final FireflyId id = fireflyIdList.get(i);
@@ -159,6 +176,12 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                     return null;
                 }));
             }
+            if (debug) {
+                TaskLogger.complete("submit2");
+            }
+        }
+        if (debug) {
+            TaskLogger.complete("batchRead");
         }
 
         // Drain data to output. No need to pass in aerospikeHasContainers since they were used to filter Edge IDs already.
@@ -179,6 +202,9 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                 throw new RuntimeException(e);
             }
         }
+        if (debug) {
+            TaskLogger.complete("awaitFutures2");
+        }
 
         //TaskLogger.complete("drain");
 
@@ -192,6 +218,10 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         } else {
             set.addAll(finalOutput);
             output.clear(); // Force garbage collection.
+        }
+        if (debug) {
+            TaskLogger.complete("complete");
+            TaskLogger.log(graph);
         }
     }
 

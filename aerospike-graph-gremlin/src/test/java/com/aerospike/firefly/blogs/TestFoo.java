@@ -27,6 +27,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
@@ -49,6 +50,7 @@ public class TestFoo {
 
     static class RunQuery implements Callable {
         private final GraphTraversal traversal;
+
         public RunQuery(GraphTraversal traversal) {
             this.traversal = traversal;
         }
@@ -112,6 +114,56 @@ public class TestFoo {
     }
 
     @Test
+    public void loadlocalsupernodes() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal().with("evaluationTimeout", 24 * 60 * 60 * 1000);
+            Vertex v1 = g.V(1).next();
+            Vertex v2 = g.V(2).next();
+            g.addE("test").from(v1).to(v2).property("ruleHash", "fr").next();
+            g.addE("test").from(v1).to(v2).property("ruleHash", "ig").next();
+            for (int i = 0; i < 50_000; i++) {
+                g.addE("test").from(v1).to(v2).property("ruleHash", "a").next();
+                if (i % 100 == 0) {
+                    System.out.println(i);
+                }
+            }
+            System.out.println(g.V(1).outE().has("ruleHash", P.within(Set.of("fr", "ig"))).toList());
+        }
+    }
+
+    @Test
+    public void loadlocalsupernodesq() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal().with("evaluationTimeout", 24 * 60 * 60 * 1000);
+            for (int i = 0; i < 50; i++) {
+                System.out.println(g.with("aerospike.graph.parallelize", 10).V(1, 1, 1, 1, 1, 1, 2).bothE().has("ruleHash", P.within(Set.of("fr", "ig"))).toList());
+            }
+            List<Long> durations = new ArrayList<>();
+            for (int i = 0; i < 100; i++) {
+                Instant start = Instant.now();
+                g.with("aerospike.graph.parallelize", 10).V(1, 1, 1, 1, 1, 1, 2).bothE().has("ruleHash", P.within(Set.of("fr", "ig"))).toList();
+                durations.add(Instant.now().toEpochMilli() - start.toEpochMilli());
+            }
+            System.out.println("Median " + durations.stream().mapToLong(l -> l).sorted().skip(durations.size() / 2).findFirst().getAsLong());
+            System.out.println("Average " + durations.stream().mapToLong(l -> l).average().getAsDouble());
+            System.out.println("Max " + durations.stream().mapToLong(l -> l).max().getAsLong());
+            System.out.println("Min " + durations.stream().mapToLong(l -> l).min().getAsLong());
+
+            durations = new ArrayList<>();
+            for (int i = 0; i < 100; i++) {
+                Instant start = Instant.now();
+                g.V(1, 1, 1, 1, 1, 1, 2).bothE().has("ruleHash", P.within(Set.of("fr", "ig"))).toList();
+                durations.add(Instant.now().toEpochMilli() - start.toEpochMilli());
+            }
+            System.out.println("Median " + durations.stream().mapToLong(l -> l).sorted().skip(durations.size() / 2).findFirst().getAsLong());
+            System.out.println("Average " + durations.stream().mapToLong(l -> l).average().getAsDouble());
+            System.out.println("Max " + durations.stream().mapToLong(l -> l).max().getAsLong());
+            System.out.println("Min " + durations.stream().mapToLong(l -> l).min().getAsLong());
+        }
+    }
+
+
+    @Test
     public void query3() {
         /// "MATCH (srcVM:VM)-[:HAS_INTERFACE]->(srcInterface:Interface) WHERE srcInterface.ip = $src OR  $src IN split(srcInterface.ip, ',') WITH srcVM, srcInterface
         //OPTIONAL MATCH (srcVM:VM)<-[:HAS_VM]-(srcHv:HyperVisor)<-[:HAS_HYPERVISOR] -(srcRack:Rack)<-[:HAS_RACK]-(srcFloor:Floor)<-[:HAS_FLOOR]-(srcDC:Datacenter)
@@ -124,6 +176,8 @@ public class TestFoo {
         //OPTIONAL MATCH (destDC:Datacenter)-[:HAS_FLOOR]->(destFloor:Floor)-[:HAS_RACK]->(destRack:Rack)-[:HAS_HYPERVISOR]->(destHv:HyperVisor)-[:HAS_VM]->(destVM)
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = graph.traversal().with("evaluationTimeout", 24 * 60 * 60 * 1000);
+            Vertex v1 = g.addV("test").property(T.id, 1).next();
+            Vertex v2 = g.addV("test").property(T.id, 2).next();
 
             Instant start = Instant.now();
 
@@ -140,11 +194,11 @@ public class TestFoo {
 
             Future<List<Path>> output3 = executorService.submit(new RunQuery(
                     g.V().hasLabel("Interface").has("ip", "10.1.20.208").as("destInterface").
-                    in("HAS_INTERFACE").as("destVM").
-                    in("HAS_VM").as("destHv").
-                    in("HAS_HYPERVISOR").as("destRack").
-                    in("HAS_RACK").as("destFloor").
-                    in("HAS_FLOOR").as("destDC").path()));
+                            in("HAS_INTERFACE").as("destVM").
+                            in("HAS_VM").as("destHv").
+                            in("HAS_HYPERVISOR").as("destRack").
+                            in("HAS_RACK").as("destFloor").
+                            in("HAS_FLOOR").as("destDC").path()));
             //OPTIONAL MATCH (destDC:Datacenter)-[:HAS_FLOOR]->(destFloor:Floor)-[:HAS_RACK]->(destRack:Rack)-[:HAS_HYPERVISOR]->(destHv:HyperVisor)-[:HAS_VM]->(destVM)
 
             try {
@@ -211,40 +265,55 @@ public class TestFoo {
         //WITH distinct destVMInterface, destCIDR, sendsTraffic, srcVM, srcDC, srcFloor, srcRack, srcHv, srcInterface, firewall, fwInterface
         //MATCH (destVM:VM)-[destHasInterface:HAS_INTERFACE]->(destVMInterface) WHERE destVM.application = $dest
         //OPTIONAL MATCH (destDC:Datacenter)-[destHasFloor:HAS_FLOOR]->(destFloor:Floor)-[destHasRack:HAS_RACK]->(destRack:Rack)-[destHasHv:HAS_HYPERVISOR]->(destHv:HyperVisor)-[destHasVM:HAS_VM]->(destVM)
+        GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using("34.58.141.145", 8182, "g"));
+        g = g.with("evaluationTimeout", 24 * 60 * 60 * 1000);
+        var idx = g.call("aerospike.graph.admin.index.status").with("element_type", "vertex").with("property_key", "application").next();
+        System.out.println(idx);
+        final List<Object> applicationOptimus = g.V().has("application", "Optimus").id().toList();
+        System.out.println("applicationOptimus: " + applicationOptimus);
+        final List<Object> devOps = g.V().has("application", "DevOps").id().toList();
+        System.out.println("devOps: " + devOps);
 
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            final GraphTraversalSource g = graph.traversal().with("evaluationTimeout", 24 * 60 * 60 * 1000);
-            final List<Object> applicationOptimus = g.V().has("application", "Optimus").id().toList();
 
-            //for (int i = 0; i < 5; i++) {
-            //    Instant start2 = Instant.now();
-            //    List<Object> ruleHashes = g.V(applicationOptimus).
-            //            out("HAS_INTERFACE").dedup().
-            //            out("BELONGS_TO_CIDR").dedup().
-            //            outE("SENDS_TRAFFIC").values("ruleHash").dedup().toList();
-            //    System.out.println("Time taken: " + (Instant.now().toEpochMilli() - start2.toEpochMilli()));
-            //}
+        //for (int i = 0; i < 5; i++) {
+        //    Instant start2 = Instant.now();
+        //    List<Object> ruleHashes = g.V(applicationOptimus).
+        //            out("HAS_INTERFACE").dedup().
+        //            out("BELONGS_TO_CIDR").dedup().
+        //            outE("SENDS_TRAFFIC").values("ruleHash").dedup().toList();
+        //    System.out.println("Time taken: " + (Instant.now().toEpochMilli() - start2.toEpochMilli()));
+        //}
 
-            for (int i = 0; i < 10; i++) {
-                Instant start1 = Instant.now();
-
-                final List<Path> test1 = g.V(applicationOptimus).as("srcVM").
-                        out("HAS_INTERFACE").as("srcInterface").
-                        out("BELONGS_TO_CIDR").as("srcCIDR").
-                        outE("SENDS_TRAFFIC").as("sendsTraffic").
-                        inV().hasLabel("Interface").as("fwInterface").path().by(T.id).by(T.id).by(T.id).by("ruleHash").by(T.id).toList();
-
-                Set<Object> ruleHashes = test1.stream().map(p -> p.objects().get(p.size() - 2)).collect(Collectors.toSet());
-
-                final List<Path> test2 = g.V().has("application", "DevOps").as("destVM").
-                        out("HAS_INTERFACE").as("destInterface").
-                        out("BELONGS_TO_CIDR").as("destCIDR").
-                        inE("FORWARDS_TRAFFIC").as("forwardsTraffic").
-                        outV().as("fwInterface").path().by(T.id).by(T.id).by(T.id).by("ruleHash").by(T.id).toList();
-                List<Path> intersections = test2.stream().filter(p -> ruleHashes.contains(p.objects().get(p.size() - 2))).collect(Collectors.toList());
-
-                System.out.println("Time taken: " + (Instant.now().toEpochMilli() - start1.toEpochMilli()));
-            }
+        Instant start1 = Instant.now();
+        final List<Path> paths = g.with("aerospike.graph.parallelize", 32).V(applicationOptimus.get(0)).as("srcVM").
+                out("HAS_INTERFACE").as("srcInterface").
+                out("BELONGS_TO_CIDR").as("srcCIDR").
+                outE("SENDS_TRAFFIC").as("sendsTraffic").
+                inV().hasLabel("Interface").as("fwInterface").path().by(T.id).by(T.id).by(T.id).by("ruleHash").by(T.id).toList();
+        System.out.printf("| %-8s | %-8s | %-8s | %-12s | %-8s | %-8s | %-15s | %n", "Threads", "Q1", "Q2", "Intersect", "Q1cnt", "Q2cnt", "IntersectCnt");
+        for (int i = 1; i < 32; i++) {
+            Instant start = Instant.now();
+            final var test1 = g.with("aerospike.graph.parallelize", i).V().has("application", "Optimus").as("srcVM").
+                    out("HAS_INTERFACE").as("srcInterface").
+                    out("BELONGS_TO_CIDR").as("srcCIDR").
+                    outE("SENDS_TRAFFIC").as("sendsTraffic").
+                    inV().hasLabel("Interface").as("fwInterface").path().by(T.id).by(T.id).by(T.id).by("ruleHash").by(T.id).toList();
+            Instant mid = Instant.now();
+            final var test2 = g.with("aerospike.graph.parallelize", i).V().has("application", "CBS").as("destVM").
+                    out("HAS_INTERFACE").as("destInterface").
+                    out("BELONGS_TO_CIDR").as("destCIDR").
+                    inE("FORWARDS_TRAFFIC").
+                            as("forwardsTraffic").
+                    outV().as("fwInterface").path().by(T.id).by(T.id).by(T.id).by("ruleHash").by(T.id).toList();
+            Instant end = Instant.now();
+            Set<Object> ruleHashes = test1.stream().map(p -> p.objects().get(p.size() - 2)).collect(Collectors.toSet());
+            List<Path> intersectedPaths = test2.stream().filter(p -> ruleHashes.contains(p.objects().get(p.size() - 2))).collect(Collectors.toList());
+            Instant intersected = Instant.now();
+            System.out.printf("| %-8s | %-8s | %-8s | %-12s |%n",
+                    i,
+                    (mid.toEpochMilli() - start.toEpochMilli()),
+                    (end.toEpochMilli() - mid.toEpochMilli()),
+                    (intersected.toEpochMilli() - end.toEpochMilli()));
         }
     }
 
@@ -304,8 +373,6 @@ public class TestFoo {
                     inE("FORWARDS_TRAFFIC").as("forwardsTraffic").
                     where(__.values("ruleHash").is(P.within(Set.of("5935e9085033c3dc1d1e770a88ab08c2")))).
                     outV().as("fwInterface").path().by(T.id).by(T.id).by(T.id).by("ruleHash").by(T.id).toList();
-
-
 
 
             ExecutorService executorService = Executors.newFixedThreadPool(4);
@@ -534,13 +601,19 @@ public class TestFoo {
     @Test
     public void load() {
         //try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using("172.17.0.1", 8182, "g"));
-            g.V().drop().iterate();
+        final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using("34.58.141.145", 8182, "g"));
+        //g.V().drop().iterate();
+        //System.out.println(g.call("aerospike.graph.admin.index.create").
+        //        with("element_type", "vertex").
+        //        with("property_key", "application").next());
+        //System.out.println(g.call("aerospike.graph.admin.index.create").
+        //        with("element_type", "vertex").
+        //        with("property_key", "~label").next());
 
-            g.with("evaluationTimeout", 24 * 60 * 60 * 1000)
-                    .call("aerospike.graphloader.admin.bulk-load.load")
-                    .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/vertices")
-                    .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/edges").iterate();
+        g.with("evaluationTimeout", 24 * 60 * 60 * 1000)
+                .call("aerospike.graphloader.admin.bulk-load.load")
+                .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/vertices")
+                .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/edges").iterate();
         //}
     }
 

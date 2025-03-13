@@ -238,14 +238,18 @@ public class FireflyBatchReadHelper {
                 hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
             } else if (supportedContainsPredicates.contains(hasContainer.getBiPredicate()) && Edge.class.isAssignableFrom(returnClass)) { // TODO GRAPH-368: Vertex support?
                 final Collection collectionValue = (Collection) hasContainer.getValue();
-                boolean isSupported = !collectionValue.isEmpty();
-                for (final Object value : collectionValue) {
-                    if (!Long.class.isAssignableFrom(value.getClass()) &&
-                            !Integer.class.isAssignableFrom(value.getClass()) &&
-                            !String.class.isAssignableFrom(value.getClass())) {
-                        // All values within the collection need to be supported in order for the predicate to work.
-                        isSupported = false;
-                        break;
+                boolean isSupported = true;
+                if (collectionValue.isEmpty() || collectionValue.size() > 50) {
+                    isSupported = false;
+                } else {
+                    for (final Object value : collectionValue) {
+                        if (!Long.class.isAssignableFrom(value.getClass()) &&
+                                !Integer.class.isAssignableFrom(value.getClass()) &&
+                                !String.class.isAssignableFrom(value.getClass())) {
+                            // All values within the collection need to be supported in order for the predicate to work.
+                            isSupported = false;
+                            break;
+                        }
                     }
                 }
                 hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, isSupported));

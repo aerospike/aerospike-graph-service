@@ -49,6 +49,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
     private final int barrierSize;
     ExecutorService executorService;
     boolean debug = false;
+    boolean useV2 = false;
 
     public FireflyBatchEdgeReadStep(final Traversal.Admin traversal,
                                     final Direction direction,
@@ -86,6 +87,9 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         if (traversalOptions.containsKey("aerospike.graph.debug")) {
             debug = Boolean.parseBoolean(traversalOptions.get("aerospike.graph.debug").toString());
         }
+        if (traversalOptions.containsKey("aerospike.graph.v2")) {
+            useV2 = Boolean.parseBoolean(traversalOptions.get("aerospike.graph.v2").toString());
+        }
     }
 
 
@@ -120,12 +124,20 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
 
             // Latch the size of the current id list.
             TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
-            if (!futures.containsKey(vertex)) {
-                futures.put(vertex, executorService.submit(() -> {
+            if (vertex.isEdgeCacheOverflowed()) {
+                if (!futures.containsKey(vertex)) {
+                    futures.put(vertex, executorService.submit(() -> {
+                        final List<FireflyId> ids = new ArrayList<>();
+                        vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, ids, aerospikeHasContainers, fireflyEdgeMap);
+                        return ids;
+                    }));
+                }
+            } else {
+                if (!duplicateIdMap.containsKey(vertex) || duplicateIdMap.get(vertex) == null) {
                     final List<FireflyId> ids = new ArrayList<>();
                     vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, ids, aerospikeHasContainers, fireflyEdgeMap);
-                    return ids;
-                }));
+                    duplicateIdMap.put(vertex, ids);
+                }
             }
         }
         if (debug) {
@@ -225,10 +237,131 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         }
     }
 
+
+    private void parallelConsumerV2(final TraverserSet<Edge> set) {
+        final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
+        if (debug) {
+            TaskLogger.reset();
+        }
+        FireflyBatchReadHelper.pullFromLeft(traversal, graph, set, barrierSize);
+        if (debug) {
+            TaskLogger.complete("pull");
+        }
+
+        // Create output traverser set since we cant append to the input while we are iterating.
+        final TraverserSet<Edge> output = new TraverserSet<>();
+
+        // Info is used to keep track of how many output items we assign for each input (executed in order).
+        final Map<FireflyId, FireflyEdge> fireflyEdgeMap = new ConcurrentHashMap<>();
+        final Map<Element, List<FireflyId>> duplicateIdMap = new HashMap<>();
+        final Map<Element, Future<List<FireflyId>>> futures = new HashMap<>();
+        final List<Pair<Element, Traverser.Admin>> orderedElements = new ArrayList<>();
+        final List<Pair<Element, Traverser.Admin>> nonSupernodes = new ArrayList<>();
+        final List<Pair<Element, Traverser.Admin>> supernodes = new ArrayList<>();
+
+
+        while (!set.isEmpty()) {
+            // Get next input traverser and get the FireflyVertex form of it.
+            final Traverser.Admin<Edge> traverser = set.remove();
+            final FireflyVertex vertex = (FireflyVertex) traverser.get();
+            orderedElements.add(new Pair<>(vertex, traverser));
+
+            // Latch the size of the current id list.
+            TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
+            if (vertex.isEdgeCacheOverflowed()) {
+                supernodes.add(new Pair<>(vertex, traverser));
+                if (!futures.containsKey(vertex)) {
+                    futures.put(vertex, executorService.submit(() -> {
+                        final List<FireflyId> ids = new ArrayList<>();
+                        vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, ids, aerospikeHasContainers, fireflyEdgeMap);
+                        return ids;
+                    }));
+                }
+            } else {
+                nonSupernodes.add(new Pair<>(vertex, traverser));
+                if (!duplicateIdMap.containsKey(vertex) || duplicateIdMap.get(vertex) == null) {
+                    final List<FireflyId> ids = new ArrayList<>();
+                    vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, ids, aerospikeHasContainers);
+                    duplicateIdMap.put(vertex, ids);
+                }
+            }
+        }
+        if (debug) {
+            TaskLogger.complete("launch");
+        }
+
+        final Set<FireflyId> uniqueIds3 = new HashSet<>();
+        for (final List<FireflyId> entry : duplicateIdMap.values()) {
+            for (final FireflyId id : entry) {
+                if (!fireflyEdgeMap.containsKey(id))
+                    uniqueIds3.add(id);
+            }
+            uniqueIds3.addAll(entry);
+        }
+        Future test = null;
+        if (uniqueIds3.size() > graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+            final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds3);
+            test = executorService.submit(() -> {
+                        final List<FireflyEdge> edges = graph.readEdges(aerospikeHasContainers, idsToRead, null);
+                        for (final FireflyEdge edge : edges) {
+                            fireflyEdgeMap.put(edge.id, edge);
+                        }
+                    }
+            );
+        }
+        if (test != null) {
+            try {
+                test.get();
+            } catch (final Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        if (debug) {
+            TaskLogger.complete("await batch read");
+        }
+
+        try {
+            for (final Pair<Element, Traverser.Admin> pair : orderedElements) {
+                final Vertex element = (Vertex) pair.getValue0();
+                final Traverser.Admin traverser = pair.getValue1();
+                final List<FireflyId> ids = supernodes.contains(pair) ? futures.get(element).get() : duplicateIdMap.get(element);
+                final List<FireflyEdge> edges = ids.stream().map(fireflyEdgeMap::get).collect(Collectors.toList());
+                if (debug) {
+                    TaskLogger.complete("await future");
+                }
+                for (final FireflyEdge edge : edges) {
+                    if (edge != null && HasContainer.testAll(edge, fireflyHasContainers)) {
+                        set.add(traverser.split(edge, this));
+                    }
+                }
+                if (debug) {
+                    TaskLogger.complete("insert");
+                }
+            }
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        if (debug) {
+            TaskLogger.complete("finalize output");
+        }
+        if (set.isEmpty()) {
+            set.add(EmptyTraverser.instance());
+        }
+        if (debug) {
+            TaskLogger.complete("complete");
+            TaskLogger.log(graph);
+        }
+    }
+
     @Override
     public void barrierConsumer(final TraverserSet<Edge> set) {
         if (executorService != null) {
-            parallelConsumer(set);
+            if (useV2) {
+                parallelConsumerV2(set);
+            } else {
+                parallelConsumer(set);
+            }
             return;
         }
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());

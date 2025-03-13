@@ -11,9 +11,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
-import org.apache.tinkerpop.gremlin.process.traversal.Contains;
 import org.apache.tinkerpop.gremlin.process.traversal.GremlinTypeErrorException;
-import org.apache.tinkerpop.gremlin.process.traversal.PBiPredicate;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -24,7 +22,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupCount
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ExpandableStepIterator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
-import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
@@ -139,15 +136,15 @@ public class FireflyBatchReadHelper {
     }
 
     public static <E extends FireflyElement, T extends Element> void drainDataToCache(
-            final List<FireflyId> fireflyIdList,
-            final Set<FireflyId> uniqueIdSet,
-            final Map<FireflyId, E> elementMap,
-            final List<ReadStepInfo<?>> readInfo,
-            final List<HasContainer> aerospikeHasContainers,
-            final List<HasContainer> fireflyHasContainers,
-            final Map<FireflyId, E> output,
-            final ReadElements<E> readElements,
-            final List<String> requiredProperties) {
+                                                                                       final List<FireflyId> fireflyIdList,
+                                                                                       final Set<FireflyId> uniqueIdSet,
+                                                                                       final Map<FireflyId, E> elementMap,
+                                                                                       final List<ReadStepInfo<?>> readInfo,
+                                                                                       final List<HasContainer> aerospikeHasContainers,
+                                                                                       final List<HasContainer> fireflyHasContainers,
+                                                                                       final Map<FireflyId, E> output,
+                                                                                       final ReadElements<E> readElements,
+                                                                                       final List<String> requiredProperties) {
         // Read all IDs in a batch.
         final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
         final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds, requiredProperties);
@@ -182,7 +179,7 @@ public class FireflyBatchReadHelper {
                     // Element was not found due to a predicate filter type mismatch.
                     continue;
                 }
-                output.put(((FireflyElement) element).id, (E) element);
+                output.put(((FireflyElement)element).id, (E) element);
             }
         }
 
@@ -214,7 +211,7 @@ public class FireflyBatchReadHelper {
     public static <E extends Element> List<FireflyGraphStep.HasContainerWithCardinality> getHasContainersWithCardinalityOrder(final FireflyGraph graph,
                                                                                                                               final Class<E> returnClass,
                                                                                                                               final List<HasContainer> hasContainers) {
-        final ArrayList<PBiPredicate> supportedNumericPredicates = new ArrayList<>() {{
+        final ArrayList<BiPredicate> supportedNumericPredicates = new ArrayList<>() {{
             add(Compare.eq);
             add(Compare.lt);
             add(Compare.gt);
@@ -222,66 +219,61 @@ public class FireflyBatchReadHelper {
             add(Compare.lte);
             add(Compare.gte);
         }};
-        final ArrayList<PBiPredicate> supportedStringPredicates = new ArrayList<>() {{
+        final ArrayList<BiPredicate> supportedStringPredicates = new ArrayList<>() {{
             add(Compare.eq);
-            add(Contains.within);
         }};
 
         final List<FireflyGraphStep.HasContainerWithCardinality> hasContainersWithCardinality = new ArrayList<>();
-        for (final HasContainer hasContainer : hasContainers) {
-            if (hasContainer.getPredicate().getBiPredicate() instanceof Contains) {
-                hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer));
+        hasContainers.iterator().forEachRemaining(hasContainer -> {
+            // TODO GRAPH-368: We should go through expressions and see what kind of
+            //  predicates we can push down to Aerospike via Exp.
+            if (hasContainer != null && hasContainer.getKey() != null && hasContainer.getValue() == null) {
+                hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
+            } else if (hasContainer == null || hasContainer.getKey() == null || hasContainer.getValue() == null) {
+                hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
+            } else if (!Long.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
+                    !Integer.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
+                    !String.class.isAssignableFrom(hasContainer.getValue().getClass())) {
+                // If the HasContainer predicate is for an unsupported type.
+                hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
+            } else if ((Long.class.isAssignableFrom(hasContainer.getValue().getClass()) ||
+                    Integer.class.isAssignableFrom(hasContainer.getValue().getClass()))
+                    && !supportedNumericPredicates.contains(hasContainer.getBiPredicate())) {
+                // Else if the HasContainer predicate is for a numeric type but is not supported.
+                hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
+            } else if (String.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
+                    !supportedStringPredicates.contains(hasContainer.getBiPredicate())) {
+                // Else if the HasContainer predicate is for a string type but is not supported.
+                hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
             } else {
-                // TODO GRAPH-368: We should go through expressions and see what kind of
-                //  predicates we can push down to Aerospike via Exp.
-                if (hasContainer != null && hasContainer.getKey() != null && hasContainer.getValue() == null) {
-                    hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
-                } else if (hasContainer == null || hasContainer.getKey() == null || hasContainer.getValue() == null) {
-                    hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
-                } else if (!Long.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
-                        !Integer.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
-                        !String.class.isAssignableFrom(hasContainer.getValue().getClass())) {
-                    // If the HasContainer predicate is for an unsupported type.
-                    hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
-                } else if ((Long.class.isAssignableFrom(hasContainer.getValue().getClass()) ||
-                        Integer.class.isAssignableFrom(hasContainer.getValue().getClass()))
-                        && !supportedNumericPredicates.contains(hasContainer.getBiPredicate())) {
-                    // Else if the HasContainer predicate is for a numeric type but is not supported.
-                    hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
-                } else if (String.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
-                        !supportedStringPredicates.contains(hasContainer.getBiPredicate())) {
-                    // Else if the HasContainer predicate is for a string type but is not supported.
-                    hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
-                } else {
-                    // Else the HasContainer predicate is supported.
-                    final Optional<FireflyIndexMetadata.IndexInfo> indexInfo = graph.fireflyIndexMetadata.getPropertyIndexInfo(
-                            Vertex.class.isAssignableFrom(returnClass) ? FireflyVertex.class : FireflyEdge.class,
-                            hasContainer.getKey(),
-                            hasContainer.getValue());
+                // Else the HasContainer predicate is supported.
+                final Optional<FireflyIndexMetadata.IndexInfo> indexInfo = graph.fireflyIndexMetadata.getPropertyIndexInfo(
+                        Vertex.class.isAssignableFrom(returnClass) ? FireflyVertex.class : FireflyEdge.class,
+                        hasContainer.getKey(),
+                        hasContainer.getValue());
 
-                    if (indexInfo.isPresent()) {
-                        final FireflyCardinalityMetadata.CardinalityInfo cardinality;
-                        if ("~label".equals(hasContainer.getKey())) {
-                            if (Vertex.class.isAssignableFrom(returnClass)) {
-                                cardinality = graph.fireflyCardinalityMetadata.getVertexLabelCardinality().orElse(null);
-                            } else {
-                                cardinality = graph.fireflyCardinalityMetadata.getEdgeLabelCardinality().orElse(null);
-                            }
+                if (indexInfo.isPresent()) {
+                    final FireflyCardinalityMetadata.CardinalityInfo cardinality;
+                    if ("~label".equals(hasContainer.getKey())) {
+                        if (Vertex.class.isAssignableFrom(returnClass)) {
+                            cardinality = graph.fireflyCardinalityMetadata.getVertexLabelCardinality().orElse(null);
                         } else {
-                            final IndexType indexType = String.class.isAssignableFrom(hasContainer.getValue().getClass()) ? IndexType.STRING : IndexType.NUMERIC;
-                            if (Vertex.class.isAssignableFrom(returnClass)) {
-                                cardinality = graph.fireflyCardinalityMetadata.getVertexPropertyCardinality(hasContainer.getKey(), indexType).orElse(null);
-                            } else {
-                                cardinality = graph.fireflyCardinalityMetadata.getEdgePropertyCardinality(hasContainer.getKey(), indexType).orElse(null);
-                            }
+                            cardinality = graph.fireflyCardinalityMetadata.getEdgeLabelCardinality().orElse(null);
                         }
-                        hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, cardinality));
                     } else {
-                        hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer));
+                        final IndexType indexType = String.class.isAssignableFrom(hasContainer.getValue().getClass()) ? IndexType.STRING : IndexType.NUMERIC;
+                        if (Vertex.class.isAssignableFrom(returnClass)) {
+                            cardinality = graph.fireflyCardinalityMetadata.getVertexPropertyCardinality(hasContainer.getKey(), indexType).orElse(null);
+                        } else {
+                            cardinality = graph.fireflyCardinalityMetadata.getEdgePropertyCardinality(hasContainer.getKey(), indexType).orElse(null);
+                        }
                     }
+                    hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, cardinality));
+                } else {
+                    hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer));
                 }
             }
-        }
+        });
 
 
         orderHasContainersWithCardinality(hasContainersWithCardinality);
@@ -345,10 +337,10 @@ public class FireflyBatchReadHelper {
         return hasContainerWithCardinalities.stream().filter(c -> c.isSupported).map(c -> c.hasContainer).collect(Collectors.toList());
     }
 
-    public static <E extends Element> void pullFromLeft(final Traversal.Admin<E, E> traversal,
-                                                        final FireflyGraph graph,
-                                                        TraverserSet<E> set,
-                                                        final long MAX_BARRIER_SIZE) {
+    public static <E extends Element>  void  pullFromLeft(final Traversal.Admin<E, E> traversal,
+                                                          final FireflyGraph graph,
+                                                          TraverserSet<E> set,
+                                                          final long MAX_BARRIER_SIZE) {
         // There is a bug in tinkerpop where repeat step does not acknowledge barriers,
         // this logic should be in the repeat step for proper implementation.
         // Because it is not, we can only handle specific cases of repeat.
@@ -368,7 +360,7 @@ public class FireflyBatchReadHelper {
         // LoopTraversal style RepeatSteps cause issues when they pull from an emptied stack later.
         if (repeatStep.getUntilTraversal() instanceof LoopTraversal ||
                 repeatStep.getEmitTraversal() != null ||
-                repeatStep.emitFirst) {
+                repeatStep.emitFirst){
             return;
         }
 

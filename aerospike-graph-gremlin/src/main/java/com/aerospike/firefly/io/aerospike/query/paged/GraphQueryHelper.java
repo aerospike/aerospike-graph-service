@@ -17,20 +17,16 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
-import org.apache.tinkerpop.gremlin.process.traversal.Contains;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_IN_KEY;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_LABEL_KEY;
@@ -201,23 +197,7 @@ public class GraphQueryHelper {
                                                                   final FireflyId adjacentVertexId,
                                                                   final Direction direction) {
         final Exp labelExp = getPhatEdgeLabelExp(db, labels, vertexIdKeyHashString);
-        final Exp propertiesExp;
-        if (hasContainers.size() == 1 && hasContainers.get(0).getPredicate().getBiPredicate() instanceof Contains) {
-            String key = hasContainers.get(0).getKey();
-            Object value = hasContainers.get(0).getPredicate().getValue();
-            final Collection values = (Collection) value;
-            final Set<String> stringSet = new HashSet<>();
-            for (Object val : values) {
-                stringSet.add((String) val);
-            }
-            //final Set<Exp> exps = stringSet.stream().map(v -> Exp.eq(Exp.stringBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), Exp.val(v))).collect(Collectors.toSet());
-            final Exp[] individualExp = stringSet.stream().map(v -> MapExp.getByValue(MapReturnType.EXISTS, Exp.val(v),
-                    Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
-                    CTX.mapKey(Value.get(hasContainers.get(0).getKey())))).toArray(Exp[]::new);
-            propertiesExp = Exp.or(individualExp);
-        } else {
-            propertiesExp = getPhatEdgePropertyExp(db, hasContainers, vertexIdKeyHashString);
-        }
+        final Exp propertiesExp = getPhatEdgePropertyExp(db, hasContainers, vertexIdKeyHashString);
         final Exp adjacentVertexExp = getPhatEdgeAdjacentVertexExp(db, adjacentVertexId, direction, vertexIdKeyHashString);
         if (labelExp == null && propertiesExp == null && adjacentVertexExp == null) {
             return null;
@@ -283,7 +263,6 @@ public class GraphQueryHelper {
         if (hasContainers.isEmpty()) {
             return null;
         }
-
         final PhatEdgeHasContainers phatEdgeHasContainers = new PhatEdgeHasContainers(hasContainers);
         final Exp[] exps = phatEdgeHasContainers.filteredHasContainers.stream().map(hasContainer ->
                         phatEdgePredicateToExp(db, vertexIdKeyHashString, hasContainer.getKey(), hasContainer.getPredicate()))

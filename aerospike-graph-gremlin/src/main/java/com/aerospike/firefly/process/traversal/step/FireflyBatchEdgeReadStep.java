@@ -58,14 +58,14 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                                     final List<HasContainer> hasContainers,
                                     final int barrierSize) {
         super(traversal, barrierSize);
-        ////TaskLogger.reset();
+        TaskLogger.reset();
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
         this.labels = new HashSet<>(labels);
         this.barrierSize = barrierSize;
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
-                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Edge.class, hasContainers);
+                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);
             // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
             //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
             //  matter what.
@@ -407,7 +407,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             System.out.println("Set size: " + set.size() + " Input size: " + input.size());
         }
 
-        //TaskLogger.complete("start");
+        TaskLogger.complete("start");
         while (!set.isEmpty()) {
             // Get next input traverser and get the FireflyVertex form of it.
             final Traverser.Admin<Edge> traverser = set.remove();
@@ -427,7 +427,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                     duplicateIdMap.put(vertex, subList);
                 }
             }
-            //TaskLogger.complete("index");
+            TaskLogger.complete("index");
 
             for (int i = previousSize; i < fireflyIdList.size(); i++) {
                 final FireflyId id = fireflyIdList.get(i);
@@ -453,7 +453,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                 fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, output, graph::readEdges, null);
 
-        //TaskLogger.complete("drain");
+        TaskLogger.complete("drain");
 
         if (output.isEmpty()) {
             set.add(EmptyTraverser.instance());
@@ -462,9 +462,9 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             output.clear(); // Force garbage collection.
         }
 
-        //TaskLogger.complete("assign");
+        TaskLogger.complete("assign");
 
-        //TaskLogger.log(graph);
+        TaskLogger.log(graph);
     }
 
     @Override

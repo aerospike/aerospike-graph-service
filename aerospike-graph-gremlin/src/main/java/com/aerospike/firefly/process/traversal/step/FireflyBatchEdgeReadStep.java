@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -94,10 +95,10 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         List<FireflyBatchReadHelper.ReadStepInfo<Edge>> fireflyBatchEdgeReadStepInfos = new ArrayList<>();
         List<FireflyId> fireflyIdList = new ArrayList<>();
         Set<FireflyId> uniqueIdSet = new ConcurrentHashSet<>();
-        final Map<FireflyId, FireflyEdge> fireflyEdgeMap = new HashMap<>();
+        final Map<FireflyId, FireflyEdge> fireflyEdgeMap = new ConcurrentHashMap<>();
         final Map<Element, List<FireflyId>> duplicateIdMap = new HashMap<>();
         final Map<Element, Future<List<FireflyId>>> futures = new HashMap<>();
-        List<Pair<Element, Traverser.Admin>> orderedElements = new ArrayList<>();
+        final List<Pair<Element, Traverser.Admin>> orderedElements = new ArrayList<>();
 
 
         while (!set.isEmpty()) {
@@ -107,17 +108,15 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             orderedElements.add(new Pair<>(vertex, traverser));
 
             // Latch the size of the current id list.
-            final int previousSize = fireflyIdList.size();
             TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
             if (!futures.containsKey(vertex)) {
                 futures.put(vertex, executorService.submit(() -> {
                     final List<FireflyId> ids = new ArrayList<>();
-                    vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, ids, aerospikeHasContainers);
+                    vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, ids, aerospikeHasContainers, fireflyEdgeMap);
                     return ids;
                 }));
             }
         }
-
 
         List<Future<?>> futures2 = new ArrayList<>();
         for (final Pair<Element, Traverser.Admin> pair : orderedElements) {
@@ -144,7 +143,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             fireflyBatchEdgeReadStepInfos.add(new FireflyBatchReadHelper.ReadStepInfo<>(traverser, fireflyIdList.size() - previousSize));
             if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
-                System.out.println("Draining " + output.size());
+                //System.out.println("Draining " + output.size());
                 final TraverserSet<Edge> currentOutput = new TraverserSet<>();
                 output.add(currentOutput);
                 final List<FireflyId> ids = fireflyIdList;
@@ -212,7 +211,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         final List<FireflyBatchReadHelper.ReadStepInfo<Edge>> fireflyBatchEdgeReadStepInfos = new ArrayList<>();
         final List<FireflyId> fireflyIdList = new ArrayList<>();
         final Set<FireflyId> uniqueIdSet = new HashSet<>();
-        final Map<FireflyId, FireflyEdge> fireflyEdgeMap = new HashMap<>();
+        final Map<FireflyId, FireflyEdge> fireflyEdgeMap = new ConcurrentHashMap<>();
         final Map<Element, List<FireflyId>> duplicateIdMap = new HashMap<>();
         final Set<Element> input = new HashSet<>();
 
@@ -242,7 +241,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                 fireflyIdList.addAll(duplicateIdMap.get(vertex));
             } else {
                 // TODO GRAPH-1139: The entire iterator is consumed here and may OOM.
-                vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, fireflyIdList, aerospikeHasContainers);
+                vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, fireflyIdList, aerospikeHasContainers, fireflyEdgeMap);
                 if (!duplicateIdMap.containsKey(vertex)) {
                     final List<FireflyId> subList = new ArrayList<>(fireflyIdList.subList(previousSize, fireflyIdList.size()));
                     duplicateIdMap.put(vertex, subList);

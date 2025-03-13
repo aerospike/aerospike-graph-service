@@ -9,8 +9,8 @@ import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
+import org.apache.tinkerpop.gremlin.process.traversal.Contains;
 import org.apache.tinkerpop.gremlin.process.traversal.GremlinTypeErrorException;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -22,10 +22,12 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupCount
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ExpandableStepIterator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -136,15 +138,15 @@ public class FireflyBatchReadHelper {
     }
 
     public static <E extends FireflyElement, T extends Element> void drainDataToCache(
-                                                                                       final List<FireflyId> fireflyIdList,
-                                                                                       final Set<FireflyId> uniqueIdSet,
-                                                                                       final Map<FireflyId, E> elementMap,
-                                                                                       final List<ReadStepInfo<?>> readInfo,
-                                                                                       final List<HasContainer> aerospikeHasContainers,
-                                                                                       final List<HasContainer> fireflyHasContainers,
-                                                                                       final Map<FireflyId, E> output,
-                                                                                       final ReadElements<E> readElements,
-                                                                                       final List<String> requiredProperties) {
+            final List<FireflyId> fireflyIdList,
+            final Set<FireflyId> uniqueIdSet,
+            final Map<FireflyId, E> elementMap,
+            final List<ReadStepInfo<?>> readInfo,
+            final List<HasContainer> aerospikeHasContainers,
+            final List<HasContainer> fireflyHasContainers,
+            final Map<FireflyId, E> output,
+            final ReadElements<E> readElements,
+            final List<String> requiredProperties) {
         // Read all IDs in a batch.
         final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
         final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds, requiredProperties);
@@ -222,15 +224,31 @@ public class FireflyBatchReadHelper {
         final ArrayList<BiPredicate> supportedStringPredicates = new ArrayList<>() {{
             add(Compare.eq);
         }};
+        final ArrayList<BiPredicate> supportedContainsPredicates = new ArrayList<>() {{
+            add(Contains.within);
+        }};
 
         final List<FireflyGraphStep.HasContainerWithCardinality> hasContainersWithCardinality = new ArrayList<>();
         hasContainers.iterator().forEachRemaining(hasContainer -> {
-            // TODO GRAPH-368: We should go through expressions and see what kind of
-            //  predicates we can push down to Aerospike via Exp.
+            // TODO GRAPH-368: We should go through expressions and see what kind of predicates we can push down to
+            //  Aerospike via Exp.
             if (hasContainer != null && hasContainer.getKey() != null && hasContainer.getValue() == null) {
                 hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
             } else if (hasContainer == null || hasContainer.getKey() == null || hasContainer.getValue() == null) {
                 hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
+            } else if (supportedContainsPredicates.contains(hasContainer.getBiPredicate()) && Edge.class.isAssignableFrom(returnClass)) { // TODO GRAPH-368: Vertex support?
+                final Collection collectionValue = (Collection) hasContainer.getValue();
+                boolean isSupported = !collectionValue.isEmpty();
+                for (final Object value : collectionValue) {
+                    if (!Long.class.isAssignableFrom(value.getClass()) &&
+                            !Integer.class.isAssignableFrom(value.getClass()) &&
+                            !String.class.isAssignableFrom(value.getClass())) {
+                        // All values within the collection need to be supported in order for the predicate to work.
+                        isSupported = false;
+                        break;
+                    }
+                }
+                hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, isSupported));
             } else if (!Long.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
                     !Integer.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
                     !String.class.isAssignableFrom(hasContainer.getValue().getClass())) {
@@ -274,7 +292,6 @@ public class FireflyBatchReadHelper {
                 }
             }
         });
-
 
         orderHasContainersWithCardinality(hasContainersWithCardinality);
         return hasContainersWithCardinality;
@@ -337,10 +354,10 @@ public class FireflyBatchReadHelper {
         return hasContainerWithCardinalities.stream().filter(c -> c.isSupported).map(c -> c.hasContainer).collect(Collectors.toList());
     }
 
-    public static <E extends Element>  void  pullFromLeft(final Traversal.Admin<E, E> traversal,
-                                                          final FireflyGraph graph,
-                                                          TraverserSet<E> set,
-                                                          final long MAX_BARRIER_SIZE) {
+    public static <E extends Element> void pullFromLeft(final Traversal.Admin<E, E> traversal,
+                                                        final FireflyGraph graph,
+                                                        final TraverserSet<E> set,
+                                                        final long maxBarrierSize) {
         // There is a bug in tinkerpop where repeat step does not acknowledge barriers,
         // this logic should be in the repeat step for proper implementation.
         // Because it is not, we can only handle specific cases of repeat.
@@ -360,7 +377,7 @@ public class FireflyBatchReadHelper {
         // LoopTraversal style RepeatSteps cause issues when they pull from an emptied stack later.
         if (repeatStep.getUntilTraversal() instanceof LoopTraversal ||
                 repeatStep.getEmitTraversal() != null ||
-                repeatStep.emitFirst){
+                repeatStep.emitFirst) {
             return;
         }
 
@@ -387,7 +404,7 @@ public class FireflyBatchReadHelper {
 
         // Pull data from left.
         final ExpandableStepIterator repeatStarts = repeatStep.getStarts();
-        while (repeatStarts.hasNext() && set.size() < MAX_BARRIER_SIZE) {
+        while (repeatStarts.hasNext() && set.size() < maxBarrierSize) {
             final Traverser.Admin<E> traverser = repeatStarts.next();
             set.add(traverser);
         }

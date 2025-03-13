@@ -63,7 +63,7 @@ public class FireflyBatchEdgeSampleLimitReadStep extends CollectingBarrierStep<E
         this.barrierSize = barrierSize;
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
-                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);
+                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Edge.class, hasContainers);
             // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
             //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
             //  matter what.

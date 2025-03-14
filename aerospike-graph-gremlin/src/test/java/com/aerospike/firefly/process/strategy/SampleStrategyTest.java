@@ -2,9 +2,9 @@ package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
-import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeSampleLimitReadStep;
-import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdLimitSampleStep;
-import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
+import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadSampleLimitStep;
+import com.aerospike.firefly.process.traversal.step.FireflyBatchVertexReadSampleLimitStep;
+import com.aerospike.firefly.process.traversal.step.FireflyBatchVertexReadStep;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -409,7 +409,7 @@ public class SampleStrategyTest {
 
             // Doesn't apply with skip(). (This is required since it is also a RangeGlobalStep with limit()).
             Assert.assertTrue(stepsHasInLimitSkip.get(0) instanceof FireflyGraphStep);
-            Assert.assertTrue(stepsHasInLimitSkip.get(1) instanceof FireflyCompositeIdStep);
+            Assert.assertTrue(stepsHasInLimitSkip.get(1) instanceof FireflyBatchVertexReadStep);
             Assert.assertTrue(stepsHasInLimitSkip.get(2) instanceof RangeGlobalStep);
             Assert.assertTrue(stepsHasInLimitSkip.get(3) instanceof HasStep);
         }
@@ -439,13 +439,13 @@ public class SampleStrategyTest {
         Assert.assertTrue(steps.get(0) instanceof FireflyGraphStep);
         if (isVertex) {
             if (sampleFirst) {
-                Assert.assertTrue(steps.get(1) instanceof FireflyCompositeIdLimitSampleStep);
+                Assert.assertTrue(steps.get(1) instanceof FireflyBatchVertexReadSampleLimitStep);
             } else {
-                Assert.assertTrue(steps.get(1) instanceof FireflyCompositeIdStep);
+                Assert.assertTrue(steps.get(1) instanceof FireflyBatchVertexReadStep);
             }
         } else {
             if (sampleFirst) {
-                Assert.assertTrue(steps.get(1) instanceof FireflyBatchEdgeSampleLimitReadStep);
+                Assert.assertTrue(steps.get(1) instanceof FireflyBatchEdgeReadSampleLimitStep);
             } else {
                 Assert.assertTrue(steps.get(1) instanceof FireflyBatchEdgeReadStep);
             }
@@ -476,13 +476,13 @@ public class SampleStrategyTest {
         Assert.assertTrue(steps.get(0) instanceof FireflyGraphStep);
         if (isVertex) {
             if (limitFirst) {
-                Assert.assertTrue(steps.get(1) instanceof FireflyCompositeIdLimitSampleStep);
+                Assert.assertTrue(steps.get(1) instanceof FireflyBatchVertexReadSampleLimitStep);
             } else {
-                Assert.assertTrue(steps.get(1) instanceof FireflyCompositeIdStep);
+                Assert.assertTrue(steps.get(1) instanceof FireflyBatchVertexReadStep);
             }
         } else {
             if (limitFirst) {
-                Assert.assertTrue(steps.get(1) instanceof FireflyBatchEdgeSampleLimitReadStep);
+                Assert.assertTrue(steps.get(1) instanceof FireflyBatchEdgeReadSampleLimitStep);
             } else {
                 Assert.assertTrue(steps.get(1) instanceof FireflyBatchEdgeReadStep);
             }

@@ -1,7 +1,7 @@
 package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
-import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
+import com.aerospike.firefly.process.traversal.step.FireflyBatchVertexReadStep;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -39,12 +39,12 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
 
         boolean found = false;
         for (final Step step : steps) {
-            if (step instanceof FireflyCompositeIdStep) {
+            if (step instanceof FireflyBatchVertexReadStep) {
                 // Should only be found once.
                 Assert.assertFalse(found);
 
                 found = true;
-                final FireflyCompositeIdStep compositeIdStep = (FireflyCompositeIdStep) step;
+                final FireflyBatchVertexReadStep compositeIdStep = (FireflyBatchVertexReadStep) step;
                 // Expect both b/c cache.
                 Assert.assertEquals(2, compositeIdStep.aerospikeHasContainers.size());
                 Assert.assertEquals(2, compositeIdStep.fireflyHasContainers.size());
@@ -69,12 +69,12 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
 
         boolean found = false;
         for (final Step step : steps) {
-            if (step instanceof FireflyCompositeIdStep) {
+            if (step instanceof FireflyBatchVertexReadStep) {
                 // Should only be found once.
                 Assert.assertFalse(found);
 
                 found = true;
-                final FireflyCompositeIdStep compositeIdStep = (FireflyCompositeIdStep) step;
+                final FireflyBatchVertexReadStep compositeIdStep = (FireflyBatchVertexReadStep) step;
                 Assert.assertEquals(0, compositeIdStep.aerospikeHasContainers.size());
                 Assert.assertEquals(1, compositeIdStep.fireflyHasContainers.size());
             } else if (found) {
@@ -98,12 +98,12 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
 
         boolean found = false;
         for (final Step step : steps) {
-            if (step instanceof FireflyCompositeIdStep) {
+            if (step instanceof FireflyBatchVertexReadStep) {
                 // Should only be found once.
                 Assert.assertFalse(found);
 
                 found = true;
-                final FireflyCompositeIdStep compositeIdStep = (FireflyCompositeIdStep) step;
+                final FireflyBatchVertexReadStep compositeIdStep = (FireflyBatchVertexReadStep) step;
                 Assert.assertEquals(1, compositeIdStep.aerospikeHasContainers.size());
                 // Should have both.
                 Assert.assertEquals(2, compositeIdStep.fireflyHasContainers.size());
@@ -130,12 +130,12 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
         boolean found = false;
         boolean foundSecond = false;
         for (final Step step : steps) {
-            if (step instanceof FireflyCompositeIdStep) {
+            if (step instanceof FireflyBatchVertexReadStep) {
                 // Should only be found once.
                 Assert.assertFalse(found);
 
                 found = true;
-                final FireflyCompositeIdStep compositeIdStep = (FireflyCompositeIdStep) step;
+                final FireflyBatchVertexReadStep compositeIdStep = (FireflyBatchVertexReadStep) step;
                 Assert.assertEquals(0, compositeIdStep.aerospikeHasContainers.size());
                 Assert.assertEquals(0, compositeIdStep.fireflyHasContainers.size());
             } else if (found && !foundSecond) {

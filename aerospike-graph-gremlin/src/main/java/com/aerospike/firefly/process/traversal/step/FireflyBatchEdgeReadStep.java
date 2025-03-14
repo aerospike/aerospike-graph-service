@@ -198,7 +198,8 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         final List<FireflyBatchReadHelper.ReadStepInfo<Edge>> fireflyBatchEdgeReadStepInfos = new ArrayList<>();
         final List<FireflyId> fireflyIdList = new ArrayList<>();
         final Set<FireflyId> uniqueIdSet = new HashSet<>();
-        final Map<FireflyId, FireflyEdge> fireflyEdgeMap = new HashMap<>();
+        final Map<FireflyId, FireflyEdge> fireflyEdgeMap = new ConcurrentHashMap<>();
+        final Map<Element, List<FireflyId>> duplicateIdMap = new HashMap<>();
 
         while (!set.isEmpty()) {
             // Get next input traverser and get the FireflyVertex form of it.
@@ -210,7 +211,12 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
 
             TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
             // TODO GRAPH-1139: The entire iterator is consumed here and may OOM.
-            vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, fireflyIdList, aerospikeHasContainers);
+            if (duplicateIdMap.containsKey(vertex) && duplicateIdMap.get(vertex) != null) {
+                fireflyIdList.addAll(duplicateIdMap.get(vertex));
+            } else {
+                vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, fireflyIdList, aerospikeHasContainers);
+                duplicateIdMap.put(vertex, fireflyIdList.subList(previousSize, fireflyIdList.size()));
+            }
             for (int i = previousSize; i < fireflyIdList.size(); i++) {
                 final FireflyId id = fireflyIdList.get(i);
                 if (!fireflyEdgeMap.containsKey(id)) {

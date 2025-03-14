@@ -18,7 +18,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSe
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.javatuples.Pair;
 
@@ -104,7 +103,6 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             orderedElements.add(new Pair<>(vertex, traverser));
 
             // Latch the size of the current id list.
-            TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
             if (vertex.isEdgeCacheOverflowed()) {
                 if (!futures.containsKey(vertex)) {
                     futures.put(vertex, executorService.submit(() -> {
@@ -220,17 +218,8 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             // Latch the size of the current id list.
             final int previousSize = fireflyIdList.size();
             TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
-
-            if (duplicateIdMap.containsKey(vertex) && duplicateIdMap.get(vertex) != null) {
-                fireflyIdList.addAll(duplicateIdMap.get(vertex));
-            } else {
-                // TODO GRAPH-1139: The entire iterator is consumed here and may OOM.
-                vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, fireflyIdList, aerospikeHasContainers, fireflyEdgeMap);
-                if (!duplicateIdMap.containsKey(vertex)) {
-                    final List<FireflyId> subList = new ArrayList<>(fireflyIdList.subList(previousSize, fireflyIdList.size()));
-                    duplicateIdMap.put(vertex, subList);
-                }
-            }
+            // TODO GRAPH-1139: The entire iterator is consumed here and may OOM.
+            vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, fireflyIdList, aerospikeHasContainers);
 
             for (int i = previousSize; i < fireflyIdList.size(); i++) {
                 final FireflyId id = fireflyIdList.get(i);
@@ -255,7 +244,6 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         // Drain data to output. No need to pass in aerospikeHasContainers since they were used to filter Edge IDs already.
         FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                 fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, output, graph::readEdges, null);
-
 
         if (output.isEmpty()) {
             set.add(EmptyTraverser.instance());

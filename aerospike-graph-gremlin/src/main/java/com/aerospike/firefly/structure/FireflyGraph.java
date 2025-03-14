@@ -227,7 +227,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public LogInfo logInfo = null;
 
     public void logMessage(final String message, final Logger logger) {
-        System.out.println(message);
         if (logInfo != null) {
             logInfo.debuggingMessage(message, logger);
         } else {

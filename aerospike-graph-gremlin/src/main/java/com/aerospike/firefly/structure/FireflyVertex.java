@@ -315,6 +315,12 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         }
 
         edgeIds.addAll(getCachedEdgeIds(direction, labels));
+        if (edgeCache != null) {
+            final List<FireflyEdge> edges = graph.readEdges(hasContainers, edgeIds, null);
+            for (final FireflyEdge edge : edges) {
+                edgeCache.put(edge.id, edge);
+            }
+        }
         if (isEdgeCacheOverflowed) {
             final Iterator<FireflyId> superNodeEdgeIds = getSupernodeEdgeIds(direction, labels, hasContainers, edgeCache);
             superNodeEdgeIds.forEachRemaining(edgeIds::add);
@@ -684,7 +690,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         if (direction == Direction.BOTH) {
             final Iterator<KeyRecord> inKeyRecordIterator = getEdgeKeyRecordsByIndex(Direction.IN, labels, outputType, hasContainers);
             final Iterator<KeyRecord> outKeyRecordIterator = getEdgeKeyRecordsByIndex(Direction.OUT, labels, outputType, hasContainers);
-            return FireflyCloseableIteratorUtils.concat(new FireflyPhatEdgeIdIteratorFromIndexedVertex(inKeyRecordIterator, this.db, Direction.IN, this.id, labels, outputType, null),
+            return FireflyCloseableIteratorUtils.concat(new FireflyPhatEdgeIdIteratorFromIndexedVertex(inKeyRecordIterator, this.graph, Direction.IN, this.id, labels, outputType, null, edgeCache),
                     new FireflyPhatEdgeIdIteratorFromIndexedVertex(outKeyRecordIterator, this.graph, Direction.OUT, this.id, labels, outputType, null, edgeCache));
         } else {
             final Iterator<KeyRecord> keyRecordIterator = getEdgeKeyRecordsByIndex(direction, labels, outputType, hasContainers);

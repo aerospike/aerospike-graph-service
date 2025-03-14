@@ -171,6 +171,8 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                 for (final FireflyEdge edge : edges) {
                     if (edge != null && HasContainer.testAll(edge, fireflyHasContainers)) {
                         set.add(traverser.split(edge, this));
+                    } else {
+                        int i = 0;
                     }
                 }
             }
@@ -213,7 +215,6 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             final int previousSize = fireflyIdList.size();
 
             TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
-            // TODO GRAPH-1139: The entire iterator is consumed here and may OOM.
             if (duplicateIdMap.containsKey(vertex)) {
                 fireflyIdList.addAll(duplicateIdMap.get(vertex));
             } else {

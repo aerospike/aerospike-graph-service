@@ -217,10 +217,10 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
 
             // Latch the size of the current id list.
             final int previousSize = fireflyIdList.size();
+
             TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
             // TODO GRAPH-1139: The entire iterator is consumed here and may OOM.
             vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, fireflyIdList, aerospikeHasContainers);
-
             for (int i = previousSize; i < fireflyIdList.size(); i++) {
                 final FireflyId id = fireflyIdList.get(i);
                 if (!fireflyEdgeMap.containsKey(id)) {

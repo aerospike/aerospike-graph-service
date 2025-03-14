@@ -198,17 +198,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         final List<FireflyBatchReadHelper.ReadStepInfo<Edge>> fireflyBatchEdgeReadStepInfos = new ArrayList<>();
         final List<FireflyId> fireflyIdList = new ArrayList<>();
         final Set<FireflyId> uniqueIdSet = new HashSet<>();
-        final Map<FireflyId, FireflyEdge> fireflyEdgeMap = new ConcurrentHashMap<>();
-        final Map<Element, List<FireflyId>> duplicateIdMap = new HashMap<>();
-        final Set<Element> input = new HashSet<>();
-
-        for (final Traverser.Admin<Edge> e : set) {
-            if (input.contains(e.get())) {
-                duplicateIdMap.putIfAbsent(e.get(), null);
-            } else {
-                input.add(e.get());
-            }
-        }
+        final Map<FireflyId, FireflyEdge> fireflyEdgeMap = new HashMap<>();
 
         while (!set.isEmpty()) {
             // Get next input traverser and get the FireflyVertex form of it.

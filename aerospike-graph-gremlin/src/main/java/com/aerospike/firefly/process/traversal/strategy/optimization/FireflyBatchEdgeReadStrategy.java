@@ -2,7 +2,7 @@ package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
-import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeSampleLimitReadStep;
+import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadSampleLimitStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -166,7 +166,7 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
             }
 
             if (limitSize != -1 || sampleSize != -1) {
-                traversal.addStep(index, new FireflyBatchEdgeSampleLimitReadStep(
+                traversal.addStep(index, new FireflyBatchEdgeReadSampleLimitStep(
                         traversal,
                         vertexStep.getDirection(),
                         vertexStep.getEdgeLabels(),

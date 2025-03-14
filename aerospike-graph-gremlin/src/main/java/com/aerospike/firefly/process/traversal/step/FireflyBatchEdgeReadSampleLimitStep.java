@@ -3,6 +3,7 @@ package com.aerospike.firefly.process.traversal.step;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
+import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -14,7 +15,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.EmptyTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
@@ -35,27 +36,23 @@ import java.util.stream.LongStream;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Vertex> implements LocalBarrier<Vertex> {
+public class FireflyBatchEdgeReadSampleLimitStep extends CollectingBarrierStep<Edge> implements LocalBarrier<Edge> {
     private final Direction direction;
     private final Set<String> edgeLabels;
-
-    // HasContainers to apply to the read of the composite id step to filter results.
     public final List<HasContainer> fireflyHasContainers;
     public final List<HasContainer> aerospikeHasContainers;
     private final long sampleSize;
     private final long limitSize;
     private final int barrierSize;
-    private final List<String> requiredProperties;
 
-    public FireflyCompositeIdLimitSampleStep(final Traversal.Admin traversal,
-                                             final Direction direction,
-                                             final String[] edgeLabels,
-                                             final Set<String> labels,
-                                             final List<HasContainer> hasContainers,
-                                             final long sampleSize,
-                                             final long limitSize,
-                                             final int barrierSize,
-                                             final List<String> requiredProperties) {
+    public FireflyBatchEdgeReadSampleLimitStep(final Traversal.Admin traversal,
+                                               final Direction direction,
+                                               final String[] edgeLabels,
+                                               final Set<String> labels,
+                                               final List<HasContainer> hasContainers,
+                                               final long sampleSize,
+                                               final long limitSize,
+                                               final int barrierSize) {
         super(traversal, barrierSize);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
@@ -65,7 +62,7 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
         this.barrierSize = barrierSize;
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
-                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);
+                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Edge.class, hasContainers);
             // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
             //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
             //  matter what.
@@ -75,56 +72,55 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
             fireflyHasContainers = List.of();
             aerospikeHasContainers = List.of();
         }
-        this.requiredProperties = requiredProperties;
     }
 
     @Override
-    public void barrierConsumer(final TraverserSet<Vertex> set) {
+    public void barrierConsumer(final TraverserSet<Edge> set) {
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         FireflyBatchReadHelper.pullFromLeft(traversal, graph, set, barrierSize);
 
         // Create output traverser set since we cant append to the input while we are iterating.
-        final TraverserSet<Vertex> output = new TraverserSet<>();
+        final TraverserSet<Edge> output = new TraverserSet<>();
 
         // For a sample we need to yank all the ids from the input vertices and then randomly select ones from that.
-        final Map<Traverser.Admin<Vertex>, FireflyVertex> inputVertices = new HashMap<>();
+        final Map<Traverser.Admin<Edge>, FireflyVertex> inputVertices = new HashMap<>();
         while (!set.isEmpty()) {
-            final Traverser.Admin<Vertex> traverser = set.remove();
+            final Traverser.Admin<Edge> traverser = set.remove();
             final FireflyVertex vertex = (FireflyVertex) traverser.get();
             inputVertices.put(traverser, vertex);
         }
 
-        // Create mapping of input vertex to output vertex ids.
-        int totalVertexIds = 0;
-        final Map<Traverser.Admin<Vertex>, List<FireflyId>> outputVertexIds = new HashMap<>();
-        for (final Traverser.Admin<Vertex> input : inputVertices.keySet()) {
+        // Create mapping of input vertex to output edge ids.
+        int totalEdgeIds = 0;
+        final Map<Traverser.Admin<Edge>, List<FireflyId>> outputEdgeIds = new HashMap<>();
+        for (final Traverser.Admin<Edge> input : inputVertices.keySet()) {
             // Can exit early in case of limit.
-            if (limitSize > 0 && totalVertexIds >= limitSize) {
-                outputVertexIds.put(input, new ArrayList<>());
+            if (limitSize > 0 && totalEdgeIds >= limitSize) {
+                outputEdgeIds.put(input, new ArrayList<>());
             } else {
                 final FireflyVertex vertex = inputVertices.get(input);
                 TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
-                final Iterator<FireflyId> vertexIdsItty = vertex.getVertexIdsFromVertex(direction, edgeLabels);
-                final List<FireflyId> vertexIds = new ArrayList<>();
-                while ((limitSize < 0 || totalVertexIds < limitSize) && vertexIdsItty.hasNext()) {
-                    vertexIds.add(vertexIdsItty.next());
-                    totalVertexIds++;
+                final Iterator<FireflyId> edgeIdsItty = vertex.getEdgeIdsFromVertex(direction, edgeLabels, aerospikeHasContainers);
+                final List<FireflyId> edgeIds = new ArrayList<>();
+                while ((limitSize < 0 || totalEdgeIds < limitSize) && edgeIdsItty.hasNext()) {
+                    edgeIds.add(edgeIdsItty.next());
+                    totalEdgeIds++;
                 }
-                CloseableIterator.closeIterator(vertexIdsItty);
-                outputVertexIds.put(input, vertexIds);
+                CloseableIterator.closeIterator(edgeIdsItty);
+                outputEdgeIds.put(input, edgeIds);
             }
         }
 
-        // Create ordered list of input traversers and output vertex ids.
-        final List<Traverser.Admin<Vertex>> orderedInputTraversers = new ArrayList<>(inputVertices.keySet());
-        final List<List<FireflyId>> orderedOutputVertexIds = new ArrayList<>();
-        for (final Traverser.Admin<Vertex> orderedInputTraverser : orderedInputTraversers) {
-            orderedOutputVertexIds.add(outputVertexIds.get(orderedInputTraverser));
+        // Create ordered list of input traversers and output edge ids.
+        final List<Traverser.Admin<Edge>> orderedInputTraversers = new ArrayList<>(inputVertices.keySet());
+        final List<List<FireflyId>> orderedOutputEdgeIds = new ArrayList<>();
+        for (final Traverser.Admin<Edge> orderedInputTraverser : orderedInputTraversers) {
+            orderedOutputEdgeIds.add(outputEdgeIds.get(orderedInputTraverser));
         }
 
         // Count the total number of output edge ids.
         final AtomicLong count = new AtomicLong(0);
-        orderedOutputVertexIds.forEach(vertexIds -> count.addAndGet(vertexIds.size()));
+        orderedOutputEdgeIds.forEach(vertexIds -> count.addAndGet(vertexIds.size()));
 
         // Generate random indices. This method is used so that we don't spin an RNG generator a ridiculous amount
         // of times in the event that we have something like 1,000,000 elements and a sample size of 999,999.
@@ -147,23 +143,23 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
             values.clear();
         }
 
-        // Create list of sampled vertex ids.
+
+        // Create list of sampled edge ids.
         final List<FireflyId> sampledVertexIds = new ArrayList<>();
         int currentIndex = 0;
-        for (int i = 0; i < orderedOutputVertexIds.size(); i++) {
-            final List<FireflyId> vertexIds = orderedOutputVertexIds.get(i);
-            for (int j = 0; j < vertexIds.size(); j++) {
+        for (int i = 0; i < orderedOutputEdgeIds.size(); i++) {
+            final List<FireflyId> edgeIds = orderedOutputEdgeIds.get(i);
+            for (int j = 0; j < edgeIds.size(); j++) {
                 if (randomIndices.contains((long) currentIndex + j)) {
-                    sampledVertexIds.add(vertexIds.get(j));
+                    sampledVertexIds.add(edgeIds.get(j));
                 }
             }
-            currentIndex += vertexIds.size();
+            currentIndex += edgeIds.size();
         }
 
-        // Read the sampled vertices.
-        final Map<FireflyId, FireflyVertex> vertexMap = new HashMap<>();
-        FireflyBatchReadHelper.populateElementMap(
-                new HashSet<>(sampledVertexIds), vertexMap, aerospikeHasContainers, graph::readVertices, requiredProperties);
+        // Read the sampled edges.
+        final Map<FireflyId, FireflyEdge> edgeMap = new HashMap<>();
+        FireflyBatchReadHelper.populateElementMap(new HashSet<>(sampledVertexIds), edgeMap, aerospikeHasContainers, graph::readEdges, null);
 
         // Create list of random indices to sample and order them in ascending order so we can iterate through them.
         final List<Long> randomIndicesList = new ArrayList<>(randomIndices);
@@ -176,10 +172,10 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
 
         // Loop through the input traversers and output vertex ids and split the input traverser into the output.
         for (int i = 0; i < orderedInputTraversers.size(); i++) {
-            for (int j = 0; j < orderedOutputVertexIds.get(i).size(); j++) {
+            for (int j = 0; j < orderedOutputEdgeIds.get(i).size(); j++) {
                 if (randomIndicesList.get(indexId) == index) {
                     indexId++;
-                    output.add(orderedInputTraversers.get(i).split(vertexMap.get(orderedOutputVertexIds.get(i).get(j)), this));
+                    output.add(orderedInputTraversers.get(i).split(edgeMap.get(orderedOutputEdgeIds.get(i).get(j)), this));
                     if (indexId == randomIndicesList.size()) {
                         // We have reached the end of the random indices so we can exit the loops.
                         exit = true;

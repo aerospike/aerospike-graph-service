@@ -15,6 +15,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrie
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.EmptyTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -31,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -153,8 +155,10 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             for (final Future<?> future : batchReadFutures) {
                 future.get();
             }
-        } catch (final Exception e) {
-            throw new RuntimeException(e);
+        } catch (final InterruptedException e) {
+            throw new TraversalInterruptedException();
+        } catch (final ExecutionException e) {
+            sneakyThrow(e);
         }
 
         // All the data is now in the fireflyEdgeMap, process the output.
@@ -170,8 +174,10 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                     }
                 }
             }
-        } catch (final Exception e) {
-            throw new RuntimeException(e);
+        } catch (final InterruptedException e) {
+            throw new TraversalInterruptedException();
+        } catch (final ExecutionException e) {
+            sneakyThrow(e);
         }
 
         if (set.isEmpty()) {
@@ -251,5 +257,17 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
     @Override
     public String toString() {
         return StringFactory.stepString(this, this.direction, this.edgeLabels, this.barrierSize);
+    }
+
+    // A dumb hack because we lose exception context and don't know if it is checked or unchecked, so need to use this.
+    public static void sneakyThrow(final ExecutionException e) {
+        final Throwable t = e.getCause();
+        if (t == null) sneakyThrowInternal(e); // Shouldn't happen, but if it does we want the context.
+        sneakyThrowInternal(t);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> void sneakyThrowInternal(final Throwable t) throws T {
+        throw (T) t; // unchecked throw
     }
 }

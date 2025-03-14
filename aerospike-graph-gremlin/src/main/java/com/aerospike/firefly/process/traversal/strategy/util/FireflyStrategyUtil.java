@@ -4,8 +4,8 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAdja
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAuthenticationStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyBatchEdgeReadLocalStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyBatchEdgeReadStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyCompositeEdgeIdLocalStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyCompositeEdgeIdStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyBatchVertexReadLocalStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyBatchVertexReadStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyCountGlobalLocalStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyEdgeToVertexBatchReadStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
@@ -52,8 +52,8 @@ public class FireflyStrategyUtil {
 
         // Steps that replace specific internal steps.
         FIREFLY_STRATEGIES.add(new FireflyMergeStepStrategy());
-        FIREFLY_STRATEGIES.add(new FireflyCompositeEdgeIdStrategy());
-        FIREFLY_STRATEGIES.add(new FireflyCompositeEdgeIdLocalStrategy());
+        FIREFLY_STRATEGIES.add(new FireflyBatchVertexReadStrategy());
+        FIREFLY_STRATEGIES.add(new FireflyBatchVertexReadLocalStrategy());
         FIREFLY_STRATEGIES.add(new FireflyBatchEdgeReadStrategy());
         FIREFLY_STRATEGIES.add(new FireflyOtherVBatchReadStrategy());
         FIREFLY_STRATEGIES.add(new FireflyBatchEdgeReadLocalStrategy());

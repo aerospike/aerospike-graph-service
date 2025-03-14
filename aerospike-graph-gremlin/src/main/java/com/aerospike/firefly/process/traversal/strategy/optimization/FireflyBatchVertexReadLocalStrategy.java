@@ -1,16 +1,13 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
-import com.aerospike.firefly.process.traversal.step.computer.FireflyCompositeIdStepLocal;
-import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.process.traversal.step.computer.FireflyBatchVertexReadStepLocal;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.GroupStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupSideEffectStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.T;
 
@@ -21,12 +18,12 @@ import java.util.Set;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
+public class FireflyBatchVertexReadLocalStrategy extends FireflyStrategyBase {
 
     /**
      * Default constructor for FireflyCompositeEdgeIdStrategy.
      */
-    public FireflyCompositeEdgeIdLocalStrategy() {
+    public FireflyBatchVertexReadLocalStrategy() {
     }
 
     @Override
@@ -98,7 +95,7 @@ public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
                     break;
                 }
             }
-            traversal.addStep(index, new FireflyCompositeIdStepLocal(
+            traversal.addStep(index, new FireflyBatchVertexReadStepLocal(
                     traversal,
                     vertexStep.getDirection(),
                     vertexStep.getEdgeLabels(),
@@ -109,9 +106,9 @@ public class FireflyCompositeEdgeIdLocalStrategy extends FireflyStrategyBase {
         }
     }
 
-    private static final FireflyCompositeEdgeIdLocalStrategy INSTANCE = new FireflyCompositeEdgeIdLocalStrategy();
+    private static final FireflyBatchVertexReadLocalStrategy INSTANCE = new FireflyBatchVertexReadLocalStrategy();
 
-    public static FireflyCompositeEdgeIdLocalStrategy instance() {
+    public static FireflyBatchVertexReadLocalStrategy instance() {
         return INSTANCE;
     }
 }

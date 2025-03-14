@@ -51,7 +51,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
     public final List<HasContainer> aerospikeHasContainers;
     private final int barrierSize;
     private final List<String> requiredProperties;
-    private final ExecutorService executorService;
+    final int threads;
 
     public FireflyBatchVertexReadStep(final Traversal.Admin traversal,
                                       final Direction direction,
@@ -79,15 +79,16 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
         }
         this.requiredProperties = requiredProperties;
         final Optional<Integer> threads = getTraversalOptionInteger(ConfigurationHelper.TraversalOptions.PARALLELIZE, traversal, 1, Integer.MAX_VALUE);
-        executorService = threads.map(integer -> Executors.newFixedThreadPool(integer, r -> {
+        this.threads = threads.orElse(-1);
+    }
+
+    public void parallelBarrierConsumer(final TraverserSet<Vertex> set) {
+        final ExecutorService executorService = Executors.newFixedThreadPool(threads, r -> {
             final Thread t = new Thread(r);
             t.setName("Aerospike-Graph-BatchVertexRead-Worker-" + t.getId());
             t.setDaemon(true);
             return t;
-        })).orElse(null);
-    }
-
-    public void parallelBarrierConsumer(final TraverserSet<Vertex> set) {
+        });
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         FireflyBatchReadHelper.pullFromLeft(traversal, graph, set, barrierSize);
 
@@ -229,7 +230,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
 
     @Override
     public void barrierConsumer(final TraverserSet<Vertex> set) {
-        if (executorService != null) {
+        if (threads != -1) {
             parallelBarrierConsumer(set);
             return;
         }

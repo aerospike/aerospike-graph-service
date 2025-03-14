@@ -49,7 +49,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
     public final List<HasContainer> fireflyHasContainers;
     public final List<HasContainer> aerospikeHasContainers;
     private final int barrierSize;
-    private final ExecutorService executorService;
+    final int threads;
 
 
     public FireflyBatchEdgeReadStep(final Traversal.Admin traversal,
@@ -76,16 +76,17 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             aerospikeHasContainers = List.of();
         }
         final Optional<Integer> threads = getTraversalOptionInteger(ConfigurationHelper.TraversalOptions.PARALLELIZE, traversal, 1, Integer.MAX_VALUE);
-        executorService = threads.map(integer -> Executors.newFixedThreadPool(integer, r -> {
-            final Thread t = new Thread(r);
-            t.setName("Aerospike-Graph-BatchEdgeRead-Worker-" + t.getId());
-            t.setDaemon(true);
-            return t;
-        })).orElse(null);
+        this.threads = threads.orElse(-1);
     }
 
     private void parallelBarrierConsumer(final TraverserSet<Edge> set) {
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
+        final ExecutorService executorService = Executors.newFixedThreadPool(threads, r -> {
+            final Thread t = new Thread(r);
+            t.setName("Aerospike-Graph-BatchEdgeRead-Worker-" + t.getId());
+            t.setDaemon(true);
+            return t;
+        });
         FireflyBatchReadHelper.pullFromLeft(traversal, graph, set, barrierSize);
 
         // Info is used to keep track of how many output items we assign for each input (executed in order).
@@ -171,8 +172,6 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                 for (final FireflyEdge edge : edges) {
                     if (edge != null && HasContainer.testAll(edge, fireflyHasContainers)) {
                         set.add(traverser.split(edge, this));
-                    } else {
-                        int i = 0;
                     }
                 }
             }
@@ -185,11 +184,12 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         if (set.isEmpty()) {
             set.add(EmptyTraverser.instance());
         }
+        executorService.shutdown();
     }
 
     @Override
     public void barrierConsumer(final TraverserSet<Edge> set) {
-        if (executorService != null) {
+        if (threads != -1) {
             parallelBarrierConsumer(set);
             return;
         }

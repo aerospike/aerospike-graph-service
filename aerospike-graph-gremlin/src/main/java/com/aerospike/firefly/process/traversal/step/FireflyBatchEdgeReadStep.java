@@ -7,12 +7,12 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.EmptyTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -28,12 +28,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
+
+import static com.aerospike.firefly.util.config.ConfigurationHelper.getTraversalOptionInteger;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -44,7 +47,8 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
     public final List<HasContainer> fireflyHasContainers;
     public final List<HasContainer> aerospikeHasContainers;
     private final int barrierSize;
-    final ExecutorService executorService;
+    private final ExecutorService executorService;
+
 
     public FireflyBatchEdgeReadStep(final Traversal.Admin traversal,
                                     final Direction direction,
@@ -69,20 +73,13 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             fireflyHasContainers = List.of();
             aerospikeHasContainers = List.of();
         }
-        final Map<String, Object> traversalOptions = new HashMap<>();
-        traversal.getStrategies().
-                getStrategy(OptionsStrategy.class).ifPresent(
-                        optionsStrategy -> traversalOptions.putAll(optionsStrategy.getOptions()));
-        if (traversalOptions.containsKey("aerospike.graph.parallelize")) {
-            executorService = Executors.newFixedThreadPool(Integer.parseInt(traversalOptions.get("aerospike.graph.parallelize").toString()), r -> {
-                final Thread t = new Thread(r);
-                t.setName("Aerospike-Graph-BatchEdgeRead-Worker-" + t.getId());
-                t.setDaemon(true);
-                return t;
-            });
-        } else {
-            executorService = null;
-        }
+        final Optional<Integer> threads = getTraversalOptionInteger(ConfigurationHelper.TraversalOptions.PARALLELIZE, traversal, 1, Integer.MAX_VALUE);
+        executorService = threads.map(integer -> Executors.newFixedThreadPool(integer, r -> {
+            final Thread t = new Thread(r);
+            t.setName("Aerospike-Graph-BatchEdgeRead-Worker-" + t.getId());
+            t.setDaemon(true);
+            return t;
+        })).orElse(null);
     }
 
     private void parallelBarrierConsumer(final TraverserSet<Edge> set) {

@@ -523,28 +523,32 @@ public final class ConfigurationHelper {
         final Map<String, Object> traversalOptions = new HashMap<>();
         traversal.getStrategies().getStrategy(OptionsStrategy.class).ifPresent(optionsStrategy -> traversalOptions.putAll(optionsStrategy.getOptions()));
         if (traversalOptions.containsKey(key)) {
-            Object threadValueRaw = traversalOptions.get(key);
-            if (threadValueRaw instanceof Integer || threadValueRaw instanceof Long) {
-                final int threadValue = (int) threadValueRaw;
-                if (threadValue < min) {
-                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be greater than " + min + ". " + threadValue + " is less than " + min + ".");
-                } else if (threadValue > max) {
-                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be less than " + max + ". " + threadValue + " is greater than " + max + ".");
+            Object valueRaw = traversalOptions.get(key);
+            if (valueRaw instanceof Integer || valueRaw instanceof Long) {
+                if (valueRaw instanceof Long) {
+                    valueRaw = ((Long) valueRaw).intValue();
                 }
-                return Optional.of(threadValue);
+                final int value = (int) valueRaw;
+                if (value < min) {
+                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be greater than " + min + ". " + value + " is less than " + min + ".");
+                } else if (value > max) {
+                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be less than " + max + ". " + value + " is greater than " + max + ".");
+                }
+                return Optional.of(value);
             }
-            final int threadValue;
+            final int value;
             try {
-                threadValue = Integer.parseInt(threadValueRaw.toString());
-                if (threadValue < 1) {
-                    throw new ConfigurationRuntimeException("Invalid value for " + key +
-                            " option. Must be greater than 0. " + threadValue + " is less than 1.");
+                value = Integer.parseInt(valueRaw.toString());
+                if (value < min) {
+                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be greater than " + min + ". " + value + " is less than " + min + ".");
+                } else if (value > max) {
+                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be less than " + max + ". " + value + " is greater than " + max + ".");
                 }
             } catch (final NumberFormatException e) {
                 throw new ConfigurationRuntimeException("Invalid value for " + key +
-                        " option. Must be an integer or integer string. " + threadValueRaw + " is of type " + threadValueRaw.getClass().getName());
+                        " option. Must be an integer or integer string. " + valueRaw + " is of type " + valueRaw.getClass().getName());
             }
-            return Optional.of(threadValue);
+            return Optional.of(value);
         }
         return Optional.empty();
     }

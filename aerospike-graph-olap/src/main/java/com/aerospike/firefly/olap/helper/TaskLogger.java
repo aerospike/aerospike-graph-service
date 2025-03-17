@@ -9,6 +9,7 @@ public class TaskLogger implements LogInfo {
     }
 
     public static TaskLogger instance = new TaskLogger();
+    boolean debugging = false;
 
     private static String getTaskInfo() {
         final TaskContext taskContext = TaskContext.get();
@@ -27,7 +28,11 @@ public class TaskLogger implements LogInfo {
     }
 
     public static void logDebuggingMessage(final String message, final Logger logger) {
-        instance.debuggingMessage(message, logger);
+        if (instance.debugging)
+            instance.debuggingMessage(message, logger);
     }
 
+    public void setDebugging(final boolean debugging) {
+        this.debugging = debugging;
+    }
 }

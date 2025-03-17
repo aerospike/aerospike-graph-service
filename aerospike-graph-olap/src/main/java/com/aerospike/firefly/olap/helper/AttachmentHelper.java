@@ -88,18 +88,20 @@ public class AttachmentHelper {
     private static Object getFromCache(final Object object,
                                        final Map<Object, Element> vertexCache,
                                        final Map<Object, Element> edgeCache) {
-        if (object instanceof Vertex && vertexCache.containsKey(((Vertex) object).id())) {
-            return vertexCache.get(((Vertex) object).id());
-        } else if (object instanceof Edge && edgeCache.containsKey(((Edge) object).id())) {
-            return edgeCache.get(((Edge) object).id());
-        } else if (object instanceof VertexProperty && vertexCache.containsKey(((VertexProperty) object).element().id())) {
-            final Vertex vertex = (Vertex) vertexCache.get(((VertexProperty) object).element().id());
-            final Iterator<VertexProperty<Object>> itty = vertex.properties();
-            while (itty.hasNext()) {
-                // vertex property attachment require key, so shortcut here
-                final VertexProperty vp = itty.next();
-                if (vp.id().equals(((VertexProperty<?>) object).id())) {
-                    return vp;
+        if (object instanceof Vertex) {
+            return vertexCache.getOrDefault(((Vertex) object).id(), (Vertex)object);
+        } else if (object instanceof Edge) {
+            return edgeCache.getOrDefault(((Edge) object).id(), (Edge)object);
+        } else if (object instanceof VertexProperty) {
+            if(vertexCache.containsKey(((VertexProperty) object).element().id())) {
+                final Vertex vertex = (Vertex) vertexCache.get(((VertexProperty) object).element().id());
+                final Iterator<VertexProperty<Object>> itty = vertex.properties();
+                while (itty.hasNext()) {
+                    // vertex property attachment require key, so shortcut here
+                    final VertexProperty vp = itty.next();
+                    if (vp.id().equals(((VertexProperty<?>) object).id())) {
+                        return vp;
+                    }
                 }
             }
             return object;
@@ -308,20 +310,26 @@ public class AttachmentHelper {
 
         // ReferenceFactory don't detach traversers
         if (value instanceof Map) {
-            final Map<Object, Object> map = (Map<Object, Object>) value;
-            for (final Map.Entry<Object, Object> entry : map.entrySet()) {
-                if (entry.getValue() instanceof Map)
-                    map.put(entry.getKey(), detach(entry.getValue(), detacher));
-                else if (entry.getValue() instanceof Traverser) {
+            final Map<Object, Object> map = new HashMap<>();
+            for (final Map.Entry<Object, Object> entry : ((Map<Object, Object>) value).entrySet()) {
+                Object entryValue = entry.getValue();
+                if (entryValue instanceof Map || entryValue instanceof TraverserSet) {
+                    entryValue = detach(entry.getValue(), detacher);
+                } else if (entry.getValue() instanceof Traverser) {
                     final Traverser.Admin traverser = ((Traverser) entry.getValue()).asAdmin();
                     // used only by barriers, so it's ok to always use default traverser.detach here
                     // final Object detached = detacher.apply(traverser.get());
                     traverser.detach();
                     // traverser.set(detached);
-                }
+                } else
+                    entryValue = detacher.apply(entryValue);
+
+                map.put(detacher.apply(entry.getKey()), entryValue);
             }
+            return map;
         }
 
+        // TraverserSet detached as HashSet, so need to avoid this
         return detacher.apply(value);
     }
 }

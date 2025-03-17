@@ -86,6 +86,8 @@ public class DistributedGraphComputerMain {
         for (final Map.Entry<String, Object> entry : fileConfig.entrySet()) {
             configMapToFile.append(entry.getKey()).append("=").append(entry.getValue()).append("\n");
         }
+        configMapToFile.append(ConfigurationHelper.Keys.OLAP_ENABLED).append("=").append("true\n");
+        configMapToFile.append(ConfigurationHelper.Keys.AUTO_PRE_HEAT).append("=").append("false\n");
         try {
             FileUtils.writeStringToFile(new File(configFilePath), configMapToFile.toString(), StandardCharsets.UTF_8);
         } catch (Exception e) {
@@ -665,7 +667,7 @@ public class DistributedGraphComputerMain {
             throw new RuntimeException(e);
         }
         final Map<String, Object> config = new MapConfiguration(prop).getMap();
-        config.put(ConfigurationHelper.Keys.BULK_LOADER_FLAG.toLowerCase(), "true");
+        config.put(ConfigurationHelper.Keys.OLAP_ENABLED.toLowerCase(), "true");
         return config;
     }
 }

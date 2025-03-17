@@ -1,5 +1,6 @@
 package com.aerospike.firefly.olap.process;
 
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ReflectionHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.Computer;
@@ -281,8 +282,8 @@ public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
         final TraverserSet<Object> haltedTraversers = new TraverserSet<>();
 
         //////////////////
-        LOGGER.info("\nIteration: " + memory.getIteration());
-        if (memory.isInitialIteration()) {    // ITERATION 1
+        ((FireflyGraph) traversalMatrix.getTraversal().getGraph().get()).logMessage("Iteration: " + memory.getIteration(), LOGGER);
+        if (memory.isInitialIteration()) {    // ITERATION 0
             throw new IllegalStateException("Worker got initial iteration. Please contact support.");
         } else {  // ITERATION 1+
             memory.add(VOTE_TO_HALT,

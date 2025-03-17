@@ -3,12 +3,14 @@ package com.aerospike.firefly.process.traversal.strategy.optimization;
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalLocalStep;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.CountGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 
-public class FireflyCountGlobalLocalStrategy  extends FireflyStrategyBase {
+public class FireflyCountGlobalLocalStrategy extends FireflyStrategyBase {
     /**
      * Default constructor for FireflyGraphCountStrategy.
      */
@@ -21,24 +23,41 @@ public class FireflyCountGlobalLocalStrategy  extends FireflyStrategyBase {
     }
 
     @Override
-
     protected void doApply(final Traversal.Admin<?, ?> traversal) {
-        if (!ComputerHelper.onGraphComputer(traversal))
+        if (!ComputerHelper.onGraphComputer(traversal) || traversal.getSteps().size() < 2)
             return;
-        for (int i = 0; i < traversal.getSteps().size(); i++) {
+
+        for (int i = 1; i < traversal.getSteps().size(); i++) {
             if (traversal.getSteps().get(i) instanceof CountGlobalStep) {
-                if (i > 0 && traversal.getSteps().get(i - 1) instanceof VertexStep) {
+                if (traversal.getSteps().get(i - 1) instanceof RangeGlobalStep) {
+                    final RangeGlobalStep rangeGlobalStep = (RangeGlobalStep) traversal.getSteps().get(i - 1);
+                    if (rangeGlobalStep.getLowRange() != 0)
+                        continue;
+                    if (i > 1 && traversal.getSteps().get(i - 2) instanceof VertexStep) {
+                        final VertexStep vertexStep = (VertexStep) traversal.getSteps().get(i - 2);
+                        if (vertexStep.getLabels().isEmpty()) {
+                            // Need to replace count step and remove vertex and count steps
+                            TraversalHelper.replaceStep(
+                                    traversal.getSteps().get(i),
+                                    new FireflyCountGlobalLocalStep<>(
+                                            traversal, vertexStep.getDirection(), traversal.getSteps().get(i).getLabels(),
+                                            vertexStep.getEdgeLabels(), rangeGlobalStep.getHighRange()),
+                                    traversal);
+                            traversal.removeStep(rangeGlobalStep);
+                            traversal.removeStep(vertexStep);
+                        }
+                    }
+                } else if (traversal.getSteps().get(i - 1) instanceof VertexStep) {
                     final VertexStep vertexStep = (VertexStep) traversal.getSteps().get(i - 1);
                     if (vertexStep.getLabels().isEmpty()) {
                         // Need to replace count step and remove vertex step
                         TraversalHelper.replaceStep(
                                 traversal.getSteps().get(i),
                                 new FireflyCountGlobalLocalStep<>(
-                                        traversal, vertexStep.getDirection(), traversal.getSteps().get(i).getLabels(), vertexStep.getEdgeLabels()),
+                                        traversal, vertexStep.getDirection(), traversal.getSteps().get(i).getLabels(), vertexStep.getEdgeLabels(), -1),
                                 traversal);
                         traversal.removeStep(vertexStep);
                     }
-
                 }
             }
         }

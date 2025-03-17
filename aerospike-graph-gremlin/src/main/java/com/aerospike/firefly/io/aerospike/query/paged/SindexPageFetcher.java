@@ -7,12 +7,15 @@ import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 
 public class SindexPageFetcher<R> extends PageFetcher<R> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SindexPageFetcher.class);
     private final QueryPolicy policy;
     private final Statement statement;
     private final int timeout;
@@ -67,6 +70,8 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
             while (recordSetIterator.hasNext()) {
                 pi.add(recordSetIterator.next());
             }
+        } catch (Exception e) {
+            throw e;
         }
     }
 }

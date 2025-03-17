@@ -782,6 +782,10 @@ public final class ConfigurationHelper {
             if (System.getenv("FIREFLY_TESTING") != null && System.getenv("FIREFLY_TESTING").equals("true")) {
                 throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
             } else {
+                if (config.containsKey("aerospike.graph.olap.enabled") && config.getBoolean("aerospike.graph.olap.enabled")) {
+                    // In olap we want this to be thrown back to the user so it doesnt die silently.
+                    throw new ConfigurationRuntimeException("Error, the following configuration keys are invalid: " + invalidKeys);
+                }
                 LOG.error("ERROR: Aerospike Graph Service was unable to initialize due to invalid configuration keys: {}. Please fix these keys and try again.", invalidKeys);
 
                 // This error comes out in a bunch of massive stack traces and ultimately the container hangs.

@@ -77,6 +77,7 @@ public class IndexIterator implements CloseableIterator<Traverser> {
         this.codec = codec;
         this.traversal = traversal;
         this.pageQueue = new LinkedBlockingQueue<>(graph.getBaseGraph().PAGINATION_PAGE_QUEUE_SIZE);
+        graph.logMessage("IndexIterator created with " + rows.size() + " rows.", LOGGER);
     }
 
     @Override
@@ -104,7 +105,6 @@ public class IndexIterator implements CloseableIterator<Traverser> {
                             row.getInt(row.fieldIndex(START_COL)),
                             row.getInt(row.fieldIndex(COUNT_COL)));
 
-                    TaskLogger.logDebuggingMessage("Row number " + rowCount, LOGGER);
 
                     // TODO: Can omit some bins here.
                     final int evaluationTimeout = Long.valueOf(TimeoutHelper.calculate(traversal.asAdmin())).intValue();
@@ -127,14 +127,13 @@ public class IndexIterator implements CloseableIterator<Traverser> {
                     pageFetcher.startQueryDirect();
                     break;
                 } catch (final Exception e) {
-                    TaskLogger.logDebuggingMessage("Got exception " + e.getMessage(), LOGGER);
                     if (attemptCount > 10) {
                         throw new RuntimeException("Failed to run query after " + attemptCount + " attempts.", e);
                     } else if (e.getMessage().contains("Operation not allowed at this time")) {
                         TaskLogger.logDebuggingMessage("Sleeping.", LOGGER);
                         try {
                             Thread.sleep(1000L * (attemptCount + 1));
-                        } catch (InterruptedException e1) {
+                        } catch (final InterruptedException e1) {
                             throw new RuntimeException(e1);
                         }
                     }
@@ -144,7 +143,7 @@ public class IndexIterator implements CloseableIterator<Traverser> {
 
         try {
             page = pageQueue.take();
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
         if (page instanceof PageFetcher.ErrorPage) {

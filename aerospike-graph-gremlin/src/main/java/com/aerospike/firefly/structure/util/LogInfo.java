@@ -4,4 +4,5 @@ import org.slf4j.Logger;
 
 public interface LogInfo {
     void debuggingMessage(final String message, final Logger logger);
+    void setDebugging(final boolean debugging);
 }

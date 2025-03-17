@@ -719,6 +719,10 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     }
 
     public long getEdgeCount(final Direction direction, final String[] edgeLabels) {
+        return getEdgeCount(direction, edgeLabels, -1);
+    }
+
+    public long getEdgeCount(final Direction direction, final String[] edgeLabels, final long limit) {
         if (direction == Direction.BOTH) {
             LOG.warn("getEdgeCount invoked with direction BOTH - the return value will be correct, but this method " +
                     "is only supposed to be invoked by FireflyVertexLocalCountStep which should never pass in BOTH.");
@@ -726,9 +730,17 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         }
 
         final long baseCount = getCachedEdgeCount(direction, edgeLabels);
-        return this.isEdgeCacheOverflowed ?
+        if (limit != -1 && baseCount >= limit)
+            return limit;
+
+        final long count = this.isEdgeCacheOverflowed ?
                 baseCount + FireflyCloseableIteratorUtils.count(getSupernodeEdgeIds(direction, Set.of(), Collections.emptyList())) :
                 baseCount;
+
+        if (limit != -1 && count >= limit)
+            return limit;
+
+        return count;
     }
 
     private long getCachedEdgeCount(final Direction direction, final String[] edgeLabels) {

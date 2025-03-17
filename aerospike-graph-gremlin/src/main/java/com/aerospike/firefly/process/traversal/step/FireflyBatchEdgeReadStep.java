@@ -39,6 +39,7 @@ import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.util.config.ConfigurationHelper.getTraversalOptionInteger;
+import static com.aerospike.firefly.util.exceptions.GraphError.sneakyThrow;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -258,17 +259,5 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
     @Override
     public String toString() {
         return StringFactory.stepString(this, this.direction, this.edgeLabels, this.barrierSize);
-    }
-
-    // A dumb hack because we lose exception context and don't know if it is checked or unchecked, so need to use this.
-    public static void sneakyThrow(final ExecutionException e) {
-        final Throwable t = e.getCause();
-        if (t == null) sneakyThrowInternal(e); // Shouldn't happen, but if it does we want the context.
-        sneakyThrowInternal(t);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T extends Throwable> void sneakyThrowInternal(final Throwable t) throws T {
-        throw (T) t; // unchecked throw
     }
 }

@@ -298,6 +298,38 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     }
 
     /**
+     * Get all edge ids from vertex for given Direction. This considers supernode ids and cached ids,
+     * handling index/scanning under the hood.
+     *
+     * @param direction Direction to get edge ids for.
+     * @return Iterator of all edge ids.
+     */
+    public List<FireflyId> getBatchedEdgeIdsFromVertex(final Direction direction, final Set<String> labels, final List<FireflyId> edgeIdContainer,
+                                                       final List<HasContainer> hasContainers, final Map<FireflyId, FireflyEdge> edgeCache) {
+        LOG.trace("Getting edge ids from vertex {}.", id);
+        final List<FireflyId> edgeIds;
+        if (edgeIdContainer == null) {
+            edgeIds = new ArrayList<>();
+        } else {
+            edgeIds = edgeIdContainer;
+        }
+
+        edgeIds.addAll(getCachedEdgeIds(direction, labels));
+        if (edgeCache != null) {
+            final List<FireflyEdge> edges = graph.readEdges(hasContainers, edgeIds, null);
+            for (final FireflyEdge edge : edges) {
+                edgeCache.put(edge.id, edge);
+            }
+        }
+        if (isEdgeCacheOverflowed) {
+            final Iterator<FireflyId> superNodeEdgeIds = getSupernodeEdgeIds(direction, labels, hasContainers, edgeCache);
+            superNodeEdgeIds.forEachRemaining(edgeIds::add);
+        }
+
+        return edgeIds;
+    }
+
+    /**
      * Used by FireflyMergeEdgeStep. Leverage adjacency sindex filtering to find any edges between this and a given
      * vertex id.
      *
@@ -377,8 +409,17 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      * To get an exhaustive list of all ids you must call this in conjunction with getCachedEdgeIds.
      */
     public Iterator<FireflyId> getSupernodeEdgeIds(final Direction direction, final Set<String> labels,
-                                                final List<HasContainer> hasContainers) {
+                                                   final List<HasContainer> hasContainers) {
         return getSupernodeIds(direction, labels, FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, hasContainers);
+    }
+
+    /**
+     * Important note about this function: It only returns ids that are NOT cached in the vertex.
+     * To get an exhaustive list of all ids you must call this in conjunction with getCachedEdgeIds.
+     */
+    public Iterator<FireflyId> getSupernodeEdgeIds(final Direction direction, final Set<String> labels,
+                                                   final List<HasContainer> hasContainers, final Map<FireflyId, FireflyEdge> edgeCache) {
+        return getSupernodeIds(direction, labels, FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, hasContainers, edgeCache);
     }
 
     /**
@@ -412,15 +453,27 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     }
 
     public Iterator<FireflyId> getSupernodeIds(final Direction direction,
-                                           final Set<String> labels,
-                                           final FireflyPhatEdgeIdIteratorFromVertex.OutputType outputType,
-                                           final List<HasContainer> hasContainers) {
+                                               final Set<String> labels,
+                                               final FireflyPhatEdgeIdIteratorFromVertex.OutputType outputType,
+                                               final List<HasContainer> hasContainers) {
         if (!this.isEdgeCacheOverflowed) {
             return Collections.emptyIterator();
         }
 
         LOG.trace("Getting supernode edge ids from vertex {}.", id);
         return getIdsFromVertexByIndex(direction, labels, outputType, hasContainers);
+    }
+
+    public Iterator<FireflyId> getSupernodeIds(final Direction direction,
+                                           final Set<String> labels,
+                                           final FireflyPhatEdgeIdIteratorFromVertex.OutputType outputType,
+                                           final List<HasContainer> hasContainers, final Map<FireflyId, FireflyEdge> edgeCache) {
+        if (!this.isEdgeCacheOverflowed) {
+            return Collections.emptyIterator();
+        }
+
+        LOG.trace("Getting supernode edge ids from vertex {}.", id);
+        return getIdsFromVertexByIndex(direction, labels, outputType, hasContainers, edgeCache);
     }
 
     public List<FireflyId> getCachedIds(final Direction direction, final Set<String> labels) {
@@ -626,6 +679,22 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         } else {
             final Iterator<KeyRecord> keyRecordIterator = getEdgeKeyRecordsByIndex(direction, labels, outputType, hasContainers);
             return new FireflyPhatEdgeIdIteratorFromIndexedVertex(keyRecordIterator, this.db, direction, this.id, labels, outputType, null);
+        }
+    }
+
+    protected Iterator<FireflyId> getIdsFromVertexByIndex(final Direction direction,
+                                                          final Set<String> labels,
+                                                          final FireflyPhatEdgeIdIteratorFromVertex.OutputType outputType,
+                                                          final List<HasContainer> hasContainers,
+                                                          final Map<FireflyId, FireflyEdge> edgeCache) {
+        if (direction == Direction.BOTH) {
+            final Iterator<KeyRecord> inKeyRecordIterator = getEdgeKeyRecordsByIndex(Direction.IN, labels, outputType, hasContainers);
+            final Iterator<KeyRecord> outKeyRecordIterator = getEdgeKeyRecordsByIndex(Direction.OUT, labels, outputType, hasContainers);
+            return FireflyCloseableIteratorUtils.concat(new FireflyPhatEdgeIdIteratorFromIndexedVertex(inKeyRecordIterator, this.graph, Direction.IN, this.id, labels, outputType, null, edgeCache),
+                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(outKeyRecordIterator, this.graph, Direction.OUT, this.id, labels, outputType, null, edgeCache));
+        } else {
+            final Iterator<KeyRecord> keyRecordIterator = getEdgeKeyRecordsByIndex(direction, labels, outputType, hasContainers);
+            return new FireflyPhatEdgeIdIteratorFromIndexedVertex(keyRecordIterator, this.graph, direction, this.id, labels, outputType, null, edgeCache);
         }
     }
 

@@ -5,6 +5,7 @@ import com.aerospike.client.ResultCode;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 
 import java.util.HashMap;
+import java.util.concurrent.ExecutionException;
 
 import static com.aerospike.client.ResultCode.ASYNC_QUEUE_FULL;
 import static com.aerospike.client.ResultCode.BATCH_FAILED;
@@ -146,5 +147,17 @@ public enum GraphError {
             throw new IllegalArgumentException("Designated graph errors should always have a message");
         }
         return errorMessage;
+    }
+
+    // A dumb hack because we lose exception context and don't know if it is checked or unchecked, so need to use this.
+    public static void sneakyThrow(final ExecutionException e) {
+        final Throwable t = e.getCause();
+        if (t == null) sneakyThrowInternal(e); // Shouldn't happen, but if it does we want the context.
+        sneakyThrowInternal(t);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> void sneakyThrowInternal(final Throwable t) throws T {
+        throw (T) t; // unchecked throw
     }
 }

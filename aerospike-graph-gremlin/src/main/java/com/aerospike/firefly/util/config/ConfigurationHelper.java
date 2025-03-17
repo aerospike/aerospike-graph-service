@@ -9,6 +9,8 @@ import com.aerospike.firefly.util.LoggerUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +29,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -48,6 +51,10 @@ public final class ConfigurationHelper {
         add(Keys.GRAPH_ID);
         add(Keys.ON_RECORD_ID_LIMIT);
     }};
+
+    public static class TraversalOptions {
+        public static final String PARALLELIZE = "aerospike.graph.parallelize";
+    }
 
     public static class Keys {
         // environmental variable config
@@ -509,6 +516,41 @@ public final class ConfigurationHelper {
         INTEGER_CONFIG_VALIDATOR.addConfig(Keys.MRT_TIMEOUT, 0, 120);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.QUERY_TRACING_LOG_THRESHOLD, -1);
         INTEGER_CONFIG_VALIDATOR.addConfig(Keys.QUERY_TRACING_SAMPLE_PERCENT, 1, 100);
+    }
+
+    public static Optional<Integer> getTraversalOptionInteger(final String key, final Traversal.Admin traversal,
+                                                              final int min, final int max) {
+        final Map<String, Object> traversalOptions = new HashMap<>();
+        traversal.getStrategies().getStrategy(OptionsStrategy.class).ifPresent(optionsStrategy -> traversalOptions.putAll(optionsStrategy.getOptions()));
+        if (traversalOptions.containsKey(key)) {
+            Object valueRaw = traversalOptions.get(key);
+            if (valueRaw instanceof Integer || valueRaw instanceof Long) {
+                if (valueRaw instanceof Long) {
+                    valueRaw = ((Long) valueRaw).intValue();
+                }
+                final int value = (int) valueRaw;
+                if (value < min) {
+                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be greater than " + min + ". " + value + " is less than " + min + ".");
+                } else if (value > max) {
+                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be less than " + max + ". " + value + " is greater than " + max + ".");
+                }
+                return Optional.of(value);
+            }
+            final int value;
+            try {
+                value = Integer.parseInt(valueRaw.toString());
+                if (value < min) {
+                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be greater than " + min + ". " + value + " is less than " + min + ".");
+                } else if (value > max) {
+                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be less than " + max + ". " + value + " is greater than " + max + ".");
+                }
+            } catch (final NumberFormatException e) {
+                throw new ConfigurationRuntimeException("Invalid value for " + key +
+                        " option. Must be an integer or integer string. " + valueRaw + " is of type " + valueRaw.getClass().getName());
+            }
+            return Optional.of(value);
+        }
+        return Optional.empty();
     }
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {

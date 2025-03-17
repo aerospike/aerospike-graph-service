@@ -8,6 +8,7 @@ import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
+import com.aerospike.firefly.util.config.FireflyConfiguration;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.spark.SparkConf;
@@ -234,7 +235,7 @@ public class SparkBulkLoaderStateMachine {
             LOGGER.error(e.getMessage());
             throw new RuntimeException(e);
         }
-        final Map<String, Object> config = new MapConfiguration(prop).getMap();
+        final Map<String, Object> config = FireflyConfiguration.fromConfiguration(new MapConfiguration(prop)).getMap();
         config.put(ConfigurationHelper.Keys.BULK_LOADER_FLAG.toLowerCase(), "true");
         return config;
     }

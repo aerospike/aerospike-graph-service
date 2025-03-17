@@ -614,21 +614,21 @@ public final class ConfigurationHelper {
     }
 
     public static Object getOrDefault(final String key, final Configuration config) {
-        // Debug mode is a special case.
-        if (key.equalsIgnoreCase(Keys.DEBUG_MODE_FLAG)) {
-            return (config.containsKey(Keys.DEBUG_MODE_FLAG)) ?
-                    config.getString(Keys.DEBUG_MODE_FLAG) : DEFAULT_VALUES.get(Keys.DEBUG_MODE_FLAG);
-        }
-        if (key.equalsIgnoreCase(Keys.BULK_LOADER_FLAG)) {
-            return (config.containsKey(Keys.BULK_LOADER_FLAG)) ?
-                    config.getString(Keys.BULK_LOADER_FLAG) : DEFAULT_VALUES.get(Keys.BULK_LOADER_FLAG);
-        }
-
         final String lowerKey = key.toLowerCase();
         final String upperKey = key.toUpperCase();
 
+        // Debug mode is a special case.
+        if (key.equalsIgnoreCase(Keys.DEBUG_MODE_FLAG)) {
+            return (config.containsKey(lowerKey)) ?
+                    config.getString(lowerKey) : DEFAULT_VALUES.get(Keys.DEBUG_MODE_FLAG);
+        }
+        if (key.equalsIgnoreCase(Keys.BULK_LOADER_FLAG)) {
+            return (config.containsKey(lowerKey)) ?
+                    config.getString(lowerKey) : DEFAULT_VALUES.get(Keys.BULK_LOADER_FLAG);
+        }
+
         // Warmup mode
-        final boolean warmupMode = config.containsKey(Keys.WARMUP_MODE) && parseBool(Keys.WARMUP_MODE, config.getString(Keys.WARMUP_MODE));
+        final boolean warmupMode = config.containsKey(Keys.WARMUP_MODE.toLowerCase()) && parseBool(Keys.WARMUP_MODE, config.getString(Keys.WARMUP_MODE.toLowerCase()));
         if (lowerKey.equals(Keys.WARMUP_MODE)) {
             return warmupMode;
         }
@@ -652,20 +652,11 @@ public final class ConfigurationHelper {
             }
             return envConfig;
         } else if (!config.containsKey(lowerKey) &&
-                !config.containsKey(upperKey) &&
-                !config.containsKey(key) &&
                 !DEFAULT_VALUES.containsKey(key) &&
                 !checkInternalKeys(key)) {
-            throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
-        } else if (config.containsKey(lowerKey) || config.containsKey(upperKey) || config.containsKey(key)) {
-            String configValue = config.getString(lowerKey, "");
-            if (configValue.isEmpty()) {
-                configValue = config.getString(upperKey, "");
-            }
-            if (configValue.isEmpty()) {
-                configValue = config.getString(key, "");
-            }
-            return configValue;
+            throw new ConfigurationRuntimeException("No default value available for key: " + key);
+        } else if (config.containsKey(lowerKey)) {
+            return config.getString(lowerKey);
         } else if (Keys.InternalConfigs.keys().contains(key)) {
             if (debugMode) {
                 return Keys.InternalConfigs.valueOf(key).getValue().english;
@@ -760,7 +751,7 @@ public final class ConfigurationHelper {
         final Keys keys = new Keys();
         final Set<String> validKeys = Arrays.stream(keyFields).map(f -> {
             try {
-                return (String) f.get(keys);
+                return ((String) f.get(keys)).toLowerCase();
             } catch (final IllegalAccessException e) {
                 throw new RuntimeException(e);
             }
@@ -772,7 +763,7 @@ public final class ConfigurationHelper {
         Arrays.stream(bulkLoaderFields).forEach(f -> {
             try {
                 if (f.get(bulkLoaderConfigHelper) instanceof String) {
-                    validKeys.add((String) f.get(bulkLoaderConfigHelper));
+                    validKeys.add(((String) f.get(bulkLoaderConfigHelper)).toLowerCase());
                 }
             } catch (final IllegalAccessException e) {
                 throw new RuntimeException(e);

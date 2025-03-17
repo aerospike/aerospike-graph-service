@@ -51,7 +51,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
     public final List<HasContainer> aerospikeHasContainers;
     private final int barrierSize;
     private final List<String> requiredProperties;
-    final int threads;
+    private final int threads;
 
     public FireflyBatchVertexReadStep(final Traversal.Admin traversal,
                                       final Direction direction,

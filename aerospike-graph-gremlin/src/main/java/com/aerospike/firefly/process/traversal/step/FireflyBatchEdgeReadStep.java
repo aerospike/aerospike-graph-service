@@ -49,7 +49,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
     public final List<HasContainer> fireflyHasContainers;
     public final List<HasContainer> aerospikeHasContainers;
     private final int barrierSize;
-    final int threads;
+    private final int threads;
 
 
     public FireflyBatchEdgeReadStep(final Traversal.Admin traversal,

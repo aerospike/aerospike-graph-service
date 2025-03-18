@@ -3,8 +3,6 @@ FROM alpine AS build
 # Set input arguments.
 ARG FIREFLY_GRAPH
 ARG BULKLOADER
-ARG SPARK_ZIP
-ARG SPARK_VERSION
 
 # Set environment variables.
 ENV CONF_DIR="/opt/conf"
@@ -17,17 +15,9 @@ RUN apk add --no-cache --update \
 
 COPY ${FIREFLY_GRAPH} /opt/firefly-graph.jar
 COPY ${BULKLOADER} /opt/bulk-loader.jar
-COPY ${SPARK_ZIP} /opt/spark.tgz
 COPY conf/logback.xml ${CONF_DIR}/logback.xml
 COPY conf/docker-default/flattened-default-gremlin-server.yaml ${CONF_DIR}/flattened-default-gremlin-server.yaml
 COPY docker-runtime-scripts /opt/scripts
-
-RUN echo "extracting spark archives"
-RUN tar zxvf /opt/spark.tgz -C /opt/ &&\
-    mv /opt/spark-${SPARK_VERSION}-bin-hadoop3/jars /opt/spark
-
-# remove spark archive and unused pieces
-RUN rm -f /opt/spark.tgz && rm -rf /opt/spark-${SPARK_VERSION}-bin-hadoop3
 
 # Remove additional conflicting logger jars from spark.
 RUN rm -f /opt/spark/slf4j-* && rm -f /opt/spark/commons-logging*

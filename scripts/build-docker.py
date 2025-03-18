@@ -45,6 +45,7 @@ def main():
     if not build_args.slim:
         fetch_dependencies()
     graph_jar, bulk_loader_jar = find_jars(build_args)
+    print ("jar - " + bulk_loader_jar)
     build_docker(build_args, graph_jar, bulk_loader_jar)
 
 
@@ -59,8 +60,8 @@ def find_jars(build_args):
         print("Could not find graph jar in directory: {}".format(GRAPH_JAR_DIRECTORY))
         sys.exit(1)
 
-    if build_args.slim:
-        return graph_jar, None
+    #if build_args.slim:
+    #    return graph_jar, None
 
     bulk_loader_jar = None
     for path, dirs, files in os.walk(os.path.abspath(BULK_LOADER_JAR_DIRECTORY)):
@@ -68,6 +69,7 @@ def find_jars(build_args):
             if filename.startswith("aerospike-graph-bulk-loader") and filename.endswith(".jar"):
                 bulk_loader_jar = os.path.join(path, filename)
                 bulk_loader_jar = os.path.relpath(bulk_loader_jar, os.getcwd())
+    print ("jar - " + bulk_loader_jar)
     if bulk_loader_jar is None:
         print("Could not find bulk loader jar in directory: {}".format(BULK_LOADER_JAR_DIRECTORY))
         sys.exit(1)

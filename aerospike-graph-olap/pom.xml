@@ -132,7 +132,6 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.12</artifactId>
             <version>3.4.3</version>
-            <scope>provided</scope>
             <exclusions>
                 <exclusion>
                     <groupId>org.apache.commons</groupId>
@@ -166,7 +165,6 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_2.12</artifactId>
             <version>3.4.3</version>
-            <scope>provided</scope>
             <exclusions>
                 <exclusion>
                     <groupId>org.apache.commons</groupId>
@@ -200,7 +198,6 @@
             <artifactId>gcs-connector</artifactId>
             <version>hadoop3-2.2.25</version>
             <classifier>shaded</classifier>
-            <scope>provided</scope>
         </dependency>
         <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGCODEHAUSJETTISON-3168085 in spark-hadoop-cloud_2.12@3.4.3 -->
         <dependency>
@@ -212,7 +209,6 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-hadoop-cloud_2.12</artifactId>
             <version>3.4.3</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>commons-cli</groupId>

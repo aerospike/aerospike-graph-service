@@ -238,7 +238,7 @@ public class DistributedWorkerExecutor {
                 e.printStackTrace();
                 throw e;
             }
-        }, RowEncoder.encoderFor(schema));
+        }, RowEncoder.apply(schema));
     }
 
     public static class Range {

@@ -5,11 +5,6 @@ from python_on_whales import docker
 # TODO: These need to be dynamic.
 GRAPH_JAR_DIRECTORY = "aerospike-graph-gremlin/target/"
 BULK_LOADER_JAR_DIRECTORY = "aerospike-graph-bulk-loader/target/"
-SPARK_VERSION = "3.4.1"
-#SPARK_ZIP = "spark-{}.tgz".format(SPARK_VERSION)
-#SPARK_URL = "https://archive.apache.org/dist/spark/spark-{}/spark-{}-bin-hadoop3.tgz".format(SPARK_VERSION,
-#                                                                                             SPARK_VERSION)
-
 
 class BuildArguments:
     def __init__(self):
@@ -42,8 +37,6 @@ def main():
     build_args = parse_args()
     if not build_args.use_local:
         build_jars(build_args)
-    #if not build_args.slim:
-    #    fetch_dependencies()
     graph_jar, bulk_loader_jar = find_jars(build_args)
     print ("jar - " + bulk_loader_jar)
     build_docker(build_args, graph_jar, bulk_loader_jar)
@@ -124,14 +117,6 @@ def run_command(command):
         sys.exit(return_code)
 
 
-def fetch_dependencies():
-    if not os.path.exists(SPARK_ZIP):
-        print("Downloading Spark")
-        run_command(f"curl -L -o {SPARK_ZIP} {SPARK_URL}")
-    else:
-        print(f"{SPARK_ZIP} already exists, skipping download.")
-
-
 def build_jars(build_args):
     run_command("mvn -DskipTests=true clean install --no-transfer-progress")
 
@@ -142,8 +127,7 @@ def build_docker(build_args, graph_jar, bulk_loader_jar):
         "FIREFLY_GRAPH": graph_jar,
         "BULKLOADER": bulk_loader_jar
     } if not build_args.slim else {
-        "FIREFLY_GRAPH": graph_jar,
-        "BULKLOADER": bulk_loader_jar
+        "FIREFLY_GRAPH": graph_jar
     }
     # See https://gabrieldemarmiesse.github.io/python-on-whales/sub-commands/buildx/ for help.
     docker_file = "docker/Dockerfile-slim" if build_args.slim else "docker/Dockerfile"

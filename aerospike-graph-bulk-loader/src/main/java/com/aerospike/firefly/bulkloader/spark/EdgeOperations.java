@@ -27,7 +27,6 @@ import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
-import org.apache.spark.sql.catalyst.encoders.AgnosticEncoder;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
@@ -602,7 +601,7 @@ public class EdgeOperations implements Serializable {
         final StructType writeSchema = edgeDataSet.schema().add(DataTypes.createStructField(EDGE_ID_COLUMN, DataTypes.StringType, false));
         edgeDataSet.sparkSession().sparkContext().setJobGroup(taskName,
                 "Edges ID write task", true);
-        final AgnosticEncoder<Row> encoder = RowEncoder.encoderFor(writeSchema);
+        final ExpressionEncoder<Row> encoder = RowEncoder.apply(writeSchema);
         final Dataset<Row> EdgeIdDF = edgeDataSet.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), encoder);
         EdgeIdDF.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "bzip2").csv(writeLocation);
         edgeDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);

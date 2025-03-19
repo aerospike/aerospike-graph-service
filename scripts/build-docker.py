@@ -120,7 +120,7 @@ def run_command(command):
 def build_jars(build_args):
     if not build_args.slim:
         run_command(
-            "mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -DskipTests=true clean install "
+            "mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -pl aerospike-graph-olap -am -DskipTests=true clean install "
             "--no-transfer-progress")
     else:
         run_command("mvn -pl aerospike-graph-gremlin -am -DskipTests=true clean install --no-transfer-progress")

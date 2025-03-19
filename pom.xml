@@ -79,22 +79,6 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>dnsjava</groupId>
-                <artifactId>dnsjava</artifactId>
-                <version>3.6.0</version> <!-- Secure version -->
-            </dependency>
-            <dependency>
-                <!--https://security.snyk.io/vuln/SNYK-JAVA-NETMINIDEV-3369748-->
-                <groupId>net.minidev</groupId>
-                <artifactId>json-smart</artifactId>
-                <version>2.4.9</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-
     <!-- DEPLOYMENT REPOSITORIES -->
     <repositories>
         <repository>

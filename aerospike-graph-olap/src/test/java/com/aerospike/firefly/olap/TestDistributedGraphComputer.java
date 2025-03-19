@@ -38,7 +38,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -120,238 +119,29 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
-    public void testQueryY() throws Exception {
-        final Instant instant = Instant.now();
-        GraphTraversalSource g = null;
-        try {
-            List<Object> ids = List.of(62278781, 31920779, 657525286, 98910372, 17673290, 637386849, 107452333, 641373363, 137874224, 168727770, 695113421, 79579638, 49536627, 150243631, 27146289, 608802979, 16806002, 627507755, 179877421, 141819968, 107967515, 104589308, 694224636, 18094867, 55248200, 748286314, 306928070, 73508764, 1200306, 145562097, 138311226, 616656441, 138366846, 89660100, 24557560, 3646791, 110311122, 129376381, 147400982, 115944660, 102963743, 61142694, 100166971, 51175685, 85502518, 9906177, 34517056, 97139475, 134891474, 109961113, 27522562, 592723596, 117201641, 108548109, 161904018, 53766887, 162855096, 109255184, 88237345, 137848768, 138704123, 68181727, 65312795, 86234628, 50797624, 740892297, 33663825, 119485024, 753399920, 105640008, 578970349, 622566677, 163472800, 91710608, 36789439, 159911808, 72266998, 62991395, 630141568, 616455217, 675814597, 19519292, 98343590, 120435594, 39726868, 154057150, 71257549, 652649413, 667002252, 158541021, 88873124, 72901169, 74360689, 151892619, 100454807, 164091957, 6558574, 140556767, 58981151, 70144511);
-            g = traversal().withRemote(DriverRemoteConnection.using("34.55.61.149", 8182, "g"));
-
-            System.out.println(g.with("evaluationTimeout", 25 * 60 * 1000).withComputer().V().hasLabel(":InternalId").
-                    out("STRICT").count().toList());
-                    //repeat(
-                    //        __.out("STRICT").simplePath().
-                    //                groupCount("count").by(__.loops())).
-                    //times(1).
-                    //cap("count").toList());
-        } catch (Exception e) {
-            System.out.println("Failed " + e);
-            if (g != null) {
-                g.close();
-            }
-        }
-        System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
-
-    }
-
-    @Test
-    public void testQuery1() throws Exception {
-        final Instant instant = Instant.now();
-        GraphTraversalSource g = null;
-        try {
-            //List<Object> ids = List.of(62278781, 31920779, 657525286, 98910372, 17673290, 637386849, 107452333, 641373363, 137874224, 168727770, 695113421, 79579638, 49536627, 150243631, 27146289, 608802979, 16806002, 627507755, 179877421, 141819968, 107967515, 104589308, 694224636, 18094867, 55248200, 748286314, 306928070, 73508764, 1200306, 145562097, 138311226, 616656441, 138366846, 89660100, 24557560, 3646791, 110311122, 129376381, 147400982, 115944660, 102963743, 61142694, 100166971, 51175685, 85502518, 9906177, 34517056, 97139475, 134891474, 109961113, 27522562, 592723596, 117201641, 108548109, 161904018, 53766887, 162855096, 109255184, 88237345, 137848768, 138704123, 68181727, 65312795, 86234628, 50797624, 740892297, 33663825, 119485024, 753399920, 105640008, 578970349, 622566677, 163472800, 91710608, 36789439, 159911808, 72266998, 62991395, 630141568, 616455217, 675814597, 19519292, 98343590, 120435594, 39726868, 154057150, 71257549, 652649413, 667002252, 158541021, 88873124, 72901169, 74360689, 151892619, 100454807, 164091957, 6558574, 140556767, 58981151, 70144511);
-            g = traversal().withRemote(DriverRemoteConnection.using("34.55.61.149", 8182, "g"));
-            System.out.println(g.withComputer().
-                    with("evaluationTimeout", 15 * 60 * 1000).
-                    V().hasLabel(":InternalLabel").
-                    in("HAS_EMAIL").
-                    groupCount().
-                    by(__.out("HAS_IP").count()).toList());
-        } catch (Exception e) {
-            System.out.println("Failed " + e);
-            if (g != null) {
-                g.close();
-            }
-        }
-        System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
-
-    }
-
-    @Test
-    public void testQuery2() throws Exception {
-        final Instant instant = Instant.now();
-        GraphTraversalSource g = null;
-        try {
-            for (int i = 0; i < 2; i++) {
-                g = traversal().withRemote(DriverRemoteConnection.using("34.55.61.149", 8182, "g"));
-                var vertices = g.withComputer().
-                        with("evaluationTimeout", 24 * 3600 * 1000).
-                        V().hasLabel(":InternalId").
-                        and(__.out("HAS_EMAIL").count().is(P.gte(2)),
-                                __.out("HAS_IP").count().is(P.lt(3))).
-                        count().toList();
-                System.out.println("Vertices in client: " + vertices);
-            }
-        } catch (Exception e) {
-            System.out.println("Failed " + e);
-            if (g != null) {
-                g.close();
-            }
-        }
-        System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
-    }
-
-    @Test
-    public void testQuery3() throws Exception {
-        final Instant instant = Instant.now();
-        GraphTraversalSource g = null;
-        try {
-            g = traversal().withRemote(DriverRemoteConnection.using("34.55.61.149", 8182, "g"));
-            System.out.println("Result: " + g.withComputer().
-                    with("evaluationTimeout", 24 * 3600 * 1000).
-                    V().hasLabel(":InternalId"). //TODO: Try w/o where.
-                        or(
-                            __.out("HAS_CREDITCARD").count().is(P.gt(3)),
-                            __.out("HAS_IP").count().is(P.gt(5)))
-                    .count().toList());
-        } catch (Exception e) {
-            System.out.println("Failed " + e);
-            if (g != null) {
-                g.close();
-            }
-        }
-        System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
-
-    }
-
-    @Test
-    public void gcount() throws Exception {
-        final Instant instant = Instant.now();
-        GraphTraversalSource g = null;
-        try {
-            g = traversal().withRemote(DriverRemoteConnection.using("34.55.61.149", 8182, "g"));
-            System.out.println("Result: " + g.withComputer().
-                    with("evaluationTimeout", 24 * 3600 * 1000).
-                    V().count().toList());
-        } catch (Exception e) {
-            System.out.println("Failed " + e);
-            if (g != null) {
-                g.close();
-            }
-        }
-        System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
-
-    }
-
-    Long getP90(final Map<Long, Long> map) {
-        final Long totalCount = map.values().stream().mapToLong(Long::longValue).sum();
-        double threshold = 0.9 * totalCount;
-        final TreeMap<Long, Long> sortedMap = new TreeMap<>(map);
-        long cumulativeCount = 0;
-
-        // Get the key that is closest to the threshold.
-        for (Map.Entry<Long, Long> entry : sortedMap.entrySet()) {
-            cumulativeCount += entry.getValue();
-            if (cumulativeCount >= threshold) {
-                return entry.getKey();
-            }
-        }
-
-        // Last key is the p90.
-        return sortedMap.lastKey();
-    }
-
-    @Test
-    public void testQuery4() throws Exception {
-        final Instant instant = Instant.now();
-        GraphTraversalSource g = null;
-        try {
-            g = traversal().withRemote(DriverRemoteConnection.using("34.55.61.149", 8182, "g"));
-            final Map<Long, Long> ipCount = (Map) g.
-                    with("evaluationTimeout", 24 * 3600 * 1000).
-                    withComputer().
-                    V().hasLabel(":InternalId").
-                    groupCount().by(__.out("HAS_IP").count()).next();
-            System.out.println("Got query back: " + ipCount);
-            final Long p90 = getP90(ipCount);
-            System.out.println("P90: " + p90);
-            final Map<Long, Long> cookieDistribution = (Map) g.
-                    with("evaluationTimeout", 24 * 3600 * 1000).
-                    withComputer().
-                    V().hasLabel(":InternalId").
-                    where(__.out("HAS_IP").count().is(P.gt(p90))).
-                    groupCount().by(__.out("HAS_COOKIE").count()).next();
-            System.out.println("Result: " + cookieDistribution);
-        } catch (Exception e) {
-            System.out.println("Failed " + e);
-            if (g != null) {
-                g.close();
-            }
-        }
-        System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
-
-    }
-
-    @Test
     public void testSparkCluster() throws Exception {
         final Instant instant = Instant.now();
         GraphTraversalSource g = null;
         try {
-            g = traversal().withRemote(DriverRemoteConnection.using("35.193.63.202", 8182, "g"));
-            g.V().drop().iterate();
-            //Object id = g.V().limit(1).id().toList();
-            ////g.withComputer().V().hasLabel("asdf").toList();
-            ////System.out.println("Result: " + g.
-            ////        withComputer().
-            ////        with("evaluationTimeout", 24 * 3600 * 1000).
-            ////        V().hasLabel("Person").groupCount().by(__.out("HasCat").count()).
-            ////        toList());
-            //System.out.println("Result: " + g.
-            //        withComputer().
-            //        with("aerospike.graph.olap.debug.df", "true").
-            //        with("evaluationTimeout", 15 * 1000).
-            //        V().hasLabel("Person").groupCount().by(__.out().count()).
-            //        toList());
-        } catch (Exception e) {
-            System.out.println("Failed " + e);
-            if (g != null) {
-                g.close();
-            }
-        }
-        System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
-
-    }
-
-    //  54 / 37 = 46% increase by doubling aerospike cluster.
-    //  54 / 33 = 63% increase by doubling spark and aerospike cluster.
-
-    @Test
-    public void testSparkLatency() throws Exception {
-        GraphTraversalSource g = null;
-        Instant instant = Instant.now();
-        try {
-            g = traversal().withRemote(DriverRemoteConnection.using("34.173.199.140", 8182, "g"));
-            Object id = g.V().limit(1).id().toList();
+            g = traversal().withRemote(DriverRemoteConnection.using("35.202.200.21", 8182, "g"));
             //g.withComputer().V().hasLabel("asdf").toList();
             //System.out.println("Result: " + g.
             //        withComputer().
             //        with("evaluationTimeout", 24 * 3600 * 1000).
             //        V().hasLabel("Person").groupCount().by(__.out("HasCat").count()).
             //        toList());
-            for (int i = 0; i < 3; i++) {
-                instant = Instant.now();
-                System.out.println("Result: " + g.
-                        withComputer().
-                        with("evaluationTimeout", 24 * 3600 * 1000)
-                        .V().hasLabel("Person").out("LikesCoffee").groupCount().by("country").
-                        toList());
-                System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
-            }
-            for (int i = 0; i < 3; i++) {
-                instant = Instant.now();
-                System.out.println("Result: " + g.
-                        withComputer().
-                        with("evaluationTimeout", 24 * 3600 * 1000).
-                        V().hasLabel("Person").groupCount().by(__.out("HasCat").count()).
-                        toList());
-                System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
-            }
+            System.out.println("Result: " + g.
+                    withComputer().
+                    with("evaluationTimeout", 24 * 3600 * 1000).
+                    V().hasLabel("Person").groupCount().by(__.out("HasCat").count()).
+                    toList());
         } catch (Exception e) {
             System.out.println("Failed " + e);
             if (g != null) {
                 g.close();
             }
         }
+        System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
 
     }
 

@@ -19,9 +19,6 @@ COPY conf/logback.xml ${CONF_DIR}/logback.xml
 COPY conf/docker-default/flattened-default-gremlin-server.yaml ${CONF_DIR}/flattened-default-gremlin-server.yaml
 COPY docker-runtime-scripts /opt/scripts
 
-# Remove additional conflicting logger jars from spark.
-RUN rm -f /opt/spark/slf4j-* && rm -f /opt/spark/commons-logging*
-
 RUN apk del xz tar
 
 WORKDIR /opt

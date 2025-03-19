@@ -3,14 +3,9 @@ package com.aerospike.firefly.call;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Map;
-
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_KEY;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_SUCCESS;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.PROGRESS_COMPLETE;
+import static com.aerospike.firefly.util.BulkLoadTestUtil.waitForBulkLoad;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
 public class TestFireflyBulkLoaderCallEntrypointRemote {
@@ -73,13 +68,5 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
                     .next();
             waitForBulkLoad(g);
         }
-    }
-
-    private void waitForBulkLoad(final GraphTraversalSource g) {
-        Map<String, Object> status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
-        while (!(boolean)status.get(PROGRESS_COMPLETE)) {
-            status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
-        }
-        Assert.assertEquals(status.get(BULK_LOAD_STATUS_KEY), BULK_LOAD_STATUS_SUCCESS);
     }
 }

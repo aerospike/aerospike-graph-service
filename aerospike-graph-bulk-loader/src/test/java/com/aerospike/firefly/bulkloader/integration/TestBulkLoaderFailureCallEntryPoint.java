@@ -16,12 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.BULK_LOAD_SUCCESS;
-import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.formatErrorCount;
 import static com.aerospike.firefly.bulkloader.integration.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_KEY;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_SUCCESS;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.PROGRESS_COMPLETE;
+import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoad;
 
 public class TestBulkLoaderFailureCallEntryPoint {
     @Before
@@ -246,13 +242,5 @@ public class TestBulkLoaderFailureCallEntryPoint {
             }
             Assert.assertTrue(suggestionExecuted);
         }
-    }
-
-    private void waitForBulkLoad(final GraphTraversalSource g) {
-        Map<String, Object> status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
-        while (!(boolean)status.get(PROGRESS_COMPLETE)) {
-            status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
-        }
-        Assert.assertEquals(status.get(BULK_LOAD_STATUS_KEY), BULK_LOAD_STATUS_SUCCESS);
     }
 }

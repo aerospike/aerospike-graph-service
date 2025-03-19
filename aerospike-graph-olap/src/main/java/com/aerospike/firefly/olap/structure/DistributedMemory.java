@@ -170,7 +170,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         this.broadcast = sparkContext.broadcast(toBroadcast);
     }
 
-    private void checkKeyValue(final String key, final Object value) {
+    protected void checkKeyValue(final String key, final Object value) {
         if (!this.memoryComputeKeys.containsKey(key))
             throw GraphComputer.Exceptions.providedKeyIsNotAMemoryComputeKey(key);
     }

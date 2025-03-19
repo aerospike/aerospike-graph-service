@@ -8,9 +8,10 @@ import com.aerospike.firefly.olap.helper.AttachmentHelper;
 import com.aerospike.firefly.olap.process.TraversalProgram;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
+import com.aerospike.firefly.process.traversal.strategy.verification.FireflyComputerVerificationStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.FireflyHelper;
-import com.aerospike.firefly.util.config.ConfigurationHelper;
+import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -24,6 +25,7 @@ import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.strategy.optimization.MessagePassingReductionStrategy;
 import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -41,11 +43,10 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,8 +56,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
@@ -74,17 +81,33 @@ public class DistributedGraphComputer implements GraphComputer {
     private VertexProgram<?> vertexProgram;
     private final FireflyGraph graph;
     private final Set<MapReduce> mapReducers = new HashSet<>();
-    private int workers;
+    private int workers = -1;
     private final GraphFilter graphFilter = new GraphFilter();
     private boolean executed = false;
 
+    private final ThreadFactory threadFactoryBoss = new BasicThreadFactory.Builder().
+            namingPattern(DistributedGraphComputer.class.getSimpleName() + "-boss").build();
+    private final ExecutorService computerService = Executors.newSingleThreadExecutor(threadFactoryBoss);
+    static AtomicBoolean isCancelled = new AtomicBoolean(false);
+
+    static {
+        // todo: fix FireflyGraphFilterStrategy and remove GraphFilterStrategy
+        TraversalStrategies.GlobalCache.registerStrategies(DistributedGraphComputer.class,
+                TraversalStrategies.GlobalCache.getStrategies(GraphComputer.class).clone()
+                        .removeStrategies(MessagePassingReductionStrategy.class)
+                        .addStrategies(FireflyComputerVerificationStrategy.instance()));
+    }
+
     public DistributedGraphComputer(final FireflyGraph graph, final Object sparkSession) {
+        isCancelled.set(false);
         this.graph = graph;
         if (sparkSession != null) {
             this.spark = (SparkSession) sparkSession;
+            workers = spark.sparkContext().getExecutorMemoryStatus().size();
         } else {
-            if (this.spark == null)
-                this.spark = buildSparkSession();
+            final int processors = Runtime.getRuntime().availableProcessors();
+            workers = Math.max(1, processors - 1);
+            this.spark = buildSparkSession(workers);
         }
     }
 
@@ -96,9 +119,6 @@ public class DistributedGraphComputer implements GraphComputer {
             final String key = keys.next();
             config.put(key, graph.configuration().getString(key));
         }
-        config.put(ConfigurationHelper.Keys.OLAP_ENABLED.toLowerCase(), true);
-        config.put(ConfigurationHelper.Keys.AUTO_PRE_HEAT.toLowerCase(), "false");
-        config.put(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
 
         // Get config from traversal.
         final Map<String, Object> traversalOptions = new HashMap<>();
@@ -109,15 +129,32 @@ public class DistributedGraphComputer implements GraphComputer {
         return new DistributedConfigHelper(config, traversalOptions);
     }
 
-    private static SparkSession buildSparkSession() {
+    private static SparkSession buildSparkSession(final int workers) {
         // TODO: Remove null support and replace commandline with configs or something.
-        System.out.println("Building spark session in DistributedGraphComputer.");
         final SparkConf conf = new SparkConf();
         conf.setMaster("local[*]");
+
+        final Runtime runtime = Runtime.getRuntime();
+        final long maxMemoryGb = runtime.maxMemory() / (1024 * 1024 * 1024);
+        // Leave room for master + some buffer.
+        final long workerMemoryGb = Math.max(1, maxMemoryGb / (workers + 1) - 1);
+
+        System.out.println("Creating spark session with " + workers + " workers and " + workerMemoryGb + "GB memory each.");
 
         conf.setAppName("aerospike-graph-olap")
                 .set("spark.driver.allowMultipleContexts", "false")
                 .set("spark.ui.enabled", "true")
+                .set("spark.executor.memory", workerMemoryGb + "g")
+                .set("spark.executor.cores", "1")
+                .set("spark.task.cpus", "1")
+                .set("spark.executor.instances", String.valueOf(workers))
+                .set("spark.speculation", "false")
+                .set("spark.scheduler.revive.interval", "500ms")
+                .set("spark.dynamicAllocation.enabled", "true")
+                .set("spark.dynamicAllocation.minExecutors", String.valueOf(workers))
+                .set("spark.dynamicAllocation.maxExecutors", String.valueOf(workers))
+                .set("spark.dynamicAllocation.initialExecutors", String.valueOf(workers))
+                .set("spark.scheduler.minRegisteredResourcesRatio", "1.0")
                 .set("mapreduce.fileoutputcommitter.algorithm.version", "2")
                 .set("spark.executor.extraJavaOptions", "-Dlog4j.logger.org.apache.spark.serializer=DEBUG -Dlog4j.logger.org.apache.spark.util.ClosureCleaner=DEBUG");
 
@@ -147,6 +184,10 @@ public class DistributedGraphComputer implements GraphComputer {
 
     @Override
     public GraphComputer program(final VertexProgram vertexProgram) {
+        if (!(vertexProgram instanceof TraversalVertexProgram)) {
+            throw new IllegalArgumentException("Only TraversalVertexProgram supported, please contact support.");
+        }
+
         this.vertexProgram = new TraversalProgram((TraversalVertexProgram) vertexProgram);
         return this;
     }
@@ -232,10 +273,6 @@ public class DistributedGraphComputer implements GraphComputer {
         };
     }
 
-    ////
-    // Some hardcore stuff.
-    ////
-
     @Override
     public Future<ComputerResult> submit() {
         // TODO: Might be able to mess w/ this later.
@@ -251,6 +288,7 @@ public class DistributedGraphComputer implements GraphComputer {
                 TraversalStrategies.GlobalCache.getStrategies(DistributedGraphComputer.class).toList().toString(),
                 this.graphFilter.getVertexFilter(),
                 this.graphFilter.getEdgeFilter());
+
         // A graph computer can only be executed once.
         if (this.executed) {
             throw Exceptions.computerHasAlreadyBeenSubmittedAVertexProgram();
@@ -273,20 +311,67 @@ public class DistributedGraphComputer implements GraphComputer {
 
         // TODO: Maybe smarter check.
         // Ensure requested workers are not larger than supported workers.
-        this.workers = spark.sparkContext().getExecutorMemoryStatus().size();
+        if (workers == -1)
+            this.workers = spark.sparkContext().getExecutorMemoryStatus().size();
         System.out.println("Workers: " + this.workers);
         System.out.println("Memory: " + spark.sparkContext().getExecutorMemoryStatus());
         if (this.workers > this.features().getMaxWorkers())
             throw GraphComputer.Exceptions.computerRequiresMoreWorkersThanSupported(this.workers, this.features().getMaxWorkers());
 
-        // Initialize the memory.
-        // this.memory = new LocalMemory(this.vertexProgram, this.mapReducers);
         this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
         this.persist = GraphComputerHelper.getPersistState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.persist));
-        int i = 0;
-        final DistributedConfigHelper configHelper = generateConfigHelper();
-        System.out.println("Configuration: "  + Arrays.toString(spark.sparkContext().getConf().getAll()));
+
+        // allow cancellation
+        final Future<ComputerResult> result = new DistributedFuture(computerService.submit(this::submitJob));
+        this.computerService.shutdown();
+        return result;
+    }
+
+    class DistributedFuture implements Future<ComputerResult> {
+        final Future<ComputerResult> future;
+
+        DistributedFuture(final Future<ComputerResult> future) {
+            this.future = future;
+        }
+
+        @Override
+        public boolean cancel(final boolean mayInterruptIfRunning) {
+            isCancelled.set(true);
+            boolean cancel = future.cancel(mayInterruptIfRunning);
+            spark.sparkContext().cancelAllJobs();
+            return cancel;
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return future.isCancelled();
+        }
+
+        @Override
+        public boolean isDone() {
+            return future.isDone();
+        }
+
+        @Override
+        public ComputerResult get() throws InterruptedException, ExecutionException {
+            return future.get();
+        }
+
+        @Override
+        public ComputerResult get(final long timeout, @NotNull final TimeUnit unit)
+                throws ExecutionException, InterruptedException, TimeoutException {
+            return future.get(timeout, unit);
+        }
+    }
+
+    ////
+    // Some hardcore stuff.
+    ////
+    private ComputerResult submitJob() {
         try {
+            final DistributedConfigHelper configHelper = generateConfigHelper();
+            System.out.println("Configuration: " + Arrays.toString(spark.sparkContext().getConf().getAll()));
+
             final PureTraversal<?, ?> traversal = ((TraversalProgram) vertexProgram).getTraversal().clone();
 
             // TODO Configurable page size w/ ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE
@@ -295,7 +380,6 @@ public class DistributedGraphComputer implements GraphComputer {
 
             // TODO https://aerospike.com/docs/server/reference/configuration#namespace__background-query-max-rps - We might want to jack this up for OLAP.
             // TODO: Partitions pull data directly.
-
 
             // Get traversal and apply strategies.
             final Traversal pureTraversal = traversal.getPure().asAdmin().clone();
@@ -338,11 +422,6 @@ public class DistributedGraphComputer implements GraphComputer {
             int iterationCount = 0;
             do {
                 iterationCount++;
-                if (Thread.interrupted()) {
-                    // If query is cancelled, cancel all spark jobs and throw an exception.
-                    spark.sparkContext().cancelAllJobs();
-                    throw new TraversalInterruptedException();
-                }
 
                 // Set inExecute to true, execute the vertex program, and set inExecute to false.
                 memory.setInExecute(true);
@@ -376,7 +455,6 @@ public class DistributedGraphComputer implements GraphComputer {
                     results = resultsTemp;
                 } else {
                     results = magicSwap(results.union(resultsTemp));
-
                 }
 
                 //if (LOGGER.isDebugEnabled())
@@ -391,7 +469,6 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 // TODO: Ultimately probably don't want to do isEmpty() check here b/c we could have a query that pulls more data from graph later and
                 // we could screw it up.
-                System.out.println("Loop " + i++);
                 if (this.vertexProgram.terminate(memory) || df.limit(1).isEmpty()) {
                     // Need to be very careful with this stuff. Spark is LAZY. It doesn't execute unless forced, so if we incr at the wrong time there is problems.
                     memory.incrIteration();
@@ -434,8 +511,13 @@ public class DistributedGraphComputer implements GraphComputer {
             final Graph resultGraph = view.processResultGraphPersist(this.resultGraph, this.persist);
 
             // Send result and memory to computer result.
-            return CompletableFuture.completedFuture(new DefaultComputerResult(resultGraph, memory));
+            return new DefaultComputerResult(resultGraph, memory);
         } catch (final Exception e) {
+            if (e instanceof TraversalInterruptedException || e instanceof InterruptedException) {
+                spark.sparkContext().cancelAllJobs();
+                LOGGER.error("Query timeout. Consider raising the evaluation timeout.", e);
+                throw e;
+            }
             // Maybe remove this for L2.
             //spark.close();
             //spark = null;
@@ -450,12 +532,18 @@ public class DistributedGraphComputer implements GraphComputer {
     }
 
     public static Dataset<Row> magicSwap(final Dataset<Row> transform) {
+        if (isCancelled.get()) {
+            throw new TraversalInterruptedException();
+        }
         final Dataset<Row> output = transform.persist(StorageLevel.MEMORY_AND_DISK());
         try {
             output.count();
         } catch (Exception e) {
             // Do nothing.
             // Failed to count in 1 second. Who cares.
+        }
+        if (isCancelled.get()) {
+            throw new TraversalInterruptedException();
         }
         return output;
     }

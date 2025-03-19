@@ -16,7 +16,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.EmptyTraver
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
@@ -37,7 +36,7 @@ import java.util.stream.LongStream;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyBatchEdgeSampleLimitReadStep extends CollectingBarrierStep<Edge> implements LocalBarrier<Edge> {
+public class FireflyBatchEdgeReadSampleLimitStep extends CollectingBarrierStep<Edge> implements LocalBarrier<Edge> {
     private final Direction direction;
     private final Set<String> edgeLabels;
     public final List<HasContainer> fireflyHasContainers;
@@ -46,7 +45,7 @@ public class FireflyBatchEdgeSampleLimitReadStep extends CollectingBarrierStep<E
     private final long limitSize;
     private final int barrierSize;
 
-    public FireflyBatchEdgeSampleLimitReadStep(final Traversal.Admin traversal,
+    public FireflyBatchEdgeReadSampleLimitStep(final Traversal.Admin traversal,
                                                final Direction direction,
                                                final String[] edgeLabels,
                                                final Set<String> labels,
@@ -63,7 +62,7 @@ public class FireflyBatchEdgeSampleLimitReadStep extends CollectingBarrierStep<E
         this.barrierSize = barrierSize;
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
-                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);
+                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Edge.class, hasContainers);
             // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
             //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
             //  matter what.

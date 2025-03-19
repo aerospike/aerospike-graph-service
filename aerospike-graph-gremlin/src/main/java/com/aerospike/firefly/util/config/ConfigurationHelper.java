@@ -9,6 +9,8 @@ import com.aerospike.firefly.util.LoggerUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +29,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -48,6 +51,10 @@ public final class ConfigurationHelper {
         add(Keys.GRAPH_ID);
         add(Keys.ON_RECORD_ID_LIMIT);
     }};
+
+    public static class TraversalOptions {
+        public static final String PARALLELIZE = "aerospike.graph.parallelize";
+    }
 
     public static class Keys {
         // environmental variable config
@@ -511,6 +518,41 @@ public final class ConfigurationHelper {
         INTEGER_CONFIG_VALIDATOR.addConfig(Keys.QUERY_TRACING_SAMPLE_PERCENT, 1, 100);
     }
 
+    public static Optional<Integer> getTraversalOptionInteger(final String key, final Traversal.Admin traversal,
+                                                              final int min, final int max) {
+        final Map<String, Object> traversalOptions = new HashMap<>();
+        traversal.getStrategies().getStrategy(OptionsStrategy.class).ifPresent(optionsStrategy -> traversalOptions.putAll(optionsStrategy.getOptions()));
+        if (traversalOptions.containsKey(key)) {
+            Object valueRaw = traversalOptions.get(key);
+            if (valueRaw instanceof Integer || valueRaw instanceof Long) {
+                if (valueRaw instanceof Long) {
+                    valueRaw = ((Long) valueRaw).intValue();
+                }
+                final int value = (int) valueRaw;
+                if (value < min) {
+                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be greater than " + min + ". " + value + " is less than " + min + ".");
+                } else if (value > max) {
+                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be less than " + max + ". " + value + " is greater than " + max + ".");
+                }
+                return Optional.of(value);
+            }
+            final int value;
+            try {
+                value = Integer.parseInt(valueRaw.toString());
+                if (value < min) {
+                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be greater than " + min + ". " + value + " is less than " + min + ".");
+                } else if (value > max) {
+                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be less than " + max + ". " + value + " is greater than " + max + ".");
+                }
+            } catch (final NumberFormatException e) {
+                throw new ConfigurationRuntimeException("Invalid value for " + key +
+                        " option. Must be an integer or integer string. " + valueRaw + " is of type " + valueRaw.getClass().getName());
+            }
+            return Optional.of(value);
+        }
+        return Optional.empty();
+    }
+
     public static List<String> getOrDefaultList(final String key, final Configuration config) {
         // Adds a space if it is empty. Remove the space.
         final List<String> values = Arrays.stream(getOrDefaultString(key, config).split(",")).map(String::trim).collect(Collectors.toList());
@@ -572,21 +614,21 @@ public final class ConfigurationHelper {
     }
 
     public static Object getOrDefault(final String key, final Configuration config) {
-        // Debug mode is a special case.
-        if (key.equalsIgnoreCase(Keys.DEBUG_MODE_FLAG)) {
-            return (config.containsKey(Keys.DEBUG_MODE_FLAG)) ?
-                    config.getString(Keys.DEBUG_MODE_FLAG) : DEFAULT_VALUES.get(Keys.DEBUG_MODE_FLAG);
-        }
-        if (key.equalsIgnoreCase(Keys.BULK_LOADER_FLAG)) {
-            return (config.containsKey(Keys.BULK_LOADER_FLAG)) ?
-                    config.getString(Keys.BULK_LOADER_FLAG) : DEFAULT_VALUES.get(Keys.BULK_LOADER_FLAG);
-        }
-
         final String lowerKey = key.toLowerCase();
         final String upperKey = key.toUpperCase();
 
+        // Debug mode is a special case.
+        if (key.equalsIgnoreCase(Keys.DEBUG_MODE_FLAG)) {
+            return (config.containsKey(lowerKey)) ?
+                    config.getString(lowerKey) : DEFAULT_VALUES.get(Keys.DEBUG_MODE_FLAG);
+        }
+        if (key.equalsIgnoreCase(Keys.BULK_LOADER_FLAG)) {
+            return (config.containsKey(lowerKey)) ?
+                    config.getString(lowerKey) : DEFAULT_VALUES.get(Keys.BULK_LOADER_FLAG);
+        }
+
         // Warmup mode
-        final boolean warmupMode = config.containsKey(Keys.WARMUP_MODE) && parseBool(Keys.WARMUP_MODE, config.getString(Keys.WARMUP_MODE));
+        final boolean warmupMode = config.containsKey(Keys.WARMUP_MODE.toLowerCase()) && parseBool(Keys.WARMUP_MODE, config.getString(Keys.WARMUP_MODE.toLowerCase()));
         if (lowerKey.equals(Keys.WARMUP_MODE)) {
             return warmupMode;
         }
@@ -610,20 +652,11 @@ public final class ConfigurationHelper {
             }
             return envConfig;
         } else if (!config.containsKey(lowerKey) &&
-                !config.containsKey(upperKey) &&
-                !config.containsKey(key) &&
                 !DEFAULT_VALUES.containsKey(key) &&
                 !checkInternalKeys(key)) {
-            throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
-        } else if (config.containsKey(lowerKey) || config.containsKey(upperKey) || config.containsKey(key)) {
-            String configValue = config.getString(lowerKey, "");
-            if (configValue.isEmpty()) {
-                configValue = config.getString(upperKey, "");
-            }
-            if (configValue.isEmpty()) {
-                configValue = config.getString(key, "");
-            }
-            return configValue;
+            throw new ConfigurationRuntimeException("No default value available for key: " + key);
+        } else if (config.containsKey(lowerKey)) {
+            return config.getString(lowerKey);
         } else if (Keys.InternalConfigs.keys().contains(key)) {
             if (debugMode) {
                 return Keys.InternalConfigs.valueOf(key).getValue().english;
@@ -718,7 +751,7 @@ public final class ConfigurationHelper {
         final Keys keys = new Keys();
         final Set<String> validKeys = Arrays.stream(keyFields).map(f -> {
             try {
-                return (String) f.get(keys);
+                return ((String) f.get(keys)).toLowerCase();
             } catch (final IllegalAccessException e) {
                 throw new RuntimeException(e);
             }
@@ -730,7 +763,7 @@ public final class ConfigurationHelper {
         Arrays.stream(bulkLoaderFields).forEach(f -> {
             try {
                 if (f.get(bulkLoaderConfigHelper) instanceof String) {
-                    validKeys.add((String) f.get(bulkLoaderConfigHelper));
+                    validKeys.add(((String) f.get(bulkLoaderConfigHelper)).toLowerCase());
                 }
             } catch (final IllegalAccessException e) {
                 throw new RuntimeException(e);
@@ -749,6 +782,10 @@ public final class ConfigurationHelper {
             if (System.getenv("FIREFLY_TESTING") != null && System.getenv("FIREFLY_TESTING").equals("true")) {
                 throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
             } else {
+                if (config.containsKey("aerospike.graph.olap.enabled") && config.getBoolean("aerospike.graph.olap.enabled")) {
+                    // In olap we want this to be thrown back to the user so it doesnt die silently.
+                    throw new ConfigurationRuntimeException("Error, the following configuration keys are invalid: " + invalidKeys);
+                }
                 LOG.error("ERROR: Aerospike Graph Service was unable to initialize due to invalid configuration keys: {}. Please fix these keys and try again.", invalidKeys);
 
                 // This error comes out in a bunch of massive stack traces and ultimately the container hangs.

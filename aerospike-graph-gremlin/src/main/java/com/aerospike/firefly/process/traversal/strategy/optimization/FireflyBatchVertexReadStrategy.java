@@ -1,8 +1,8 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
-import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdLimitSampleStep;
-import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
+import com.aerospike.firefly.process.traversal.step.FireflyBatchVertexReadSampleLimitStep;
+import com.aerospike.firefly.process.traversal.step.FireflyBatchVertexReadStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -27,14 +27,14 @@ import java.util.stream.Collectors;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
+public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
 
     private static final Class[] INVALIDATING_STEP_CLASSES_ARRAY = INVALIDATING_STEP_CLASSES.toArray(new Class[]{});
 
     /**
      * Default constructor for FireflyCompositeEdgeIdStrategy.
      */
-    public FireflyCompositeEdgeIdStrategy() {
+    public FireflyBatchVertexReadStrategy() {
     }
 
     @Override
@@ -210,7 +210,7 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
                 }
             }
             if (sampleSize != -1 || limitSize != -1) {
-                traversal.addStep(index, new FireflyCompositeIdLimitSampleStep(
+                traversal.addStep(index, new FireflyBatchVertexReadSampleLimitStep(
                         traversal,
                         vertexStep.getDirection(),
                         vertexStep.getEdgeLabels(),
@@ -221,7 +221,7 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
                         graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
                         propertyKeys));
             } else {
-                traversal.addStep(index, new FireflyCompositeIdStep(
+                traversal.addStep(index, new FireflyBatchVertexReadStep(
                         traversal,
                         vertexStep.getDirection(),
                         vertexStep.getEdgeLabels(),

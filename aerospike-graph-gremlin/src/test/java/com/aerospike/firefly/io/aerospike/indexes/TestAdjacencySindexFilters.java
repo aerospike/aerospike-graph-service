@@ -584,4 +584,37 @@ public class TestAdjacencySindexFilters {
             Assert.assertFalse(supernodePMap.get(v2.id.getKeyHashString()).containsKey("culprit"));
         }
     }
+
+    @Test
+    public void testContainsWithinPushdown() {
+        GraphTraversalSource g = graph.traversal();
+        g.addE("e1").property("foo", "Simon").from(v1).to(v2).iterate();
+        g.addE("e2").property("foo", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e3").property("foo", 100).from(v1).to(v2).iterate();
+        g.addE("e4").property("foo", 200).from(v1).to(v2).iterate();
+        g.addE("e5").property("foo", "Valentyn").property("bar", 200).from(v1).to(v2).iterate();
+        g.addE("e6").property("foo", 100).property("bar", "Lyndon").from(v1).to(v2).iterate();
+
+        HasContainer hasFooSimon100 = new HasContainer("foo", P.within("Simon", 100));
+        HasContainer hasBarLyndon = new HasContainer("bar", P.within("Lyndon"));
+        HasContainer hasFooValentyn200Ishaan = new HasContainer("foo", P.within("Valentyn", 200, "Ishaan"));
+        HasContainer compoundWithinHasBarLyndon = new HasContainer("foo", P.within(100, 200));
+        HasContainer compoundEqHasBarLyndon = new HasContainer("foo", P.eq(100));
+        HasContainer compoundNomatchHasBarLyndon = new HasContainer("foo", P.within(200, "Simon"));
+
+        final FireflyVertex v1 = (FireflyVertex) g.V().hasLabel("v1").next();
+        Assert.assertEquals(3, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasFooSimon100))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarLyndon))));
+        Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasFooValentyn200Ishaan))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarLyndon, compoundWithinHasBarLyndon))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarLyndon, compoundEqHasBarLyndon))));
+        Assert.assertEquals(0, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarLyndon, compoundNomatchHasBarLyndon))));
+
+        Assert.assertEquals(3, Iterators.size(g.V(v1.id()).outE().has("foo", P.within("Simon", 100))));
+        Assert.assertEquals(1, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Lyndon"))));
+        Assert.assertEquals(2, Iterators.size(g.V(v1.id()).outE().has("foo", P.within("Valentyn", "Ishaan", 200))));
+        Assert.assertEquals(1, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Lyndon")).has("foo", P.within(100, 200))));
+        Assert.assertEquals(1, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Lyndon")).has("foo", 100)));
+        Assert.assertEquals(0, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Lyndon")).has("foo", P.within(200, "Simon"))));
+    }
 }

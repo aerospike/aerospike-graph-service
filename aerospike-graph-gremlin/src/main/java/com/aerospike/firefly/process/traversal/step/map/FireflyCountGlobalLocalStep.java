@@ -16,12 +16,15 @@ import java.util.function.BinaryOperator;
 public class FireflyCountGlobalLocalStep<S> extends ReducingBarrierStep<S, Long> {
     private final Direction direction;
     private final String[] edgeLabels;
+    private final long limit;
 
     public FireflyCountGlobalLocalStep(final Traversal.Admin traversal,
                                        final Direction direction,
                                        final Set<String> labels,
-                                       final String[] edgeLabels) {
+                                       final String[] edgeLabels,
+                                       final long limit) {
         super(traversal);
+        this.limit = limit;
         this.setSeedSupplier(new ConstantSupplier<>(0L));
         this.setReducingBiOperator((BinaryOperator) Operator.sumLong);
         this.direction = direction;
@@ -38,7 +41,9 @@ public class FireflyCountGlobalLocalStep<S> extends ReducingBarrierStep<S, Long>
         } else {
             fireflyVertex = (FireflyVertex) element;
         }
-        return fireflyVertex.getEdgeCount(direction, edgeLabels) * traverser.bulk();
+
+        final long result = fireflyVertex.getEdgeCount(direction, edgeLabels, (limit + traverser.bulk() - 1) / traverser.bulk()) * traverser.bulk();
+        return limit == -1 || result < limit ? result : limit;
     }
 
     @Override

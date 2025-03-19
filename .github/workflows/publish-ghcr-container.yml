@@ -85,10 +85,12 @@ jobs:
           # Make output directories.
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
+          mkdir aerospike-graph-olap/target
           
           # Move the jar files to the target bin folders.
           mv artifact/aerospike-graph-gremlin/target/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
           mv artifact/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-olap/target/aerospike-graph-olap-*.jar aerospike-graph-olap/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -149,10 +151,12 @@ jobs:
           # Make output directories.
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
+          mkdir aerospike-graph-olap/target
           
           # Move the jar files to the target bin folders.
           mv artifact/aerospike-graph-gremlin/target/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
           mv artifact/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-olap/target/aerospike-graph-olap-*.jar aerospike-graph-olap/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -213,10 +217,12 @@ jobs:
           # Make output directories.
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
+          mkdir aerospike-graph-olap/target
           
           # Move the jar files to the target bin folders.
           mv artifact/aerospike-graph-gremlin/target/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
           mv artifact/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-olap/target/aerospike-graph-olap-*.jar aerospike-graph-olap/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -276,10 +282,12 @@ jobs:
           # Make output directories.
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
+          mkdir aerospike-graph-olap/target
           
           # Move the jar files to the target bin folders.
           mv artifact/aerospike-graph-gremlin/target/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
           mv artifact/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-olap/target/aerospike-graph-olap-*.jar aerospike-graph-olap/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -339,10 +347,12 @@ jobs:
           # Make output directories.
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
+          mkdir aerospike-graph-olap/target
           
           # Move the jar files to the target bin folders.
           mv artifact/aerospike-graph-gremlin/target/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
           mv artifact/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-olap/target/aerospike-graph-olap-*.jar aerospike-graph-olap/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -403,10 +413,12 @@ jobs:
           # Make output directories.
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
+          mkdir aerospike-graph-olap/target
           
           # Move the jar files to the target bin folders.
           mv artifact/aerospike-graph-gremlin/target/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
           mv artifact/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-olap/target/aerospike-graph-olap-*.jar aerospike-graph-olap/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')

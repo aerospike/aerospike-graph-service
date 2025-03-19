@@ -190,6 +190,31 @@ jobs:
           ec2-instance-type: c7a.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
+  start-runner-test-local-computer-process-2:
+    name: Start Runner Local Computer Process 2
+    runs-on: ubuntu-latest
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          firefly-path: /home/runner/work/firefly/firefly
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-0d006286a6209f4bc
+          ec2-instance-type: c7a.2xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly:
     name: Start Firefly Test Runner
     runs-on: ubuntu-latest
@@ -808,6 +833,38 @@ jobs:
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn clean install -DskipTests --no-transfer-progress
           mvn test -pl aerospike-graph-olap --no-transfer-progress
+  test-local-computer-process-2:
+    name: Test Local Computer Process Tests 2
+    timeout-minutes: 120
+    needs: start-runner-test-local-computer-process-2
+    runs-on: ${{ needs.start-runner-test-local-computer-process-2.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
+      - name: Test with Maven
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+        run: |
+          bash -x scripts/start_aerospike.sh
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn clean install -DskipTests --no-transfer-progress
+          mvn test -pl aerospike-graph-olap -Dtest=FireflyComputerFeatureTest --no-transfer-progress
   test-firefly-movielens:
     name: Test Movielens
     timeout-minutes: 120
@@ -1529,6 +1586,27 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-test-local-computer-process-1.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-test-local-computer-process-1.outputs.ec2-instance-id }}
+  stop-runner-test-local-computer-process-2:
+    name: Stop Local Computer Process Runner 2
+    needs:
+      - test-local-computer-process-2
+      - start-runner-test-local-computer-process-2
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-test-local-computer-process-2.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-test-local-computer-process-2.outputs.ec2-instance-id }}
   stop-runner-test-firefly-structure:
     name: Stop Structure Runner
     needs:

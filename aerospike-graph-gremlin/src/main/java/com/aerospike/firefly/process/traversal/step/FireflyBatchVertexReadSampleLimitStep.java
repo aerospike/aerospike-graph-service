@@ -35,7 +35,7 @@ import java.util.stream.LongStream;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Vertex> implements LocalBarrier<Vertex> {
+public class FireflyBatchVertexReadSampleLimitStep extends CollectingBarrierStep<Vertex> implements LocalBarrier<Vertex> {
     private final Direction direction;
     private final Set<String> edgeLabels;
 
@@ -47,15 +47,15 @@ public class FireflyCompositeIdLimitSampleStep extends CollectingBarrierStep<Ver
     private final int barrierSize;
     private final List<String> requiredProperties;
 
-    public FireflyCompositeIdLimitSampleStep(final Traversal.Admin traversal,
-                                             final Direction direction,
-                                             final String[] edgeLabels,
-                                             final Set<String> labels,
-                                             final List<HasContainer> hasContainers,
-                                             final long sampleSize,
-                                             final long limitSize,
-                                             final int barrierSize,
-                                             final List<String> requiredProperties) {
+    public FireflyBatchVertexReadSampleLimitStep(final Traversal.Admin traversal,
+                                                 final Direction direction,
+                                                 final String[] edgeLabels,
+                                                 final Set<String> labels,
+                                                 final List<HasContainer> hasContainers,
+                                                 final long sampleSize,
+                                                 final long limitSize,
+                                                 final int barrierSize,
+                                                 final List<String> requiredProperties) {
         super(traversal, barrierSize);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));

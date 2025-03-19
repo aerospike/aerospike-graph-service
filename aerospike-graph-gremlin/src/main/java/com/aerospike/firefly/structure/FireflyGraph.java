@@ -36,6 +36,7 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStra
 import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.runtime.zipkin.OpenTelemetryZipkinExporter;
 import com.aerospike.firefly.structure.util.LogInfo;
+import com.aerospike.firefly.util.config.FireflyConfiguration;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.runtime.tasks.FireflyMetadataTask;
@@ -230,7 +231,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         if (logInfo != null) {
             logInfo.debuggingMessage(message, logger);
         } else {
-            LOG.info(message);
+            logger.info(message);
         }
     }
 
@@ -253,7 +254,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
     }
 
-    public FireflyGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
+    public FireflyGraph(final AerospikeConnection db, final FireflyConfiguration conf, final Settings gremlinServerSettings) {
         try {
             this.gremlinServerSettings = gremlinServerSettings;
             this.configuration = conf;
@@ -364,7 +365,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public static FireflyGraph open(final Configuration conf) {
-        ConfigurationHelper.validateConfig(conf);
+        final FireflyConfiguration fireflyConf = FireflyConfiguration.fromConfiguration(conf);
+        ConfigurationHelper.validateConfig(fireflyConf);
         String logLevel;
         if (System.getenv("FIREFLY_TESTING") != null &&
                 System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
@@ -378,12 +380,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 }
             }
         } else {
-            logLevel = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.LOG_LEVEL, conf);
+            logLevel = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.LOG_LEVEL, fireflyConf);
         }
-        final boolean clientLogging = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, conf);
+        final boolean clientLogging = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, fireflyConf);
         try {
             // Prevent warmup from disabling the logger for Aerospike Client.
-            if (clientLogging && !ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf)) {
+            if (clientLogging && !ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, fireflyConf)) {
                 Log.setCallback(new AerospikeLogger());
                 Log.setLevel(Log.Level.valueOf(logLevel));
             }
@@ -410,12 +412,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 LOG.info("JVM Runtime Version: {}.", System.getProperty("java.runtime.version"));
 
                 // Straight up printing out conf just provides a class name / memory address.
-                final Iterator<String> keys = conf.getKeys();
+                final Iterator<String> keys = fireflyConf.getKeys();
                 final Map<String, Object> configurationMap = new HashMap<>();
                 while (keys.hasNext()) {
                     final String key = keys.next();
                     if (!key.contains("password") && !key.contains("secret") && !key.contains("token")) {
-                        configurationMap.put(key, conf.getProperty(key));
+                        configurationMap.put(key, fireflyConf.getProperty(key));
                     } else {
                         configurationMap.put(key, "********");
                     }
@@ -425,7 +427,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             LOG.info("Starting Aerospike Graph Service v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
 
             INFO_PRINTED.set(true);
-            if (ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf)) {
+            if (ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, fireflyConf)) {
                 // If we are in bulk load mode, sleep between 0 and 5 seconds to allow Aerospike time between spark
                 // works initializing.
                 final Random random = new Random();
@@ -437,10 +439,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 }
             }
 
-            return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
+            return GraphFactory.createGraph(AerospikeConnection.connect(fireflyConf), fireflyConf);
         } catch (final Exception e) {
-            if (ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf)) {
-                ConfigurationHelper.restoreLogLevel(conf);
+            if (ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, fireflyConf)) {
+                ConfigurationHelper.restoreLogLevel(fireflyConf);
                 throw e;
             }
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");

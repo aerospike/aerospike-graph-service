@@ -26,6 +26,7 @@ public class TestSlimVsFat {
             "get-bulk-load-error-count",
             "aerospike.graphloader.admin.bulk-load.load",
             "bulk-load",
+            "aerospike.graphloader.admin.bulk-load.status",
             "aerospike.graph.admin.metadata.usage",
             "usage-stats",
             "aerospike.graph.admin.index.create",

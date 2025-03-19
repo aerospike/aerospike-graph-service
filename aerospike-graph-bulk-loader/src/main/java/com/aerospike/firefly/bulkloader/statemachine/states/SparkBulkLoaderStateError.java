@@ -49,7 +49,7 @@ public class SparkBulkLoaderStateError extends SparkBulkLoaderState {
     @Override
     protected BulkLoadStateStatusMap getStateMap() {
         final BulkLoadStateStatusMap stateMap = new BulkLoadStateStatusMap("error", true, BULK_LOAD_STATUS_ERROR);
-        stateMap.put(BULK_LOAD_EXCEPTION, error.getClass().getName());
+        stateMap.put(BULK_LOAD_EXCEPTION, error);
         stateMap.put(BULK_LOAD_EXCEPTION_MESSAGE, error.getMessage());
         stateMap.put(BULK_LOAD_EXCEPTION_STACKTRACE, error.getStackTrace());
         if (errorCountParsed) {

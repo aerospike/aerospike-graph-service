@@ -72,6 +72,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
         } finally {
             if (!stateMachineInitialized) {
                 cleanup(sparkBulkLoaderStateMachine, uuid);
+                shutdownExecutor(executor);
             } else if (!sparkBulkLoaderStateMachine.isL2Mode) {
                 shutdownExecutor(executor);
             }
@@ -125,7 +126,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
                 cleanup(stateMachine, uuid);
                 // We put this after cleanup (No RUNNING_JOBS) for Done and Error states since they mark the bulk load as complete
                 CURRENT_STATE.set(state);
-                shutdownExecutor(executor);
+                executor.shutdown();
             }
         });
     };

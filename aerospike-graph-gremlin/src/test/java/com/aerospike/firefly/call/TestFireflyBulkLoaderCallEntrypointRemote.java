@@ -44,7 +44,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();
             g.E().drop().iterate();
-            g.call("aerospike.graphloader.admin.bulk-load.load")
+            g.with("evaluationTimeout", 20000).call("aerospike.graphloader.admin.bulk-load.load")
                     .with("aerospike.graphloader.vertices", "s3://gha-ci-firefly-bulkloader/vertices/")
                     .with("aerospike.graphloader.edges", "s3://gha-ci-firefly-bulkloader/edges/")
                     .with("aerospike.graphloader.remote-user", System.getenv("AWS_ACCESS_KEY_ID"))
@@ -59,7 +59,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();
             g.E().drop().iterate();
-            g.call("aerospike.graphloader.admin.bulk-load.load")
+            g.with("evaluationTimeout", 20000).call("aerospike.graphloader.admin.bulk-load.load")
                     .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices/")
                     .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges/")
                     .with("aerospike.graphloader.remote-user", System.getenv("GCS_PRIVATE_KEY_ID"))

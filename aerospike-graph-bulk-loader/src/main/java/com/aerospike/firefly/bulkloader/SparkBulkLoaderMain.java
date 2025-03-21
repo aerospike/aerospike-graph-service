@@ -66,7 +66,9 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             LOGGER.error("Failed to bootstrap SparkBulkLoaderStateMachine.", cause);
             throw (cause instanceof RuntimeException) ? (RuntimeException) cause : new RuntimeException(cause);
         } catch (final InterruptedException ie) {
-            final String message = "Initializing the bulk loader was unexpectedly interrupted. Please retry or contact support if the problem persists.";
+            final String message = "Initializing the bulk loader was interrupted. This is most likely caused by the" +
+                    " specified configuration requiring more time. Please retry using the '.with(\"evaluationTimeout\")'" +
+                    " traversal modifier or contact support if the problem persists.";
             LOGGER.error(message);
             throw new RuntimeException(message, ie);
         } finally {

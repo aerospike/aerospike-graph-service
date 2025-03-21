@@ -190,6 +190,7 @@ public class DistributedWorkerExecutor {
                     iterator = FireflyCloseableIteratorUtils.map(itty, r -> codec.decode(r, traverserGenerator, traversalMatrix));
                 }
 
+                /// TODO: Investigate a new TraverserSet style implementation to bulk this ?
                 final List<Row> output = new ArrayList<>();
 
                 final LocalWorkerMemory workerMemory = new LocalWorkerMemory(memory);

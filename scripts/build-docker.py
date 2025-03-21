@@ -2,9 +2,9 @@ import os, sys, subprocess
 import argparse
 from python_on_whales import docker
 
-# TODO: These need to be dynamic.
 GRAPH_JAR_DIRECTORY = "aerospike-graph-gremlin/target/"
 BULK_LOADER_JAR_DIRECTORY = "aerospike-graph-bulk-loader/target/"
+OLAP_JAR_DIRECTORY = "aerospike-graph-olap/target/"
 
 
 class BuildArguments:
@@ -77,8 +77,6 @@ def find_jars(build_args):
         sys.exit(1)
 
     return graph_jar, bulk_loader_jar, olap_jar
-
-    return graph_jar, bulk_loader_jar
 
 
 def parse_args():

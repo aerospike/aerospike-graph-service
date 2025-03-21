@@ -66,6 +66,18 @@ def find_jars(build_args):
         print("Could not find bulk loader jar in directory: {}".format(BULK_LOADER_JAR_DIRECTORY))
         sys.exit(1)
 
+    olap_jar = None
+    for path, dirs, files in os.walk(os.path.abspath(OLAP_JAR_DIRECTORY)):
+        for filename in files:
+            if filename.startswith("aerospike-graph-olap") and filename.endswith(".jar"):
+                olap_jar = os.path.join(path, filename)
+                olap_jar = os.path.relpath(olap_jar, os.getcwd())
+    if olap_jar is None:
+        print("Could not find olap jar in directory: {}".format(OLAP_JAR_DIRECTORY))
+        sys.exit(1)
+
+    return graph_jar, bulk_loader_jar, olap_jar
+
     return graph_jar, bulk_loader_jar
 
 

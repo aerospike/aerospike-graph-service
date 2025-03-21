@@ -1,5 +1,6 @@
 package com.aerospike.firefly.olap.structure;
 
+import com.aerospike.firefly.olap.codec.BulkedRowSet;
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.codec.RowCodec;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
@@ -190,7 +191,7 @@ public class DistributedWorkerExecutor {
                     iterator = FireflyCloseableIteratorUtils.map(itty, r -> codec.decode(r, traverserGenerator, traversalMatrix));
                 }
 
-                final List<Row> output = new ArrayList<>();
+                final BulkedRowSet output = new BulkedRowSet(codec);
 
                 final LocalWorkerMemory workerMemory = new LocalWorkerMemory(memory);
 
@@ -235,7 +236,7 @@ public class DistributedWorkerExecutor {
 
                     // TODO: Is this correct for all cases ?
                     final TraverserSet<Traverser.Admin> traversers = job.getResults();
-                    traversers.forEach(t -> output.add(codec.encode(t)));
+                    output.addAll(traversers);
                     job.clear();
                     TimeLog.complete("Encoding");
                 }

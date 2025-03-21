@@ -971,4 +971,16 @@ public class TestDistributedGraphComputer {
             System.out.println(output);
         }
     }
+
+    @Test
+    public void testBulking() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            List<Vertex> output1 = graph.traversal().withComputer().V().has("name", "marko").both().both().both().both().both().both().both().both().toList();
+            List<Vertex> output2 = graph.traversal().V().has("name", "marko").both().both().both().both().both().both().both().both().toList();
+            Assert.assertEquals(output1.size(), output2.size());
+        }
+    }
 }

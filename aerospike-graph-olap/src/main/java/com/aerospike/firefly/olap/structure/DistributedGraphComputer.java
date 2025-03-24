@@ -497,7 +497,9 @@ public class DistributedGraphComputer implements GraphComputer {
             });
             System.out.println("Results: " + rows.size());
 
-            System.out.println("Traversers: " + traversers);
+            if (configHelper.isDebugDf()) {
+                System.out.println("Traversers: " + traversers);
+            }
             AttachmentHelper.makeDetachedElements((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(), traversers);
 
             // Set all traversers as halted and complete memory.

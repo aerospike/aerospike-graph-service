@@ -3,7 +3,6 @@ package com.aerospike.firefly.process.traversal.strategy.optimization;
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalLocalStep;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
-import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.CountGlobalStep;
@@ -45,6 +44,8 @@ public class FireflyCountGlobalLocalStrategy extends FireflyStrategyBase {
                                     traversal);
                             traversal.removeStep(rangeGlobalStep);
                             traversal.removeStep(vertexStep);
+
+                            resetChild(traversal);
                         }
                     }
                 } else if (traversal.getSteps().get(i - 1) instanceof VertexStep) {
@@ -57,8 +58,21 @@ public class FireflyCountGlobalLocalStrategy extends FireflyStrategyBase {
                                         traversal, vertexStep.getDirection(), traversal.getSteps().get(i).getLabels(), vertexStep.getEdgeLabels(), -1),
                                 traversal);
                         traversal.removeStep(vertexStep);
+
+                        resetChild(traversal);
                     }
                 }
+            }
+        }
+    }
+
+    // workaround for some barrier steps
+    private void resetChild(final Traversal.Admin<?, ?> traversal) {
+        if (!traversal.isRoot()) {
+            try {
+                traversal.getParent().replaceLocalChild(traversal, traversal);
+            } catch (final IllegalStateException ignored) {
+                // some steps don't support child replacement
             }
         }
     }

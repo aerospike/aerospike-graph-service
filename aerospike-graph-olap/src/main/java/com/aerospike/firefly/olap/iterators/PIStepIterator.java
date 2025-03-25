@@ -13,6 +13,7 @@ import com.aerospike.firefly.io.aerospike.query.paged.PaginationIterator;
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionedSindexPageFetcher;
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.helper.TaskLogger;
+import com.aerospike.firefly.process.traversal.step.computer.FireflyBatchEdgeReadStepLocal;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -24,6 +25,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -62,18 +64,23 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
     final FireflyId inputVertexId;
     final VertexStep vertexStep;
     final List<Edge> currentEdges;
+    final Direction direction;
+    final List<HasContainer> hasContainer;
+    final Set<String> labels;
+    final Set<String> edgeLabels;
 
     public PIStepIterator(final FireflyGraph graph,
-                         final FireflyId inputVertexId,
-                         final GraphStep graphStep,
-                         final VertexStep vertexStep,
-                         final String startStep,
-                         final Codec codec,
-                         final FireflyIndexMetadata.IndexInfo indexInfo,
-                         final Iterator<Row> iterator,
-                         final Traversal traversal,
-                         final TraversalMatrix tm,
-                         final TraverserGenerator tg) {
+                          final FireflyId inputVertexId,
+                          final GraphStep graphStep,
+                          final VertexStep vertexStep,
+                          final String startStep,
+                          final Codec codec,
+                          final FireflyIndexMetadata.IndexInfo indexInfo,
+                          final Iterator<Row> iterator,
+                          final Traversal traversal,
+                          final TraversalMatrix tm,
+                          final TraverserGenerator tg,
+                          final Direction direction) {
         this.graphStep = graphStep;
         this.tg = tg;
         this.tm = tm;
@@ -89,7 +96,13 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
         this.inputVertexId = inputVertexId;
         this.vertexStep = vertexStep;
         this.currentEdges = new ArrayList<>();
-        //graph.logMessage("PIStepIterator created with " + rows.size() + " rows.", LOGGER);
+        this.direction = direction;
+        final FireflyBatchEdgeReadStepLocal edgeStep = (FireflyBatchEdgeReadStepLocal) vertexStep.getNextStep();
+        this.hasContainer = new ArrayList<>(edgeStep.fireflyHasContainers);
+        this.hasContainer.addAll(edgeStep.aerospikeHasContainers);
+        this.edgeLabels = Set.of(edgeStep.getEdgeLabels());
+        this.labels = edgeStep.getLabels();
+        graph.logMessage("PIStepIterator created with " + rows.size() + " rows.", LOGGER);
     }
 
     @Override
@@ -103,7 +116,11 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
         }
 
         if (page != null) {
-            if (page.keyRecords.hasNext()) {
+            while (currentEdges.isEmpty() && page.keyRecords.hasNext()) {
+                    final KeyRecord kr = page.keyRecords.next();
+                    getIndividualEdgeIdsAttachedToVertex(kr.record);
+            }
+            if (!currentEdges.isEmpty()) {
                 return true;
             } else {
                 final PaginationIterator pi = (PaginationIterator) page.keyRecords;
@@ -116,7 +133,6 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
             int attemptCount = 0;
             while (true) {
                 try {
-                    //System.out.println("Running index off of " + inputVertexId.getUserId());
                     attemptCount++;
                     final Row row = rows.get(rowCount);
                     final PartitionFilter partitionFilter = PartitionFilter.range(
@@ -125,7 +141,6 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
                     final AerospikeConnection db = graph.getBaseGraph();
 
                     final String keyHashString = inputVertexId.getKeyHashString();
-                    final Direction direction = vertexStep.getDirection();
                     if (row.getBoolean(row.fieldIndex(FIRST_COL))) {
                         final FireflyVertex v = graph.readVertex(inputVertexId);
                         final List<FireflyId> edgeIds = v.getCachedEdgeIds(direction, Set.of(vertexStep.getEdgeLabels()));
@@ -194,21 +209,11 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
 
     @Override
     public Traverser next() {
-        //++;
-        //f (i % 5_000 == 0) {
-        //   System.out.println(TaskContext.getPartitionId()  + " - PIStepIterator.next() " + i);
-        //
         if (!hasNext())
             throw new NoSuchElementException("No more elements.");
 
         if (!page.keyRecords.hasNext() && currentEdges.isEmpty()) {
             throw new NoSuchElementException("No more elements. Please contact support.");
-        }
-
-        while (currentEdges.isEmpty()) {
-            // Should only get called once, but just in case...
-            final KeyRecord kr = page.keyRecords.next();
-            getIndividualEdgeIdsAttachedToVertex(graph.getBaseGraph(), kr.record, vertexStep.getDirection(), inputVertexId, currentEdges);
         }
 
         final Edge e = currentEdges.remove(0);
@@ -228,20 +233,16 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
         }
     }
 
-    protected void getIndividualEdgeIdsAttachedToVertex(final AerospikeConnection db,
-                                                        final Record record,
-                                                        final Direction direction,
-                                                        final FireflyId vertexId,
-                                                        final List<Edge> output) {
+    protected void getIndividualEdgeIdsAttachedToVertex(final Record record) {
         final String directionKey;
         if (direction == Direction.BOTH) {
             // Direction.BOTH should not be propagated here and should be combined at a higher level.
             throw new RuntimeException("Cannot get individual Edge IDs attached to a Vertex with Direction.BOTH");
         } else {
             if (direction == Direction.OUT) {
-                directionKey = db.SUPERNODES_OUT_BIN;
+                directionKey = graph.getBaseGraph().SUPERNODES_OUT_BIN;
             } else {
-                directionKey = db.SUPERNODES_IN_BIN;
+                directionKey = graph.getBaseGraph().SUPERNODES_IN_BIN;
             }
         }
 
@@ -251,13 +252,13 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
         }
 
         for (final Map.Entry<ByteBuffer, String> edgeIdToVertexId : edgeIdToVertexIdMap.entrySet()) {
-            if (edgeIdToVertexId.getValue().equals(vertexId.getKeyHashString())) {
-                final FireflyId edgeId = db.getIdFactory().createEdgeId(edgeIdToVertexId.getKey());
-                output.add(FireflyEdgeFactory.create(edgeId, record, graph));
+            if (edgeIdToVertexId.getValue().equals(inputVertexId.getKeyHashString())) {
+                final FireflyId edgeId = graph.getBaseGraph().getIdFactory().createEdgeId(edgeIdToVertexId.getKey());
+                final Edge edge = FireflyEdgeFactory.create(edgeId, record, graph);
+                if (HasContainer.testAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
+                    currentEdges.add(edge);
+                }
             }
-        }
-        if (vertexStep.returnsEdge()) {
-            // output.stream().filter(e -> HasContainer.testAll())
         }
     }
 }

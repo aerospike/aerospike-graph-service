@@ -4,10 +4,17 @@ import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalLocalStep;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.CountGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.CountStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
+import org.apache.tinkerpop.gremlin.structure.T;
+
+import java.util.Collections;
+import java.util.List;
 
 public class FireflyCountGlobalLocalStrategy extends FireflyStrategyBase {
     /**
@@ -23,40 +30,56 @@ public class FireflyCountGlobalLocalStrategy extends FireflyStrategyBase {
 
     @Override
     protected void doApply(final Traversal.Admin<?, ?> traversal) {
-        if (!ComputerHelper.onGraphComputer(traversal) || traversal.getSteps().size() < 2)
+        if (!ComputerHelper.onGraphComputer(traversal) || traversal.getSteps().size() < 2) {
+            CountStrategy.instance().apply(traversal);
             return;
+        }
 
         for (int i = 1; i < traversal.getSteps().size(); i++) {
             if (traversal.getSteps().get(i) instanceof CountGlobalStep) {
-                if (traversal.getSteps().get(i - 1) instanceof RangeGlobalStep) {
-                    final RangeGlobalStep rangeGlobalStep = (RangeGlobalStep) traversal.getSteps().get(i - 1);
-                    if (rangeGlobalStep.getLowRange() != 0)
-                        continue;
-                    if (i > 1 && traversal.getSteps().get(i - 2) instanceof VertexStep) {
-                        final VertexStep vertexStep = (VertexStep) traversal.getSteps().get(i - 2);
-                        if (vertexStep.getLabels().isEmpty()) {
-                            // Need to replace count step and remove vertex and count steps
-                            TraversalHelper.replaceStep(
-                                    traversal.getSteps().get(i),
-                                    new FireflyCountGlobalLocalStep<>(
-                                            traversal, vertexStep.getDirection(), traversal.getSteps().get(i).getLabels(),
-                                            vertexStep.getEdgeLabels(), rangeGlobalStep.getHighRange()),
-                                    traversal);
-                            traversal.removeStep(rangeGlobalStep);
-                            traversal.removeStep(vertexStep);
+                int stepsToRemove = 0;
+                RangeGlobalStep rangeGlobalStep = null;
+                HasStep hasStep = null;
 
-                            resetChild(traversal);
-                        }
+                // vertex.out().limit(1).count()
+                if (i > 1 && traversal.getSteps().get(i - 1) instanceof RangeGlobalStep) {
+                    rangeGlobalStep = (RangeGlobalStep) traversal.getSteps().get(i - 1);
+                    // is it valid range step?
+                    if (rangeGlobalStep.getLowRange() != 0) {
+                        continue;
                     }
-                } else if (traversal.getSteps().get(i - 1) instanceof VertexStep) {
-                    final VertexStep vertexStep = (VertexStep) traversal.getSteps().get(i - 1);
+                    stepsToRemove++;
+                }
+
+                // vertex.out().hasId(1).count()
+                if (i > 1 + stepsToRemove && traversal.getSteps().get(i - 1 - stepsToRemove) instanceof HasStep) {
+                    hasStep = (HasStep) traversal.getSteps().get(i - 1 - stepsToRemove);
+                    if (!isValid(hasStep)) {
+                        continue;
+                    }
+                    stepsToRemove++;
+                }
+
+                if (i > stepsToRemove && traversal.getSteps().get(i - 1 - stepsToRemove) instanceof VertexStep) {
+                    final VertexStep vertexStep = (VertexStep) traversal.getSteps().get(i - 1 - stepsToRemove);
                     if (vertexStep.getLabels().isEmpty()) {
-                        // Need to replace count step and remove vertex step
+                        final long limit = rangeGlobalStep == null ? -1 : rangeGlobalStep.getHighRange();
+                        final List<HasContainer> hasContainers = hasStep == null ? Collections.emptyList() : hasStep.getHasContainers();
+
+                        // Need to replace count step and remove vertex and count steps
                         TraversalHelper.replaceStep(
                                 traversal.getSteps().get(i),
                                 new FireflyCountGlobalLocalStep<>(
-                                        traversal, vertexStep.getDirection(), traversal.getSteps().get(i).getLabels(), vertexStep.getEdgeLabels(), -1),
+                                        traversal, vertexStep.getDirection(), traversal.getSteps().get(i).getLabels(),
+                                        vertexStep.getEdgeLabels(), limit, hasContainers),
                                 traversal);
+
+                        if (rangeGlobalStep != null) {
+                            traversal.removeStep(rangeGlobalStep);
+                        }
+                        if (hasStep != null) {
+                            traversal.removeStep(hasStep);
+                        }
                         traversal.removeStep(vertexStep);
 
                         resetChild(traversal);
@@ -64,6 +87,19 @@ public class FireflyCountGlobalLocalStrategy extends FireflyStrategyBase {
                 }
             }
         }
+
+        // todo: GRAPH-1501
+        CountStrategy.instance().apply(traversal);
+    }
+
+    private boolean isValid(final HasStep hasStep) {
+        for (HasContainer hasContainer : (List<HasContainer>) hasStep.getHasContainers()) {
+            // only support filter by id for now
+            if (!hasContainer.getKey().equals(T.id.getAccessor())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     // workaround for some barrier steps

@@ -97,7 +97,7 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
         this.vertexStep = vertexStep;
         this.currentEdges = new ArrayList<>();
         this.direction = direction;
-        final FireflyBatchEdgeReadStepLocal edgeStep = (FireflyBatchEdgeReadStepLocal) vertexStep.getNextStep();
+        final FireflyBatchEdgeReadStepLocal edgeStep = (FireflyBatchEdgeReadStepLocal) vertexStep;
         this.hasContainer = new ArrayList<>(edgeStep.fireflyHasContainers);
         this.hasContainer.addAll(edgeStep.aerospikeHasContainers);
         this.edgeLabels = Set.of(edgeStep.getEdgeLabels());

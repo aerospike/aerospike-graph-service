@@ -7,11 +7,13 @@ import com.aerospike.firefly.olap.helper.TaskLogger;
 import com.aerospike.firefly.olap.helper.TimeLog;
 import com.aerospike.firefly.olap.iterators.IndexIterator;
 import com.aerospike.firefly.olap.iterators.PIIterator;
+import com.aerospike.firefly.olap.iterators.PIStepIterator;
 import com.aerospike.firefly.olap.iterators.QueryInfo;
 import com.aerospike.firefly.olap.iterators.ScanIterator;
 import com.aerospike.firefly.olap.process.BatchJob;
 import com.aerospike.firefly.olap.process.TraversalProgram;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.TaskContext;
@@ -31,6 +33,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTraverserGeneratorFactory;
@@ -39,6 +42,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +64,7 @@ public class DistributedWorkerExecutor {
 
     public static final String START_COL = "~start";
     public static final String COUNT_COL = "~count";
+    public static final String FIRST_COL = "~first";
 
     public static Dataset<Row> execute(final SparkSession spark,
                                        final FireflyGraph rootGraph,
@@ -173,6 +178,21 @@ public class DistributedWorkerExecutor {
                                 final Element e = (Element) t.get();
                                 return HasContainer.testAll(e, queryInfo.fireflyHasContainers);
                             });
+                            break;
+                        case PI_STEP:
+                            final FireflyId ffid = graph.getIdFactory().createVertexId(queryInfo.ids.get(0));
+                            iterator = new PIStepIterator(
+                                    graph,
+                                    ffid,
+                                    (GraphStep) traversal.asAdmin().getStartStep(),
+                                    (VertexStep) traversal.asAdmin().getStartStep().getNextStep(),
+                                    traversal.asAdmin().getStartStep().getNextStep().getNextStep().getId(),
+                                    codec,
+                                    null,
+                                    itty,
+                                    traversal,
+                                    traversalMatrix,
+                                    traverserGenerator);
                             break;
                         case PI:
                             iterator = PIIterator.getIterator(
@@ -307,7 +327,7 @@ public class DistributedWorkerExecutor {
         QueryInfo queryInfo;
         if (isFirst) {
             traversal.asAdmin().applyStrategies();
-            queryInfo = QueryInfo.getQueryInfo(rootGraph, (GraphStep) traversal.asAdmin().getStartStep(), initialHasContainers, ids);
+            queryInfo = QueryInfo.getQueryInfo(rootGraph, (GraphStep) traversal.asAdmin().getStartStep(), initialHasContainers, ids, configHelper);
             // Special case for returning something like g.V().hasId(List.of())
             if (queryInfo == null) {
                 return new Pair<>(spark.createDataFrame(new ArrayList<>(), outputSchema), queryInfo);
@@ -316,15 +336,32 @@ public class DistributedWorkerExecutor {
                 System.out.println("Query type: " + queryInfo.queryType.toString());
             }
             System.out.println("Generating query ranges for " + maxParallelQuery + " max parallel queries and " + workerCount + " workers.");
-            if (queryInfo.queryType.equals(QueryInfo.QueryType.INDEX) || queryInfo.queryType.equals(QueryInfo.QueryType.SCAN)) {
-                final List<Row> queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount)).
-                        stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
+            if (queryInfo.queryType.equals(QueryInfo.QueryType.INDEX) ||
+                    queryInfo.queryType.equals(QueryInfo.QueryType.SCAN) ||
+                    queryInfo.queryType.equals(QueryInfo.QueryType.PI_STEP)) {
+                final List<Row> queryRanges;
+                final StructType inputSchema;
+                if (!queryInfo.queryType.equals(QueryInfo.QueryType.PI_STEP)) {
+                    queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount)).
+                            stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
+                    inputSchema = new StructType().
+                            add(START_COL, DataTypes.IntegerType, false).
+                            add(COUNT_COL, DataTypes.IntegerType, false);
+                } else {
+                    final List<Range> ranges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount));
+                    queryRanges = new ArrayList<>();
+                    for (int i = 0; i < ranges.size(); i++) {
+                        final Range range = ranges.get(i);
+                        queryRanges.add(RowFactory.create(range.start, range.count, i == 0));
+                    }
+                    inputSchema = new StructType().
+                            add(START_COL, DataTypes.IntegerType, false).
+                            add(COUNT_COL, DataTypes.IntegerType, false).
+                            add(FIRST_COL, DataTypes.BooleanType, false);
+                }
                 if (configHelper.isDebugDf()) {
                     System.out.println("Query ranges: " + queryRanges.size());
                 }
-                final StructType inputSchema = new StructType().
-                        add(START_COL, DataTypes.IntegerType, false).
-                        add(COUNT_COL, DataTypes.IntegerType, false);
                 Dataset<Row> queryRangeDataset = spark.createDataFrame(queryRanges, inputSchema);
                 if (configHelper.isDebugDf()) {
                     System.out.println("Starting query with " + queryRangeDataset.rdd().partitions().length + " partitions.");

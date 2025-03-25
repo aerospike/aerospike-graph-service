@@ -23,7 +23,9 @@ public class DistributedConfigHelper implements Serializable {
 
     private static final String OLAP_PREFIX = "aerospike.graph.olap.";
     private static final String DEBUG_DF = OLAP_PREFIX + "debug.df";
+    private static final String SUPERNODE_STEPPING = OLAP_PREFIX + "supernode.stepping";
     private static final boolean DEBUG_DF_DEFAULT = false;
+    private static final boolean SUPERNODE_STEPPING_DEFAULT = true;
     private static final String PARTITIONS = OLAP_PREFIX + "partitions";
 
     private static final Map<String, Object> OLAP_FIREFLY_CONFIG = Map.of(
@@ -64,6 +66,10 @@ public class DistributedConfigHelper implements Serializable {
 
     public boolean isDebugDf() {
         return getOlapConfig().getBoolean(DEBUG_DF, DEBUG_DF_DEFAULT);
+    }
+
+    public boolean isSupernodeSteppingEnabled() {
+        return getOlapConfig().getBoolean(SUPERNODE_STEPPING, SUPERNODE_STEPPING_DEFAULT);
     }
 
     public Optional<Integer> getPartitions() {

@@ -6,6 +6,7 @@ import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.CountGlobalStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 
@@ -49,6 +50,14 @@ public class FireflyCountGlobalLocalStrategy extends FireflyStrategyBase {
                         }
                     }
                 } else if (traversal.getSteps().get(i - 1) instanceof VertexStep) {
+                    if (traversal.getSteps().get(i - 2) instanceof GraphStep) {
+                        final GraphStep graphStep = (GraphStep) traversal.getSteps().get(i - 2);
+                        // g.V(<single id>).in/out().count().
+                        if (graphStep.getIds().length == 1) {
+                            continue;
+                        }
+                    }
+
                     final VertexStep vertexStep = (VertexStep) traversal.getSteps().get(i - 1);
                     if (vertexStep.getLabels().isEmpty()) {
                         // Need to replace count step and remove vertex step

@@ -149,7 +149,11 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
                         }
                         final List<FireflyId> edgeIds = v.getCachedEdgeIds(direction, Set.of(vertexStep.getEdgeLabels()));
                         final List<FireflyEdge> cachedEdges = graph.readEdges(List.of(), edgeIds, null);
-                        currentEdges.addAll(cachedEdges);
+                        for (final FireflyEdge edge : cachedEdges) {
+                            if (HasContainer.testAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
+                                currentEdges.add(edge);
+                            }
+                        }
                     }
                     if (direction == Direction.BOTH) {
                         throw new IllegalStateException("Error, cannot run this optimization on 'both'.");

@@ -60,6 +60,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.CountStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.LambdaRestrictionStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.DefaultTraversalMetrics;
 import org.apache.tinkerpop.gremlin.server.Settings;
@@ -248,6 +249,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         synchronized (TraversalStrategies.GlobalCache.class) {
             TraversalStrategies.GlobalCache.registerStrategies(
                     FireflyGraph.class, TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
+                            .removeStrategies(CountStrategy.class)
                             .addStrategies(LambdaRestrictionStrategy.instance())
                             .addStrategies(FIREFLY_STRATEGIES.toArray(new FireflyStrategyBase[0]))
                             .addStrategies(OptionsStrategy.build().create()));

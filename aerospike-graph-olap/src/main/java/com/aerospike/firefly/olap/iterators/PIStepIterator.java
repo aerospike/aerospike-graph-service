@@ -62,7 +62,6 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
     final List<Edge> currentEdges;
     final Direction direction;
     final List<HasContainer> hasContainer;
-    final Set<String> labels;
     final Set<String> edgeLabels;
 
     public PIStepIterator(final FireflyGraph graph,
@@ -93,7 +92,6 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
         this.hasContainer = new ArrayList<>(edgeStep.fireflyHasContainers);
         this.hasContainer.addAll(edgeStep.aerospikeHasContainers);
         this.edgeLabels = Set.of(edgeStep.getEdgeLabels());
-        this.labels = edgeStep.getLabels();
         graph.logMessage("PIStepIterator created with " + rows.size() + " rows.", LOGGER);
     }
 
@@ -217,7 +215,7 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
         }
 
         final Edge e = currentEdges.remove(0);
-        final Traverser t = start.asAdmin().split(e, graphStep);
+        final Traverser t = start.asAdmin().split(e, vertexStep);
         t.asAdmin().setStepId(startStep);
         return t;
     }

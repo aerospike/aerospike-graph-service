@@ -50,7 +50,7 @@ public class FireflyCountGlobalLocalStrategy extends FireflyStrategyBase {
                         }
                     }
                 } else if (traversal.getSteps().get(i - 1) instanceof VertexStep) {
-                    if (traversal.getSteps().get(i - 2) instanceof GraphStep) {
+                    if (i > 1 && traversal.getSteps().get(i - 2) instanceof GraphStep) {
                         final GraphStep graphStep = (GraphStep) traversal.getSteps().get(i - 2);
                         // g.V(<single id>).in/out().count().
                         if (graphStep.getIds().length == 1) {

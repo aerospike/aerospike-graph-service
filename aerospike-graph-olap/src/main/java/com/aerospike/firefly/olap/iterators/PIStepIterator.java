@@ -143,6 +143,10 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
                     final String keyHashString = inputVertexId.getKeyHashString();
                     if (row.getBoolean(row.fieldIndex(FIRST_COL))) {
                         final FireflyVertex v = graph.readVertex(inputVertexId);
+                        // Vertex doesn't exist, therefore no output from here.
+                        if (v == null) {
+                            return false;
+                        }
                         final List<FireflyId> edgeIds = v.getCachedEdgeIds(direction, Set.of(vertexStep.getEdgeLabels()));
                         final List<FireflyEdge> cachedEdges = graph.readEdges(List.of(), edgeIds, null);
                         currentEdges.addAll(cachedEdges);
@@ -212,7 +216,7 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
         if (!hasNext())
             throw new NoSuchElementException("No more elements.");
 
-        if (!page.keyRecords.hasNext() && currentEdges.isEmpty()) {
+        if (currentEdges.isEmpty()) {
             throw new NoSuchElementException("No more elements. Please contact support.");
         }
 

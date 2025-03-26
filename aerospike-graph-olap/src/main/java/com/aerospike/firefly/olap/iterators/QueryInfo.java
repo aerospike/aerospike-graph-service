@@ -23,7 +23,7 @@ public class QueryInfo implements Serializable {
     public enum QueryType implements Serializable {
         INDEX,
         SCAN,
-        PI_STEP,
+        SUPERNODE,
         PI
     }
 
@@ -50,7 +50,7 @@ public class QueryInfo implements Serializable {
     private QueryInfo(final List<Object> ids,
                       final List<HasContainer> initialHasContainers,
                       final boolean supernodeStepping) {
-        this.queryType = supernodeStepping ? QueryType.PI_STEP : QueryInfo.QueryType.PI;
+        this.queryType = supernodeStepping ? QueryType.SUPERNODE : QueryInfo.QueryType.PI;
         this.indexInfo = null;
         this.indexTopHasContainer = null;
         this.ids = ids;

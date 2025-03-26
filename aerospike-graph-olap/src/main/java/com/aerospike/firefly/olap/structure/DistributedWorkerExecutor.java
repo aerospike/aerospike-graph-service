@@ -43,7 +43,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -180,7 +179,7 @@ public class DistributedWorkerExecutor {
                                 return HasContainer.testAll(e, queryInfo.fireflyHasContainers);
                             });
                             break;
-                        case PI_STEP:
+                        case SUPERNODE:
                             final FireflyId ffid = graph.getIdFactory().createVertexId(queryInfo.ids.get(0));
                             final Traverser start = traverserGenerator.generate(graph.readVertex(ffid), (GraphStep) traversal.asAdmin().getStartStep(), 1L);
                             final Direction direction = ((VertexStep) traversal.asAdmin().getStartStep().getNextStep()).getDirection();
@@ -371,10 +370,10 @@ public class DistributedWorkerExecutor {
             System.out.println("Generating query ranges for " + maxParallelQuery + " max parallel queries and " + workerCount + " workers.");
             if (queryInfo.queryType.equals(QueryInfo.QueryType.INDEX) ||
                     queryInfo.queryType.equals(QueryInfo.QueryType.SCAN) ||
-                    queryInfo.queryType.equals(QueryInfo.QueryType.PI_STEP)) {
+                    queryInfo.queryType.equals(QueryInfo.QueryType.SUPERNODE)) {
                 final List<Row> queryRanges;
                 final StructType inputSchema;
-                if (!queryInfo.queryType.equals(QueryInfo.QueryType.PI_STEP)) {
+                if (!queryInfo.queryType.equals(QueryInfo.QueryType.SUPERNODE)) {
                     queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount)).
                             stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
                     inputSchema = new StructType().

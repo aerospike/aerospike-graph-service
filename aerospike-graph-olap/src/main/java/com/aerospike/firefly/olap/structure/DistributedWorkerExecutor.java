@@ -15,6 +15,7 @@ import com.aerospike.firefly.olap.process.TraversalProgram;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
@@ -42,6 +43,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -180,34 +182,36 @@ public class DistributedWorkerExecutor {
                             break;
                         case PI_STEP:
                             final FireflyId ffid = graph.getIdFactory().createVertexId(queryInfo.ids.get(0));
+                            final Traverser start = traverserGenerator.generate(graph.readVertex(ffid), (GraphStep) traversal.asAdmin().getStartStep(), 1L);
                             final Direction direction = ((VertexStep) traversal.asAdmin().getStartStep().getNextStep()).getDirection();
                             if (direction == Direction.BOTH) {
-                                iterator = new PIStepIterator(
+                                final List rows = IteratorUtils.toList(itty);
+                                Iterator ittyIn = new PIStepIterator(
                                         graph,
                                         ffid,
                                         (GraphStep) traversal.asAdmin().getStartStep(),
                                         (VertexStep) traversal.asAdmin().getStartStep().getNextStep(),
                                         traversal.asAdmin().getStartStep().getNextStep().getNextStep().getId(),
-                                        codec,
                                         null,
-                                        itty,
+                                        rows,
                                         traversal,
                                         traversalMatrix,
-                                        traverserGenerator,
+                                        start,
                                         Direction.IN);
-                                iterator = FireflyCloseableIteratorUtils.concat(iterator, new PIStepIterator(
+
+                                Iterator ittyOut = new PIStepIterator(
                                         graph,
                                         ffid,
                                         (GraphStep) traversal.asAdmin().getStartStep(),
                                         (VertexStep) traversal.asAdmin().getStartStep().getNextStep(),
                                         traversal.asAdmin().getStartStep().getNextStep().getNextStep().getId(),
-                                        codec,
                                         null,
-                                        itty,
+                                        rows,
                                         traversal,
                                         traversalMatrix,
-                                        traverserGenerator,
-                                        Direction.OUT));
+                                        start,
+                                        Direction.OUT);
+                                iterator = FireflyCloseableIteratorUtils.concat(ittyIn, ittyOut);
                             } else {
                                 iterator = new PIStepIterator(
                                         graph,
@@ -215,12 +219,11 @@ public class DistributedWorkerExecutor {
                                         (GraphStep) traversal.asAdmin().getStartStep(),
                                         (VertexStep) traversal.asAdmin().getStartStep().getNextStep(),
                                         traversal.asAdmin().getStartStep().getNextStep().getNextStep().getId(),
-                                        codec,
                                         null,
-                                        itty,
+                                        IteratorUtils.toList(itty),
                                         traversal,
                                         traversalMatrix,
-                                        traverserGenerator,
+                                        start,
                                         direction);
                             }
                             break;

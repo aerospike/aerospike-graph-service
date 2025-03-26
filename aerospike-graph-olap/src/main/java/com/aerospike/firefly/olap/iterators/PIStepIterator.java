@@ -11,7 +11,6 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
 import com.aerospike.firefly.io.aerospike.query.paged.PaginationIterator;
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionedSindexPageFetcher;
-import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.helper.TaskLogger;
 import com.aerospike.firefly.process.traversal.step.computer.FireflyBatchEdgeReadStepLocal;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -22,7 +21,6 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.spark.sql.Row;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
-import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
@@ -35,7 +33,6 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -50,14 +47,13 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexIterator.class);
     final FireflyGraph graph;
     final LinkedBlockingQueue<PageFetcher.Page> pageQueue;
-    final List<Row> rows = new ArrayList<>();
+    final List<Row> rows;
     int rowCount = 0;
     final String startStep;
-    final Codec codec;
     final Traversal traversal;
     final FireflyIndexMetadata.IndexInfo indexInfo;
     private final GraphStep graphStep;
-    final TraverserGenerator tg;
+    final Traverser start;
     final TraversalMatrix tm;
     PageFetcher<?> pageFetcher = null;
     PageFetcher.Page page = null;
@@ -74,23 +70,19 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
                           final GraphStep graphStep,
                           final VertexStep vertexStep,
                           final String startStep,
-                          final Codec codec,
                           final FireflyIndexMetadata.IndexInfo indexInfo,
-                          final Iterator<Row> iterator,
+                          final List<Row> rows,
                           final Traversal traversal,
                           final TraversalMatrix tm,
-                          final TraverserGenerator tg,
+                          final Traverser start,
                           final Direction direction) {
         this.graphStep = graphStep;
-        this.tg = tg;
+        this.start = start;
         this.tm = tm;
         this.indexInfo = indexInfo;
         this.graph = graph;
-        while (iterator.hasNext()) {
-            rows.add(iterator.next());
-        }
+        this.rows = rows;
         this.startStep = startStep;
-        this.codec = codec;
         this.traversal = traversal;
         this.pageQueue = new LinkedBlockingQueue<>(graph.getBaseGraph().PAGINATION_PAGE_QUEUE_SIZE);
         this.inputVertexId = inputVertexId;
@@ -225,7 +217,7 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
         }
 
         final Edge e = currentEdges.remove(0);
-        final Traverser t = tg.generate(e, graphStep, 1L);
+        final Traverser t = start.asAdmin().split(e, graphStep);
         t.asAdmin().setStepId(startStep);
         return t;
     }

@@ -46,6 +46,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,6 +131,8 @@ public class DistributedWorkerExecutor {
             }
             try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
                 graph.logInfo = TaskLogger.instance;
+                memory.setGraph(graph);
+
                 TimeLog.reset();
 
                 TaskLogger.logDebuggingMessage("Graph created.", LOGGER);
@@ -307,18 +310,16 @@ public class DistributedWorkerExecutor {
                     TimeLog.complete("Encoding");
                     if (limitStepId != null) {
                         if ((Long) memory.get(limitStepId) <= 0) {
-                            System.out.println("!!!! -> " + memory.get(limitStepId));
+                            graph.logMessage("Updated -> " + memory.get(limitStepId), LOGGER);
+                            if (iterator instanceof CloseableIterator) {
+                                ((CloseableIterator) iterator).close();
+                            }
                             break;
                         } else {
-                            System.out.println("!!!!___ -> " + memory.get(limitStepId));
+                            graph.logMessage("Stale -> " + memory.get(limitStepId), LOGGER);
                         }
                         TimeLog.complete("Check for break.");
                     }
-                }
-
-                for (int i = 0 ; i < 5; i++) {
-                    Thread.sleep(1000);
-                    System.out.println("!!!!---- -> " + memory.get(limitStepId) + "|" + memory.getValue1());
                 }
 
                 // End worker iteration.
@@ -330,6 +331,9 @@ public class DistributedWorkerExecutor {
                 // Return results.
                 TaskLogger.logDebuggingMessage("Ending with " + output.size() + " rows.", LOGGER);
                 TimeLog.log(graph);
+                if (iterator instanceof CloseableIterator) {
+                    ((CloseableIterator) iterator).close();
+                }
                 return output.iterator();
             } catch (final Exception e) {
                 TaskLogger.logDebuggingMessage("ERROR", LOGGER);

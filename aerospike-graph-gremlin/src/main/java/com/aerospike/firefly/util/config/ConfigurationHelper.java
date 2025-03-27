@@ -245,7 +245,8 @@ public final class ConfigurationHelper {
             BL_ROW_BIN(Pair.of((byte) 21, "BL_ROW")),
             BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE")),
             SUPERNODE_EDGE_PROPERTIES_BIN(Pair.of((byte) 23, "SUPERNODE_P")),
-            BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA"));
+            BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA")),
+            OLAP_LIMIT_BIN(Pair.of((byte) 25, "OLAP_LIMIT"));
 
             private final Pair value;
 
@@ -310,7 +311,8 @@ public final class ConfigurationHelper {
             BULK_LOAD_RECOVERY_VERTEX_SET(Pair.of((byte) 19, "BL_RECOVERY_V")),
             BULK_LOAD_RECOVERY_EDGE_SET(Pair.of((byte) 20, "BL_RECOVERY_E")),
             BULK_LOAD_RECOVERY_SUPERNODE_SET(Pair.of((byte) 21, "BL_RECOVERY_SN")),
-            BULK_LOAD_RECOVERY_STATE_SET(Pair.of((byte) 22, "BL_RECOVERY_S"));
+            BULK_LOAD_RECOVERY_STATE_SET(Pair.of((byte) 22, "BL_RECOVERY_S")),
+            OLAP_SET(Pair.of((byte) 23, "OLAP"));
 
             private final Pair value;
 
@@ -371,9 +373,9 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, "true");
         put(Keys.AEROSPIKE_PORT, "3000");
-        put(Keys.AEROSPIKE_TIMEOUT, "2000");
+        put(Keys.AEROSPIKE_TIMEOUT, "20000");
         put(Keys.WRITE_SOCKET_TIMEOUT, "500");
-        put(Keys.READ_SOCKET_TIMEOUT, "50");
+        put(Keys.READ_SOCKET_TIMEOUT, "500");
         put(Keys.READ_SOCKET_TIMEOUT_BULK_LOAD, "2000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
@@ -413,7 +415,7 @@ public final class ConfigurationHelper {
         put(Keys.CONNECT_TIMEOUT, "0");
         put(Keys.TIMEOUT_DELAY, "2000");
         put(Keys.WRITE_TOTAL_TIMEOUT, "2500");
-        put(Keys.READ_TOTAL_TIMEOUT, "150");
+        put(Keys.READ_TOTAL_TIMEOUT, "1500");
         put(Keys.READ_TOTAL_TIMEOUT_BULK_LOAD, "6000");
         put(Keys.WRITE_SLEEP_BETWEEN_RETRY, "500");
         put(Keys.READ_SLEEP_BETWEEN_RETRY, "0");

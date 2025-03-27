@@ -3,6 +3,7 @@ package com.aerospike.firefly.olap.structure;
 import com.aerospike.firefly.olap.helper.AttachmentHelper;
 import com.aerospike.firefly.olap.helper.TaskLogger;
 import com.aerospike.firefly.olap.process.TraversalProgram;
+import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.util.AccumulatorV2;
@@ -48,10 +49,10 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     private final AtomicLong runtime = new AtomicLong(0l);
     private Broadcast<Map<String, Object>> broadcast;
     private boolean inExecute = false;
-    LongAccumulator accumulator;
+    private transient FireflyGraph graph;
 
     public DistributedMemory(final VertexProgram<?> vertexProgram, final Set<MapReduce> mapReducers, final JavaSparkContext sparkContext) {
-        accumulator = sparkContext.sc().longAccumulator("accumulator");
+        TraversalProgram program = (TraversalProgram) vertexProgram;
         if (null != vertexProgram) {
             for (final MemoryComputeKey key : vertexProgram.getMemoryComputeKeys()) {
                 this.memoryComputeKeys.put(key.getKey(), key);
@@ -64,14 +65,17 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         for (final MemoryComputeKey memoryComputeKey : this.memoryComputeKeys.values()) {
             final AccumulatorV2<DistributedMemoryEntry, DistributedMemoryEntry> accumulator = new DistributedAccumulator<>(memoryComputeKey);
             if (memoryComputeKey.getKey().endsWith("-accumulator")) {
-                TraversalProgram program = (TraversalProgram) vertexProgram;
                 final TraversalMatrix tm = program.getTraversalMatrix();
                 final RangeGlobalStep step = (RangeGlobalStep) tm.getStepById(memoryComputeKey.getKey().substring(0, memoryComputeKey.getKey().length() - "-accumulator".length()));
-                accumulator.value().set(step.getHighRange());
+                ((FireflyGraph) program.getTraversal().get().getGraph().get()).getBaseGraph().setLimitBin("limit", step.getHighRange());
             }
             JavaSparkContext.toSparkContext(sparkContext).register(accumulator, memoryComputeKey.getKey());
             this.sparkMemory.put(memoryComputeKey.getKey(), accumulator);
         }
+    }
+
+    public void setGraph(final FireflyGraph graph) {
+        this.graph = graph;
     }
 
     @Override
@@ -122,6 +126,10 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         if (!this.sparkMemory.containsKey(key))
             throw Memory.Exceptions.memoryDoesNotExist(key);
 
+        if (key.endsWith("-accumulator")) {
+            return (R) graph.getBaseGraph().getLimitBin("limit");
+        }
+
         final DistributedMemoryEntry<R> r = (DistributedMemoryEntry<R>) (this.inExecute ? this.broadcast.value().get(key) : this.sparkMemory.get(key).value());
         if (null == r || r.isEmpty()) {
             // gremlin.traversalVertexProgram.completedBarriers
@@ -130,7 +138,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         } else {
             final R rr = r.get();
             if (rr instanceof DistributedIndexedTraverserSet) {
-                return (R) new IndexedTraverserSet<>(((DistributedIndexedTraverserSet)rr).indexingFunction);
+                return (R) new IndexedTraverserSet<>(((DistributedIndexedTraverserSet) rr).indexingFunction);
             } else {
                 return rr;
             }
@@ -140,8 +148,10 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     @Override
     public void add(final String key, final Object value) {
         checkKeyValue(key, value);
-        if (key.endsWith("-accumulator"))
-            accumulator.add((Long)value);
+        if (key.endsWith("-accumulator")) {
+            graph.getBaseGraph().addLimitBin("limit", (long) value);
+        }
+
         final Object detachedValue = AttachmentHelper.detach(value, true); // !key.equals(HALTED_TRAVERSERS)
         if (this.inExecute) {
             if (key.endsWith(")"))
@@ -153,6 +163,10 @@ public class DistributedMemory implements Memory.Admin, Serializable {
 
     @Override
     public void set(final String key, Object value) {
+        if (key.endsWith("-accumulator")) {
+            throw new IllegalStateException("Cant set aerospike compute key.");
+        }
+
         if (value instanceof IndexedTraverserSet.VertexIndexedTraverserSet) {
             value = new DistributedIndexedTraverserSet<>((IndexedTraverserSet.VertexIndexedTraverserSet) value);
         }

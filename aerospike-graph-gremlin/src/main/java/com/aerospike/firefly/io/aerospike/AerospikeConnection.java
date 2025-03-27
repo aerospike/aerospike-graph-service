@@ -182,6 +182,9 @@ public class AerospikeConnection implements AutoCloseable {
     public final String ID_MANAGER_SET;
     public final String ID_TYPE_BIN;
     public final String TEST_SET;
+    public final String OLAP_SET;
+    public final String OLAP_LIMIT_BIN;
+
     public final Configuration conf;
     public final String USER_SUPPLIED_ID_CACHE_SET;
     public final long CARDINALITY_METADATA_UPDATE_FREQUENCY;
@@ -500,6 +503,8 @@ public class AerospikeConnection implements AutoCloseable {
         REDACT_SCRIPT_LITERALS_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.REDACT_SCRIPT_LITERALS_ENABLED, conf);
 
         TEST_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.TEST_SET.name(), conf);
+        OLAP_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OLAP_SET.name(), conf);
+        OLAP_LIMIT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.OLAP_LIMIT_BIN.name(), conf);
         SUMMARY_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.SUMMARY_SET.name(), conf);
         GRAPH_ID = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.GRAPH_ID, conf);
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET.name(), conf);
@@ -2080,6 +2085,27 @@ public class AerospikeConnection implements AutoCloseable {
                 Operation.add(ctr),
                 Operation.get(COUNTER_BIN));
         return record.getLong(COUNTER_BIN);
+    }
+
+    public void setLimitBin(final String name, final long amount) {
+        final Key key = new Key(namespace, OLAP_SET, name);
+        final Bin ctr = new Bin(OLAP_LIMIT_BIN, amount);
+        this.writeOperate(null, key, Operation.put(ctr));
+    }
+
+    public Long getLimitBin(final String name) {
+        final Key key = new Key(namespace, OLAP_SET, name);
+        final Record record = this.writeOperate(null, key, Operation.get(COUNTER_BIN));
+        return record.getLong(COUNTER_BIN);
+    }
+
+    public long addLimitBin(final String name, final long amount) {
+        final Key key = new Key(namespace, OLAP_SET, name);
+        final Bin ctr = new Bin(OLAP_LIMIT_BIN, amount);
+        final Record record = this.writeOperate(null, key,
+                Operation.add(ctr),
+                Operation.get(OLAP_LIMIT_BIN));
+        return record.getLong(OLAP_LIMIT_BIN);
     }
 
     /**

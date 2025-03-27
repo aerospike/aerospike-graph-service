@@ -6,6 +6,7 @@ import com.aerospike.firefly.olap.process.TraversalProgram;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.util.AccumulatorV2;
+import org.apache.spark.util.LongAccumulator;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
@@ -29,7 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.LongAccumulator;
+import java.util.function.LongBinaryOperator;
 
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
@@ -47,8 +48,10 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     private final AtomicLong runtime = new AtomicLong(0l);
     private Broadcast<Map<String, Object>> broadcast;
     private boolean inExecute = false;
+    LongAccumulator accumulator;
 
     public DistributedMemory(final VertexProgram<?> vertexProgram, final Set<MapReduce> mapReducers, final JavaSparkContext sparkContext) {
+        accumulator = sparkContext.sc().longAccumulator("accumulator");
         if (null != vertexProgram) {
             for (final MemoryComputeKey key : vertexProgram.getMemoryComputeKeys()) {
                 this.memoryComputeKeys.put(key.getKey(), key);
@@ -57,6 +60,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         for (final MapReduce mapReduce : mapReducers) {
             this.memoryComputeKeys.put(mapReduce.getMemoryKey(), MemoryComputeKey.of(mapReduce.getMemoryKey(), Operator.assign, false, false));
         }
+        this.broadcast = sparkContext.broadcast(Collections.emptyMap());
         for (final MemoryComputeKey memoryComputeKey : this.memoryComputeKeys.values()) {
             final AccumulatorV2<DistributedMemoryEntry, DistributedMemoryEntry> accumulator = new DistributedAccumulator<>(memoryComputeKey);
             if (memoryComputeKey.getKey().endsWith("-accumulator")) {
@@ -68,7 +72,6 @@ public class DistributedMemory implements Memory.Admin, Serializable {
             JavaSparkContext.toSparkContext(sparkContext).register(accumulator, memoryComputeKey.getKey());
             this.sparkMemory.put(memoryComputeKey.getKey(), accumulator);
         }
-        this.broadcast = sparkContext.broadcast(Collections.emptyMap());
     }
 
     @Override
@@ -137,6 +140,8 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     @Override
     public void add(final String key, final Object value) {
         checkKeyValue(key, value);
+        if (key.endsWith("-accumulator"))
+            accumulator.add((Long)value);
         final Object detachedValue = AttachmentHelper.detach(value, true); // !key.equals(HALTED_TRAVERSERS)
         if (this.inExecute) {
             if (key.endsWith(")"))

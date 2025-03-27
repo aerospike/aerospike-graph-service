@@ -15,6 +15,7 @@ import com.aerospike.firefly.olap.process.TraversalProgram;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
@@ -120,6 +121,7 @@ public class DistributedWorkerExecutor {
             System.out.println("Ending with " + df.rdd().partitions().length + " partitions.");
         }
         return df.mapPartitions((MapPartitionsFunction<Row, Row>) itty -> {
+            String limitStepId = null;
             TaskLogger.instance.setDebugging(configHelper.isDebugDf());
             TaskLogger.logDebuggingMessage("Starting with " + (itty.hasNext() ? "non-empty" : "empty") + " partition.", LOGGER);
 
@@ -143,7 +145,7 @@ public class DistributedWorkerExecutor {
                 final TraverserGenerator traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirements);
                 final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal1.asAdmin());
                 final List<Step> steps = traversal1.asAdmin().getSteps();
-                String limitStepId = null;
+
                 for (final Step step : steps) {
                     if (step instanceof RangeGlobalStep) {
                         final RangeGlobalStep rangeGlobalStep = (RangeGlobalStep) step;
@@ -193,40 +195,37 @@ public class DistributedWorkerExecutor {
                                 return HasContainer.testAll(e, queryInfo.fireflyHasContainers);
                             });
                             break;
-                        case PI_STEP:
+                        case SUPERNODE:
                             final FireflyId ffid = graph.getIdFactory().createVertexId(queryInfo.ids.get(0));
+                            final Traverser start = traverserGenerator.generate(graph.readVertex(ffid), (GraphStep) traversal.asAdmin().getStartStep(), 1L);
                             final Direction direction = ((VertexStep) traversal.asAdmin().getStartStep().getNextStep()).getDirection();
                             if (direction == Direction.BOTH) {
-                                final List<Row> rows = new ArrayList<>();
-                                while (itty.hasNext()) {
-                                    rows.add(itty.next());
-                                }
-                                iterator = new PIStepIterator(
+                                final List rows = IteratorUtils.toList(itty);
+                                Iterator ittyIn = new PIStepIterator(
                                         graph,
                                         ffid,
                                         (GraphStep) traversal.asAdmin().getStartStep(),
                                         (VertexStep) traversal.asAdmin().getStartStep().getNextStep(),
                                         traversal.asAdmin().getStartStep().getNextStep().getNextStep().getId(),
-                                        codec,
                                         null,
-                                        rows.iterator(),
+                                        rows,
                                         traversal,
                                         traversalMatrix,
-                                        traverserGenerator,
+                                        start,
                                         Direction.IN);
-                                iterator = FireflyCloseableIteratorUtils.concat(iterator, new PIStepIterator(
+                                Iterator ittyOut = new PIStepIterator(
                                         graph,
                                         ffid,
                                         (GraphStep) traversal.asAdmin().getStartStep(),
                                         (VertexStep) traversal.asAdmin().getStartStep().getNextStep(),
                                         traversal.asAdmin().getStartStep().getNextStep().getNextStep().getId(),
-                                        codec,
                                         null,
-                                        rows.iterator(),
+                                        rows,
                                         traversal,
                                         traversalMatrix,
-                                        traverserGenerator,
-                                        Direction.OUT));
+                                        start,
+                                        Direction.OUT);
+                                iterator = FireflyCloseableIteratorUtils.concat(ittyIn, ittyOut);
                             } else {
                                 iterator = new PIStepIterator(
                                         graph,
@@ -234,12 +233,11 @@ public class DistributedWorkerExecutor {
                                         (GraphStep) traversal.asAdmin().getStartStep(),
                                         (VertexStep) traversal.asAdmin().getStartStep().getNextStep(),
                                         traversal.asAdmin().getStartStep().getNextStep().getNextStep().getId(),
-                                        codec,
                                         null,
-                                        itty,
+                                        IteratorUtils.toList(itty),
                                         traversal,
                                         traversalMatrix,
-                                        traverserGenerator,
+                                        start,
                                         direction);
                             }
                             break;
@@ -308,13 +306,19 @@ public class DistributedWorkerExecutor {
                     job.clear();
                     TimeLog.complete("Encoding");
                     if (limitStepId != null) {
-                        DistributedMemoryEntry entry = memory.get(String.format("%s-accumulator", limitStepId));
-                        Long entries = (Long) entry.get();
-                        if (entries <= 0) {
+                        if ((Long) memory.get(limitStepId) <= 0) {
+                            System.out.println("!!!! -> " + memory.get(limitStepId));
                             break;
+                        } else {
+                            System.out.println("!!!!___ -> " + memory.get(limitStepId));
                         }
                         TimeLog.complete("Check for break.");
                     }
+                }
+
+                for (int i = 0 ; i < 5; i++) {
+                    Thread.sleep(1000);
+                    System.out.println("!!!!---- -> " + memory.get(limitStepId) + "|" + memory.getValue1());
                 }
 
                 // End worker iteration.
@@ -395,10 +399,10 @@ public class DistributedWorkerExecutor {
             System.out.println("Generating query ranges for " + maxParallelQuery + " max parallel queries and " + workerCount + " workers.");
             if (queryInfo.queryType.equals(QueryInfo.QueryType.INDEX) ||
                     queryInfo.queryType.equals(QueryInfo.QueryType.SCAN) ||
-                    queryInfo.queryType.equals(QueryInfo.QueryType.PI_STEP)) {
+                    queryInfo.queryType.equals(QueryInfo.QueryType.SUPERNODE)) {
                 final List<Row> queryRanges;
                 final StructType inputSchema;
-                if (!queryInfo.queryType.equals(QueryInfo.QueryType.PI_STEP)) {
+                if (!queryInfo.queryType.equals(QueryInfo.QueryType.SUPERNODE)) {
                     queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount)).
                             stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
                     inputSchema = new StructType().

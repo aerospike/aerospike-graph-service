@@ -67,7 +67,7 @@ public class FireflyCountGlobalLocalStrategy extends FireflyStrategyBase {
                 if (i > stepsToRemove && traversal.getSteps().get(i - 1 - stepsToRemove) instanceof VertexStep) {
                     final VertexStep vertexStep = (VertexStep) traversal.getSteps().get(i - 1 - stepsToRemove);
                     if (isSupernodeSteppingValid) {
-                        int idx = i - stepsToRemove - 2;
+                        final int idx = i - stepsToRemove - 2;
                         if (idx >= 0 && traversal.getSteps().get(idx) instanceof GraphStep) {
                             // g.V(<single id>).in/out().count(), do not optimize, we will use supernode stepping instead.
                             final GraphStep graphStep = (GraphStep) traversal.getSteps().get(idx);

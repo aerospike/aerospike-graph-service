@@ -26,12 +26,15 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.util.LongAccumulator;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
@@ -139,6 +142,18 @@ public class DistributedWorkerExecutor {
                 final Set<TraverserRequirement> traverserRequirements = traversal1.asAdmin().getTraverserRequirements();
                 final TraverserGenerator traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirements);
                 final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal1.asAdmin());
+                final List<Step> steps = traversal1.asAdmin().getSteps();
+                String limitStepId = null;
+                for (final Step step : steps) {
+                    if (step instanceof RangeGlobalStep) {
+                        final RangeGlobalStep rangeGlobalStep = (RangeGlobalStep) step;
+                        if (rangeGlobalStep.getLowRange() != 0) {
+                            break;
+                        }
+                        limitStepId = String.format("%s-accumulator", rangeGlobalStep.getId());
+                        break;
+                    }
+                }
                 Iterator<Traverser> iterator;
                 if (isFirst) {
                     switch (queryInfo.queryType) {
@@ -182,6 +197,10 @@ public class DistributedWorkerExecutor {
                             final FireflyId ffid = graph.getIdFactory().createVertexId(queryInfo.ids.get(0));
                             final Direction direction = ((VertexStep) traversal.asAdmin().getStartStep().getNextStep()).getDirection();
                             if (direction == Direction.BOTH) {
+                                final List<Row> rows = new ArrayList<>();
+                                while (itty.hasNext()) {
+                                    rows.add(itty.next());
+                                }
                                 iterator = new PIStepIterator(
                                         graph,
                                         ffid,
@@ -190,7 +209,7 @@ public class DistributedWorkerExecutor {
                                         traversal.asAdmin().getStartStep().getNextStep().getNextStep().getId(),
                                         codec,
                                         null,
-                                        itty,
+                                        rows.iterator(),
                                         traversal,
                                         traversalMatrix,
                                         traverserGenerator,
@@ -203,7 +222,7 @@ public class DistributedWorkerExecutor {
                                         traversal.asAdmin().getStartStep().getNextStep().getNextStep().getId(),
                                         codec,
                                         null,
-                                        itty,
+                                        rows.iterator(),
                                         traversal,
                                         traversalMatrix,
                                         traverserGenerator,
@@ -288,6 +307,14 @@ public class DistributedWorkerExecutor {
                     traversers.forEach(t -> output.add(codec.encode(t)));
                     job.clear();
                     TimeLog.complete("Encoding");
+                    if (limitStepId != null) {
+                        DistributedMemoryEntry entry = memory.get(String.format("%s-accumulator", limitStepId));
+                        Long entries = (Long) entry.get();
+                        if (entries <= 0) {
+                            break;
+                        }
+                        TimeLog.complete("Check for break.");
+                    }
                 }
 
                 // End worker iteration.

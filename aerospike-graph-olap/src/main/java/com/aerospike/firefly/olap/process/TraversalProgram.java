@@ -33,6 +33,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.Barrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.MapReducer;
 import org.apache.tinkerpop.gremlin.process.traversal.step.MemoryComputing;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.ProfileSideEffectStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
@@ -129,6 +130,18 @@ public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
         this.memoryComputeKeys.add(MemoryComputeKey.of(ACTIVE_TRAVERSERS, Operator.addAll, true, true));
         this.memoryComputeKeys.add(MemoryComputeKey.of(MUTATED_MEMORY_KEYS, Operator.addAll, false, true));
         this.memoryComputeKeys.add(MemoryComputeKey.of(COMPLETED_BARRIERS, Operator.addAll, true, true));
+        final List<Step> steps = traversalVertexProgram.getTraversal().get().getSteps();
+        for (final Step step : steps) {
+            if (step instanceof RangeGlobalStep) {
+                final RangeGlobalStep rangeGlobalStep = (RangeGlobalStep) step;
+                if (rangeGlobalStep.getLowRange() != 0) {
+                    break;
+                }
+                final String key = String.format("%s-accumulator", rangeGlobalStep.getId());
+                this.memoryComputeKeys.add(MemoryComputeKey.of(key, Operator.sumLong, true, true));
+                break;
+            }
+        }
 
         // does the traversal need profile information
         this.profile = !TraversalHelper.getStepsOfAssignableClassRecursively(ProfileStep.class, this.traversal.get()).isEmpty();
@@ -157,6 +170,10 @@ public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
             traverserSet.addAll((Collection) object);
             return traverserSet;
         }
+    }
+
+    public TraversalMatrix<?, ?> getTraversalMatrix() {
+        return this.traversalMatrix;
     }
 
     public static <R> void storeHaltedTraversers(final Configuration configuration, final TraverserSet<R> haltedTraversers) {

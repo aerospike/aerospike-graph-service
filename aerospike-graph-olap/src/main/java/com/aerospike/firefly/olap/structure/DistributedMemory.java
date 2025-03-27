@@ -2,6 +2,7 @@ package com.aerospike.firefly.olap.structure;
 
 import com.aerospike.firefly.olap.helper.AttachmentHelper;
 import com.aerospike.firefly.olap.helper.TaskLogger;
+import com.aerospike.firefly.olap.process.TraversalProgram;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.util.AccumulatorV2;
@@ -11,7 +12,10 @@ import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.MemoryComputeKey;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.Operator;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.IndexedTraverserSet;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,10 +24,12 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAccumulator;
 
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
@@ -36,6 +42,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
 
     public final Map<String, MemoryComputeKey> memoryComputeKeys = new HashMap<>();
     private final Map<String, AccumulatorV2<DistributedMemoryEntry, DistributedMemoryEntry>> sparkMemory = new HashMap<>();
+    //private final Map<String, LongAccumulator> sparkMemoryLongAcc = new HashMap<>();
     private final AtomicInteger iteration = new AtomicInteger(0);
     private final AtomicLong runtime = new AtomicLong(0l);
     private Broadcast<Map<String, Object>> broadcast;
@@ -52,6 +59,12 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         }
         for (final MemoryComputeKey memoryComputeKey : this.memoryComputeKeys.values()) {
             final AccumulatorV2<DistributedMemoryEntry, DistributedMemoryEntry> accumulator = new DistributedAccumulator<>(memoryComputeKey);
+            if (memoryComputeKey.getKey().endsWith("-accumulator")) {
+                TraversalProgram program = (TraversalProgram) vertexProgram;
+                final TraversalMatrix tm = program.getTraversalMatrix();
+                final RangeGlobalStep step = (RangeGlobalStep) tm.getStepById(memoryComputeKey.getKey().substring(0, memoryComputeKey.getKey().length() - "-accumulator".length()));
+                accumulator.value().set(step.getHighRange());
+            }
             JavaSparkContext.toSparkContext(sparkContext).register(accumulator, memoryComputeKey.getKey());
             this.sparkMemory.put(memoryComputeKey.getKey(), accumulator);
         }

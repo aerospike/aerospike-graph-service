@@ -2,7 +2,9 @@ package com.aerospike.firefly.olap.structure;
 
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.MemoryComputeKey;
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -69,6 +71,16 @@ public class LocalWorkerMemory implements Memory.Admin {
 
     @Override
     public void add(final String key, final Object value) {
+        if (mainMemory.memoryComputeKeys.containsKey(String.format("%s-accumulator", key))) {
+            if (value instanceof Collection) {
+                final Collection<Traverser> traversers = (Collection) value;
+                long bulkCount = 0;
+                for (final Traverser traverser : traversers) {
+                    bulkCount += traverser.bulk();
+                }
+                mainMemory.add(String.format("%s-accumulator", key), -bulkCount);
+            }
+        }
         this.mainMemory.checkKeyValue(key, value);
         this.workerMemory.compute(key, (k, v) -> null == v ? value : this.reducers.get(key).apply(v, value));
     }

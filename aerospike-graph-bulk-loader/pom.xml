@@ -157,7 +157,7 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java-util</artifactId>
-            <version>3.25.5</version>
+            <version>3.25.6</version>
         </dependency>
         <dependency>
             <groupId>com.google.cloud.bigdataoss</groupId>
@@ -287,17 +287,16 @@
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
 
-                                        <!-- Remove outdated metadata -->
+                                        <!-- Remove outdated metadata - these cause a lot of false positives -->
                                         <exclude>META-INF/maven/net.minidev/json-smart/**</exclude>
                                         <exclude>META-INF/maven/net.minidev/accessors-smart/**</exclude>
                                         <exclude>META-INF/maven/com.nimbusds/nimbus-jose-jwt/**</exclude>
                                         <exclude>META-INF/maven/com.google.protobuf/protobuf-java-util/**</exclude>
+                                        <exclude>META-INF/maven/com.google.protobuf/protobuf-java/**</exclude>
                                         <exclude>META-INF/maven/org.apache.commons/commons-configuration2/**</exclude>
                                         <exclude>META-INF/maven/software.amazon.ion/ion-java/**</exclude>
-
-                                        <!-- Remove embedded protobuf class paths from shaded deps -->
-                                        <exclude>**/shaded/**/protobuf/**</exclude>
-                                        <exclude>**/repackaged/**/protobuf/**</exclude>
+                                        <exclude>META-INF/maven/org.eclipse.jetty/jetty-server/**</exclude>
+                                        <exclude>META-INF/maven/dnsjava/dnsjava/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

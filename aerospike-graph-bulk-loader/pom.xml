@@ -269,6 +269,12 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <artifactSet>
+                                <excludes>
+                                    <exclude>org.apache.tinkerpop:gremlin-test</exclude>
+                                    <exclude>com.nimbusds:nimbus-jose-jwt</exclude>
+                                </excludes>
+                            </artifactSet>
                             <!-- If we minimize the jar, we lose the google hadoop dependency we need for gcs. -->
                             <minimizeJar>false</minimizeJar>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
@@ -276,9 +282,22 @@
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
+                                        <!-- Remove cryptographic signature files -->
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
+
+                                        <!-- Remove outdated metadata -->
+                                        <exclude>META-INF/maven/net.minidev/json-smart/**</exclude>
+                                        <exclude>META-INF/maven/net.minidev/accessors-smart/**</exclude>
+                                        <exclude>META-INF/maven/com.nimbusds/nimbus-jose-jwt/**</exclude>
+                                        <exclude>META-INF/maven/com.google.protobuf/protobuf-java-util/**</exclude>
+                                        <exclude>META-INF/maven/org.apache.commons/commons-configuration2/**</exclude>
+                                        <exclude>META-INF/maven/software.amazon.ion/ion-java/**</exclude>
+
+                                        <!-- Remove embedded protobuf class paths from shaded deps -->
+                                        <exclude>**/shaded/**/protobuf/**</exclude>
+                                        <exclude>**/repackaged/**/protobuf/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

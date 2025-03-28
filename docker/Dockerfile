@@ -3,7 +3,7 @@ FROM alpine AS build
 # Set input arguments.
 ARG FIREFLY_GRAPH
 ARG BULKLOADER
-ARG OLAP
+#ARG OLAP
 
 # Set environment variables.
 ENV CONF_DIR="/opt/conf"
@@ -16,7 +16,7 @@ RUN apk add --no-cache --update \
 
 COPY ${FIREFLY_GRAPH} /opt/firefly-graph.jar
 COPY ${BULKLOADER} /opt/bulk-loader.jar
-COPY ${OLAP} /opt/olap.jar
+#COPY ${OLAP} /opt/olap.jar
 COPY conf/logback.xml ${CONF_DIR}/logback.xml
 COPY conf/docker-default/flattened-default-gremlin-server.yaml ${CONF_DIR}/flattened-default-gremlin-server.yaml
 COPY docker-runtime-scripts /opt/scripts

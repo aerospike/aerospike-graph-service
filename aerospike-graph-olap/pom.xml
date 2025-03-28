@@ -188,13 +188,13 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>3.25.5</version>
+            <version>3.25.6</version>
         </dependency>
         <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMGOOGLEPROTOBUF-8055228 in gcs-connector@hadoop3-2.2.25 -->
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java-util</artifactId>
-            <version>3.25.5</version>
+            <version>3.25.6</version>
         </dependency>
         <dependency>
             <groupId>com.google.cloud.bigdataoss</groupId>
@@ -245,12 +245,6 @@
             <scope>compile</scope>
         </dependency>
         <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMNIMBUSDS-6247633 in gremlin-test@3.7.1 -->
-        <dependency>
-            <groupId>com.nimbusds</groupId>
-            <artifactId>nimbus-jose-jwt</artifactId>
-            <version>9.37.3</version>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>org.apache.tinkerpop</groupId>
             <artifactId>gremlin-test</artifactId>
@@ -335,6 +329,12 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <artifactSet>
+                                <excludes>
+                                    <exclude>org.apache.tinkerpop:gremlin-test</exclude>
+                                    <exclude>com.nimbusds:nimbus-jose-jwt</exclude>
+                                </excludes>
+                            </artifactSet>
                             <!-- If we minimize the jar, we lose the google hadoop dependency we need for gcs. -->
                             <minimizeJar>false</minimizeJar>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
@@ -342,9 +342,22 @@
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
+                                        <!-- Remove cryptographic signature files -->
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
+
+                                        <!-- Remove outdated metadata -->
+                                        <exclude>META-INF/maven/net.minidev/json-smart/**</exclude>
+                                        <exclude>META-INF/maven/net.minidev/accessors-smart/**</exclude>
+                                        <exclude>META-INF/maven/com.nimbusds/nimbus-jose-jwt/**</exclude>
+                                        <exclude>META-INF/maven/com.google.protobuf/protobuf-java-util/**</exclude>
+                                        <exclude>META-INF/maven/org.apache.commons/commons-configuration2/**</exclude>
+                                        <exclude>META-INF/maven/software.amazon.ion/ion-java/**</exclude>
+
+                                        <!-- Remove embedded protobuf class paths from shaded deps -->
+                                        <exclude>**/shaded/**/protobuf/**</exclude>
+                                        <exclude>**/repackaged/**/protobuf/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
@@ -376,4 +389,13 @@
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java-util</artifactId>
+                <version>3.25.5</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 </project>

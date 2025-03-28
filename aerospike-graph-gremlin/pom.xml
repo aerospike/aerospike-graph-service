@@ -129,6 +129,32 @@
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-s3</artifactId>
             <version>${awssdk.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-iot</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-glue</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-sagemaker</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-securityhub</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-ssm</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-pinpoint</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>commons-cli</groupId>

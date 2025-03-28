@@ -88,7 +88,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -334,24 +333,9 @@ public class AerospikeConnection implements AutoCloseable {
     public static AerospikeClient setupDefaultClient(final Configuration conf, final ClientPolicy policy) {
         final String hostFromConf = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
         final String hostsString = stripAllWhiteSpace(hostFromConf);
-        final int port = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
+        final int defaultPort = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
 
-        final Optional<String[]> tlsNames;
-        if (conf.containsKey(ConfigurationHelper.Keys.TLS_NAMES)) {
-            tlsNames = Optional.of(conf.getString(ConfigurationHelper.Keys.TLS_NAMES).split(","));
-            if (Host.parseHosts(hostsString, port).length != tlsNames.get().length) {
-                throw new IllegalArgumentException("Number of TLS names must match number of hosts");
-            }
-        } else {
-            tlsNames = Optional.empty();
-        }
-        final Host[] hosts = tlsNames
-                .map(tlsNameArray -> Arrays.stream(tlsNameArray)
-                        .map(tlsName -> new AbstractMap.SimpleEntry<>(tlsName.split(":")[0], tlsName.split(":")[1]))
-                        .map(hostnameTlsNamePair -> new Host(hostnameTlsNamePair.getKey(), hostnameTlsNamePair.getValue(), port))
-                        .collect(Collectors.toList()))
-                .orElse(Arrays.stream(Host.parseHosts(hostsString, port)).collect(Collectors.toList()))
-                .toArray(new Host[0]);
+        final Host[] hosts = Host.parseHosts(hostsString, defaultPort);
 
         final AerospikeClient aerospikeClient;
         try {

@@ -37,8 +37,8 @@ public class FireflyStrategyUtil {
 
         // Steps that override the entire step list first.
         FIREFLY_STRATEGIES.add(new FireflyGraphDropStrategy());
-        FIREFLY_STRATEGIES.add(new FireflyGraphCountStrategy());
         FIREFLY_STRATEGIES.add(new FireflyCountGlobalLocalStrategy());
+        FIREFLY_STRATEGIES.add(new FireflyGraphCountStrategy());
 
         // This step replaces out/in.id() with single step.
         FIREFLY_STRATEGIES.add(new FireflyAdjacentVertexIdStrategy());

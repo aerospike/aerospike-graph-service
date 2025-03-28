@@ -31,7 +31,7 @@ public class FireflyCountGlobalLocalStrategy extends FireflyStrategyBase {
 
     @Override
     protected void doApply(final Traversal.Admin<?, ?> traversal) {
-        if (!ComputerHelper.onGraphComputer(traversal) || traversal.getSteps().size() < 2) {
+        if (traversal.getSteps().size() < 2) {
             CountStrategy.instance().apply(traversal);
             return;
         }

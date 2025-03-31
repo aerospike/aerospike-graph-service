@@ -308,17 +308,10 @@ public class DistributedWorkerExecutor {
                     traversers.forEach(t -> output.add(codec.encode(t)));
                     job.clear();
                     TimeLog.complete("Encoding");
-                    if (limitStepId != null) {
-                        if ((Long) memory.get(limitStepId) <= 0) {
-                            graph.logMessage("Updated -> " + memory.get(limitStepId), LOGGER);
-                            if (iterator instanceof CloseableIterator) {
-                                ((CloseableIterator) iterator).close();
-                            }
-                            break;
-                        } else {
-                            graph.logMessage("Stale -> " + memory.get(limitStepId), LOGGER);
-                        }
-                        TimeLog.complete("Check for break.");
+
+                    if (limitStepId != null && (Long) memory.get(limitStepId) <= 0) {
+                        TaskLogger.logDebuggingMessage("Limit reached " + memory.get(limitStepId), LOGGER);
+                        break;
                     }
                 }
 

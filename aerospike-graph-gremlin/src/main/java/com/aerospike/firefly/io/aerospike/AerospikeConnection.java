@@ -2095,8 +2095,8 @@ public class AerospikeConnection implements AutoCloseable {
 
     public Long getLimitBin(final String name) {
         final Key key = new Key(namespace, OLAP_SET, name);
-        final Record record = this.writeOperate(null, key, Operation.get(COUNTER_BIN));
-        return record.getLong(COUNTER_BIN);
+        final Record record = this.writeOperate(null, key, Operation.get(OLAP_LIMIT_BIN));
+        return record.getLong(OLAP_LIMIT_BIN);
     }
 
     public long addLimitBin(final String name, final long amount) {

@@ -7,14 +7,12 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.util.AccumulatorV2;
-import org.apache.spark.util.LongAccumulator;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.MemoryComputeKey;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.Operator;
-import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.IndexedTraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
@@ -26,14 +24,10 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.LongBinaryOperator;
-
-import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -44,7 +38,6 @@ public class DistributedMemory implements Memory.Admin, Serializable {
 
     public final Map<String, MemoryComputeKey> memoryComputeKeys = new HashMap<>();
     private final Map<String, AccumulatorV2<DistributedMemoryEntry, DistributedMemoryEntry>> sparkMemory = new HashMap<>();
-    //private final Map<String, LongAccumulator> sparkMemoryLongAcc = new HashMap<>();
     private final AtomicInteger iteration = new AtomicInteger(0);
     private final AtomicLong runtime = new AtomicLong(0l);
     private Broadcast<Map<String, Object>> broadcast;
@@ -150,6 +143,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         checkKeyValue(key, value);
         if (key.endsWith("-accumulator")) {
             graph.getBaseGraph().addLimitBin("limit", (long) value);
+            return;
         }
 
         final Object detachedValue = AttachmentHelper.detach(value, true); // !key.equals(HALTED_TRAVERSERS)

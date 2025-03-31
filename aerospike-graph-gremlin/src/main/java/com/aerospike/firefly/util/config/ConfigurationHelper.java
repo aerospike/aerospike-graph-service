@@ -373,9 +373,9 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, "true");
         put(Keys.AEROSPIKE_PORT, "3000");
-        put(Keys.AEROSPIKE_TIMEOUT, "20000");
+        put(Keys.AEROSPIKE_TIMEOUT, "2000");
         put(Keys.WRITE_SOCKET_TIMEOUT, "500");
-        put(Keys.READ_SOCKET_TIMEOUT, "500");
+        put(Keys.READ_SOCKET_TIMEOUT, "50");
         put(Keys.READ_SOCKET_TIMEOUT_BULK_LOAD, "2000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
@@ -415,7 +415,7 @@ public final class ConfigurationHelper {
         put(Keys.CONNECT_TIMEOUT, "0");
         put(Keys.TIMEOUT_DELAY, "2000");
         put(Keys.WRITE_TOTAL_TIMEOUT, "2500");
-        put(Keys.READ_TOTAL_TIMEOUT, "1500");
+        put(Keys.READ_TOTAL_TIMEOUT, "150");
         put(Keys.READ_TOTAL_TIMEOUT_BULK_LOAD, "6000");
         put(Keys.WRITE_SLEEP_BETWEEN_RETRY, "500");
         put(Keys.READ_SLEEP_BETWEEN_RETRY, "0");

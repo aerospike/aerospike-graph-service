@@ -8,19 +8,19 @@
 # This stanza must come first.
 service {
     feature-key-file /opt/aerospike/etc/features.conf
-	cluster-name test-tls
+    cluster-name test-tls
 }
 
 logging {
-	# Log file must be an absolute path.
-	file /dev/null {
-		context any info
-	}
+    # Log file must be an absolute path.
+    file /dev/null {
+        context any info
+    }
 
-	# Send log messages to stdout
-	console {
-		context any info
-	}
+    # Send log messages to stdout
+    console {
+        context any info
+    }
 }
 
 network {
@@ -28,52 +28,51 @@ network {
         cert-file /opt/aerospike/etc/tls/aerospike.crt
         key-file /opt/aerospike/etc/tls/aerospike.key
     }
-	service {
-		address any
-		access-address 172.17.0.1
-		alternate-access-address 127.0.0.1
-		access-port {{ access_port }}
-		port {{ port }}
+    service {
+        address any
+        access-address 172.17.0.1
+        alternate-access-address 127.0.0.1
+        access-port {{ access_port }}
+        port {{ port }}
         tls-address any
         tls-port {{ tls_port }}
         tls-authenticate-client false
         tls-name test-tls
 
-		# Uncomment the following to set the `access-address` parameter to the
-		# IP address of the Docker host. This will the allow the server to correctly
-		# publish the address which applications and other nodes in the cluster to
-		# use when addressing this node.
-		# access-address <IPADDR>
-	}
+        # Uncomment the following to set the `access-address` parameter to the
+        # IP address of the Docker host. This will the allow the server to correctly
+        # publish the address which applications and other nodes in the cluster to
+        # use when addressing this node.
+        # access-address <IPADDR>
+    }
 
-	heartbeat {
-		# mesh is used for environments that do not support multicast
-		mode mesh
-		address 0.0.0.0
-		port 3002
-		interval 150
-		timeout 10
-	}
+    heartbeat {
+        # mesh is used for environments that do not support multicast
+        mode mesh
+        address 0.0.0.0
+        port 3002
+        interval 150
+        timeout 10
+    }
 
-	fabric {
-		# Intra-cluster communication port (migrates, replication, etc)
-		# default to same address in 'service'
-		address 0.0.0.0
-		port 3001
-	}
+    fabric {
+        # Intra-cluster communication port (migrates, replication, etc)
+        # default to same address in 'service'
+        address 0.0.0.0
+        port 3001
+    }
 
 }
 
 namespace test {
-	default-ttl 0 # use 0 to never expire/evict.
-	nsup-period 120
-	replication-factor 1
+    default-ttl 0 # use 0 to never expire/evict.
+    nsup-period 120
+    replication-factor 1
     {{ legacy_memory_setting }}
     default-ttl {{ default_ttl }}
-	storage-engine device {
-		file /opt/aerospike/data/test.dat
-		filesize 4G
-		read-page-cache true
-	}
+    storage-engine device {
+        file /opt/aerospike/data/test.dat
+        filesize 4G
+        read-page-cache true
+    }
 }
-

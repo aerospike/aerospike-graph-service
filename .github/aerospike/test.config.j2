@@ -57,7 +57,7 @@ network {
 }
 
 namespace different {
-    default-ttl 0 # use 0 to never expire/evict.
+    default-ttl {{ default_ttl }}
     nsup-period 120
     replication-factor 1
     {{ legacy_memory_setting }}

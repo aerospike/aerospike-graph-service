@@ -8,7 +8,7 @@
 # This stanza must come first.
 service {
     feature-key-file /opt/aerospike/etc/features.conf
-    cluster-name test
+    cluster-name test-tls
 }
 
 logging {
@@ -24,12 +24,20 @@ logging {
 }
 
 network {
+    tls test-tls {
+        cert-file /opt/aerospike/etc/tls/aerospike.crt
+        key-file /opt/aerospike/etc/tls/aerospike.key
+    }
     service {
         address any
         access-address 172.17.0.1
         alternate-access-address 127.0.0.1
         access-port {{ access_port }}
         port {{ port }}
+        tls-address any
+        tls-port {{ tls_port }}
+        tls-authenticate-client false
+        tls-name test-tls
 
         # Uncomment the following to set the `access-address` parameter to the
         # IP address of the Docker host. This will the allow the server to correctly

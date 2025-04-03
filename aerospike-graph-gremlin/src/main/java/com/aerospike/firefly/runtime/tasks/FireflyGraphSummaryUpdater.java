@@ -664,8 +664,9 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             this.count = count;
         }
 
-        private void increment(final long count) {
+        private long increment(final long count) {
             this.count += count;
+            return count;
         }
     }
 
@@ -780,15 +781,20 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         // If bulk loader is running, get staged partition counts and insert.
         if (isBulkLoaderRunning) {
             final List<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+            LOG.info("Found " + partitionRecords.size() + " records.");
             final Map<String, Long> vertexPartitionCounts = getVertexPartitionCounts(partitionRecords);
+            LOG.info("Vertex partition counts: " + vertexPartitionCounts);
             final Map<String, Long> edgePartitionCounts = getEdgePartitionCounts(partitionRecords);
+            LOG.info("Edge partition counts: " + edgePartitionCounts);
             for (final String label : vertexPartitionCounts.keySet()) {
                 vertexMetadata.computeIfAbsent(label, k -> new FireflyPropertiesAndCount(Set.of(), 0));
-                vertexMetadata.get(label).increment(vertexPartitionCounts.get(label));
+                long output = vertexMetadata.get(label).increment(vertexPartitionCounts.get(label));
+                LOG.info("Vertex label " + label + " incremented by " + vertexPartitionCounts.get(label) + " to " + output);
             }
             for (final String label : edgePartitionCounts.keySet()) {
                 edgeMetadata.computeIfAbsent(label, k -> new FireflyPropertiesAndCount(Set.of(), 0));
-                edgeMetadata.get(label).increment(edgePartitionCounts.get(label));
+                long output = edgeMetadata.get(label).increment(edgePartitionCounts.get(label));
+                LOG.info("Edge label " + label + " incremented by " + edgePartitionCounts.get(label) + " to " + output);
             }
         }
 

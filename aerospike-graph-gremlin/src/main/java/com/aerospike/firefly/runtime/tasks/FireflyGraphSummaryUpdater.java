@@ -1,6 +1,5 @@
 package com.aerospike.firefly.runtime.tasks;
 
-import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
@@ -29,8 +28,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -55,7 +56,6 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     private static final String EP_PROPERTY_PREFIX = "~EP_";
     private static final String SUMMARY_LABEL_BIN = "L_SUM_BIN";
     private static final String SUMMARY_PROPERTY_BIN = "P_SUM_BIN";
-    private static final String USER_KEY = "USER_KEY";
     private final AerospikeConnection db;
     private final AtomicBoolean EXITED = new AtomicBoolean(false);
     private CountDownLatch COUNTDOWN_LATCH = new CountDownLatch(HIGH_WATERMARK);
@@ -673,40 +673,32 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             this.count = count;
         }
 
-        private long increment(final long count) {
+        private void increment(final long count) {
             this.count += count;
-            return count;
         }
     }
 
-    private List<KeyRecord> getPartitionRecords(final String set) {
-        final List<KeyRecord> keyRecords = new ArrayList<>();
+    private Queue<KeyRecord> getPartitionRecords(final String set) {
+        final Queue<KeyRecord> keyRecords = new ConcurrentLinkedQueue<>();
         final ScanPolicy scanPolicy = new ScanPolicy();
         scanPolicy.sendKey = true;
-        final AtomicInteger found = new AtomicInteger();
-        final AtomicInteger discarded = new AtomicInteger();
-        final AtomicInteger noHasKey = new AtomicInteger();
         db.scanAll(scanPolicy, set, (key, record) -> {
-            if (record.bins.containsKey(USER_KEY)) {
-                // If not a partition piece, skip.
-                final String userKey = record.getString(USER_KEY);
-                if (!userKey.startsWith(VP_PROPERTY_PREFIX + "PART_") &&
-                        !userKey.startsWith(EP_PROPERTY_PREFIX + "PART_")) {
-                    discarded.getAndIncrement();
-                    return;
-                }
-                found.getAndIncrement();
-                keyRecords.add(new KeyRecord(key, record));
-            } else {
-                noHasKey.getAndIncrement();
+            // If the previous metadata was written without sendKey == true, this won't be populated.
+            if (key.userKey == null) {
+                return;
             }
+
+            // If not a partition piece, skip.
+            if (!key.userKey.toString().startsWith(VP_PROPERTY_PREFIX + "PART_") &&
+                    !key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_")) {
+                return;
+            }
+            keyRecords.add(new KeyRecord(key, record));
         });
-        LOG.info("Found {} partition records, discarded {} partition records, no key {}",
-                found.get(), discarded.get(), noHasKey.get());
         return keyRecords;
     }
 
-    private Map<String, Long> getEdgePartitionCounts(final List<KeyRecord> recordList) {
+    private Map<String, Long> getEdgePartitionCounts(final Queue<KeyRecord> recordList) {
         final Map<String, Long> edgePartitionCounts = new HashMap<>();
         for (final KeyRecord keyRecord : recordList) {
             if (keyRecord.key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_")) {
@@ -722,7 +714,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         return edgePartitionCounts;
     }
 
-    private Map<String, Long> getVertexPartitionCounts(final List<KeyRecord> recordList) {
+    private Map<String, Long> getVertexPartitionCounts(final Queue<KeyRecord> recordList) {
         final Map<String, Long> vertexPartitionCounts = new HashMap<>();
         for (final KeyRecord keyRecord : recordList) {
             if (keyRecord.key.userKey.toString().startsWith(VP_PROPERTY_PREFIX + "PART_")) {
@@ -795,21 +787,16 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
         // If bulk loader is running, get staged partition counts and insert.
         if (isBulkLoaderRunning) {
-            final List<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
-            LOG.info("Found " + partitionRecords.size() + " records.");
+            final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
             final Map<String, Long> vertexPartitionCounts = getVertexPartitionCounts(partitionRecords);
-            LOG.info("Vertex partition counts: " + vertexPartitionCounts);
             final Map<String, Long> edgePartitionCounts = getEdgePartitionCounts(partitionRecords);
-            LOG.info("Edge partition counts: " + edgePartitionCounts);
             for (final String label : vertexPartitionCounts.keySet()) {
                 vertexMetadata.computeIfAbsent(label, k -> new FireflyPropertiesAndCount(Set.of(), 0));
-                long output = vertexMetadata.get(label).increment(vertexPartitionCounts.get(label));
-                LOG.info("Vertex label " + label + " incremented by " + vertexPartitionCounts.get(label) + " to " + output);
+                vertexMetadata.get(label).increment(vertexPartitionCounts.get(label));
             }
             for (final String label : edgePartitionCounts.keySet()) {
                 edgeMetadata.computeIfAbsent(label, k -> new FireflyPropertiesAndCount(Set.of(), 0));
-                long output = edgeMetadata.get(label).increment(edgePartitionCounts.get(label));
-                LOG.info("Edge label " + label + " incremented by " + edgePartitionCounts.get(label) + " to " + output);
+                edgeMetadata.get(label).increment(edgePartitionCounts.get(label));
             }
         }
 
@@ -942,8 +929,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             final MapPolicy updateOnlyPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.UPDATE_ONLY | MapWriteFlags.NO_FAIL);
             final Operation createOp = MapOperation.put(createOnlyPolicy, SUMMARY_LABEL_BIN, Value.get(countInfo.label), Value.get(0));
             final Operation updateOp = MapOperation.increment(updateOnlyPolicy, SUMMARY_LABEL_BIN, Value.get(countInfo.label), Value.get(countInfo.count));
-            final Operation writeUserKey = Operation.put(new Bin(USER_KEY, key.userKey.toString()));
-            db.writeOperate(writePolicy, key, writeUserKey, createOp, updateOp);
+            db.writeOperate(writePolicy, key, createOp, updateOp);
 
             // Remove count so that if one in the loop fails and we re-add these values to the map, they aren't all
             // added erroneously.
@@ -976,8 +962,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                 final ListPolicy createListOnlyPolicy = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL);
                 final Operation createOp = ListOperation.create(SUMMARY_PROPERTY_BIN, ListOrder.UNORDERED, false, CTX.mapKey(Value.get(updateInfo.label)));
                 final Operation updateOp = ListOperation.append(createListOnlyPolicy, SUMMARY_PROPERTY_BIN, Value.get(property), CTX.mapKey(Value.get(updateInfo.label)));
-                final Operation writeUserKey = Operation.put(new Bin(USER_KEY, key.userKey.toString()));
-                db.writeOperate(writePolicy, key, writeUserKey, createOp, updateOp);
+                db.writeOperate(writePolicy, key, createOp, updateOp);
 
                 synchronized (FireflyGraphSummaryUpdater.class) {
                     if (!propertyMappings.containsKey(updateInfo.label)) {
@@ -991,7 +976,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
     public void clearVertexPartitionData() {
         LOG.info("Clearing vertex partition data");
-        final List<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+        final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
         for (final KeyRecord keyRecord : partitionRecords) {
             if (keyRecord.key.userKey.toString().startsWith(VP_PROPERTY_PREFIX + "PART_"))
                 db.delete(keyRecord.key, null);
@@ -1000,7 +985,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
     public void clearEdgePartitionData() {
         LOG.info("Clearing edge partition data");
-        final List<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+        final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
         for (final KeyRecord keyRecord : partitionRecords) {
             if (keyRecord.key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_"))
                 db.delete(keyRecord.key, null);

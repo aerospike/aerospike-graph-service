@@ -37,7 +37,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.aerospike.firefly.process.call.metadata.MetadataServiceSummary.PRETTY_PRINT_FORMAT_LOG;
@@ -249,7 +248,6 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void startVertexPartition(final int partitionId) {
-        LOG.info("start vertex partition: {}", partitionId);
         if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
@@ -277,7 +275,6 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             vertexCounts.computeIfAbsent(label, k -> new AtomicLong(0));
             vertexCounts.get(label).addAndGet(labelToCount.get(label));
         }
-        LOG.info("complete vertex partition: {}, vertexCounts: {}", partitionId, vertexCounts);
         db.delete(vertexPartitionKey, null);
         while (COUNTDOWN_LATCH.getCount() > 0) {
             COUNTDOWN_LATCH.countDown();
@@ -285,7 +282,6 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void startEdgePartition(final int partitionId) {
-        LOG.info("start edge partition: {}", partitionId);
         if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
@@ -312,7 +308,6 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             edgeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
             edgeCounts.get(label).addAndGet(labelToCount.get(label));
         }
-        LOG.info("complete edge partition: {}, edgeCounts: {}", partitionId, edgeCounts);
         db.delete(edgePartitionKey, null);
         while (COUNTDOWN_LATCH.getCount() > 0) {
             COUNTDOWN_LATCH.countDown();
@@ -644,7 +639,6 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             long totalVertexCount = 0;
             for (final Map.Entry<String, FireflyPropertiesAndCount> entry : vertexInfo.entrySet()) {
                 totalVertexCount += entry.getValue().count;
-                LOG.info("Vertex label: {}, count: {}, totalCount: {}", entry.getKey(), entry.getValue().count, totalVertexCount);
             }
             return totalVertexCount;
         }
@@ -658,7 +652,6 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             long totalEdgeCount = 0;
             for (final Map.Entry<String, FireflyPropertiesAndCount> entry : edgeInfo.entrySet()) {
                 totalEdgeCount += entry.getValue().count;
-                LOG.info("Edge label: {}, count: {}, totalCount: {}", entry.getKey(), entry.getValue().count, totalEdgeCount);
             }
             return totalEdgeCount;
         }
@@ -975,7 +968,6 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void clearVertexPartitionData() {
-        LOG.info("Clearing vertex partition data");
         final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
         for (final KeyRecord keyRecord : partitionRecords) {
             if (keyRecord.key.userKey.toString().startsWith(VP_PROPERTY_PREFIX + "PART_"))
@@ -984,7 +976,6 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void clearEdgePartitionData() {
-        LOG.info("Clearing edge partition data");
         final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
         for (final KeyRecord keyRecord : partitionRecords) {
             if (keyRecord.key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_"))

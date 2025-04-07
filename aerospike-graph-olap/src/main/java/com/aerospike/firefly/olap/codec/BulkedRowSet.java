@@ -4,6 +4,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -11,47 +12,56 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class BulkedRowSet implements Serializable {
 
-    private final Map<Integer, Row> map = Collections.synchronizedMap(new LinkedHashMap<>());
+    private final Map<Integer, Row> map = new ConcurrentHashMap<>();
+    private final Queue<Row> collidedRows = new ConcurrentLinkedQueue<>();
     private final Codec codec;
-    private final StructType schema;
     private final boolean bulkingSupported;
 
     public BulkedRowSet(final Codec rowCodec) {
         this.codec = rowCodec;
-        this.schema = rowCodec.getSchema();
         this.bulkingSupported = rowCodec.isBulkingSupported();
     }
 
     public Iterator<Row> iterator() {
-        return this.map.values().iterator();
+        return IteratorUtils.concat(this.map.values().iterator(), this.collidedRows.iterator());
     }
 
-    public synchronized <T> void add(final Traverser.Admin<T> traverser) {
+    public <T> void add(final Traverser.Admin<T> traverser) {
         if (!bulkingSupported) {
-            this.map.put(traverser.hashCode(), this.codec.encode(traverser));
+            // Just throw in collided rows since we aren't bulking anyway.
+            collidedRows.add(this.codec.encode(traverser));
             return;
         }
 
-        // Just store hashcode to avoid storing the whole traverser.
-        final Integer hashCode = traverser.hashCode();
-        if (this.map.containsKey(traverser.hashCode())) {
-            final Row existing = this.map.get(traverser.hashCode());
+        // Traverser hashcode considers basically everything but the step id.
+        final Integer hashCode = computeHashCode(traverser);
+        final Row inserted = this.codec.encode(traverser);
+        map.compute(hashCode, (key, existing) -> {
+            if (existing == null)
+                return inserted;
             final Object[] values = new Object[existing.size()];
             final int ordinal = codec.getBulkedOrdinal();
             for (int i = 0; i < existing.size(); i++) {
                 if (i == ordinal) {
                     values[i] = (Long) existing.get(i) + traverser.bulk();
                 } else {
+                    // If the existing row is not the same as the inserted row, we have a hash collision.
+                    if (!existing.get(i).equals(inserted.get(i))) {
+                        // Hash collision but not equal, insert the new row into the collided rows, and exit.
+                        this.collidedRows.add(inserted);
+                        return existing; // leave existing untouched
+                    }
                     values[i] = existing.get(i);
                 }
             }
-            this.map.put(hashCode, RowFactory.create(values, schema));
-        } else {
-            this.map.put(hashCode, this.codec.encode(traverser));
-        }
+            return RowFactory.create(values);
+        });
     }
 
     public <T> void addAll(final Collection<Traverser.Admin<T>> traversers) {
@@ -60,15 +70,13 @@ public class BulkedRowSet implements Serializable {
         }
     }
 
-    public <T> Row get(final Traverser.Admin<T> traverser) {
-        return this.map.get(traverser.hashCode());
+    // Traverser does not consider step with hash, so we need to add it to the hashcode.
+    private <T> int computeHashCode(final Traverser.Admin<T> traverser) {
+        return 31 * traverser.hashCode() + traverser.getStepId().hashCode();
     }
 
-    public int size() {
-        return this.map.size();
-    }
-
-    public boolean isEmpty() {
-        return this.map.isEmpty();
+    // Func for metric logging if we ever want it.
+    public int rowCount() {
+        return map.size() + collidedRows.size();
     }
 }

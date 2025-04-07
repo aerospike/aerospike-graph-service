@@ -120,6 +120,7 @@ public class DistributedWorkerExecutor {
             if (Thread.interrupted()) {
                 throw new InterruptedException();
             }
+
             try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
                 graph.logInfo = TaskLogger.instance;
                 TimeLog.reset();
@@ -191,8 +192,6 @@ public class DistributedWorkerExecutor {
                     iterator = FireflyCloseableIteratorUtils.map(itty, r -> codec.decode(r, traverserGenerator, traversalMatrix));
                 }
 
-                final BulkedRowSet output = new BulkedRowSet(codec);
-
                 final LocalWorkerMemory workerMemory = new LocalWorkerMemory(memory);
 
                 // Create VertexProgram for worker and preset iteration start.
@@ -211,6 +210,7 @@ public class DistributedWorkerExecutor {
 
                 TimeLog.complete("Setup");
 
+                final BulkedRowSet output = new BulkedRowSet(codec);
                 while (iterator.hasNext()) {
                     TaskLogger.logDebuggingMessage("Input TraverserSet size: " + traverserSet.size() + "/" + runningTotal
                             + " Total allocated=" + runtime.totalMemory() / (1024 * 1024 * 1024) +

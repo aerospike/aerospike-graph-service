@@ -248,7 +248,7 @@ public class DistributedWorkerExecutor {
                 TimeLog.complete("Worker iteration end");
 
                 // Return results.
-                TaskLogger.logDebuggingMessage("Ending with " + output.size() + " rows.", LOGGER);
+                TaskLogger.logDebuggingMessage("Ending with " + output.rowCount() + " rows.", LOGGER);
                 TimeLog.log(graph);
                 return output.iterator();
             } catch (final Exception e) {

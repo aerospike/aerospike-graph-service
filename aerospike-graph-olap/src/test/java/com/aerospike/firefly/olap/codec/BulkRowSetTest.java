@@ -27,9 +27,6 @@ public class BulkRowSetTest {
     public void beforeEach() {
         config = ConfigurationHelper.loadFromFile(Tokens.INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            //graph.getBaseGraph().dropGraphIndices(graph);
-        }
     }
 
     @Test

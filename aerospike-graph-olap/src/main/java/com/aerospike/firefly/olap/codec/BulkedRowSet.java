@@ -19,12 +19,17 @@ public class BulkedRowSet implements Serializable {
 
     private final Map<Integer, Row> map = new ConcurrentHashMap<>();
     private final Queue<Row> collidedRows = new ConcurrentLinkedQueue<>();
-    private final Codec codec;
     private final boolean bulkingSupported;
+    transient private Codec codec;
 
     public BulkedRowSet(final Codec rowCodec) {
         this.codec = rowCodec;
         this.bulkingSupported = rowCodec.isBulkingSupported();
+    }
+
+    // Required for use after serialization.
+    public void setCodec(final Codec rowCodec) {
+        this.codec = rowCodec;
     }
 
     public Iterator<Row> iterator() {
@@ -42,8 +47,10 @@ public class BulkedRowSet implements Serializable {
         final Integer hashCode = computeHashCode(traverser);
         final Row inserted = this.codec.encode(traverser);
         map.compute(hashCode, (key, existing) -> {
-            if (existing == null)
+            if (existing == null) {
                 return inserted;
+            }
+            
             final Object[] values = new Object[existing.size()];
             final int bulkOrdinal = codec.getBulkedOrdinal();
             for (int i = 0; i < existing.size(); i++) {

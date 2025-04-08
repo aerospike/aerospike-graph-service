@@ -8,10 +8,9 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -46,13 +45,14 @@ public class BulkedRowSet implements Serializable {
             if (existing == null)
                 return inserted;
             final Object[] values = new Object[existing.size()];
-            final int ordinal = codec.getBulkedOrdinal();
+            final int bulkOrdinal = codec.getBulkedOrdinal();
             for (int i = 0; i < existing.size(); i++) {
-                if (i == ordinal) {
+                if (i == bulkOrdinal) {
                     values[i] = (Long) existing.get(i) + traverser.bulk();
                 } else {
                     // If the existing row is not the same as the inserted row, we have a hash collision.
-                    if (!existing.get(i).equals(inserted.get(i))) {
+                    // Use Objects.equals, because either of these can be null, and this handles nulls.
+                    if (!Objects.equals(existing.get(i), inserted.get(i))) {
                         // Hash collision but not equal, insert the new row into the collided rows, and exit.
                         this.collidedRows.add(inserted);
                         return existing; // leave existing untouched
@@ -78,5 +78,10 @@ public class BulkedRowSet implements Serializable {
     // Func for metric logging if we ever want it.
     public int rowCount() {
         return map.size() + collidedRows.size();
+    }
+
+    // For testing only.
+    public Queue<Row> getCollidedRows() {
+        return collidedRows;
     }
 }

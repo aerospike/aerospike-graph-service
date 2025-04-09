@@ -1,5 +1,6 @@
 package com.aerospike.firefly.olap.structure;
 
+import com.aerospike.firefly.olap.codec.BulkedRowSet;
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.codec.RowCodec;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
@@ -119,6 +120,7 @@ public class DistributedWorkerExecutor {
             if (Thread.interrupted()) {
                 throw new InterruptedException();
             }
+
             try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
                 graph.logInfo = TaskLogger.instance;
                 TimeLog.reset();
@@ -190,8 +192,6 @@ public class DistributedWorkerExecutor {
                     iterator = FireflyCloseableIteratorUtils.map(itty, r -> codec.decode(r, traverserGenerator, traversalMatrix));
                 }
 
-                final List<Row> output = new ArrayList<>();
-
                 final LocalWorkerMemory workerMemory = new LocalWorkerMemory(memory);
 
                 // Create VertexProgram for worker and preset iteration start.
@@ -210,6 +210,7 @@ public class DistributedWorkerExecutor {
 
                 TimeLog.complete("Setup");
 
+                final BulkedRowSet output = new BulkedRowSet(codec);
                 while (iterator.hasNext()) {
                     TaskLogger.logDebuggingMessage("Input TraverserSet size: " + traverserSet.size() + "/" + runningTotal
                             + " Total allocated=" + runtime.totalMemory() / (1024 * 1024 * 1024) +
@@ -235,7 +236,7 @@ public class DistributedWorkerExecutor {
 
                     // TODO: Is this correct for all cases ?
                     final TraverserSet<Traverser.Admin> traversers = job.getResults();
-                    traversers.forEach(t -> output.add(codec.encode(t)));
+                    output.addAll(traversers);
                     job.clear();
                     TimeLog.complete("Encoding");
                 }
@@ -247,7 +248,7 @@ public class DistributedWorkerExecutor {
                 TimeLog.complete("Worker iteration end");
 
                 // Return results.
-                TaskLogger.logDebuggingMessage("Ending with " + output.size() + " rows.", LOGGER);
+                TaskLogger.logDebuggingMessage("Ending with " + output.rowCount() + " rows.", LOGGER);
                 TimeLog.log(graph);
                 return output.iterator();
             } catch (final Exception e) {

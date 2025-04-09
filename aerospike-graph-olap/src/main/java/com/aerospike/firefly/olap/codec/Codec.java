@@ -13,6 +13,8 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.Set;
 
+import static com.aerospike.firefly.olap.codec.RowCodec.BULK_COL;
+
 public class Codec {
     private final RowCodec codec;
     private final Traversal traversal;
@@ -44,5 +46,13 @@ public class Codec {
 
     public StructType getSchema() {
         return codec.getSchema();
+    }
+
+    public int getBulkedOrdinal() {
+        return codec.columnToOrdinal.get(BULK_COL);
+    }
+
+    public boolean isBulkingSupported() {
+        return requirements.contains(TraverserRequirement.BULK);
     }
 }

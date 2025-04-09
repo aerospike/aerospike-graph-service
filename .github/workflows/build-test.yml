@@ -1420,12 +1420,12 @@ jobs:
         run: |
           bash -x scripts/start_aerospike_tls.sh
 
-          echo "Running docker image with custom yaml file"
+          echo "Running docker image with SSL enabled on GLV<->Gremlin Server and TLS enabled on AGS<->Aerospike DB"
           docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-tls/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/aerospike-client-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/gremlin-server-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.key:/opt/aerospike-graph/gremlin-server-tls/aerospike.key firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
-          echo "Running usage test"
+          echo "Running TLS test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTLSIntegration -DfailIfNoTests=false --no-transfer-progress
 
           echo "Stopping docker image"

@@ -234,7 +234,9 @@ def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_co
                 raise Exception(
                     "Error configuring Aerospike Graph Service.\n\t" + key.split(".")[0] + \
                     " is not a valid metrics type.")
-        if key.startswith("ssl."):
+        if key.startswith("ssl"):
+            if not key.startswith("ssl.") or len(key) < 5:
+                raise Exception("Error configuring Aerospike Graph Service.\n\tSSL configurations must specify settings individually to be modified. Example: aerospike.graph-service.ssl.settingName=settingValue")
             key = key.replace("ssl.", "")
             ssl[key] = value
         else:

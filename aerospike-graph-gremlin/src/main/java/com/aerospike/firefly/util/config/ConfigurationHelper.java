@@ -69,7 +69,6 @@ public final class ConfigurationHelper {
         public static final String SCAN_MAX_WAIT = "aerospike.client.scan.max.wait";
         public static final String AEROSPIKE_BATCH_READ_SIZE = "aerospike.client.batch.read.size";
         public static final String TLS = "aerospike.client.tls";
-        public static final String TLS_NAMES = "aerospike.client.tls.name";
         public static final String AUTH_MODE = "aerospike.client.auth.mode";
         public static final String CLIENT_SERVICES_ALTERNATE = "aerospike.client.services.alternate";
         public static final String CLUSTER_NAME = "aerospike.client.cluster.name";

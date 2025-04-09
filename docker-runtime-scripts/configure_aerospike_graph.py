@@ -1,6 +1,8 @@
 import os, sys, multiprocessing
 import re
 import yaml
+import subprocess
+import shutil
 
 
 def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, output_java_options_file):
@@ -132,7 +134,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
 
         generate_properties(merged_properties, f"{conf_dir}/aerospike-graph-{key}.properties", auth_jwt_secret, auth_jwt_issuer)
 
-    generate_java_options(output_java_options_file, java_options_max_heap, java_options_min_heap)
+    generate_java_options(output_java_options_file, java_options_max_heap, java_options_min_heap, f"{conf_dir}/tls")
 
 def set_performance_mode(yaml_properties):
     # Experiments show that throughput is best when gremlinPool=4*cpu_count and threadPoolWorker=cpu_count/2.
@@ -369,7 +371,7 @@ def generate_properties(properties, output_properties_file, auth_jwt_secret, aut
             prop.write("aerospike.graph-service.auth.enabled=true\n")
 
 
-def generate_java_options(java_options_file_path, max_heap, min_heap):
+def generate_java_options(java_options_file_path, max_heap, min_heap, tls_out_dir):
     java_options = ""
 
     # We are deprecating JAVA_OPTIONS in favor of using our notation. Users don't need to know we are using Java.
@@ -410,6 +412,39 @@ def generate_java_options(java_options_file_path, max_heap, min_heap):
 
         print("Appending user provided JAVA_OPTIONS: " + printable_options + " to java options.")
         java_options += user_java_options
+
+    # Set up TLS
+    cert_dir = "/opt/aerospike-graph/tls"
+    cert_found = False
+    if os.path.isdir(cert_dir):
+        directory = os.fsencode(cert_dir)
+        if os.path.exists(tls_out_dir):
+            shutil.rmtree(tls_out_dir)
+        os.makedirs(tls_out_dir, exist_ok=True)
+        keystore = tls_out_dir + "/truststore.jks"
+        storepass = "aerospike"
+        for file in os.listdir(directory):
+            file_name = os.fsdecode(file)
+            print("Found file to use for TLS: " + file_name)
+            cmd = [
+                "keytool",
+                "-import",
+                "-trustcacerts",
+                "-noprompt",
+                "-alias", os.path.splitext(file_name)[0],
+                "-file", cert_dir + "/" + file_name,
+                "-keystore", keystore,
+                "-storepass", storepass,
+            ]
+
+            try:
+                subprocess.run(cmd, check=True)
+                cert_found = True
+            except Exception as keytool_exception:
+                print(f"Generating truststore with keytool failed: {keytool_exception}")
+                raise keytool_exception
+        if cert_found:
+            java_options += f" -Djavax.net.ssl.trustStore={keystore} -Djavax.net.ssl.trustStorePassword={storepass} "
     java_options += " --add-exports java.base/sun.nio.ch=ALL-UNNAMED "
 
     # Write classpath to file. Use 'w' to overwrite file.

@@ -28,8 +28,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -669,8 +671,8 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         }
     }
 
-    private List<KeyRecord> getPartitionRecords(final String set) {
-        final List<KeyRecord> keyRecords = new ArrayList<>();
+    private Queue<KeyRecord> getPartitionRecords(final String set) {
+        final Queue<KeyRecord> keyRecords = new ConcurrentLinkedQueue<>();
         final ScanPolicy scanPolicy = new ScanPolicy();
         scanPolicy.sendKey = true;
         db.scanAll(scanPolicy, set, (key, record) -> {
@@ -684,13 +686,12 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                     !key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_")) {
                 return;
             }
-
             keyRecords.add(new KeyRecord(key, record));
         });
         return keyRecords;
     }
 
-    private Map<String, Long> getEdgePartitionCounts(final List<KeyRecord> recordList) {
+    private Map<String, Long> getEdgePartitionCounts(final Queue<KeyRecord> recordList) {
         final Map<String, Long> edgePartitionCounts = new HashMap<>();
         for (final KeyRecord keyRecord : recordList) {
             if (keyRecord.key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_")) {
@@ -706,7 +707,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         return edgePartitionCounts;
     }
 
-    private Map<String, Long> getVertexPartitionCounts(final List<KeyRecord> recordList) {
+    private Map<String, Long> getVertexPartitionCounts(final Queue<KeyRecord> recordList) {
         final Map<String, Long> vertexPartitionCounts = new HashMap<>();
         for (final KeyRecord keyRecord : recordList) {
             if (keyRecord.key.userKey.toString().startsWith(VP_PROPERTY_PREFIX + "PART_")) {
@@ -779,7 +780,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
         // If bulk loader is running, get staged partition counts and insert.
         if (isBulkLoaderRunning) {
-            final List<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+            final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
             final Map<String, Long> vertexPartitionCounts = getVertexPartitionCounts(partitionRecords);
             final Map<String, Long> edgePartitionCounts = getEdgePartitionCounts(partitionRecords);
             for (final String label : vertexPartitionCounts.keySet()) {
@@ -967,7 +968,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void clearVertexPartitionData() {
-        final List<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+        final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
         for (final KeyRecord keyRecord : partitionRecords) {
             if (keyRecord.key.userKey.toString().startsWith(VP_PROPERTY_PREFIX + "PART_"))
                 db.delete(keyRecord.key, null);
@@ -975,7 +976,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void clearEdgePartitionData() {
-        final List<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+        final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
         for (final KeyRecord keyRecord : partitionRecords) {
             if (keyRecord.key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_"))
                 db.delete(keyRecord.key, null);

@@ -50,7 +50,7 @@ ENV HEALTHCHECK_FILE="/tmp/firefly-ready"
 
 COPY --from=build /opt /opt
 
-RUN apk add --no-cache --update bash openjdk17-jdk python3 py3-pip
+RUN apk add --no-cache --update bash openjdk17-jdk python3 py3-pip openssl
 RUN pip install pyyaml --break-system-packages
 
 WORKDIR /opt

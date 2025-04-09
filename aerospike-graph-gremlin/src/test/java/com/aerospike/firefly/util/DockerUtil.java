@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class DockerUtil {
@@ -180,7 +179,7 @@ public class DockerUtil {
             }
         }
 
-        final String dockerImageName = "test-graph-" + UUID.randomUUID();
+        final String dockerImageName = "test-graph";
         // If there is a container of the same name, remove it.
         int attempt = 0;
         while (true) {

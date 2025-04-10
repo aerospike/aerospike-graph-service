@@ -23,7 +23,7 @@ public class TestDockerConfigs {
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundErrorMsg = false;
         for (final String line : log) {
-            System.out.println(line);
+            LOG.warn(line);
             if (line.contains("Error: 'aerospike.client.clientPolicy.minConnsPerNode' is set to '2' which is greater than 'aerospike.client.clientPolicy.maxConnsPerNode' set to '1'. 'aerospike.client.clientPolicy.minConnsPerNode' must be less than or equal to 'aerospike.client.clientPolicy.maxConnsPerNode'.")) {
                 foundErrorMsg = true;
                 break;
@@ -48,6 +48,7 @@ public class TestDockerConfigs {
         boolean foundMsg0 = false;
         boolean foundMsg1 = false;
         for (final String line : log) {
+            LOG.warn(line);
             if (line.contains("Found named graphs: []")) {
                 foundMsg0 = true;
             } else if (line.contains("graph: conf/aerospike-graph-graph.properties,")) {
@@ -72,6 +73,7 @@ public class TestDockerConfigs {
         boolean foundMsg1 = false;
         boolean foundMsg2 = false;
         for (final String line : log) {
+            LOG.warn(line);
             if (line.contains("Found named graphs: ['graph', 'modern']")) {
                 foundMsg0 = true;
             } else if (line.contains("graph: conf/aerospike-graph-graph.properties,")) {
@@ -96,6 +98,7 @@ public class TestDockerConfigs {
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundMsg = false;
         for (final String line : log) {
+            LOG.warn(line);
             if (line.contains("Graph name should be within [a-z][A-Z][0-9][-_], but found modern!")) {
                 foundMsg = true;
                 break;
@@ -119,7 +122,7 @@ public class TestDockerConfigs {
         boolean foundEnable = false;
         boolean foundInterval = false;
         for (final String line : log) {
-            System.out.println(line);
+            LOG.warn(line);
             if (line.contains("csvReporter: {")) {
                 linesUntilEnableCheck = 1;
             } else if (line.contains("slf4jReporter: {")) {
@@ -148,7 +151,7 @@ public class TestDockerConfigs {
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundErrorMsg = false;
         for (final String line : log) {
-            System.out.println(line);
+            LOG.warn(line);
             if (line.contains("simonReporter is not a valid metrics type.")) {
                 foundErrorMsg = true;
                 break;
@@ -167,7 +170,7 @@ public class TestDockerConfigs {
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundErrorMsg = false;
         for (final String line : log) {
-            System.out.println(line);
+            LOG.warn(line);
             if (line.contains("simon is not a valid configuration for metrics of type slf4jReporter.")) {
                 foundErrorMsg = true;
                 break;

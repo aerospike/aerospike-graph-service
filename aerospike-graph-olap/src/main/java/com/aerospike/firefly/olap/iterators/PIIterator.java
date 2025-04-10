@@ -39,7 +39,6 @@ public class PIIterator {
             final Object id = getId(
                     row.getString(row.fieldIndex(RowCodec.ID_COL)),
                     row.getInt(row.fieldIndex(RowCodec.ID_TYPEHINT_COL)));
-            System.out.println("id: " + id);
             ffids.add(graphStep.returnsVertex() ? graph.getIdFactory().createVertexId(id) : graph.getIdFactory().createEdgeId(id));
         }
         final List<List<FireflyId>> partitionedFfidList = Lists.partition(ffids, graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE);
@@ -55,7 +54,6 @@ public class PIIterator {
                         traversers.add(t);
                     }
                 }
-                // vertices.stream().filter(v -> HasContainer.testAll(v, hasContainers)).forEach(vertex -> outputVertices.add(codec.encode(vertex, startStep)));
             }
         } else {
             for (final List<FireflyId> ffidList : partitionedFfidList) {

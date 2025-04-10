@@ -734,14 +734,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             return count;
         }
 
-        final long baseCount = getCachedEdgeCount(direction, edgeLabels, hasContainers);
-        if (limit != -1 && baseCount >= limit)
-            return limit;
-
-        final long count = this.isEdgeCacheOverflowed ?
-                baseCount + FireflyCloseableIteratorUtils.count(getSupernodeEdgeIds(direction, Set.of(), hasContainers)) :
-                baseCount;
-
+        final long count = this.isEdgeCacheOverflowed
+                ? FireflyCloseableIteratorUtils.count(getSupernodeEdgeIds(direction, Set.of(edgeLabels), hasContainers))
+                : getCachedEdgeCount(direction, edgeLabels, hasContainers);
         if (limit != -1 && count >= limit)
             return limit;
 

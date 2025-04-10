@@ -3,12 +3,14 @@ package com.aerospike.firefly.olap.iterators;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.tinkerpop.gremlin.process.traversal.Contains;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 
 import java.io.Serializable;
@@ -21,6 +23,7 @@ public class QueryInfo implements Serializable {
     public enum QueryType implements Serializable {
         INDEX,
         SCAN,
+        SUPERNODE,
         PI
     }
 
@@ -30,6 +33,7 @@ public class QueryInfo implements Serializable {
     public final HasContainer indexTopHasContainer; // Only valid for index queries.
     public final List<Object> ids; // Only valid for PI queries.
     public final Expression expression; // Only valid for scan queries.
+    public final Boolean supernodeStepping;
 
     private QueryInfo(final FireflyIndexMetadata.IndexInfo indexInfo,
                       final HasContainer hasContainer,
@@ -40,6 +44,19 @@ public class QueryInfo implements Serializable {
         this.ids = null;
         this.expression = null;
         this.fireflyHasContainers = initialHasContainers;
+        this.supernodeStepping = false;
+    }
+
+    private QueryInfo(final List<Object> ids,
+                      final List<HasContainer> initialHasContainers,
+                      final boolean supernodeStepping) {
+        this.queryType = supernodeStepping ? QueryType.SUPERNODE : QueryInfo.QueryType.PI;
+        this.indexInfo = null;
+        this.indexTopHasContainer = null;
+        this.ids = ids;
+        this.expression = null;
+        this.fireflyHasContainers = initialHasContainers;
+        this.supernodeStepping = supernodeStepping;
     }
 
     private QueryInfo(final List<Object> ids,
@@ -50,6 +67,7 @@ public class QueryInfo implements Serializable {
         this.ids = ids;
         this.expression = null;
         this.fireflyHasContainers = initialHasContainers;
+        this.supernodeStepping = false;
     }
 
     private QueryInfo(final Expression expression,
@@ -60,6 +78,7 @@ public class QueryInfo implements Serializable {
         this.ids = null;
         this.expression = expression;
         this.fireflyHasContainers = initialHasContainers;
+        this.supernodeStepping = false;
     }
 
     private QueryInfo(final List<HasContainer> initialHasContainers) {
@@ -69,12 +88,14 @@ public class QueryInfo implements Serializable {
         this.ids = null;
         this.expression = null; // Scan all.
         this.fireflyHasContainers = initialHasContainers;
+        this.supernodeStepping = false;
     }
 
     public static QueryInfo getQueryInfo(final FireflyGraph graph,
                                          final GraphStep step,
                                          final List<HasContainer> initialHasContainers,
-                                         final Object[] idsInput) {
+                                         final Object[] idsInput,
+                                         final DistributedConfigHelper configHelper) {
         final List<HasContainer> positiveFilters = initialHasContainers.stream().filter(it -> !it.getBiPredicate().equals(Contains.without)).collect(Collectors.toList());
 
         // Special case.
@@ -83,7 +104,15 @@ public class QueryInfo implements Serializable {
         }
         if (idsInput != null && idsInput.length > 0) {
             final List<Object> ids = Stream.of(idsInput).collect(Collectors.toList());
-            return new QueryInfo(ids, initialHasContainers);
+            if (step.returnsVertex() && step.getNextStep() instanceof VertexStep) {
+                // TODO: Support stepping onto vertices.
+                if (ids.size() == 1 && ((VertexStep) step.getNextStep()).returnsEdge())
+                    return new QueryInfo(ids, initialHasContainers, configHelper.isSupernodeSteppingEnabled());
+                else
+                    return new QueryInfo(ids, initialHasContainers);
+            } else {
+                return new QueryInfo(ids, initialHasContainers);
+            }
         }
 
         // Check for PI query based on hasContainers.

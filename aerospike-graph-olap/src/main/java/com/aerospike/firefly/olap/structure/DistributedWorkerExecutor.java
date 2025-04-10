@@ -8,12 +8,15 @@ import com.aerospike.firefly.olap.helper.TaskLogger;
 import com.aerospike.firefly.olap.helper.TimeLog;
 import com.aerospike.firefly.olap.iterators.IndexIterator;
 import com.aerospike.firefly.olap.iterators.PIIterator;
+import com.aerospike.firefly.olap.iterators.PIStepIterator;
 import com.aerospike.firefly.olap.iterators.QueryInfo;
 import com.aerospike.firefly.olap.iterators.ScanIterator;
 import com.aerospike.firefly.olap.process.BatchJob;
 import com.aerospike.firefly.olap.process.TraversalProgram;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
@@ -25,21 +28,26 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.util.LongAccumulator;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTraverserGeneratorFactory;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
+import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +69,7 @@ public class DistributedWorkerExecutor {
 
     public static final String START_COL = "~start";
     public static final String COUNT_COL = "~count";
+    public static final String FIRST_COL = "~first";
 
     public static Dataset<Row> execute(final SparkSession spark,
                                        final FireflyGraph rootGraph,
@@ -114,6 +123,7 @@ public class DistributedWorkerExecutor {
             System.out.println("Ending with " + df.rdd().partitions().length + " partitions.");
         }
         return df.mapPartitions((MapPartitionsFunction<Row, Row>) itty -> {
+            String limitStepId = null;
             TaskLogger.instance.setDebugging(configHelper.isDebugDf());
             TaskLogger.logDebuggingMessage("Starting with " + (itty.hasNext() ? "non-empty" : "empty") + " partition.", LOGGER);
 
@@ -123,6 +133,8 @@ public class DistributedWorkerExecutor {
 
             try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
                 graph.logInfo = TaskLogger.instance;
+                memory.setGraph(graph);
+
                 TimeLog.reset();
 
                 TaskLogger.logDebuggingMessage("Graph created.", LOGGER);
@@ -137,6 +149,18 @@ public class DistributedWorkerExecutor {
                 final Set<TraverserRequirement> traverserRequirements = traversal1.asAdmin().getTraverserRequirements();
                 final TraverserGenerator traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirements);
                 final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal1.asAdmin());
+                final List<Step> steps = traversal1.asAdmin().getSteps();
+
+                for (final Step step : steps) {
+                    if (step instanceof RangeGlobalStep) {
+                        final RangeGlobalStep rangeGlobalStep = (RangeGlobalStep) step;
+                        if (rangeGlobalStep.getLowRange() != 0) {
+                            break;
+                        }
+                        limitStepId = String.format("%s-accumulator", rangeGlobalStep.getId());
+                        break;
+                    }
+                }
                 Iterator<Traverser> iterator;
                 if (isFirst) {
                     switch (queryInfo.queryType) {
@@ -175,6 +199,52 @@ public class DistributedWorkerExecutor {
                                 final Element e = (Element) t.get();
                                 return HasContainer.testAll(e, queryInfo.fireflyHasContainers);
                             });
+                            break;
+                        case SUPERNODE:
+                            final FireflyId ffid = graph.getIdFactory().createVertexId(queryInfo.ids.get(0));
+                            final Traverser start = traverserGenerator.generate(graph.readVertex(ffid), (GraphStep) traversal.asAdmin().getStartStep(), 1L);
+                            final Direction direction = ((VertexStep) traversal.asAdmin().getStartStep().getNextStep()).getDirection();
+                            if (direction == Direction.BOTH) {
+                                final List rows = IteratorUtils.toList(itty);
+                                Iterator ittyIn = new PIStepIterator(
+                                        graph,
+                                        ffid,
+                                        (GraphStep) traversal.asAdmin().getStartStep(),
+                                        (VertexStep) traversal.asAdmin().getStartStep().getNextStep(),
+                                        traversal.asAdmin().getStartStep().getNextStep().getNextStep().getId(),
+                                        null,
+                                        rows,
+                                        traversal,
+                                        traversalMatrix,
+                                        start,
+                                        Direction.IN);
+                                Iterator ittyOut = new PIStepIterator(
+                                        graph,
+                                        ffid,
+                                        (GraphStep) traversal.asAdmin().getStartStep(),
+                                        (VertexStep) traversal.asAdmin().getStartStep().getNextStep(),
+                                        traversal.asAdmin().getStartStep().getNextStep().getNextStep().getId(),
+                                        null,
+                                        rows,
+                                        traversal,
+                                        traversalMatrix,
+                                        start,
+                                        Direction.OUT);
+                                iterator = FireflyCloseableIteratorUtils.concat(ittyIn, ittyOut);
+                            } else {
+                                iterator = new PIStepIterator(
+                                        graph,
+                                        ffid,
+                                        (GraphStep) traversal.asAdmin().getStartStep(),
+                                        (VertexStep) traversal.asAdmin().getStartStep().getNextStep(),
+                                        traversal.asAdmin().getStartStep().getNextStep().getNextStep().getId(),
+                                        null,
+                                        IteratorUtils.toList(itty),
+                                        traversal,
+                                        traversalMatrix,
+                                        start,
+                                        direction);
+                            }
                             break;
                         case PI:
                             iterator = PIIterator.getIterator(
@@ -239,6 +309,11 @@ public class DistributedWorkerExecutor {
                     output.addAll(traversers);
                     job.clear();
                     TimeLog.complete("Encoding");
+
+                    if (limitStepId != null && (Long) memory.get(limitStepId) <= 0) {
+                        TaskLogger.logDebuggingMessage("Limit reached " + memory.get(limitStepId), LOGGER);
+                        break;
+                    }
                 }
 
                 // End worker iteration.
@@ -250,6 +325,9 @@ public class DistributedWorkerExecutor {
                 // Return results.
                 TaskLogger.logDebuggingMessage("Ending with " + output.rowCount() + " rows.", LOGGER);
                 TimeLog.log(graph);
+                if (iterator instanceof CloseableIterator) {
+                    ((CloseableIterator) iterator).close();
+                }
                 return output.iterator();
             } catch (final Exception e) {
                 TaskLogger.logDebuggingMessage("ERROR", LOGGER);
@@ -308,7 +386,7 @@ public class DistributedWorkerExecutor {
         QueryInfo queryInfo;
         if (isFirst) {
             traversal.asAdmin().applyStrategies();
-            queryInfo = QueryInfo.getQueryInfo(rootGraph, (GraphStep) traversal.asAdmin().getStartStep(), initialHasContainers, ids);
+            queryInfo = QueryInfo.getQueryInfo(rootGraph, (GraphStep) traversal.asAdmin().getStartStep(), initialHasContainers, ids, configHelper);
             // Special case for returning something like g.V().hasId(List.of())
             if (queryInfo == null) {
                 return new Pair<>(spark.createDataFrame(new ArrayList<>(), outputSchema), queryInfo);
@@ -317,15 +395,32 @@ public class DistributedWorkerExecutor {
                 System.out.println("Query type: " + queryInfo.queryType.toString());
             }
             System.out.println("Generating query ranges for " + maxParallelQuery + " max parallel queries and " + workerCount + " workers.");
-            if (queryInfo.queryType.equals(QueryInfo.QueryType.INDEX) || queryInfo.queryType.equals(QueryInfo.QueryType.SCAN)) {
-                final List<Row> queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount)).
-                        stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
+            if (queryInfo.queryType.equals(QueryInfo.QueryType.INDEX) ||
+                    queryInfo.queryType.equals(QueryInfo.QueryType.SCAN) ||
+                    queryInfo.queryType.equals(QueryInfo.QueryType.SUPERNODE)) {
+                final List<Row> queryRanges;
+                final StructType inputSchema;
+                if (!queryInfo.queryType.equals(QueryInfo.QueryType.SUPERNODE)) {
+                    queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount)).
+                            stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
+                    inputSchema = new StructType().
+                            add(START_COL, DataTypes.IntegerType, false).
+                            add(COUNT_COL, DataTypes.IntegerType, false);
+                } else {
+                    final List<Range> ranges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount));
+                    queryRanges = new ArrayList<>();
+                    for (int i = 0; i < ranges.size(); i++) {
+                        final Range range = ranges.get(i);
+                        queryRanges.add(RowFactory.create(range.start, range.count, i == 0));
+                    }
+                    inputSchema = new StructType().
+                            add(START_COL, DataTypes.IntegerType, false).
+                            add(COUNT_COL, DataTypes.IntegerType, false).
+                            add(FIRST_COL, DataTypes.BooleanType, false);
+                }
                 if (configHelper.isDebugDf()) {
                     System.out.println("Query ranges: " + queryRanges.size());
                 }
-                final StructType inputSchema = new StructType().
-                        add(START_COL, DataTypes.IntegerType, false).
-                        add(COUNT_COL, DataTypes.IntegerType, false);
                 Dataset<Row> queryRangeDataset = spark.createDataFrame(queryRanges, inputSchema);
                 if (configHelper.isDebugDf()) {
                     System.out.println("Starting query with " + queryRangeDataset.rdd().partitions().length + " partitions.");

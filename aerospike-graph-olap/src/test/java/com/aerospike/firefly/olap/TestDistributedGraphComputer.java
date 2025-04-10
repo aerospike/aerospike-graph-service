@@ -42,9 +42,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class TestDistributedGraphComputer {
     private Configuration config;
@@ -78,47 +81,7 @@ public class TestDistributedGraphComputer {
         executorService.awaitTermination(10, TimeUnit.MINUTES);
     }
 
-    @Test
-    public void testLargerInfo() {
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            graph.traversal().V().drop().iterate();
-            final GraphTraversalSource g = graph.traversal();
-            for (int i = 0; i < 1_000_000; i++) {
-            }
-        }
-    }
-
-    @Test
-    public void testSparkCluster2() throws Exception {
-        final Instant instant = Instant.now();
-        GraphTraversalSource g = null;
-        try {
-            g = traversal().withRemote(DriverRemoteConnection.using("35.202.200.21", 8182, "g"));
-            //g.withComputer().V().hasLabel("asdf").toList();
-            //System.out.println("Result: " + g.
-            //        withComputer().
-            //        with("evaluationTimeout", 24 * 3600 * 1000).
-            //        V().hasLabel("Person").groupCount().by(__.out("HasCat").count()).
-            //        toList());
-            Vertex v = g.V().hasLabel("Person").limit(1).next();
-            System.out.println("cnt : " + g.with("evaluationTimeout", 24 * 3600 * 1000).V().hasLabel("Person").count().next());
-            System.out.println("Vid: " + v.id());
-            System.out.println("Result: " + g.
-                    withComputer().
-                    with("evaluationTimeout", 24 * 3600 * 1000).
-                    V(v.id()).out().
-                    toList());
-        } catch (Exception e ){
-            System.out.println("Failed " + e);
-            if (g != null) {
-                g.close();
-            }
-        }
-        System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
-
-    }
-
-    @Test
+    // @Test
     public void testSparkCluster() throws Exception {
         final Instant instant = Instant.now();
         GraphTraversalSource g = null;
@@ -146,65 +109,21 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
-    public void testlocalasdf() throws Exception {
+    public void testEarlyLimit() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            graph.traversal().V().drop().iterate();
-            final Graph tg = TinkerFactory.createModern();
-            GraphHelper.cloneElements(tg, graph);
             final GraphTraversalSource g = graph.traversal();
-            System.out.println("Result: " + g.
-                    withComputer().
-                    V().hasLabel("person").out("knows").groupCount().by("age").toList());
-        }
+            g.V().drop().iterate();
 
-    }
-
-    @Test
-    public void testSparkCluster3() throws Exception {
-        final Instant instant = Instant.now();
-        GraphTraversalSource g = null;
-        try {
-            g = traversal().withRemote(DriverRemoteConnection.using("35.202.200.21", 8182, "g"));
-            //g.withComputer().V().hasLabel("asdf").toList();
-            //System.out.println("Result: " + g.
-            //        withComputer().
-            //        with("evaluationTimeout", 24 * 3600 * 1000).
-            //        V().hasLabel("Person").groupCount().by(__.out("HasCat").count()).
-            //        toList());
-            System.out.println("Result: " + g.
-                    withComputer().
-                    with("evaluationTimeout", 24 * 3600 * 1000).
-                    V().hasLabel("Person").out("LikesCoffee").groupCount().by("country").toList());
-        } catch (Exception e) {
-            System.out.println("Failed " + e);
-            if (g != null) {
-                g.close();
+            for (int i = 0; i < 500; i++) {
+                g.addV().iterate();
             }
-        }
-        System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
 
-    }
-
-    @Test
-    public void groupCount() {
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            graph.traversal().V().drop().iterate();
-            final Graph tg = TinkerFactory.createModern();
-            GraphHelper.cloneElements(tg, graph);
-
-            List output = graph.traversal()
-                    .withComputer()
-                    .with("hello", "there")
-                    .V()
-                    .toList();
-
-            graph.traversal().withComputer().E().properties("weight").as("a").select("a").by(T.key).toList();
-
-            graph.traversal().withComputer().V().properties("age").as("a").select("a").by(T.key).toList();
-
-            //System.out.println(output);
+            assertEquals(200L,
+                    (long) g.with(AEROSPIKE_BATCH_READ_SIZE, 3).withComputer().V().limit(200).count().next());
+            assertTrue(graph.getBaseGraph().getLimitBin("limit") <= 0);
         }
     }
+
 
     @Test
     public void sample() {

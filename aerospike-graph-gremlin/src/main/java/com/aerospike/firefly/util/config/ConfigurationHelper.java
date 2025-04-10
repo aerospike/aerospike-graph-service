@@ -244,7 +244,8 @@ public final class ConfigurationHelper {
             BL_ROW_BIN(Pair.of((byte) 21, "BL_ROW")),
             BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE")),
             SUPERNODE_EDGE_PROPERTIES_BIN(Pair.of((byte) 23, "SUPERNODE_P")),
-            BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA"));
+            BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA")),
+            OLAP_LIMIT_BIN(Pair.of((byte) 25, "OLAP_LIMIT"));
 
             private final Pair value;
 
@@ -309,7 +310,8 @@ public final class ConfigurationHelper {
             BULK_LOAD_RECOVERY_VERTEX_SET(Pair.of((byte) 19, "BL_RECOVERY_V")),
             BULK_LOAD_RECOVERY_EDGE_SET(Pair.of((byte) 20, "BL_RECOVERY_E")),
             BULK_LOAD_RECOVERY_SUPERNODE_SET(Pair.of((byte) 21, "BL_RECOVERY_SN")),
-            BULK_LOAD_RECOVERY_STATE_SET(Pair.of((byte) 22, "BL_RECOVERY_S"));
+            BULK_LOAD_RECOVERY_STATE_SET(Pair.of((byte) 22, "BL_RECOVERY_S")),
+            OLAP_SET(Pair.of((byte) 23, "OLAP"));
 
             private final Pair value;
 

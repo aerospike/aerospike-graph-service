@@ -186,6 +186,5 @@ public class TestDockerConfigs {
         LOG.warn("===> Finished running {} <===", testName.getMethodName());
         // Cleanup any dangling containers (catch all for test issues).
         DOCKER_UTIL.stopAllDockerImages();
-        LOG.warn("===> Finished cleaning up docker after {} <===", testName.getMethodName());
     }
 }

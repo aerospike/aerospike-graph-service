@@ -224,7 +224,7 @@ public class DockerUtil {
         InspectContainerResponse.ContainerState containerState = dockerClient.inspectContainerCmd(containerId).exec().getState();
 
         if (Boolean.FALSE.equals(containerState.getRunning()) && !expectException) {
-            LOG.error("Docker container unexpected failed to start:");
+            LOG.error("Docker container unexpected failed to start. Docker logs:");
             for (final String line : getLogs(containerId)) {
                 LOG.error(line);
             }
@@ -295,16 +295,16 @@ public class DockerUtil {
         for (final Container container : dockerClient.listContainersCmd().exec()) {
             try {
                 for (int i = 0; i < container.getNames().length; i++) {
-                    LOG.error("Container names: " + container.getNames());
+                    LOG.error("Container names: {}", container.getNames());
                     final String name = container.getNames()[i];
-                    LOG.error("Killing container: " + name);
+                    LOG.error("Killing container: {}", name);
                     if (name != null && name.startsWith("/test-graph")) {
                         dockerClient.killContainerCmd(container.getId()).exec();
                         dockerClient.removeContainerCmd(container.getId()).withForce(true).exec();
                     }
                 }
             } catch (final Exception e) {
-                LOG.error("Failed to kill docker container: " + container.getId(), e);
+                LOG.error("Failed to kill docker container: {}", container.getId(), e);
             }
         }
     }

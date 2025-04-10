@@ -219,7 +219,7 @@ def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_co
             raise Exception("Error configuring Aerospike Graph Service.\n\t'serializers', 'processors', and 'graphs' " + \
                     "of gremlin-server config cannot be overwritten by properties file, contact support if you need " + \
                     "to override these configurations.")
-        if key.startswith("metrics."):
+        elif key.startswith("metrics."):
             key = key.replace("metrics.", "")
             if key.split(".")[0] in metrics:
                 metrics_key = key.split(".")[0]
@@ -234,7 +234,7 @@ def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_co
                 raise Exception(
                     "Error configuring Aerospike Graph Service.\n\t" + key.split(".")[0] + \
                     " is not a valid metrics type.")
-        if key.startswith("ssl"):
+        elif key.startswith("ssl"):
             if not key.startswith("ssl.") or len(key) < 5:
                 raise Exception("Error configuring Aerospike Graph Service.\n\tSSL configurations must specify settings individually to be modified. Example: aerospike.graph-service.ssl.settingName=settingValue")
             key = key.replace("ssl.", "")

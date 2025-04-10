@@ -21,7 +21,8 @@ FIREFLY_SERVER_CMD=com.aerospike.firefly.runtime.FireflyServer
 GREMLIN_YAML=$1
 echo starting with GREMLIN_YAML = $GREMLIN_YAML
 
-CLASSPATH="/opt/firefly-graph.jar:/opt/bulk-loader.jar:/opt/olap.jar:/opt/spark/*"
+#:/opt/olap.jar
+CLASSPATH="/opt/firefly-graph.jar:/opt/bulk-loader.jar:/opt/spark/*"
 
 # Create trap that redirects signal into the stop_ags function.
 stop_ags() {

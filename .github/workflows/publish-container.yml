@@ -50,7 +50,7 @@ jobs:
       - name: Upload Jar Files
         uses: actions/upload-artifact@v4
         with:
-            path: aerospike-graph-*/target/aerospike-graph-*.jar
+          path: aerospike-graph-*/target/aerospike-graph-*.jar
 
   publish-github-amd:
     name: Publish Firefly Docker Image - AMD - GitHub - RC

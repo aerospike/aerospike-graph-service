@@ -2,14 +2,9 @@ import os, sys, subprocess
 import argparse
 from python_on_whales import docker
 
-# TODO: These need to be dynamic.
 GRAPH_JAR_DIRECTORY = "aerospike-graph-gremlin/target/"
 BULK_LOADER_JAR_DIRECTORY = "aerospike-graph-bulk-loader/target/"
 OLAP_JAR_DIRECTORY = "aerospike-graph-olap/target/"
-SPARK_VERSION = "3.4.1"
-SPARK_ZIP = "spark-{}.tgz".format(SPARK_VERSION)
-SPARK_URL = "https://archive.apache.org/dist/spark/spark-{}/spark-{}-bin-hadoop3.tgz".format(SPARK_VERSION,
-                                                                                             SPARK_VERSION)
 
 
 class BuildArguments:
@@ -43,8 +38,6 @@ def main():
     build_args = parse_args()
     if not build_args.use_local:
         build_jars(build_args)
-    if not build_args.slim:
-        fetch_dependencies()
     graph_jar, bulk_loader_jar, olap_jar = find_jars(build_args)
     build_docker(build_args, graph_jar, bulk_loader_jar, olap_jar)
 
@@ -134,14 +127,6 @@ def run_command(command):
         sys.exit(return_code)
 
 
-def fetch_dependencies():
-    if not os.path.exists(SPARK_ZIP):
-        print("Downloading Spark")
-        run_command(f"curl -L -o {SPARK_ZIP} {SPARK_URL}")
-    else:
-        print(f"{SPARK_ZIP} already exists, skipping download.")
-
-
 def build_jars(build_args):
     if not build_args.slim:
         run_command(
@@ -156,9 +141,7 @@ def build_docker(build_args, graph_jar, bulk_loader_jar, olap_jar):
     docker_build_args = {
         "FIREFLY_GRAPH": graph_jar,
         "BULKLOADER": bulk_loader_jar,
-        "OLAP": olap_jar,
-        "SPARK_ZIP": SPARK_ZIP,
-        "SPARK_VERSION": SPARK_VERSION
+        "OLAP": olap_jar
     } if not build_args.slim else {
         "FIREFLY_GRAPH": graph_jar
     }

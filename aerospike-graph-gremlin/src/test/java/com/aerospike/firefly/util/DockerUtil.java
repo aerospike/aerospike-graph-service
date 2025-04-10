@@ -295,7 +295,9 @@ public class DockerUtil {
         for (final Container container : dockerClient.listContainersCmd().exec()) {
             try {
                 for (int i = 0; i < container.getNames().length; i++) {
+                    LOG.error("Container names: " + container.getNames());
                     final String name = container.getNames()[i];
+                    LOG.error("Killing container: " + name);
                     if (name != null && name.startsWith("/test-graph")) {
                         dockerClient.killContainerCmd(container.getId()).exec();
                         dockerClient.removeContainerCmd(container.getId()).withForce(true).exec();

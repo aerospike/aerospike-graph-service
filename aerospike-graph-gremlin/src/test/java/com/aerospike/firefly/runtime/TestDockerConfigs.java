@@ -3,12 +3,20 @@ package com.aerospike.firefly.runtime;
 import com.aerospike.firefly.util.DockerUtil;
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Queue;
 
 public class TestDockerConfigs {
+    private static final Logger LOG = LoggerFactory.getLogger(TestDockerConfigs.class);
     private static final DockerUtil DOCKER_UTIL = new DockerUtil();
+    @Rule
+    public TestName testName = new TestName();
 
     public void testDockerImageSettings(final String[] environmentVariables) throws InterruptedException {
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", true, environmentVariables);
@@ -168,9 +176,16 @@ public class TestDockerConfigs {
         Assert.assertTrue(foundErrorMsg);
     }
 
+    @Before
+    public void beforeEach() {
+        LOG.warn("===> Running {} <===", testName.getMethodName());
+    }
+
     @After
-    public void afterEachTest() {
+    public void afterEach() {
+        LOG.warn("===> Finished running {} <===", testName.getMethodName());
         // Cleanup any dangling containers (catch all for test issues).
         DOCKER_UTIL.stopAllDockerImages();
+        LOG.warn("===> Finished cleaning up docker after {} <===", testName.getMethodName());
     }
 }

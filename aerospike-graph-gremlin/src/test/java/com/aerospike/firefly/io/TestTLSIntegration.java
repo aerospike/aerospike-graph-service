@@ -15,14 +15,17 @@ public class TestTLSIntegration {
     private static final Cluster.Builder BUILDER = Cluster.build()
             .addContactPoint(HOST)
             .port(PORT)
-            .enableSsl(false); // This isn't AGS <-> Aerospike TLS
+            .enableSsl(true)
+            .trustStore("../.github/aerospike/tls/truststore.jks").trustStorePassword("abc123");
 
     @Test
     public void testConnection() throws Exception {
         final Cluster cluster = BUILDER.create();
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster))) {
+            g.V().drop().iterate();
             g.addV("test-tls").iterate();
             Assert.assertEquals(1, (long) g.V().hasLabel("test-tls").count().next());
+            g.V().drop().iterate();
         }
     }
 }

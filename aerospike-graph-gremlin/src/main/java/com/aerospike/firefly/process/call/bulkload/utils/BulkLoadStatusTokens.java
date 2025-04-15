@@ -1,7 +1,7 @@
 package com.aerospike.firefly.process.call.bulkload.utils;
 
 public class BulkLoadStatusTokens {
-    public static String LOAD_STAGE = "stage";
+    public static String LOAD_STEP = "step";
     public static String PARTITIONS_COMPLETED_PERCENTAGE = "complete-partitions-percentage";
     public static String ELEMENTS_WRITTEN = "elements-written";
     public static String PROGRESS_COMPLETE = "complete";

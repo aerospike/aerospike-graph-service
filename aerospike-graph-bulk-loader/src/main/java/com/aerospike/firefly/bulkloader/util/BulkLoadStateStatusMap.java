@@ -10,7 +10,7 @@ import java.util.Set;
 
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.ELEMENTS_WRITTEN;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.LOAD_STAGE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.LOAD_STEP;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.PROGRESS_COMPLETE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.PARTITIONS_COMPLETED_PERCENTAGE;
 
@@ -23,7 +23,7 @@ public class BulkLoadStateStatusMap implements Map<String, Object> {
 
     public BulkLoadStateStatusMap(final String stage, final boolean complete, final String status,
                                   final Integer percentage, final Long elementsWritten) {
-        internalMap.put(LOAD_STAGE, stage);
+        internalMap.put(LOAD_STEP, stage);
         internalMap.put(PROGRESS_COMPLETE, complete);
         internalMap.put(BULK_LOAD_STATUS_KEY, status);
         if (percentage != null) {

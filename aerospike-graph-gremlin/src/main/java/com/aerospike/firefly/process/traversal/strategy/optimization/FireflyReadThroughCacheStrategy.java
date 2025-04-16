@@ -6,7 +6,6 @@ import com.aerospike.firefly.io.aerospike.ReadThroughRecordCache;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
 import java.util.HashSet;
@@ -42,9 +41,7 @@ public class FireflyReadThroughCacheStrategy extends FireflyStrategyBase {
         if (!(graphOptional.get() instanceof FireflyGraph)) {
             return;
         }
-        if (!(traversal.getStartStep() instanceof GraphStep)) {
-            return;
-        }
+
         final AerospikeConnection db = ((FireflyGraph) (graphOptional.get())).getBaseGraph();
         final UUID uuid = UUID.randomUUID();
 

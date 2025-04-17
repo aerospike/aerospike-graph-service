@@ -12,7 +12,13 @@ import com.aerospike.client.cdt.ListWriteFlags;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
+import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.cdt.MapWriteFlags;
+import com.aerospike.client.exp.Exp;
+import com.aerospike.client.exp.ExpOperation;
+import com.aerospike.client.exp.ExpWriteFlags;
+import com.aerospike.client.exp.Expression;
+import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.KeyRecord;
@@ -922,7 +928,17 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             final MapPolicy updateOnlyPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.UPDATE_ONLY | MapWriteFlags.NO_FAIL);
             final Operation createOp = MapOperation.put(createOnlyPolicy, SUMMARY_LABEL_BIN, Value.get(countInfo.label), Value.get(0));
             final Operation updateOp = MapOperation.increment(updateOnlyPolicy, SUMMARY_LABEL_BIN, Value.get(countInfo.label), Value.get(countInfo.count));
-            db.writeOperate(writePolicy, key, createOp, updateOp);
+            // Prevent edge case of negative summary counts due to an Aerospike truncate
+            final Expression preventNegativeExp = Exp.build(
+                    Exp.cond(
+                            Exp.lt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(countInfo.label), Exp.mapBin(SUMMARY_LABEL_BIN)), Exp.val(0)),
+                            MapExp.put(updateOnlyPolicy, Exp.val(countInfo.label), Exp.val(0), Exp.mapBin(SUMMARY_LABEL_BIN)),
+                            Exp.unknown()
+                    )
+            );
+            final Operation preventNegativeOp = ExpOperation.write(SUMMARY_LABEL_BIN, preventNegativeExp, ExpWriteFlags.EVAL_NO_FAIL);
+
+            db.writeOperate(writePolicy, key, createOp, updateOp, preventNegativeOp);
 
             // Remove count so that if one in the loop fails and we re-add these values to the map, they aren't all
             // added erroneously.

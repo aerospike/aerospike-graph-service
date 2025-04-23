@@ -144,9 +144,9 @@ When using the Call API, simply enter the configuration name as the key and the 
 
 ##### Call API
 
-Note: The traversal that invokes the call API must have `.with("evaluationTimeout", 24 * 60 * 60 * 1000)` as a modifier
-to the traversal itself, *and not on the call step*, since a bulk loader is a long-running process that exceeds the 
-typical expected lifetime of a traversal. See examples below.
+Note: The traversal that invokes the call API may need `.with("evaluationTimeout", 24 * 60 * 60 * 1000)` as a modifier
+to the traversal itself, *and not on the call step*, since the initialization of the bulk loader can exceed the 
+typical expected lifetime of a traversal depending on hardware and configuration. See examples below.
 
 The `call` API runs the bulk load on a single Aerospike Graph instance. Because Aerospike Graph is in docker, 
 any parameters that are passed must be accessible to the docker image. This is particularly important to consider if 
@@ -165,7 +165,7 @@ docker run -p 8182:8182  \
             ghcr.io/citrusleaf/firefly
 
 # Invoke call API with path to files in docker container.
-g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("aerospike.graphloader.bulk-load.load")
+g.call("aerospike.graphloader.bulk-load.load")
     .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/vertices")
     .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/edges")
 ```
@@ -173,7 +173,7 @@ g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("aerospike.graphloader.bul
 Most customers will likely use S3 or GCS, which is the recommended way.
 An S3 example is shown below:
 ```java
-g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("aerospike.graphloader.bulk-load.load").with("aerospike.graphloader.vertices", "s3://myBucket/vertices").with("aerospike.graphloader.edges", "s3://myOtherBucket/edges").with("aerospike.graphloader.remote-user", "myAwsId").with("aerospike.graphloader.remote-passkey", "myAwsSecretKey").iterate();
+g.call("aerospike.graphloader.bulk-load.load").with("aerospike.graphloader.vertices", "s3://myBucket/vertices").with("aerospike.graphloader.edges", "s3://myOtherBucket/edges").with("aerospike.graphloader.remote-user", "myAwsId").with("aerospike.graphloader.remote-passkey", "myAwsSecretKey").iterate();
 ```
 
 ##### Spark Submit

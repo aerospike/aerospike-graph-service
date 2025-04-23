@@ -2,8 +2,10 @@ package com.aerospike.firefly.bulkloader.statemachine.states;
 
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RECOVERY_FAILURE;
 
 public class SparkBulkLoaderStateVerifyEdges extends SparkBulkLoaderState {
@@ -33,5 +35,10 @@ public class SparkBulkLoaderStateVerifyEdges extends SparkBulkLoaderState {
     @Override
     public SparkBulkLoaderState transitionState() {
         return new SparkBulkLoaderStateCleanUp(sparkBulkLoaderStateMachine);
+    }
+
+    @Override
+    protected BulkLoadStateStatusMap getStateMap() {
+        return new BulkLoadStateStatusMap("verifying edges", false, BULK_LOAD_STATUS_IN_PROGRESS);
     }
 }

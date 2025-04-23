@@ -1,10 +1,13 @@
 package com.aerospike.firefly.bulkloader.statemachine.states;
 
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
 
 public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderStateDetectSupernodes.class);
@@ -45,5 +48,10 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
     @Override
     public SparkBulkLoaderState transitionState() {
         return new SparkBulkLoaderStateWriteVertices(sparkBulkLoaderStateMachine);
+    }
+
+    @Override
+    protected BulkLoadStateStatusMap getStateMap() {
+        return new BulkLoadStateStatusMap("processing supernodes", false, BULK_LOAD_STATUS_IN_PROGRESS);
     }
 }

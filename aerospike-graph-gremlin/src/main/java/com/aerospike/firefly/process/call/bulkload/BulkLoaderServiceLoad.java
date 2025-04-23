@@ -43,7 +43,6 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER;
 
 public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
-    public static final String BULK_LOAD_SUCCESS = "Success";
     private static final String VERTICES = "vertices";
     private static final String EDGES = "edges";
     private static final Map<String, String> KEY_TO_ARG = new HashMap<>();
@@ -316,7 +315,9 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                     Class.forName("com.aerospike.firefly.bulkloader.SparkBulkLoaderMain");
             bulkLoaderClass.newInstance().load(args.toArray(new String[0]));
 
-            final String output = formatErrorCount(graph);
+            final String output = "Bulk load started successfully. Use the g.call(\""
+                    + new BulkLoaderServiceStatus<>(graph).getName() + "\") command to get the status of the job.";
+            LOGGER.info(output);
             return (R) output;
         } catch (final ClassNotFoundException | InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
@@ -387,23 +388,6 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
 
     private static String formatArg(final String arg) {
         return "-" + arg;
-    }
-
-    public static String formatErrorCount(final FireflyGraph graph) {
-        final AerospikeConnection db = graph.getBaseGraph();
-        final long badEntryCount = db.incrementAndGetBadEntryCount(0);
-        final long duplicateVertexIdCount = db.incrementAndGetDuplicateVertexIdCount(0);
-        final long badEdgeCount = db.incrementAndGetBadEdgeCount(0);
-        if (badEntryCount == 0 && duplicateVertexIdCount == 0 && badEdgeCount == 0) {
-            return BULK_LOAD_SUCCESS;
-        } else {
-            final String sb = "Warning: Errors were encountered during bulk loading." +
-                    "\n\t\tduplicate-vertex-id-count: " + duplicateVertexIdCount +
-                    "\n\t\tbad-edge-count: " + badEdgeCount +
-                    "\n\t\tbad-entry-count: " + badEntryCount +
-                    "\n\t\tUse the g.call(\"" + new BulkLoaderServiceErrors<>(graph).getName() + "\") command for details.";
-            return sb;
-        }
     }
 
     @Override

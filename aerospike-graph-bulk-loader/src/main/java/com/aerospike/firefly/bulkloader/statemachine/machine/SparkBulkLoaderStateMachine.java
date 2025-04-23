@@ -4,6 +4,7 @@ import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.util.ProgressBar;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -19,6 +20,7 @@ import org.apache.spark.sql.functions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
@@ -60,6 +62,7 @@ public class SparkBulkLoaderStateMachine {
     public boolean isL2Mode;
     public List<String> vertexDirectories;
     public List<String> edgeDirectories;
+    public String edgeRecoveryDirectory;
     public boolean incrementalLoad;
     public BulkLoaderConfigHelper config;
     public SparkSession spark;
@@ -104,7 +107,8 @@ public class SparkBulkLoaderStateMachine {
 
             // new Timer(true) creates the timer as a daemon, which means that it will not prevent the JVM from exiting.
             progressBar = new ProgressBar(progressBarIntervalMs);
-            progressBar.setIsL2Mode(cmd.hasOption(LOCAL_MODE));
+            isL2Mode = cmd.hasOption(LOCAL_MODE);
+            progressBar.setIsL2Mode(isL2Mode);
             if (cmd.hasOption(RESUME)) {
                 progressBar.setResumeableLoad();
             }
@@ -115,7 +119,6 @@ public class SparkBulkLoaderStateMachine {
             fileSystemMutable = true;
             spark = buildSparkSession(cmd);
             final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
-            isL2Mode = cmd.hasOption(LOCAL_MODE);
             Objects.requireNonNull(configPath);
             fileConfig = loadConfiguration(spark, cmd, configPath);
             LOGGER.info("CONFIGURATION:");
@@ -171,6 +174,12 @@ public class SparkBulkLoaderStateMachine {
 
             edgeDirectories = getDirectories(spark, cmd, config.getOrDefault(EDGE_DIRECTORY_KEY));
             readOnly = config.hasAction(READ_ONLY);
+            if (!readOnly) {
+                final String tempDirectory = config.getOrDefault(TEMP_DIRECTORY_KEY);
+                edgeRecoveryDirectory = RecoveryUtil.getEdgeRecoveryDirectory(tempDirectory,
+                        fileSystem.equals(SparkBulkLoaderStateMachine.LOCAL) ? File.separator : "/");
+                configureFileSystem(spark, cmd, edgeRecoveryDirectory);
+            }
         } catch (final Exception e) {
             LOGGER.error("Failed to initialize SparkBulkLoaderStateMachine", e);
             cleanup();

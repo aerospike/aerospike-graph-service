@@ -1,5 +1,7 @@
 package com.aerospike.firefly.olap.process;
 
+import com.aerospike.firefly.olap.codec.Codec;
+import com.aerospike.firefly.olap.codec.TraverserCodec;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ReflectionHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -9,11 +11,8 @@ import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.MemoryComputeKey;
 import org.apache.tinkerpop.gremlin.process.computer.MessageCombiner;
-import org.apache.tinkerpop.gremlin.process.computer.MessageScope;
-import org.apache.tinkerpop.gremlin.process.computer.Messenger;
 import org.apache.tinkerpop.gremlin.process.computer.ProgramPhase;
 import org.apache.tinkerpop.gremlin.process.computer.VertexComputeKey;
-import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.MemoryTraversalSideEffects;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgramMessageCombiner;
@@ -58,7 +57,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -68,21 +66,20 @@ import java.util.Set;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.ACTIVE_TRAVERSERS;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
-public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
+public class TraversalProgram implements FireflyProgram {
 
     private static final String TRAVERSAL = "gremlin.traversalVertexProgram.traversal";
     protected static final String MUTATED_MEMORY_KEYS = "gremlin.traversalVertexProgram.mutatedMemoryKeys";
     private static final String VOTE_TO_HALT = "gremlin.traversalVertexProgram.voteToHalt";
     private static final String COMPLETED_BARRIERS = "gremlin.traversalVertexProgram.completedBarriers";
 
-    // TODO: if not an adjacent traversal, use Local message scope -- a dual messaging system.
-    private static final Set<MessageScope> MESSAGE_SCOPES = new HashSet<>(Collections.singletonList(MessageScope.Global.instance()));
     private Set<MemoryComputeKey> memoryComputeKeys = new HashSet<>();
     private static final Set<VertexComputeKey> VERTEX_COMPUTE_KEYS =
             new HashSet<>(Arrays.asList(VertexComputeKey.of(HALTED_TRAVERSERS, false), VertexComputeKey.of(ACTIVE_TRAVERSERS, true)));
 
     private PureTraversal<?, ?> traversal;
     private TraversalMatrix<?, ?> traversalMatrix;
+    private Codec codec;
     private final Set<MapReduce> mapReducers = new HashSet<>();
     private TraverserSet<Object> haltedTraversers;
     // true for last or single Program
@@ -100,6 +97,7 @@ public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
     // todo: temporary hack
     public TraversalProgram(final TraversalVertexProgram traversalVertexProgram) {
         this.traversal = traversalVertexProgram.getTraversal();
+        this.codec = new TraverserCodec(this.traversal.get());
         this.traversalMatrix = new TraversalMatrix<>(this.traversal.get());
 
         // used only when more than 1 VertexProgram
@@ -124,13 +122,22 @@ public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
         for (final ProfileStep profileStep : TraversalHelper.getStepsOfAssignableClassRecursively(ProfileStep.class, this.traversal.get())) {
             this.traversal.get().getSideEffects().register(profileStep.getId(), new MutableMetricsSupplier(profileStep.getPreviousStep()), ProfileStep.ProfileBiOperator.instance());
         }
-        // register TraversalVertexProgram specific memory compute keys
+
+        init();
+
+        // does the traversal need profile information
+        this.profile = !TraversalHelper.getStepsOfAssignableClassRecursively(ProfileStep.class, this.traversal.get()).isEmpty();
+    }
+
+    // register TraversalVertexProgram specific memory compute keys
+    private void init() {
         this.memoryComputeKeys.add(MemoryComputeKey.of(VOTE_TO_HALT, Operator.and, false, true));
         this.memoryComputeKeys.add(MemoryComputeKey.of(HALTED_TRAVERSERS, Operator.addAll, false, false));
         this.memoryComputeKeys.add(MemoryComputeKey.of(ACTIVE_TRAVERSERS, Operator.addAll, true, true));
         this.memoryComputeKeys.add(MemoryComputeKey.of(MUTATED_MEMORY_KEYS, Operator.addAll, false, true));
         this.memoryComputeKeys.add(MemoryComputeKey.of(COMPLETED_BARRIERS, Operator.addAll, true, true));
-        final List<Step> steps = traversalVertexProgram.getTraversal().get().getSteps();
+
+        final List<Step> steps = this.traversal.get().getSteps();
         for (final Step step : steps) {
             if (step instanceof RangeGlobalStep) {
                 final RangeGlobalStep rangeGlobalStep = (RangeGlobalStep) step;
@@ -142,9 +149,11 @@ public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
                 break;
             }
         }
+    }
 
-        // does the traversal need profile information
-        this.profile = !TraversalHelper.getStepsOfAssignableClassRecursively(ProfileStep.class, this.traversal.get()).isEmpty();
+    @Override
+    public Codec getCodec() {
+        return codec;
     }
 
     /**
@@ -193,6 +202,8 @@ public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
         this.traversal = PureTraversal.loadState(configuration, TRAVERSAL, graph);
         if (!this.traversal.get().isLocked())
             this.traversal.get().applyStrategies();
+
+        this.codec = new TraverserCodec(this.traversal.get());
         /// traversal is compiled and ready to be introspected
         this.traversalMatrix = new TraversalMatrix<>(this.traversal.get());
         // get any master-traversal halted traversers
@@ -223,12 +234,8 @@ public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
         for (final ProfileStep profileStep : TraversalHelper.getStepsOfAssignableClassRecursively(ProfileStep.class, this.traversal.get())) {
             this.traversal.get().getSideEffects().register(profileStep.getId(), new MutableMetricsSupplier(profileStep.getPreviousStep()), ProfileStep.ProfileBiOperator.instance());
         }
-        // register TraversalVertexProgram specific memory compute keys
-        this.memoryComputeKeys.add(MemoryComputeKey.of(VOTE_TO_HALT, Operator.and, false, true));
-        this.memoryComputeKeys.add(MemoryComputeKey.of(HALTED_TRAVERSERS, Operator.addAll, false, false));
-        this.memoryComputeKeys.add(MemoryComputeKey.of(ACTIVE_TRAVERSERS, Operator.addAll, true, true));
-        this.memoryComputeKeys.add(MemoryComputeKey.of(MUTATED_MEMORY_KEYS, Operator.addAll, false, true));
-        this.memoryComputeKeys.add(MemoryComputeKey.of(COMPLETED_BARRIERS, Operator.addAll, true, true));
+
+        init();
 
         // does the traversal need profile information
         this.profile = !TraversalHelper.getStepsOfAssignableClassRecursively(ProfileStep.class, this.traversal.get()).isEmpty();
@@ -236,7 +243,7 @@ public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
 
     @Override
     public void storeState(final Configuration configuration) {
-        VertexProgram.super.storeState(configuration);
+        FireflyProgram.super.storeState(configuration);
         this.traversal.storeState(configuration, TRAVERSAL);
         storeHaltedTraversers(configuration, this.haltedTraversers);
     }
@@ -269,16 +276,6 @@ public class TraversalProgram implements VertexProgram<TraverserSet<Object>> {
         this.haltedTraversers = null;
         // does the traversal need profile information
         this.profile = !TraversalHelper.getStepsOfAssignableClassRecursively(ProfileStep.class, this.traversal.get()).isEmpty();
-    }
-
-    @Override
-    public Set<MessageScope> getMessageScopes(final Memory memory) {
-        return MESSAGE_SCOPES;
-    }
-
-    @Override
-    public void execute(final Vertex vertex, final Messenger<TraverserSet<Object>> messenger, final Memory memory) {
-        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public void execute(final BatchJob job, final Memory memory) {

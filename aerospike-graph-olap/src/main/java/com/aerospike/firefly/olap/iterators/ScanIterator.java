@@ -1,20 +1,14 @@
 package com.aerospike.firefly.olap.iterators;
 
 import com.aerospike.client.exp.Expression;
-import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.ScanPolicy;
-import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
-import com.aerospike.firefly.io.FireflyIndexMetadata;
-import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
 import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
 import com.aerospike.firefly.io.aerospike.query.paged.PaginationIterator;
-import com.aerospike.firefly.io.aerospike.query.paged.PartitionedSindexPageFetcher;
 import com.aerospike.firefly.io.aerospike.query.paged.ScanPageFetcher;
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.helper.TaskLogger;
-import com.aerospike.firefly.olap.structure.DistributedWorkerExecutor;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -28,7 +22,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
-import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +49,6 @@ public class ScanIterator implements CloseableIterator<Traverser> {
     final Codec codec;
     final Traversal traversal;
     final TraverserGenerator tg;
-    final TraversalMatrix tm;
     PageFetcher<?> pageFetcher = null;
     PageFetcher.Page page = null;
     final GraphStep graphStep;
@@ -72,11 +64,9 @@ public class ScanIterator implements CloseableIterator<Traverser> {
                         final Codec codec,
                         final Iterator<Row> iterator,
                         final Traversal traversal,
-                        final TraversalMatrix tm,
                         final Expression expression,
                         final TraverserGenerator tg) {
         this.tg = tg;
-        this.tm = tm;
         this.graph = graph;
         while (iterator.hasNext()) {
             rows.add(iterator.next());

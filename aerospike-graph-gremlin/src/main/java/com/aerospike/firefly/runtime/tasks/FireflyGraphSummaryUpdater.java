@@ -282,9 +282,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             vertexCounts.get(label).addAndGet(labelToCount.get(label));
         }
         db.delete(vertexPartitionKey, null);
-        while (COUNTDOWN_LATCH.getCount() > 0) {
-            COUNTDOWN_LATCH.countDown();
-        }
+        forceWrite();
     }
 
     public void startEdgePartition(final int partitionId) {
@@ -315,9 +313,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             edgeCounts.get(label).addAndGet(labelToCount.get(label));
         }
         db.delete(edgePartitionKey, null);
-        while (COUNTDOWN_LATCH.getCount() > 0) {
-            COUNTDOWN_LATCH.countDown();
-        }
+        forceWrite();
     }
 
     private Key getEdgePartitionKey(final int partitionId) {
@@ -402,9 +398,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         SHUTDOWN.set(true);
 
         // Just in case the thread is waiting for the countdown to finish, drive it to 0.
-        while (COUNTDOWN_LATCH.getCount() > 0) {
-            COUNTDOWN_LATCH.countDown();
-        }
+        forceWrite();
 
         try {
             // Wait for the shutdown latch.
@@ -996,6 +990,12 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         for (final KeyRecord keyRecord : partitionRecords) {
             if (keyRecord.key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_"))
                 db.delete(keyRecord.key, null);
+        }
+    }
+
+    public void forceWrite() {
+        while (COUNTDOWN_LATCH.getCount() > 0) {
+            COUNTDOWN_LATCH.countDown();
         }
     }
 }

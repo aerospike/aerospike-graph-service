@@ -390,9 +390,9 @@ public class AerospikeConnection implements AutoCloseable {
      * @param conf Apache Configuration
      */
     private AerospikeConnection(final FireflyConfiguration conf,
-                               final AerospikeClient client,
-                               final EventLoops eventLoops,
-                               final ExecutorService threadedReadExecutor) {
+                                final AerospikeClient client,
+                                final EventLoops eventLoops,
+                                final ExecutorService threadedReadExecutor) {
         LOG.info("Initializing AerospikeConnection.");
         LOG.debug("CONFIGURATION:");
         conf.getKeys().forEachRemaining(key -> {
@@ -2069,27 +2069,6 @@ public class AerospikeConnection implements AutoCloseable {
                 Operation.add(ctr),
                 Operation.get(COUNTER_BIN));
         return record.getLong(COUNTER_BIN);
-    }
-
-    public void setLimitBin(final String name, final long amount) {
-        final Key key = new Key(namespace, OLAP_SET, name);
-        final Bin ctr = new Bin(OLAP_LIMIT_BIN, amount);
-        this.writeOperate(null, key, Operation.put(ctr));
-    }
-
-    public Long getLimitBin(final String name) {
-        final Key key = new Key(namespace, OLAP_SET, name);
-        final Record record = this.writeOperate(null, key, Operation.get(OLAP_LIMIT_BIN));
-        return record.getLong(OLAP_LIMIT_BIN);
-    }
-
-    public long addLimitBin(final String name, final long amount) {
-        final Key key = new Key(namespace, OLAP_SET, name);
-        final Bin ctr = new Bin(OLAP_LIMIT_BIN, amount);
-        final Record record = this.writeOperate(null, key,
-                Operation.add(ctr),
-                Operation.get(OLAP_LIMIT_BIN));
-        return record.getLong(OLAP_LIMIT_BIN);
     }
 
     /**

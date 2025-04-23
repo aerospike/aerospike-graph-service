@@ -19,10 +19,8 @@ import java.util.Set;
 public final class FireflyComputerVerificationStrategy extends AbstractTraversalStrategy<TraversalStrategy.VerificationStrategy> implements TraversalStrategy.VerificationStrategy {
     private static final FireflyComputerVerificationStrategy INSTANCE = new FireflyComputerVerificationStrategy();
     private static final Set<Class<?>> UNSUPPORTED_ALGORITHM_STEPS = new HashSet<>(Arrays.asList(
-            PageRankVertexProgramStep.class,
             ShortestPathVertexProgramStep.class,
-            PeerPressureVertexProgramStep.class,
-            ConnectedComponentVertexProgramStep.class));
+            PeerPressureVertexProgramStep.class));
 
     private FireflyComputerVerificationStrategy() {
     }

@@ -12,7 +12,7 @@ import com.aerospike.firefly.olap.iterators.PIStepIterator;
 import com.aerospike.firefly.olap.iterators.QueryInfo;
 import com.aerospike.firefly.olap.iterators.ScanIterator;
 import com.aerospike.firefly.olap.process.BatchJob;
-import com.aerospike.firefly.olap.process.TraversalProgram;
+import com.aerospike.firefly.olap.process.FireflyProgram;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
@@ -28,9 +28,6 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
-import org.apache.spark.util.LongAccumulator;
-import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
-import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -40,11 +37,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalSte
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTraverserGeneratorFactory;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
-import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
@@ -58,10 +51,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.getIdType;
+import static com.aerospike.firefly.olap.process.ProgramHelper.createVertexProgram;
 import static com.aerospike.firefly.olap.structure.DistributedGraphComputer.magicSwap;
 
 public class DistributedWorkerExecutor {
@@ -77,7 +70,6 @@ public class DistributedWorkerExecutor {
                                        final List<HasContainer> initialHasContainers,
                                        final Object[] ids,
                                        final Traversal<?, ?> traversal,
-                                       final StructType outputSchema,
                                        final int maxParallelQuery,
                                        final boolean isFirst,
                                        Dataset<Row> input,
@@ -106,7 +98,7 @@ public class DistributedWorkerExecutor {
                     initialHasContainers,
                     ids,
                     traversal,
-                    outputSchema,
+                    schema,
                     maxParallelQuery,
                     isFirst,
                     workerCount);
@@ -139,17 +131,12 @@ public class DistributedWorkerExecutor {
 
                 TaskLogger.logDebuggingMessage("Graph created.", LOGGER);
 
-                final Codec codec = new Codec(traversal);
-                final VertexProgram vertexProgram = VertexProgram.createVertexProgram(graph, vertexProgramConfig);
+                // Create VertexProgram for worker and preset iteration start.
+                final FireflyProgram vertexProgram = createVertexProgram(vertexProgramConfig, graph);
 
-                final PureTraversal<?, ?> pureTraversal = ((TraversalProgram) vertexProgram).getTraversal().clone();
-                pureTraversal.get().applyStrategies();
-                final Traversal traversal1 = pureTraversal.get();
-
-                final Set<TraverserRequirement> traverserRequirements = traversal1.asAdmin().getTraverserRequirements();
-                final TraverserGenerator traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirements);
-                final TraversalMatrix<?, ?> traversalMatrix = new TraversalMatrix<>(traversal1.asAdmin());
-                final List<Step> steps = traversal1.asAdmin().getSteps();
+                final Codec codec = vertexProgram.getCodec();
+                final TraverserGenerator traverserGenerator = codec.getTraverserGenerator();
+                final List<Step> steps = vertexProgram.getTraversal().get().getSteps();
 
                 for (final Step step : steps) {
                     if (step instanceof RangeGlobalStep) {
@@ -175,7 +162,6 @@ public class DistributedWorkerExecutor {
                                     queryInfo.indexInfo,
                                     itty,
                                     traversal,
-                                    traversalMatrix,
                                     traverserGenerator);
                             iterator = FireflyCloseableIteratorUtils.filter(iterator, t -> {
                                 final Element e = (Element) t.get();
@@ -192,7 +178,6 @@ public class DistributedWorkerExecutor {
                                     codec,
                                     itty,
                                     traversal,
-                                    traversalMatrix,
                                     queryInfo.expression,
                                     traverserGenerator);
                             iterator = FireflyCloseableIteratorUtils.filter(iterator, t -> {
@@ -215,7 +200,6 @@ public class DistributedWorkerExecutor {
                                         null,
                                         rows,
                                         traversal,
-                                        traversalMatrix,
                                         start,
                                         Direction.IN);
                                 Iterator ittyOut = new PIStepIterator(
@@ -227,7 +211,6 @@ public class DistributedWorkerExecutor {
                                         null,
                                         rows,
                                         traversal,
-                                        traversalMatrix,
                                         start,
                                         Direction.OUT);
                                 iterator = FireflyCloseableIteratorUtils.concat(ittyIn, ittyOut);
@@ -241,7 +224,6 @@ public class DistributedWorkerExecutor {
                                         null,
                                         IteratorUtils.toList(itty),
                                         traversal,
-                                        traversalMatrix,
                                         start,
                                         direction);
                             }
@@ -259,17 +241,12 @@ public class DistributedWorkerExecutor {
                             throw new IllegalStateException("Unknown query type: " + queryInfo.queryType);
                     }
                 } else {
-                    iterator = FireflyCloseableIteratorUtils.map(itty, r -> codec.decode(r, traverserGenerator, traversalMatrix));
+                    iterator = FireflyCloseableIteratorUtils.map(itty, r -> codec.decode(r));
                 }
 
                 final LocalWorkerMemory workerMemory = new LocalWorkerMemory(memory);
 
-                // Create VertexProgram for worker and preset iteration start.
-                final TraversalProgram workerVertexProgram = vertexProgram instanceof TraversalProgram
-                        ? (TraversalProgram) vertexProgram
-                        : new TraversalProgram((TraversalVertexProgram) vertexProgram);
-
-                workerVertexProgram.workerIterationStart(workerMemory.asImmutable());
+                vertexProgram.workerIterationStart(workerMemory.asImmutable());
 
                 // Loop through input rows, transform to vertices, and execute workerVertexProgram.
                 final TraverserSet<Object> traverserSet = new TraverserSet<>();
@@ -300,7 +277,7 @@ public class DistributedWorkerExecutor {
                     }
 
                     final BatchJob job = new BatchJob(traverserSet);
-                    workerVertexProgram.execute(job, workerMemory);
+                    vertexProgram.execute(job, workerMemory);
                     traverserSet.clear();
                     TimeLog.complete("Running BatchJob");
 
@@ -317,7 +294,7 @@ public class DistributedWorkerExecutor {
                 }
 
                 // End worker iteration.
-                workerVertexProgram.workerIterationEnd(workerMemory.asImmutable());
+                vertexProgram.workerIterationEnd(workerMemory.asImmutable());
                 workerMemory.complete();
 
                 TimeLog.complete("Worker iteration end");

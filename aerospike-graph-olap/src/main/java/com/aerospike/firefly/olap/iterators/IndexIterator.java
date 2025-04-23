@@ -48,7 +48,6 @@ public class IndexIterator implements CloseableIterator<Traverser> {
     final FireflyIndexMetadata.IndexInfo indexInfo;
     private final GraphStep graphStep;
     final TraverserGenerator tg;
-    final TraversalMatrix tm;
     PageFetcher<?> pageFetcher = null;
     PageFetcher.Page page = null;
 
@@ -61,11 +60,9 @@ public class IndexIterator implements CloseableIterator<Traverser> {
                          final FireflyIndexMetadata.IndexInfo indexInfo,
                          final Iterator<Row> iterator,
                          final Traversal traversal,
-                         final TraversalMatrix tm,
                          final TraverserGenerator tg) {
         this.graphStep = graphStep;
         this.tg = tg;
-        this.tm = tm;
         this.indexInfo = indexInfo;
         this.graph = graph;
         this.filter = GraphQueryHelper.predicateToFilter(graph.getBaseGraph(), hasContainer.getPredicate(), indexInfo);

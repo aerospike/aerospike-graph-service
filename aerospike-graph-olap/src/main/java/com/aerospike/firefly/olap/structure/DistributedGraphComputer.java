@@ -5,26 +5,27 @@ import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.olap.config.DistributedConfiguration;
 import com.aerospike.firefly.olap.helper.AttachmentHelper;
+import com.aerospike.firefly.olap.process.FireflyProgram;
 import com.aerospike.firefly.olap.process.TraversalProgram;
+import com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.strategy.verification.FireflyComputerVerificationStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
+import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.tinkerpop.gremlin.process.computer.ComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
-import org.apache.spark.SparkConf;
-import org.apache.spark.sql.SparkSession;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
-import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.strategy.optimization.MessagePassingReductionStrategy;
 import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
@@ -38,7 +39,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTrav
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
@@ -66,6 +66,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
+import static com.aerospike.firefly.olap.process.ProgramHelper.createVertexProgram;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
@@ -78,7 +79,7 @@ public class DistributedGraphComputer implements GraphComputer {
     private Persist persist = null;
     private SparkSession spark = null;
 
-    private VertexProgram<?> vertexProgram;
+    private FireflyProgram vertexProgram;
     private final FireflyGraph graph;
     private final Set<MapReduce> mapReducers = new HashSet<>();
     private int workers = -1;
@@ -122,7 +123,7 @@ public class DistributedGraphComputer implements GraphComputer {
 
         // Get config from traversal.
         final Map<String, Object> traversalOptions = new HashMap<>();
-        ((TraversalProgram) this.vertexProgram).getTraversal().get().getStrategies().
+        this.vertexProgram.getTraversal().get().getStrategies().
                 getStrategy(OptionsStrategy.class).ifPresent(
                         optionsStrategy -> traversalOptions.putAll(optionsStrategy.getOptions()));
 
@@ -184,11 +185,8 @@ public class DistributedGraphComputer implements GraphComputer {
 
     @Override
     public GraphComputer program(final VertexProgram vertexProgram) {
-        if (!(vertexProgram instanceof TraversalVertexProgram)) {
-            throw new IllegalArgumentException("Only TraversalVertexProgram supported, please contact support.");
-        }
+        this.vertexProgram = createVertexProgram(vertexProgram, graph);
 
-        this.vertexProgram = new TraversalProgram((TraversalVertexProgram) vertexProgram);
         return this;
     }
 
@@ -368,11 +366,15 @@ public class DistributedGraphComputer implements GraphComputer {
     // Some hardcore stuff.
     ////
     private ComputerResult submitJob() {
+        final DistributedAerospikeConnection db = new DistributedAerospikeConnection(graph.getBaseGraph(), 0, 0);
+
         try {
             final DistributedConfigHelper configHelper = generateConfigHelper();
             System.out.println("Configuration: " + Arrays.toString(spark.sparkContext().getConf().getAll()));
 
-            final PureTraversal<?, ?> traversal = ((TraversalProgram) vertexProgram).getTraversal().clone();
+            db.truncateOlapSet();
+
+            final PureTraversal<?, ?> traversal = vertexProgram.getTraversal().clone();
 
             // TODO Configurable page size w/ ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE
             // TODO: Ultimately reworking this logic so that we can distribute the partition to the spark workers to run a sindex again
@@ -399,7 +401,7 @@ public class DistributedGraphComputer implements GraphComputer {
             }
             System.out.println("===== " + graphStep + " " + graphStep.returnsVertex() + " ===== " + pureTraversal.asAdmin().getSteps());
 
-            final Codec codec = new Codec(pureTraversal);
+            final Codec codec = vertexProgram.getCodec();
 
             // Create basic schema.
             final StructType schema = codec.getSchema();
@@ -407,6 +409,7 @@ public class DistributedGraphComputer implements GraphComputer {
             // Create necessary things for execution (Memory, ResultGraph, Config, etc.)
             this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
             final DistributedMemory memory = new DistributedMemory(this.vertexProgram, this.mapReducers, new JavaSparkContext(spark.sparkContext()));
+            memory.setGraph(graph);
             final DistributedConfiguration vertexProgramConfiguration = new DistributedConfiguration();
             this.vertexProgram.storeState(vertexProgramConfiguration);
             this.vertexProgram.setup(memory);
@@ -432,7 +435,6 @@ public class DistributedGraphComputer implements GraphComputer {
                         graphStep.getHasContainers(),
                         graphStep.getIds(),
                         traversal.get(),
-                        schema,
                         maxParallelSindexes,
                         iterationCount == 1,
                         df,
@@ -443,8 +445,9 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 if (configHelper.isDebugDf()) {
                     df.show();
+                    System.out.println(memory.getIteration() + " ==================> TOTAL COUNT: " + df.count());
                 }
-                System.out.println("==================> TOTAL COUNT: " + df.count());
+
                 memory.setInExecute(false);
 
                 final Dataset<Row> resultsTemp = magicSwap(
@@ -472,6 +475,11 @@ public class DistributedGraphComputer implements GraphComputer {
                 if (this.vertexProgram.terminate(memory) || df.limit(1).isEmpty()) {
                     // Need to be very careful with this stuff. Spark is LAZY. It doesn't execute unless forced, so if we incr at the wrong time there is problems.
                     memory.incrIteration();
+
+                    if (!(this.vertexProgram instanceof TraversalProgram)) {
+                        results = df;
+                    }
+
                     break;
                 } else {
                     memory.incrIteration();
@@ -491,16 +499,15 @@ public class DistributedGraphComputer implements GraphComputer {
             final List<Row> rows = results.collectAsList();
 
             // Create traversers.
-            final TraversalMatrix traversalMatrix = new TraversalMatrix<>(pureTraversal.asAdmin());
-            rows.stream().forEach(row -> {
-                traversers.add(codec.decode(row, traverserGenerator, traversalMatrix).asAdmin());
-            });
+            rows.stream().forEach(row -> traversers.add(codec.decode(row).asAdmin()));
             System.out.println("Results: " + rows.size());
 
             if (configHelper.isDebugDf()) {
                 System.out.println("Traversers: " + traversers);
             }
-            AttachmentHelper.makeDetachedElements((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(), traversers);
+            AttachmentHelper.makeDetachedElements(graph, traversers);
+            //  remove temporary compute properties
+            vertexProgram.postProcessResults(traversers);
 
             // Set all traversers as halted and complete memory.
             memory.set(HALTED_TRAVERSERS, traversers);
@@ -530,6 +537,7 @@ public class DistributedGraphComputer implements GraphComputer {
         } finally {
             // memory.complete ?
             FireflyHelper.dropGraphComputerView(this.graph);
+            db.truncateOlapSet();
         }
     }
 

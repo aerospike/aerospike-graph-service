@@ -2,7 +2,9 @@ package com.aerospike.firefly.olap.structure;
 
 import com.aerospike.firefly.olap.helper.AttachmentHelper;
 import com.aerospike.firefly.olap.helper.TaskLogger;
+import com.aerospike.firefly.olap.process.FireflyProgram;
 import com.aerospike.firefly.olap.process.TraversalProgram;
+import com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
@@ -39,13 +41,13 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     public final Map<String, MemoryComputeKey> memoryComputeKeys = new HashMap<>();
     private final Map<String, AccumulatorV2<DistributedMemoryEntry, DistributedMemoryEntry>> sparkMemory = new HashMap<>();
     private final AtomicInteger iteration = new AtomicInteger(0);
-    private final AtomicLong runtime = new AtomicLong(0l);
+    private final AtomicLong runtime = new AtomicLong(0L);
     private Broadcast<Map<String, Object>> broadcast;
     private boolean inExecute = false;
-    private transient FireflyGraph graph;
+    private transient DistributedAerospikeConnection db;
 
     public DistributedMemory(final VertexProgram<?> vertexProgram, final Set<MapReduce> mapReducers, final JavaSparkContext sparkContext) {
-        TraversalProgram program = (TraversalProgram) vertexProgram;
+        FireflyProgram program = (FireflyProgram) vertexProgram;
         if (null != vertexProgram) {
             for (final MemoryComputeKey key : vertexProgram.getMemoryComputeKeys()) {
                 this.memoryComputeKeys.put(key.getKey(), key);
@@ -57,10 +59,11 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         this.broadcast = sparkContext.broadcast(Collections.emptyMap());
         for (final MemoryComputeKey memoryComputeKey : this.memoryComputeKeys.values()) {
             final AccumulatorV2<DistributedMemoryEntry, DistributedMemoryEntry> accumulator = new DistributedAccumulator<>(memoryComputeKey);
-            if (memoryComputeKey.getKey().endsWith("-accumulator")) {
-                final TraversalMatrix tm = program.getTraversalMatrix();
+            if (program instanceof TraversalProgram && memoryComputeKey.getKey().endsWith("-accumulator")) {
+                final TraversalMatrix tm = ((TraversalProgram) program).getTraversalMatrix();
                 final RangeGlobalStep step = (RangeGlobalStep) tm.getStepById(memoryComputeKey.getKey().substring(0, memoryComputeKey.getKey().length() - "-accumulator".length()));
-                ((FireflyGraph) program.getTraversal().get().getGraph().get()).getBaseGraph().setLimitBin("limit", step.getHighRange());
+                this.db = new DistributedAerospikeConnection(((FireflyGraph) program.getTraversal().get().getGraph().get()));
+                this.db.setAccumulator("limit", step.getHighRange());
             }
             JavaSparkContext.toSparkContext(sparkContext).register(accumulator, memoryComputeKey.getKey());
             this.sparkMemory.put(memoryComputeKey.getKey(), accumulator);
@@ -68,7 +71,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     }
 
     public void setGraph(final FireflyGraph graph) {
-        this.graph = graph;
+        this.db = new DistributedAerospikeConnection(graph);
     }
 
     @Override
@@ -88,6 +91,14 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     @Override
     public void incrIteration() {
         this.iteration.getAndIncrement();
+
+        // copy accumulator values for new iteration
+        for (final String key : this.memoryComputeKeys.keySet()) {
+            // !this.memoryComputeKeys.get(key).isTransient() &&
+            if (this.memoryComputeKeys.get(key).isBroadcast()) {
+                copyFromPreviousIteration(key);
+            }
+        }
     }
 
     @Override
@@ -100,6 +111,22 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         return this.iteration.get();
     }
 
+    public String previousKey(final String key) {
+        // used to copy value from previous iteration
+        return key + (this.iteration.get() % 2 == 0 ? 1 : 0);
+    }
+
+    public String readKey(final String key) {
+        // if in execute then read previous value
+        final int n = this.iteration.get() + (inExecute ? 1 : 0);
+        return key + (n % 2 == 0 ? 0 : 1);
+    }
+
+    public String writeKey(final String key) {
+        // write always to current record
+        return key + (this.iteration.get() % 2 == 0 ? 0 : 1);
+    }
+
     @Override
     public void setRuntime(final long runTime) {
         this.runtime.set(runTime);
@@ -108,6 +135,16 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     @Override
     public long getRuntime() {
         return this.runtime.get();
+    }
+
+    private void copyFromPreviousIteration(final String key) {
+        if (key.endsWith("~L")) {
+            final Long value = db.getAccumulatorLong(previousKey(key));
+            db.setAccumulator(writeKey(key), value);
+        } else if (key.endsWith("~D")) {
+            final Double value = db.getAccumulatorDouble(previousKey(key));
+            db.setAccumulator(writeKey(key), value);
+        }
     }
 
     @Override
@@ -120,13 +157,17 @@ public class DistributedMemory implements Memory.Admin, Serializable {
             throw Memory.Exceptions.memoryDoesNotExist(key);
 
         if (key.endsWith("-accumulator")) {
-            return (R) graph.getBaseGraph().getLimitBin("limit");
+            return (R) db.getAccumulatorLong("limit");
+        }
+        if (key.endsWith("~L")) {
+            return (R) db.getAccumulatorLong(readKey(key));
+        }
+        if (key.endsWith("~D")) {
+            return (R) db.getAccumulatorDouble(readKey(key));
         }
 
         final DistributedMemoryEntry<R> r = (DistributedMemoryEntry<R>) (this.inExecute ? this.broadcast.value().get(key) : this.sparkMemory.get(key).value());
         if (null == r || r.isEmpty()) {
-            // gremlin.traversalVertexProgram.completedBarriers
-            //
             throw Memory.Exceptions.memoryDoesNotExist(key);
         } else {
             final R rr = r.get();
@@ -142,7 +183,15 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     public void add(final String key, final Object value) {
         checkKeyValue(key, value);
         if (key.endsWith("-accumulator")) {
-            graph.getBaseGraph().addLimitBin("limit", (long) value);
+            db.addAccumulator("limit", (long) value);
+            return;
+        }
+        if (key.endsWith("~L")) {
+            db.addAccumulator(writeKey(key), (Long) value);
+            return;
+        }
+        if (key.endsWith("~D")) {
+            db.addAccumulator(writeKey(key), (Double) value);
             return;
         }
 
@@ -158,7 +207,16 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     @Override
     public void set(final String key, Object value) {
         if (key.endsWith("-accumulator")) {
-            throw new IllegalStateException("Cant set aerospike compute key.");
+            db.setAccumulator("limit", (Long) value);
+            return;
+        }
+        if (key.endsWith("~L")) {
+            db.setAccumulator(writeKey(key), (Long) value);
+            return;
+        }
+        if (key.endsWith("~D")) {
+            db.setAccumulator(writeKey(key), (Double) value);
+            return;
         }
 
         if (value instanceof IndexedTraverserSet.VertexIndexedTraverserSet) {

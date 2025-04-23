@@ -89,11 +89,11 @@ public class AttachmentHelper {
                                        final Map<Object, Element> vertexCache,
                                        final Map<Object, Element> edgeCache) {
         if (object instanceof Vertex) {
-            return vertexCache.getOrDefault(((Vertex) object).id(), (Vertex)object);
+            return vertexCache.getOrDefault(((Vertex) object).id(), (Vertex) object);
         } else if (object instanceof Edge) {
-            return edgeCache.getOrDefault(((Edge) object).id(), (Edge)object);
+            return edgeCache.getOrDefault(((Edge) object).id(), (Edge) object);
         } else if (object instanceof VertexProperty) {
-            if(vertexCache.containsKey(((VertexProperty) object).element().id())) {
+            if (vertexCache.containsKey(((VertexProperty) object).element().id())) {
                 final Vertex vertex = (Vertex) vertexCache.get(((VertexProperty) object).element().id());
                 final Iterator<VertexProperty<Object>> itty = vertex.properties();
                 while (itty.hasNext()) {
@@ -246,8 +246,8 @@ public class AttachmentHelper {
     }
 
     private static Path buildPath(final Path path,
-                                   final Map<Object, Element> vertexCache,
-                                   final Map<Object, Element> edgeCache) {
+                                  final Map<Object, Element> vertexCache,
+                                  final Map<Object, Element> edgeCache) {
         if (path == null || path.isEmpty())
             return path;
 
@@ -271,7 +271,18 @@ public class AttachmentHelper {
 
     public static void makeDetachedElements(final FireflyGraph graph,
                                             final TraverserSet<Object> traversers) {
-        bulkAttach(graph,  EmptyTraversalSideEffects.instance(), traversers);
+        // no need to make detached elements if already
+        boolean allDetached = true;
+        for (final Traverser element : traversers) {
+            if (!(element.get() instanceof DetachedVertex)) {
+                allDetached = false;
+                break;
+            }
+        }
+
+        if (allDetached) return;
+
+        bulkAttach(graph, EmptyTraversalSideEffects.instance(), traversers);
         // for TraverserSet detach modify incoming object
         detach(traversers, false);
     }

@@ -48,7 +48,7 @@ public class BulkRowSetTest {
 
             // Create a BulkedRowSet instance
 
-            final Codec codec = new Codec(t);
+            final Codec codec = new TraverserCodec(t);
             final BulkedRowSet bulkedRowSet = new BulkedRowSet(codec);
 
             // Add some rows to the set

@@ -6,6 +6,7 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyBatc
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyBatchEdgeReadStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyBatchVertexReadLocalStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyBatchVertexReadStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyComputerStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyCountGlobalLocalStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyEdgeToVertexBatchReadStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
@@ -37,6 +38,7 @@ public class FireflyStrategyUtil {
 
         // Steps that override the entire step list first.
         FIREFLY_STRATEGIES.add(new FireflyGraphDropStrategy());
+        FIREFLY_STRATEGIES.add(FireflyComputerStrategy.instance());
         FIREFLY_STRATEGIES.add(new FireflyCountGlobalLocalStrategy());
         FIREFLY_STRATEGIES.add(new FireflyGraphCountStrategy());
 

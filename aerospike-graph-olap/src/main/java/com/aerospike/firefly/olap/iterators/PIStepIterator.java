@@ -54,7 +54,6 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
     final FireflyIndexMetadata.IndexInfo indexInfo;
     private final GraphStep graphStep;
     final Traverser start;
-    final TraversalMatrix tm;
     PageFetcher<?> pageFetcher = null;
     PageFetcher.Page page = null;
     final FireflyId inputVertexId;
@@ -72,12 +71,10 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
                           final FireflyIndexMetadata.IndexInfo indexInfo,
                           final List<Row> rows,
                           final Traversal traversal,
-                          final TraversalMatrix tm,
                           final Traverser start,
                           final Direction direction) {
         this.graphStep = graphStep;
         this.start = start;
-        this.tm = tm;
         this.indexInfo = indexInfo;
         this.graph = graph;
         this.rows = rows;

@@ -1,10 +1,18 @@
-package com.aerospike.firefly.olap.process;
+package com.aerospike.firefly.olap.helper;
 
+import com.aerospike.firefly.olap.process.ConnectedComponentProgram;
+import com.aerospike.firefly.olap.process.FireflyProgram;
+import com.aerospike.firefly.olap.process.PageRankProgram;
+import com.aerospike.firefly.olap.process.PeerPressureProgram;
+import com.aerospike.firefly.olap.process.TraversalProgram;
 import com.aerospike.firefly.process.computer.VertexProgramConfig;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.clustering.connected.ConnectedComponentVertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.clustering.peerpressure.PeerPressureVertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.ranking.pagerank.PageRankVertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -12,15 +20,17 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.B_O_TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
+import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -52,6 +62,9 @@ public class ProgramHelper {
             }
             if (config.get(VERTEX_PROGRAM).equals(ConnectedComponentVertexProgram.class.getName())) {
                 return new ConnectedComponentProgram(config, graph);
+            }
+            if (config.get(VERTEX_PROGRAM).equals(PeerPressureVertexProgram.class.getName())) {
+                return new PeerPressureProgram(config, graph);
             }
 
             throw new IllegalArgumentException("Unsupported program " + config.get(VERTEX_PROGRAM) + ", please contact support.");
@@ -97,5 +110,17 @@ public class ProgramHelper {
             traversers.clear();
             traversers.addAll(result);
         }
+    }
+
+    public static List<String> getVertexIds(final Vertex vertex, final String propertyName, final Direction direction) {
+        if (vertex instanceof DetachedVertex) {
+            return (List<String>) vertex.property(propertyName).value();
+        }
+        final List<FireflyId> cachedIds = IteratorUtils.asList(
+                ((FireflyVertex) vertex).getVertexIdsFromVertex(direction, Collections.emptySet()));
+
+        final List<String> vertexIds = new ArrayList<>(cachedIds.size());
+        cachedIds.forEach(id -> vertexIds.add(id.toString()));
+        return vertexIds;
     }
 }

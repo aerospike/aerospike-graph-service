@@ -32,8 +32,8 @@ import java.util.List;
 import java.util.Set;
 
 import static com.aerospike.firefly.olap.codec.ConnectedComponentCodec.connectedVertexIds;
-import static com.aerospike.firefly.olap.process.ProgramHelper.executeVertexProgram;
-import static com.aerospike.firefly.olap.process.ProgramHelper.removeTemporaryProperties;
+import static com.aerospike.firefly.olap.helper.ProgramHelper.executeVertexProgram;
+import static com.aerospike.firefly.olap.helper.ProgramHelper.removeTemporaryProperties;
 import static com.aerospike.firefly.process.computer.VertexProgramConfig.TRAVERSAL_VERTEX_PROGRAM_STEP;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
@@ -148,6 +148,7 @@ public class ConnectedComponentProgram implements FireflyProgram {
         return codec;
     }
 
+    @Override
     public PureTraversal<?, ?> getTraversal() {
         return graphTraversal;
     }

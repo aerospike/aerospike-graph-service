@@ -4,6 +4,7 @@ import com.aerospike.firefly.process.traversal.step.computer.VertexProgramProxyS
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.ComputerResultStep;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.ConnectedComponentVertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.PageRankVertexProgramStep;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.PeerPressureVertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.TraversalVertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.VertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -52,7 +53,9 @@ public class FireflyComputerStrategy extends FireflyStrategyBase {
     }
 
     private boolean isSupportedStep(final Step step) {
-        return step instanceof PageRankVertexProgramStep || step instanceof ConnectedComponentVertexProgramStep;
+        return step instanceof PageRankVertexProgramStep
+                || step instanceof ConnectedComponentVertexProgramStep
+                || step instanceof PeerPressureVertexProgramStep;
     }
 
     public static FireflyComputerStrategy instance() {

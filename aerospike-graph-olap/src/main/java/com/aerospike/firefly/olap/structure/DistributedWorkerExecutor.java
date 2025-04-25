@@ -54,7 +54,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.getIdType;
-import static com.aerospike.firefly.olap.process.ProgramHelper.createVertexProgram;
+import static com.aerospike.firefly.olap.helper.ProgramHelper.createVertexProgram;
 import static com.aerospike.firefly.olap.structure.DistributedGraphComputer.magicSwap;
 
 public class DistributedWorkerExecutor {

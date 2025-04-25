@@ -26,6 +26,7 @@ import java.util.List;
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.getId;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.getIdType;
+import static com.aerospike.firefly.olap.helper.ProgramHelper.getVertexIds;
 import static com.aerospike.firefly.olap.process.ConnectedComponentProgram.CONNECTED_VERTICES;
 import static com.aerospike.firefly.olap.process.ConnectedComponentProgram.property;
 
@@ -92,14 +93,6 @@ public class ConnectedComponentCodec implements Codec {
     }
 
     public static List<String> connectedVertexIds(final Vertex vertex) {
-        if (vertex instanceof DetachedVertex) {
-            return (List<String>) vertex.property(CONNECTED_VERTICES).value();
-        }
-        final List<FireflyId> cachedIds = IteratorUtils.asList(
-                ((FireflyVertex) vertex).getVertexIdsFromVertex(Direction.BOTH, Collections.emptySet()));
-
-        final List<String> connectedVertexIds = new ArrayList<>(cachedIds.size());
-        cachedIds.forEach(id -> connectedVertexIds.add(id.toString()));
-        return connectedVertexIds;
+        return getVertexIds(vertex, CONNECTED_VERTICES, Direction.BOTH);
     }
 }

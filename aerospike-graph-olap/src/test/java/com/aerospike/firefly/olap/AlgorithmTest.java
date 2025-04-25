@@ -2,15 +2,16 @@ package com.aerospike.firefly.olap;
 
 import com.aerospike.firefly.olap.process.ConnectedComponentProgram;
 import com.aerospike.firefly.olap.process.PageRankProgram;
+import com.aerospike.firefly.olap.process.PeerPressureProgram;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.PeerPressure;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -41,7 +42,7 @@ public class AlgorithmTest {
                     .V().pageRank()
                     .toList();
 
-            Assert.assertEquals(6L, output.size());
+            assertEquals(6L, output.size());
             final Vertex v1 = output .stream().filter(v -> v.id().equals(1)).findFirst().get();
             //precision is PageRankProgram.epsilon
             assertEquals(0.113755d, (Double) v1.value(PageRankProgram.property), 0.00001d);
@@ -62,7 +63,7 @@ public class AlgorithmTest {
                     .elementMap()
                     .toList();
 
-            Assert.assertEquals(3L, output.size());
+            assertEquals(3L, output.size());
             final Map v1 = output.stream().filter(v -> v.get(T.id).equals(1)).findFirst().get();
             //precision is PageRankProgram.epsilon
             assertEquals(0.113755d, (Double) v1.get(PageRankProgram.property), 0.00001d);
@@ -84,7 +85,7 @@ public class AlgorithmTest {
                     .V().connectedComponent()
                     .toList();
 
-            Assert.assertEquals(6L, output.size());
+            assertEquals(6L, output.size());
 
             final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
             final Vertex v5 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
@@ -112,7 +113,7 @@ public class AlgorithmTest {
                     .elementMap()
                     .toList();
 
-            Assert.assertEquals(3L, output.size());
+            assertEquals(3L, output.size());
 
             final Map v1 = output.stream().filter(v -> v.get(T.id).equals(1)).findFirst().get();
             final Map v5 = output.stream().filter(v -> v.get(T.id).equals(1)).findFirst().get();
@@ -121,6 +122,53 @@ public class AlgorithmTest {
             assertEquals(v1.get(T.id).toString(), v1.get(ConnectedComponentProgram.property));
             assertEquals(v1.get(T.id).toString(), v5.get(ConnectedComponentProgram.property));
             assertEquals(v6.get(T.id).toString(), v6.get(ConnectedComponentProgram.property));
+        }
+    }
+
+    @Test
+    public void testPeerPressureWithFilter() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            List<Map<Object, Object>> output = graph.traversal().withComputer()
+                    .V(1,5,6).peerPressure().elementMap().toList();
+
+            assertEquals(3, output.size());
+
+            final Map v1 = output.stream().filter(v -> v.get(T.id).equals(1)).findFirst().get();
+            final Map v5 = output.stream().filter(v -> v.get(T.id).equals(1)).findFirst().get();
+            final Map v6 = output.stream().filter(v -> v.get(T.id).equals(1)).findFirst().get();
+            //v1 and v5 are in same group, v6 separate
+            assertEquals(v1.get(T.id).toString(), v1.get(PeerPressureProgram.property));
+            assertEquals(v1.get(T.id).toString(), v5.get(PeerPressureProgram.property));
+            assertEquals(v6.get(T.id).toString(), v6.get(PeerPressureProgram.property));
+        }
+    }
+
+    @Test
+    public void testPeerPressureWithCustomPropertyName() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            List<Map<Object, Object>> output = graph.traversal().withComputer()
+                    .V(1,5,6).peerPressure().with(PeerPressure.propertyName, "test_name")
+                    .elementMap().toList();
+
+            assertEquals(3, output.size());
+
+            final Map v1 = output.stream().filter(v -> v.get(T.id).equals(1)).findFirst().get();
+            final Map v5 = output.stream().filter(v -> v.get(T.id).equals(1)).findFirst().get();
+            final Map v6 = output.stream().filter(v -> v.get(T.id).equals(1)).findFirst().get();
+            //v1 and v5 are in same group, v6 separate
+            assertEquals(v1.get(T.id).toString(), v1.get("test_name"));
+            assertEquals(v1.get(T.id).toString(), v5.get("test_name"));
+            assertEquals(v6.get(T.id).toString(), v6.get("test_name"));
         }
     }
 

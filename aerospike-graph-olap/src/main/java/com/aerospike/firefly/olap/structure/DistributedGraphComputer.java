@@ -32,10 +32,7 @@ import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
-import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.DefaultTraverserGeneratorFactory;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
@@ -66,7 +63,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
-import static com.aerospike.firefly.olap.process.ProgramHelper.createVertexProgram;
+import static com.aerospike.firefly.olap.helper.ProgramHelper.createVertexProgram;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
@@ -386,10 +383,6 @@ public class DistributedGraphComputer implements GraphComputer {
             // Get traversal and apply strategies.
             final Traversal pureTraversal = traversal.getPure().asAdmin().clone();
             pureTraversal.asAdmin().applyStrategies();
-
-            // Get TraverseRequirements and TraverserGenerator, this will be useful later when we go to traverser based approach.
-            final Set<TraverserRequirement> traverserRequirements = pureTraversal.asAdmin().getTraverserRequirements();
-            final TraverserGenerator traverserGenerator = DefaultTraverserGeneratorFactory.instance().getTraverserGenerator(traverserRequirements);
 
             final Step<?, ?> firstStep = pureTraversal.asAdmin().getStartStep();
             if (!(firstStep instanceof FireflyGraphStep)) {

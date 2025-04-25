@@ -34,8 +34,8 @@ import java.util.List;
 import java.util.Set;
 
 import static com.aerospike.firefly.olap.codec.PageRankCodec.getOutVertexIds;
-import static com.aerospike.firefly.olap.process.ProgramHelper.executeVertexProgram;
-import static com.aerospike.firefly.olap.process.ProgramHelper.removeTemporaryProperties;
+import static com.aerospike.firefly.olap.helper.ProgramHelper.executeVertexProgram;
+import static com.aerospike.firefly.olap.helper.ProgramHelper.removeTemporaryProperties;
 import static com.aerospike.firefly.process.computer.VertexProgramConfig.TRAVERSAL_VERTEX_PROGRAM_STEP;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
@@ -132,10 +132,10 @@ public class PageRankProgram implements FireflyProgram {
                 pageRank = pageRank + localTerminalEnergy;
                 memory.add(TELEPORTATION_ENERGY, -localTerminalEnergy);
             }
-            final double previousPageRank = vertex.<Double>property(this.property).orElse(0.0d);
+            final double previousPageRank = vertex.<Double>property(property).orElse(0.0d);
             memory.add(CONVERGENCE_ERROR, Math.abs(pageRank - previousPageRank));
 
-            final MutableDetachedVertexProperty p = (MutableDetachedVertexProperty) vertex.properties(this.property).next();
+            final MutableDetachedVertexProperty p = (MutableDetachedVertexProperty) vertex.properties(property).next();
             p.setValue(pageRank);
 
             memory.add(TELEPORTATION_ENERGY, (1.0d - this.alpha) * pageRank);
@@ -162,7 +162,7 @@ public class PageRankProgram implements FireflyProgram {
         final List<String> outVertices = getOutVertexIds(vertex);
 
         final DetachedVertexProperty outVertexProperty = new DetachedVertexProperty(null, OUT_VERTICES, outVertices, null);
-        final MutableDetachedVertexProperty pagerankProperty = new MutableDetachedVertexProperty(null, PageRankProgram.PAGE_RANK, 0.0, null);
+        final MutableDetachedVertexProperty pagerankProperty = new MutableDetachedVertexProperty(null, property, 0.0, null);
 
         return new DetachedVertex(vertex.id(), "", List.of(outVertexProperty, pagerankProperty));
     }
@@ -172,6 +172,7 @@ public class PageRankProgram implements FireflyProgram {
         return codec;
     }
 
+    @Override
     public PureTraversal<?, ?> getTraversal() {
         return graphTraversal;
     }
@@ -200,7 +201,7 @@ public class PageRankProgram implements FireflyProgram {
         this.alpha = configuration.getDouble(ALPHA, this.alpha);
         this.epsilon = configuration.getDouble(EPSILON, this.epsilon);
         this.maxIterations = configuration.getInt(MAX_ITERATIONS, 20);
-        this.property = configuration.getString(PROPERTY, PAGE_RANK);
+        property = configuration.getString(PROPERTY, PAGE_RANK);
         this.memoryComputeKeys = new HashSet<>(Arrays.asList(
                 MemoryComputeKey.of(TELEPORTATION_ENERGY, Operator.sum, true, true),
                 MemoryComputeKey.of(VERTEX_COUNT, Operator.sumLong, true, false),
@@ -218,7 +219,7 @@ public class PageRankProgram implements FireflyProgram {
         FireflyProgram.super.storeState(configuration);
         configuration.setProperty(ALPHA, this.alpha);
         configuration.setProperty(EPSILON, this.epsilon);
-        configuration.setProperty(PROPERTY, this.property);
+        configuration.setProperty(PROPERTY, property);
         configuration.setProperty(MAX_ITERATIONS, this.maxIterations);
         if (null != this.edgeTraversal)
             this.edgeTraversal.storeState(configuration, EDGE_TRAVERSAL);

@@ -1,11 +1,18 @@
 package com.aerospike.firefly.bulkloader.statemachine.states;
 
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
+import com.aerospike.firefly.bulkloader.util.ProgressBar;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
+
 public class SparkBulkLoaderStateWriteEdges extends SparkBulkLoaderState {
+    private final ProgressBar progressBar;
+
     public SparkBulkLoaderStateWriteEdges(final SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine) {
         super(sparkBulkLoaderStateMachine);
+        this.progressBar = sparkBulkLoaderStateMachine.progressBar;
     }
 
     @Override
@@ -16,15 +23,25 @@ public class SparkBulkLoaderStateWriteEdges extends SparkBulkLoaderState {
         }
 
         // Write edges to Aerospike.
+        // Clear incomplete partition data from summary updater in case we're resuming from a previously failed load.
+        sparkBulkLoaderStateMachine.initializerGraph.fireflySummaryUpdater.clearEdgePartitionData();
         sparkBulkLoaderStateMachine.edgeOperations.writeEdgeToDB(
                 sparkBulkLoaderStateMachine.edgeDataset,
                 sparkBulkLoaderStateMachine.completedEdgePartitions,
                 sparkBulkLoaderStateMachine.readOnly);
         sparkBulkLoaderStateMachine.progressBar.setEdgeLoadComplete();
+        sparkBulkLoaderStateMachine.initializerGraph.fireflySummaryUpdater.clearEdgePartitionData();
     }
 
     @Override
     public SparkBulkLoaderState transitionState() {
         return new SparkBulkLoaderStateVerifyEdges(sparkBulkLoaderStateMachine);
+    }
+
+    @Override
+    protected BulkLoadStateStatusMap getStateMap() {
+        return new BulkLoadStateStatusMap("writing edges", false, BULK_LOAD_STATUS_IN_PROGRESS,
+                this.progressBar.getEdgePartitionWritePercentage(),
+                this.progressBar.getEdgesWritten());
     }
 }

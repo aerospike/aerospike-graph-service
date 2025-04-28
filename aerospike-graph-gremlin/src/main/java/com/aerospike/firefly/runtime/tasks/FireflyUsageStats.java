@@ -40,10 +40,12 @@ public class FireflyUsageStats {
     }
 
     private void init(final AerospikeConnection connection) {
-        final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(connection, connection.USAGE_STATS_SET);
-        for (final String index : setIndex) {
-            if (!"ok".equals(index)) {
-                LOG.error("Error creating set index: {}", index);
+        if (connection.shouldCreateIndexes()) {
+            final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(connection, connection.USAGE_STATS_SET);
+            for (final String index : setIndex) {
+                if (!"ok".equals(index)) {
+                    LOG.error("Error creating set index: {}", index);
+                }
             }
         }
 

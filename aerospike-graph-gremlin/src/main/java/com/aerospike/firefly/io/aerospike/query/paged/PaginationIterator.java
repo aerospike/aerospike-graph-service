@@ -3,6 +3,8 @@ package com.aerospike.firefly.io.aerospike.query.paged;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.NoSuchElementException;
 import java.util.Queue;
@@ -11,6 +13,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class PaginationIterator<E> implements CloseableIterator<E> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PaginationIterator.class);
     private boolean isClosed = false;
     private final Queue<E> queue = new ConcurrentLinkedQueue<>();
     private CountDownLatch latch = new CountDownLatch(1);

@@ -7,9 +7,9 @@ import java.util.Set;
 
 public class BulkLoaderServiceErrors<I, R> extends BulkLoaderServiceBase<I, R> {
     private static final String KEY = "type";
-    private static final String DUPLICATE_VID = "duplicate-vertex-ids";
-    private static final String BAD_ENTRY = "bad-entries";
-    private static final String BAD_EDGE = "bad-edges";
+    public static final String DUPLICATE_VID = "duplicate-vertex-ids";
+    public static final String BAD_ENTRY = "bad-entries";
+    public static final String BAD_EDGE = "bad-edges";
     private static final Set<String> VALUES = Set.of(DUPLICATE_VID, BAD_ENTRY, BAD_EDGE);
 
     public BulkLoaderServiceErrors(final FireflyGraph graph) {
@@ -27,9 +27,9 @@ public class BulkLoaderServiceErrors<I, R> extends BulkLoaderServiceBase<I, R> {
                 "\tExpected argument key '%s' with value of any of '%s'.\n" +
                 "\tProvided argument: '%s'.\n" +
                 "\tExamples of correct usage:\n" +
-                "\t\tg.call(\"%s\").with(\"%s\").next();\n" +
-                "\t\tg.call(\"%s\").with(\"%s\").next();\n" +
-                "\t\tg.call(\"%s\").with(\"%s\").next();\n",
+                "\t\tg.call(\"%s\").with(\"%s\", \"%s\").next();\n" +
+                "\t\tg.call(\"%s\").with(\"%s\", \"%s\").next();\n" +
+                "\t\tg.call(\"%s\").with(\"%s\", \"%s\").next();\n",
                 getName(), KEY, VALUES, params,
                 getName(), KEY, BAD_ENTRY,
                 getName(), KEY, DUPLICATE_VID,
@@ -52,7 +52,7 @@ public class BulkLoaderServiceErrors<I, R> extends BulkLoaderServiceBase<I, R> {
         } else {
             // This should never happen since it's already safety checked via sanitization.
             throw new IllegalStateException(
-                    "Invalid \"" + KEY + "\" detected for \"aerospike.graphloader.admin.bulk-load.errors\": '" + params.get(KEY) + "'.");
+                    "Invalid \"" + KEY + "\" detected for \"" + getName() + "\": '" + params.get(KEY) + "'.");
         }
     }
 

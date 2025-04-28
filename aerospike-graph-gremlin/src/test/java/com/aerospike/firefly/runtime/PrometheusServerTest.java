@@ -21,7 +21,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 import static org.junit.Assert.assertTrue;
 
 public class PrometheusServerTest {
-    private static final int PORT = 9094;
+    private static final int PORT = 9098;
 
     @Test
     public void testMetrics() {

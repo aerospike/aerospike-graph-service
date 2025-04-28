@@ -32,9 +32,14 @@ public class FireflyServer {
     private CompletableFuture<Void> serverStarted = null;
     private CompletableFuture<Void> serverStopped = null;
     private ServerMetrics serverMetrics;
+    private static Object sparkSession;
 
     public FireflyServer(final String file) {
         confPath = file;
+    }
+
+    public static void setSpark(final Object sparkSession) {
+        FireflyServer.sparkSession = sparkSession;
     }
 
     public static void main(final String[] args) {
@@ -43,6 +48,7 @@ public class FireflyServer {
 
     public static FireflyServer start(final String[] args) {
         if (args.length != 1) {
+            logger.error("FireflyServer failed to start, no configuration file provided.");
             System.err.println("Usage: Server <conf file>");
             System.exit(1);
         }
@@ -75,6 +81,7 @@ public class FireflyServer {
             final Set<String> graphs = graphManager.getGraphNames();
             for (final String graphName : graphs) {
                 final FireflyGraph graph = (FireflyGraph) graphManager.getGraph(graphName);
+                graph.setSparkSession(sparkSession);
                 String gts = graph.configuration().getString(TRAVERSAL_NAME);
                 if (gts == null) {
                     // default gts for default graph
@@ -88,13 +95,11 @@ public class FireflyServer {
                 // let's graph know his config file path to use with bulk loader
                 graph.setConfigFilePath(settings.graphs.get(graphName));
 
-                if (FireflyGraph.NEED_PREHEAT) {
-                    final boolean needPreheat = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, graph.configuration());
-                    if (needPreheat) {
-                        WarmupUtil.create(graph.configuration()).preheat(WarmupUtil.passes);
-                        FireflyGraph.NEED_PREHEAT = false;
-                        logger.info("Warmup is complete.");
-                    }
+                if (FireflyGraph.NEED_PREHEAT && ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, graph.configuration())) {
+                    logger.info("Starting warmup...");
+                    WarmupUtil.create(graph.configuration()).preheat(WarmupUtil.passes);
+                    FireflyGraph.NEED_PREHEAT = false;
+                    logger.info("Warmup is complete.");
                 }
             }
             FireflyGraph.NEED_PREHEAT = false;

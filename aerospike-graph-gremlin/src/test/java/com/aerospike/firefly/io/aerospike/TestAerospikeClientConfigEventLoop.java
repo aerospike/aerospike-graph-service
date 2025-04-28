@@ -7,6 +7,7 @@ import com.aerospike.client.async.NettyEventLoops;
 import com.aerospike.client.async.NioEventLoops;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
+import com.aerospike.firefly.util.config.FireflyConfiguration;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
@@ -53,8 +54,8 @@ public class TestAerospikeClientConfigEventLoop {
 
         config.setProperty("aerospike.client.clientPolicy.eventLoops.type", "invalid");
         try {
-            final Method method = provider.getDeclaredMethod("connect", Configuration.class);
-            method.invoke(null, config);
+            final Method method = provider.getDeclaredMethod("connect", FireflyConfiguration.class);
+            method.invoke(null, FireflyConfiguration.fromConfiguration(config));
             Assert.fail("Should have failed when trying to connect with an invalid event loop type.");
         } catch (final InvocationTargetException wrapper) {
             final Throwable e = wrapper.getCause();
@@ -92,8 +93,8 @@ public class TestAerospikeClientConfigEventLoop {
 
         config.setProperty("aerospike.client.clientPolicy.eventLoops.size", "-1");
         try {
-            final Method method = provider.getDeclaredMethod("connect", Configuration.class);
-            method.invoke(null, config);
+            final Method method = provider.getDeclaredMethod("connect", FireflyConfiguration.class);
+            method.invoke(null, FireflyConfiguration.fromConfiguration(config));
             Assert.fail("Should have failed when trying to connect with an invalid event loop count.");
         } catch (final Exception wrapper) {
             final Throwable e = wrapper.getCause();
@@ -168,8 +169,8 @@ public class TestAerospikeClientConfigEventLoop {
 
         config.setProperty("aerospike.client.eventPolicy.maxCommandsInQueue", "-1");
         try {
-            final Method method = provider.getDeclaredMethod("connect", Configuration.class);
-            method.invoke(null, config);
+            final Method method = provider.getDeclaredMethod("connect", FireflyConfiguration.class);
+            method.invoke(null, FireflyConfiguration.fromConfiguration(config));
             Assert.fail("Should have failed when trying to connect with an invalid max command queue count.");
         } catch (final Exception wrapper) {
             final Throwable e = wrapper.getCause();

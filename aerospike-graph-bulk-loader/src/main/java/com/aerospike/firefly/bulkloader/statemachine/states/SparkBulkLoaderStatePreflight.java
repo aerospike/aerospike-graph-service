@@ -2,8 +2,11 @@ package com.aerospike.firefly.bulkloader.statemachine.states;
 
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
 
 import java.util.Arrays;
+
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
 
 public class SparkBulkLoaderStatePreflight extends SparkBulkLoaderState {
     private static final int DRYRUN_STACKTRACE_LIMIT = 5;
@@ -34,5 +37,10 @@ public class SparkBulkLoaderStatePreflight extends SparkBulkLoaderState {
     @Override
     public SparkBulkLoaderState transitionState() {
         return new SparkBulkLoaderStatePersistEdgeIds(sparkBulkLoaderStateMachine);
+    }
+
+    @Override
+    protected BulkLoadStateStatusMap getStateMap() {
+        return new BulkLoadStateStatusMap("verifying input validity", false, BULK_LOAD_STATUS_IN_PROGRESS);
     }
 }

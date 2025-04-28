@@ -244,6 +244,7 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                         keyValues.add(entry.getKey());
                         keyValues.add(entry.getValue());
                     }
+
                     final Vertex vertex = this.getTraversal().getGraph().get().addVertex(keyValues.toArray(new Object[keyValues.size()]));
 
                     // Trigger callbacks for eventing - in this case, it's a VertexAddedEvent

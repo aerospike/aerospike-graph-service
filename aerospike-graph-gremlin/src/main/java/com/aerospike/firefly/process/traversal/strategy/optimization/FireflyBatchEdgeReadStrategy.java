@@ -1,8 +1,8 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.computer.local.ComputerHelper;
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
-import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeSampleLimitReadStep;
+import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadSampleLimitStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -35,14 +35,8 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
-
-        if (!traversal.isRoot()) {
-            if (!graph.getBaseGraph().ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY) {
-                return;
-            }
-        }
 
         if (ComputerHelper.onGraphComputer(traversal))
             return;
@@ -172,7 +166,7 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
             }
 
             if (limitSize != -1 || sampleSize != -1) {
-                traversal.addStep(index, new FireflyBatchEdgeSampleLimitReadStep(
+                traversal.addStep(index, new FireflyBatchEdgeReadSampleLimitStep(
                         traversal,
                         vertexStep.getDirection(),
                         vertexStep.getEdgeLabels(),

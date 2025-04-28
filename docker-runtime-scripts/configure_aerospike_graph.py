@@ -1,5 +1,8 @@
 import os, sys, multiprocessing
 import re
+import yaml
+import subprocess
+import shutil
 
 
 def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, output_java_options_file):
@@ -115,7 +118,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
         if key not in graph_config:
             graph_config[key] = []
 
-    generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm)
+    generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm, f"{conf_dir}/ssl")
 
     for key in named_graphs:
         # copy of common properties
@@ -131,7 +134,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
 
         generate_properties(merged_properties, f"{conf_dir}/aerospike-graph-{key}.properties", auth_jwt_secret, auth_jwt_issuer)
 
-    generate_java_options(output_java_options_file, java_options_max_heap, java_options_min_heap)
+    generate_java_options(output_java_options_file, java_options_max_heap, java_options_min_heap, f"{conf_dir}/tls")
 
 def set_performance_mode(yaml_properties):
     # Experiments show that throughput is best when gremlinPool=4*cpu_count and threadPoolWorker=cpu_count/2.
@@ -164,7 +167,7 @@ def set_performance_mode(yaml_properties):
     print("Setting gremlinPool to " + str(gremlin_pool) + " and threadPoolWorker to " + str(thread_pool_worker) + ".")
 
 
-def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm):
+def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm, ssl_out_dir):
     rewritten_lines = []
 
     console_reporter = {
@@ -190,11 +193,20 @@ def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_co
         "slf4jReporter": slf4j_reporter
     }
 
+    default_keystore = ssl_out_dir + "/keystore.p12"
+    default_keystore_password = "aerospike"
+    ssl = {
+        "enabled": "false",
+        "keyStore": default_keystore,
+        "keyStorePassword": default_keystore_password,
+        "keyStoreType": "PKCS12"
+    }
+
     set_performance_mode(yaml_properties)
 
     # Read yaml lines.
-    with open(default_yaml_file) as yaml:
-        lines = [line.rstrip() for line in yaml]
+    with open(default_yaml_file) as default_yaml:
+        lines = [line.rstrip() for line in default_yaml]
 
     for property in yaml_properties:
         key = property.split("=")[0]
@@ -207,7 +219,7 @@ def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_co
             raise Exception("Error configuring Aerospike Graph Service.\n\t'serializers', 'processors', and 'graphs' " + \
                     "of gremlin-server config cannot be overwritten by properties file, contact support if you need " + \
                     "to override these configurations.")
-        if key.startswith("metrics."):
+        elif key.startswith("metrics."):
             key = key.replace("metrics.", "")
             if key.split(".")[0] in metrics:
                 metrics_key = key.split(".")[0]
@@ -222,6 +234,11 @@ def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_co
                 raise Exception(
                     "Error configuring Aerospike Graph Service.\n\t" + key.split(".")[0] + \
                     " is not a valid metrics type.")
+        elif key.startswith("ssl"):
+            if not key.startswith("ssl.") or len(key) < 5:
+                raise Exception("Error configuring Aerospike Graph Service.\n\tSSL configurations must specify settings individually to be modified. Example: aerospike.graph-service.ssl.settingName=settingValue")
+            key = key.replace("ssl.", "")
+            ssl[key] = value
         else:
             lines = [i for i in lines if not i.startswith(key)]
             rewritten_lines.append(f"{key}: {value}")
@@ -247,6 +264,24 @@ def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_co
         metrics_position += 1
     rewritten_lines.append("}")
 
+    # SSL (GLV Client<->AGS)
+    rewritten_lines.append("ssl: { ")
+    if ssl["enabled"].lower() != "true":
+        rewritten_lines.append("    enabled: false")
+    else:
+        position = 1
+        count = len(ssl)
+        for ssl_key, ssl_value in ssl.items():
+            if position == count:
+                rewritten_lines.append(f"    {ssl_key}: {ssl_value}")
+            else:
+                rewritten_lines.append(f"    {ssl_key}: {ssl_value},")
+            position += 1
+        if ssl["keyStore"] == default_keystore and ssl["keyStorePassword"] == default_keystore_password:
+            generate_server_keystore(ssl, ssl_out_dir)
+    rewritten_lines.append("}")
+
+
     rewritten_lines.append("graphs: { ")
     for key in graph_config:
         rewritten_lines.append(f"  {key}: conf/aerospike-graph-{key}.properties,")
@@ -266,22 +301,93 @@ processors:
 
     lines = lines + rewritten_lines
 
-    with open(output_yaml_file, "w") as yaml:
+    with open(output_yaml_file, "w") as default_yaml:
         for line in lines:
-            yaml.write(line + "\n")
+            default_yaml.write(line + "\n")
 
     with open(output_yaml_file, "r") as prop:
         output_yaml_str = prop.read()
         output_yaml_print = ""
         lines = output_yaml_str.split('\n')
         for line in lines:
-            if "aerospike.graph-service.auth.jwt.secret" in line:
+            if "password" in line.lower():
+                split = line.split(":", 1)
+                output_yaml_print += split[0] + ": ********\n"
+            elif "aerospike.graph-service.auth.jwt.secret" in line.lower():
                 output_yaml_print += "    aerospike.graph-service.auth.jwt.secret: ********\n"
-            elif "aerospike.graph-service.auth.jwt.issuer" in line:
+            elif "aerospike.graph-service.auth.jwt.issuer" in line.lower():
                 output_yaml_print += "    aerospike.graph-service.auth.jwt.issuer: ********\n"
             else:
                 output_yaml_print += line + "\n"
         print("Generated yaml file: " + output_yaml_file + "\n" + output_yaml_print)
+
+
+def generate_server_keystore(ssl_options, ssl_out_dir):
+    keystore_dir = "/opt/aerospike-graph/gremlin-server-tls"
+    ca_dir = "opt/aerospike-graph/gremlin-server-ca"
+    certificate = None
+    alias_name = None
+    private_key = None
+    ca = None
+    if os.path.isdir(keystore_dir):
+        keystore_files = os.listdir(os.fsencode(keystore_dir))
+        if len(keystore_files) != 2:
+            message = f"An unexpected number of files was detected in setup directory for Gremlin Client SSL. Please ensure only the certificate and private key files are mounted to: {keystore_dir}"
+            print(message)
+            raise Exception(message)
+        for file in keystore_files:
+            file_name = os.fsdecode(file)
+            print(f"Found file to use for Gremlin Client SSL: {file_name}")
+            full_file_path = keystore_dir + "/" + file_name
+            with open(full_file_path, "r") as f:
+                content = f.read().lower()
+                if "private key" in content:
+                    print(f"{full_file_path} set as Private Key for Gremlin Client SSL.")
+                    private_key = full_file_path
+                elif "certificate" in content:
+                    print(f"{full_file_path} set as Certificate for Gremlin Client SSL.")
+                    certificate = full_file_path
+                    alias_name = os.path.splitext(file_name)[0]
+                else:
+                    message = f"{full_file_path} is not a valid Private Key or Certificate file."
+                    print(message)
+                    raise Exception(message)
+        if certificate is None or private_key is None:
+            message = "Setting up Gremlin Client SSL failed - did not find a valid Private Key and Certificate file."
+            print(message)
+            raise Exception(message)
+    else:
+        message = f"Gremlin Client SSL was set to enabled but no files for use were found at: {keystore_dir}"
+        print(message)
+        raise Exception(message)
+
+    if os.path.isdir(ca_dir):
+        ca_files = os.listdir(os.fsencode(ca_dir))
+        if len(ca_files) != 1:
+            message = f"More than one Certificate Authority file was detected in the setup directory for Gremlin Client SSL. Please ensure only one file is mounted to: {ca_dir}"
+            print(message)
+            raise Exception(message)
+        ca_file_name = os.fsdecode(ca_files[0])
+        print(f"Found CA file to use for Gremlin Client SSL: {ca_file_name}")
+        ca = ca_dir + "/" + ca_file_name
+    if os.path.exists(ssl_out_dir):
+        shutil.rmtree(ssl_out_dir)
+    os.makedirs(ssl_out_dir, exist_ok=True)
+    cmd = [
+        "openssl", "pkcs12", "-export",
+        "-in", certificate,
+        "-inkey", private_key,
+        "-out", ssl_options["keyStore"],
+        "-name", alias_name,
+        "-passout", f'pass:{ssl_options["keyStorePassword"]}'
+    ]
+    if ca:
+        cmd.extend(["-certfile", ca])
+    try:
+        subprocess.run(cmd, check=True)
+    except Exception as openssl_exception:
+        print(f"Generating keystore with openssl for Gremlin Client SSL failed: {openssl_exception}")
+        raise openssl_exception
 
 
 def find_security_credentials(auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm, rewritten_lines):
@@ -359,7 +465,7 @@ def generate_properties(properties, output_properties_file, auth_jwt_secret, aut
             prop.write("aerospike.graph-service.auth.enabled=true\n")
 
 
-def generate_java_options(java_options_file_path, max_heap, min_heap):
+def generate_java_options(java_options_file_path, max_heap, min_heap, tls_out_dir):
     java_options = ""
 
     # We are deprecating JAVA_OPTIONS in favor of using our notation. Users don't need to know we are using Java.
@@ -380,8 +486,59 @@ def generate_java_options(java_options_file_path, max_heap, min_heap):
 
     user_java_options = os.environ.get("JAVA_OPTIONS")
     if user_java_options is not None:
-        print("Appending user provided JAVA_OPTIONS: " + user_java_options + " to java options.")
+        lower_options = user_java_options.lower()
+        password_indexes = [(i+9) for i in range(len(lower_options)) if lower_options.startswith('password=', i)]
+        printable_options = ''
+        password_character = False
+        for i in range(len(user_java_options)):
+            if i in password_indexes:
+                if password_character:
+                    # This should never happen unless the environment variable is malformed.
+                    raise Exception("Unexpected problem when parsing JAVA_OPTIONS from environment variables. Please check the format and retry.")
+                password_character = True
+            if password_character and user_java_options[i] == ' ':
+                password_character = False
+
+            if password_character:
+                printable_options += '*'
+            else:
+                printable_options += user_java_options[i]
+
+        print("Appending user provided JAVA_OPTIONS: " + printable_options + " to java options.")
         java_options += user_java_options
+
+    # Set up TLS for AGS<->Aerospike DB
+    cert_dir = "/opt/aerospike-graph/aerospike-client-tls"
+    cert_found = False
+    if os.path.isdir(cert_dir):
+        directory = os.fsencode(cert_dir)
+        if os.path.exists(tls_out_dir):
+            shutil.rmtree(tls_out_dir)
+        os.makedirs(tls_out_dir, exist_ok=True)
+        keystore = tls_out_dir + "/truststore.jks"
+        storepass = "aerospike"
+        for file in os.listdir(directory):
+            file_name = os.fsdecode(file)
+            print("Found file to use for Aerospike Database TLS: " + file_name)
+            cmd = [
+                "keytool",
+                "-import",
+                "-trustcacerts",
+                "-noprompt",
+                "-alias", os.path.splitext(file_name)[0],
+                "-file", cert_dir + "/" + file_name,
+                "-keystore", keystore,
+                "-storepass", storepass,
+            ]
+
+            try:
+                subprocess.run(cmd, check=True)
+                cert_found = True
+            except Exception as keytool_exception:
+                print(f"Generating truststore with keytool for Aerospike Database TLS failed: {keytool_exception}")
+                raise keytool_exception
+        if cert_found:
+            java_options += f" -Djavax.net.ssl.trustStore={keystore} -Djavax.net.ssl.trustStorePassword={storepass} "
     java_options += " --add-exports java.base/sun.nio.ch=ALL-UNNAMED "
 
     # Write classpath to file. Use 'w' to overwrite file.

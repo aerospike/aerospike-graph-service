@@ -80,5 +80,4 @@ public class TestVertexPropertyCacheIntegration {
         Assert.assertFalse(g.V().has("tail", "one").hasNext());
         Assert.assertFalse(g.V().has("eyes", "two").hasNext());
     }
-
 }

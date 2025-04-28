@@ -26,8 +26,8 @@ import static com.aerospike.firefly.security.UserContext.*;
  */
 public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyAuthenticationStrategy.class);
-    final ThreadLocal<UserClaims> userClaims = ThreadLocal.withInitial(() -> null);
-    final ThreadLocal<Boolean> hasMutateStep = ThreadLocal.withInitial(() -> false);
+    transient final ThreadLocal<UserClaims> userClaims = ThreadLocal.withInitial(() -> null);
+    transient final ThreadLocal<Boolean> hasMutateStep = ThreadLocal.withInitial(() -> false);
 
     public static class UserClaims {
         private final String username;
@@ -71,7 +71,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
         final List<CallStep> callSteps = new ArrayList<>();
         CallStep adminStep = null;

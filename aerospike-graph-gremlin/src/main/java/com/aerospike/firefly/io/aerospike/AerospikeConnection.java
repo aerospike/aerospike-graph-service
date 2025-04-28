@@ -61,6 +61,7 @@ import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.DiagnosticUtil;
 import com.aerospike.firefly.util.WarmupUtil;
+import com.aerospike.firefly.util.config.FireflyConfiguration;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.GraphError;
 import io.netty.channel.epoll.EpollEventLoopGroup;
@@ -87,7 +88,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -105,6 +105,7 @@ import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.MRT_ENABLED_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.getOrDefaultString;
 import static com.aerospike.firefly.util.exceptions.AerospikeGraphException.fromAerospikeException;
@@ -180,6 +181,9 @@ public class AerospikeConnection implements AutoCloseable {
     public final String ID_MANAGER_SET;
     public final String ID_TYPE_BIN;
     public final String TEST_SET;
+    public final String OLAP_SET;
+    public final String OLAP_LIMIT_BIN;
+
     public final Configuration conf;
     public final String USER_SUPPLIED_ID_CACHE_SET;
     public final long CARDINALITY_METADATA_UPDATE_FREQUENCY;
@@ -208,6 +212,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final int TTL_PURGE_INTERVAL_SECONDS;
     public final boolean SUPERNODE_TRAVERSAL_LOG_WARNING;
     public final boolean REDACT_SCRIPT_LITERALS_ENABLED;
+    public long lastQueryMissCount = 0; // For testing
+    public long lastQueryHitCount = 0; // For testing
 
     private final int AEROSPIKE_MAX_RETRIES;
     private final int WRITE_SLEEP_BETWEEN_RETRY;
@@ -284,6 +290,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final String QUERY_IMPL;
 
     private final boolean bulkLoaderFlag;
+    private final boolean bulkLoaderInitializerFlag;
+    private final boolean olapEnabledFlag;
 
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
@@ -328,24 +336,9 @@ public class AerospikeConnection implements AutoCloseable {
     public static AerospikeClient setupDefaultClient(final Configuration conf, final ClientPolicy policy) {
         final String hostFromConf = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
         final String hostsString = stripAllWhiteSpace(hostFromConf);
-        final int port = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
+        final int defaultPort = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
 
-        final Optional<String[]> tlsNames;
-        if (conf.containsKey(ConfigurationHelper.Keys.TLS_NAMES)) {
-            tlsNames = Optional.of(conf.getString(ConfigurationHelper.Keys.TLS_NAMES).split(","));
-            if (Host.parseHosts(hostsString, port).length != tlsNames.get().length) {
-                throw new IllegalArgumentException("Number of TLS names must match number of hosts");
-            }
-        } else {
-            tlsNames = Optional.empty();
-        }
-        final Host[] hosts = tlsNames
-                .map(tlsNameArray -> Arrays.stream(tlsNameArray)
-                        .map(tlsName -> new AbstractMap.SimpleEntry<>(tlsName.split(":")[0], tlsName.split(":")[1]))
-                        .map(hostnameTlsNamePair -> new Host(hostnameTlsNamePair.getKey(), hostnameTlsNamePair.getValue(), port))
-                        .collect(Collectors.toList()))
-                .orElse(Arrays.stream(Host.parseHosts(hostsString, port)).collect(Collectors.toList()))
-                .toArray(new Host[0]);
+        final Host[] hosts = Host.parseHosts(hostsString, defaultPort);
 
         final AerospikeClient aerospikeClient;
         try {
@@ -396,15 +389,14 @@ public class AerospikeConnection implements AutoCloseable {
      *
      * @param conf Apache Configuration
      */
-    public AerospikeConnection(final Configuration conf,
-                               final AerospikeClient client,
-                               final EventLoops eventLoops,
-                               final ExecutorService threadedReadExecutor) {
+    private AerospikeConnection(final FireflyConfiguration conf,
+                                final AerospikeClient client,
+                                final EventLoops eventLoops,
+                                final ExecutorService threadedReadExecutor) {
         LOG.info("Initializing AerospikeConnection.");
         LOG.debug("CONFIGURATION:");
         conf.getKeys().forEachRemaining(key -> {
-            final String lowerKey = key.toLowerCase();
-            if (lowerKey.contains("password") || lowerKey.contains("secret") || lowerKey.contains("token") || lowerKey.contains("passkey")) {
+            if (key.contains("password") || key.contains("secret") || key.contains("token") || key.contains("passkey")) {
                 LOG.debug("\tconfig: [{}]:[{}]", key, "********");
             } else {
                 LOG.debug("\tconfig: [{}]:[{}]", key, conf.get(String.class, key));
@@ -495,6 +487,8 @@ public class AerospikeConnection implements AutoCloseable {
         REDACT_SCRIPT_LITERALS_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.REDACT_SCRIPT_LITERALS_ENABLED, conf);
 
         TEST_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.TEST_SET.name(), conf);
+        OLAP_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OLAP_SET.name(), conf);
+        OLAP_LIMIT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.OLAP_LIMIT_BIN.name(), conf);
         SUMMARY_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.SUMMARY_SET.name(), conf);
         GRAPH_ID = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.GRAPH_ID, conf);
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET.name(), conf);
@@ -569,6 +563,8 @@ public class AerospikeConnection implements AutoCloseable {
         QUERY_IMPL = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.QUERY_IMPL, conf);
 
         bulkLoaderFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf);
+        bulkLoaderInitializerFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_INITIALIZER_FLAG, conf);
+        olapEnabledFlag = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.OLAP_ENABLED, conf);
 
         idFactory = new FireflyIdFactory(this);
 
@@ -597,10 +593,19 @@ public class AerospikeConnection implements AutoCloseable {
         int onRecordIdLimit;
         try {
             onRecordIdLimit = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf);
+            if (MRT_ENABLED && onRecordIdLimit > 1023) {
+                LOG.warn("The provided value for '{}' could not be used and has been instead set to the maximum allowed value of 1023 for when '{}' is set as true.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, MRT_ENABLED_FLAG);
+            }
         } catch (final ConfigurationRuntimeException ignored) {
             // If it was not manually configured, dynamically adjust it relative to the max-record-size configuration of Aerospike
             final long onRecordIdDefaultLimit = getRecordIdLimitFromAerospike(.45);
             onRecordIdLimit = onRecordIdDefaultLimit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) onRecordIdDefaultLimit;
+        }
+
+        // MRT operation can handle only 4096 records, so for Vertex drop we can touch no more than 1023 edges
+        // (1023*2*2+1) < 4096
+        if (MRT_ENABLED && onRecordIdLimit > 1023) {
+            onRecordIdLimit = 1023;
         }
         LOG.info("{} configured to {}.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, onRecordIdLimit);
         ON_RECORD_ID_LIMIT = onRecordIdLimit;
@@ -621,7 +626,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param eventLoops Aerospike Event Loops
      * @return Database connection handle
      */
-    public static AerospikeConnection connect(final Configuration conf,
+    public static AerospikeConnection connect(final FireflyConfiguration conf,
                                               final AerospikeClient client,
                                               final EventLoops eventLoops,
                                               final ExecutorService threadedReadExecutor) {
@@ -636,8 +641,10 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Database connection handle
      */
     public static AerospikeConnection connect(final Configuration conf) {
-        final AerospikeClientProvider provider = DefaultAerospikeClientProvider.connect(conf);
-        return connect(conf, provider.getAerospikeClient(conf), provider.getEventLoops(conf), provider.getThreadedExecutorService(conf));
+        final FireflyConfiguration fireflyConfig = FireflyConfiguration.fromConfiguration(conf);
+        final AerospikeClientProvider provider = DefaultAerospikeClientProvider.connect(fireflyConfig);
+        return connect(fireflyConfig, provider.getAerospikeClient(fireflyConfig), provider.getEventLoops(fireflyConfig),
+                provider.getThreadedExecutorService(fireflyConfig));
     }
 
 
@@ -800,6 +807,7 @@ public class AerospikeConnection implements AutoCloseable {
             public static final String INDEXNAME = "indexname";
             public static final String RESULT = "result";
             public static final String GET_CONFIG = "get-config:context=namespace;id=";
+            public static final String GET_SERVICE = "get-config:context=service";
             public static final String SHOW_ALL_QUERY = "query-show";
             public static final String QUERY_ABORT = "query-abort:trid=";
         }
@@ -815,6 +823,8 @@ public class AerospikeConnection implements AutoCloseable {
         private static final String QUERY_ABORT_RESULT = "result";
         private static final String QUERY_ABORT_SUCCESS = "OK";
         private static final String QUERY_ABORT_TRID_INACTIVE = "trid-not-active";
+        private static final String QUERY_THREADS_LIMIT = "query-threads-limit";
+        private static final String SINGLE_QUERY_THREADS = "single-query-threads";
 
         //Parse the whole infoResponse and return it as a List of Maps
         public static List<Map<String, String>> parseRaw(final String infoResponse) {
@@ -930,6 +940,40 @@ public class AerospikeConnection implements AutoCloseable {
                     }
                 }
                 return indexList;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        public static int getMaxParallelSindexes(final AerospikeConnection db, final String namespace) {
+            final String namespaceConfigKey = Keys.GET_CONFIG + namespace;
+            final String serviceConfigKey = Keys.GET_SERVICE;
+            int maxParallelSindexes = Integer.MAX_VALUE;
+
+            try {
+                final IAerospikeClient client = db.client;
+                for (final Node node : client.getNodes()) {
+                    LOG.debug("Info.request: {}", namespaceConfigKey);
+                    final String singleQueryThreads = Info.request(new InfoPolicy(), node, namespaceConfigKey);
+                    List<Map<String, String>> listOfConfigs = parseRaw(singleQueryThreads);
+                    int singleQueryThreadsValue = 4; // https://aerospike.com/docs/server/reference/configuration#namespace__single-query-threads
+                    for (final Map<String, String> config : listOfConfigs) {
+                        if (config.containsKey(SINGLE_QUERY_THREADS))
+                            singleQueryThreadsValue = Integer.parseInt(config.get(SINGLE_QUERY_THREADS));
+                    }
+                    LOG.debug("Info.request: {}", namespaceConfigKey);
+                    final String queryThreadsLimit = Info.request(new InfoPolicy(), node, serviceConfigKey);
+                    listOfConfigs = parseRaw(queryThreadsLimit);
+                    int queryThreadsLimitValue = 128; // https://aerospike.com/docs/server/reference/configuration#service__query-threads-limit
+                    for (final Map<String, String> config : listOfConfigs) {
+                        if (config.containsKey(QUERY_THREADS_LIMIT))
+                            queryThreadsLimitValue = Integer.parseInt(config.get(QUERY_THREADS_LIMIT));
+                    }
+
+                    maxParallelSindexes = Math.min(maxParallelSindexes, queryThreadsLimitValue / singleQueryThreadsValue);
+                }
+                System.out.println("Max parallel sindexes: " + maxParallelSindexes);
+                return maxParallelSindexes;
             } catch (final AerospikeException e) {
                 throw fromAerospikeException(e);
             }
@@ -1312,6 +1356,9 @@ public class AerospikeConnection implements AutoCloseable {
         if (warmup_mode || VERTEX_AERO_SET.contains(WarmupUtil.getWarmupArenaName()))
             return;
 
+        if (!shouldCreateIndexes())
+            return;
+
         try {
             LOG.info("Creating graph indices.");
             List<String> existingIndexes =
@@ -1379,6 +1426,14 @@ public class AerospikeConnection implements AutoCloseable {
         if (E_LABEL_INDEX_ENABLED_FLAG) {
             // TODO GRAPH-438: Edge indexes.
             throw new RuntimeException("Edge indexes are not currently supported.");
+        }
+    }
+
+    public boolean shouldCreateIndexes() {
+        if (bulkLoaderFlag) {
+            return bulkLoaderInitializerFlag;
+        } else {
+            return !olapEnabledFlag;
         }
     }
 
@@ -2361,12 +2416,15 @@ public class AerospikeConnection implements AutoCloseable {
         policy.connectTimeout = CONNECT_TIMEOUT;
         policy.timeoutDelay = TIMEOUT_DELAY;
         policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
-        if (!bulkLoading) {
-            policy.totalTimeout = READ_TOTAL_TIMEOUT;
-            policy.socketTimeout = READ_SOCKET_TIMEOUT;
-        } else {
+        if (bulkLoading) {
             policy.totalTimeout = READ_TOTAL_TIMEOUT_BULK_LOAD;
             policy.socketTimeout = READ_SOCKET_TIMEOUT_BULK_LOAD;
+        } else if (olapEnabledFlag) {
+            policy.totalTimeout = READ_TOTAL_TIMEOUT_BULK_LOAD;
+            policy.socketTimeout = READ_SOCKET_TIMEOUT_BULK_LOAD;
+        } else {
+            policy.totalTimeout = READ_TOTAL_TIMEOUT;
+            policy.socketTimeout = READ_SOCKET_TIMEOUT;
         }
     }
 
@@ -2418,6 +2476,10 @@ public class AerospikeConnection implements AutoCloseable {
         return this.bulkLoaderFlag;
     }
 
+    public boolean getOlapFlag() {
+        return this.olapEnabledFlag;
+    }
+
     public long incrementAndGetBadEdgeCount(final long amount) {
         final Key badEdgeCountKey = new Key(namespace, BULK_LOAD_METADATA_SET, Value.get(BL_BAD_EDGES_COUNT_KEY));
         final Bin addBin = new Bin(COUNTER_BIN, amount);
@@ -2440,14 +2502,24 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public void commit(final Txn txn) {
-        if (txn != null) {
-            this.client.commit(txn);
+        try {
+            if (txn != null) {
+                this.client.commit(txn);
+            }
+        } catch (final AerospikeException e) {
+            LOG.error("Error - AerospikeException in transaction commit: {}", e.getMessage());
+            throw fromAerospikeException(e);
         }
     }
 
     public void rollback(final Txn txn) {
-        if (txn != null) {
-            this.client.abort(txn);
+        try {
+            if (txn != null) {
+                this.client.abort(txn);
+            }
+        } catch (final AerospikeException e) {
+            LOG.error("Error - AerospikeException in transaction abort: {}", e.getMessage());
+            throw fromAerospikeException(e);
         }
     }
 
@@ -2468,7 +2540,7 @@ public class AerospikeConnection implements AutoCloseable {
 
             rollback(txn);
         } catch (final AerospikeGraphException e) {
-            throw new RuntimeException("Transactions are not supported by Aerospike. TODO: link to doc with how to configure MRT.");
+            throw new RuntimeException("Transactions are not supported by Aerospike. Aerospike database must be version 8 or newer with strong consistency mode enabled.");
         }
     }
 
@@ -2577,7 +2649,7 @@ public class AerospikeConnection implements AutoCloseable {
         private DefaultAerospikeClientProvider() {
         }
 
-        public static AerospikeClientProvider connect(final Configuration conf) {
+        public static AerospikeClientProvider connect(final FireflyConfiguration conf) {
             synchronized (DefaultAerospikeClientProvider.class) {
                 if (OPEN_COUNT.get() == 0) {
                     final String eventLoopTypeName = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.EVENT_LOOP_TYPE, conf);

@@ -1,6 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.profile;
 
-import com.aerospike.firefly.process.computer.local.ComputerHelper;
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyQueryTracingStep;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -16,12 +16,12 @@ import java.util.List;
 public class FireflyQueryTracingStrategy extends FireflyStrategyBase {
 
     @Override
-    public boolean isEnabled(final FireflyGraph fireflyGraph) {
+    protected boolean isEnabled(final FireflyGraph fireflyGraph) {
         return fireflyGraph.isQueryTracingEnabled();
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         if (ComputerHelper.onGraphComputer(traversal) ||
                 TraversalHelper.hasStepOfClass(ProfileSideEffectStep.class, traversal)) {
             return;

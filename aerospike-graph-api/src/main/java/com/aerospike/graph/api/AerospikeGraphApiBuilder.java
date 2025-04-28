@@ -37,6 +37,19 @@ public class AerospikeGraphApiBuilder {
         return this;
     }
 
+    // {
+    //    "edge_label" : [[blob_1], [blob_2], [blob_3]]
+    //
+    //
+    //    "edge_label" : [[vertex_id_1, edge_id_1], [vertex_id_2, edge_id_2, packing_id_2]]
+    //
+    //    "edge_label_e_u" : [long_1, long_2, long_3]
+    //    "edge_label_v_u" : [vertex_id_1, vertex_id_2, vertex_id_3]
+    //
+    //    "edge_label" : [[<blob>], [<blob>], [<blob>]], were blob starts with 1 byte that specifies: type of first value, type of second value
+    //                                                   we can then message pack down the rest of the data.
+    // }
+
     public AerospikeGraphApiBuilder withPort(final int port) {
         this.configurationMap.put(ConfigurationHelper.Keys.AEROSPIKE_PORT, String.valueOf(port));
         return this;

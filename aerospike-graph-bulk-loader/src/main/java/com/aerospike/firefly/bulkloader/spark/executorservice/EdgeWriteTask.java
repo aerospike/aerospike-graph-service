@@ -39,9 +39,10 @@ public class EdgeWriteTask {
     private final String edgeLabel;
     private final boolean inVertexSupernode;
     private final boolean outVertexSupernode;
+    private final int partitionId;
 
     public EdgeWriteTask(
-            ExponentialBackoffRetry retry,
+            final ExponentialBackoffRetry retry,
             final Set<Object> supernodes,
             final boolean keepProvidedId,
             final String providedIdPropertyName,
@@ -50,7 +51,8 @@ public class EdgeWriteTask {
             final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap,
             final GenericRowWithSchema rowForFirefly,
             final GenericRowWithSchema fireflyMetadataRow,
-            final boolean usePersistedEdgeId) {
+            final boolean usePersistedEdgeId,
+            final int partitionId) {
         this.retry = retry;
         this.supernodes = supernodes;
         this.keepProvidedId = keepProvidedId;
@@ -72,12 +74,13 @@ public class EdgeWriteTask {
         // If the edge cache is not enabled, then every edge must be written as if it were attached to a supernode.
         inVertexSupernode = !edgeCacheEnabled || supernodes.contains(inVertexId);
         outVertexSupernode = !edgeCacheEnabled || supernodes.contains(outVertexId);
+        this.partitionId = partitionId;
     }
 
     public CompletionStage<Void> write(ScheduledExecutorService service) {
         final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
             this.graph.bulkWriteEdge((byte[]) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
-                    inVertexId, outVertexId, inVertexSupernode, outVertexSupernode);
+                    inVertexId, outVertexId, inVertexSupernode, outVertexSupernode, partitionId);
             return null;
         }, service);
         return retry.withRetries(supplier, service).exceptionally(e -> {

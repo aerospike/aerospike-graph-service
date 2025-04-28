@@ -186,7 +186,33 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.2xlarge
+#          ec2-instance-type: t3.2xlarge
+          ec2-instance-type: c7a.2xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
+  start-runner-test-local-computer-process-2:
+    name: Start Runner Local Computer Process 2
+    runs-on: ubuntu-latest
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          firefly-path: /home/runner/work/firefly/firefly
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-0d006286a6209f4bc
+          ec2-instance-type: c7a.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly:
@@ -550,6 +576,10 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           mvn install -DskipTests
+      - name: Test Summary Updater TTL Exclusion
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyGraphSummaryUpdaterTest --no-transfer-progress
       - name: Test Client Event Loop Configuration
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
@@ -558,10 +588,10 @@ jobs:
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
-      - name: Test TLS Maven
+      - name: Test Stack Overflow Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn -pl aerospike-graph-gremlin -Djavax.net.ssl.trustStore=$(realpath aerospike-graph-gremlin/src/test/resources/tls/trust-store.jks) -Djavax.net.ssl.keyStore=$(realpath aerospike-graph-gremlin/src/test/resources/tls/client.jks) -Djavax.net.ssl.trustStorePassword=abc123 -Djavax.net.ssl.keyStorePassword=abc123 -Dtest=TestTLSIntegration -Dintegration.test.properties=packed test --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestSupernodeStackOverflow -DfailIfNoTests=false --no-transfer-progress
       - name: Test Client Provider Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
@@ -797,7 +827,40 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=LocalGraphProcessComputerTest --no-transfer-progress
+          mvn clean install -DskipTests --no-transfer-progress
+          mvn test -pl aerospike-graph-olap --no-transfer-progress
+  test-local-computer-process-2:
+    name: Test Local Computer Process Tests 2
+    timeout-minutes: 120
+    needs: start-runner-test-local-computer-process-2
+    runs-on: ${{ needs.start-runner-test-local-computer-process-2.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
+      - name: Test with Maven
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+        run: |
+          bash -x scripts/start_aerospike.sh
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn clean install -DskipTests --no-transfer-progress
+          mvn test -pl aerospike-graph-olap -Dtest=FireflyComputerFeatureTest --no-transfer-progress
   test-firefly-movielens:
     name: Test Movielens
     timeout-minutes: 120
@@ -1176,7 +1239,7 @@ jobs:
           benchmark-data-dir-path: docs/
   test-chainable-docker:
     name: Test Chainable Docker
-    timeout-minutes: 30
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
       - name: Free Disk Space (Ubuntu)
@@ -1229,9 +1292,10 @@ jobs:
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image Secret Masking
+        # This test does not need to stop the image because SSL is not configured properly, so it errors and exits but the test serves its purpose regardless. 
         run: |
           echo "Running docker image with secrets"
-          docker run --name firefly -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-secret-masking/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
+          docker run --name firefly -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-secret-masking/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e JAVA_OPTIONS="-Djavax.net.ssl.trustStore=/root/aerospike/truststore.jks -Djavax.net.ssl.keyStore=/root/aerospike/keystore.jks -Djavax.net.ssl.trustStorePassword=simon123 -Djavax.net.ssl.keyStorePassword=simon123" firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
@@ -1239,8 +1303,6 @@ jobs:
           docker logs firefly
           echo "Running secret masking test script"
           bash scripts/test-secret-masking.sh
-          docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Launch Firefly Docker Image with Custom yaml
         run: |
           echo "Running docker image with custom yaml file"
@@ -1269,7 +1331,7 @@ jobs:
       - name: Test Firefly Docker Image with Security Enabled
         run: |
           echo "Running docker image with security enabled"
-          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-security/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
+          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-security/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e aerospike.graph.audit.log.enabled=true firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
@@ -1286,17 +1348,6 @@ jobs:
 
           echo "Running Prometheus Test"
           mvn test -pl aerospike-graph-gremlin -Dtest=PrometheusExporterTest -DfailIfNoTests=false --no-transfer-progress
-          docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
-      - name: Test Firefly Docker Image with Custom Prometheus
-        run: |
-          echo "Running Prometheus Test"
-          docker run -p 8182:8182 -p 9191:9191 -v /home/runner/work/firefly/firefly/conf/test-custom-prometheus-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
-          echo "Sleeping for 30 seconds while gremlin-server starts"
-          sleep 30
-          
-          echo "Running Prometheus Test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=CustomPrometheusExporterTest -DfailIfNoTests=false --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image Bulk Loader Call
@@ -1319,6 +1370,25 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote -DfailIfNoTests=false --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
+      - name: Test Firefly Docker Image Merge Edge Step
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+        run: |
+          
+          docker run -p 8182:8182  \
+            -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            firefly &
+          
+          echo "Sleeping for 30 seconds while docker image starts"
+          sleep 30
+          
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepRemoteTest -DfailIfNoTests=false --no-transfer-progress
+          docker stop $(docker ps -q --filter ancestor=firefly)
+          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image
         run: |
           echo "Running performance mode tests"
@@ -1327,6 +1397,59 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerConfigs -DfailIfNoTests=false --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestSlimVsFat -DfailIfNoTests=false --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerShutdown -DfailIfNoTests=false --no-transfer-progress
+  test-tls-docker:
+    name: Test TLS Docker
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
+      - uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
+      - name: Build docker
+        run: |
+          pip3 install python_on_whales
+          echo "Building docker image"
+          python3 scripts/build-docker.py --tags firefly --platforms linux/amd64
+          python3 scripts/build-docker.py --tags firefly-slim --platforms linux/amd64 --use_local --slim
+      - name: Run TLS Test
+        env:
+          AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+        run: |
+          bash -x scripts/start_aerospike_tls.sh
+
+          echo "Running docker image with SSL enabled on GLV<->Gremlin Server and TLS enabled on AGS<->Aerospike DB"
+          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-tls/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/aerospike-client-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/gremlin-server-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.key:/opt/aerospike-graph/gremlin-server-tls/aerospike.key firefly &
+          echo "Sleeping for 30 seconds while gremlin-server starts"
+          sleep 30
+
+          echo "Running TLS test"
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestTLSIntegration -DfailIfNoTests=false --no-transfer-progress
+
+          echo "Stopping docker image"
+          docker stop $(docker ps -q --filter ancestor=firefly)
+          echo "Sleeping 10 seconds for docker to kill the container"
   test-aerospike-ttl:
     name: Test Aerospike TTL Fails
     timeout-minutes: 30
@@ -1363,6 +1486,27 @@ jobs:
         run: |
           bash -x scripts/start_aerospike_default_ttl.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeTTL -DfailIfNoTests=false --no-transfer-progress
+  snyk-test:
+    name: Snyk Vulnerability Scan
+    runs-on: ubuntu-latest
+    if: github.head_ref == '2.x-snyk'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
+      - name: Snyk Test
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          mvn clean install -DskipTests
+          mvn snyk:test@snyk-test
   stop-runner-movielens:
     name: Stop Movielens Runner
     needs:
@@ -1510,6 +1654,27 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-test-local-computer-process-1.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-test-local-computer-process-1.outputs.ec2-instance-id }}
+  stop-runner-test-local-computer-process-2:
+    name: Stop Local Computer Process Runner 2
+    needs:
+      - test-local-computer-process-2
+      - start-runner-test-local-computer-process-2
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-test-local-computer-process-2.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-test-local-computer-process-2.outputs.ec2-instance-id }}
   stop-runner-test-firefly-structure:
     name: Stop Structure Runner
     needs:

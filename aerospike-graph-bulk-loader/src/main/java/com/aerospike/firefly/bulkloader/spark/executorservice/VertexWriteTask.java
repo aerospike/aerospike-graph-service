@@ -27,16 +27,18 @@ public class VertexWriteTask {
     final boolean edgeCacheEnabled;
     final SparkFireflyVertex sparkVertex;
     final FireflyId fireflyId;
+    final int partitionId;
     final Map<String, List<FireflyId>> toEdgeCache;
     final Map<String, List<FireflyId>> fromEdgeCache;
 
     public VertexWriteTask(
-            ExponentialBackoffRetry retry,
+            final ExponentialBackoffRetry retry,
             final String nullValue,
             final FireflyGraph graph,
             final GenericRowWithSchema fireflyRow,
             final GenericRowWithSchema metadataRow,
-            final Set<Object> supernodes) {
+            final Set<Object> supernodes,
+            final int partitionId) {
         this.retry = retry;
         this.nullValue = nullValue;
         this.graph = graph;
@@ -44,15 +46,16 @@ public class VertexWriteTask {
         this.metadataRow = metadataRow;
         this.supernodes = supernodes;
         this.edgeCacheEnabled = this.graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG;
-        this.sparkVertex = SparkFireflyVertex.createVertex(this.fireflyRow, this.nullValue);
-        this.fireflyId = sparkVertex.getFireflyId(this.graph.getBaseGraph());
+        sparkVertex = SparkFireflyVertex.createVertex(this.fireflyRow, this.nullValue);
+        fireflyId = sparkVertex.getFireflyId(this.graph.getBaseGraph());
+        this.partitionId = partitionId;
         this.toEdgeCache = sparkVertex.getToEdgeCache(this.graph.getBaseGraph());
         this.fromEdgeCache = sparkVertex.getFromEdgeCache(this.graph.getBaseGraph());
     }
 
     public CompletionStage<Void> writeIncremental(final ScheduledExecutorService service) {
         final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
-            graph.bulkWriteMergeVertex(sparkVertex.getId(), sparkVertex.getLabel(), sparkVertex.getProperties());
+            graph.bulkWriteMergeVertex(sparkVertex.getId(), sparkVertex.getLabel(), sparkVertex.getProperties(), partitionId);
             return null;
         }, service);
         return retry.withRetries(supplier, service).exceptionally(e -> {
@@ -64,7 +67,8 @@ public class VertexWriteTask {
 
     public CompletionStage<Void> write(final ScheduledExecutorService service) {
         final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
-            this.graph.bulkWriteVertex(fireflyId, sparkVertex.getLabel(), sparkVertex.getProperties(), isSupernode(), toEdgeCache, fromEdgeCache);
+            this.graph.bulkWriteVertex(fireflyId, sparkVertex.getLabel(),
+                    sparkVertex.getProperties(), isSupernode(), partitionId, toEdgeCache, fromEdgeCache);
             return null;
         }, service);
         return retry.withRetries(supplier, service).exceptionally(e -> {

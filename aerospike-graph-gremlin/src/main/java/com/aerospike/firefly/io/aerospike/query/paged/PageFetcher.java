@@ -20,6 +20,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class PageFetcher<E> {
@@ -314,6 +315,17 @@ public abstract class PageFetcher<E> {
     public void shutdown() {
         // Signal to readLoopExecutor that it needs to shut down.
         readLoopExecutorService.shutdown();
+    }
+
+    public void shutdownAwait() {
+        // Signal to readLoopExecutor that it needs to shut down.
+        readLoopExecutorService.shutdown();
+        try {
+            if (!readLoopExecutorService.awaitTermination(5000, TimeUnit.MILLISECONDS)) {
+                readLoopExecutorService.shutdownNow();
+            }
+        } catch (final InterruptedException e) {
+        }
     }
 
     protected void signalError(final String error) {

@@ -1,7 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.computer.local.ComputerHelper;
-import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalStep;
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.map.FireflyVertexEdgeLocalCountStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -14,6 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY;
 
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
@@ -28,14 +29,12 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
-        if (!traversal.isRoot()) {
-            final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
-            if (!graph.getBaseGraph().ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY) {
-                return;
-            }
-        }
+    public String getStrategyEnabledKey() {
+        return ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY;
+    }
 
+    @Override
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         if (ComputerHelper.onGraphComputer(traversal))
             return;
 

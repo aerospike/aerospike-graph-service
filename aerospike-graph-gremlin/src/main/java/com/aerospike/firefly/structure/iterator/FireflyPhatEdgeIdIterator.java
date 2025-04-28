@@ -3,7 +3,6 @@ package com.aerospike.firefly.structure.iterator;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
@@ -61,7 +60,13 @@ public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
     }
 
     protected void getNextKeyRecords() {
-        this.currentRecordIds = ((Map<Object, ?>) this.keyRecords.next().record.getMap(db.EDGE_DATA_BIN))
-                .keySet().iterator();
+        while (!this.currentRecordIds.hasNext()) {
+            if (!this.keyRecords.hasNext()) {
+                return;
+            } else {
+                this.currentRecordIds = ((Map<Object, ?>) this.keyRecords.next().record.getMap(db.EDGE_DATA_BIN))
+                        .keySet().iterator();
+            }
+        }
     }
 }

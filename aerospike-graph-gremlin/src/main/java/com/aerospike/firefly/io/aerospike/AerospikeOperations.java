@@ -58,6 +58,7 @@ import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphRecordSizeExceededException;
 import com.aerospike.firefly.util.exceptions.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.util.exceptions.GraphError;
+import com.aerospike.firefly.util.exceptions.TtlArgumentException;
 import com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -80,6 +81,8 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
+import static com.aerospike.firefly.io.aerospike.FireflyTxn.commit;
+import static com.aerospike.firefly.io.aerospike.FireflyTxn.rollback;
 import static com.aerospike.firefly.io.aerospike.OperationReturnHandler.getValueAtIndex;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_DATA_SIZE;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_IN_KEY;
@@ -122,8 +125,16 @@ public class AerospikeOperations {
         return txn;
     }
 
-    //////////////// VERTEX OPERATIONS ///////////////
+    private FireflyTxn getOrCreateFireflyTxn() {
+        final Txn txn = getOrCreateTxn();
+        if (txn == null) {
+            return null;
+        } else {
+            return new FireflyTxn(graph, txn);
+        }
+    }
 
+    //////////////// VERTEX OPERATIONS ///////////////
     public FireflyVertex writeVertex(final FireflyId vertexId,
                                      final String label,
                                      final List<Map.Entry<String, Object>> properties,
@@ -133,7 +144,6 @@ public class AerospikeOperations {
         return writeVertex(vertexId, label, properties, vertexTypeHint, createOnly, isEdgeCacheOverflowed, Optional.empty(), Optional.empty());
     }
 
-
     /**
      * Write and construct a FireflyVertex using the provided parameters.
      *
@@ -142,6 +152,8 @@ public class AerospikeOperations {
      * @param properties            Map of properties to add to vertex.
      * @param createOnly            Flag that allows only new IDs to be written. Disable only for retry purposes.
      * @param isEdgeCacheOverflowed Initial state of edge cache to set.
+     * @param partitionId           Partition ID to stage metadata update to. Only use if bulk loading, else null
+     *                              (pref use other method without this param).
      * @return FireflyVertex.
      */
     public FireflyVertex writeVertex(final FireflyId vertexId,
@@ -150,8 +162,10 @@ public class AerospikeOperations {
                                      final int vertexTypeHint,
                                      final boolean createOnly,
                                      final boolean isEdgeCacheOverflowed,
+                                     final Integer partitionId,
                                      final Optional<Map<String, List<FireflyId>>> toEdgeCache,
                                      final Optional<Map<String, List<FireflyId>>> fromEdgeCache) {
+        Integer partition = partitionId;
         LOG.debug("Writing Vertex {} {}.", vertexId, properties);
 
         final Map<String, FireflyId> vertexPropertyIds;
@@ -164,6 +178,9 @@ public class AerospikeOperations {
         //                 the valid properties.
         final Map<String, Integer> lastNullIndexes = new HashMap<>();
         final List<Map.Entry<String, Object>> validProperties = new ArrayList<>();
+        final List<Operation> operations = new ArrayList<>();
+        Long ttlValueLong = null;
+
         for (int i = 0; i < properties.size(); i++) {
             final Map.Entry<String, Object> property = properties.get(i);
             if (property.getValue() == null) {
@@ -176,6 +193,24 @@ public class AerospikeOperations {
             if (property.getValue() == null) {
                 continue;
             }
+            // Special bulk loader property for summary updater in the case of an incremental MergeV load.
+            if (property.getKey().equals(FireflyGraph.BULK_LOAD_VERTEX_ADD_KEY)) {
+                partition = (Integer) property.getValue();
+                continue;
+            }
+            // Handle special TTL property if flag is enabled.
+            if (property.getKey().equals(TTL_PROPERTY_KEY)) {
+                if (!db.TTL_ENABLED_FLAG) {
+                    throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
+                }
+                final Object ttlValue = property.getValue();
+                if (Number.class.isAssignableFrom(ttlValue.getClass())) {
+                    ttlValueLong = ((Number) ttlValue).longValue();
+                } else {
+                    throw new TtlArgumentException(ttlValue);
+                }
+                continue;
+            }
             // If there is no instance of a null value with this key we can add it safely.
             // If there is an instance of a null valid, it is safe to add as long as it exists past the last found index.
             if (!lastNullIndexes.containsKey(property.getKey()) || i > lastNullIndexes.get(property.getKey())) {
@@ -183,29 +218,15 @@ public class AerospikeOperations {
             }
         }
 
-        final List<Operation> operations = new ArrayList<>();
-        long ttlValueLong;
+        if (ttlValueLong != null) {
+            final long expirationTime = System.currentTimeMillis() + (ttlValueLong * 1000);
+            final Bin ttlBin = new Bin(db.TTL_BIN, expirationTime);
+            final Operation writeTtlBin = Operation.put(ttlBin);
+            operations.add(writeTtlBin);
+        }
+
         if (vertexTypeHint == FireflyVertex.VERTEX_TYPE_HINT) {
             final FireflyVertex.PropertyValueIdMaps propertyValueIdMaps = getPropertyValueIdMaps(validProperties);
-            // Handle special TTL property if flag is enabled.
-            if (propertyValueIdMaps.valueMap.containsKey(TTL_PROPERTY_KEY)) {
-                if (!db.TTL_ENABLED_FLAG) {
-                    throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
-                }
-                final Object ttlValue = propertyValueIdMaps.valueMap.remove(TTL_PROPERTY_KEY);
-                propertyValueIdMaps.idMap.remove(TTL_PROPERTY_KEY);
-                if (Number.class.isAssignableFrom(ttlValue.getClass())) {
-                    ttlValueLong = ((Number) ttlValue).longValue();
-                    final long expirationTime = System.currentTimeMillis() + (ttlValueLong * 1000);
-                    final Bin ttlBin = new Bin(db.TTL_BIN, expirationTime);
-                    final Operation writeTtlBin = Operation.put(ttlBin);
-                    operations.add(writeTtlBin);
-                } else {
-                    throw new IllegalArgumentException(
-                            String.format("Property value [%s] for key %s is of type %s and must be numeric", ttlValue,
-                                    TTL_PROPERTY_KEY, ttlValue.getClass()));
-                }
-            }
             vertexPropertyIds = propertyValueIdMaps.idMap;
             vertexPropertyIdsWritable = graph.getIdFactory().convertMapToStorage(propertyValueIdMaps.idMap);
             vertexPropertyValueMap = propertyValueIdMaps.valueMap;
@@ -295,7 +316,11 @@ public class AerospikeOperations {
             operations.add(writeIdTypeHint);
 
             db.writeOperate(policy, key, operations.toArray(new Operation[0]));
-            graph.fireflySummaryUpdater.addVertexWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
+            if (partition == null) {
+                graph.fireflySummaryUpdater.addVertexWriteToQueue(label, validProperties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
+            } else {
+                graph.fireflySummaryUpdater.stageVertexWriteToQueue(label, validProperties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()), partition);
+            }
             graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, LazyVertexPropertyIdTransform.class);
             final Map<String, LazyIdTransform> lazyIdTransformMap = (Map) vertexPropertyIds;
             final FireflyVertex vertex = FireflyVertexFactory.create(vertexId, label, graph, new TreeMap<>(),
@@ -381,7 +406,7 @@ public class AerospikeOperations {
         this.db.writeOperate(writePolicy, key, writeTtl);
     }
 
-    public Iterator<KeyRecord> getEdgeKeyRecordsByIndex(final FireflyVertex vertex,
+    public Iterator<KeyRecord> getEdgeKeyRecordsByIndex(final FireflyId vertexId,
                                                         final Direction direction,
                                                         final Set<String> labels,
                                                         final FireflyPhatEdgeIdIteratorFromVertex.OutputType outputType,
@@ -395,14 +420,14 @@ public class AerospikeOperations {
         queryPolicy.sendKey = true;
         queryPolicy.includeBinData = true;
         queryPolicy.filterExp = GraphQueryHelper.phatEdgeHasContainerListToExpression(db, hasContainers, labels,
-                vertex.id.getKeyHashString(), adjacentVertexId, direction);
+                vertexId.getKeyHashString(), adjacentVertexId, direction);
         if (direction == Direction.OUT) {
             return new CachedIterator(graph, graph.graphQuery.querySIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME,
-                    Filter.contains(db.SUPERNODES_OUT_BIN, IndexCollectionType.MAPVALUES, vertex.id.getKeyHashString()),
+                    Filter.contains(db.SUPERNODES_OUT_BIN, IndexCollectionType.MAPVALUES, vertexId.getKeyHashString()),
                     queryPolicy));
         } else if (direction == Direction.IN) {
             return new CachedIterator(graph, graph.graphQuery.querySIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME,
-                    Filter.contains(db.SUPERNODES_IN_BIN, IndexCollectionType.MAPVALUES, vertex.id.getKeyHashString()),
+                    Filter.contains(db.SUPERNODES_IN_BIN, IndexCollectionType.MAPVALUES, vertexId.getKeyHashString()),
                     queryPolicy));
         } else {
             // This should never happen since this method is not invoked with BOTH.
@@ -439,29 +464,47 @@ public class AerospikeOperations {
      * Remove vertex from Aerospike.
      */
     public void removeVertex(final FireflyVertex vertex) {
-        final Txn txn = getOrCreateTxn();
-
+        final FireflyTxn fireflyTxn = getOrCreateFireflyTxn();
         try {
-            // Collect edges in both directions and remove them all.
-            final Iterator<FireflyEdge> inEdges = new FireflyBatchEdgeIterator(graph, vertex.getEdgeIdsFromVertex(Direction.IN, Collections.emptySet(), Collections.emptyList()));
-            final Iterator<FireflyEdge> outEdges = new FireflyBatchEdgeIterator(graph, vertex.getEdgeIdsFromVertex(Direction.OUT, Collections.emptySet(), Collections.emptyList()));
-            // Remove the edges themselves and from the adjacent vertices' edge caches.
-            inEdges.forEachRemaining(e -> removeEdge(e, true, false, txn));
-            outEdges.forEachRemaining(e -> removeEdge(e, false, true, txn));
+            if (fireflyTxn != null && vertex.isEdgeCacheOverflowed()) {
+                // If the vertex is a supernode we can't remove its edges within the limit of a single MRT.
+                LOG.warn("Dropping supernode Vertex {}. All attached Edges will be dropped but some not as part of the MRT.", vertex.id());
+
+                // Remove supernode edges themselves and from the adjacent vertices' edge caches outside the MRT.
+                final Iterator<FireflyEdge> sindexedInEdges = new FireflyBatchEdgeIterator<>(graph, vertex.getSupernodeEdgeIds(Direction.IN, Collections.emptySet(), Collections.emptyList()));
+                final Iterator<FireflyEdge> sindexedOutEdges = new FireflyBatchEdgeIterator<>(graph, vertex.getSupernodeEdgeIds(Direction.OUT, Collections.emptySet(), Collections.emptyList()));
+                sindexedInEdges.forEachRemaining(e -> removeEdge(e, true, false, null));
+                sindexedOutEdges.forEachRemaining(e -> removeEdge(e, false, true, null));
+
+                // Remove cached edges themselves and from the adjacent vertices' edge caches within the MRT.
+                final Iterator<FireflyEdge> cachedInEdges = new FireflyBatchEdgeIterator<>(graph, vertex.getCachedEdgeIds(Direction.IN, Collections.emptySet()).iterator());
+                final Iterator<FireflyEdge> cachedOutEdges = new FireflyBatchEdgeIterator<>(graph, vertex.getCachedEdgeIds(Direction.OUT, Collections.emptySet()).iterator());
+                cachedInEdges.forEachRemaining(e -> removeEdge(e, true, false, fireflyTxn));
+                cachedOutEdges.forEachRemaining(e -> removeEdge(e, false, true, fireflyTxn));
+            } else {
+                // Collect edges in both directions and remove them all.
+                final Iterator<FireflyEdge> inEdges = new FireflyBatchEdgeIterator<>(graph, vertex.getEdgeIdsFromVertex(Direction.IN, Collections.emptySet(), Collections.emptyList()));
+                final Iterator<FireflyEdge> outEdges = new FireflyBatchEdgeIterator<>(graph, vertex.getEdgeIdsFromVertex(Direction.OUT, Collections.emptySet(), Collections.emptyList()));
+                // Remove the edges themselves and from the adjacent vertices' edge caches.
+                inEdges.forEachRemaining(e -> removeEdge(e, true, false, fireflyTxn));
+                outEdges.forEachRemaining(e -> removeEdge(e, false, true, fireflyTxn));
+            }
+
 
             // Remove vertex.
             LOG.debug("Removing vertex {}.", vertex.id);
+            final Txn txn = fireflyTxn == null ? null : fireflyTxn.aerospikeTxn;
             if (db.delete(FireflyRecord.getKey(db, db.VERTEX_AERO_SET, vertex.id), txn)) {
                 graph.fireflySummaryUpdater.addVertexRemoveToQueue(vertex.label());
             }
 
-            db.commit(txn);
+            commit(fireflyTxn);
 
             if (graph.getBaseGraph().IS_AUDIT_LOG_ENABLED) {
                 LOG.info("[{}] Dropped vertex with id: {}", graph.getUser(), vertex.id());
             }
         } catch (final RuntimeException e) {
-            db.rollback(txn);
+            rollback(fireflyTxn);
             throw e;
         }
     }
@@ -688,6 +731,12 @@ public class AerospikeOperations {
                                          final Txn txn) {
         LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertex.id(), label, inVertex.id(), properties);
 
+        final List<Operation> operations = new ArrayList<>();
+        // CREATE_ONLY as writing an edge will always have a newly-generated unique ID.
+        final Value edgeIdkey = Value.get(((FireflyEdgeId) edgeId).getEdgeIdBytes());
+        final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED,
+                MapWriteFlags.CREATE_ONLY | MapWriteFlags.NO_FAIL | MapWriteFlags.PARTIAL);
+
         final Map<String, Object> propertyMap = new TreeMap<>();
         final Map<String, Object> typeHints = new TreeMap<>();
         properties.forEach(property -> {
@@ -698,21 +747,33 @@ public class AerospikeOperations {
                 propertyMap.remove(key);
                 typeHints.remove(key);
             } else {
-                final Object typeHint = getTypeHintOf(value);
-                if (typeHint != null) {
-                    typeHints.put(key, typeHint);
+                if (key.equals(TTL_PROPERTY_KEY)) {
+                    if (!db.TTL_ENABLED_FLAG) {
+                        throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
+                    }
+                    if (Number.class.isAssignableFrom(value.getClass())) {
+                        final long ttlValueLong = ((Number) value).longValue();
+                        final long expirationTime = System.currentTimeMillis() + (ttlValueLong * 1000);
+                        final Operation writeTtl = MapOperation.put(edgeMapPolicy, db.TTL_BIN, edgeIdkey,
+                                Value.get(expirationTime));
+                        operations.add(writeTtl);
+                    } else {
+                        throw new TtlArgumentException(value);
+                    }
+                } else {
+                    final Object typeHint = getTypeHintOf(value);
+                    if (typeHint != null) {
+                        typeHints.put(key, typeHint);
+                    }
+                    propertyMap.put(key, value);
                 }
-                propertyMap.put(key, value);
             }
         });
+        final List<Map.Entry<String, Object>> validProperties = new ArrayList<>();
+        propertyMap.forEach((propertyKey, propertyValue) ->
+                validProperties.add(new AbstractMap.SimpleEntry<>(propertyKey, propertyValue)));
 
         final List<Value> edgeData = new ArrayList<>(EDGE_DATA_SIZE);
-
-        final List<Operation> operations = new ArrayList<>();
-        // CREATE_ONLY as writing an edge will always have a newly-generated unique ID.
-        final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED,
-                MapWriteFlags.CREATE_ONLY | MapWriteFlags.NO_FAIL | MapWriteFlags.PARTIAL);
-
         // Add label to Edge data.
         edgeData.add(LABEL_POSITION, Value.get(label));
         // Add IN and OUT to Edge data.
@@ -720,7 +781,6 @@ public class AerospikeOperations {
         edgeData.add(OUT_V_POSITION, Value.get(outVertex.id.getKeyHashString()));
 
         // Write to supernodes bin if vertex cache overflowed.
-        final Value edgeIdkey = Value.get(((FireflyEdgeId) edgeId).getEdgeIdBytes());
         if (!inVertexCacheWrite) {
             final Operation writeInVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_IN_BIN,
                     edgeIdkey, Value.get(inVertex.id.getKeyHashString()));
@@ -730,27 +790,6 @@ public class AerospikeOperations {
             final Operation writeOutVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_OUT_BIN,
                     edgeIdkey, Value.get(outVertex.id.getKeyHashString()));
             operations.add(writeOutVSupernode);
-        }
-
-        // Handle TTL.
-        long ttlValueLong;
-        if (propertyMap.containsKey(TTL_PROPERTY_KEY)) {
-            if (!db.TTL_ENABLED_FLAG) {
-                throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
-            }
-            final Object ttlValue = propertyMap.remove(TTL_PROPERTY_KEY);
-            typeHints.remove(TTL_PROPERTY_KEY);
-            if (Number.class.isAssignableFrom(ttlValue.getClass())) {
-                ttlValueLong = ((Number) ttlValue).longValue();
-                final long expirationTime = System.currentTimeMillis() + (ttlValueLong * 1000);
-                final Operation writeTtl = MapOperation.put(edgeMapPolicy, db.TTL_BIN, edgeIdkey,
-                        Value.get(expirationTime));
-                operations.add(writeTtl);
-            } else {
-                throw new IllegalArgumentException(
-                        String.format("Property value [%s] for key %s is of type %s and must be numeric", ttlValue,
-                                TTL_PROPERTY_KEY, ttlValue.getClass()));
-            }
         }
 
         // Write to filterable supernode bin if necessary.
@@ -772,11 +811,10 @@ public class AerospikeOperations {
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
         try {
             final Record record = db.writeOperate(writePolicy, key, operations.toArray(new Operation[0]));
-            graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey)
+            graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, validProperties.stream().map(Map.Entry::getKey)
                     .collect(Collectors.toSet()));
-            final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id,
+            return FireflyEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id,
                     propertyMap, typeHints, !outVertexCacheWrite, !inVertexCacheWrite, record.generation);
-            return edge;
         } catch (final AerospikeGraphRecordSizeExceededException e) {
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingEdge((AerospikeException) e.getCause(), db, key, edgeId);
@@ -1091,8 +1129,14 @@ public class AerospikeOperations {
     /**
      * Remove edge from Aerospike.
      */
-    public void removeEdge(final FireflyEdge edge, final boolean fromOutV, final boolean fromInV, final Txn outerTxn) {
-        final Txn txn = outerTxn == null ? getOrCreateTxn() : outerTxn;
+    public void removeEdge(final FireflyEdge edge, final boolean fromOutV, final boolean fromInV, final FireflyTxn outerTxn) {
+        final FireflyTxn innerTxn = outerTxn == null ? getOrCreateFireflyTxn() : outerTxn;
+        final Txn txn;
+        if (innerTxn == null) {
+            txn = null;
+        } else {
+            txn = innerTxn.aerospikeTxn;
+        }
 
         final Key key = getKey(db, db.EDGE_AERO_SET, edge.id);
         final List<Operation> operations = new ArrayList<>();
@@ -1225,7 +1269,11 @@ public class AerospikeOperations {
                 // Check edgeData value was returned to protect against concurrent deletes.
                 // If this Edge was already removed edgeData returns null and this check returns false.
                 if (edgeData instanceof List) {
-                    graph.getIdFactory().recycleEdgeId(edge.id);
+                    if (innerTxn != null) {
+                        innerTxn.addIdToRecycle(edge.id);
+                    } else {
+                        graph.getIdFactory().recycleEdgeId(edge.id);
+                    }
                     final String label = (String) ((List<?>) edgeData).get(LABEL_POSITION);
                     graph.fireflySummaryUpdater.addEdgeRemoveToQueue(label);
                 } else if (edgeData != null) {
@@ -1255,24 +1303,31 @@ public class AerospikeOperations {
                     LOG.error(message);
                     throw new IllegalStateException(message);
                 }
-                // todo: txn
-                removeEdge(edges.get(0));
+                removeEdge(edges.get(0), false, false, innerTxn);
             }
             LOG.debug("Generation check retry failed when regenerating Edge with id {} since it was not found.", edge.id.getUserId());
         }
 
-        if (fromOutV) {
-            removeEdgeFromOut(edge, txn);
-        }
+        try {
+            if (fromOutV) {
+                removeEdgeFromOut(edge, txn);
+            }
 
-        if (fromInV) {
-            removeEdgeFromIn(edge, txn);
-        }
-        edge.removed = true;
+            if (fromInV) {
+                removeEdgeFromIn(edge, txn);
+            }
 
-        // commit only own txn
-        if (outerTxn == null)
-            db.commit(txn);
+            // commit only own txn
+            if (outerTxn == null) {
+                commit(innerTxn);
+            }
+            edge.removed = true;
+        } catch (final AerospikeGraphException e) {
+            if (outerTxn == null) {
+                rollback(innerTxn);
+            }
+            throw e;
+        }
 
         if (this.db.IS_AUDIT_LOG_ENABLED) {
             LOG.info("[{}] Dropped edge [{}]-[{}]>[{}].", graph.getUser(), edge.outVertex().id(), edge.label(), edge.inVertex().id());

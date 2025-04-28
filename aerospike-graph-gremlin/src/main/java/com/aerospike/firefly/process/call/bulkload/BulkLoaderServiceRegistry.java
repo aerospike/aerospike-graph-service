@@ -19,7 +19,8 @@ public class BulkLoaderServiceRegistry extends ServiceRegistryBase {
                 new BulkLoaderServiceCountErrors<>(graph),
                 new BulkLoaderServiceLoadDeprecated<>(graph),
                 new BulkLoaderServiceErrorsDeprecated<>(graph),
-                new BulkLoaderServiceCountErrorsDeprecated<>(graph));
+                new BulkLoaderServiceCountErrorsDeprecated<>(graph),
+                new BulkLoaderServiceStatus<>(graph));
 
         services.forEach(graph.getServiceRegistry()::registerService);
     }

@@ -48,6 +48,7 @@ import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.Is;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -132,6 +133,18 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             stringBuilder.append(CHARACTERS.charAt(idx));
         }
         RANDOM_STRING = stringBuilder.toString();
+    }
+
+    @Ignore
+    @Test
+    public void playTest() {
+        Graph tg = TinkerFactory.createModern();
+        GraphHelper.cloneElements(tg, graph);
+        GraphTraversalSource g = graph.traversal();
+
+        var result = g.V().local(outE().count()).toList();
+
+        System.out.println(result);
     }
 
     @Test

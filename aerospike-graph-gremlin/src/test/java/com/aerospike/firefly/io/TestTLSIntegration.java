@@ -1,63 +1,31 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.config.ConfigurationHelper;
-import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
-import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.junit.Ignore;
+import com.aerospike.firefly.benchmark.BenchmarkTestUtils;
+import org.apache.tinkerpop.gremlin.driver.Cluster;
+import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.junit.Assert;
 import org.junit.Test;
 
-import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.AEROSPIKE_HOST;
-import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.AEROSPIKE_PORT;
-import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.TLS;
-import static org.junit.Assert.assertTrue;
+import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
-/**
- * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
- */
 public class TestTLSIntegration {
-    @Test
-    @Ignore //@todo: fix this test
-    public void testTLSConnection() {
-        Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(TLS.toLowerCase(), "true");
-        config.setProperty(AEROSPIKE_HOST.toLowerCase(), "aerospike.test.aerospike.dev");
-        config.setProperty(AEROSPIKE_PORT.toLowerCase(), 4303);
-        AerospikeConnection db = AerospikeConnection.connect(config);
-        FireflyGraph graph = FireflyGraph.open(config);
-        Vertex v = graph.addVertex();
-    }
+    private static final String HOST = BenchmarkTestUtils.getHost();
+    private static final int PORT = 8182;
+    private static final Cluster.Builder BUILDER = Cluster.build()
+            .addContactPoint(HOST)
+            .port(PORT)
+            .enableSsl(true)
+            .trustStore("../.github/aerospike/tls/truststore.jks").trustStorePassword("abc123");
 
     @Test
-    @Ignore //@todo: fix this test
-    public void testTLSName() {
-        Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(TLS.toLowerCase(), "true");
-        config.setProperty(AEROSPIKE_HOST.toLowerCase(), "172.17.0.1");
-        config.setProperty(ConfigurationHelper.Keys.TLS_NAMES, "172.17.0.1:aerospike.test.aerospike.dev");
-        config.setProperty(AEROSPIKE_PORT.toLowerCase(), 4303);
-        AerospikeConnection db = AerospikeConnection.connect(config);
-        FireflyGraph graph = FireflyGraph.open(config);
-        Vertex v = graph.addVertex();
-    }
-
-    @Test
-    public void testTLSNameNegative() {
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(TLS.toLowerCase(), "true");
-        config.setProperty(AEROSPIKE_HOST.toLowerCase(), "172.17.0.1");
-        config.setProperty(ConfigurationHelper.Keys.TLS_NAMES, "172.17.0.1:aerospike-ker.test.aerospike.dev");
-        config.setProperty(AEROSPIKE_PORT.toLowerCase(), 4303);
-        boolean success = false;
-        try {
-            final AerospikeConnection db = AerospikeConnection.connect(config);
-        } catch (final AerospikeGraphException e) {
-            if (e.getMessage().contains("Invalid TLS"))
-                success = true;
+    public void testConnection() throws Exception {
+        final Cluster cluster = BUILDER.create();
+        try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster))) {
+            g.V().drop().iterate();
+            g.addV("test-tls").iterate();
+            Assert.assertEquals(1, (long) g.V().hasLabel("test-tls").count().next());
+            g.V().drop().iterate();
         }
-        assertTrue(success);
     }
 }

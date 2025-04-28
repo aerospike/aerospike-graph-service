@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
 
+import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoadFail;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RESUME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.getConfig;
 
@@ -52,12 +53,12 @@ public class TestSparkStateMachineRecovery {
     public void beforeEach() {
         Configuration config = getTestConfig();
         graph = FireflyGraph.open(config);
-        RecoveryUtil.truncate(graph.getBaseGraph());
+        RecoveryUtil.truncate(graph);
     }
 
     @BeforeClass
     public static void generateData() throws IOException, InterruptedException, ExecutionException {
-        final Process python = Runtime.getRuntime().exec("python3 src/test/resources/csv-generate.py");
+        final Process python = Runtime.getRuntime().exec("python src/test/resources/csv-generate.py");
         if (python.onExit().get().exitValue() != 0) {
             throw new RuntimeException("Failed to generate csv data to run tests.");
         }
@@ -78,12 +79,8 @@ public class TestSparkStateMachineRecovery {
     @Test
     public void testSupernodeDetectionFailure() {
         System.out.println("Testing testSupernodeDetectionFailure");
-        try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_SUPERNODE}, DEFAULT_PARAMS));
-            Assert.fail("Should have thrown an exception");
-        } catch (Exception ignored) {
-            // Expected
-        }
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_SUPERNODE}, DEFAULT_PARAMS));
+        waitForBulkLoadFail(graph.traversal());
         SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME});
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
         state.executeState();
@@ -107,20 +104,16 @@ public class TestSparkStateMachineRecovery {
     @Test
     public void testForceFlag() {
         System.out.println("Testing testForceFlag");
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_SUPERNODE}, DEFAULT_PARAMS));
+        waitForBulkLoadFail(graph.traversal());
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_SUPERNODE}, DEFAULT_PARAMS));
+            SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
+            SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
+            state.executeState();
             Assert.fail("Should have thrown an exception");
-        } catch (Exception ignored) {
-            // Expected
+        } catch (IllegalStateException exception) {
+            Assert.assertTrue(exception.getMessage().contains("Bulk load resume information is present."));
         }
-         try {
-             SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig()});
-             SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
-             state.executeState();
-             Assert.fail("Should have thrown an exception");
-         } catch (IllegalStateException exception) {
-             Assert.assertTrue(exception.getMessage().contains("Bulk load resume information is present."));
-         }
 
         SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig(), "-force"});
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
@@ -130,13 +123,8 @@ public class TestSparkStateMachineRecovery {
     @Test
     public void testSampling() {
         System.out.println("Testing testSampling");
-        try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", SAMPLE_SUPERNODE}, DEFAULT_PARAMS));
-            Assert.fail("Should have thrown an exception");
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-            // Expected
-        }
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", SAMPLE_SUPERNODE}, DEFAULT_PARAMS));
+        waitForBulkLoadFail(graph.traversal());
         SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME});
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
         state.executeState();
@@ -148,13 +136,8 @@ public class TestSparkStateMachineRecovery {
     @Test
     public void testVertexWritingFailure() {
         System.out.println("Testing testVertexWritingFailure");
-        try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_VERTEX_WRITE}, DEFAULT_PARAMS));
-            Assert.fail("Should have thrown an exception");
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-            // Expected
-        }
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_VERTEX_WRITE}, DEFAULT_PARAMS));
+        waitForBulkLoadFail(graph.traversal());
         SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME});
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
         state.executeState();
@@ -176,12 +159,8 @@ public class TestSparkStateMachineRecovery {
     @Test
     public void testVertexVerificationFailure() {
         System.out.println("Testing testVertexVerificationFailure");
-        try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_VERTEX_VERIFY}, DEFAULT_PARAMS));
-            Assert.fail("Should have thrown an exception");
-        } catch (Exception e) {
-            // Expected
-        }
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_VERTEX_VERIFY}, DEFAULT_PARAMS));
+        waitForBulkLoadFail(graph.traversal());
         SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME});
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
         state.executeState();
@@ -204,17 +183,13 @@ public class TestSparkStateMachineRecovery {
     public void testEdgeWritingFailure() {
         System.out.println("Testing testEdgeWritingFailure");
 
-        try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_WRITE}, DEFAULT_PARAMS));
-            Assert.fail("Should have thrown an exception");
-        } catch (Exception e) {
-            // Expected
-        }
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_WRITE}, DEFAULT_PARAMS));
+        waitForBulkLoadFail(graph.traversal());
         SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME});
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
         state.executeState();
 
-        // Should have loaded supernodes. Also should have loaded vertex and edge dataset.
+        // Should have loaded supernodes. Also, should have loaded vertex and edge dataset.
         Assert.assertFalse(stateMachine.supernodes.isEmpty());
 
         // Should have loaded vertex and edge dataset.
@@ -223,6 +198,7 @@ public class TestSparkStateMachineRecovery {
 
         // Should have loaded any vertex partitions but no edge partitions.
         Assert.assertFalse(stateMachine.completedVertexPartitions.isEmpty());
+        Assert.assertFalse(stateMachine.completedEdgePartitions.contains(3L));
         Assert.assertFalse(stateMachine.completedEdgePartitions.isEmpty());
         final SparkBulkLoaderState nextState = state.transitionState();
         Assert.assertTrue(nextState instanceof SparkBulkLoaderStateWriteEdges);
@@ -232,19 +208,13 @@ public class TestSparkStateMachineRecovery {
     public void testEdgeVerificationFailure() {
         System.out.println("Testing testEdgeVerificationFailure");
 
-        try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_VERIFY}, DEFAULT_PARAMS));
-            Assert.fail("Should have thrown an exception");
-        } catch (Exception e) {
-            // Expected
-            e.printStackTrace();
-            System.out.println(e.getMessage());
-        }
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_VERIFY}, DEFAULT_PARAMS));
+        waitForBulkLoadFail(graph.traversal());
         SparkBulkLoaderStateMachine stateMachine = new SparkBulkLoaderStateMachine(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME});
         SparkBulkLoaderState state = new SparkBulkLoaderStateStart(stateMachine);
         state.executeState();
 
-        // Should have loaded supernodes. Also should have loaded vertex and edge dataset.
+        // Should have loaded supernodes. Also, should have loaded vertex and edge dataset.
         Assert.assertFalse(stateMachine.supernodes.isEmpty());
 
         // Should have loaded vertex and edge dataset.

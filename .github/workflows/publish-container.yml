@@ -47,15 +47,10 @@ jobs:
               exit 1
           fi
 
-      - name: Upload Bulk Loader
-        uses: actions/upload-artifact@v3
+      - name: Upload Jar Files
+        uses: actions/upload-artifact@v4
         with:
-          path: aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar
-
-      - name: Upload Firefly
-        uses: actions/upload-artifact@v3
-        with:
-          path: aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar
+          path: aerospike-graph-*/target/aerospike-graph-*.jar
 
   publish-github-amd:
     name: Publish Firefly Docker Image - AMD - GitHub - RC
@@ -88,7 +83,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Download Jar Files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Publish Container
         run: |
@@ -98,10 +93,12 @@ jobs:
           # Make output directories.
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
+          mkdir aerospike-graph-olap/target
           
           # Move the jar files to the target bin folders.
-          mv artifact/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
-          mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-gremlin/target/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
+          mv artifact/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-olap/target/aerospike-graph-olap-*.jar aerospike-graph-olap/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -152,7 +149,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Download Jar Files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Publish Container
         run: |
@@ -162,10 +159,12 @@ jobs:
           # Make output directories.
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
+          mkdir aerospike-graph-olap/target
           
           # Move the jar files to the target bin folders.
-          mv artifact/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
-          mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-gremlin/target/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
+          mv artifact/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-olap/target/aerospike-graph-olap-*.jar aerospike-graph-olap/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -216,7 +215,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Download Jar Files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Publish Container
         run: |
@@ -226,10 +225,12 @@ jobs:
           # Make output directories.
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
+          mkdir aerospike-graph-olap/target
           
           # Move the jar files to the target bin folders.
-          mv artifact/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
-          mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-gremlin/target/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
+          mv artifact/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-olap/target/aerospike-graph-olap-*.jar aerospike-graph-olap/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -279,7 +280,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Download Jar Files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Publish Container
         run: |
@@ -289,10 +290,12 @@ jobs:
           # Make output directories.
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
+          mkdir aerospike-graph-olap/target
           
           # Move the jar files to the target bin folders.
-          mv artifact/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
-          mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-gremlin/target/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
+          mv artifact/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-olap/target/aerospike-graph-olap-*.jar aerospike-graph-olap/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -342,7 +345,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Download Jar Files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Publish Container
         run: |
@@ -352,10 +355,12 @@ jobs:
           # Make output directories.
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
+          mkdir aerospike-graph-olap/target
           
           # Move the jar files to the target bin folders.
-          mv artifact/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
-          mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-gremlin/target/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
+          mv artifact/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-olap/target/aerospike-graph-olap-*.jar aerospike-graph-olap/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -433,7 +438,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Download Jar Files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Publish Container
         run: |
@@ -443,10 +448,12 @@ jobs:
           # Make output directories.
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
+          mkdir aerospike-graph-olap/target
           
           # Move the jar files to the target bin folders.
-          mv artifact/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
-          mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-gremlin/target/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
+          mv artifact/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          mv artifact/aerospike-graph-olap/target/aerospike-graph-olap-*.jar aerospike-graph-olap/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')

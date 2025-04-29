@@ -2,9 +2,9 @@ name: Build and Test Firefly
 
 on:
   push:
-    branches: [main,2.x-dev]
+    branches: [main,3.x-dev]
   pull_request:
-    branches: [main,2.x-dev]
+    branches: [main,3.x-dev]
 
 jobs:
   build-firefly-maven:
@@ -1489,7 +1489,7 @@ jobs:
   snyk-test:
     name: Snyk Vulnerability Scan
     runs-on: ubuntu-latest
-    if: github.head_ref == '2.x-snyk'
+    if: github.head_ref == '3.x-snyk'
     steps:
       - uses: actions/checkout@v3
       - name: Set up JDK 17

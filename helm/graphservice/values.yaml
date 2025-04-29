@@ -8,7 +8,7 @@ image:
   repository: aerospike/aerospike-graph-service
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: 2.6.0-SNAPSHOT
+  tag: 3.0.0-SNAPSHOT
 
 
 # The user should provide their credentials to pull the graph service docker image

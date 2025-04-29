@@ -10,7 +10,6 @@ import com.google.common.collect.Iterators;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Property;
@@ -252,53 +251,6 @@ public class TestAdjacencySindexFilters {
         Assert.assertEquals(4, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(gte100, lte400))));
         Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(gt100, lte400, barGt150, barLt250))));
         Assert.assertEquals(0, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(gt100, lte400, barGt250, barLt150))));
-    }
-
-    @Test
-    public void testPushdownDisabledCompatibility() {
-        if (Integer.parseInt(FireflyGraph.dataModelVersion().toString().split("\\.")[0]) >= 3) {
-            throw new UnsupportedOperationException("Check if this test still makes sense on AGS > 2.x.x");
-        }
-        this.graph.getBaseGraph().setGraphMetadata("packed", "2.0.0");
-        // Need to close graph since underlying AerospikeConnection is shared
-        this.graph.close();
-
-        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-            // Ensure that seeing an existing 2.0.0 data model disables pushdown
-            Assert.assertFalse(graph.getBaseGraph().isSupernodePushdownEnabled);
-
-            // Write data using 2.0.0 data model compatibility mode
-            var g = graph.traversal();
-            g.addE("e1").from(__.V(v1.id())).to(__.V(v2.id())).iterate();
-            g.E().hasLabel("e1").property("foo", 100).iterate();
-            g.addE("e1").property("foo", "100").from(__.V(v1.id())).to(__.V(v2.id())).iterate();
-            g.addE("e2").from(__.V(v1.id())).to(__.V(v2.id())).iterate();
-            g.E().hasLabel("e2").property("foo", 200).iterate();
-            g.addE("e2").property("foo", "200").from(__.V(v1.id())).to(__.V(v2.id())).iterate();
-
-            // Check reading using compatibility mode
-            var traversal = g.V().outE().has("foo", "100");
-            Assert.assertEquals(1, Iterators.size(traversal));
-            traversal = g.V().outE().has("foo", P.gt(99));
-            Assert.assertEquals(2, Iterators.size(traversal));
-
-            // Reset the version metadata to the actual version
-            graph.getBaseGraph().setGraphMetadata(graph.getDataModel(), FireflyGraph.dataModelVersion().toString());
-        }
-
-        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-            // Ensure that pushdown was re-enabled
-            Assert.assertTrue(graph.getBaseGraph().isSupernodePushdownEnabled);
-
-            // See that the previous writes done in compatibility mode did not write to pushdown bins
-            var g = graph.traversal();
-            var traversal = g.V().outE().has("foo", "100");
-            Assert.assertFalse(traversal.hasNext());
-            traversal = g.V().outE().has("foo", P.gt(99));
-            Assert.assertFalse(traversal.hasNext());
-        }
-
-        this.graph = FireflyGraph.open(CONFIG);
     }
 
     @Test

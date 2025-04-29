@@ -2,16 +2,18 @@ package com.aerospike.firefly.structure.id;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 
+import java.util.List;
+
 public class LazyEdgeCacheIdTransform extends LazyIdTransform {
 
-    protected LazyEdgeCacheIdTransform(final byte[] objectId, final FireflyGraph graph) {
+    protected LazyEdgeCacheIdTransform(final List<Object> objectId, final FireflyGraph graph) {
         super(objectId, graph);
     }
 
     @Override
     public FireflyId transform() {
         if (this.id == null) {
-            this.id = this.graph.getIdFactory().createCompositeEdgeId((byte[]) this.objectId);
+            this.id = this.graph.getIdFactory().createCompositeEdgeId((List<Object>) this.objectId);
         }
         return this.id;
     }

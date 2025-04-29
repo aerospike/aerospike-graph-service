@@ -15,23 +15,20 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
     private static final Logger LOG = LoggerFactory.getLogger(RecyclingBufferedNumericIdManager.class);
     protected final long bufferSize;
-    private final BufferedNumericIdManager uniqueIdManager;
+    protected final BufferedNumericIdManager newIdManager;
     protected final BufferedNumericIdManager recyclingIdManager;
     protected final ConcurrentLinkedQueue<Long> recycledIds = new ConcurrentLinkedQueue<>();
 
     protected RecyclingBufferedNumericIdManager(final String recyclingIdCounterName,
-                                             final String uniqueIdCounterName,
-                                             final long bufferSize) {
-        this.uniqueIdManager = new BufferedNumericIdManager(uniqueIdCounterName, bufferSize);
-        this.recyclingIdManager = new BufferedNumericIdManager(recyclingIdCounterName, bufferSize);
+                                                final String newIdCounterName,
+                                                final long bufferSize,
+                                                final long recycleBufferSize) {
+        this.newIdManager = new BufferedNumericIdManager(newIdCounterName, bufferSize);
+        this.recyclingIdManager = new BufferedNumericIdManager(recyclingIdCounterName, recycleBufferSize);
         this.bufferSize = bufferSize;
-        if (bufferSize < 1) {
-            throw new IllegalArgumentException("BufferedNumericIdManager bufferSize of '" + bufferSize + "' " +
-                    "is not valid. The value must be greater than 0.");
-        }
     }
 
-    private byte[] longToBytes(final long x) {
+    static public byte[] longToBytes(final long x) {
         final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
         buffer.putLong(x);
         return buffer.array();
@@ -46,10 +43,26 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
 
     @Override
     public synchronized byte[] getNextId(final FireflyGraph graph) {
-        final Long uniqueId = this.uniqueIdManager.getNextId(graph);
+        if (this.recycledIds.peek() == null) {
+            return getNewId(graph);
+        } else {
+            return getRecycledId(graph);
+        }
+    }
+
+    protected byte[] getNewId(final FireflyGraph graph) {
+        final byte[] id = new byte[8];
+        final Long newId = this.newIdManager.getNextId(graph);
+        System.arraycopy(longToBytes(newId), 0, id, 0, 8);
+        return id;
+    }
+
+    protected byte[] getRecycledId(final FireflyGraph graph) {
         final byte[] id = new byte[16];
-        System.arraycopy(longToBytes(getRecycledId(graph)), 0, id, 0, 8);
-        System.arraycopy(longToBytes(uniqueId), 0, id, 8, 8);
+        final Long recycledPackingId = this.recycledIds.poll();
+        final Long recycledUniqueId = this.recyclingIdManager.getNextId(graph);
+        System.arraycopy(longToBytes(recycledPackingId), 0, id, 0, 8);
+        System.arraycopy(longToBytes(recycledUniqueId), 0, id, 8, 8);
         return id;
     }
 
@@ -68,11 +81,6 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
             return;
         }
         this.recycledIds.add(recycledId);
-    }
-
-    protected long getRecycledId(final FireflyGraph graph) {
-        final Long recycledId = this.recycledIds.poll();
-        return recycledId != null ? recycledId : this.recyclingIdManager.getNextId(graph);
     }
 
     public int availableRecycledIds() {

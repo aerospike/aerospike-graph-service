@@ -13,42 +13,33 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingBufferedNumer
     private final ThreadLocal<EdgePackIds> edgePackIds;
 
     protected MrtRecyclingBufferedNumericIdManager(final String recyclingIdCounterName,
-                                                   final String uniqueIdCounterName, final long bufferSize,
-                                                   final int packingSize) {
-        super(recyclingIdCounterName, uniqueIdCounterName, bufferSize);
+                                                   final String newIdCounterName, final long bufferSize,
+                                                   final long recycleBufferSize, final int packingSize) {
+        super(recyclingIdCounterName, newIdCounterName, bufferSize, recycleBufferSize);
         this.packingSize = packingSize;
         this.edgePackIds = new ThreadLocal<>();
     }
 
     @Override
-    protected long getRecycledId(final FireflyGraph graph) {
+    protected byte[] getNewId(final FireflyGraph graph) {
         final EdgePackIds ids = this.edgePackIds.get();
         if (ids == null || ids.isEmpty()) {
             reserveEdgePackIds(graph);
-            return getRecycledId(graph);
         }
-        return ids.poll();
+        final byte[] id = new byte[8];
+        final long newId = ids.poll();
+        System.arraycopy(longToBytes(newId), 0, id, 0, 8);
+        return id;
     }
 
     private synchronized void reserveEdgePackIds(final FireflyGraph graph) {
         final EdgePackIds ids = new EdgePackIds(this);
-        if (this.recycledIds.size() >= packingSize) {
-            while (ids.size() < packingSize) {
-                final Long id = this.recycledIds.poll();
-                if (id == null) {
-                    break;
-                } else {
-                    ids.add(id);
-                }
-            }
-        } else {
-            while (true) {
-                final Long id = this.recyclingIdManager.getNextId(graph);
-                ids.add(id);
-                if (Math.abs(id) % packingSize == packingSize - 1) {
-                    // This is the last ID before the next Edge pack so set the cutoff here.
-                    break;
-                }
+        while (true) {
+            final Long id = this.newIdManager.getNextId(graph);
+            ids.add(id);
+            if (Math.abs(id) % packingSize == packingSize - 1) {
+                // This is the last ID before the next Edge pack so set the cutoff here.
+                break;
             }
         }
         this.edgePackIds.set(ids);

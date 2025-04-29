@@ -9,4 +9,6 @@ public interface FireflyEdgeId extends FireflyId {
     Long getPackingId();
 
     Long getUniqueId();
+
+    boolean isRecycled();
 }

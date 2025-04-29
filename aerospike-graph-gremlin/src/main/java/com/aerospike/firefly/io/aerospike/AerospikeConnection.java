@@ -103,6 +103,10 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
+import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
@@ -240,6 +244,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final long PROPERTY_ID_BUFFER_SIZE;
     public final long VERTEX_ID_BUFFER_SIZE;
     public final long EDGE_ID_BUFFER_SIZE;
+    public final long EDGE_ID_RECYCLE_BUFFER_SIZE;
     public final long USAGE_STATS_UPDATE_INTERVAL;
     public final boolean WARMUP_MODE;
     public final boolean PROMETHEUS_RENAME_ENABLED;
@@ -550,6 +555,7 @@ public class AerospikeConnection implements AutoCloseable {
         PROPERTY_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, conf);
         VERTEX_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, conf);
         EDGE_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, conf);
+        EDGE_ID_RECYCLE_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.EDGE_ID_RECYCLE_BUFFER_SIZE, conf);
 
         MERGE_EDGE_TTL = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MERGE_EDGE_TTL, conf);
         MERGE_EDGE_EVAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MERGE_EDGE_EVAL_TIMEOUT, conf);
@@ -566,6 +572,7 @@ public class AerospikeConnection implements AutoCloseable {
         bulkLoaderInitializerFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_INITIALIZER_FLAG, conf);
         olapEnabledFlag = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.OLAP_ENABLED, conf);
 
+        initializeIdSet();
         idFactory = new FireflyIdFactory(this);
 
         MRT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MRT_TIMEOUT, conf);
@@ -2069,6 +2076,61 @@ public class AerospikeConnection implements AutoCloseable {
                 Operation.add(ctr),
                 Operation.get(COUNTER_BIN));
         return record.getLong(COUNTER_BIN);
+    }
+
+    private void initializeIdSet() {
+        WritePolicy policy = new WritePolicy();
+        policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
+        configureWritePolicy(policy);
+        final Key vertexIdKey = new Key(namespace, ID_MANAGER_SET, VERTEX_ID_COUNTER);
+        final Key vpIdKey = new Key(namespace, ID_MANAGER_SET, VERTEX_PROPERTY_ID_COUNTER);
+        final Key edgeUniqueIdKey = new Key(namespace, ID_MANAGER_SET, EDGE_ID_COUNTER);
+        final Key edgeRecycledIdKey = new Key(namespace, ID_MANAGER_SET, EDGE_RECYCLED_ID_COUNTER);
+
+        try {
+            final Operation initialize = Operation.put(new Bin(COUNTER_BIN, 0));
+            LOG.error("Initializing Vertex ID metadata.");
+            this.client.operate(policy, vertexIdKey, initialize);
+        } catch (final AerospikeException e) {
+            if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                LOG.error("Existing Vertex ID metadata found.");
+            } else {
+                throw fromAerospikeException(e);
+            }
+        }
+        try {
+            final Operation initialize = Operation.put(new Bin(COUNTER_BIN, 0));
+            LOG.error("Initializing Vertex Property ID metadata.");
+            this.client.operate(policy, vpIdKey, initialize);
+        } catch (final AerospikeException e) {
+            if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                LOG.error("Existing Vertex Property ID metadata found.");
+            } else {
+                throw fromAerospikeException(e);
+            }
+        }
+        try {
+            final Operation initialize = Operation.put(new Bin(COUNTER_BIN, 0));
+            LOG.error("Initializing Edge Unique ID metadata.");
+            this.client.operate(policy, edgeUniqueIdKey, initialize);
+        } catch (final AerospikeException e) {
+            if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                LOG.error("Existing Edge Unique ID metadata found.");
+            } else {
+                throw fromAerospikeException(e);
+            }
+        }
+        try {
+            final Operation initialize = Operation.put(new Bin(COUNTER_BIN, Long.MAX_VALUE));
+            LOG.error("Initializing Edge Recycling ID metadata.");
+            this.client.operate(policy, edgeRecycledIdKey, initialize);
+        } catch (final AerospikeException e) {
+            if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                LOG.error("Existing Edge Recycling ID metadata found.");
+            } else {
+                throw fromAerospikeException(e);
+            }
+        }
     }
 
     /**

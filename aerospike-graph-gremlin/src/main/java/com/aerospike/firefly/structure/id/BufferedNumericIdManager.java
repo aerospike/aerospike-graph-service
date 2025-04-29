@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure.id;
 
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,7 +7,7 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
-import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 
@@ -43,10 +42,6 @@ public class BufferedNumericIdManager implements IdManager<Long> {
     protected BufferedNumericIdManager(final String counterName, final long bufferSize) {
         this.counterName = counterName;
         this.bufferSize = bufferSize;
-        if (bufferSize < 1) {
-            throw new IllegalArgumentException("BufferedNumericIdManager bufferSize of '" + bufferSize + "' " +
-                    "is not valid. The value must be greater than 0.");
-        }
         switch (counterName) {
             case VERTEX_PROPERTY_ID_COUNTER:
                 readableIdName = "VP IDs";
@@ -55,9 +50,9 @@ public class BufferedNumericIdManager implements IdManager<Long> {
                 readableIdName = "Vertex IDs";
                 break;
             case EDGE_RECYCLED_ID_COUNTER:
-                readableIdName = "Edge packing IDs";
+                readableIdName = "Edge recycling IDs";
                 break;
-            case EDGE_UNIQUE_ID_COUNTER:
+            case EDGE_ID_COUNTER:
                 readableIdName = "Edge unique IDs";
                 break;
             default:
@@ -115,7 +110,7 @@ public class BufferedNumericIdManager implements IdManager<Long> {
                 synchronized (EID_PACK_LOCK) {
                     return getBulkLoaderId(graph, EP_ID, EP_ID_TRIGGER);
                 }
-            case EDGE_UNIQUE_ID_COUNTER:
+            case EDGE_ID_COUNTER:
                 synchronized (EID_UNIQUE_LOCK) {
                     return getBulkLoaderId(graph, EU_ID, EU_ID_TRIGGER);
                 }

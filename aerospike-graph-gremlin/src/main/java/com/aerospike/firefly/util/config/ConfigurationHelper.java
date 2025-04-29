@@ -130,6 +130,7 @@ public final class ConfigurationHelper {
         // Id buffer configs.
         public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
         public static final String EDGE_ID_BUFFER_SIZE = "aerospike.graph.edge.id.buffer.size";
+        public static final String EDGE_ID_RECYCLE_BUFFER_SIZE = "aerospike.graph.edge.recycle.id.buffer.size;";
         public static final String PROPERTY_ID_BUFFER_SIZE = "aerospike.graph.property.id.buffer.size";
         public static final String BULK_LOAD_ID_BUFFER_SIZE = "aerospike.graph.bulk.load.id.buffer.size";
 
@@ -378,6 +379,7 @@ public final class ConfigurationHelper {
         put(Keys.READ_SOCKET_TIMEOUT_BULK_LOAD, "2000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
+        put(Keys.EDGE_ID_RECYCLE_BUFFER_SIZE, "10");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
         put(Keys.BULK_LOAD_ID_BUFFER_SIZE, "2000000");
         put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
@@ -450,7 +452,7 @@ public final class ConfigurationHelper {
         put(Keys.MERGE_EDGE_TTL, "10000");
         put(Keys.MERGE_EDGE_POLL_INTERVAL, "10");
         put(Keys.MERGE_EDGE_STARVATION_PROTECTION, "false");
-        put(Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, "false");
+        put(Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, "true");
         put(Keys.QUERY_TRACING_LOG_HOST, "localhost");
         put(Keys.QUERY_TRACING_LOG_PORT, "9411");
         put(Keys.QUERY_TRACING_LOG_THRESHOLD, "-1");
@@ -492,6 +494,7 @@ public final class ConfigurationHelper {
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.READ_SLEEP_BETWEEN_RETRY, 0);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.VERTEX_ID_BUFFER_SIZE, 1);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.EDGE_ID_BUFFER_SIZE, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.EDGE_ID_RECYCLE_BUFFER_SIZE, 1);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.PROPERTY_ID_BUFFER_SIZE, 1);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.BULK_LOAD_ID_BUFFER_SIZE, 1);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, 1);

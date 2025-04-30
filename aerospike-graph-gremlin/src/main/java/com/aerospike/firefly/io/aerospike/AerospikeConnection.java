@@ -440,7 +440,7 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_CACHED_ADJACENT_ID_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, conf);
 
         if (ENABLE_CACHED_ADJACENT_ID_STRATEGY && !ENABLE_COMPOSITE_ID_STRATEGY) {
-            throw new AerospikeGraphException(GraphError.CACHE_ADJACENT_ENABLED_COMPOSITE_ID_DISABLED);
+            LOG.warn(new AerospikeGraphException(GraphError.CACHE_ADJACENT_ENABLED_COMPOSITE_ID_DISABLED).getMessage());
         }
 
         TTL_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf);
@@ -2089,44 +2089,44 @@ public class AerospikeConnection implements AutoCloseable {
 
         try {
             final Operation initialize = Operation.put(new Bin(COUNTER_BIN, 0));
-            LOG.error("Initializing Vertex ID metadata.");
+            LOG.info("Initializing Vertex ID metadata.");
             this.client.operate(policy, vertexIdKey, initialize);
         } catch (final AerospikeException e) {
             if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
-                LOG.error("Existing Vertex ID metadata found.");
+                LOG.info("Existing Vertex ID metadata found.");
             } else {
                 throw fromAerospikeException(e);
             }
         }
         try {
-            final Operation initialize = Operation.put(new Bin(COUNTER_BIN, 0));
-            LOG.error("Initializing Vertex Property ID metadata.");
+            final Operation initialize = Operation.put(new Bin(COUNTER_BIN, Integer.MAX_VALUE));
+            LOG.info("Initializing Vertex Property ID metadata.");
             this.client.operate(policy, vpIdKey, initialize);
         } catch (final AerospikeException e) {
             if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
-                LOG.error("Existing Vertex Property ID metadata found.");
+                LOG.info("Existing Vertex Property ID metadata found.");
             } else {
                 throw fromAerospikeException(e);
             }
         }
         try {
-            final Operation initialize = Operation.put(new Bin(COUNTER_BIN, 0));
-            LOG.error("Initializing Edge Unique ID metadata.");
+            final Operation initialize = Operation.put(new Bin(COUNTER_BIN, Integer.MAX_VALUE));
+            LOG.info("Initializing Edge Unique ID metadata.");
             this.client.operate(policy, edgeUniqueIdKey, initialize);
         } catch (final AerospikeException e) {
             if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
-                LOG.error("Existing Edge Unique ID metadata found.");
+                LOG.info("Existing Edge Unique ID metadata found.");
             } else {
                 throw fromAerospikeException(e);
             }
         }
         try {
-            final Operation initialize = Operation.put(new Bin(COUNTER_BIN, Long.MAX_VALUE));
-            LOG.error("Initializing Edge Recycling ID metadata.");
+            final Operation initialize = Operation.put(new Bin(COUNTER_BIN, Integer.MAX_VALUE));
+            LOG.info("Initializing Edge Recycling ID metadata.");
             this.client.operate(policy, edgeRecycledIdKey, initialize);
         } catch (final AerospikeException e) {
             if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
-                LOG.error("Existing Edge Recycling ID metadata found.");
+                LOG.info("Existing Edge Recycling ID metadata found.");
             } else {
                 throw fromAerospikeException(e);
             }

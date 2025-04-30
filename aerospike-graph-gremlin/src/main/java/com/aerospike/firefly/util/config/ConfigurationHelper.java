@@ -333,8 +333,7 @@ public final class ConfigurationHelper {
     public static final Set<String> IMMUTABLE_CONFIG_KEYS = Set.of(
             Keys.PHAT_EDGE_SIZE, // Calculating the PK wouldn't work
             Keys.FIREFLY_DATA_MODEL,
-            Keys.SUMMARY_ENABLED_FLAG, // Inaccurate and therefore useless if toggled
-            Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY
+            Keys.SUMMARY_ENABLED_FLAG // Inaccurate and therefore useless if toggled
     );
 
     private static final Map<Object, String> DEFAULT_VALUES = new HashMap<>() {{

@@ -35,6 +35,9 @@ public class AttachmentHelper {
         final AttachmentCache cache = new AttachmentCache(graph);
         cache.collectIds(elements);
 
+        if (!cache.needAttachment())
+            return;
+
         cache.fill();
 
         final Collection copy = new ArrayList<>(elements);
@@ -50,6 +53,9 @@ public class AttachmentHelper {
         graph.logMessage("Bulk attach element Map " + elements.size(), LOGGER);
         final AttachmentCache cache = new AttachmentCache(graph);
         cache.collectIds(elements);
+
+        if (!cache.needAttachment())
+            return;
 
         cache.fill();
 
@@ -85,6 +91,9 @@ public class AttachmentHelper {
         final AttachmentCache cache = new AttachmentCache(graph);
 
         traversers.forEach(traverser -> cache.collectIds(traverser));
+
+        if (!cache.needAttachment())
+            return;
 
         cache.fill();
 

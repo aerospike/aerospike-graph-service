@@ -20,6 +20,8 @@ public class LocalWorkerMemory implements Memory.Admin {
     private final FireflyGraph graph;
     private final Map<String, Object> workerMemory = new HashMap<>();
     private final Map<String, BinaryOperator<Object>> reducers = new HashMap<>();
+    // cache for attached objects from main memory
+    private final Map<String, Object> readCache = new HashMap<>();
 
     public LocalWorkerMemory(final DistributedMemory mainMemory, final FireflyGraph graph) {
         this.mainMemory = mainMemory;
@@ -67,6 +69,10 @@ public class LocalWorkerMemory implements Memory.Admin {
 
     @Override
     public <R> R get(final String key) throws IllegalArgumentException {
+        if (readCache.containsKey(key)) {
+            return (R) readCache.get(key);
+        }
+
         R result = this.mainMemory.get(key);
         // for select() step
         if (result instanceof Collection) {
@@ -77,6 +83,8 @@ public class LocalWorkerMemory implements Memory.Admin {
             }
             AttachmentHelper.bulkAttach(graph, (Collection) result);
         }
+
+        readCache.put(key, result);
 
         return result;
     }

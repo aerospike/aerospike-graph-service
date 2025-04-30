@@ -38,6 +38,10 @@ public class AttachmentCache {
         this.graph = graph;
     }
 
+    public boolean needAttachment() {
+        return !vertexIds.isEmpty() || !edgeIds.isEmpty();
+    }
+
     public Object get(final Object object) {
         if (object instanceof Vertex) {
             return vertexCache.getOrDefault(((Vertex) object).id(), (Vertex) object);

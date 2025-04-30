@@ -84,7 +84,6 @@ public class TraversalProgram implements FireflyProgram {
     private TraverserSet<Object> haltedTraversers;
     // true for last or single Program
     private boolean returnHaltedTraversers = false;
-    private HaltedTraverserStrategy haltedTraverserStrategy;
     private boolean profile = false;
     // handle current profile metrics if profile is true
     private MutableMetrics iterationMetrics;
@@ -101,11 +100,13 @@ public class TraversalProgram implements FireflyProgram {
         this.traversalMatrix = new TraversalMatrix<>(this.traversal.get());
 
         // used only when more than 1 VertexProgram
-        this.haltedTraversers = (TraverserSet<Object>)ReflectionHelper.getFieldValue(traversalVertexProgram, "haltedTraversers");
-        this.returnHaltedTraversers = (boolean)ReflectionHelper.getFieldValue(traversalVertexProgram, "returnHaltedTraversers");
+        this.haltedTraversers = (TraverserSet<Object>) ReflectionHelper.getFieldValue(traversalVertexProgram, "haltedTraversers");
+        this.returnHaltedTraversers = (boolean) ReflectionHelper.getFieldValue(traversalVertexProgram, "returnHaltedTraversers");
 
         final Iterator<?> itty = IteratorUtils.filter(this.traversal.get().getStrategies(), strategy -> strategy instanceof HaltedTraverserStrategy).iterator();
-        this.haltedTraverserStrategy = itty.hasNext() ? (HaltedTraverserStrategy) itty.next() : HaltedTraverserStrategy.reference();
+        if (itty.hasNext()) {
+            throw new IllegalArgumentException("Custom HaltedTraverserStrategy is not supported");
+        }
 
         this.memoryComputeKeys.addAll(MemoryTraversalSideEffects.getMemoryComputeKeys(this.traversal.get()));
 
@@ -215,9 +216,10 @@ public class TraversalProgram implements FireflyProgram {
                         (this.traversal.get().getParent().asStep().getNextStep() instanceof ProfileStep && // same as above, but needed for profiling
                                 this.traversal.get().getParent().asStep().getNextStep().getNextStep() instanceof ComputerResultStep));
 
-        // determine how to store halted traversers
         final Iterator<?> itty = IteratorUtils.filter(this.traversal.get().getStrategies(), strategy -> strategy instanceof HaltedTraverserStrategy).iterator();
-        this.haltedTraverserStrategy = itty.hasNext() ? (HaltedTraverserStrategy) itty.next() : HaltedTraverserStrategy.reference();
+        if (itty.hasNext()) {
+            throw new IllegalArgumentException("Custom HaltedTraverserStrategy is not supported");
+        }
 
         // register traversal side-effects in memory
         this.memoryComputeKeys.addAll(MemoryTraversalSideEffects.getMemoryComputeKeys(this.traversal.get()));
@@ -265,7 +267,7 @@ public class TraversalProgram implements FireflyProgram {
             });
             assert this.haltedTraversers.isEmpty();
             final IndexedTraverserSet<Object, Vertex> remoteActiveTraversers = new IndexedTraverserSet.VertexIndexedTraverserSet();
-            BatchMasterExecutor.processTraversers(this.traversal, this.traversalMatrix, toProcessTraversers, remoteActiveTraversers, this.haltedTraversers, this.haltedTraverserStrategy);
+            BatchMasterExecutor.processTraversers(this.traversal, this.traversalMatrix, toProcessTraversers, remoteActiveTraversers, this.haltedTraversers);
             memory.set(HALTED_TRAVERSERS, this.haltedTraversers);
             memory.set(ACTIVE_TRAVERSERS, remoteActiveTraversers);
         } else {
@@ -301,7 +303,7 @@ public class TraversalProgram implements FireflyProgram {
             throw new IllegalStateException("Worker got initial iteration. Please contact support.");
         } else {  // ITERATION 1+
             memory.add(VOTE_TO_HALT,
-                    BatchWorkerExecutor.execute(job, this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers, this.haltedTraverserStrategy));
+                    BatchWorkerExecutor.execute(job, this.traversalMatrix, memory, this.returnHaltedTraversers, haltedTraversers));
         }
     }
 
@@ -323,7 +325,7 @@ public class TraversalProgram implements FireflyProgram {
             final Set<String> completedBarriers = new HashSet<>();
             BatchMasterExecutor.processMemory(this.traversalMatrix, memory, toProcessTraversers, completedBarriers);
             // process all results from barriers locally and when elements are touched, put them in remoteActiveTraversers
-            BatchMasterExecutor.processTraversers(this.traversal, this.traversalMatrix, toProcessTraversers, remoteActiveTraversers, haltedTraversers, this.haltedTraverserStrategy);
+            BatchMasterExecutor.processTraversers(this.traversal, this.traversalMatrix, toProcessTraversers, remoteActiveTraversers, haltedTraversers);
             // tell parallel barriers that might not have been active in the last round that they are no longer active
             memory.set(COMPLETED_BARRIERS, completedBarriers);
             if (!remoteActiveTraversers.isEmpty() ||
@@ -335,7 +337,7 @@ public class TraversalProgram implements FireflyProgram {
                 // finalize locally with any last traversers dangling in the local traversal
                 final Step<?, Object> endStep = (Step<?, Object>) this.traversal.get().getEndStep();
                 while (endStep.hasNext()) {
-                    haltedTraversers.add(this.haltedTraverserStrategy.halt(endStep.next()));
+                    haltedTraversers.add(endStep.next());
                 }
                 // the result of a TraversalVertexProgram are the halted traversers
                 memory.set(HALTED_TRAVERSERS, haltedTraversers);

@@ -244,7 +244,7 @@ public class DistributedWorkerExecutor {
                     iterator = FireflyCloseableIteratorUtils.map(itty, r -> codec.decode(r));
                 }
 
-                final LocalWorkerMemory workerMemory = new LocalWorkerMemory(memory);
+                final LocalWorkerMemory workerMemory = new LocalWorkerMemory(memory, graph);
 
                 vertexProgram.workerIterationStart(workerMemory.asImmutable());
 

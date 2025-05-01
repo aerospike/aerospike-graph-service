@@ -2,6 +2,7 @@ package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.map.FireflyAdjacentVertexIdStep;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -20,7 +21,13 @@ public class FireflyAdjacentVertexIdStrategy extends FireflyStrategyBase {
 
     @Override
     public String getStrategyEnabledKey() {
+        // Since we override isEnabled this doesn't really matter.
         return ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY;
+    }
+
+    @Override
+    protected boolean isEnabled(final FireflyGraph graph) {
+        return graph.getBaseGraph().ENABLE_CACHED_ADJACENT_ID_STRATEGY;
     }
 
     @Override

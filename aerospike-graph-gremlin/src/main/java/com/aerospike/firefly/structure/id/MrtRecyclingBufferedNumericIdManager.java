@@ -25,6 +25,7 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingBufferedNumer
         final EdgePackIds ids = this.edgePackIds.get();
         if (ids == null || ids.isEmpty()) {
             reserveEdgePackIds(graph);
+            return this.getNewId(graph);
         }
         final byte[] id = new byte[8];
         final long newId = ids.poll();
@@ -37,7 +38,7 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingBufferedNumer
         while (true) {
             final Long id = this.newIdManager.getNextId(graph);
             ids.add(id);
-            if (Math.abs(id) % packingSize == packingSize - 1) {
+            if (Math.floorMod(id, packingSize) == 1) {
                 // This is the last ID before the next Edge pack so set the cutoff here.
                 break;
             }

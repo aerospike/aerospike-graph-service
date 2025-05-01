@@ -437,10 +437,13 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf);
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf);
         ENABLE_BATCHED_REPEAT_STEP_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf);
-        ENABLE_CACHED_ADJACENT_ID_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, conf);
+        final boolean adjacentIdEnabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, conf);
 
-        if (ENABLE_CACHED_ADJACENT_ID_STRATEGY && !ENABLE_COMPOSITE_ID_STRATEGY) {
+        if (adjacentIdEnabled && !ENABLE_COMPOSITE_ID_STRATEGY) {
             LOG.warn(new AerospikeGraphException(GraphError.CACHE_ADJACENT_ENABLED_COMPOSITE_ID_DISABLED).getMessage());
+            ENABLE_CACHED_ADJACENT_ID_STRATEGY = false;
+        } else {
+            ENABLE_CACHED_ADJACENT_ID_STRATEGY = adjacentIdEnabled;
         }
 
         TTL_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf);

@@ -50,7 +50,7 @@ public class BufferedNumericIdManager implements IdManager<Long> {
                 readableIdName = "Vertex IDs";
                 break;
             case EDGE_RECYCLED_ID_COUNTER:
-                readableIdName = "Edge recycling IDs";
+                readableIdName = "Edge packing IDs";
                 break;
             case EDGE_ID_COUNTER:
                 readableIdName = "Edge unique IDs";
@@ -86,7 +86,7 @@ public class BufferedNumericIdManager implements IdManager<Long> {
         LOG.info("Allocating batch of {} {}.", bufferSize, this.readableIdName);
         // This is the new last reserved ID
         idTrigger.set(graph.getBaseGraph().decrementIdCounter(this.counterName, bufferSize));
-        // Since Firefly returns decrementing negative long values as generated IDs, the first buffered ID to return is
+        // Since Firefly returns decrementing long values as generated IDs, the first buffered ID to return is
         // the largest one
         idTracker.set(idTrigger.get() + bufferSize - 1);
     }

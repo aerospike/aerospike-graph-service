@@ -65,7 +65,7 @@ public class FireflyIdComposite implements FireflyEdgeId {
      */
     public FireflyId getAdjacentId() {
         if (adjacentId == null) {
-            adjacentId = FireflyIdPoly.fromObject(this.id.get(0), this.db.VERTEX_AERO_SET);
+            adjacentId = db.getIdFactory().createVertexId(this.id.get(0));
         }
         return adjacentId;
     }

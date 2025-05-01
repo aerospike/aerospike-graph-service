@@ -194,7 +194,7 @@ public class BackwardsCompatibilityTest {
         Assume.assumeFalse("Skipping backwards compatibility test because this is the first of this major version.",
                 (versionUtil.getMinor() == 0 && versionUtil.getPatch() == 0));
         // If testVersion is not set and the minor/patch are non-zero, fail the test.
-        if ((testVersion == null || testVersion.isEmpty())) {
+        if (testVersion == null || testVersion.isEmpty()) {
             fail("COMPATIBILITY_VERSION environment variable not set. All versions that are not X.0.0 MUST have a " +
                     "COMPATIBILITY_VERSION environment variable set to test backwards compatibility. This can be set " +
                    "in the root pom.xml");

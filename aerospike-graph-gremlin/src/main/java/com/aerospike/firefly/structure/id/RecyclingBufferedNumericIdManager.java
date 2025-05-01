@@ -15,16 +15,16 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
     private static final Logger LOG = LoggerFactory.getLogger(RecyclingBufferedNumericIdManager.class);
     protected final long bufferSize;
-    protected final BufferedNumericIdManager newIdManager;
-    protected final BufferedNumericIdManager recyclingIdManager;
+    protected final BufferedNumericIdManager packingIdManager;
+    protected final BufferedNumericIdManager uniqueIdManager;
     protected final ConcurrentLinkedQueue<Long> recycledIds = new ConcurrentLinkedQueue<>();
 
-    protected RecyclingBufferedNumericIdManager(final String recyclingIdCounterName,
-                                                final String newIdCounterName,
+    protected RecyclingBufferedNumericIdManager(final String uniqueIdCounterName,
+                                                final String packingIdCounterName,
                                                 final long bufferSize,
                                                 final long recycleBufferSize) {
-        this.newIdManager = new BufferedNumericIdManager(newIdCounterName, bufferSize);
-        this.recyclingIdManager = new BufferedNumericIdManager(recyclingIdCounterName, recycleBufferSize);
+        this.packingIdManager = new BufferedNumericIdManager(packingIdCounterName, bufferSize);
+        this.uniqueIdManager = new BufferedNumericIdManager(uniqueIdCounterName, recycleBufferSize);
         this.bufferSize = bufferSize;
     }
 
@@ -52,7 +52,7 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
 
     protected byte[] getNewId(final FireflyGraph graph) {
         final byte[] id = new byte[8];
-        final Long newId = this.newIdManager.getNextId(graph);
+        final Long newId = this.packingIdManager.getNextId(graph);
         System.arraycopy(longToBytes(newId), 0, id, 0, 8);
         return id;
     }
@@ -60,7 +60,7 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
     protected byte[] getRecycledId(final FireflyGraph graph) {
         final byte[] id = new byte[16];
         final Long recycledPackingId = this.recycledIds.poll();
-        final Long recycledUniqueId = this.recyclingIdManager.getNextId(graph);
+        final Long recycledUniqueId = this.uniqueIdManager.getNextId(graph);
         System.arraycopy(longToBytes(recycledPackingId), 0, id, 0, 8);
         System.arraycopy(longToBytes(recycledUniqueId), 0, id, 8, 8);
         return id;

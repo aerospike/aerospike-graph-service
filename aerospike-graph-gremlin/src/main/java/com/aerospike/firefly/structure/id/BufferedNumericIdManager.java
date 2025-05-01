@@ -6,8 +6,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
-import static com.aerospike.firefly.util.Tokens.EDGE_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_PACKING_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 
@@ -49,11 +49,11 @@ public class BufferedNumericIdManager implements IdManager<Long> {
             case VERTEX_ID_COUNTER:
                 readableIdName = "Vertex IDs";
                 break;
-            case EDGE_RECYCLED_ID_COUNTER:
-                readableIdName = "Edge packing IDs";
-                break;
-            case EDGE_ID_COUNTER:
+            case EDGE_UNIQUE_ID_COUNTER:
                 readableIdName = "Edge unique IDs";
+                break;
+            case EDGE_PACKING_ID_COUNTER:
+                readableIdName = "Edge packing IDs";
                 break;
             default:
                 throw new IllegalArgumentException("Unknown counter name '" + counterName + "'.");
@@ -106,13 +106,13 @@ public class BufferedNumericIdManager implements IdManager<Long> {
                 synchronized (VID_LOCK) {
                     return getBulkLoaderId(graph, VERTEX_ID, VERTEX_ID_TRIGGER);
                 }
-            case EDGE_RECYCLED_ID_COUNTER:
+            case EDGE_UNIQUE_ID_COUNTER:
                 synchronized (EID_PACK_LOCK) {
-                    return getBulkLoaderId(graph, EP_ID, EP_ID_TRIGGER);
-                }
-            case EDGE_ID_COUNTER:
-                synchronized (EID_UNIQUE_LOCK) {
                     return getBulkLoaderId(graph, EU_ID, EU_ID_TRIGGER);
+                }
+            case EDGE_PACKING_ID_COUNTER:
+                synchronized (EID_UNIQUE_LOCK) {
+                    return getBulkLoaderId(graph, EP_ID, EP_ID_TRIGGER);
                 }
             default:
                 throw new IllegalArgumentException("Unknown bulk load counter name '" + counterName + "'.");

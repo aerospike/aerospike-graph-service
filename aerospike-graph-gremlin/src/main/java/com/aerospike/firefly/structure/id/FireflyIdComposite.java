@@ -136,7 +136,7 @@ public class FireflyIdComposite implements FireflyEdgeId {
                 this.id.add(2, this.edgeId.getUniqueId());
             }
         }
-        return this.id;
+        return List.copyOf(this.id);
     }
 
     @Override
@@ -163,11 +163,9 @@ public class FireflyIdComposite implements FireflyEdgeId {
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        }
-        if (o instanceof FireflyIdComposite) {
+        } else if (o instanceof FireflyIdComposite) {
             return this.getEdgeId().equals(((FireflyIdComposite) o).getEdgeId());
-        }
-        else {
+        } else {
             return this.getEdgeId().equals(o);
         }
     }

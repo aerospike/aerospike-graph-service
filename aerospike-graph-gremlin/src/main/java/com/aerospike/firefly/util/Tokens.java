@@ -8,8 +8,8 @@ public final class Tokens {
     }
 
     public static final String VERTEX_ID_COUNTER = "_vxidctr";
-    public static final String EDGE_RECYCLED_ID_COUNTER = "_eridctr";
-    public static final String EDGE_ID_COUNTER = "_euidctr";
+    public static final String EDGE_UNIQUE_ID_COUNTER = "_euidctr";
+    public static final String EDGE_PACKING_ID_COUNTER = "_epidctr";
     public static final String VERTEX_PROPERTY_ID_COUNTER = "_vxpidctr";
     public static final String UNIMPLEMENTED = "unimplemented";
 }

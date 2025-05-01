@@ -103,8 +103,8 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
-import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
-import static com.aerospike.firefly.util.Tokens.EDGE_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_PACKING_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
@@ -2081,14 +2081,15 @@ public class AerospikeConnection implements AutoCloseable {
         return record.getLong(COUNTER_BIN);
     }
 
-    private void initializeIdSet() {
+    private void
+    initializeIdSet() {
         WritePolicy policy = new WritePolicy();
         policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
         configureWritePolicy(policy);
         final Key vertexIdKey = new Key(namespace, ID_MANAGER_SET, VERTEX_ID_COUNTER);
         final Key vpIdKey = new Key(namespace, ID_MANAGER_SET, VERTEX_PROPERTY_ID_COUNTER);
-        final Key edgeUniqueIdKey = new Key(namespace, ID_MANAGER_SET, EDGE_ID_COUNTER);
-        final Key edgeRecycledIdKey = new Key(namespace, ID_MANAGER_SET, EDGE_RECYCLED_ID_COUNTER);
+        final Key edgePackingIdKey = new Key(namespace, ID_MANAGER_SET, EDGE_PACKING_ID_COUNTER);
+        final Key edgeUniqueIdKey = new Key(namespace, ID_MANAGER_SET, EDGE_UNIQUE_ID_COUNTER);
 
         try {
             final Operation initialize = Operation.put(new Bin(COUNTER_BIN, 0));
@@ -2114,22 +2115,22 @@ public class AerospikeConnection implements AutoCloseable {
         }
         try {
             final Operation initialize = Operation.put(new Bin(COUNTER_BIN, Integer.MAX_VALUE));
-            LOG.info("Initializing Edge Unique ID metadata.");
-            this.client.operate(policy, edgeUniqueIdKey, initialize);
+            LOG.info("Initializing Edge Packing ID metadata.");
+            this.client.operate(policy, edgePackingIdKey, initialize);
         } catch (final AerospikeException e) {
             if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
-                LOG.info("Existing Edge Unique ID metadata found.");
+                LOG.info("Existing Edge Packing ID metadata found.");
             } else {
                 throw fromAerospikeException(e);
             }
         }
         try {
             final Operation initialize = Operation.put(new Bin(COUNTER_BIN, Integer.MAX_VALUE));
-            LOG.info("Initializing Edge Recycling ID metadata.");
-            this.client.operate(policy, edgeRecycledIdKey, initialize);
+            LOG.info("Initializing Edge Unique ID metadata.");
+            this.client.operate(policy, edgeUniqueIdKey, initialize);
         } catch (final AerospikeException e) {
             if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
-                LOG.info("Existing Edge Recycling ID metadata found.");
+                LOG.info("Existing Edge Unique ID metadata found.");
             } else {
                 throw fromAerospikeException(e);
             }

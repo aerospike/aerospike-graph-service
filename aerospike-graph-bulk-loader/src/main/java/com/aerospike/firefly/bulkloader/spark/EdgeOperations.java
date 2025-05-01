@@ -583,9 +583,9 @@ public class EdgeOperations implements Serializable {
             for (int i = 0; i < input.size(); i++) {
                 outputRow.add(input.get(i));
             }
-            //add the edgeID
+            // Add the edgeID
             final FireflyPhatEdgeId edgeId = (FireflyPhatEdgeId) getFireflyGraph().getIdFactory().generateId(getFireflyGraph(), FireflyEdge.class);
-            outputRow.add(encodeID(edgeId)); //encode using our custom encoder
+            outputRow.add(encodeID(edgeId)); // Encode using our custom encoder
             return new GenericRowWithSchema(outputRow.toArray(), schema);
         }
     }

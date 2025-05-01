@@ -67,7 +67,7 @@ public class FireflyPhatEdgeId extends FireflyIdPoly implements FireflyEdgeId {
     @Override
     public Object getUserId() {
         if (this.userId == null) {
-            this.userId = Crypto.encodeBase64(((byte[]) this.id));
+            this.userId = Crypto.encodeBase64((byte[]) this.id);
         }
         return this.userId;
     }

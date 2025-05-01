@@ -12,10 +12,10 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingBufferedNumer
     private final int packingSize;
     private final ThreadLocal<EdgePackIds> edgePackIds;
 
-    protected MrtRecyclingBufferedNumericIdManager(final String recyclingIdCounterName,
-                                                   final String newIdCounterName, final long bufferSize,
+    protected MrtRecyclingBufferedNumericIdManager(final String uniqueIdCounterName,
+                                                   final String packingIdCounterName, final long bufferSize,
                                                    final long recycleBufferSize, final int packingSize) {
-        super(recyclingIdCounterName, newIdCounterName, bufferSize, recycleBufferSize);
+        super(uniqueIdCounterName, packingIdCounterName, bufferSize, recycleBufferSize);
         this.packingSize = packingSize;
         this.edgePackIds = new ThreadLocal<>();
     }
@@ -36,7 +36,7 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingBufferedNumer
     private synchronized void reserveEdgePackIds(final FireflyGraph graph) {
         final EdgePackIds ids = new EdgePackIds(this);
         while (true) {
-            final Long id = this.newIdManager.getNextId(graph);
+            final Long id = this.packingIdManager.getNextId(graph);
             ids.add(id);
             if (Math.floorMod(id, packingSize) == 1) {
                 // This is the last ID before the next Edge pack so set the cutoff here.

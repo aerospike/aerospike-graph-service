@@ -8,7 +8,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * @author Connor Hengstler (<a href="https://github.com/OblivionBC">https://github.com/OblivionBC</a>)
  */
 public class EdgeIDTest extends AbstractFireflySuite {
     @Override

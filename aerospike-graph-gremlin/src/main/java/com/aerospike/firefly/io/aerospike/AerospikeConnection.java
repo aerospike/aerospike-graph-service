@@ -2081,58 +2081,28 @@ public class AerospikeConnection implements AutoCloseable {
         return record.getLong(COUNTER_BIN);
     }
 
-    private void
-    initializeIdSet() {
+    private void initializeIdSet() {
         WritePolicy policy = new WritePolicy();
         policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
         configureWritePolicy(policy);
-        final Key vertexIdKey = new Key(namespace, ID_MANAGER_SET, VERTEX_ID_COUNTER);
-        final Key vpIdKey = new Key(namespace, ID_MANAGER_SET, VERTEX_PROPERTY_ID_COUNTER);
-        final Key edgePackingIdKey = new Key(namespace, ID_MANAGER_SET, EDGE_PACKING_ID_COUNTER);
-        final Key edgeUniqueIdKey = new Key(namespace, ID_MANAGER_SET, EDGE_UNIQUE_ID_COUNTER);
+        final Map<String, Key> idKeys = new HashMap<>();
+        idKeys.put("Vertex", new Key(namespace, ID_MANAGER_SET, VERTEX_ID_COUNTER));
+        idKeys.put("Vertex Property", new Key(namespace, ID_MANAGER_SET, VERTEX_PROPERTY_ID_COUNTER));
+        idKeys.put("Edge Packing", new Key(namespace, ID_MANAGER_SET, EDGE_PACKING_ID_COUNTER));
+        idKeys.put("Edge Unique", new Key(namespace, ID_MANAGER_SET, EDGE_UNIQUE_ID_COUNTER));
 
-        try {
-            final Operation initialize = Operation.put(new Bin(COUNTER_BIN, 0));
-            LOG.info("Initializing Vertex ID metadata.");
-            this.client.operate(policy, vertexIdKey, initialize);
-        } catch (final AerospikeException e) {
-            if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
-                LOG.info("Existing Vertex ID metadata found.");
-            } else {
-                throw fromAerospikeException(e);
-            }
-        }
-        try {
-            final Operation initialize = Operation.put(new Bin(COUNTER_BIN, Integer.MAX_VALUE));
-            LOG.info("Initializing Vertex Property ID metadata.");
-            this.client.operate(policy, vpIdKey, initialize);
-        } catch (final AerospikeException e) {
-            if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
-                LOG.info("Existing Vertex Property ID metadata found.");
-            } else {
-                throw fromAerospikeException(e);
-            }
-        }
-        try {
-            final Operation initialize = Operation.put(new Bin(COUNTER_BIN, Integer.MAX_VALUE));
-            LOG.info("Initializing Edge Packing ID metadata.");
-            this.client.operate(policy, edgePackingIdKey, initialize);
-        } catch (final AerospikeException e) {
-            if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
-                LOG.info("Existing Edge Packing ID metadata found.");
-            } else {
-                throw fromAerospikeException(e);
-            }
-        }
-        try {
-            final Operation initialize = Operation.put(new Bin(COUNTER_BIN, Integer.MAX_VALUE));
-            LOG.info("Initializing Edge Unique ID metadata.");
-            this.client.operate(policy, edgeUniqueIdKey, initialize);
-        } catch (final AerospikeException e) {
-            if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
-                LOG.info("Existing Edge Unique ID metadata found.");
-            } else {
-                throw fromAerospikeException(e);
+        for (final Map.Entry<String, Key> key : idKeys.entrySet()) {
+            try {
+                final int initialValue = key.getKey().equals("Vertex") ? 0 : Integer.MAX_VALUE;
+                final Operation initialize = Operation.put(new Bin(COUNTER_BIN, initialValue));
+                LOG.info("Initializing {} ID metadata.", key.getKey());
+                this.client.operate(policy, key.getValue(), initialize);
+            } catch (final AerospikeException e) {
+                if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                    LOG.info("Existing {} ID metadata found.", key.getKey());
+                } else {
+                    throw fromAerospikeException(e);
+                }
             }
         }
     }

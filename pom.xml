@@ -202,8 +202,10 @@
                         <exclude>**/FireflyMRTFeatureTest</exclude>
                         <exclude>**/TestAerospikeOperations</exclude>
                         <exclude>**/FireflyGraphSummaryUpdaterTest</exclude>
-                        <!-- heavy computer test -->
-                        <exclude>**/FireflyComputerFeatureTest</exclude>
+                        <!-- heavy computer tests -->
+                        <exclude>**/FireflyComputerFeatureMapTest</exclude>
+                        <exclude>**/FireflyComputerFeatureFilterTest</exclude>
+                        <exclude>**/FireflyComputerFeatureBranchTest</exclude>
                         <exclude>**/TestSupernodeStackOverflow</exclude>
                     </excludes>
                 </configuration>

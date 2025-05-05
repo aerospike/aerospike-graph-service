@@ -20,11 +20,10 @@ import org.junit.runner.RunWith;
                 // might need fix, but not easy with scans/index reads
                 "not @WithPartitionStrategy",
         glue = { "org.apache.tinkerpop.gremlin.features" },
-        objectFactory = FireflyComputerFeatureTest.FireflyComputerGraphGuiceFactory.class,
-        // only part of the tests are executed here because all the tests are not completed within 2 hours
+        objectFactory = FireflyComputerFeatureFilterTest.FireflyComputerGraphGuiceFactory.class,
         features = { "classpath:/org/apache/tinkerpop/gremlin/test/features/filter" },
         plugin = {"progress", "junit:target/cucumber.xml"})
-public class FireflyComputerFeatureTest {
+public class FireflyComputerFeatureFilterTest {
     public static class FireflyComputerGraphGuiceFactory extends AbstractGuiceFactory {
         public FireflyComputerGraphGuiceFactory() {
             super(Guice.createInjector(Stage.PRODUCTION, CucumberModules.createScenarioModule(), new ServiceModule()));

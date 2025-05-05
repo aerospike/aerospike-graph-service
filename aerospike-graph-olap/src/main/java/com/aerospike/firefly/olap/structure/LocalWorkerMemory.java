@@ -1,11 +1,15 @@
 package com.aerospike.firefly.olap.structure;
 
+import com.aerospike.firefly.olap.helper.AttachmentHelper;
+import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.MemoryComputeKey;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BinaryOperator;
@@ -13,11 +17,15 @@ import java.util.function.BinaryOperator;
 public class LocalWorkerMemory implements Memory.Admin {
 
     private final DistributedMemory mainMemory;
+    private final FireflyGraph graph;
     private final Map<String, Object> workerMemory = new HashMap<>();
     private final Map<String, BinaryOperator<Object>> reducers = new HashMap<>();
+    // cache for attached objects from main memory
+    private final Map<String, Object> readCache = new HashMap<>();
 
-    public LocalWorkerMemory(final DistributedMemory mainMemory) {
+    public LocalWorkerMemory(final DistributedMemory mainMemory, final FireflyGraph graph) {
         this.mainMemory = mainMemory;
+        this.graph = graph;
         for (final MemoryComputeKey key : this.mainMemory.memoryComputeKeys.values()) {
             this.reducers.put(key.getKey(), key.clone().getReducer());
         }
@@ -61,7 +69,24 @@ public class LocalWorkerMemory implements Memory.Admin {
 
     @Override
     public <R> R get(final String key) throws IllegalArgumentException {
-        return this.mainMemory.get(key);
+        if (readCache.containsKey(key)) {
+            return (R) readCache.get(key);
+        }
+
+        R result = this.mainMemory.get(key);
+        // for select() step
+        if (result instanceof Collection) {
+            // special case for limited implementation's of List, like Arrays.ArrayList (produced by Arrays.asList())
+            // or ImmutableCollections.List12 (produced by List.of())
+            if (result instanceof List && !(result instanceof ArrayList)) {
+                result = (R) new ArrayList<>((List) result);
+            }
+            AttachmentHelper.bulkAttach(graph, (Collection) result);
+        }
+
+        readCache.put(key, result);
+
+        return result;
     }
 
     @Override

@@ -12,23 +12,23 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.Barrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Bypassing;
 import org.apache.tinkerpop.gremlin.process.traversal.step.GraphComputing;
 import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.HaltedTraverserStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Property;
-import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.aerospike.firefly.olap.process.TraversalProgram.*;
+import static com.aerospike.firefly.olap.process.TraversalProgram.MUTATED_MEMORY_KEYS;
 
 public class BatchWorkerExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(BatchWorkerExecutor.class);
@@ -41,8 +41,7 @@ public class BatchWorkerExecutor {
                                      final TraversalMatrix<?, ?> traversalMatrix,
                                      final Memory memory,
                                      final boolean returnHaltedTraversers,
-                                     final TraverserSet<Object> haltedTraversers,
-                                     final HaltedTraverserStrategy haltedTraverserStrategy) {
+                                     final TraverserSet<Object> haltedTraversers) {
         final TraversalSideEffects traversalSideEffects = traversalMatrix.getTraversal().getSideEffects();
         final AtomicBoolean voteToHalt = new AtomicBoolean(true);
         final TraverserSet<Object> activeTraversers = new TraverserSet<>();
@@ -56,7 +55,7 @@ public class BatchWorkerExecutor {
         IteratorUtils.removeOnNext(job.getStarts().iterator()).forEachRemaining(traverser -> {
             if (traverser.isHalted()) {
                 if (returnHaltedTraversers)
-                    memoryTraversers.add(haltedTraverserStrategy.halt(traverser));
+                    memoryTraversers.add(traverser); // always reference
                 else
                     haltedTraversers.add(traverser); // the traverser has already been detached so no need to detach it again
             } else {
@@ -73,21 +72,26 @@ public class BatchWorkerExecutor {
         ///////////////////////////////
         // PROCESS LOCAL TRAVERSERS //
         //////////////////////////////
-        // while there are still local traversers, process them until they leave the vertex (message pass) or halt (store).
+        // while there are still local traversers, process them until we have not result size growth. Or halt (store).
         while (!toProcessTraversers.isEmpty()) {
+            boolean canContinueOnSameWorker = true;
             Step<Object, Object> previousStep = EmptyStep.instance();
+
+            // group traversers by step
+            toProcessTraversers.sort(Comparator.comparing(traverser -> traverser.asAdmin().getStepId()));
             Iterator<Traverser.Admin<Object>> traversers = toProcessTraversers.iterator();
             while (traversers.hasNext()) {
                 final Traverser.Admin<Object> traverser = traversers.next();
                 traversers.remove();
                 final Step<Object, Object> currentStep = traversalMatrix.getStepById(traverser.getStepId());
+                canContinueOnSameWorker = canContinue(currentStep, canContinueOnSameWorker);
                 // try and fill up the current step as much as possible with traversers to get a bulking optimization
                 if (!currentStep.getId().equals(previousStep.getId()) && !(previousStep instanceof EmptyStep))
-                    drainStep(previousStep, activeTraversers, haltedTraversers, memory, returnHaltedTraversers, haltedTraverserStrategy);
+                    drainStep(previousStep, activeTraversers, haltedTraversers, memory, returnHaltedTraversers);
                 currentStep.addStart(traverser);
                 previousStep = currentStep;
             }
-            drainStep(previousStep, activeTraversers, haltedTraversers, memory, returnHaltedTraversers, haltedTraverserStrategy);
+            drainStep(previousStep, activeTraversers, haltedTraversers, memory, returnHaltedTraversers);
             // all processed traversers should be either halted or active
             assert toProcessTraversers.isEmpty();
             // process all the local objects and send messages or store locally again
@@ -96,14 +100,14 @@ public class BatchWorkerExecutor {
                 while (traversers.hasNext()) {
                     final Traverser.Admin<Object> traverser = traversers.next();
                     traversers.remove();
-                    // todo: investigate processing elements locally always (!!!)
-                    // decide whether to message the traverser or to process it locally
-                    if (traverser.get() instanceof Element || traverser.get() instanceof Property) {      // GRAPH OBJECT
+
+                    if (!canContinueOnSameWorker && (traverser.get() instanceof Element || traverser.get() instanceof Property)) {
                         if (!traverser.isHalted())
                             voteToHalt.set(false);
                         job.addResult(traverser);
-                    } else                                                                              // STANDARD OBJECT
+                    } else {
                         toProcessTraversers.add(traverser);
+                    }
                 }
                 assert activeTraversers.isEmpty();
             }
@@ -115,8 +119,7 @@ public class BatchWorkerExecutor {
                                   final TraverserSet<Object> activeTraversers,
                                   final TraverserSet<Object> haltedTraversers,
                                   final Memory memory,
-                                  final boolean returnHaltedTraversers,
-                                  final HaltedTraverserStrategy haltedTraverserStrategy) {
+                                  final boolean returnHaltedTraversers) {
         // try execute in slave mode
         GraphComputing.atMaster(step, false);
         TaskLogger.logDebuggingMessage("Drain step: " + step, LOGGER);
@@ -140,13 +143,10 @@ public class BatchWorkerExecutor {
             final TraverserSet memoryTraversers = new TraverserSet<>();
             step.forEachRemaining(traverser -> {
                 if (traverser.isHalted()
-                        // if its a ReferenceFactory (one less iteration required)
-                        && (returnHaltedTraversers || ReferenceFactory.class == haltedTraverserStrategy.getHaltedTraverserFactory()
-                            && !(traverser.get() instanceof Element)
-                            && !(traverser.get() instanceof Property))) {
+                        && (returnHaltedTraversers
+                        || !(traverser.get() instanceof Element) && !(traverser.get() instanceof Property))) {
                     if (returnHaltedTraversers) {
-                        // todo: double check detachment
-                        memoryTraversers.add(haltedTraverserStrategy.halt(traverser));
+                        memoryTraversers.add(traverser);
                     } else {
                         haltedTraversers.add(traverser.detach());
                     }
@@ -159,5 +159,23 @@ public class BatchWorkerExecutor {
         }
         final String info = String.format("Drain step complete: %s [%d %d]", step, activeTraversers.size(), haltedTraversers.size());
         TaskLogger.logDebuggingMessage(info, LOGGER);
+    }
+
+    private static boolean canContinue(final Step step, final boolean currentState) {
+        if (!currentState) {
+            return false;
+        }
+
+        // need to wait for results of all barriers, including LocalBarrier like AggregateGlobalStep
+        if (step instanceof Barrier) {
+            return false;
+        }
+
+        if (step.getTraversal().isRoot() && step instanceof VertexStep
+                && !(step.getNextStep() instanceof Barrier) && !(step.getNextStep() instanceof EmptyStep)) {
+            return false;
+        }
+
+        return true;
     }
 }

@@ -145,13 +145,12 @@ public class AerospikeConnection implements AutoCloseable {
     public final String E_OUT_INDEX_NAME;
     public final String namespace;
 
-    public final String USER_KEY_BIN;
+    public final String LOCK_BIN;
 
     public final String LABEL_BIN;
     public final String IN_EDGES_BIN;
     public final String OUT_EDGES_BIN;
     public final String EDGE_CACHE_DISABLED_BIN;
-    public final String RELATIONAL_VERTEX_TYPE_HINT_BIN;
     public final String INDEX_METADATA_SET;
 
     public final String GRAPH_METADATA_SET;
@@ -535,12 +534,11 @@ public class AerospikeConnection implements AutoCloseable {
         IN_EDGES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.IN_EDGES_BIN.name(), conf);
         OUT_EDGES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.OUT_EDGES_BIN.name(), conf);
         EDGE_CACHE_DISABLED_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.EDGE_CACHE_DISABLED_BIN.name(), conf);
-        RELATIONAL_VERTEX_TYPE_HINT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.RELATIONAL_VERTEX_TYPE_HINT_BIN.name(), conf);
         SUPERNODES_IN_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODES_IN.name(), conf);
         SUPERNODES_OUT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODES_OUT.name(), conf);
         SUPERNODE_EDGE_PROPERTIES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODE_EDGE_PROPERTIES_BIN.name(), conf);
         LABEL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.LABEL_BIN.name(), conf);
-        USER_KEY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.USER_KEY_BIN.name(), conf);
+        LOCK_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.LOCK_BIN.name(), conf);
         TTL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.TTL_BIN.name(), conf);
         USAGE_STATS_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.USAGE_STATS_BIN.name(), conf);
         EDGE_DATA_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.EDGE_DATA_BIN.name(), conf);
@@ -586,14 +584,12 @@ public class AerospikeConnection implements AutoCloseable {
 
         vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_BIN); // 2
         vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN); // 3
-        vertexNonPropertyBins.add(RELATIONAL_VERTEX_TYPE_HINT_BIN); // 4
         vertexNonPropertyBins.add(EDGE_CACHE_DISABLED_BIN); // 6
         vertexNonPropertyBins.add(IN_EDGES_BIN); // 7
         vertexNonPropertyBins.add(OUT_EDGES_BIN); // 8
         vertexNonPropertyBins.add(PROPERTIES_BIN); // 9 --> These are not included in vertex property bins since they are not property key mapped.
         vertexNonPropertyBins.add(TYPE_HINTS_BIN); // 10 --> These are not included in vertex property bins since they are not property key mapped.
         vertexNonPropertyBins.add(ID_TYPE_BIN); // 12
-        vertexNonPropertyBins.add(USER_KEY_BIN); // 13
         vertexNonPropertyBins.add(LABEL_BIN); // 14
         vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_ID_BIN);// 17
 
@@ -1756,16 +1752,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param bins Data Bin(s) to write
      */
     public void write(final Key key, final Bin... bins) {
-        Bin[] newBins;
-        //@todo This is a temporary measure to pack the user key into a bin.
-        //@todo Remove when sendKey works to recover the user key for hash constructed keys
-        if (key.userKey.getObject() != null) {
-            newBins = Arrays.copyOf(bins, bins.length + 1);
-            newBins[bins.length] = new Bin(USER_KEY_BIN, Value.get(key.userKey.getObject()));
-        } else {
-            newBins = bins;
-        }
-        write(key, false, -1, newBins);
+        write(key, false, -1, bins);
     }
 
     /**
@@ -1775,16 +1762,6 @@ public class AerospikeConnection implements AutoCloseable {
      * @param bins Data Bin(s) to write
      */
     public void write(final Key key, final boolean writeOnly, final int generation, final Bin... bins) {
-        Bin[] newBins;
-        //@todo This is a temporary measure to pack the user key into a bin.
-        //@todo Remove when sendKey works to recover the user key for hash constructed keys
-        if (key.userKey.getObject() != null) {
-            newBins = Arrays.copyOf(bins, bins.length + 1);
-            newBins[bins.length] = new Bin(USER_KEY_BIN, Value.get(key.userKey.getObject()));
-        } else {
-            newBins = bins;
-        }
-
         writeMetric.incrementAndGet();
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
@@ -1799,9 +1776,9 @@ public class AerospikeConnection implements AutoCloseable {
         final FireflyCache cache = transactionCache.get();
         final FireflyCache noPropsCache = emptyPropsTransactionCache.get();
         if (cache != null) {
-            cache.write(writePolicy, key, newBins);
+            cache.write(writePolicy, key, bins);
         } else {
-            checkedPut(writePolicy, key, newBins);
+            checkedPut(writePolicy, key, bins);
         }
         if (noPropsCache != null) {
             noPropsCache.remove(key);
@@ -2345,7 +2322,7 @@ public class AerospikeConnection implements AutoCloseable {
         policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
         policy.expiration = ttlMillis / 1000;
         configureWritePolicy(policy);
-        final Operation createLockRecord = Operation.put(new Bin(this.USER_KEY_BIN, false));
+        final Operation createLockRecord = Operation.put(new Bin(this.LOCK_BIN, false));
         try {
             return this.client.operate(policy, key, createLockRecord);
         } catch (final AerospikeException e) {

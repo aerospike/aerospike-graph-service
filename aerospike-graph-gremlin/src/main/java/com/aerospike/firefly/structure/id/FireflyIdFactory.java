@@ -96,8 +96,6 @@ public class FireflyIdFactory {
         final long typeHint;
         if (record.key().userKey.getObject() != null) {
             userId = record.key().userKey.getObject();
-        } else if (record.record().getValue(db.USER_KEY_BIN) != null) {
-            userId = record.record().getValue(db.USER_KEY_BIN);
         } else {
             // This should never happen since Vertex records should always have user id stored.
             throw new RuntimeException("Vertex record did not contain a user key.");

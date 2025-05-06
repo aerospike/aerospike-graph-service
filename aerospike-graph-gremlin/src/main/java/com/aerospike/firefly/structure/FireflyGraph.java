@@ -519,10 +519,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return FireflyGraph.getDataModelName();
     }
 
-    protected int getTypeHint() {
-        return FireflyVertex.VERTEX_TYPE_HINT;
-    }
-
     /**
      * Function to write vertex to Aerospike.
      *
@@ -541,7 +537,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
         final boolean isEdgeCacheOverflowed = !this.db.GLOBAL_EDGE_CACHE_ENABLED_FLAG ||
                 this.db.ON_RECORD_ID_LIMIT <= 0 || supernodeFlag != null;
-        return operations.writeVertex(idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
+        return operations.writeVertex(idValue, label, properties, true, isEdgeCacheOverflowed);
     }
 
     public void bulkWriteMergeVertex(final Object id, final String label, final List<Map.Entry<String, Object>> properties, final int partitionId) {
@@ -587,7 +583,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         try {
             // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
             // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
-            operations.writeVertex(idValue, label, properties, getTypeHint(), false, supernode, partitionId);
+            operations.writeVertex(idValue, label, properties, false, supernode, partitionId);
         } catch (final AerospikeGraphException e) {
             throw new FireflyLoadingException(e);
         }

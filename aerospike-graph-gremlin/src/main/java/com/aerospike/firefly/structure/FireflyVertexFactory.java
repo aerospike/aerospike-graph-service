@@ -63,7 +63,6 @@ public class FireflyVertexFactory {
 
         // Get id and label for vertex.
         final FireflyId id = graph.getIdFactory().createVertexIdFromRecord(FireflyRecord.fromRecord(db, keyRecord));
-        final int vertexTypeHint = record.getInt(db.RELATIONAL_VERTEX_TYPE_HINT_BIN);
         final String label = record.getString(db.LABEL_BIN);
 
         // Get cache state.
@@ -80,22 +79,18 @@ public class FireflyVertexFactory {
         final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints = (Map) record.getMap(db.TYPE_HINTS_BIN);
 
         // Create vertex based on type hint.
-        if (vertexTypeHint == FireflyVertex.VERTEX_TYPE_HINT) {// Get vertex properties and vertex property counter from record.
-            final Map<String, Object> vertexPropertyValues =
-                    (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN);
-            final Map<String, Object> vertexPropertyTypeHints =
-                    (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
-            final Map<String, Object> vertexPropertyIds =
-                    (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
-            graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, LazyVertexPropertyIdTransform.class);
-            final Map<String, LazyIdTransform> fireflyVertexPropertyIds = (Map) vertexPropertyIds;
-            return create(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds,
-                    fireflyVertexPropertyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyProperties,
-                    vertexPropertyPropertiesTypeHints,
-                    edgeCacheOverflowed, db);
-        } else {
-            // Should never happen.
-            throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
-        }
+        // Get vertex properties and vertex property counter from record.
+        final Map<String, Object> vertexPropertyValues =
+                (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN);
+        final Map<String, Object> vertexPropertyTypeHints =
+                (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
+        final Map<String, Object> vertexPropertyIds =
+                (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
+        graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, LazyVertexPropertyIdTransform.class);
+        final Map<String, LazyIdTransform> fireflyVertexPropertyIds = (Map) vertexPropertyIds;
+        return create(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds,
+                fireflyVertexPropertyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyProperties,
+                vertexPropertyPropertiesTypeHints,
+                edgeCacheOverflowed, db);
     }
 }

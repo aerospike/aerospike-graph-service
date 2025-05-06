@@ -61,7 +61,7 @@ public class TestFireflyCompositeIdStrategyIntegration {
 
     @AfterClass
     public static void afterAll() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
         SETUP_GRAPH.close();
     }
 

@@ -103,6 +103,10 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
+import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_PACKING_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
@@ -240,6 +244,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final long PROPERTY_ID_BUFFER_SIZE;
     public final long VERTEX_ID_BUFFER_SIZE;
     public final long EDGE_ID_BUFFER_SIZE;
+    public final long EDGE_ID_RECYCLE_BUFFER_SIZE;
     public final long USAGE_STATS_UPDATE_INTERVAL;
     public final boolean WARMUP_MODE;
     public final boolean PROMETHEUS_RENAME_ENABLED;
@@ -432,10 +437,13 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf);
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf);
         ENABLE_BATCHED_REPEAT_STEP_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf);
-        ENABLE_CACHED_ADJACENT_ID_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, conf);
+        final boolean adjacentIdEnabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, conf);
 
-        if (ENABLE_CACHED_ADJACENT_ID_STRATEGY && !ENABLE_COMPOSITE_ID_STRATEGY) {
-            throw new AerospikeGraphException(GraphError.CACHE_ADJACENT_ENABLED_COMPOSITE_ID_DISABLED);
+        if (adjacentIdEnabled && !ENABLE_COMPOSITE_ID_STRATEGY) {
+            LOG.warn(new AerospikeGraphException(GraphError.CACHE_ADJACENT_ENABLED_COMPOSITE_ID_DISABLED).getMessage());
+            ENABLE_CACHED_ADJACENT_ID_STRATEGY = false;
+        } else {
+            ENABLE_CACHED_ADJACENT_ID_STRATEGY = adjacentIdEnabled;
         }
 
         TTL_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf);
@@ -550,6 +558,7 @@ public class AerospikeConnection implements AutoCloseable {
         PROPERTY_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, conf);
         VERTEX_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, conf);
         EDGE_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, conf);
+        EDGE_ID_RECYCLE_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.EDGE_ID_RECYCLE_BUFFER_SIZE, conf);
 
         MERGE_EDGE_TTL = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MERGE_EDGE_TTL, conf);
         MERGE_EDGE_EVAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MERGE_EDGE_EVAL_TIMEOUT, conf);
@@ -566,6 +575,7 @@ public class AerospikeConnection implements AutoCloseable {
         bulkLoaderInitializerFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_INITIALIZER_FLAG, conf);
         olapEnabledFlag = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.OLAP_ENABLED, conf);
 
+        initializeIdSet();
         idFactory = new FireflyIdFactory(this);
 
         MRT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MRT_TIMEOUT, conf);
@@ -2069,6 +2079,32 @@ public class AerospikeConnection implements AutoCloseable {
                 Operation.add(ctr),
                 Operation.get(COUNTER_BIN));
         return record.getLong(COUNTER_BIN);
+    }
+
+    private void initializeIdSet() {
+        WritePolicy policy = new WritePolicy();
+        policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
+        configureWritePolicy(policy);
+        final Map<String, Key> idKeys = new HashMap<>();
+        idKeys.put("Vertex", new Key(namespace, ID_MANAGER_SET, VERTEX_ID_COUNTER));
+        idKeys.put("Vertex Property", new Key(namespace, ID_MANAGER_SET, VERTEX_PROPERTY_ID_COUNTER));
+        idKeys.put("Edge Packing", new Key(namespace, ID_MANAGER_SET, EDGE_PACKING_ID_COUNTER));
+        idKeys.put("Edge Unique", new Key(namespace, ID_MANAGER_SET, EDGE_UNIQUE_ID_COUNTER));
+
+        for (final Map.Entry<String, Key> key : idKeys.entrySet()) {
+            try {
+                final int initialValue = key.getKey().equals("Vertex") ? 0 : Integer.MAX_VALUE;
+                final Operation initialize = Operation.put(new Bin(COUNTER_BIN, initialValue));
+                LOG.info("Initializing {} ID metadata.", key.getKey());
+                this.client.operate(policy, key.getValue(), initialize);
+            } catch (final AerospikeException e) {
+                if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                    LOG.info("Existing {} ID metadata found.", key.getKey());
+                } else {
+                    throw fromAerospikeException(e);
+                }
+            }
+        }
     }
 
     /**

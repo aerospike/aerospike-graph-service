@@ -1,14 +1,13 @@
 package com.aerospike.firefly.structure.id;
 
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_PACKING_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 
@@ -43,10 +42,6 @@ public class BufferedNumericIdManager implements IdManager<Long> {
     protected BufferedNumericIdManager(final String counterName, final long bufferSize) {
         this.counterName = counterName;
         this.bufferSize = bufferSize;
-        if (bufferSize < 1) {
-            throw new IllegalArgumentException("BufferedNumericIdManager bufferSize of '" + bufferSize + "' " +
-                    "is not valid. The value must be greater than 0.");
-        }
         switch (counterName) {
             case VERTEX_PROPERTY_ID_COUNTER:
                 readableIdName = "VP IDs";
@@ -54,11 +49,11 @@ public class BufferedNumericIdManager implements IdManager<Long> {
             case VERTEX_ID_COUNTER:
                 readableIdName = "Vertex IDs";
                 break;
-            case EDGE_RECYCLED_ID_COUNTER:
-                readableIdName = "Edge packing IDs";
-                break;
             case EDGE_UNIQUE_ID_COUNTER:
                 readableIdName = "Edge unique IDs";
+                break;
+            case EDGE_PACKING_ID_COUNTER:
+                readableIdName = "Edge packing IDs";
                 break;
             default:
                 throw new IllegalArgumentException("Unknown counter name '" + counterName + "'.");
@@ -91,7 +86,7 @@ public class BufferedNumericIdManager implements IdManager<Long> {
         LOG.info("Allocating batch of {} {}.", bufferSize, this.readableIdName);
         // This is the new last reserved ID
         idTrigger.set(graph.getBaseGraph().decrementIdCounter(this.counterName, bufferSize));
-        // Since Firefly returns decrementing negative long values as generated IDs, the first buffered ID to return is
+        // Since Firefly returns decrementing long values as generated IDs, the first buffered ID to return is
         // the largest one
         idTracker.set(idTrigger.get() + bufferSize - 1);
     }
@@ -111,13 +106,13 @@ public class BufferedNumericIdManager implements IdManager<Long> {
                 synchronized (VID_LOCK) {
                     return getBulkLoaderId(graph, VERTEX_ID, VERTEX_ID_TRIGGER);
                 }
-            case EDGE_RECYCLED_ID_COUNTER:
-                synchronized (EID_PACK_LOCK) {
-                    return getBulkLoaderId(graph, EP_ID, EP_ID_TRIGGER);
-                }
             case EDGE_UNIQUE_ID_COUNTER:
-                synchronized (EID_UNIQUE_LOCK) {
+                synchronized (EID_PACK_LOCK) {
                     return getBulkLoaderId(graph, EU_ID, EU_ID_TRIGGER);
+                }
+            case EDGE_PACKING_ID_COUNTER:
+                synchronized (EID_UNIQUE_LOCK) {
+                    return getBulkLoaderId(graph, EP_ID, EP_ID_TRIGGER);
                 }
             default:
                 throw new IllegalArgumentException("Unknown bulk load counter name '" + counterName + "'.");

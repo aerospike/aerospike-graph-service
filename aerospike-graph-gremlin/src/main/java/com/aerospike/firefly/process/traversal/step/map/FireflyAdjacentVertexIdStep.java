@@ -3,7 +3,7 @@ package com.aerospike.firefly.process.traversal.step.map;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyUserIdComposite;
+import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -38,7 +38,7 @@ public class FireflyAdjacentVertexIdStep extends FlatMapStep<Vertex, Object> imp
         final FireflyVertex vertex = (FireflyVertex) traverser.get();
         final Iterator<FireflyId> cachedCompositeIds = vertex.getCachedIds(this.direction, Set.of(edgeLabels)).iterator();
         Iterator<Object> userIds = IteratorUtils.map(cachedCompositeIds, fireflyId -> {
-            final FireflyUserIdComposite compositeId = (FireflyUserIdComposite) fireflyId;
+            final FireflyIdComposite compositeId = (FireflyIdComposite) fireflyId;
             return compositeId.getAdjacentUserId();
         });
         if (vertex.isEdgeCacheOverflowed()) {

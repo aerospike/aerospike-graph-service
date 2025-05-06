@@ -29,7 +29,7 @@ public class EdgeIDTest extends AbstractFireflySuite {
                 () -> g.E("VXNlci1J:RDoxMjM0NTY3OA==").next());
 
         Assert.assertTrue(
-                "Error should be thrown as 'Invalid id for edge: 'VXNlci1J:RDoxMjM0NTY3OA=='. Base64 encoded String did not decode to a valid 16 byte array', was: " + ex.getMessage(),
-                ex.getMessage().contains("Invalid id for edge: 'VXNlci1J:RDoxMjM0NTY3OA=='. Base64 encoded String did not decode to a valid 16 byte array"));
+                "Error should be thrown as 'Invalid id for edge: 'VXNlci1J:RDoxMjM0NTY3OA=='. Base64 encoded String did not decode to a valid 8 or 16 byte array', was: " + ex.getMessage(),
+                ex.getMessage().contains("Invalid id for edge: 'VXNlci1J:RDoxMjM0NTY3OA=='. Base64 encoded String did not decode to a valid 8 or 16 byte array"));
     }
 }

@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -28,8 +29,8 @@ public class VertexWriteTask {
     final SparkFireflyVertex sparkVertex;
     final FireflyId fireflyId;
     final int partitionId;
-    final Map<String, List<FireflyId>> toEdgeCache;
-    final Map<String, List<FireflyId>> fromEdgeCache;
+    final Optional<Map<String, List<FireflyId>>> toEdgeCache;
+    final Optional<Map<String, List<FireflyId>>> fromEdgeCache;
 
     public VertexWriteTask(
             final ExponentialBackoffRetry retry,

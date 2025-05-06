@@ -5,9 +5,8 @@ import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.BadCsvEntryException;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.amazonaws.thirdparty.jackson.core.JsonProcessingException;
-import com.amazonaws.thirdparty.jackson.databind.JsonMappingException;
-import com.amazonaws.thirdparty.jackson.databind.ObjectMapper;
+import com.google.cloud.hadoop.repackaged.gcs.com.google.common.reflect.TypeToken;
+import com.google.gson.Gson;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +16,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_CACHE_HEADER;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_CACHE_HEADER;
@@ -46,6 +45,7 @@ public class SparkFireflyVertex extends SparkFireflyElement {
         Map<String, List<List<Object>>> toEdgeCache = new HashMap<>();
         Map<String, List<List<Object>>> fromEdgeCache = new HashMap<>();
         final List<Map.Entry<String, Object>> properties = Collections.synchronizedList(new ArrayList<>());
+        final Gson gson = new Gson();
         for (final String header : headers) {
             if (row.getAs(header) == null) {
                 continue;
@@ -62,9 +62,9 @@ public class SparkFireflyVertex extends SparkFireflyElement {
                 try {
                     final String mapString = row.getAs(header);
                     if (mapString != null && !mapString.isEmpty()) {
-                        toEdgeCache = new ObjectMapper().readValue(mapString, HashMap.class);
+                        toEdgeCache = gson.fromJson(mapString, new TypeToken<Map<String, List<List<Object>>>>(){}.getType());
                     }
-                } catch (final JsonProcessingException e) {
+                } catch (final Exception e) {
                     LOG.error("Failed to generate Vertex property for header '" + header + "' from value: " + row.getAs(header));
                     throw new BadCsvEntryException(e);
                 }
@@ -74,9 +74,9 @@ public class SparkFireflyVertex extends SparkFireflyElement {
                 try {
                     final String mapString = row.getAs(header);
                     if (mapString != null && !mapString.isEmpty()) {
-                        fromEdgeCache = new ObjectMapper().readValue(mapString, HashMap.class);
+                        fromEdgeCache = gson.fromJson(mapString, new TypeToken<Map<String, List<List<Object>>>>(){}.getType());
                     }
-                } catch (final JsonProcessingException e) {
+                } catch (final Exception e) {
                     LOG.error("Failed to generate Vertex property for header '" + header + "' from value: " + row.getAs(header));
                     throw new BadCsvEntryException(e);
                 }
@@ -106,33 +106,36 @@ public class SparkFireflyVertex extends SparkFireflyElement {
         return db.getIdFactory().createVertexId(this.id);
     }
 
-    public Map<String, List<FireflyId>> getToEdgeCache(final AerospikeConnection db) {
+    public Optional<Map<String, List<FireflyId>>> getToEdgeCache(final AerospikeConnection db) {
+        if (this.toEdgeCache.isEmpty()) {
+            return Optional.empty();
+        }
         final Map<String, List<FireflyId>> edgeIds = new HashMap<>();
         for (final String label : this.toEdgeCache.keySet()) {
             final List<List<Object>> idsList = this.toEdgeCache.get(label);
             final List<FireflyId> fireflyIds = new ArrayList<>();
             for (final List<Object> ids : idsList) {
                 fireflyIds.add(db.getIdFactory().createCompositeEdgeId(
-                        db.getIdFactory().createEdgeId(EdgeOperations.decodeEdgeIDFromString((String) ids.get(0))),
-                        db.getIdFactory().createVertexId(ids.get(1))));
+                        db.getIdFactory().createEdgeId(EdgeOperations.decodeEdgeIDFromString((String) ids.get(1))),
+                        db.getIdFactory().createVertexId(ids.get(0))));
             }
             edgeIds.put(label, fireflyIds);
         }
-        return edgeIds;
+        return Optional.of(edgeIds);
     }
 
-    public Map<String, List<FireflyId>> getFromEdgeCache(final AerospikeConnection db) {
+    public Optional<Map<String, List<FireflyId>>> getFromEdgeCache(final AerospikeConnection db) {
         final Map<String, List<FireflyId>> edgeIds = new HashMap<>();
         for (final String label : this.fromEdgeCache.keySet()) {
             final List<List<Object>> idsList = this.fromEdgeCache.get(label);
             final List<FireflyId> fireflyIds = new ArrayList<>();
             for (final List<Object> ids : idsList) {
                 fireflyIds.add(db.getIdFactory().createCompositeEdgeId(
-                        db.getIdFactory().createEdgeId(EdgeOperations.decodeEdgeIDFromString((String) ids.get(0))),
-                        db.getIdFactory().createVertexId(ids.get(1))));
+                        db.getIdFactory().createEdgeId(EdgeOperations.decodeEdgeIDFromString((String) ids.get(1))),
+                        db.getIdFactory().createVertexId(ids.get(0))));
             }
             edgeIds.put(label, fireflyIds);
         }
-        return edgeIds;
+        return Optional.of(edgeIds);
     }
 }

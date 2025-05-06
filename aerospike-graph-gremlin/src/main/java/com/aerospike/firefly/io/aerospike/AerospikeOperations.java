@@ -141,7 +141,7 @@ public class AerospikeOperations {
                                      final int vertexTypeHint,
                                      final boolean createOnly,
                                      final boolean isEdgeCacheOverflowed) {
-        return writeVertex(vertexId, label, properties, vertexTypeHint, createOnly, isEdgeCacheOverflowed, Optional.empty(), Optional.empty());
+        return writeVertex(vertexId, label, properties, vertexTypeHint, createOnly, isEdgeCacheOverflowed, null, Optional.empty(), Optional.empty());
     }
 
     /**
@@ -242,14 +242,9 @@ public class AerospikeOperations {
         final Operation writeLabel = Operation.put(labelBin);
         final Bin typeHintBin = new Bin(db.RELATIONAL_VERTEX_TYPE_HINT_BIN, Value.get(vertexTypeHint));
         final Operation writeTypeHint = Operation.put(typeHintBin);
-        final Map<String, List<Long>> emptyEdgeCache = new TreeMap<>();
-        if (toEdgeCache.isPresent()) {
-            // todo.
-        }
-        final Bin edgeCacheInBin = new Bin(db.IN_EDGES_BIN, Value.get(emptyEdgeCache, MapOrder.KEY_ORDERED));
-        final Operation writeEdgeCacheIn = Operation.put(edgeCacheInBin);
-        final Bin edgeCacheOutBin = new Bin(db.OUT_EDGES_BIN, Value.get(emptyEdgeCache, MapOrder.KEY_ORDERED));
-        final Operation writeEdgeCacheOut = Operation.put(edgeCacheOutBin);
+
+        final Operation writeEdgeCacheOut = getEdgeCache(fromEdgeCache, db.OUT_EDGES_BIN);
+        final Operation writeEdgeCacheIn = getEdgeCache(toEdgeCache, db.IN_EDGES_BIN);
 
         if (vertexTypeHint == FireflyVertex.VERTEX_TYPE_HINT) {
             final Bin vertexPropertyIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID_BIN,
@@ -332,6 +327,21 @@ public class AerospikeOperations {
             // Should never happen.
             throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
         }
+    }
+
+    private Operation getEdgeCache(final Optional<Map<String, List<FireflyId>>> optionalEdgeCache, final String bin) {
+        if (optionalEdgeCache.isEmpty()) {
+            final Map<String, List<Long>> emptyEdgeCache = new TreeMap<>();
+            final Bin edgeCacheOutBin = new Bin(bin, Value.get(emptyEdgeCache, MapOrder.KEY_ORDERED));
+            return Operation.put(edgeCacheOutBin);
+        }
+        final Map<String, List<FireflyId>> fromEdgeCacheMap = optionalEdgeCache.get();
+        final Map<String, List<Value>> vertexInEdgeMap = new TreeMap<>();
+        for (final Map.Entry<String, List<FireflyId>> entry : fromEdgeCacheMap.entrySet()) {
+            vertexInEdgeMap.put(entry.getKey(), entry.getValue().stream().map(e -> Value.get(e.getCachedId())).collect(Collectors.toList()));
+        }
+        final Bin edgeCacheOutBin = new Bin(bin, Value.get(vertexInEdgeMap, MapOrder.KEY_ORDERED));
+        return Operation.put(edgeCacheOutBin);
     }
 
     /**

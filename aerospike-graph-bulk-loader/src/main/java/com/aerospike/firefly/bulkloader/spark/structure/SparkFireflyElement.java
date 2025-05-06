@@ -15,7 +15,7 @@ public abstract class SparkFireflyElement implements Serializable {
     public static final String ID_HEADER = "~id";
     public static final String LABEL_HEADER = "~label";
 
-    protected final Object id;
+    public final Object id;
     protected final String label;
     protected final List<Map.Entry<String, Object>> properties;
 

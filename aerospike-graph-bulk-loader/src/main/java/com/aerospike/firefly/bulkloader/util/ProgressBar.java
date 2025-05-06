@@ -15,6 +15,7 @@ public class ProgressBar extends TimerTask {
     private FireflyGraph graph = null;
     private boolean isL2Mode = false;
     private boolean preflightCheckComplete = false;
+    private boolean generateEdgeCachesComplete = false;
     private boolean superNodeExtractionComplete = false;
     private boolean vertexLoadComplete = false;
     private boolean vertexValidationComplete = false;
@@ -114,6 +115,12 @@ public class ProgressBar extends TimerTask {
         }
     }
 
+    public void setGenerateEdgeCachesComplete() {
+        synchronized (ProgressBar.class) {
+            this.generateEdgeCachesComplete = true;
+        }
+    }
+
     public void setSuperNodeExtractionComplete() {
         synchronized (ProgressBar.class) {
             this.superNodeExtractionComplete = true;
@@ -194,7 +201,7 @@ public class ProgressBar extends TimerTask {
         if (vertexLoadComplete) {
             return "\t\tVertex writing complete\n" +
                     "\t\t\tTotal of " + (elementMetadata.totalVertexCount() - verticesInitial) + " vertices have been successfully written\n";
-        } else if (superNodeExtractionComplete) {
+        } else if ((isL2Mode && superNodeExtractionComplete) || (!isL2Mode && generateEdgeCachesComplete)) {
             if (verticesWritten == 0) {
                 updateAndGetDeltaVertexCount(elementMetadata);
                 return "\t\tVertex writing in progress\n";
@@ -297,6 +304,19 @@ public class ProgressBar extends TimerTask {
         }
     }
 
+    private String getGenerateEdgeIdsProgress() {
+        if (this.isL2Mode) {
+            return "";
+        }
+        if (generateEdgeCachesComplete) {
+            return "\t\tEdge cache generation complete\n";
+        } else if (superNodeExtractionComplete) {
+            return "\t\tEdge cache generation in progress\n";
+        } else {
+            return "\t\tEdge cache generation not started\n";
+        }
+    }
+
     private String getEdgeIdProgress() {
         if (resumableLoad && resumableLoadComplete) {
             return "\t\tTemp data writing skipped\n";
@@ -322,6 +342,7 @@ public class ProgressBar extends TimerTask {
                         getPreFlightCheckProgress() +
                         getEdgeIdProgress() +
                         getSuperNodeExtractionProgress() +
+                        getGenerateEdgeIdsProgress() +
                         getVertexWritingProgress(elementMetadata) +
                         getVertexValidationProgress() +
                         getEdgeWritingProgress(elementMetadata) +

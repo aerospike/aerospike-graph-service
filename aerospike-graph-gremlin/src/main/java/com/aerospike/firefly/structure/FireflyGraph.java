@@ -100,6 +100,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
@@ -584,12 +585,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                                 final List<Map.Entry<String, Object>> properties,
                                 final boolean supernode,
                                 final int partitionId,
-                                final Map<String, List<FireflyId>> toEdgeCache,
-                                final Map<String, List<FireflyId>> fromEdgeCache) {
+                                final Optional<Map<String, List<FireflyId>>> toEdgeCache,
+                                final Optional<Map<String, List<FireflyId>>> fromEdgeCache) {
         try {
             // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
             // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
-            operations.writeVertex(idValue, label, properties, getTypeHint(), false, supernode, partitionId, Optional.of(toEdgeCache), Optional.of(fromEdgeCache));
+            operations.writeVertex(idValue, label, properties, getTypeHint(), false, supernode, partitionId, toEdgeCache, fromEdgeCache);
         } catch (final AerospikeGraphException e) {
             throw new FireflyLoadingException(e);
         }
@@ -732,6 +733,97 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     // This function is used via reflection in Upgrade.java. Removing will cause issues.
     public static String getDataModelName() {
         return DATA_MODEL;
+    }
+
+    public static void bulkWriteEdges(final FireflyGraph graph,
+            final List<byte[]> edgeIds, final List<String> labels, final List<List<Map.Entry<String, Object>>> propertiess,
+                              final List<Object> inVertexIds, final List<Object> outVertexIds, final List<Boolean> inVSupernodes,
+                              final List<Boolean> outVSupernodes, final List<Integer> partitionIds) {
+        FireflyGraph.LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeIds, outVertexIds, labels, inVertexIds, propertiess);
+        final AerospikeOperations aerospikeOperations = new AerospikeOperations(graph);
+        final List<FireflyId> ids = edgeIds.stream().map(id -> graph.getIdFactory().createEdgeId(id)).collect(Collectors.toList());
+        final List<FireflyId> inIds = inVertexIds.stream().map(id -> graph.getIdFactory().createVertexId(id)).collect(Collectors.toList());
+        final List<FireflyId> outIds = outVertexIds.stream().map(id -> graph.getIdFactory().createVertexId(id)).collect(Collectors.toList());
+
+
+        final List<Map<String, Object>> propertyMaps = new ArrayList<>();
+        final List<Map<String, Object>> typeHintss = new ArrayList<>();
+        for (final List<Map.Entry<String, Object>> properties : propertiess) {
+            final Map<String, Object> propertyMap = new TreeMap<>();
+            final Map<String, Object> typeHints = new TreeMap<>();
+            properties.forEach(property -> {
+                final String key = property.getKey();
+                final Object value = FireflyHelper.validatePropertyValue(property.getValue());
+
+                if (value == null) {
+                    propertyMap.remove(key);
+                    typeHints.remove(key);
+                } else {
+                    propertyMap.put(key, value);
+                    final Object typeHint = getTypeHintOf(value);
+                    if (typeHint != null) {
+                        typeHints.put(key, typeHint);
+                    }
+                }
+            });
+            propertyMaps.add(propertyMap);
+            typeHintss.add(typeHints);
+        }
+
+        final List<List<Operation>> operationss = new ArrayList<>();
+        final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
+        for (int i = 0; i < edgeIds.size(); i++) {
+            final List<Value> edgeData = new ArrayList<>(EDGE_DATA_SIZE);
+            edgeData.add(LABEL_POSITION, Value.get(labels.get(i)));
+            edgeData.add(IN_V_POSITION, Value.get(inIds.get(i).getKeyHashString()));
+            edgeData.add(OUT_V_POSITION, Value.get(outIds.get(i).getKeyHashString()));
+            edgeData.add(PROPERTIES_POSITION, Value.get(propertyMaps.get(i)));
+            edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHintss.get(i)));
+
+            final List<Operation> operations = new ArrayList<>();
+            if (inVSupernodes.get(i)) {
+                final Operation writeInVSupernode = MapOperation.put(edgeMapPolicy, graph.getBaseGraph().SUPERNODES_IN_BIN,
+                        Value.get(edgeIds.get(i)), Value.get(inIds.get(i).getKeyHashString()));
+                operations.add(writeInVSupernode);
+            }
+            if (outVSupernodes.get(i)) {
+                final Operation writeOutVSupernode = MapOperation.put(edgeMapPolicy, graph.getBaseGraph().SUPERNODES_OUT_BIN,
+                        Value.get(edgeIds.get(i)), Value.get(outIds.get(i).getKeyHashString()));
+                operations.add(writeOutVSupernode);
+            }
+            operations.addAll(aerospikeOperations.createFilterableSupernodeOperations((FireflyPhatEdgeId) ids.get(i), outVSupernodes.get(i),
+                    inVSupernodes.get(i), outIds.get(i), inIds.get(i), labels.get(i), propertyMaps.get(i)));
+
+            final Operation createIndividualEdgeMap = MapOperation.put(edgeMapPolicy, graph.getBaseGraph().EDGE_DATA_BIN,
+                    Value.get(edgeIds.get(i)), Value.get(edgeData));
+            operations.add(createIndividualEdgeMap);
+
+            operationss.add(operations);
+        }
+
+        final WritePolicy writePolicy = new WritePolicy();
+        writePolicy.sendKey = true;
+
+        // All ids have same packing id, so just use 0.
+        final Key key = getKey(graph.getBaseGraph(), graph.getBaseGraph().EDGE_AERO_SET, ids.get(0));
+        try {
+            final List<Operation> flattenedOperations = new ArrayList<>();
+            for (int i = 0; i < operationss.size(); i++) {
+                final List<Operation> operations = operationss.get(i);
+                for (int j = 0; j < operations.size(); j++) {
+                    flattenedOperations.add(operations.get(j));
+                }
+            }
+            graph.getBaseGraph().writeOperate(writePolicy, key, flattenedOperations.toArray(new Operation[0]));
+        } catch (final AerospikeGraphException e) {
+            throw new FireflyLoadingException(e);
+        }
+        for (final int i : IntStream.range(0, ids.size()).boxed().collect(Collectors.toList())) {
+            final String label = labels.get(i);
+            final List<Map.Entry<String, Object>> properties = propertiess.get(i);
+            final int partitionId = partitionIds.get(i);
+            graph.fireflySummaryUpdater.stageEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()), partitionId);
+        }
     }
 
     public void bulkWriteEdge(final byte[] edgeId, final String label, final List<Map.Entry<String, Object>> properties,

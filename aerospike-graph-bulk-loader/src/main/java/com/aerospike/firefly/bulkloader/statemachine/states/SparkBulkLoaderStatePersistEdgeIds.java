@@ -3,17 +3,13 @@ package com.aerospike.firefly.bulkloader.statemachine.states;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
-import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.spark.sql.Column;
 import org.apache.spark.storage.StorageLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-
+import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.PACKING_ID_COLUMN;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
 
 public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderStatePersistEdgeIds.class);
@@ -25,18 +21,20 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
     public void executeState() {
         // Persist edge ids.
         // Persist Edge ID data to disk
-        if (sparkBulkLoaderStateMachine.readOnly) {
-            // Persisting Edge IDs is disabled. Do Nothing.
-            LOGGER.debug("{} mode detected. System will not write persistent Edge IDs to temp storage.", READ_ONLY);
-        } else {
-            sparkBulkLoaderStateMachine.edgeOperations.writeEdgeIDsToStorage(
+
+        // Now the order of ids in the partition should be preserved.
+        if (!sparkBulkLoaderStateMachine.readOnly) {
+            sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeOperations.writeEdgeIDsToDataframe(
                     sparkBulkLoaderStateMachine.edgeDataset,
                     sparkBulkLoaderStateMachine.edgeRecoveryDirectory,
-                    sparkBulkLoaderStateMachine.fileConfig);
+                    sparkBulkLoaderStateMachine.fileConfig,
+                    sparkBulkLoaderStateMachine.readOnly);
 
-            // Now the order of ids in the partition should be preserved.
+            // TODO: Does this make sense? we already persist in the above.
             sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.spark.read().option("header", "true").csv(sparkBulkLoaderStateMachine.edgeRecoveryDirectory);
             sparkBulkLoaderStateMachine.edgeDataset.persist(StorageLevel.DISK_ONLY());
+            sparkBulkLoaderStateMachine.edgeDataset.show(10, false);
+
 
             // Latch recovery directory.
             RecoveryUtil.writeTempDirectory(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), sparkBulkLoaderStateMachine.edgeRecoveryDirectory);
@@ -51,9 +49,9 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
                     sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
                     sparkBulkLoaderStateMachine.edgePartitionCount);
             sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartition(
-                    sparkBulkLoaderStateMachine.edgePartitionCount, new Column("~edgeid"));
-
+                    sparkBulkLoaderStateMachine.edgePartitionCount, new Column(PACKING_ID_COLUMN));
             sparkBulkLoaderStateMachine.progressBar.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
+            sparkBulkLoaderStateMachine.edgeDataset.sortWithinPartitions(new Column(PACKING_ID_COLUMN));
         }
 
         sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();

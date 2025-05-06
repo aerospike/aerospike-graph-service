@@ -69,6 +69,7 @@ import java.util.stream.Collectors;
 import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.exponentialBackoff;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNS_TO_REMOVE;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.EDGE_ID_COLUMN;
+import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.PACKING_ID_COLUMN;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIMIT;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
@@ -148,6 +149,8 @@ public class EdgeOperations implements Serializable {
                 LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
+                Long currentId = null;
+                List<EdgeWriteTask> tasks = new ArrayList<>();
                 final long allowBadEntryCount = this.config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
 
                 final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
@@ -163,7 +166,9 @@ public class EdgeOperations implements Serializable {
                     if (futures.size() >= bufferSize) {
                         final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
                         megaTask.join();
-                        writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
+                        if (readOnly) {
+                            writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
+                        }
                         LOGGER.info(String.format("Edge write, partitionId: %d, batch: %d, time taken(in milli-seconds): %d, super node size: %d, cleaning all cached vertex maps", partitionId,
                                 batch, Duration.between(start, Instant.now()).toMillis(), supernodes.size()));
                         start = Instant.now();
@@ -178,15 +183,36 @@ public class EdgeOperations implements Serializable {
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, DatasetOperations.COLUMNS_TO_REMOVE);
 
                     try {
-                        final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
-                                providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
-                                metadataRow, usePersistedEdgeId, partitionId);
-                        futures.add(ewt.write(executor).thenRunAsync(() -> ewt.updateCacheMap(), executor));
+                        if (!readOnly) {
+                            final Long packingId = Long.parseLong(metadataRow.getString(metadataRow.fieldIndex(PACKING_ID_COLUMN)));
+                            final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
+                                    providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
+                                    metadataRow, usePersistedEdgeId, partitionId);
+                            if (!packingId.equals(currentId)) {
+                                // Kick off the previous batch.
+                                futures.add(EdgeWriteTask.writeBatch(executor, graph, tasks));
+
+                                // Set up next batch.
+                                tasks.clear();
+                                currentId = packingId;
+                            }
+                            tasks.add(ewt);
+                        } else {
+                            final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
+                                    providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
+                                    metadataRow, usePersistedEdgeId, partitionId);
+                            futures.add(ewt.write(executor).thenRunAsync(ewt::updateCacheMap, executor));
+                        }
                     } catch (final BadCsvEntryException e) {
                         if (allowBadEntryCount == 0) {
                             throw e;
                         }
                     }
+                }
+
+                if (!readOnly) {
+                    // Kick off the last batch.
+                    futures.add(EdgeWriteTask.writeBatch(executor, graph, tasks));
                 }
 
                 LOGGER.info(String.format("Done submitting edge write task; waiting for their completion in partitionId %d", partitionId));
@@ -199,7 +225,9 @@ public class EdgeOperations implements Serializable {
                 } else {
                     // Flush Vertex Edge cache maps when all Edge writes are done.
                     try {
-                        writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
+                        if (!readOnly) {
+                            writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
+                        }
                     } catch (final RuntimeException e) {
                         LOGGER.error("Failed to flush Vertex Edge cache maps", e);
                         throw e;
@@ -220,6 +248,7 @@ public class EdgeOperations implements Serializable {
     private void writeEdgeCacheToDB(final FireflyGraph graph,
                                     final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap,
                                     final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap) {
+        // TODO: Figure out how to find detatched edges.
         final long allowedDetachedEdges = this.config.getOrDefaultInt(ALLOWED_BAD_EDGES_COUNT);
         final Set<byte[]> invalidEdgeIds = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
@@ -528,6 +557,21 @@ public class EdgeOperations implements Serializable {
         }
     }
 
+    static private class PackingIDAdditionFunction implements MapPartitionsFunction, Serializable {
+        final Map<String, Object> fileConfig;
+        final StructType schema;
+
+        public PackingIDAdditionFunction(final Map<String, Object> fileConfig, final StructType writeSchema) {
+            this.fileConfig = fileConfig;
+            this.schema = writeSchema;
+        }
+
+        @Override
+        public Iterator call(final Iterator input) {
+            return new PackingIDOutputIterator(fileConfig, input, schema);
+        }
+    }
+
     static private class EdgeIDOutputIterator implements Iterator<Row>, Serializable {
         private long counter = 0L;
         private final Logger ITER_LOGGER = LoggerFactory.getLogger(EdgeIDOutputIterator.class);
@@ -588,24 +632,66 @@ public class EdgeOperations implements Serializable {
         }
     }
 
-    /***
-     * Assigns each edge record with an ~edgeID and writes them to user specified location.
-     * @param edgeDataSet
-     * @param writeLocation
-     * @param config
-     */
-    public void writeEdgeIDsToStorage(final Dataset<Row> edgeDataSet, final String writeLocation,
-                                      final Map<String, Object> config) {
-        final Instant startWriteEdge = Instant.now();
-        final String taskName = "Edges ID write";
-        final StructType writeSchema = edgeDataSet.schema().add(DataTypes.createStructField(EDGE_ID_COLUMN, DataTypes.StringType, false));
-        edgeDataSet.sparkSession().sparkContext().setJobGroup(taskName,
-                "Edges ID write task", true);
-        final ExpressionEncoder<Row> encoder = RowEncoder.apply(writeSchema);
-        final Dataset<Row> EdgeIdDF = edgeDataSet.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), encoder);
-        EdgeIdDF.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "bzip2").csv(writeLocation);
-        edgeDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
-        LOGGER.info("Execution time in seconds for Edge ID write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
+    static private class PackingIDOutputIterator implements Iterator<Row>, Serializable {
+        private long counter = 0L;
+        private final Logger ITER_LOGGER = LoggerFactory.getLogger(PackingIDOutputIterator.class);
+        final Map<String, Object> config;
+        final Iterator<Row> data;
+        final StructType schema;
+        final Instant start;
+
+        private final Supplier<FireflyGraph> graphSupplier = new Supplier<>() {
+            private FireflyGraph instance = null;
+
+            @Override
+            public FireflyGraph get() {
+                if (instance == null) {
+                    synchronized (this) {
+                        if (instance == null) {
+                            instance = FireflyGraph.open(new MapConfiguration(config));
+                        }
+                    }
+                }
+                return instance;
+            }
+        };
+
+        public FireflyGraph getFireflyGraph() {
+            return graphSupplier.get();
+        }
+
+        public PackingIDOutputIterator(final Map<String, Object> conf, final Iterator<Row> data, final StructType writeSchema) {
+            start = Instant.now();
+            this.config = conf;
+            this.data = data;
+            this.schema = writeSchema;
+        }
+
+        @Override
+        public boolean hasNext() {
+            final boolean hasMore = data.hasNext();
+            if (!hasMore) {
+                ITER_LOGGER.info("Done processing edgeID write task in partition:{}, rows:{}, time taken(in seconds):{}", TaskContext.getPartitionId(), counter, Duration.between(start, Instant.now()).getSeconds());
+                getFireflyGraph().close();
+            }
+            return hasMore;
+        }
+
+        @Override
+        public Row next() {
+            counter++;
+            final Row input = data.next();
+            final List<Object> outputRow = new ArrayList<>();
+            for (int i = 0; i < input.size(); i++) {
+                outputRow.add(input.get(i));
+            }
+
+            // Get packing id and snip to pure pack.
+            final String idString = input.getString(input.fieldIndex(EDGE_ID_COLUMN));
+            final Long id = Long.parseLong(idString.split(":")[0]) / getFireflyGraph().getBaseGraph().PHAT_EDGE_SIZE;
+            outputRow.add(id);
+            return new GenericRowWithSchema(outputRow.toArray(), schema);
+        }
     }
 
     /***
@@ -635,6 +721,32 @@ public class EdgeOperations implements Serializable {
     }
 
     /***
+     * Assigns each edge record with an ~edgeID and writes them to user specified location.
+     * @param edgeDataSet
+     * @param writeLocation
+     * @param config
+     */
+    public Dataset<Row> writeEdgeIDsToDataframe(final Dataset<Row> edgeDataSet, final String writeLocation,
+                                      final Map<String, Object> config, final boolean readOnly) {
+        final Instant startWriteEdge = Instant.now();
+        final String taskName = "Edges ID write";
+        final StructType writeSchema = edgeDataSet.schema().add(DataTypes.createStructField(EDGE_ID_COLUMN, DataTypes.StringType, false));
+        edgeDataSet.sparkSession().sparkContext().setJobGroup(taskName, "Edges ID write task", true);
+        final ExpressionEncoder<Row> edgeIdEncoder = RowEncoder.apply(writeSchema);
+        final Dataset<Row> edgeIdDataset = edgeDataSet.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), edgeIdEncoder);
+        final StructType writePackingSchema = edgeIdDataset.schema().add(DataTypes.createStructField(PACKING_ID_COLUMN, DataTypes.LongType, false));
+        final ExpressionEncoder<Row> packingIdEncoder = RowEncoder.apply(writePackingSchema);
+        final Dataset<Row> packingIdDataset = edgeIdDataset.mapPartitions(new PackingIDAdditionFunction(config, writePackingSchema), packingIdEncoder);
+        if (!readOnly) {
+            packingIdDataset.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "bzip2").csv(writeLocation);
+        }
+        edgeDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
+        packingIdDataset.show(10, false);
+        LOGGER.info("Execution time in seconds for Edge ID write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
+        return packingIdDataset;
+    }
+
+    /***
      * Decode the Stringified encoded edgeId to byte[] as it was originally generated by @
      * @param idString edgeIds read from file
      * @return byte[] id generated equivalent to ID manager.
@@ -649,7 +761,7 @@ public class EdgeOperations implements Serializable {
         }
 
         final String[] tokens = idString.split(":");
-        Preconditions.checkArgument(tokens.length == 2, String.format("Tokenized idString must have only 2 tokes, found %d", tokens.length));
+        Preconditions.checkArgument(tokens.length == 2, String.format("Tokenized idString must have only 2 tokens, found %d", tokens.length));
 
         final Long recycleId = Objects.requireNonNull(Long.valueOf(tokens[0]), "parsed recycleId can't be null");
         final Long numericID = Objects.requireNonNull(Long.valueOf(tokens[1]), "parsed numericId can't be null");

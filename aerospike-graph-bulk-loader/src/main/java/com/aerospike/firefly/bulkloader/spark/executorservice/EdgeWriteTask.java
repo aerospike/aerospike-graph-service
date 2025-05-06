@@ -12,12 +12,15 @@ import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public class EdgeWriteTask {
     final ExponentialBackoffRetry retry;
@@ -33,7 +36,7 @@ public class EdgeWriteTask {
     private final GenericRowWithSchema fireflyMetadataRow;
     private final boolean edgeCacheEnabled;
     private final FireflyId edgeId;
-    private final SparkFireflyEdge sparkEdge;
+    public final SparkFireflyEdge sparkEdge;
     private final Object inVertexId;
     private final Object outVertexId;
     private final String edgeLabel;
@@ -77,7 +80,7 @@ public class EdgeWriteTask {
         this.partitionId = partitionId;
     }
 
-    public CompletionStage<Void> write(ScheduledExecutorService service) {
+    public CompletionStage<Void> write(final ScheduledExecutorService service) {
         final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
             this.graph.bulkWriteEdge((byte[]) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
                     inVertexId, outVertexId, inVertexSupernode, outVertexSupernode, partitionId);
@@ -86,6 +89,38 @@ public class EdgeWriteTask {
         return retry.withRetries(supplier, service).exceptionally(e -> {
             // Log the error when no longer retrying
             LOGGER.error(String.format("Exception occurred during Edge writing %s", this), e);
+            throw new RuntimeException(e);
+        });
+    }
+
+    public static CompletionStage<Void> writeBatch(final ScheduledExecutorService service,
+                                                    final FireflyGraph graph,
+                                                   final List<EdgeWriteTask> edgeWriteTask) {
+        if (edgeWriteTask.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        final List<byte[]> ids = edgeWriteTask.stream().map(task -> (byte[]) task.sparkEdge.getId()).collect(Collectors.toList());
+        final List<String> edgeLabels = edgeWriteTask.stream().map(task -> task.edgeLabel).collect(Collectors.toList());
+        final List<List<Map.Entry<String, Object>>> properties = edgeWriteTask.stream().map(task -> task.sparkEdge.getProperties()).collect(Collectors.toList());
+        final List<Object> inVertexIds = edgeWriteTask.stream().map(task -> task.inVertexId).collect(Collectors.toList());
+        final List<Object> outVertexIds = edgeWriteTask.stream().map(task -> task.outVertexId).collect(Collectors.toList());
+        final List<Boolean> inVertexSupernodes = edgeWriteTask.stream().map(task -> task.inVertexSupernode).collect(Collectors.toList());
+        final List<Boolean> outVertexSupernodes = edgeWriteTask.stream().map(task -> task.outVertexSupernode).collect(Collectors.toList());
+        final List<Integer> partitionIds = edgeWriteTask.stream().map(task -> task.partitionId).collect(Collectors.toList());
+
+        final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
+            try {
+                FireflyGraph.bulkWriteEdges(graph, ids, edgeLabels, properties, inVertexIds, outVertexIds, inVertexSupernodes, outVertexSupernodes, partitionIds);
+            } catch (final Exception e) {
+                // Log the error when no longer retrying
+                edgeWriteTask.get(0).LOGGER.error(String.format("Exception occurred during Edge writing %s", edgeWriteTask), e);
+                throw new RuntimeException(e);
+            }
+            return null;
+        }, service);
+        return edgeWriteTask.get(0).retry.withRetries(supplier, service).exceptionally(e -> {
+            // Log the error when no longer retrying
+            edgeWriteTask.get(0).LOGGER.error(String.format("Exception occurred during Edge writing %s", edgeWriteTask), e);
             throw new RuntimeException(e);
         });
     }

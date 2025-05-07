@@ -23,13 +23,41 @@ public class EdgeIDTest extends AbstractFireflySuite {
         final Vertex bar = g.addV("bar").next();
         final Edge baz = g.addE("baz").from(foo).to(bar).next();
 
-        IllegalArgumentException ex = Assert.assertThrows(
-                IllegalArgumentException.class,
-                // lambda must be a void‐returning block or expression
-                () -> g.E("VXNlci1J:RDoxMjM0NTY3OA==").next());
+        Object[] invalidIds = new Object[] {
+                // invalid char
+                "VXNlci1J:RDoxMjM0NTY3OA==",
+                // integer
+                "1287563",
+                // double
+                "123.456",
+                // long
+                "1234567890123456789L",
+                // float
+                "3.14f",
+                // empty string
+                "",
+                // valid but too long
+                "AAAAAAAAAAAAAAAAAAAAAA==",
+                // valid but too short
+                "AA=="
+        };
 
-        Assert.assertTrue(
-                "Error should be thrown as 'Invalid id for edge: 'VXNlci1J:RDoxMjM0NTY3OA=='. Base64 encoded String did not decode to a valid 8 or 16 byte array', was: " + ex.getMessage(),
-                ex.getMessage().contains("Invalid id for edge: 'VXNlci1J:RDoxMjM0NTY3OA=='. Base64 encoded String did not decode to a valid 8 or 16 byte array"));
+        for (Object id : invalidIds) {
+            try {
+                g.E(id).next();
+                Assert.fail("Expected IllegalArgumentException for id: " + id);
+            }
+            catch (IllegalArgumentException e) {
+                String repr = String.valueOf(id);   // turns null → "null"
+                String expected = "Invalid id for edge: '" + repr +
+                        "'. Base64 encoded String did not decode to a valid 8 or 16 byte array.";
+                Assert.assertTrue(
+                        "For id=\"" + repr + "\" expected message to contain:\n  " + expected +
+                                "\nbut was:\n  " + e.getMessage(),
+                        e.getMessage().contains(expected)
+                );
+            }
+        }
     }
+
 }

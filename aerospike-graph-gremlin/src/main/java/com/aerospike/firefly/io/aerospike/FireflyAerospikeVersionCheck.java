@@ -1,6 +1,5 @@
 package com.aerospike.firefly.io.aerospike;
 
-import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.cluster.Node;
@@ -27,70 +26,6 @@ public class FireflyAerospikeVersionCheck {
 
     private static final Logger LOG = LoggerFactory.getLogger(FireflyAerospikeVersionCheck.class);
 
-   /* public FireflyAerospikeVersionCheck(final String version) {
-        int extension1;
-        if (version == null) {
-            throw new IllegalArgumentException("Aerospike version cannot be null");
-        }
-
-        if (!versionLogged) {
-            LOG.info("Aerospike version: {}.", version);
-            versionLogged = true;
-        }
-
-        int begin = 0;
-        int i = begin;
-        int max = version.length();
-
-        while (i < max) {
-            if (!Character.isDigit(version.charAt(i))) {
-                break;
-            }
-            i++;
-        }
-
-        major = (i > begin) ? Integer.parseInt(version.substring(begin, i)) : 0;
-        begin = ++i;
-
-        while (i < max) {
-            if (!Character.isDigit(version.charAt(i))) {
-                break;
-            }
-            i++;
-        }
-
-        minor = (i > begin) ? Integer.parseInt(version.substring(begin, i)) : 0;
-        begin = ++i;
-
-        while (i < max) {
-            if (!Character.isDigit(version.charAt(i))) {
-                break;
-            }
-            i++;
-        }
-
-        revision = (i > begin) ? Integer.parseInt(version.substring(begin, i)) : 0;
-        begin = i;
-        if(begin >= version.length()) { // Case for Epoch Semantic with no string
-            extension1 = 0;
-        }else{
-            final String extensionString = version.substring(begin + 1);
-            try{
-                if (extensionString.contains("-")) {
-                    extension1 = Integer.parseInt(extensionString.substring(0, extensionString.indexOf("-")));
-                } else if (extensionString.contains("_")) {
-                    extension1 = Integer.parseInt(extensionString.substring(0, extensionString.indexOf("_")));
-                } else {
-                    extension1 = Integer.parseInt(extensionString);
-                }
-            } catch (final NumberFormatException e) {
-                extension1 = 0;
-            }
-        }
-
-        extension = extension1;
-    }
-*/
     public FireflyAerospikeVersionCheck(final String version){
         if (version == null) {
             throw new IllegalArgumentException("Aerospike version cannot be null");

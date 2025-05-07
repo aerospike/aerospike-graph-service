@@ -87,7 +87,6 @@ public class FireflyAerospikeVersionCheck {
             }
         }
 
-
         extension = extension1;
     }
 

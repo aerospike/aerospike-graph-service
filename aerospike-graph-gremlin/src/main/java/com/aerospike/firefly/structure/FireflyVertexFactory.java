@@ -62,7 +62,7 @@ public class FireflyVertexFactory {
         }
 
         // Get id and label for vertex.
-        final FireflyId id = graph.getIdFactory().createVertexIdFromRecord(FireflyRecord.fromRecord(db, keyRecord));
+        final FireflyId id = graph.getIdFactory().createVertexIdFromRecord(keyRecord);
         final String label = record.getString(db.LABEL_BIN);
 
         // Get cache state.

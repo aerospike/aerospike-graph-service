@@ -280,14 +280,9 @@ public class AerospikeOperations {
             policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
         }
 
-
-        // TODO: This is a temporary measure to pack the user key into a bin. Remove when sendKey works to
-        //       recover the user key for hash constructed keys
-        if (key.userKey.getObject() != null) {
-            final Bin userKeyBin = new Bin(db.USER_KEY_BIN, Value.get(key.userKey.getObject()));
-            final Operation writeUserKey = Operation.put(userKeyBin);
-            operations.add(writeUserKey);
-        }
+        final Bin userKeyBin = new Bin(db.USER_KEY_BIN, Value.get(vertexId.getStorageId()));
+        final Operation writeUserKey = Operation.put(userKeyBin);
+        operations.add(writeUserKey);
 
         operations.add(writeCacheDisabled);
         operations.add(writeLabel);
@@ -398,7 +393,6 @@ public class AerospikeOperations {
             throw new IllegalStateException("Pushdown filters are not supported for composite ID edge skipping.");
         }
         final QueryPolicy queryPolicy = new QueryPolicy();
-        queryPolicy.sendKey = true;
         queryPolicy.includeBinData = true;
         queryPolicy.filterExp = GraphQueryHelper.phatEdgeHasContainerListToExpression(db, hasContainers, labels,
                 vertexId.getKeyHashString(), adjacentVertexId, direction);
@@ -788,7 +782,6 @@ public class AerospikeOperations {
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.txn = txn;
-        writePolicy.sendKey = true;
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
         try {
             final Record record = db.writeOperate(writePolicy, key, operations.toArray(new Operation[0]));

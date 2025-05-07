@@ -71,7 +71,6 @@ public class TestTimeout {
                 any(List.class),
                 any(Class.class),
                 any(boolean.class),
-                any(boolean.class),
                 any(Long.class));
 
         when(graph.settings()).thenReturn(settings);
@@ -97,7 +96,6 @@ public class TestTimeout {
                 any(FireflyGraph.TransformKeyRecord.class),
                 any(List.class),
                 any(Class.class),
-                any(boolean.class),
                 any(boolean.class),
                 any(Long.class));
 

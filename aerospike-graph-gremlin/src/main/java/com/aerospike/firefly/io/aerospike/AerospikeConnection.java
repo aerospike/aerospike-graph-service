@@ -706,7 +706,6 @@ public class AerospikeConnection implements AutoCloseable {
     public GraphMetadata getDataModelMetadata() {
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
         final Policy policy = new Policy();
-        policy.sendKey = false;
         Record dataModelRec = read(k, policy, null);
         return new GraphMetadata(dataModelRec);
     }
@@ -1583,7 +1582,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     private Record[] batchRead(final Key[] keys, final BatchPolicy policy, final Operation[] operations, final FireflyCache cache) {
         final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
-        batchPolicy.sendKey = false;
         configureReadPolicy(batchPolicy);
         try {
             return (cache != null) ? cache.read(keys, batchPolicy, operations) : client.get(batchPolicy, keys, operations);
@@ -1602,7 +1600,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     private Record[] batchRead(final Key[] keys, final BatchPolicy policy, final FireflyCache cache) {
         final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
-        batchPolicy.sendKey = false;
         configureReadPolicy(batchPolicy);
         try {
             return (cache != null) ? cache.read(keys, batchPolicy) : client.get(batchPolicy, keys);
@@ -1667,7 +1664,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     Record[] skipCacheRead(final Key[] keys, final BatchPolicy policy, Operation[] operations) {
         final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
-        batchPolicy.sendKey = false;
         configureReadPolicy(batchPolicy);
         try {
             return client.get(batchPolicy, keys, operations);
@@ -1686,7 +1682,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     Record[] skipCacheRead(final Key[] keys, final BatchPolicy policy) {
         final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
-        batchPolicy.sendKey = false;
         configureReadPolicy(batchPolicy);
         try {
             return client.get(batchPolicy, keys);
@@ -2509,7 +2504,6 @@ public class AerospikeConnection implements AutoCloseable {
 
             final Txn txn = new Txn();
             final WritePolicy writePolicy = new WritePolicy();
-            writePolicy.sendKey = true;
             writePolicy.txn = txn;
 
             checkedPut(writePolicy, key, bin);

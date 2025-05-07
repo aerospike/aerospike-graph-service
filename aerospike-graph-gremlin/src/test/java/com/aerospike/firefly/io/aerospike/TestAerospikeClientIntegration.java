@@ -110,7 +110,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final Operation bin3Op = Operation.put(bin3);
         db.writeOperate(null, getKey(db, db.TEST_SET, id), bin1Op, bin2Op, bin3Op);
         final Policy policy = new Policy();
-        policy.sendKey = false;
         assertNotEquals(null, db.read(getKey(db, db.TEST_SET, id), policy));
         db.delete(getKey(db, db.TEST_SET, id), null);
         assertNull(db.read(getKey(db, db.TEST_SET, id), policy));
@@ -519,57 +518,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
         final Key key = new Key("test", SET_NAME, KEY_NAME);
         assertEquals(Crypto.encodeBase64(key.digest), computedHash);
-    }
-
-    @Test
-    public void testRecoverOriginalUserKeyFromHash() {
-        final String SET_NAME = "testSet";
-        final String KEY_NAME = "testKey";
-        final Value keyValue = Value.get(KEY_NAME);
-        final byte[] digest = Crypto.computeDigest(SET_NAME, keyValue);
-        final String computedHashString = Crypto.encodeBase64(digest);
-        final Key key = new Key("test", digest, SET_NAME, Value.NULL);
-        db.writeOperate(null, key, Operation.put(new Bin("bin", 1)));
-
-        final Policy policy = new Policy();
-        policy.sendKey = false;
-        Record result = db.read(key, policy);
-        class TestRL implements RecordListener {
-            public Key key;
-            Semaphore semaphore = new Semaphore(0);
-            private Record record;
-
-            @Override
-            public void onSuccess(Key key, Record record) {
-                this.key = key;
-                this.record = record;
-                semaphore.release();
-            }
-
-            @Override
-            public void onFailure(AerospikeException e) {
-                semaphore.release();
-                throw new RuntimeException(e);
-            }
-
-            public KeyRecord get() {
-                try {
-                    semaphore.acquire();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                return new KeyRecord(key, record);
-            }
-        }
-        TestRL testRL = new TestRL();
-        final BatchPolicy batchPolicy = new BatchPolicy();
-        batchPolicy.sendKey = false;
-        db.readWithListener(testRL, batchPolicy, key);
-        KeyRecord keyRecord = testRL.get();
-        assertEquals(1, keyRecord.record.getInt("bin"));
-        //Cant recover the original key. Seems strange since Scan will send the original key
-        Object orig = keyRecord.key.userKey.getObject();
-        assertNull(orig); //This should be te original user key, but it is not, its null
     }
 
     @Test

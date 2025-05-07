@@ -63,4 +63,12 @@ public class FireflyAerospikeVersionCheckTest {
         Assert.assertFalse(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(5,1,0,7,"_1"))));
         Assert.assertThrows(IllegalArgumentException.class, () -> FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(null)));
     }
+
+    @Test
+    public void testEpochSemantics() {
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck("80.1.0-start-1-gabd7d79")));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck("90.2.9-end-gakl2d01")));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck("80.1.6")));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck("90.2.9")));
+    }
 }

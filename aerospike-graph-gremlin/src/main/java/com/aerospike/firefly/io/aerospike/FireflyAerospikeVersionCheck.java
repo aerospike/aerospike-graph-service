@@ -6,6 +6,7 @@ import com.aerospike.client.cluster.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
@@ -69,18 +70,24 @@ public class FireflyAerospikeVersionCheck {
 
         revision = (i > begin) ? Integer.parseInt(version.substring(begin, i)) : 0;
         begin = i;
-        final String extensionString = version.substring(begin + 1);
-        if (extensionString.contains("-")) {
-            extension1 = Integer.parseInt(extensionString.substring(0, extensionString.indexOf("-")));
-        } else if (extensionString.contains("_")) {
-            extension1 = Integer.parseInt(extensionString.substring(0, extensionString.indexOf("_")));
-        } else {
-            try {
-                extension1 = Integer.parseInt(extensionString);
+        if(begin >= version.length()) { // Case for Epoch Semantic with no string
+            extension1 = 0;
+        }else{
+            final String extensionString = version.substring(begin + 1);
+            try{
+                if (extensionString.contains("-")) {
+                    extension1 = Integer.parseInt(extensionString.substring(0, extensionString.indexOf("-")));
+                } else if (extensionString.contains("_")) {
+                    extension1 = Integer.parseInt(extensionString.substring(0, extensionString.indexOf("_")));
+                } else {
+                    extension1 = Integer.parseInt(extensionString);
+                }
             } catch (final NumberFormatException e) {
                 extension1 = 0;
             }
         }
+
+
         extension = extension1;
     }
 
@@ -104,4 +111,5 @@ public class FireflyAerospikeVersionCheck {
                         (version.minor == MINOR_MINIMUM && (version.revision > REVISION_MINIMUM ||
                                 (version.revision == REVISION_MINIMUM && version.extension >= EXTENSION_MINIMUM)))));
     }
+
 }

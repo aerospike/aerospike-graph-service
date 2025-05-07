@@ -34,7 +34,7 @@ public class FireflyPhatEdgeId extends FireflyIdPoly implements FireflyEdgeId {
     }
 
     static FireflyPhatEdgeId fromBase64String(final String id, final long capacity, final String edgeSetName) {
-        try{
+        try {
             final byte[] decodedBytes = Base64.getDecoder().decode(id);
             return fromByteArray(decodedBytes, capacity, edgeSetName);
         } catch(final IllegalArgumentException | IllegalStateException e) {

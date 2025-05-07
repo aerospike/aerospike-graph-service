@@ -1,1 +1,3 @@
-com.aerospike.firefly.olap.features.FireflyComputerFeatureTest$FireflyComputerGraphGuiceFactory
+com.aerospike.firefly.olap.features.FireflyComputerFeatureMapTest$FireflyComputerGraphGuiceFactory
+com.aerospike.firefly.olap.features.FireflyComputerFeatureFilterTest$FireflyComputerGraphGuiceFactory
+com.aerospike.firefly.olap.features.FireflyComputerFeatureBranchTest$FireflyComputerGraphGuiceFactory

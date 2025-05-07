@@ -192,7 +192,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     // docs changes, config updates, etc, and isn't worth it right now.
     public static final String PRODUCT_NAME = "Aerospike Graph";
     private static final Logger LOG = LoggerFactory.getLogger(PRODUCT_NAME);
-    public static String FIREFLY_VERSION = "2.6.0-SNAPSHOT";
+    public static String FIREFLY_VERSION = "3.0.0-SNAPSHOT";
 
     // Doesn't use hidden key token ~ due to internal Tinkerpop MergeStep validation
     public static final String BULK_LOAD_VERTEX_ADD_KEY = "___bulkLoadMergeVIdentifier";

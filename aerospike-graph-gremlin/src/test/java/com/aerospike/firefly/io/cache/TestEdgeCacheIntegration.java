@@ -143,7 +143,7 @@ public class TestEdgeCacheIntegration {
             List<Object> outPepperoniEdges = outMap.get("pepperoni");
             boolean foundExpectedOutEdge = false;
             for (final Object edgeId : outPepperoniEdges) {
-                if (Arrays.equals((byte[]) edgeId, (byte[]) expectedOutId.getCachedId())) {
+                if (edgeId.equals(expectedOutId.getCachedId())) {
                     foundExpectedOutEdge = true;
                 }
             }
@@ -151,7 +151,7 @@ public class TestEdgeCacheIntegration {
             List<Object> inPepperoniEdges = inMap.get("pepperoni");
             boolean foundExpectedInEdge = false;
             for (final Object edgeId : inPepperoniEdges) {
-                if (Arrays.equals((byte[]) edgeId, (byte[]) expectedInId.getCachedId())) {
+                if (edgeId.equals(expectedInId.getCachedId())) {
                     foundExpectedInEdge = true;
                 }
             }
@@ -170,13 +170,13 @@ public class TestEdgeCacheIntegration {
             Assert.assertEquals(1, inMap.get("pepperoni").size());
             outPepperoniEdges = outMap.get("pepperoni");
             for (final Object edgeId : outPepperoniEdges) {
-                if (Arrays.equals((byte[]) edgeId, (byte[]) expectedOutId.getCachedId())) {
+                if (edgeId.equals(expectedOutId.getCachedId())) {
                     Assert.fail("Composite ID was not removed from OUT edge cache");
                 }
             }
             inPepperoniEdges = inMap.get("pepperoni");
             for (final Object edgeId : inPepperoniEdges) {
-                if (Arrays.equals((byte[]) edgeId, (byte[]) expectedInId.getCachedId())) {
+                if (edgeId.equals(expectedInId.getCachedId())) {
                     Assert.fail("Composite ID was not removed from IN edge cache");
                 }
             }

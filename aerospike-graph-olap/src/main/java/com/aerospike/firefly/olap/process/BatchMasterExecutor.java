@@ -3,35 +3,19 @@ package com.aerospike.firefly.olap.process;
 import com.aerospike.firefly.olap.helper.AttachmentHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
-import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Barrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.GraphComputing;
 import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
-import org.apache.tinkerpop.gremlin.process.traversal.step.filter.ConnectiveStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.filter.TailGlobalStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.LabelStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertiesStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyKeyStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyMapStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyValueStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.SackStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.SideEffectCapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ReducingBarrierStep;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.HaltedTraverserStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.EmptyTraversalSideEffects;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
-import org.apache.tinkerpop.gremlin.structure.util.Attachable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,13 +28,14 @@ import java.util.Set;
 import static com.aerospike.firefly.olap.process.TraversalProgram.MUTATED_MEMORY_KEYS;
 
 public class BatchMasterExecutor {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BatchMasterExecutor.class);
-
     private BatchMasterExecutor() {
 
     }
 
-    protected static void processMemory(final TraversalMatrix<?, ?> traversalMatrix, final Memory memory, final TraverserSet<Object> toProcessTraversers, final Set<String> completedBarriers) {
+    protected static void processMemory(final TraversalMatrix<?, ?> traversalMatrix,
+                                        final Memory memory,
+                                        final TraverserSet<Object> toProcessTraversers,
+                                        final Set<String> completedBarriers) {
         // handle traversers and data that were sent from the workers to the master traversal via memory
         if (memory.exists(MUTATED_MEMORY_KEYS)) {
             for (final String key : memory.<Set<String>>get(MUTATED_MEMORY_KEYS)) {
@@ -62,15 +47,14 @@ public class BatchMasterExecutor {
                     // collecting barriers expect to consume TraverserSet, but spark serialize it as HashSet
                     if (barrier instanceof CollectingBarrierStep) {
                         AttachmentHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
-                                EmptyTraversalSideEffects.instance(), (TraverserSet) memory.get(key));
+                                EmptyTraversalSideEffects.instance(), (TraverserSet<Object>) memory.get(key));
                         barrier.addBarrier(memory.get(key));
                     } else {
                         final Object memoryBarrier = memory.get(key);
                         // todo: attach more types if needed
                         if (memoryBarrier instanceof List) {
                             final List list = new ArrayList((List) memoryBarrier);
-                            AttachmentHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
-                                    EmptyTraversalSideEffects.instance(), list);
+                            AttachmentHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(), list);
                             barrier.addBarrier(list);
                         } else if (memoryBarrier instanceof Map) {
                             // for debup barrier it's map obj->traverser
@@ -80,7 +64,7 @@ public class BatchMasterExecutor {
                             barrier.addBarrier(map);
                         } else if (memoryBarrier instanceof Set) {
                             // todo: check incoming TraverserSet?
-                            final TraverserSet ts = new TraverserSet();
+                            final TraverserSet<Object> ts = new TraverserSet();
                             ts.addAll((Set) memoryBarrier);
                             AttachmentHelper.bulkAttach((FireflyGraph) traversalMatrix.getTraversal().getGraph().get(),
                                     EmptyTraversalSideEffects.instance(), ts);
@@ -109,10 +93,8 @@ public class BatchMasterExecutor {
     protected static void processTraversers(final PureTraversal<?, ?> traversal,
                                             final TraversalMatrix<?, ?> traversalMatrix,
                                             TraverserSet<Object> toProcessTraversers,
-                                            // can be used to split work between workers?
                                             final TraverserSet<Object> remoteActiveTraversers,
-                                            final TraverserSet<Object> haltedTraversers,
-                                            final HaltedTraverserStrategy haltedTraverserStrategy) {
+                                            final TraverserSet<Object> haltedTraversers) {
 
         while (!toProcessTraversers.isEmpty()) {
             final TraverserSet<Object> localActiveTraversers = new TraverserSet<>();
@@ -127,10 +109,7 @@ public class BatchMasterExecutor {
                 // traverser.set(DetachedFactory.detach(traverser.get(), true)); // why? following steps will screw up
                 traverser.setSideEffects(traversal.get().getSideEffects());
                 if (traverser.isHalted())
-                    haltedTraversers.add(haltedTraverserStrategy.halt(traverser));
-                    // stay local forever (!!!)
-//                else if (isRemoteTraverser(traverser, traversalMatrix))  // this is so that patterns like order().name work as expected. try and stay local as long as possible
-//                    remoteActiveTraversers.add(traverser.detach());
+                    haltedTraversers.add(traverser);
                 else {
                     currentStep = traversalMatrix.getStepById(traverser.getStepId());
                     if (!currentStep.getId().equals(previousStep.getId()) && !(previousStep instanceof EmptyStep)) {
@@ -138,10 +117,7 @@ public class BatchMasterExecutor {
                         while (previousStep.hasNext()) {
                             final Traverser.Admin<Object> result = previousStep.next();
                             if (result.isHalted())
-                                haltedTraversers.add(haltedTraverserStrategy.halt(result));
-                                // stay local forever (!!!)
-//                            else if (isRemoteTraverser(result, traversalMatrix))
-//                                remoteActiveTraversers.add(result.detach());
+                                haltedTraversers.add(result);
                             else
                                 localActiveTraversers.add(result);
                         }
@@ -155,10 +131,7 @@ public class BatchMasterExecutor {
                 while (currentStep.hasNext()) {
                     final Traverser.Admin<Object> traverser = currentStep.next();
                     if (traverser.isHalted())
-                        haltedTraversers.add(haltedTraverserStrategy.halt(traverser));
-                        // stay local forever (!!!)
-//                    else if (isRemoteTraverser(traverser, traversalMatrix))
-//                        remoteActiveTraversers.add(traverser.detach());
+                        haltedTraversers.add(traverser);
                     else
                         localActiveTraversers.add(traverser);
                 }
@@ -166,20 +139,5 @@ public class BatchMasterExecutor {
             assert toProcessTraversers.isEmpty();
             toProcessTraversers = localActiveTraversers;
         }
-    }
-
-    private static boolean isRemoteTraverser(final Traverser.Admin traverser, final TraversalMatrix<?, ?> traversalMatrix) {
-        return traverser.get() instanceof Attachable &&
-                !(traverser.get() instanceof Path) &&
-                !isLocalElement(traversalMatrix.getStepById(traverser.getStepId()));
-    }
-
-    // TODO: once this is complete (fully known), move to TraversalHelper
-    private static boolean isLocalElement(final Step<?, ?> step) {
-        return step instanceof PropertiesStep || step instanceof PropertyMapStep ||
-                step instanceof IdStep || step instanceof LabelStep || step instanceof SackStep ||
-                step instanceof PropertyKeyStep || step instanceof PropertyValueStep ||
-                step instanceof TailGlobalStep || step instanceof RangeGlobalStep || step instanceof HasStep ||
-                step instanceof ConnectiveStep;
     }
 }

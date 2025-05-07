@@ -58,6 +58,10 @@ import static com.aerospike.firefly.olap.Tokens.INTEGRATION_TEST_PROPERTIES;
         test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.SideEffectTest",
         method = "g_withSideEffectXa__linkedhashmapX_V_out_groupCountXaX_byXlabelX_out_out_capXaX",
         reason = "Tests that include lambdas are not supported.")
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.step.ComplexTest",
+        method = "classicRecommendation",
+        reason = "Require GRATEFUL graph with multi-properties.")
 
 @GraphProvider.Descriptor(computer = DistributedGraphComputer.class)
 public class DistributedGraphComputerProvider extends AbstractGraphProvider {

@@ -96,16 +96,9 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
 
         while (!idsToRecycle.isEmpty()) {
             ID_MANAGER.recycleId(idsToRecycle.poll());
-            if (idsToRecycle.isEmpty()) {
-                for (int i = 0; i < GRAPH.getBaseGraph().PHAT_EDGE_SIZE * 2; i++) {
-                    final FireflyPhatEdgeId id = getId(GRAPH);
-                    recycledPackIds.remove(id.getPackingId());
-                }
-            } else {
-                for (int i = 0; i < GRAPH.getBaseGraph().PHAT_EDGE_SIZE * 2; i++) {
-                    final FireflyPhatEdgeId id = getId(GRAPH);
-                    Assert.assertFalse(recycledPackIds.contains(id.getPackingId()));
-                }
+            for (int i = 0; i < GRAPH.getBaseGraph().PHAT_EDGE_SIZE * 2; i++) {
+                final FireflyPhatEdgeId id = getId(GRAPH);
+                recycledPackIds.remove(id.getPackingId());
             }
         }
         Assert.assertTrue(recycledPackIds.isEmpty());

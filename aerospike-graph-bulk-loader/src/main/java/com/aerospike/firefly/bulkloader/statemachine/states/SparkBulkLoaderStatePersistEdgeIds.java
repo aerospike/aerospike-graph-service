@@ -37,7 +37,7 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
 
 
             // Latch recovery directory.
-            RecoveryUtil.writeTempDirectory(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), sparkBulkLoaderStateMachine.edgeRecoveryDirectory);
+            RecoveryUtil.writeTempEdgeDirectory(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), sparkBulkLoaderStateMachine.edgeRecoveryDirectory);
         }
 
         sparkBulkLoaderStateMachine.edgePartitionCount = sparkBulkLoaderStateMachine.edgeDataset.rdd().getPartitions().length;
@@ -56,6 +56,8 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
 
         sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();
     }
+
+    /// TODO: Incremental ??????
 
     @Override
     public SparkBulkLoaderState transitionState() {

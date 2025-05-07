@@ -310,7 +310,7 @@ public class SparkBulkLoaderStateMachine {
                     // Credentials are only necessary in JVM/Local mode.
                     if (cmd.hasOption(LOCAL_MODE)) {
                         final String gcsCredentialError = "Either '" + GCS_KEYFILE_DIRECTORY + "' or all of '" +
-                                GCS_EMAIL+ "', '" + REMOTE_USERNAME + "', and '" + REMOTE_PASSKEY +
+                                GCS_EMAIL + "', '" + REMOTE_USERNAME + "', and '" + REMOTE_PASSKEY +
                                 "' must be specified to read from GCS.";
                         LOGGER.error(gcsCredentialError);
                         throw new RuntimeException(gcsCredentialError);

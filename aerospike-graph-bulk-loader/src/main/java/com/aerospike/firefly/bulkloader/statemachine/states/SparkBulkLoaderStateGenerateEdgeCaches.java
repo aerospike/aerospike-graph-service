@@ -3,7 +3,6 @@ package com.aerospike.firefly.bulkloader.statemachine.states;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
-import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -13,7 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.Set;
+import java.time.Duration;
+import java.time.Instant;
 
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.EDGE_ID_COLUMN;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_CACHE_HEADER;
@@ -27,6 +27,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static org.apache.spark.sql.functions.*;
 
 public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderStateGenerateEdgeCaches.class);
 
     public SparkBulkLoaderStateGenerateEdgeCaches(final SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine) {
         super(sparkBulkLoaderStateMachine);
@@ -35,19 +36,18 @@ public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState
     @Override
     public void executeState() {
         // Since we can't persist the edgeIds, spark re-generates them over and over and it screws up the ids.
-        if (sparkBulkLoaderStateMachine.readOnly) {
+        if (!sparkBulkLoaderStateMachine.readOnly) {
             return;
         }
-        RecoveryUtil.updateState(
-                sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), RecoveryUtil.RecoveryState.DETECT_SUPERNODES);
-        sparkBulkLoaderStateMachine.progressBar.setPreflightCheckComplete();
 
-        final String vertexMergedDataset = RecoveryUtil.getEdgeRecoveryDirectory(
-                sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY),
-                sparkBulkLoaderStateMachine.fileSystem.equals(SparkBulkLoaderStateMachine.LOCAL)
-                        ? File.separator : "/");
+        // Update spark to indicate we are generating edge caches.
+        final Instant edgeCacheGenerationTime = Instant.now();
+        final String taskName = "Edge Cache Generation";
+        sparkBulkLoaderStateMachine.spark.sparkContext().
+                setJobGroup(taskName, "Edge cache generation task.", true);
 
-        Dataset<Row> fromEdgeDataset = sparkBulkLoaderStateMachine.edgeDataset.
+        // Create the edge cache data.
+        final Dataset<Row> fromEdgeDataset = sparkBulkLoaderStateMachine.edgeDataset.
                 groupBy(col(FROM_VERTEX_HEADER), col(LABEL_HEADER)).
                 agg(collect_list(array(col(TO_VERTEX_HEADER), col(EDGE_ID_COLUMN))).alias("tmp")).
                 filter(col(LABEL_HEADER).isNotNull()).
@@ -58,7 +58,7 @@ public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState
                 withColumn(FROM_VERTEX_CACHE_HEADER,
                         functions.when(new Column(FROM_VERTEX_CACHE_HEADER).isNotNull(),
                                 functions.to_json(new Column(FROM_VERTEX_CACHE_HEADER))).otherwise(null));
-        Dataset<Row> toEdgeDataset = sparkBulkLoaderStateMachine.edgeDataset.
+        final Dataset<Row> toEdgeDataset = sparkBulkLoaderStateMachine.edgeDataset.
                 groupBy(col(TO_VERTEX_HEADER), col(LABEL_HEADER)).
                 agg(collect_list(array(col(FROM_VERTEX_HEADER), col(EDGE_ID_COLUMN))).alias("tmp")).
                 filter(col(LABEL_HEADER).isNotNull()).
@@ -70,7 +70,7 @@ public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState
                         functions.when(new Column(TO_VERTEX_CACHE_HEADER).isNotNull(),
                                 functions.to_json(new Column(TO_VERTEX_CACHE_HEADER))).otherwise(null));
 
-
+        // Merge in the edge cache data into the vertex dataset.
         sparkBulkLoaderStateMachine.vertexDataset = sparkBulkLoaderStateMachine.vertexDataset.join(
                 fromEdgeDataset,
                 sparkBulkLoaderStateMachine.vertexDataset.col(ID_HEADER).equalTo(
@@ -82,9 +82,37 @@ public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState
                         toEdgeDataset.col(TO_VERTEX_HEADER)),
                 "left").drop(TO_VERTEX_HEADER);
 
+        // Get the directory to save the merged dataset & save dataset.
+        final String vertexMergedDataset = RecoveryUtil.getVertexRecoveryDirectory(
+                sparkBulkLoaderStateMachine.config.getOrDefault(TEMP_DIRECTORY_KEY),
+                sparkBulkLoaderStateMachine.fileSystem.equals(SparkBulkLoaderStateMachine.LOCAL)
+                        ? File.separator : "/");
         sparkBulkLoaderStateMachine.vertexDataset.write().option("header", true).
                 mode(SaveMode.Overwrite).option("compression", "bzip2").csv(vertexMergedDataset);
 
+        // Latch and log vertex dataset partition count.
+        sparkBulkLoaderStateMachine.vertexPartitionCount = sparkBulkLoaderStateMachine.vertexDataset.rdd().partitions().length;
+        LOGGER.info("Vertex dataset has {} partitions", sparkBulkLoaderStateMachine.vertexPartitionCount);
+
+        // Store vertex partitioning information for recovery.
+        sparkBulkLoaderStateMachine.progressBar.setVertexPartitionCount(sparkBulkLoaderStateMachine.vertexPartitionCount);
+        RecoveryUtil.writeTempVertexDirectory(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), vertexMergedDataset);
+        RecoveryUtil.updateVertexRecovery(
+                sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
+                sparkBulkLoaderStateMachine.vertexPartitionCount);
+
+        // Partition by id for consistency.
+        sparkBulkLoaderStateMachine.vertexDataset = sparkBulkLoaderStateMachine.vertexDataset.repartition(
+                sparkBulkLoaderStateMachine.vertexPartitionCount, new Column("~id"));
+
+        // Stop job.
+        sparkBulkLoaderStateMachine.spark.sparkContext().cancelJobGroup(taskName);
+
+        // Log the time taken for edge cache generation.
+        LOGGER.info("Execution time in seconds for Edge cache generation task: " +
+                Duration.between(edgeCacheGenerationTime, Instant.now()).getSeconds());
+
+        // Update the progress bar.
         sparkBulkLoaderStateMachine.progressBar.setGenerateEdgeCachesComplete();
     }
 

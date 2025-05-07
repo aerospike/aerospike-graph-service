@@ -741,7 +741,6 @@ public class EdgeOperations implements Serializable {
             packingIdDataset.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "bzip2").csv(writeLocation);
         }
         edgeDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
-        packingIdDataset.show(10, false);
         LOGGER.info("Execution time in seconds for Edge ID write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
         return packingIdDataset;
     }

@@ -38,6 +38,7 @@ public class RecoveryUtil {
 
     public enum RecoveryState {
         DETECT_SUPERNODES,
+        GENERATE_EDGE_CACHES,
         VERTEX_WRITE,
         VERTEX_VERIFY,
         EDGE_WRITE,
@@ -130,8 +131,8 @@ public class RecoveryUtil {
         retryWriteOperation(db, operation, writePolicy, key, operation);
     }
 
-    public static void writeTempDirectory(final AerospikeConnection db, final String tempDirectory) {
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "temp_directory");
+    public static void writeTempEdgeDirectory(final AerospikeConnection db, final String tempDirectory) {
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "temp_edge_directory");
         final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, tempDirectory);
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
@@ -139,8 +140,25 @@ public class RecoveryUtil {
         retryWriteOperation(db, operation, writePolicy, key, operation);
     }
 
-    public static String recoverTempDirectory(final AerospikeConnection db) {
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "temp_directory");
+    public static void writeTempVertexDirectory(final AerospikeConnection db, final String tempDirectory) {
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "temp_vertex_directory");
+        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, tempDirectory);
+        final Operation operation = Operation.put(bin);
+        final WritePolicy writePolicy = new WritePolicy();
+        db.configureWritePolicy(writePolicy);
+        retryWriteOperation(db, operation, writePolicy, key, operation);
+    }
+
+    public static String recoverTempEdgeDirectory(final AerospikeConnection db) {
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "temp_edge_directory");
+        final Policy readPolicy = new Policy();
+        db.configureReadPolicy(readPolicy);
+        final Record r = retryReadOperation(db, key, readPolicy);
+        return r == null ? null : r.getString(db.BULK_LOAD_RECOVERY_BIN);
+    }
+
+    public static String recoverTempVertexDirectory(final AerospikeConnection db) {
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "temp_vertex_directory");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
         final Record r = retryReadOperation(db, key, readPolicy);
@@ -257,7 +275,8 @@ public class RecoveryUtil {
                 recoverState(db),
                 recoverVertexPartitionCount(db),
                 recoverEdgePartitionCount(db),
-                recoverTempDirectory(db));
+                recoverTempEdgeDirectory(db),
+                recoverTempVertexDirectory(db));
     }
 
     public static Set<Long> completedVertexPartitions(final AerospikeConnection db) {
@@ -362,7 +381,8 @@ public class RecoveryUtil {
         private String state;
         private int vertexPartitionCount;
         private int edgePartitionCount;
-        private String tempDirectory;
+        private String tempEdgeDirectory;
+        private String tempVertexDirectory;
 
         public RecoveryInfo(final Set<Long> vertexPartitions,
                             final Set<Long> edgePartitions,
@@ -370,18 +390,24 @@ public class RecoveryUtil {
                             final String state,
                             final int vertexPartitionCount,
                             final int edgePartitionCount,
-                            final String tempDirectory) {
+                            final String tempEdgeDirectory,
+                            final String tempVertexDirectory) {
             this.vertexPartitions = vertexPartitions;
             this.edgePartitions = edgePartitions;
             this.supernodes = supernodes;
             this.state = state;
             this.vertexPartitionCount = vertexPartitionCount;
             this.edgePartitionCount = edgePartitionCount;
-            this.tempDirectory = tempDirectory;
+            this.tempEdgeDirectory = tempEdgeDirectory;
+            this.tempVertexDirectory = tempVertexDirectory;
         }
 
-        public String getTempDirectory() {
-            return tempDirectory;
+        public String getTempEdgeDirectory() {
+            return tempEdgeDirectory;
+        }
+
+        public String getTempVertexDirectory() {
+            return tempVertexDirectory;
         }
 
         public Set<Long> getVertexPartitions() {

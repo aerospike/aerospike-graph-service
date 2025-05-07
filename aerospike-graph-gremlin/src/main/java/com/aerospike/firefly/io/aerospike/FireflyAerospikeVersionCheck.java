@@ -27,7 +27,7 @@ public class FireflyAerospikeVersionCheck {
 
     private static final Logger LOG = LoggerFactory.getLogger(FireflyAerospikeVersionCheck.class);
 
-    public FireflyAerospikeVersionCheck(final String version) {
+   /* public FireflyAerospikeVersionCheck(final String version) {
         int extension1;
         if (version == null) {
             throw new IllegalArgumentException("Aerospike version cannot be null");
@@ -89,6 +89,29 @@ public class FireflyAerospikeVersionCheck {
         }
 
         extension = extension1;
+    }
+*/
+    public FireflyAerospikeVersionCheck(final String version){
+        if (version == null) {
+            throw new IllegalArgumentException("Aerospike version cannot be null");
+        }
+
+        if (!versionLogged) {
+            LOG.info("Aerospike version: {}.", version);
+            versionLogged = true;
+        }
+
+        String[] parts = version.split("\\.");
+        major = Integer.parseInt(parts[0]);
+        if(major >= 10){ // Epoch Semantic Version, nothing matters but the major
+            minor = 0;
+            revision = 0;
+            extension = 0;
+            return;
+        }
+        minor = Integer.parseInt(parts[1]);
+        revision = Integer.parseInt(parts[2]);
+        extension = Integer.parseInt(parts[3].substring(0, 1));
     }
 
     public static void validateVersion(final IAerospikeClient client, final boolean requireMRTSupport) {

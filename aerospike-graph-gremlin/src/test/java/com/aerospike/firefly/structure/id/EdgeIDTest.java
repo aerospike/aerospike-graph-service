@@ -7,6 +7,8 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.NoSuchElementException;
+
 /**
  * @author Connor Hengstler (<a href="https://github.com/OblivionBC">https://github.com/OblivionBC</a>)
  */
@@ -17,7 +19,7 @@ public class EdgeIDTest extends AbstractFireflySuite {
     }
 
     @Test
-    public void testInvalidCharInEdgeId() {
+    public void testInvalidEdgeIds() {
         final GraphTraversalSource g = graph.traversal();
         final Vertex foo = g.addV("foo").next();
         final Vertex bar = g.addV("bar").next();
@@ -37,7 +39,7 @@ public class EdgeIDTest extends AbstractFireflySuite {
                 // empty string
                 "",
                 // valid but too long
-                "AAAAAAAAAAAAAAAAAAAAAA==",
+                "AAAAAAAAAAAAAAAAAAAAAAA==",
                 // valid but too short
                 "AA=="
         };
@@ -60,4 +62,17 @@ public class EdgeIDTest extends AbstractFireflySuite {
         }
     }
 
+    @Test
+    public void testNullEdgeId() {
+        final GraphTraversalSource g = graph.traversal();
+        String nullEdgeId = null;
+        try {
+            g.E(nullEdgeId).next();
+            Assert.fail("Expected NoSuchElementException for id: " + nullEdgeId);
+        }
+        catch (NoSuchElementException e) {
+            // success!
+            Assert.assertTrue(true);
+        }
+    }
 }

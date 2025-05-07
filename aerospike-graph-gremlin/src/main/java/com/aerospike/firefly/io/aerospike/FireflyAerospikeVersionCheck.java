@@ -37,16 +37,17 @@ public class FireflyAerospikeVersionCheck {
         }
 
         String[] parts = version.split("\\.");
+
         major = Integer.parseInt(parts[0]);
-        if(major >= 10){ // Epoch Semantic Version, nothing matters but the major
-            minor = 0;
-            revision = 0;
+        if(major >= 10){ // Epoch Semantic Version, extension omitted in this version
+            minor = Integer.parseInt(parts[1]);
+            revision = Integer.parseInt(parts[2].substring(0, 1));
             extension = 0;
-            return;
+        }else{
+            minor = Integer.parseInt(parts[1]);
+            revision = Integer.parseInt(parts[2]);
+            extension = Integer.parseInt(parts[3].substring(0, 1));
         }
-        minor = Integer.parseInt(parts[1]);
-        revision = Integer.parseInt(parts[2]);
-        extension = Integer.parseInt(parts[3].substring(0, 1));
     }
 
     public static void validateVersion(final IAerospikeClient client, final boolean requireMRTSupport) {

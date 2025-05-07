@@ -17,16 +17,14 @@ public class FireflyAerospikeVersionCheck {
     private static final int MINOR_MINIMUM = 2;
     private static final int REVISION_MINIMUM = 0;
     private static final int EXTENSION_MINIMUM = 7;
-
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyAerospikeVersionCheck.class);
+    private static boolean versionLogged = false;
     private final int major;
     private final int minor;
     private final int revision;
     private final int extension;
-    private static boolean versionLogged = false;
 
-    private static final Logger LOG = LoggerFactory.getLogger(FireflyAerospikeVersionCheck.class);
-
-    public FireflyAerospikeVersionCheck(final String version){
+    public FireflyAerospikeVersionCheck(final String version) {
         if (version == null) {
             throw new IllegalArgumentException("Aerospike version cannot be null");
         }
@@ -36,18 +34,31 @@ public class FireflyAerospikeVersionCheck {
             versionLogged = true;
         }
 
-        String[] parts = version.split("\\.");
+        final String[] parts = version.split("\\.");
 
-        major = Integer.parseInt(parts[0]);
-        if(major >= 10){ // Epoch Semantic Version, extension omitted in this version
-            minor = Integer.parseInt(parts[1]);
-            revision = Integer.parseInt(parts[2].substring(0, 1));
-            extension = 0;
-        }else{
-            minor = Integer.parseInt(parts[1]);
-            revision = Integer.parseInt(parts[2]);
-            extension = Integer.parseInt(parts[3].substring(0, 1));
+        this.major = Integer.parseInt(parts[0]);
+        if (this.major >= 10) { // Epoch Semantic Version, extension omitted in this version
+            this.minor = Integer.parseInt(parts[1]);
+            this.revision = parseNumberFromString(parts[2]);
+            this.extension = 0;
+        } else {
+            this.minor = Integer.parseInt(parts[1]);
+            this.revision = Integer.parseInt(parts[2]);
+            this.extension = parseNumberFromString(parts[3]);
         }
+    }
+
+    private static int parseNumberFromString(final String parse) {
+        final StringBuilder builder = new StringBuilder();
+        for (final char c : parse.toCharArray()) {
+            if (Character.isDigit(c)) {
+                builder.append(c);
+            } else {
+                break;
+            }
+        }
+
+        return Integer.parseInt(builder.toString());
     }
 
     public static void validateVersion(final IAerospikeClient client, final boolean requireMRTSupport) {

@@ -18,6 +18,7 @@ public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
     final protected AerospikeConnection db;
     final protected Iterator<KeyRecord> keyRecords;
     protected Iterator<Object> currentRecordIds = Collections.emptyIterator();
+
     /**
      * Wrapper iterator for converting key records of Phat Edges into all of its contained edges' FireflyIds.
      *
@@ -32,15 +33,16 @@ public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
 
     @Override
     public boolean hasNext() {
-        if (!currentRecordIds.hasNext()) {
+        while (true) {
+            if (currentRecordIds.hasNext()) {
+                return true;
+            }
+
             if (!keyRecords.hasNext()) {
                 return false;
-            } else {
-                getNextKeyRecords();
-                return hasNext();
             }
-        } else {
-            return true;
+
+            getNextKeyRecords();
         }
     }
 

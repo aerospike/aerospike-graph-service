@@ -145,12 +145,13 @@ public class AerospikeConnection implements AutoCloseable {
     public final String E_OUT_INDEX_NAME;
     public final String namespace;
 
-    public final String LOCK_BIN;
+    public final String USER_KEY_BIN;
 
     public final String LABEL_BIN;
     public final String IN_EDGES_BIN;
     public final String OUT_EDGES_BIN;
     public final String EDGE_CACHE_DISABLED_BIN;
+    public final String LOCK_BIN;
     public final String INDEX_METADATA_SET;
 
     public final String GRAPH_METADATA_SET;
@@ -534,11 +535,12 @@ public class AerospikeConnection implements AutoCloseable {
         IN_EDGES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.IN_EDGES_BIN.name(), conf);
         OUT_EDGES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.OUT_EDGES_BIN.name(), conf);
         EDGE_CACHE_DISABLED_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.EDGE_CACHE_DISABLED_BIN.name(), conf);
+        LOCK_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.LOCK_BIN.name(), conf);
         SUPERNODES_IN_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODES_IN.name(), conf);
         SUPERNODES_OUT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODES_OUT.name(), conf);
         SUPERNODE_EDGE_PROPERTIES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODE_EDGE_PROPERTIES_BIN.name(), conf);
         LABEL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.LABEL_BIN.name(), conf);
-        LOCK_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.LOCK_BIN.name(), conf);
+        USER_KEY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.USER_KEY_BIN.name(), conf);
         TTL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.TTL_BIN.name(), conf);
         USAGE_STATS_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.USAGE_STATS_BIN.name(), conf);
         EDGE_DATA_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.EDGE_DATA_BIN.name(), conf);
@@ -590,6 +592,7 @@ public class AerospikeConnection implements AutoCloseable {
         vertexNonPropertyBins.add(PROPERTIES_BIN); // 9 --> These are not included in vertex property bins since they are not property key mapped.
         vertexNonPropertyBins.add(TYPE_HINTS_BIN); // 10 --> These are not included in vertex property bins since they are not property key mapped.
         vertexNonPropertyBins.add(ID_TYPE_BIN); // 12
+        vertexNonPropertyBins.add(USER_KEY_BIN); // 13
         vertexNonPropertyBins.add(LABEL_BIN); // 14
         vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_ID_BIN);// 17
 
@@ -1742,46 +1745,6 @@ public class AerospikeConnection implements AutoCloseable {
             return new FireflyRecordSet(this.client.query(queryPolicy, statement));
         } catch (final AerospikeException e) {
             throw fromAerospikeException(e);
-        }
-    }
-
-    /**
-     * Write to Aerospike, notify the cache implementation
-     *
-     * @param key  Key to write Bins into
-     * @param bins Data Bin(s) to write
-     */
-    public void write(final Key key, final Bin... bins) {
-        write(key, false, -1, bins);
-    }
-
-    /**
-     * Write to Aerospike, notify the cache implementation
-     *
-     * @param key  Key to write Bins into
-     * @param bins Data Bin(s) to write
-     */
-    public void write(final Key key, final boolean writeOnly, final int generation, final Bin... bins) {
-        writeMetric.incrementAndGet();
-        final WritePolicy writePolicy = new WritePolicy();
-        writePolicy.sendKey = true;
-        if (writeOnly) {
-            writePolicy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
-        }
-        if (generation != -1) {
-            // Set generation for write.
-            writePolicy.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
-            writePolicy.generation = generation;
-        }
-        final FireflyCache cache = transactionCache.get();
-        final FireflyCache noPropsCache = emptyPropsTransactionCache.get();
-        if (cache != null) {
-            cache.write(writePolicy, key, bins);
-        } else {
-            checkedPut(writePolicy, key, bins);
-        }
-        if (noPropsCache != null) {
-            noPropsCache.remove(key);
         }
     }
 

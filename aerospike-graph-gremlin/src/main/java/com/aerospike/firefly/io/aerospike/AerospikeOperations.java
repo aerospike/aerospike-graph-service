@@ -279,7 +279,15 @@ public class AerospikeOperations {
         if (createOnly) {
             policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
         }
-        policy.sendKey = true;
+
+
+        // TODO: This is a temporary measure to pack the user key into a bin. Remove when sendKey works to
+        //       recover the user key for hash constructed keys
+        if (key.userKey.getObject() != null) {
+            final Bin userKeyBin = new Bin(db.USER_KEY_BIN, Value.get(key.userKey.getObject()));
+            final Operation writeUserKey = Operation.put(userKeyBin);
+            operations.add(writeUserKey);
+        }
 
         operations.add(writeCacheDisabled);
         operations.add(writeLabel);

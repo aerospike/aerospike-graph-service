@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 public class FireflyBatchEdgeIterator<E extends Edge> implements CloseableIterator<E> {
-    protected Iterator<FireflyEdge> elementIterator;
     protected final Iterator<FireflyId> idIterator;
     protected final FireflyGraph graph;
+    protected Iterator<FireflyEdge> elementIterator;
 
     public FireflyBatchEdgeIterator(final FireflyGraph graph, final Iterator<FireflyId> ids) {
         this.idIterator = ids;
@@ -24,22 +24,20 @@ public class FireflyBatchEdgeIterator<E extends Edge> implements CloseableIterat
 
     @Override
     public boolean hasNext() {
-        if (elementIterator == null || !elementIterator.hasNext()) {
-            if (!idIterator.hasNext()) {
-                return false;
-            }
-            final List<FireflyId> fireflyIdList = new ArrayList<>();
-            while (idIterator.hasNext() && fireflyIdList.size() < graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
-                fireflyIdList.add(idIterator.next());
-            }
-            elementIterator = graph.getOperations().readEdges(fireflyIdList).iterator();
-
-            // Just in case the ids we go to read have been removed we should not straight up return true.
-            return hasNext();
+        while (true) {
+            if (elementIterator == null || !elementIterator.hasNext()) {
+                if (!idIterator.hasNext()) {
+                    return false;
+                }
+                final List<FireflyId> fireflyIdList = new ArrayList<>();
+                while (idIterator.hasNext() && fireflyIdList.size() < graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+                    fireflyIdList.add(idIterator.next());
+                }
+                elementIterator = graph.getOperations().readEdges(fireflyIdList).iterator();
+            } else { // We still have data to return.
+                return true;
+            } // Just in case the ids we go to read have been removed we should not straight up return true, loop again
         }
-
-        // We still have data to return.
-        return true;
     }
 
     @Override

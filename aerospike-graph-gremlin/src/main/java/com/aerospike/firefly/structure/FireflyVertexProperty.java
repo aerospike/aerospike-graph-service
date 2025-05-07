@@ -1,23 +1,7 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.AerospikeException;
-import com.aerospike.client.Key;
-import com.aerospike.client.Operation;
 import com.aerospike.client.ResultCode;
-import com.aerospike.client.Value;
-import com.aerospike.client.cdt.CTX;
-import com.aerospike.client.cdt.MapOperation;
-import com.aerospike.client.cdt.MapOrder;
-import com.aerospike.client.cdt.MapPolicy;
-import com.aerospike.client.cdt.MapReturnType;
-import com.aerospike.client.cdt.MapWriteFlags;
-import com.aerospike.client.policy.RecordExistsAction;
-import com.aerospike.client.policy.WritePolicy;
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
-import com.aerospike.firefly.util.exceptions.AerospikeGraphRecordSizeExceededException;
-import com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.FireflyHelper;
@@ -29,18 +13,11 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-
-import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
-import static com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException.fromAddingVpProperty;
-import static com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException.getRelevantVertexBins;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -50,7 +27,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
 
     private static final Logger LOG = LoggerFactory.getLogger(FireflyVertexProperty.class);
     protected final boolean allowNullPropertyValues = false;
-    protected final FireflyId vertexId;
+    public final FireflyId vertexId;
     protected final String key;
     protected final V value;
     protected final FireflyGraph graph;
@@ -107,7 +84,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
                 vertex = graph.readVertex(vertexId);
             }
             if (vertex != null) {
-                vertex.removeVertexProperty(label, id);
+                graph.operations.removeVertexProperty(vertex, label, id);
             }
         } catch (final AerospikeGraphException ae) {
             // Removing a property that is already removed SHOULD NOT yield an error.
@@ -117,70 +94,6 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
                 throw ae;
             }
         }
-    }
-
-    /**
-     * Write properties to element.
-     *
-     * @param propertyKey    Key of property to write.
-     * @param propertyValue  Value of property to write.
-     * @param <F>            Type of property value.
-     * @return Map of label to properties.
-     */
-    public <F> Property<F> writeProperty(final String propertyKey, final F propertyValue) {
-        final AerospikeConnection db = graph.getBaseGraph();
-        final Key opKey = getKey(db, db.VERTEX_AERO_SET, vertexId);
-        final List<Operation> operations = new ArrayList<>();
-
-        final Operation writeValue;
-        if (propertyValue == null) {
-            writeValue = MapOperation.removeByKey(db.PROPERTIES_BIN, Value.get(propertyKey), MapReturnType.NONE,
-                    CTX.mapKey(Value.get(id.getStorageId())));
-            operations.add(writeValue);
-            final Operation writeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(propertyKey), MapReturnType.NONE,
-                    CTX.mapKey(Value.get(id.getStorageId())));
-            operations.add(writeTypeHint);
-        } else {
-            final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-            writeValue = MapOperation.put(policy, db.PROPERTIES_BIN, Value.get(propertyKey), Value.get(propertyValue),
-                    CTX.mapKey(Value.get(id.getStorageId())));
-            operations.add(writeValue);
-            final Object typeHint = Value.get(getTypeHintOf(propertyValue));
-            if (typeHint != null) {
-                final Operation writeTypeHint = MapOperation.put(policy, db.TYPE_HINTS_BIN, Value.get(propertyKey),
-                        Value.get(typeHint),
-                        CTX.mapKey(Value.get(id.getStorageId())));
-                operations.add(writeTypeHint);
-            }
-        }
-
-        final WritePolicy writePolicy = new WritePolicy();
-        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
-        try {
-            db.writeOperate(writePolicy, opKey, operations.toArray(new Operation[0]));
-        } catch (final AerospikeGraphRecordSizeExceededException rtbe) {
-            final VertexRecordSizeExceededException sizeExceededException =
-                    fromAddingVpProperty((AerospikeException) rtbe.getCause(), db, getRelevantVertexBins(db, opKey),
-                    this.vertexId, this.key, propertyKey);
-            FireflyVertexProperty.LOG.error(sizeExceededException.getMessage());
-            throw sizeExceededException;
-        } catch (final AerospikeGraphException ae) {
-            if (ae.errorCode == ResultCode.OP_NOT_APPLICABLE) {
-                // Special logic to handle when Vertex Property has been removed from the Vertex since in this case
-                // the key is the Vertex key due to Vertex Properties being packed and thus the key still exists.
-                LOG.error("Vertex Property with ID {} no longer exists.", this.id());
-                throw new AerospikeGraphElementNotFoundException();
-            } else {
-                throw ae;
-            }
-        }
-        this.properties.put(propertyKey, propertyValue);
-        if (propertyValue == null || getTypeHintOf(propertyValue) == null) {
-            this.typeHints.remove(propertyKey);
-        } else {
-            this.typeHints.put(propertyKey, getTypeHintOf(propertyValue));
-        }
-        return new FireflyVertexPropertyProperty<>(graph, this, propertyKey, propertyValue);
     }
 
     @Override
@@ -217,8 +130,8 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
             return Property.empty();
         }
 
-        FireflyHelper.validatePropertyValue(value);
-        return writeProperty(key, value);
+        final U validatedValue = (U) FireflyHelper.validatePropertyValue(value);
+        return graph.operations.writeVertexProperty(this, key, validatedValue);
     }
 
     @Override

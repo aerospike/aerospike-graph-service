@@ -1,7 +1,10 @@
 package com.aerospike.firefly.bulkloader.statemachine.states;
 
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
+
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
 
 public class SparkBulkLoaderStateCleanUp extends SparkBulkLoaderState {
     public SparkBulkLoaderStateCleanUp(final SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine) {
@@ -14,12 +17,17 @@ public class SparkBulkLoaderStateCleanUp extends SparkBulkLoaderState {
         // User must cleanup their own data in HDFS.
         if (!sparkBulkLoaderStateMachine.readOnly) {
             sparkBulkLoaderStateMachine.edgeDataset.unpersist();
-            RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
+            RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph);
         }
     }
 
     @Override
     public SparkBulkLoaderState transitionState() {
         return new SparkBulkLoaderStateDone(sparkBulkLoaderStateMachine);
+    }
+
+    @Override
+    protected BulkLoadStateStatusMap getStateMap() {
+        return new BulkLoadStateStatusMap("cleanup", false, BULK_LOAD_STATUS_IN_PROGRESS);
     }
 }

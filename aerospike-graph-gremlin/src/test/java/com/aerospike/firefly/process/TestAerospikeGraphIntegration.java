@@ -3,7 +3,7 @@ package com.aerospike.firefly.process;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.AbstractFireflySuite;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.google.common.collect.ImmutableList;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
@@ -48,6 +48,7 @@ import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.Is;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,7 +73,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 import static org.apache.tinkerpop.gremlin.LoadGraphWith.GraphData.MODERN;
 import static org.apache.tinkerpop.gremlin.process.traversal.Merge.onCreate;
 import static org.apache.tinkerpop.gremlin.process.traversal.Merge.onMatch;
@@ -132,6 +133,18 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             stringBuilder.append(CHARACTERS.charAt(idx));
         }
         RANDOM_STRING = stringBuilder.toString();
+    }
+
+    @Ignore
+    @Test
+    public void playTest() {
+        Graph tg = TinkerFactory.createModern();
+        GraphHelper.cloneElements(tg, graph);
+        GraphTraversalSource g = graph.traversal();
+
+        var result = g.V().local(outE().count()).toList();
+
+        System.out.println(result);
     }
 
     @Test

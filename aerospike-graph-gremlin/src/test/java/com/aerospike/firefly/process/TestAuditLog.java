@@ -191,6 +191,7 @@ public class TestAuditLog {
             throw new RuntimeException(e);
         } finally {
             System.setOut(originalOut);
+            System.out.println("Line report of testEnabledAdmin:");
             for (final String lineReport : linesReport) {
                 System.out.println(lineReport);
             }
@@ -340,6 +341,7 @@ public class TestAuditLog {
             throw new RuntimeException(e);
         } finally {
             System.setOut(originalOut);
+            System.out.println("Line report of testEnabledRead:");
             for (final String lineReport : linesReport) {
                 System.out.println(lineReport);
             }

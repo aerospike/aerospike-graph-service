@@ -70,11 +70,11 @@ public class GraphOperations {
                             LOGGER.warn("Failed to write edges with label " + label + " into " + direction +
                                     " edge cache for vertex ID " + vertexId + " due to vertex record key not found.");
                             for (final Value edgeId: edgeIds) {
-                                final byte[] edgeIdBytes = (byte[]) edgeId.getObject();
-                                final FireflyIdComposite compositeId = graph.getIdFactory().createCompositeEdgeId(edgeIdBytes);
+                                final List<Object> compositeIdInfoList = (List<Object>) edgeId.getObject();
+                                final FireflyIdComposite compositeId = graph.getIdFactory().createCompositeEdgeId(compositeIdInfoList);
                                 invalidEdgeIds.add(compositeId.getEdgeIdBytes().array());
                             }
-                            graph.writeBadEdge(vertexId, edgeIds.size());
+                            graph.getOperations().writeBadEdge(vertexId, edgeIds.size());
                             break;
                         } else {
                             LOGGER.error("Failed to write edges with label " + label + " into " + direction +

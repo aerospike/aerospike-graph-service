@@ -1,4 +1,4 @@
-name: Publish Aerospike Graph Container to Dockerhub and GCR
+name: Publish Public Release
 
 # Publish the container if a full release is made.
 # See https://docs.github.com/en/webhooks/webhook-events-and-payloads?actionType=released#release
@@ -84,47 +84,55 @@ jobs:
           source ./scripts/find-release-candidate.sh docker manifest inspect $GITHUB_IMAGE_BASE:$VERSION || true
           
           GITHUB_IMAGE=$GITHUB_IMAGE_BASE:$VERSION-rc$DOCKER_RC_TAG
+          GITHUB_IMAGE_ARM=${GITHUB_IMAGE}-arm64
+          GITHUB_IMAGE_AMD=${GITHUB_IMAGE}-amd64
+          GITHUB_IMAGE_ARM_SLIM=${GITHUB_IMAGE}-slim-arm64
+          GITHUB_IMAGE_AMD_SLIM=${GITHUB_IMAGE}-slim-amd64
           
           # Get registry URL and convert to lower case.
           DOCKERHUB_IMAGE_BASE=$DOCKERHUB_REPOSITORY_NAME/$DOCKERHUB_IMAGE_NAME
           GCLOUD_IMAGE_BASE=$GCLOUD_REPOSITORY_NAME/$GCLOUD_IMAGE_NAME
           
-          # Set dockerhub output and latest image name.
+          # Convert image base to lower case.
+          DOCKERHUB_IMAGE_BASE=$(echo $DOCKERHUB_IMAGE_BASE | tr '[A-Z]' '[a-z]')
+          GCLOUD_IMAGE_BASE=$(echo $GCLOUD_IMAGE_BASE | tr '[A-Z]' '[a-z]')
+          
+          # Create image names.
           DOCKERHUB_OUTPUT_IMAGE=$DOCKERHUB_IMAGE_BASE:$VERSION
-          DOCKERHUB_OUTPUT_IMAGE=$(echo $DOCKERHUB_OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
-          DOCKERHUB_LATEST_IMAGE=$DOCKERHUB_IMAGE_BASE:latest
-          DOCKERHUB_LATEST_IMAGE=$(echo $DOCKERHUB_LATEST_IMAGE | tr '[A-Z]' '[a-z]')
-          
-          # Set gcloud output and latest image name.
+          DOCKERHUB_OUTPUT_IMAGE_SLIM=$DOCKERHUB_IMAGE_BASE:$VERSION-slim
           GCLOUD_OUTPUT_IMAGE=$GCLOUD_IMAGE_BASE:$VERSION
-          GCLOUD_OUTPUT_IMAGE=$(echo $GCLOUD_OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          GCLOUD_OUTPUT_IMAGE_SLIM=$GCLOUD_IMAGE_BASE:$VERSION-slim
+          
+          # Create latest image names.
+          DOCKERHUB_LATEST_IMAGE=$DOCKERHUB_IMAGE_BASE:latest
+          DOCKERHUB_LATEST_IMAGE_SLIM=$DOCKERHUB_IMAGE_BASE:latest-slim
           GCLOUD_LATEST_IMAGE=$GCLOUD_IMAGE_BASE:latest
-          GCLOUD_LATEST_IMAGE=$(echo $GCLOUD_LATEST_IMAGE | tr '[A-Z]' '[a-z]')
-        
-          # Pull base image.
-          docker pull $GITHUB_IMAGE
+          GCLOUD_LATEST_IMAGE_SLIM=$GCLOUD_IMAGE_BASE:latest-slim
           
-          # Retag image for dockerhub and gcloud.
-          docker tag $GITHUB_IMAGE $DOCKERHUB_OUTPUT_IMAGE
-          docker tag $GITHUB_IMAGE $DOCKERHUB_LATEST_IMAGE
-          docker tag $GITHUB_IMAGE $GCLOUD_OUTPUT_IMAGE
-          docker tag $GITHUB_IMAGE $GCLOUD_LATEST_IMAGE
-          
-          # Push all images.
-          docker push $DOCKERHUB_OUTPUT_IMAGE
-          docker push $DOCKERHUB_LATEST_IMAGE
-          docker push $GCLOUD_OUTPUT_IMAGE
-          docker push $GCLOUD_LATEST_IMAGE
-          
-          # Create immutable tags
-          # Since Dockerfile is part of our repo, we use dot notation here. 
+          # Create immutable tags.
           DOCKERHUB_IMMUTABLE_IMAGE=${DOCKERHUB_OUTPUT_IMAGE}.1
+          DOCKERHUB_IMMUTABLE_IMAGE_SLIM=${DOCKERHUB_OUTPUT_IMAGE_SLIM}.1
           GCLOUD_IMMUTABLE_IMAGE=${GCLOUD_OUTPUT_IMAGE}.1
+          GCLOUD_IMMUTABLE_IMAGE_SLIM=${GCLOUD_OUTPUT_IMAGE_SLIM}.1
           
-          # Retag image for immutability.
-          docker tag $GITHUB_IMAGE $DOCKERHUB_IMMUTABLE_IMAGE
-          docker tag $GITHUB_IMAGE $GCLOUD_IMMUTABLE_IMAGE
+          # Pull base image.
+          docker pull ${GITHUB_IMAGE_ARM} --platform linux/arm64
+          docker pull ${GITHUB_IMAGE_AMD} --platform linux/amd64
+          docker pull ${GITHUB_IMAGE_ARM_SLIM} --platform linux/arm64
+          docker pull ${GITHUB_IMAGE_AMD_SLIM} --platform linux/amd64
           
-          # Push immutable images.
-          docker push $DOCKERHUB_IMMUTABLE_IMAGE
-          docker push $GCLOUD_IMMUTABLE_IMAGE
+          docker buildx imagetools create -t ${DOCKERHUB_OUTPUT_IMAGE} ${GITHUB_IMAGE_AMD} ${GITHUB_IMAGE_ARM}
+          docker buildx imagetools create -t ${DOCKERHUB_LATEST_IMAGE} ${GITHUB_IMAGE_AMD} ${GITHUB_IMAGE_ARM}
+          docker buildx imagetools create -t ${DOCKERHUB_IMMUTABLE_IMAGE} ${GITHUB_IMAGE_AMD} ${GITHUB_IMAGE_ARM}
+          
+          docker buildx imagetools create -t ${DOCKERHUB_OUTPUT_IMAGE_SLIM} ${GITHUB_IMAGE_AMD_SLIM} ${GITHUB_IMAGE_ARM_SLIM}
+          docker buildx imagetools create -t ${DOCKERHUB_LATEST_IMAGE_SLIM} ${GITHUB_IMAGE_AMD_SLIM} ${GITHUB_IMAGE_ARM_SLIM}
+          docker buildx imagetools create -t ${DOCKERHUB_IMMUTABLE_IMAGE_SLIM} ${GITHUB_IMAGE_AMD_SLIM} ${GITHUB_IMAGE_ARM_SLIM}
+          
+          docker buildx imagetools create -t ${GCLOUD_OUTPUT_IMAGE} ${GITHUB_IMAGE_AMD} ${GITHUB_IMAGE_ARM}
+          docker buildx imagetools create -t ${GCLOUD_LATEST_IMAGE} ${GITHUB_IMAGE_AMD} ${GITHUB_IMAGE_ARM}
+          docker buildx imagetools create -t ${GCLOUD_IMMUTABLE_IMAGE} ${GITHUB_IMAGE_AMD} ${GITHUB_IMAGE_ARM}
+          
+          docker buildx imagetools create -t ${GCLOUD_OUTPUT_IMAGE_SLIM} ${GITHUB_IMAGE_AMD_SLIM} ${GITHUB_IMAGE_ARM_SLIM}
+          docker buildx imagetools create -t ${GCLOUD_LATEST_IMAGE_SLIM} ${GITHUB_IMAGE_AMD_SLIM} ${GITHUB_IMAGE_ARM_SLIM}
+          docker buildx imagetools create -t ${GCLOUD_IMMUTABLE_IMAGE_SLIM} ${GITHUB_IMAGE_AMD_SLIM} ${GITHUB_IMAGE_ARM_SLIM}

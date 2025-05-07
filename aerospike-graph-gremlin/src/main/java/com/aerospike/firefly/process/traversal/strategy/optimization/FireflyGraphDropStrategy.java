@@ -1,10 +1,9 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.computer.local.ComputerHelper;
-import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyDropStep;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.DropStep;
@@ -42,14 +41,8 @@ public class FireflyGraphDropStrategy extends FireflyStrategyBase {
     private static boolean matchesToListNextIterate(final List<Step> steps) {
         // Ensure traversal matches g.V().drop().[next|toList]()
         // Note - toList / next are not steps and therefore there is only V().drop() in the steps list.
-        if (steps.get(steps.size() -1) instanceof FireflyCacheGCStep) {
-            if (steps.size() != 3 && steps.size() != 4) {
-                return false;
-            }
-        } else {
-            if (steps.size() != 2 && steps.size() != 3) {
-                return false;
-            }
+        if (steps.size() != 2 && steps.size() != 3) {
+            return false;
         }
 
         // V()
@@ -86,8 +79,7 @@ public class FireflyGraphDropStrategy extends FireflyStrategyBase {
             return false;
         }
 
-        if ((steps.get(steps.size() -1) instanceof FireflyCacheGCStep && steps.size() == 4)
-        || (!(steps.get(steps.size() -1) instanceof FireflyCacheGCStep) && steps.size() == 3)) {
+        if (steps.size() == 3) {
             // iterate()
             final Step iterateStep = steps.get(2);
             if (!(iterateStep instanceof NoneStep)) {
@@ -99,9 +91,10 @@ public class FireflyGraphDropStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
-        if (!(traversal.isRoot()) || ComputerHelper.onGraphComputer(traversal))
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
+        if (!(traversal.isRoot()) || ComputerHelper.onGraphComputer(traversal)) {
             return;
+        }
         final List<Step> steps = traversal.getSteps();
         if (matchesToListNextIterate(steps)) {
             LOG.debug("Applying FireflyGraphDropStrategy");

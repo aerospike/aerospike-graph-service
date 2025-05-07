@@ -2,13 +2,9 @@ import os, sys, subprocess
 import argparse
 from python_on_whales import docker
 
-# TODO: These need to be dynamic.
 GRAPH_JAR_DIRECTORY = "aerospike-graph-gremlin/target/"
 BULK_LOADER_JAR_DIRECTORY = "aerospike-graph-bulk-loader/target/"
-SPARK_VERSION = "3.4.1"
-SPARK_ZIP = "spark-{}.tgz".format(SPARK_VERSION)
-SPARK_URL = "https://archive.apache.org/dist/spark/spark-{}/spark-{}-bin-hadoop3.tgz".format(SPARK_VERSION,
-                                                                                             SPARK_VERSION)
+OLAP_JAR_DIRECTORY = "aerospike-graph-olap/target/"
 
 
 class BuildArguments:
@@ -42,10 +38,8 @@ def main():
     build_args = parse_args()
     if not build_args.use_local:
         build_jars(build_args)
-    if not build_args.slim:
-        fetch_dependencies()
-    graph_jar, bulk_loader_jar = find_jars(build_args)
-    build_docker(build_args, graph_jar, bulk_loader_jar)
+    graph_jar, bulk_loader_jar, olap_jar = find_jars(build_args)
+    build_docker(build_args, graph_jar, bulk_loader_jar, olap_jar)
 
 
 def find_jars(build_args):
@@ -60,7 +54,7 @@ def find_jars(build_args):
         sys.exit(1)
 
     if build_args.slim:
-        return graph_jar, None
+        return graph_jar, None, None
 
     bulk_loader_jar = None
     for path, dirs, files in os.walk(os.path.abspath(BULK_LOADER_JAR_DIRECTORY)):
@@ -72,7 +66,17 @@ def find_jars(build_args):
         print("Could not find bulk loader jar in directory: {}".format(BULK_LOADER_JAR_DIRECTORY))
         sys.exit(1)
 
-    return graph_jar, bulk_loader_jar
+    olap_jar = None
+    for path, dirs, files in os.walk(os.path.abspath(OLAP_JAR_DIRECTORY)):
+        for filename in files:
+            if filename.startswith("aerospike-graph-olap") and filename.endswith(".jar"):
+                olap_jar = os.path.join(path, filename)
+                olap_jar = os.path.relpath(olap_jar, os.getcwd())
+    if olap_jar is None:
+        print("Could not find olap jar in directory: {}".format(OLAP_JAR_DIRECTORY))
+        sys.exit(1)
+
+    return graph_jar, bulk_loader_jar, olap_jar
 
 
 def parse_args():
@@ -123,30 +127,21 @@ def run_command(command):
         sys.exit(return_code)
 
 
-def fetch_dependencies():
-    if not os.path.exists(SPARK_ZIP):
-        print("Downloading Spark")
-        run_command(f"curl -L -o {SPARK_ZIP} {SPARK_URL}")
-    else:
-        print(f"{SPARK_ZIP} already exists, skipping download.")
-
-
 def build_jars(build_args):
     if not build_args.slim:
         run_command(
-            "mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -DskipTests=true clean install "
+            "mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -pl aerospike-graph-olap -am -DskipTests=true clean install "
             "--no-transfer-progress")
     else:
         run_command("mvn -pl aerospike-graph-gremlin -am -DskipTests=true clean install --no-transfer-progress")
 
 
-def build_docker(build_args, graph_jar, bulk_loader_jar):
+def build_docker(build_args, graph_jar, bulk_loader_jar, olap_jar):
     print(f"Building for platforms: {build_args.platforms}")
     docker_build_args = {
         "FIREFLY_GRAPH": graph_jar,
         "BULKLOADER": bulk_loader_jar,
-        "SPARK_ZIP": SPARK_ZIP,
-        "SPARK_VERSION": SPARK_VERSION
+        "OLAP": olap_jar
     } if not build_args.slim else {
         "FIREFLY_GRAPH": graph_jar
     }

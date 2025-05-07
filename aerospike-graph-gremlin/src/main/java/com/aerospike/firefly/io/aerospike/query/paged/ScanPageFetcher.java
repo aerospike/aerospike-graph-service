@@ -6,21 +6,24 @@ import com.aerospike.client.Record;
 import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.io.aerospike.ScanHitCounter;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 
-public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
+public class ScanPageFetcher<E extends Element> extends PageFetcher<E> {
     private static final Logger LOG = LoggerFactory.getLogger(ScanPageFetcher.class);
-    private final String namespace;
     private final String set;
     private final ScanPolicy policy;
     private final BiFunction<Long, Long, Void> metricsCallback;
@@ -28,14 +31,43 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
     private final UUID scanId = UUID.randomUUID();
     private final ScanHitCounter scanHitCounter;
 
-
-    public ScanPageFetcher(final FireflyGraph graph, final ScanPolicy policy, final String setName, final String namespace,
-                           final int maxQueueSize, final int maxPageSize, final String mapKey, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
-        super(graph, maxQueueSize, transformKeyRecord);
+    public ScanPageFetcher(final FireflyGraph graph,
+                           final ScanPolicy policy,
+                           final String setName,
+                           final int maxPageSize,
+                           final String mapKey,
+                           final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
+        super(graph, transformKeyRecord, null);
         graph.getBaseGraph().configureScanPolicy(policy);
         this.policy = policy;
         this.policy.maxRecords = maxPageSize;
-        this.namespace = namespace;
+        this.set = setName;
+        this.scanHitCounter = graph.getBaseGraph().getScanHitCounter();
+        if (mapKey != null) {
+            scanHitCounter.associateUUID(scanId, mapKey);
+            scanHitCounter.increment(mapKey);
+        }
+        this.metricsCallback = (start, stop) -> {
+            scanHitCounter.setScanTimings(scanId, start, stop);
+            return null;
+        };
+        this.startTime = System.currentTimeMillis();
+    }
+
+    public ScanPageFetcher(final FireflyGraph graph,
+                           final ScanPolicy policy,
+                           final String setName,
+                           final String indexName,
+                           final int maxPageSize,
+                           final String mapKey,
+                           final PartitionFilter partitionFilter,
+                           final ExecutorService readLoopExecutorService,
+                           final BlockingQueue<Page> pageQueue,
+                           final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
+        super(graph, transformKeyRecord, indexName, partitionFilter, readLoopExecutorService, pageQueue);
+        graph.getBaseGraph().configureScanPolicy(policy);
+        this.policy = policy;
+        this.policy.maxRecords = maxPageSize;
         this.set = setName;
         this.scanHitCounter = graph.getBaseGraph().getScanHitCounter();
         if (mapKey != null) {

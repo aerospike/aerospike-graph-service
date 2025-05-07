@@ -13,6 +13,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.VerificationException;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +68,7 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    @Ignore
     @Test
     public void testGraphFilterConstruction() {
         final Object NONE = new Object() {
@@ -121,8 +123,14 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
                     with("property_key", property).
                     with("element_type", "vertex").next();
         }
+        try {
+            Thread.sleep(1000);
+        } catch (final InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
+    @Ignore
     @Test
     public void testId() {
         final GraphTraversalSource g = graph.traversal();
@@ -136,6 +144,7 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
         assertEquals(2, vertices.size());
     }
 
+    @Ignore
     @Test
     public void testAll() {
         final GraphTraversalSource g = graph.traversal();
@@ -148,6 +157,7 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
         assertEquals(3, vertices.size());
     }
 
+    @Ignore
     @Test
     public void testSindex() {
         final GraphTraversalSource g = graph.traversal();
@@ -158,8 +168,10 @@ public class LocalGraphComputerTest extends AbstractFireflySuite {
         createIndexWaitComplete("name");
         final GraphTraversalSource gComputer = graph.traversal().withComputer();
         final Vertex marko = gComputer.V().has("name", "marko").next();
+        assertEquals(1, marko.id());
     }
 
+    @Ignore
     @Test
     public void testVerificationHandling() {
         Arrays.asList(

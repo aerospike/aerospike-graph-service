@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.aerospike</groupId>
         <artifactId>firefly</artifactId>
-        <version>2.4.0</version>
+        <version>3.0.0-SNAPSHOT</version>
     </parent>
     <artifactId>aerospike-graph-gremlin</artifactId>
     <name>Aerospike :: Graph</name>
@@ -129,6 +129,32 @@
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-s3</artifactId>
             <version>${awssdk.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-iot</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-glue</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-sagemaker</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-securityhub</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-ssm</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-pinpoint</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>commons-cli</groupId>
@@ -191,6 +217,18 @@
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.hamcrest</groupId>
+                    <artifactId>hamcrest-core</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest</artifactId>
+            <version>${hamcrest.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.github.docker-java</groupId>
@@ -209,6 +247,32 @@
             <artifactId>commons-lang</artifactId>
             <version>2.6</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
+            <version>4.2.3</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api</artifactId>
+            <version>1.44.1</version>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk</artifactId>
+            <version>1.44.1</version>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-semconv</artifactId>
+            <version>1.30.1-alpha</version>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-zipkin</artifactId>
+            <version>1.44.1</version>
         </dependency>
     </dependencies>
     <build>
@@ -280,7 +344,7 @@
                         --add-opens java.base/java.net=ALL-UNNAMED
                         -Dbuild.dir=${project.build.directory}
                         -Dis.testing=true -Djava.net.preferIPv4Stack=true
-                        -Xmx10000m
+                        -Xmx20g
                         -Xms1000m
                     </argLine>
                 </configuration>
@@ -314,6 +378,12 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <artifactSet>
+                                <excludes>
+                                    <exclude>org.apache.tinkerpop:gremlin-test</exclude>
+                                    <exclude>com.nimbusds:nimbus-jose-jwt</exclude>
+                                </excludes>
+                            </artifactSet>
                             <minimizeJar>false</minimizeJar>
                             <createDependencyReducedPom>true</createDependencyReducedPom>
                             <dependencyReducedPomLocation>
@@ -329,9 +399,22 @@
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
+                                        <!-- Remove cryptographic signature files -->
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
+
+                                        <!-- Remove outdated metadata - these cause a lot of false positives -->
+                                        <exclude>META-INF/maven/net.minidev/json-smart/**</exclude>
+                                        <exclude>META-INF/maven/net.minidev/accessors-smart/**</exclude>
+                                        <exclude>META-INF/maven/com.nimbusds/nimbus-jose-jwt/**</exclude>
+                                        <exclude>META-INF/maven/com.google.protobuf/protobuf-java-util/**</exclude>
+                                        <exclude>META-INF/maven/com.google.protobuf/protobuf-java/**</exclude>
+                                        <exclude>META-INF/maven/org.apache.commons/commons-configuration2/**</exclude>
+                                        <exclude>META-INF/maven/software.amazon.ion/ion-java/**</exclude>
+                                        <exclude>META-INF/maven/org.eclipse.jetty/jetty-server/**</exclude>
+                                        <exclude>META-INF/maven/dnsjava/dnsjava/**</exclude>
+                                        <exclude>META-INF/maven/org.apache.hadoop/hadoop-hdfs-client/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

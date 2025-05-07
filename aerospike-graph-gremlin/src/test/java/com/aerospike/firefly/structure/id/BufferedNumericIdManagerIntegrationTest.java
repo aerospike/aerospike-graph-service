@@ -1,7 +1,7 @@
 package com.aerospike.firefly.structure.id;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -10,7 +10,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE;
 
 public class BufferedNumericIdManagerIntegrationTest {
     private static final String BUFFER_SIZE = "3";

@@ -1,7 +1,7 @@
 package com.aerospike.firefly.runtime;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
@@ -21,7 +21,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 import static org.junit.Assert.assertTrue;
 
 public class PrometheusServerTest {
-    private static final int PORT = 9094;
+    private static final int PORT = 9098;
 
     @Test
     public void testMetrics() {

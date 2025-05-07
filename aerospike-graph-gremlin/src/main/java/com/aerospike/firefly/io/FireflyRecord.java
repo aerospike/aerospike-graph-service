@@ -122,7 +122,7 @@ public class FireflyRecord {
         final Key key = getKey(db, set, id);
         final Policy policy = new Policy();
         policy.sendKey = false;
-        final Record record = db.read(key, policy);
+        final Record record = db.read(key, policy, db.transactionCache.get());
         if (record == null)
             return null;
         return new FireflyRecord(db, key, record);

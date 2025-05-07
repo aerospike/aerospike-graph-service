@@ -1,1 +1,0 @@
-:plugin use aerospike.firefly

@@ -4,10 +4,12 @@ import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.util.ProgressBar;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
+import com.aerospike.firefly.util.config.FireflyConfiguration;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.spark.SparkConf;
@@ -18,6 +20,7 @@ import org.apache.spark.sql.functions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
@@ -44,6 +47,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
 
 public class SparkBulkLoaderStateMachine {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderStateMachine.class);
@@ -58,6 +62,7 @@ public class SparkBulkLoaderStateMachine {
     public boolean isL2Mode;
     public List<String> vertexDirectories;
     public List<String> edgeDirectories;
+    public String edgeRecoveryDirectory;
     public boolean incrementalLoad;
     public BulkLoaderConfigHelper config;
     public SparkSession spark;
@@ -74,6 +79,7 @@ public class SparkBulkLoaderStateMachine {
     public boolean readOnly;
     public Set<Long> completedVertexPartitions = new HashSet<>();
     public Set<Long> completedEdgePartitions = new HashSet<>();
+    public double supernodeSamplingPercentage;
 
     public SparkBulkLoaderStateMachine(final String[] args) {
         try {
@@ -101,7 +107,8 @@ public class SparkBulkLoaderStateMachine {
 
             // new Timer(true) creates the timer as a daemon, which means that it will not prevent the JVM from exiting.
             progressBar = new ProgressBar(progressBarIntervalMs);
-            progressBar.setIsL2Mode(cmd.hasOption(LOCAL_MODE));
+            isL2Mode = cmd.hasOption(LOCAL_MODE);
+            progressBar.setIsL2Mode(isL2Mode);
             if (cmd.hasOption(RESUME)) {
                 progressBar.setResumeableLoad();
             }
@@ -112,7 +119,6 @@ public class SparkBulkLoaderStateMachine {
             fileSystemMutable = true;
             spark = buildSparkSession(cmd);
             final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
-            isL2Mode = cmd.hasOption(LOCAL_MODE);
             Objects.requireNonNull(configPath);
             fileConfig = loadConfiguration(spark, cmd, configPath);
             LOGGER.info("CONFIGURATION:");
@@ -126,6 +132,7 @@ public class SparkBulkLoaderStateMachine {
             });
             config = new BulkLoaderConfigHelper(fileConfig, cmd);
             config.validateBulkLoadConfig();
+            supernodeSamplingPercentage = DatasetOperations.getSupernodeSamplingPercentage(config);
 
             final String logLevel = config.getOrDefault(SPARK_LOG_LEVEL).toUpperCase();
             // Set LOG LEVEL for spark logging to disable logging of each step during debugging purposes.
@@ -138,7 +145,10 @@ public class SparkBulkLoaderStateMachine {
             }
 
             // Create graph and initialize progress bar.
-            initializerGraph = FireflyGraph.open(config.getFireflyConfig());
+            final MapConfiguration initializerConfig = new MapConfiguration(fileConfig);
+            initializerConfig.setProperty(BULK_LOADER_INITIALIZER_FLAG, "true");
+            initializerGraph = FireflyGraph.open(initializerConfig);
+            initializerConfig.clearProperty(BULK_LOADER_INITIALIZER_FLAG); // MapConfiguration updates underlying map, so clear property.
             progressBar.initialize(initializerGraph, incrementalLoad);
             progressBarTimer.scheduleAtFixedRate(progressBar, 0, 10000);
 
@@ -164,6 +174,12 @@ public class SparkBulkLoaderStateMachine {
 
             edgeDirectories = getDirectories(spark, cmd, config.getOrDefault(EDGE_DIRECTORY_KEY));
             readOnly = config.hasAction(READ_ONLY);
+            if (!readOnly) {
+                final String tempDirectory = config.getOrDefault(TEMP_DIRECTORY_KEY);
+                edgeRecoveryDirectory = RecoveryUtil.getEdgeRecoveryDirectory(tempDirectory,
+                        fileSystem.equals(SparkBulkLoaderStateMachine.LOCAL) ? File.separator : "/");
+                configureFileSystem(spark, cmd, edgeRecoveryDirectory);
+            }
         } catch (final Exception e) {
             LOGGER.error("Failed to initialize SparkBulkLoaderStateMachine", e);
             cleanup();
@@ -228,7 +244,7 @@ public class SparkBulkLoaderStateMachine {
             LOGGER.error(e.getMessage());
             throw new RuntimeException(e);
         }
-        final Map<String, Object> config = new MapConfiguration(prop).getMap();
+        final Map<String, Object> config = FireflyConfiguration.fromConfiguration(new MapConfiguration(prop)).getMap();
         config.put(ConfigurationHelper.Keys.BULK_LOADER_FLAG.toLowerCase(), "true");
         return config;
     }
@@ -330,9 +346,7 @@ public class SparkBulkLoaderStateMachine {
 
         try {
             Thread.sleep(exponentialTime);
-        } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
+        } catch (final InterruptedException ignored) {
         }
     }
 }

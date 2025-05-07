@@ -2,9 +2,10 @@ package com.aerospike.firefly.runtime;
 
 import com.aerospike.firefly.runtime.metrics.ServerMetrics;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.ReflectionHelper;
 import com.aerospike.firefly.util.WarmupUtil;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.tinkerpop.gremlin.groovy.engine.GremlinExecutor;
 import org.apache.tinkerpop.gremlin.server.GraphManager;
 import org.apache.tinkerpop.gremlin.server.GremlinServer;
@@ -12,10 +13,11 @@ import org.apache.tinkerpop.gremlin.server.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TRAVERSAL_NAME;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.TRAVERSAL_NAME;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -30,9 +32,14 @@ public class FireflyServer {
     private CompletableFuture<Void> serverStarted = null;
     private CompletableFuture<Void> serverStopped = null;
     private ServerMetrics serverMetrics;
+    private static Object sparkSession;
 
     public FireflyServer(final String file) {
         confPath = file;
+    }
+
+    public static void setSpark(final Object sparkSession) {
+        FireflyServer.sparkSession = sparkSession;
     }
 
     public static void main(final String[] args) {
@@ -41,6 +48,7 @@ public class FireflyServer {
 
     public static FireflyServer start(final String[] args) {
         if (args.length != 1) {
+            logger.error("FireflyServer failed to start, no configuration file provided.");
             System.err.println("Usage: Server <conf file>");
             System.exit(1);
         }
@@ -52,6 +60,7 @@ public class FireflyServer {
             fireflyServer.stop().join();
             return null;
         }).join();
+
         return fireflyServer;
     }
 
@@ -69,10 +78,10 @@ public class FireflyServer {
             // need to add TraversalSource's to GraphManager
             final GraphManager graphManager = gremlinServer.getServerGremlinExecutor().getGraphManager();
 
-            boolean isWarmedUp = false;
             final Set<String> graphs = graphManager.getGraphNames();
             for (final String graphName : graphs) {
-                final FireflyGraph graph = (FireflyGraph)graphManager.getGraph(graphName);
+                final FireflyGraph graph = (FireflyGraph) graphManager.getGraph(graphName);
+                graph.setSparkSession(sparkSession);
                 String gts = graph.configuration().getString(TRAVERSAL_NAME);
                 if (gts == null) {
                     // default gts for default graph
@@ -86,22 +95,38 @@ public class FireflyServer {
                 // let's graph know his config file path to use with bulk loader
                 graph.setConfigFilePath(settings.graphs.get(graphName));
 
-                if (!isWarmedUp) {
-                    final boolean needPreheat = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, graph.configuration());
-                    if (needPreheat) {
-                        WarmupUtil.create(graph.configuration()).preheat(WarmupUtil.passes);
-                        isWarmedUp = true;
-                        logger.info("Warmup is complete.");
-                    }
+                if (FireflyGraph.NEED_PREHEAT && ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, graph.configuration())) {
+                    logger.info("Starting warmup...");
+                    WarmupUtil.create(graph.configuration()).preheat(WarmupUtil.passes);
+                    FireflyGraph.NEED_PREHEAT = false;
+                    logger.info("Warmup is complete.");
                 }
+            }
+            FireflyGraph.NEED_PREHEAT = false;
+
+            final String healthCheckFilename = System.getenv().get(ConfigurationHelper.Keys.HEALTHCHECK_FILE);
+            if (StringUtils.isNotBlank(healthCheckFilename)) {
+                new File(healthCheckFilename).createNewFile();
             }
 
             // workaround to set TraversalSource's for script engines
             final GremlinExecutor gremlinExecutor = gremlinServer.getServerGremlinExecutor().getGremlinExecutor();
             ReflectionHelper.setFieldValue(gremlinExecutor, "globalBindings", graphManager.getAsBindings());
 
+            // workaround to allow only GremlinLangScriptEngine
+            final FireflyScriptEngineManager scriptEngineManager = new FireflyScriptEngineManager();
+            ReflectionHelper.setFieldValue(gremlinExecutor, "gremlinScriptEngineManager", scriptEngineManager);
+
             serverMetrics = new ServerMetrics(gremlinServer);
             serverMetrics.start();
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                logger.info("Closing FireflyServer.");
+                if (serverMetrics != null) {
+                    serverMetrics.shutDown();
+                    serverMetrics = null;
+                }
+            }, "firefly-server-shutdown"));
         } catch (Exception ex) {
             serverStarted.completeExceptionally(ex);
         }

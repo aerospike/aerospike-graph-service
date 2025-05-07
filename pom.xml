@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.aerospike</groupId>
     <artifactId>firefly</artifactId>
-    <version>2.4.0</version>
+    <version>3.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <!-- PROJECT DETAILS -->
     <name>Firefly</name>
@@ -44,29 +44,33 @@
     <modules>
         <module>aerospike-graph-gremlin</module>
         <module>aerospike-graph-bulk-loader</module>
+        <module>aerospike-graph-olap</module>
         <module>aerospike-graph-api</module>
     </modules>
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->
     <properties>
-        <firefly.version>2.4.0</firefly.version>
+        <firefly.version>${project.version}</firefly.version>
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <aerospike-client.version>7.2.1</aerospike-client.version>
-        <tinkerpop.version>3.7.2</tinkerpop.version>
+        <aerospike-client.version>9.0.4</aerospike-client.version>
+        <tinkerpop.version>3.7.3</tinkerpop.version>
         <junit.version>4.13.1</junit.version>
+        <hamcrest.version>2.2</hamcrest.version>
         <awaitly.version>4.2.0</awaitly.version>
         <logback.version>1.2.13</logback.version>
         <slf4j.version>1.7.30</slf4j.version>
         <guava.version>31.1-jre</guava.version>
         <resilience4j.version>1.7.1</resilience4j.version>
-        <vertx.version>4.4.8</vertx.version>
+        <spark.version>3.4.3</spark.version>
+        <vertx.version>4.5.13</vertx.version>
         <prometheus.version>0.16.0</prometheus.version>
         <awssdk.version>1.12.641</awssdk.version>
+        <netty.version>4.1.118.Final</netty.version>
         <!-- MAVEN PLUGIN VERSIONS -->
-        <mvn-shade-plugin.version>3.5.1</mvn-shade-plugin.version>
+        <mvn-shade-plugin.version>3.6.0</mvn-shade-plugin.version>
         <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>
-        <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>
+        <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
         <build-helper.version>3.3.0</build-helper.version>
         <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
         <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
@@ -156,7 +160,7 @@
                             This should be set to the lowest version of Aerospike graph that is available in dockerhub.
                             Note the major version must align. In this case, 1.0.0 was removed, so we use 1.0.1
                          -->
-                        <COMPATIBILITY_VERSION>2.0.0</COMPATIBILITY_VERSION>
+                        <COMPATIBILITY_VERSION>3.0.0</COMPATIBILITY_VERSION>
                     </environmentVariables>
                     <argLine>
                         -Dbuild.dir=${project.build.directory}
@@ -171,6 +175,8 @@
                         <exclude>**/TestPerformanceModes.java</exclude>
                         <exclude>**/TestDockerJavaOptions.java</exclude>
                         <exclude>**/TestDockerConfigs.java</exclude>
+                        <exclude>**/TestSlimVsFat.java</exclude>
+                        <exclude>**/TestDockerShutdown.java</exclude>
                         <exclude>**/FireflyUsageStatsCallMultiTest.java</exclude>
                         <exclude>**/TestMovielens1M.java</exclude>
                         <exclude>**/TestFireflyExceedHeap.java</exclude>
@@ -180,7 +186,6 @@
                         <exclude>**/PrometheusExporterTest.java</exclude>
                         <exclude>**/TestAerospikeTTL.java</exclude>
                         <exclude>**/JwtAuthenticationDockerTest.java</exclude>
-                        <exclude>**/CustomPrometheusExporterTest.java</exclude>
                         <exclude>**/TestFireflyBulkLoaderCallEntrypointRemote.java</exclude>
                         <exclude>**/TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark.java</exclude>
                         <exclude>**/TestFireflyServer.java</exclude>
@@ -191,6 +196,17 @@
                         <exclude>**/TestRecoveryActionFlags</exclude>
                         <exclude>**/QueryServiceAbortTest</exclude>
                         <exclude>**/TestAerospikeClientConfigEventLoop</exclude>
+                        <exclude>**/FireflyMergeEdgeStepRemoteTest</exclude>
+                        <!-- tests require MRT compatible aerospike server (version 8.0+ and SC enabled) -->
+                        <exclude>**/TestMRTSupported</exclude>
+                        <exclude>**/FireflyMRTFeatureTest</exclude>
+                        <exclude>**/TestAerospikeOperations</exclude>
+                        <exclude>**/FireflyGraphSummaryUpdaterTest</exclude>
+                        <!-- heavy computer tests -->
+                        <exclude>**/FireflyComputerFeatureMapTest</exclude>
+                        <exclude>**/FireflyComputerFeatureFilterTest</exclude>
+                        <exclude>**/FireflyComputerFeatureBranchTest</exclude>
+                        <exclude>**/TestSupernodeStackOverflow</exclude>
                     </excludes>
                 </configuration>
             </plugin>
@@ -237,7 +253,7 @@
             </activation>
             <properties>
                 <!-- Java heap parameters -->
-                <maxheap>16384m</maxheap>
+                <maxheap>20g</maxheap>
                 <minheap>4096m</minheap>
             </properties>
         </profile>

@@ -10,19 +10,20 @@ import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
+import org.apache.tinkerpop.gremlin.process.traversal.Contains;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -282,7 +283,12 @@ public class GraphQueryHelper {
                                               final String propertyKey, final P<?> predicate) {
         // Build expression for nested Phat Edge properties.
         final Object value = predicate.getValue();
-        if (Number.class.isAssignableFrom(value.getClass())) {
+        if (predicate.getBiPredicate().equals(Contains.within)) {
+            final Exp[] containsExps = ((Collection<?>) value).stream().map(collectionValue ->
+                    phatEdgePredicateToExp(db, vertexIdKeyHashString, propertyKey, new P<>(Compare.eq, collectionValue)))
+                    .toArray(Exp[]::new);
+            return containsExps.length == 1 ? containsExps[0] : Exp.or(containsExps);
+        } else if (Number.class.isAssignableFrom(value.getClass())) {
             final Long casted;
             if (Integer.class.isAssignableFrom(value.getClass())) {
                 casted = Long.valueOf((Integer) value);

@@ -3,11 +3,9 @@ package com.aerospike.firefly.process.traversal.step;
 import com.aerospike.client.Key;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.TimeoutHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
@@ -29,11 +27,11 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +55,7 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
         if (step.getOnMatchTraversal() != null) this.addChildOption(Merge.onMatch, step.getOnMatchTraversal());
         if (step.getOnCreateTraversal() != null) this.addChildOption(Merge.onCreate, step.getOnCreateTraversal());
         if (step.getCallbackRegistry() != null) this.callbackRegistry = step.getCallbackRegistry();
+        step.getLabels().forEach(label -> addLabel((String) label));
         this.evaluationTimeout = TimeoutHelper.calculate(step.getTraversal());
     }
 
@@ -101,22 +100,23 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
         // Prioritize lookup by id but otherwise attempt an index lookup
         if (null == search) {
             return Stream.empty();
+        } else if (search.isEmpty()) {
+            // no filter => all vertices are good
+            return IteratorUtils.stream(graph.vertices());
         } else if (search.containsKey(T.id)) {
             final Object sid = search.get(T.id);
             final FireflyId fid = graph.getIdFactory().createVertexId(sid);
             final Key askey = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, fid);
             if (graph.getBaseGraph().exists(askey)) {
                 stream = FireflyCloseableIteratorUtils.stream(graph.vertices(search.get(T.id)));
-            }  else {
+            } else {
                 stream = Stream.empty();
             }
         } else {
             List<Iterator<? extends Vertex>> results = new ArrayList<>();
             search.forEach((key, value) -> {
                 if (key == T.label) {
-                    if (value.getClass().isAssignableFrom(Long.class) || value.getClass().isAssignableFrom(Double.class) || value.getClass().isAssignableFrom(Integer.class)) {
-                        results.add(graph.vertices());
-                    } else if (value.getClass().isAssignableFrom(String.class)) {
+                    if (value.getClass().isAssignableFrom(String.class)) {
                         // Find index.
                         final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo =
                                 graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "~label", value);
@@ -124,15 +124,16 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                         // If we have index, query it, otherwise we need to scan (or error out).
                         final P<?> predicate = P.eq(value);
                         if (propertyIndexInfo.isPresent()) {
-                            results.add(GraphQuery.create(graph).queryVertexSIndex(propertyIndexInfo.get(), predicate,
+                            results.add(graph.graphQuery.queryVertexSIndex(propertyIndexInfo.get(), predicate,
                                     graph::vertexFromRecord, evaluationTimeout));
                         } else {
                             LOG.debug("No index found for vertex label, running scan");
-                            results.add(GraphQuery.create(graph).scanSet(null,
-                                    graph.getBaseGraph().VERTEX_AERO_SET,graph.getBaseGraph().LABEL_BIN, predicate,
+                            results.add(graph.graphQuery.scanSet(null,
+                                    graph.getBaseGraph().VERTEX_AERO_SET, graph.getBaseGraph().LABEL_BIN, predicate,
                                     graph::vertexFromRecord, evaluationTimeout));
                         }
                     } else {
+                        // todo: GRAPH-1432
                         results.add(graph.vertices());
                     }
                 } else {
@@ -144,16 +145,17 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                         // If we have index, query it, otherwise we need to scan (or error out).
                         final Iterator<? extends Vertex> iterator;
                         if (propertyIndexInfo.isPresent()) {
-                            iterator = GraphQuery.create(graph).queryVertexSIndex(propertyIndexInfo.get(), P.eq(value),
+                            iterator = graph.graphQuery.queryVertexSIndex(propertyIndexInfo.get(), P.eq(value),
                                     graph::vertexFromRecord, evaluationTimeout);
                         } else {
                             LOG.debug("No index found for key {} and value {}, running scan", key.toString(), value);
-                            iterator = GraphQuery.create(graph).scanSet(key.toString(), graph.getBaseGraph().VERTEX_AERO_SET,
+                            iterator = graph.graphQuery.scanSet(key.toString(), graph.getBaseGraph().VERTEX_AERO_SET,
                                     graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN, P.eq(value),
                                     graph::vertexFromRecord, evaluationTimeout);
                         }
                         results.add(iterator);
                     } else {
+                        // todo: GRAPH-1432
                         results.add(graph.vertices());
                     }
                 }
@@ -182,8 +184,15 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
 
     @Override
     protected Iterator<Vertex> flatMap(final Traverser.Admin<S> traverser) {
-        final Map mergeMap = materializeMap(traverser, mergeTraversal);;
+        final Map mergeMap = materializeMap(traverser, mergeTraversal);
         validateMapInput(mergeMap, false);
+
+        // validate onMatchTraversal before going too far
+        if (onMatchTraversal instanceof ConstantTraversal) {
+            final Map matchMap = onMatchTraversal.next();
+            validateMapInput(matchMap, true);
+        }
+
         while (true) {
             try {
                 Stream<Vertex> stream = createSearchStream(mergeMap);
@@ -212,7 +221,6 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                             }
 
                             // Try to detect proper cardinality for the key according to the graph
-                            final Graph graph = this.getTraversal().getGraph().get();
                             VertexProperty.Cardinality effectiveCard;
                             if (FireflyCloseableIteratorUtils.count(v.properties(key)) <= 1)
                                 effectiveCard = VertexProperty.Cardinality.single;
@@ -230,18 +238,14 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                 if (vertices.hasNext()) {
                     return vertices;
                 } else {
-                    final Vertex vertex;
-
                     final Map<?, ?> onCreateMap = onCreateMap(traverser, mergeMap);
-                    if (onCreateMap.isEmpty()) {
-                        return Collections.emptyIterator();
-                    }
                     final List<Object> keyValues = new ArrayList<>();
                     for (Map.Entry<?, ?> entry : onCreateMap.entrySet()) {
                         keyValues.add(entry.getKey());
                         keyValues.add(entry.getValue());
                     }
-                    vertex = this.getTraversal().getGraph().get().addVertex(keyValues.toArray(new Object[keyValues.size()]));
+
+                    final Vertex vertex = this.getTraversal().getGraph().get().addVertex(keyValues.toArray(new Object[keyValues.size()]));
 
                     // Trigger callbacks for eventing - in this case, it's a VertexAddedEvent
                     if (this.callbackRegistry != null && !callbackRegistry.getCallbacks().isEmpty()) {

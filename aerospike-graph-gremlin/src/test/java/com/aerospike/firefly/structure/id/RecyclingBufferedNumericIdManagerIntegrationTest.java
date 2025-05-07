@@ -2,7 +2,7 @@ package com.aerospike.firefly.structure.id;
 
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -22,7 +22,7 @@ import java.util.Random;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE;
 
 public class RecyclingBufferedNumericIdManagerIntegrationTest {
     private static final long BUFFER_SIZE = 3;
@@ -40,6 +40,7 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
 
     @AfterClass
     public static void afterAll() {
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
         SETUP_GRAPH.close();
     }
 
@@ -55,30 +56,25 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
         return buffer.getLong();
     }
 
-    private byte[] getBaselineId(final long offsetLower, final long offsetUpper) {
-        final byte[] lower = new byte[Long.BYTES];
-        final byte[] upper = new byte[Long.BYTES];
-        System.arraycopy(baseline, 0, lower, 0, Long.BYTES);
-        System.arraycopy(baseline, Long.BYTES, upper, 0, Long.BYTES);
-        final long lowerLong = bytesToLong(lower) + offsetLower;
-        final long upperLong = bytesToLong(upper) + offsetUpper;
-        final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2);
-        buffer.putLong(lowerLong);
-        buffer.putLong(upperLong);
+    private byte[] getComparableNewIdFromBaseline(final long offset) {
+        final byte[] packing = new byte[Long.BYTES];
+        System.arraycopy(baseline, 0, packing, 0, Long.BYTES);
+        final long packingLong = bytesToLong(packing) + offset;
+        final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+        buffer.putLong(packingLong);
         return buffer.array();
     }
-
 
     @Test
     public void testBufferedAndUnbufferedIdGet() {
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             final RecyclingBufferedNumericIdManager idManager = (RecyclingBufferedNumericIdManager) graph.getIdFactory().getEdgeIdManager();
             // Buffer -1, -2, -3
-            Assert.assertArrayEquals(idManager.getNextId(graph), getBaselineId(-OFFSET_BASELINE - 1, -OFFSET_BASELINE - 1));
-            Assert.assertArrayEquals(idManager.getNextId(graph), getBaselineId(-OFFSET_BASELINE - 2, -OFFSET_BASELINE - 2));
+            Assert.assertArrayEquals(idManager.getNextId(graph), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 1));
+            Assert.assertArrayEquals(idManager.getNextId(graph), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 2));
+            Assert.assertArrayEquals(idManager.getNextId(graph), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 3));
             // Buffer -4
-            Assert.assertArrayEquals(idManager.getNextId(graph), getBaselineId(-OFFSET_BASELINE - 3, -OFFSET_BASELINE - 3));
-            Assert.assertArrayEquals(idManager.getNextId(graph), getBaselineId(-OFFSET_BASELINE - 4, -OFFSET_BASELINE - 4));
+            Assert.assertArrayEquals(idManager.getNextId(graph), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 4));
         }
     }
 
@@ -89,18 +85,18 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
             final RecyclingBufferedNumericIdManager idManager1 = (RecyclingBufferedNumericIdManager) graph1.getIdFactory().getEdgeIdManager();
             final RecyclingBufferedNumericIdManager idManager2 = (RecyclingBufferedNumericIdManager) graph2.getIdFactory().getEdgeIdManager();
 
-            Assert.assertArrayEquals(idManager1.getNextId(graph1), getBaselineId(-OFFSET_BASELINE - 1, -OFFSET_BASELINE - 1));
-            Assert.assertArrayEquals(idManager2.getNextId(graph2), getBaselineId(-OFFSET_BASELINE - BUFFER_SIZE - 1, -OFFSET_BASELINE - BUFFER_SIZE - 1));
-            Assert.assertArrayEquals(idManager1.getNextId(graph1), getBaselineId(-OFFSET_BASELINE - 2, -OFFSET_BASELINE - 2));
-            Assert.assertArrayEquals(idManager1.getNextId(graph1), getBaselineId(-OFFSET_BASELINE - 3, -OFFSET_BASELINE - 3));
-            Assert.assertArrayEquals(idManager2.getNextId(graph2), getBaselineId(-OFFSET_BASELINE - BUFFER_SIZE - 2, -OFFSET_BASELINE - BUFFER_SIZE - 2));
-            Assert.assertArrayEquals(idManager2.getNextId(graph2), getBaselineId(-OFFSET_BASELINE - BUFFER_SIZE - 3, -OFFSET_BASELINE - BUFFER_SIZE - 3));
+            Assert.assertArrayEquals(idManager1.getNextId(graph1), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 1));
+            Assert.assertArrayEquals(idManager2.getNextId(graph2), getComparableNewIdFromBaseline(-OFFSET_BASELINE - BUFFER_SIZE - 1));
+            Assert.assertArrayEquals(idManager1.getNextId(graph1), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 2));
+            Assert.assertArrayEquals(idManager1.getNextId(graph1), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 3));
+            Assert.assertArrayEquals(idManager2.getNextId(graph2), getComparableNewIdFromBaseline(-OFFSET_BASELINE - BUFFER_SIZE - 2));
+            Assert.assertArrayEquals(idManager2.getNextId(graph2), getComparableNewIdFromBaseline(-OFFSET_BASELINE - BUFFER_SIZE - 3));
 
             // Fourth element of idManager1 will rebuffer and have to go after idManager2.
-            Assert.assertArrayEquals(idManager1.getNextId(graph1), getBaselineId(-OFFSET_BASELINE - 2*BUFFER_SIZE - 1, -OFFSET_BASELINE - 2*BUFFER_SIZE - 1));
+            Assert.assertArrayEquals(idManager1.getNextId(graph1), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 2*BUFFER_SIZE - 1));
 
             // Fourth element of idManager2 will rebuffer and have to go after idManager1.
-            Assert.assertArrayEquals(idManager2.getNextId(graph2), getBaselineId(-OFFSET_BASELINE - 3*BUFFER_SIZE - 1, -OFFSET_BASELINE - 3*BUFFER_SIZE - 1));
+            Assert.assertArrayEquals(idManager2.getNextId(graph2), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 3*BUFFER_SIZE - 1));
         }
     }
 
@@ -198,13 +194,13 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
             final RecyclingBufferedNumericIdManager edgeIdManager = (RecyclingBufferedNumericIdManager) graph.getIdFactory().getEdgeIdManager();
             Assert.assertEquals(0, edgeIdManager.availableRecycledIds());
             // Test removal within phat edge (record persists after removal of edge)
-            e1.removeEdge();
-            e1.removeEdge();
+            graph.getOperations().removeEdge(e1);
+            graph.getOperations().removeEdge(e1);
             Assert.assertEquals(1, edgeIdManager.availableRecycledIds());
             Assert.assertFalse(g.E(e1.id()).hasNext());
             // Test removal of last edge in phat edge (record deleted after removal of edge)
-            e2.removeEdge();
-            e2.removeEdge();
+            graph.getOperations().removeEdge(e2);
+            graph.getOperations().removeEdge(e2);
             Assert.assertEquals(2, edgeIdManager.availableRecycledIds());
             Assert.assertFalse(g.E(e2.id()).hasNext());
         }

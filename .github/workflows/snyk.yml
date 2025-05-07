@@ -2,7 +2,7 @@ name: Snyk Vulnerability Check
 
 on:
   pull_request:
-    branches: [main,1.x-snyk,2.x-snyk]
+    branches: [main,3.x-snyk]
 
 jobs:
   snyk-test:
@@ -23,4 +23,5 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
+          mvn clean install -DskipTests
           mvn snyk:test@snyk-test

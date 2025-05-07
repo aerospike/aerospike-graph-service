@@ -3,8 +3,7 @@ FROM alpine AS build
 # Set input arguments.
 ARG FIREFLY_GRAPH
 ARG BULKLOADER
-ARG SPARK_ZIP
-ARG SPARK_VERSION
+#ARG OLAP
 
 # Set environment variables.
 ENV CONF_DIR="/opt/conf"
@@ -17,20 +16,10 @@ RUN apk add --no-cache --update \
 
 COPY ${FIREFLY_GRAPH} /opt/firefly-graph.jar
 COPY ${BULKLOADER} /opt/bulk-loader.jar
-COPY ${SPARK_ZIP} /opt/spark.tgz
+#COPY ${OLAP} /opt/olap.jar
 COPY conf/logback.xml ${CONF_DIR}/logback.xml
 COPY conf/docker-default/flattened-default-gremlin-server.yaml ${CONF_DIR}/flattened-default-gremlin-server.yaml
 COPY docker-runtime-scripts /opt/scripts
-
-RUN echo "extracting spark archives"
-RUN tar zxvf /opt/spark.tgz -C /opt/ &&\
-    mv /opt/spark-${SPARK_VERSION}-bin-hadoop3/jars /opt/spark
-
-# remove spark archive and unused pieces
-RUN rm -f /opt/spark.tgz && rm -rf /opt/spark-${SPARK_VERSION}-bin-hadoop3
-
-# Remove additional conflicting logger jars from spark.
-RUN rm -f /opt/spark/slf4j-* && rm -f /opt/spark/commons-logging*
 
 RUN apk del xz tar
 
@@ -44,10 +33,12 @@ FROM alpine AS main
 # Set environment variables.
 ENV CONF_DIR="/opt/conf"
 ENV OUTPUT_SERVER_YAML="$CONF_DIR/aerospike-graph-service.yaml"
+ENV HEALTHCHECK_FILE="/tmp/firefly-ready"
 
 COPY --from=build /opt /opt
 
-RUN apk add --no-cache --update bash openjdk17-jdk python3
+RUN apk add --no-cache --update bash openjdk17-jdk python3 py3-pip openssl
+RUN pip install pyyaml --break-system-packages
 
 WORKDIR /opt
 
@@ -56,6 +47,6 @@ RUN chmod +x scripts/gremlin-server-docker.sh
 RUN chmod +x scripts/firefly-server.sh
 RUN chmod -R 777 $CONF_DIR
 
-HEALTHCHECK CMD ls /tmp/firefly-ready
+HEALTHCHECK CMD ls $HEALTHCHECK_FILE
 
 ENTRYPOINT ["scripts/gremlin-server-docker.sh"]

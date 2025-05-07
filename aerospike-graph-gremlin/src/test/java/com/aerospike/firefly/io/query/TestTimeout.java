@@ -1,14 +1,11 @@
 package com.aerospike.firefly.io.query;
 
-import com.aerospike.client.listener.RecordSequenceListener;
-import com.aerospike.client.policy.ScanPolicy;
-import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.ScanHitCounter;
+import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.server.Settings;
@@ -16,7 +13,7 @@ import org.junit.Test;
 import org.mockito.stubbing.Answer;
 
 import java.lang.reflect.Field;
-import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
@@ -53,20 +50,6 @@ public class TestTimeout {
 
     private long getUsedTimeoutFromScan(Function<GraphTraversalSource, GraphTraversal> traversalFunc) throws NoSuchFieldException, IllegalAccessException {
         final AerospikeConnection connection = mock(AerospikeConnection.class);
-        setFieldValue(AerospikeConnection.class, connection, "QUERY_IMPL", ConfigurationHelper.Keys.QUERY_PAGED);
-        setFieldValue(AerospikeConnection.class, connection, "LABEL_BIN", "LABEL_BIN");
-        setFieldValue(AerospikeConnection.class, connection, "PAGINATION_PAGE_QUEUE_SIZE", 100);
-
-        when(connection.getScanHitCounter()).thenReturn(new ScanHitCounter());
-
-        final AtomicReference<ScanPolicy> scanPolicy = new AtomicReference<>();
-        doAnswer((Answer<Void>) invocation -> {
-            scanPolicy.set(invocation.getArgument(1));
-            return null;
-        }).when(connection).scanPartitions(any(RecordSequenceListener.class),
-                any(ScanPolicy.class),
-                any(PartitionFilter.class),
-                isNull());
 
         final FireflyGraph graph = mock(FireflyGraph.class);
         setFieldValue(FireflyGraph.class, graph, "fireflyIndexMetadata", new FireflyIndexMetadata(connection));
@@ -74,12 +57,29 @@ public class TestTimeout {
         final Settings settings = mock(Settings.class);
         setFieldValue(Settings.class, settings, "evaluationTimeout", DEFAULT_TIMEOUT);
 
+        final GraphQuery graphQuery = mock(GraphQuery.class);
+
+        final AtomicReference<Long> timeout = new AtomicReference<>();
+        doAnswer((Answer<Void>) invocation -> {
+            timeout.set(invocation.getArgument(9));
+            return null;
+        }).when(graphQuery).scanSet(any(String.class),
+                isNull(),
+                isNull(),
+                any(P.class),
+                any(FireflyGraph.TransformKeyRecord.class),
+                any(List.class),
+                any(Class.class),
+                any(boolean.class),
+                any(boolean.class),
+                any(Long.class));
+
         when(graph.settings()).thenReturn(settings);
         when(graph.getBaseGraph()).thenReturn(connection);
+        setFieldValue(FireflyGraph.class, graph, "graphQuery", graphQuery);
 
         final GraphTraversalSource g = new GraphTraversalSource(graph);
         final FireflyGraphStepStrategy graphStepStrategy = new FireflyGraphStepStrategy();
-        graphStepStrategy.setSteps(new HashSet<>());
 
         final GraphTraversal traversal = traversalFunc.apply(g);
         graphStepStrategy.apply(traversal.asAdmin());
@@ -90,12 +90,18 @@ public class TestTimeout {
             // ignore not mocked path
         }
 
-        verify(connection, times(1)).scanPartitions(any(RecordSequenceListener.class),
-                any(ScanPolicy.class),
-                any(PartitionFilter.class),
-                isNull());
+        verify(graphQuery, times(1)).scanSet(any(String.class),
+                isNull(),
+                isNull(),
+                any(P.class),
+                any(FireflyGraph.TransformKeyRecord.class),
+                any(List.class),
+                any(Class.class),
+                any(boolean.class),
+                any(boolean.class),
+                any(Long.class));
 
-        assertNotNull(scanPolicy.get());
-        return scanPolicy.get().totalTimeout;
+        assertNotNull(timeout.get());
+        return timeout.get();
     }
 }

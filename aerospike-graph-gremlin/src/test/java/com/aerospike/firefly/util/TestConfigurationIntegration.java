@@ -1,7 +1,9 @@
 package com.aerospike.firefly.util;
 
+import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -13,6 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static junit.framework.TestCase.assertEquals;
 
 /*
@@ -87,6 +90,19 @@ public class TestConfigurationIntegration {
             List<Edge> things = g.E().has("a", "b").toList();
             Assert.assertEquals(3, (long) g.V(fruit.id()).inE().count().next());
             a.dropDatabase(fireflyGraph, true);
+        }
+    }
+
+    @Test
+    public void testCaseInsensitivity() {
+        final Configuration conf = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        conf.setProperty("aeroSpike.grAph.strAtegy.meRge.edGe.poLl.intErval", "7531");
+        conf.setProperty("AEROSPIKE.client.POLICY.write.TOTALTIMEOUT", "1357");
+        try (final FireflyGraph graph = FireflyGraph.open(conf)) {
+            Assert.assertEquals(7531, graph.getBaseGraph().MERGE_EDGE_POLL_INTERVAL);
+            WritePolicy policy = new WritePolicy();
+            graph.getBaseGraph().configureWritePolicy(policy);
+            Assert.assertEquals(1357, policy.totalTimeout);
         }
     }
 }

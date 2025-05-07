@@ -19,6 +19,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
 
+import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoad;
+import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoadFail;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.FORCE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RESUME;
@@ -51,7 +53,7 @@ public class TestBulkLoaderRecovery {
         Configuration config = getTestConfig();
         graph = FireflyGraph.open(config);
         graph.traversal().V().drop().iterate();
-        RecoveryUtil.truncate(graph.getBaseGraph());
+        RecoveryUtil.truncate(graph);
     }
 
     @BeforeClass
@@ -94,27 +96,20 @@ public class TestBulkLoaderRecovery {
     @Test
     public void testSupernodeDetectionFailure() {
         System.out.println("Testing testSupernodeDetectionFailure");
-        try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_SUPERNODE}, DEFAULT_PARAMS));
-            Assert.fail("Should have thrown an exception");
-        } catch (Exception ignored) {
-            // Expected
-        }
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_SUPERNODE}, DEFAULT_PARAMS));
+        waitForBulkLoadFail(graph.traversal());
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME}, DEFAULT_PARAMS));
+        waitForBulkLoad(graph.traversal());
         Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
         Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
     }
 
     @Test
     public void testVertexWritingFailure() {
-        System.out.println("Testing testVertexWritingFailure");
-        try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_VERTEX_WRITE}, DEFAULT_PARAMS));
-            Assert.fail("Should have thrown an exception");
-        } catch (Exception ignored) {
-            // Expected
-        }
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_VERTEX_WRITE}, DEFAULT_PARAMS));
+        waitForBulkLoadFail(graph.traversal());
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME}, DEFAULT_PARAMS));
+        waitForBulkLoad(graph.traversal());
         Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
         Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
     }
@@ -122,13 +117,10 @@ public class TestBulkLoaderRecovery {
     @Test
     public void testVertexVerificationFailure() {
         System.out.println("Testing testVertexVerificationFailure");
-        try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_VERTEX_VERIFY}, DEFAULT_PARAMS));
-            Assert.fail("Should have thrown an exception");
-        } catch (Exception ignored) {
-            // Expected
-        }
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_VERTEX_VERIFY}, DEFAULT_PARAMS));
+        waitForBulkLoadFail(graph.traversal());
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME}, DEFAULT_PARAMS));
+        waitForBulkLoad(graph.traversal());
         Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
         Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
     }
@@ -136,13 +128,10 @@ public class TestBulkLoaderRecovery {
     @Test
     public void testEdgeWritingFailure() {
         System.out.println("Testing testEdgeWritingFailure");
-        try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_WRITE}, DEFAULT_PARAMS));
-            Assert.fail("Should have thrown an exception");
-        } catch (Exception ignored) {
-            // Expected
-        }
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_WRITE}, DEFAULT_PARAMS));
+        waitForBulkLoadFail(graph.traversal());
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME}, DEFAULT_PARAMS));
+        waitForBulkLoad(graph.traversal());
         Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
         Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
     }
@@ -150,13 +139,10 @@ public class TestBulkLoaderRecovery {
     @Test
     public void testEdgeVerificationFailure() {
         System.out.println("Testing testEdgeVerificationFailure");
-        try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_VERIFY}, DEFAULT_PARAMS));
-            Assert.fail("Should have thrown an exception");
-        } catch (Exception ignored) {
-            // Expected
-        }
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_VERIFY}, DEFAULT_PARAMS));
+        waitForBulkLoadFail(graph.traversal());
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME}, DEFAULT_PARAMS));
+        waitForBulkLoad(graph.traversal());
         Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
         Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
     }
@@ -164,21 +150,13 @@ public class TestBulkLoaderRecovery {
     @Test
     public void testResume() {
         System.out.println("Testing testResume");
-        try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_VERIFY}, DEFAULT_PARAMS));
-            Assert.fail("Should have thrown an exception");
-        } catch (Exception ignored) {
-            // Expected
-        }
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_EDGE_VERIFY}, DEFAULT_PARAMS));
+        waitForBulkLoadFail(graph.traversal());
 
-        try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
-            Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
-            Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
-            Assert.fail("Should have thrown an exception");
-        } catch (Exception e) {
-            Assert.assertTrue(e.getMessage().contains("Cannot resume load without '" + RESUME + "' flag"));
-        }
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+        final Exception e = waitForBulkLoadFail(graph.traversal());
+        Assert.assertTrue(e.getMessage().contains("Cannot resume load without '" + RESUME + "' flag"));
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig(), "-" + FORCE, "-" + INCREMENTAL_LOAD}, DEFAULT_PARAMS));
+        waitForBulkLoad(graph.traversal());
     }
 }

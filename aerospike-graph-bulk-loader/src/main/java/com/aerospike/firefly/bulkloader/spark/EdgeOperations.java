@@ -9,9 +9,11 @@ import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.BadCsvEntryException;
+import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Longs;
@@ -45,7 +47,6 @@ import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -84,11 +85,12 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RECOVERY_FAILURE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException.isRetryable;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 
 public class EdgeOperations implements Serializable {
     public static final List<String> REQUIRED_EDGE_HEADERS = List.of(FROM_VERTEX_HEADER, TO_VERTEX_HEADER);
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeOperations.class);
+    private static final String NOT_RECYCLED_ID_TOKEN = "nr";
     public final List<String> edgePaths;
     private final BulkLoaderConfigHelper config;
     private Set<Object> supernodes = new HashSet<>();
@@ -144,6 +146,7 @@ public class EdgeOperations implements Serializable {
             LOGGER.info("Starting to write EdgeDataset in PartitionId: " + partitionId);
 
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
+                graph.fireflySummaryUpdater.startEdgePartition(partitionId);
                 LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
@@ -179,7 +182,7 @@ public class EdgeOperations implements Serializable {
                     try {
                         final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
                                 providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
-                                metadataRow, usePersistedEdgeId);
+                                metadataRow, usePersistedEdgeId, partitionId);
                         futures.add(ewt.write(executor).thenRunAsync(() -> ewt.updateCacheMap(), executor));
                     } catch (final BadCsvEntryException e) {
                         if (allowBadEntryCount == 0) {
@@ -209,6 +212,7 @@ public class EdgeOperations implements Serializable {
                     LOGGER.info("Writing edge partition complete for partitionId: {}", partitionId);
                     RecoveryUtil.writeEdgePartitionComplete(graph.getBaseGraph(), partitionId);
                 }
+                graph.fireflySummaryUpdater.completeEdgePartition(partitionId);
                 LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
             }
         });
@@ -410,7 +414,7 @@ public class EdgeOperations implements Serializable {
                 results.add(new Tuple2<>(vertex.id.getUserId(), newEdgeCount + existingEdgeCount));
                 if (newEdgeCount + existingEdgeCount >= onRecordIdLimit) {
                     // This is going to become a supernode, mark it now.
-                    vertex.setCacheDisabled();
+                    graph.getOperations().setCacheDisabled(vertex);
                 }
             }
         }
@@ -472,7 +476,7 @@ public class EdgeOperations implements Serializable {
         return localSupernodes;
     }
 
-    public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset, final long onRecordIdLimit, final boolean incremental) {
+    public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset, final long onRecordIdLimit, final boolean incremental, final double supernodeSamplingPercentage) {
         final Configuration fireflyConfig = this.config.getFireflyConfig();
         // If the global edge cache flag is off, then all vertices written have their edge caches disabled upon
         // creation. No need to find and disable them.
@@ -483,7 +487,6 @@ public class EdgeOperations implements Serializable {
                     .setJobGroup(taskName, "Compute Supernodes RDD operation", true);
             LOGGER.info("Supernode extraction starting...");
             // Csv format is: ~id, ~from, ~to, ...
-            final double supernodeSamplingPercentage = DatasetOperations.getSupernodeSamplingPercentage(this.config);
             supernodes.addAll(extractSupernodesDirection(edgeDataset, Direction.IN, onRecordIdLimit, supernodeSamplingPercentage, incremental));
             supernodes.addAll(extractSupernodesDirection(edgeDataset, Direction.OUT, onRecordIdLimit, supernodeSamplingPercentage, incremental));
             LOGGER.info("Final supernodes set: " + supernodes);
@@ -580,9 +583,9 @@ public class EdgeOperations implements Serializable {
             for (int i = 0; i < input.size(); i++) {
                 outputRow.add(input.get(i));
             }
-            //add the edgeID
-            final byte[] nextId = getFireflyGraph().getIdFactory().generateRawEdgeId(getFireflyGraph());
-            outputRow.add(encodeID(nextId)); //encode using our custom encoder
+            // Add the edgeID
+            final FireflyPhatEdgeId edgeId = (FireflyPhatEdgeId) getFireflyGraph().getIdFactory().generateId(getFireflyGraph(), FireflyEdge.class);
+            outputRow.add(encodeID(edgeId)); // Encode using our custom encoder
             return new GenericRowWithSchema(outputRow.toArray(), schema);
         }
     }
@@ -608,33 +611,26 @@ public class EdgeOperations implements Serializable {
     }
 
     /***
-     * Converts byte[] id to String by converting individual component to string and concatenating them with a delimiter ":"
-     * @param arr id generated by id manager
+     * Converts FireflyPhatEdgeId to String by converting individual component to string and concatenating them with a
+     * delimiter ":"
+     * @param edgeId id generated by id manager
      * @return encoded
      */
-    private static String encodeID(final byte[] arr) {
-
+    private static String encodeID(final FireflyPhatEdgeId edgeId) {
         // Isolate bytes from both component
-        final byte[] recycleBytes = new byte[8];
-        final byte[] numericBytes = new byte[8];
-        System.arraycopy(arr, 0, recycleBytes, 0, 8);
-        System.arraycopy(arr, 8, numericBytes, 0, 8);
-
-        // Extract numeric content from both components
-        final ByteBuffer bb = ByteBuffer.wrap(recycleBytes);
-        final Long recycleId = bb.getLong();
-        final ByteBuffer bb1 = ByteBuffer.wrap(numericBytes);
-        final Long numericID = bb1.getLong();
+        final long packingId = edgeId.getPackingId();
 
         // Encode each number to string using a delimiter
-        final String sb = recycleId +
-                ":" +
-                numericID;
-        return sb;
+        final StringBuilder builder = new StringBuilder();
+        builder.append(packingId);
+        builder.append(":");
+        builder.append(edgeId.isRecycled() ? edgeId.getUniqueId() : NOT_RECYCLED_ID_TOKEN);
+
+        return builder.toString();
     }
 
     /***
-     * Decode the Stringified encoded edgeId to byte[] as it was originally generated by @
+     * Decode the Stringified encoded edgeId to byte[] as it was originally generated by @encodeId
      * @param idString edgeIds read from file
      * @return byte[] id generated equivalent to ID manager.
      */
@@ -650,17 +646,22 @@ public class EdgeOperations implements Serializable {
         final String[] tokens = idString.split(":");
         Preconditions.checkArgument(tokens.length == 2, String.format("Tokenized idString must have only 2 tokes, found %d", tokens.length));
 
-        final Long recycleId = Objects.requireNonNull(Long.valueOf(tokens[0]), "parsed recycleId can't be null");
-        final Long numericID = Objects.requireNonNull(Long.valueOf(tokens[1]), "parsed numericId can't be null");
+        final Long packingId = Objects.requireNonNull(Long.valueOf(tokens[0]), "parsed packing ID can't be null");
+        final byte[] packingByte = Longs.toByteArray(packingId);
+        final byte[] graphId;
+        if (NOT_RECYCLED_ID_TOKEN.equals(tokens[1])) {
+            graphId = new byte[8];
+            System.arraycopy(packingByte, 0, graphId, 0, 8);
+        } else {
+            graphId = new byte[16];
+            final Long uniqueId = Objects.requireNonNull(Long.valueOf(tokens[1]), "parsed unique ID can't be null");
+            final byte[] uniqueByte = Longs.toByteArray(uniqueId);
 
-        final byte[] recycleByte = Longs.toByteArray(recycleId);
-        final byte[] numByte = Longs.toByteArray(numericID);
+            System.arraycopy(packingByte, 0, graphId, 0, 8);
+            System.arraycopy(uniqueByte, 0, graphId, 8, 8);
+        }
 
-        final byte[] graphID = new byte[16];
-        System.arraycopy(recycleByte, 0, graphID, 0, 8);
-        System.arraycopy(numByte, 0, graphID, 8, 8);
-
-        return graphID;
+        return graphId;
     }
 
     public void writeEdgeToDB(final Dataset<Row> edgeIdDataSet,

@@ -5,7 +5,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -44,8 +44,8 @@ public class WriteFailureTest {
             FireflyVertex a = (FireflyVertex) g.addV().next();
             FireflyVertex b = (FireflyVertex) g.addV().next();
 
-            a.writeEdge(Direction.IN, fireflyGraph.getIdFactory().createEdgeId(getBytesId(1)), "fail");
-            b.writeEdge(Direction.OUT, fireflyGraph.getIdFactory().createEdgeId(getBytesId(1)), "fail");
+            fireflyGraph.getOperations().writeEdgeToVertex(a, Direction.IN, fireflyGraph.getIdFactory().createEdgeId(getBytesId(1)), "fail", null);
+            fireflyGraph.getOperations().writeEdgeToVertex(b, Direction.OUT, fireflyGraph.getIdFactory().createEdgeId(getBytesId(1)), "fail", null);
             Iterator<Edge> aOut = a.edges(Direction.OUT);
             Iterator<Edge> aIn = a.edges(Direction.IN);
             Iterator<Edge> bOut = b.edges(Direction.OUT);
@@ -55,8 +55,8 @@ public class WriteFailureTest {
             Assert.assertFalse(bOut.hasNext());
             Assert.assertFalse(bIn.hasNext());
 
-            FireflyEdge.writeEdge(fireflyGraph, fireflyGraph.getIdFactory().createEdgeId(getBytesId(1)),
-                    "fail", new ArrayList<>(), a, b, true, true);
+            fireflyGraph.getOperations().writeEdgeToRecord(fireflyGraph.getIdFactory().createEdgeId(getBytesId(1)),
+                    "fail", new ArrayList<>(), a, b, true, true, null);
             aOut = a.edges(Direction.OUT);
             aIn = a.edges(Direction.IN);
             bOut = b.edges(Direction.OUT);
@@ -77,11 +77,10 @@ public class WriteFailureTest {
             FireflyVertex a = (FireflyVertex) g.addV().next();
             FireflyVertex b = (FireflyVertex) g.addV().next();
 
-            a.writeEdge(Direction.IN, fireflyGraph.getIdFactory().createEdgeId(getBytesId(1)), "fail");
-            b.writeEdge(Direction.OUT, fireflyGraph.getIdFactory().createEdgeId(getBytesId(1)), "fail");
-            FireflyEdge edge = FireflyEdge.writeEdge(fireflyGraph,
-                    fireflyGraph.getIdFactory().createEdgeId(getBytesId(1)), "fail", new ArrayList<>(), a, b ,
-                    true, true);
+            fireflyGraph.getOperations().writeEdgeToVertex(a, Direction.IN, fireflyGraph.getIdFactory().createEdgeId(getBytesId(1)), "fail", null);
+            fireflyGraph.getOperations().writeEdgeToVertex(b, Direction.OUT, fireflyGraph.getIdFactory().createEdgeId(getBytesId(1)), "fail", null);
+            FireflyEdge edge = fireflyGraph.getOperations().writeEdgeToRecord(fireflyGraph.getIdFactory().createEdgeId(getBytesId(1)),
+                    "fail", new ArrayList<>(), a, b, true, true, null);
             Iterator<Edge> aOut = a.edges(Direction.OUT);
             Iterator<Edge> aIn = a.edges(Direction.IN);
             Iterator<Edge> bOut = b.edges(Direction.OUT);
@@ -91,7 +90,7 @@ public class WriteFailureTest {
             Assert.assertTrue(bOut.hasNext());
             Assert.assertFalse(bIn.hasNext());
 
-            edge.removeEdge();
+            fireflyGraph.getOperations().removeEdge(edge);
             aOut = a.edges(Direction.OUT);
             aIn = a.edges(Direction.IN);
             bOut = b.edges(Direction.OUT);
@@ -118,7 +117,7 @@ public class WriteFailureTest {
             List<Object> properties = g.V().values("key").toList();
             Assert.assertTrue(properties.isEmpty());
 
-            a.writeVertexProperty(fireflyVertexProperty);
+            fireflyGraph.getOperations().writeVertexProperty(a, fireflyVertexProperty);
 
             properties = g.V().values("key").toList();
             Assert.assertFalse(properties.isEmpty());
@@ -142,7 +141,7 @@ public class WriteFailureTest {
             Assert.assertEquals("value", properties.get(0));
 
             final FireflyVertexProperty vp = (FireflyVertexProperty) a.property("key");
-            a.removeVertexProperty("key", vp.id);
+            fireflyGraph.getOperations().removeVertexProperty(a, "key", vp.id);
 
             properties = g.V().values("key").toList();
             Assert.assertTrue(properties.isEmpty());

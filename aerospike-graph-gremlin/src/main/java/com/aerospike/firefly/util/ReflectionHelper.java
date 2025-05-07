@@ -21,14 +21,18 @@ public class ReflectionHelper {
         return getFieldValue(object.getClass(), object, fieldName);
     }
 
-    public static void setFieldValue(final Object object, final String fieldName, final Object value) {
+    public static void setFieldValue(final Class clazz, final Object object, final String fieldName, final Object value) {
         try {
-            final Field field = object.getClass().getDeclaredField(fieldName);
+            final Field field = clazz.getDeclaredField(fieldName);
             field.setAccessible(true);
             field.set(object, value);
         } catch (final NoSuchFieldException | IllegalAccessException e) {
             // This should never happen.
             throw new RuntimeException("Unexpected exception writing " + fieldName + ". Please contact support.");
         }
+    }
+
+    public static void setFieldValue(final Object object, final String fieldName, final Object value) {
+        setFieldValue(object.getClass(), object, fieldName, value);
     }
 }

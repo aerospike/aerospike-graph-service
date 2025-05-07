@@ -2,6 +2,7 @@ package com.aerospike.firefly.util;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -61,6 +62,7 @@ public abstract class AbstractFireflySuite {
         }
         this.isTestStarted = true;
         start = Instant.now();
+        exited = false;
     }
 
     @After
@@ -79,4 +81,11 @@ public abstract class AbstractFireflySuite {
         graph.close();
     }
 
+    public static boolean exited = false;
+    public static class ExitManagerTest extends FireflyGraph.ExitManager {
+        @Override
+        public void exit(final int code) {
+            exited = true;
+        }
+    }
 }

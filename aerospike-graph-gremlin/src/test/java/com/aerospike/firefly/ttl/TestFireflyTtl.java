@@ -1,9 +1,10 @@
 package com.aerospike.firefly.ttl;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -12,7 +13,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.List;
 import java.util.NoSuchElementException;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -122,27 +122,27 @@ public class TestFireflyTtl {
         try {
             g.addV("vertex").property("~ttl", "string").iterate();
             Assert.fail("String ttl value succeeded for adding Vertex");
-        } catch (final Exception e) {
-            Assert.assertTrue(e instanceof IllegalArgumentException);
+        } catch (final AerospikeGraphException e) {
+            Assert.assertTrue(e.errorCode == GraphError.TTL_ILLEGAL_ARGUMENT.code);
         }
         try {
             g.V(v1.id()).property("~ttl", "string").iterate();
             Assert.fail("String ttl value succeeded for adding property to Vertex");
-        } catch (final Exception e) {
-            Assert.assertTrue(e instanceof IllegalArgumentException);
+        } catch (final AerospikeGraphException e) {
+            Assert.assertTrue(e.errorCode == GraphError.TTL_ILLEGAL_ARGUMENT.code);
         }
         try {
             g.addE("edge").property("~ttl", "string").from(v1).to(v2).iterate();
             Assert.fail("String ttl value succeeded for adding Edge");
-        } catch (final Exception e) {
-            Assert.assertTrue(e instanceof IllegalArgumentException);
+        } catch (final AerospikeGraphException e) {
+            Assert.assertTrue(e.errorCode == GraphError.TTL_ILLEGAL_ARGUMENT.code);
         }
         try {
             final Edge e = g.addE("edge").from(v1).to(v2).next();
             g.E(e.id()).property("~ttl", "string").iterate();
             Assert.fail("String ttl value succeeded for adding property to Edge");
-        } catch (final Exception e) {
-            Assert.assertTrue(e instanceof IllegalArgumentException);
+        } catch (final AerospikeGraphException e) {
+            Assert.assertTrue(e.errorCode == GraphError.TTL_ILLEGAL_ARGUMENT.code);
         }
     }
 

@@ -1,6 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.computer.local.ComputerHelper;
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyMergeEdgeStep;
 import com.aerospike.firefly.process.traversal.step.FireflyMergeVertexStep;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -20,7 +20,7 @@ public class FireflyMergeStepStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         if (ComputerHelper.onGraphComputer(traversal))
             return;
 

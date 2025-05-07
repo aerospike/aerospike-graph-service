@@ -1,9 +1,8 @@
 package com.aerospike.firefly.process.strategy;
 
-import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.After;
@@ -21,7 +20,7 @@ import java.util.NoSuchElementException;
 import java.util.Random;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 import static org.junit.Assert.fail;
 
 public class TestFireflyDropStrategyIntegration {
@@ -56,16 +55,16 @@ public class TestFireflyDropStrategyIntegration {
         final FireflyVertex vincent = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(3), "cat", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Mycroft"));
         final FireflyVertex mycroft = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(4), "cat", properties);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "coworker", Collections.emptyList(),
+        SETUP_GRAPH.getOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "coworker", Collections.emptyList(),
                 lyndon, simon);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "coworker", Collections.emptyList(),
+        SETUP_GRAPH.getOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "coworker", Collections.emptyList(),
                 simon, lyndon);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "owns", Collections.emptyList(),
+        SETUP_GRAPH.getOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "owns", Collections.emptyList(),
                 vincent, lyndon);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "owns", Collections.emptyList(),
+        SETUP_GRAPH.getOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "owns", Collections.emptyList(),
                 mycroft, lyndon);
         // Write a stray edge that normal drop traversal would not remove
-        SETUP_GRAPH.bulkWriteEdge(getEdgeId(), "stray", Collections.emptyList(), 5, 5, false, false);
+        SETUP_GRAPH.bulkWriteEdge(getEdgeId(), "stray", Collections.emptyList(), 5, 5, false, false, 1);
     }
 
     @After

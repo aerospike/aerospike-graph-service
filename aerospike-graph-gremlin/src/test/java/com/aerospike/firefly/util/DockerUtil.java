@@ -2,7 +2,9 @@ package com.aerospike.firefly.util;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
+import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.Container;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.Frame;
@@ -19,9 +21,9 @@ import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -152,7 +154,14 @@ public class DockerUtil {
 
     public synchronized String startDockerImageCustom(final String dockerImage,
                                                       final boolean expectException,
-                                                      final String ... environmentVariables) {
+                                                      final String... environmentVariables) throws InterruptedException {
+        return startDockerImageCustom(dockerImage, expectException, 20, environmentVariables);
+    }
+
+    public synchronized String startDockerImageCustom(final String dockerImage,
+                                                      final boolean expectException,
+                                                      final int waitTimeSeconds,
+                                                      final String... environmentVariables) throws InterruptedException {
         final List<Image> images = dockerClient.listImagesCmd().exec();
         for (final Image image : images) {
             // Check if image is already an image on the system of the same tag.
@@ -160,11 +169,13 @@ public class DockerUtil {
                 // We want to try to kill the image and remove it.
                 try {
                     dockerClient.killContainerCmd(image.getId()).exec();
-                } catch (Exception ignored) {
+                } catch (final Exception e) {
+                    LOG.error("Failed to kill Docker container {}", dockerImage, e);
                 }
                 try {
                     dockerClient.removeImageCmd(image.getId()).withForce(true).exec();
-                } catch (Exception ignored) {
+                } catch (final Exception e) {
+                    LOG.error("Failed to remove Docker Image {}", dockerImage, e);
                 }
                 break;
             }
@@ -172,9 +183,20 @@ public class DockerUtil {
 
         final String dockerImageName = "test-graph";
         // If there is a container of the same name, remove it.
-        try {
-            dockerClient.removeContainerCmd(dockerImageName).withForce(true).exec();
-        } catch (Exception ignored) {
+        int attempt = 0;
+        while (true) {
+            try {
+                dockerClient.removeContainerCmd(dockerImageName).withForce(true).exec();
+                break;
+            } catch (final NotFoundException ignored) {
+                break;
+            } catch (final Exception e) {
+                LOG.error("Failed to shut down existing Docker container. Retrying...", e);
+                if (attempt++ > 5) {
+                    throw e;
+                }
+                Thread.sleep(4000);
+            }
         }
 
         // Create port bindings and expose port 8182.
@@ -195,16 +217,17 @@ public class DockerUtil {
         dockerImageTagToContainerId.put(containerId, new DockerInfo(dockerImageName, 8182));
 
         // Wait 20 seconds for the container to have logs ready.
-        try {
-            Thread.sleep(20 * 1000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        Thread.sleep(waitTimeSeconds * 1000);
+
 
         // Need to check if the container is running.
         InspectContainerResponse.ContainerState containerState = dockerClient.inspectContainerCmd(containerId).exec().getState();
 
         if (Boolean.FALSE.equals(containerState.getRunning()) && !expectException) {
+            LOG.error("Docker container unexpected failed to start. Docker logs:");
+            for (final String line : getLogs(containerId)) {
+                LOG.error(line);
+            }
             throw new RuntimeException("Error failed to start container " + dockerImage +
                     " under image name '" + dockerImageName + "'. Container state: " + containerState.getStatus());
         }
@@ -224,6 +247,37 @@ public class DockerUtil {
         return log;
     }
 
+    public boolean checkTmpFileExists(final String containerId) throws InterruptedException {
+        // Create an exec command to test file existence
+        ExecCreateCmdResponse execCreateCmdResponse = dockerClient.execCreateCmd(containerId)
+                .withCmd("sh", "-c", "test -f /tmp/firefly-ready && echo FOUND_FILE || echo DID_NOT_FIND_FILE ")
+                .withAttachStdout(true)
+                .withAttachStderr(true)
+                .exec();
+
+        // Run the exec command and capture the output
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        final Exception[] eOutput = {null};
+        dockerClient.execStartCmd(execCreateCmdResponse.getId())
+                .exec(new ResultCallback.Adapter<>() {
+                    @Override
+                    public void onNext(com.github.dockerjava.api.model.Frame frame) {
+                        try {
+                            outputStream.write(frame.getPayload());
+                        } catch (Exception e) {
+                            eOutput[0] = e;
+                        }
+                    }
+                }).awaitCompletion();
+
+        if (eOutput[0] != null) {
+            throw new RuntimeException(eOutput[0]);
+        }
+
+        // Check the output
+        return outputStream.toString().trim().contains("FOUND_FILE");
+    }
+
     public synchronized boolean versionExists(final String dockerImage, final String tag) {
         try {
             dockerClient.pullImageCmd(dockerImage).withTag(tag).start().awaitCompletion();
@@ -231,6 +285,10 @@ public class DockerUtil {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public void stopDocker(final String containerId) {
+        dockerClient.stopContainerCmd(containerId).exec();
     }
 
     public synchronized void stopAllDockerImages() {
@@ -244,7 +302,7 @@ public class DockerUtil {
                     }
                 }
             } catch (final Exception e) {
-                LOG.error("Failed to kill docker container: " + container.getId(), e);
+                LOG.error("Failed to kill docker container: {}", container.getId(), e);
             }
         }
     }

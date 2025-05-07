@@ -1,0 +1,2 @@
+com.aerospike.firefly.feature.FireflyFeatureTest$FireflyGraphGuiceFactory
+com.aerospike.firefly.feature.FireflyMRTFeatureTest$FireflyGraphGuiceFactory

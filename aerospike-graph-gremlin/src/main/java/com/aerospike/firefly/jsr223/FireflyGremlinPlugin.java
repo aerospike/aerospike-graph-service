@@ -6,12 +6,12 @@ import com.aerospike.firefly.process.computer.local.LocalGraphComputer;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyGraphFeatures;
+import com.aerospike.firefly.features.FireflyFeatures;
 import com.aerospike.firefly.structure.FireflyGraphVariables;
 import com.aerospike.firefly.structure.FireflyProperty;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.jsr223.AbstractGremlinPlugin;
 import org.apache.tinkerpop.gremlin.jsr223.DefaultImportCustomizer;
@@ -30,7 +30,7 @@ public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
             imports = DefaultImportCustomizer.build()
                     .addClassImports(
                             FireflyGraph.class,
-                            FireflyGraphFeatures.class,
+                            FireflyFeatures.class,
                             FireflyGraphVariables.class,
                             FireflyElement.class,
                             FireflyEdge.class,

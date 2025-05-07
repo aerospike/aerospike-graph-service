@@ -1,11 +1,10 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.computer.local.ComputerHelper;
-import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
@@ -16,7 +15,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.AggregateGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.IdentityStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.SideEffectStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -53,18 +51,10 @@ public final class FireflyGraphCountStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
-        if (!traversal.isRoot()) {
-            final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
-            if (!graph.getBaseGraph().ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY) {
-                return;
-            }
-        }
-
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         if (ComputerHelper.onGraphComputer(traversal))
             return;
         final List<Step> steps = new ArrayList<>(traversal.getSteps());
-        steps.removeIf(step -> step.getClass().equals(FireflyCacheGCStep.class));
 
         // Must be at least GraphStep and CountGlobalStep.
         if (steps.size() < 2 || !(steps.get(0) instanceof GraphStep))
@@ -82,13 +72,12 @@ public final class FireflyGraphCountStrategy extends FireflyStrategyBase {
         HasStep<?> hasStep = null;
         for (int i = 1; i < steps.size() - 1; i++) {
             final Step<?, ?> step = steps.get(i);
-            if ((steps.get(i) instanceof HasStep)) {
-                hasStep = (HasStep<?>) steps.get(i);
+            if (step instanceof HasStep) {
+                hasStep = (HasStep<?>) step;
                 hasStepCount++;
             } else if (
                     !(step instanceof IdentityStep ||
-                      step instanceof NoOpBarrierStep ||
-                      step instanceof CollectingBarrierStep) ||
+                      step instanceof NoOpBarrierStep) ||
                      (step instanceof TraversalParent &&
                             TraversalHelper.anyStepRecursively(s -> (
                                     s instanceof SideEffectStep ||
@@ -112,7 +101,7 @@ public final class FireflyGraphCountStrategy extends FireflyStrategyBase {
                                 traversal.getGraph().get(), returnClass, hasStep.getHasContainers()));
 
         // Only support if all containers can be pushed to aerospike.
-        if (hasStep != null && hasStep.getHasContainers().size() > 0 &&
+        if (hasStep != null && !hasStep.getHasContainers().isEmpty() &&
                 aerospikeHasContainers.size() != hasStep.getHasContainers().size()) {
             return;
         }

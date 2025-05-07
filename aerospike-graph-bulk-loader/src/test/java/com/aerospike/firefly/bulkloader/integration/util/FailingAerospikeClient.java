@@ -1,5 +1,6 @@
 package com.aerospike.firefly.bulkloader.integration.util;
 
+import com.aerospike.client.AbortStatus;
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.AerospikeException.InvalidNode;
@@ -7,6 +8,7 @@ import com.aerospike.client.BatchRead;
 import com.aerospike.client.BatchRecord;
 import com.aerospike.client.BatchResults;
 import com.aerospike.client.Bin;
+import com.aerospike.client.CommitStatus;
 import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Key;
 import com.aerospike.client.Language;
@@ -15,6 +17,7 @@ import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.ScanCallback;
+import com.aerospike.client.Txn;
 import com.aerospike.client.Value;
 import com.aerospike.client.admin.Privilege;
 import com.aerospike.client.admin.Role;
@@ -25,12 +28,14 @@ import com.aerospike.client.cluster.Cluster;
 import com.aerospike.client.cluster.ClusterStats;
 import com.aerospike.client.cluster.Node;
 import com.aerospike.client.exp.Expression;
+import com.aerospike.client.listener.AbortListener;
 import com.aerospike.client.listener.BatchListListener;
 import com.aerospike.client.listener.BatchOperateListListener;
 import com.aerospike.client.listener.BatchRecordArrayListener;
 import com.aerospike.client.listener.BatchRecordSequenceListener;
 import com.aerospike.client.listener.BatchSequenceListener;
 import com.aerospike.client.listener.ClusterStatsListener;
+import com.aerospike.client.listener.CommitListener;
 import com.aerospike.client.listener.DeleteListener;
 import com.aerospike.client.listener.ExecuteListener;
 import com.aerospike.client.listener.ExistsArrayListener;
@@ -52,6 +57,8 @@ import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.ScanPolicy;
+import com.aerospike.client.policy.TxnRollPolicy;
+import com.aerospike.client.policy.TxnVerifyPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
@@ -391,6 +398,26 @@ public class FailingAerospikeClient implements IAerospikeClient {
         return delegate.getCluster();
     }
 
+    @Override
+    public CommitStatus commit(final Txn txn) throws AerospikeException.Commit {
+        return null;
+    }
+
+    @Override
+    public void commit(final EventLoop eventLoop, final CommitListener commitListener, final Txn txn) throws AerospikeException {
+
+    }
+
+    @Override
+    public AbortStatus abort(final Txn txn) {
+        return null;
+    }
+
+    @Override
+    public void abort(final EventLoop eventLoop, final AbortListener abortListener, final Txn txn) throws AerospikeException {
+
+    }
+
     public void put(EventLoop eventLoop, WriteListener listener, WritePolicy policy, Key key, Bin... bins)
             throws AerospikeException {
         delegate.put(eventLoop, listener, policy, key, bins);
@@ -424,6 +451,16 @@ public class FailingAerospikeClient implements IAerospikeClient {
     public void touch(EventLoop eventLoop, WriteListener listener, WritePolicy policy, Key key)
             throws AerospikeException {
         delegate.touch(eventLoop, listener, policy, key);
+    }
+
+    @Override
+    public boolean touched(final WritePolicy writePolicy, final Key key) throws AerospikeException {
+        return false;
+    }
+
+    @Override
+    public void touched(final EventLoop eventLoop, final ExistsListener existsListener, final WritePolicy writePolicy, final Key key) throws AerospikeException {
+
     }
 
     public void exists(EventLoop eventLoop, ExistsListener listener, Policy policy, Key key) throws AerospikeException {
@@ -714,8 +751,18 @@ public class FailingAerospikeClient implements IAerospikeClient {
     }
 
     @Override
+    public Policy copyReadPolicyDefault() {
+        return null;
+    }
+
+    @Override
     public WritePolicy getWritePolicyDefault() {
         return delegate.getWritePolicyDefault();
+    }
+
+    @Override
+    public WritePolicy copyWritePolicyDefault() {
+        return null;
     }
 
     @Override
@@ -724,8 +771,18 @@ public class FailingAerospikeClient implements IAerospikeClient {
     }
 
     @Override
+    public ScanPolicy copyScanPolicyDefault() {
+        return null;
+    }
+
+    @Override
     public QueryPolicy getQueryPolicyDefault() {
         return delegate.getQueryPolicyDefault();
+    }
+
+    @Override
+    public QueryPolicy copyQueryPolicyDefault() {
+        return null;
     }
 
     @Override
@@ -734,8 +791,38 @@ public class FailingAerospikeClient implements IAerospikeClient {
     }
 
     @Override
+    public BatchPolicy copyBatchPolicyDefault() {
+        return null;
+    }
+
+    @Override
     public InfoPolicy getInfoPolicyDefault() {
         return delegate.getInfoPolicyDefault();
+    }
+
+    @Override
+    public InfoPolicy copyInfoPolicyDefault() {
+        return null;
+    }
+
+    @Override
+    public TxnVerifyPolicy getTxnVerifyPolicyDefault() {
+        return null;
+    }
+
+    @Override
+    public TxnVerifyPolicy copyTxnVerifyPolicyDefault() {
+        return null;
+    }
+
+    @Override
+    public TxnRollPolicy getTxnRollPolicyDefault() {
+        return null;
+    }
+
+    @Override
+    public TxnRollPolicy copyTxnRollPolicyDefault() {
+        return null;
     }
 
     @Override
@@ -744,8 +831,18 @@ public class FailingAerospikeClient implements IAerospikeClient {
     }
 
     @Override
+    public BatchPolicy copyBatchParentPolicyWriteDefault() {
+        return null;
+    }
+
+    @Override
     public BatchWritePolicy getBatchWritePolicyDefault() {
         return delegate.getBatchWritePolicyDefault();
+    }
+
+    @Override
+    public BatchWritePolicy copyBatchWritePolicyDefault() {
+        return null;
     }
 
     @Override
@@ -754,8 +851,18 @@ public class FailingAerospikeClient implements IAerospikeClient {
     }
 
     @Override
+    public BatchDeletePolicy copyBatchDeletePolicyDefault() {
+        return null;
+    }
+
+    @Override
     public BatchUDFPolicy getBatchUDFPolicyDefault() {
         return delegate.getBatchUDFPolicyDefault();
+    }
+
+    @Override
+    public BatchUDFPolicy copyBatchUDFPolicyDefault() {
+        return null;
     }
 
     @Override

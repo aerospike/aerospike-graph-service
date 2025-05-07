@@ -1,7 +1,7 @@
 package com.aerospike.firefly.io.backwardCompatibility;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.DockerUtil;
 import com.aerospike.firefly.util.VersionUtil;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
@@ -189,16 +189,15 @@ public class BackwardsCompatibilityTest {
         final VersionUtil versionUtil = new VersionUtil(versionString);
         final String testVersion = System.getenv("COMPATIBILITY_VERSION");
 
+
+        // If this is a new major release version, skip the test.
+        Assume.assumeFalse("Skipping backwards compatibility test because this is the first of this major version.",
+                (versionUtil.getMinor() == 0 && versionUtil.getPatch() == 0));
         // If testVersion is not set and the minor/patch are non-zero, fail the test.
-        if ((testVersion == null || testVersion.isEmpty()) && (versionUtil.getMinor() != 0 || versionUtil.getPatch() != 0)) {
+        if (testVersion == null || testVersion.isEmpty()) {
             fail("COMPATIBILITY_VERSION environment variable not set. All versions that are not X.0.0 MUST have a " +
                     "COMPATIBILITY_VERSION environment variable set to test backwards compatibility. This can be set " +
                    "in the root pom.xml");
-        } else {
-            // If testVersion is not set and the minor/patch are zero, skip the test.
-            Assume.assumeFalse("COMPATIBILITY_VERSION environment variable not set. Skipping backwards compatibility " +
-                            "test because this is the first of this major version.",
-                    testVersion == null || testVersion.isEmpty());
         }
 
         // Boot the docker image, we are good to test.

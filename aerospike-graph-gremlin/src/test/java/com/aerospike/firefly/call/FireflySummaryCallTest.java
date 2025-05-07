@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.aerospike.firefly.process.call.metadata.MetadataServiceSummary.PRETTY_PRINT_FORMAT_SYSTEM;
 
@@ -36,6 +37,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         Assert.assertNotNull(version);
         Assert.assertEquals(version.get("Aerospike Graph Service version"), FireflyGraph.FIREFLY_VERSION);
         Assert.assertTrue(version.containsKey("Aerospike version"));
+        Assert.assertTrue(version.containsKey("Gremlin version"));
     }
 
     @Test
@@ -107,6 +109,60 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
                         "Total edge count", edgeCount);
         final Map<Object, Object> summaryCallGrateful = (Map<Object, Object>) g.call("aerospike.graph.admin.metadata.summary").next();
         Assert.assertEquals(expectedGrateful, summaryCallGrateful);
+    }
+
+    @Test
+    public void testSummaryBulkLoaderStaging() throws InterruptedException {
+        FireflyGraphSummaryUpdater summary = graph.fireflySummaryUpdater;
+        summary.startVertexPartition(1);
+        summary.startVertexPartition(2);
+        summary.stageVertexWriteToQueue("lyndon", Set.of("foo1"), 1);
+        summary.stageVertexWriteToQueue("lyndon", Set.of("foo2"), 1);
+        summary.stageVertexWriteToQueue("lyndon", Set.of("foo3"), 1);
+        summary.stageVertexWriteToQueue("lyndon", Set.of("foo1", "foo2"), 2);
+        summary.stageVertexWriteToQueue("lyndon", Set.of(), 2);
+        summary.stageVertexWriteToQueue("lyndon", Set.of(), 2);
+        summary.startEdgePartition(1);
+        summary.startEdgePartition(2);
+        summary.stageEdgeWriteToQueue("lyndon1", Set.of("foo1"), 1);
+        summary.stageEdgeWriteToQueue("lyndon1", Set.of("foo2"), 1);
+        summary.stageEdgeWriteToQueue("lyndon1", Set.of("foo1", "foo2"), 1);
+        summary.stageEdgeWriteToQueue("lyndon1", Set.of("foo1", "foo2", "foo3"), 2);
+        summary.stageEdgeWriteToQueue("lyndon1", Set.of("foo4"), 2);
+        Thread.sleep(7500);
+
+        // Verify bulk load sees staged data
+        FireflyGraphSummaryUpdater.FireflyElementMetadata elementData = summary.getFireflyStatistics(true);
+        Assert.assertTrue(elementData.vertexInfo.containsKey("lyndon"));
+        Assert.assertEquals(6L, elementData.vertexInfo.get("lyndon").count);
+        Assert.assertTrue(elementData.vertexInfo.get("lyndon").properties.containsAll(Set.of("foo1", "foo2", "foo3")));
+        Assert.assertTrue(elementData.edgeInfo.containsKey("lyndon1"));
+        Assert.assertEquals(5L, elementData.edgeInfo.get("lyndon1").count);
+        Assert.assertTrue(elementData.edgeInfo.get("lyndon1").properties.containsAll(Set.of("foo1", "foo2", "foo3", "foo4")));
+
+        // Verify non bulk load data doesnt see the counts (keys are persisted).
+        elementData = summary.getFireflyStatistics(false);
+        Assert.assertTrue(elementData.vertexInfo.containsKey("lyndon"));
+        Assert.assertTrue(elementData.edgeInfo.containsKey("lyndon1"));
+        Assert.assertEquals(0L, elementData.vertexInfo.get("lyndon").count);
+        Assert.assertEquals(0L, elementData.edgeInfo.get("lyndon1").count);
+        Assert.assertTrue(elementData.vertexInfo.get("lyndon").properties.containsAll(Set.of("foo1", "foo2", "foo3")));
+        Assert.assertTrue(elementData.edgeInfo.get("lyndon1").properties.containsAll(Set.of("foo1", "foo2", "foo3", "foo4")));
+        summary.completeVertexPartition(1);
+        summary.completeVertexPartition(2);
+        summary.completeEdgePartition(1);
+        summary.completeEdgePartition(2);
+
+        // Check that results were moved to non bulk load data.
+        Thread.sleep(7500);
+        summary.getFireflyStatistics(false);
+        elementData = summary.getFireflyStatistics(true);
+        Assert.assertTrue(elementData.vertexInfo.containsKey("lyndon"));
+        Assert.assertEquals(6L, elementData.vertexInfo.get("lyndon").count);
+        Assert.assertTrue(elementData.vertexInfo.get("lyndon").properties.containsAll(Set.of("foo1", "foo2", "foo3")));
+        Assert.assertTrue(elementData.edgeInfo.containsKey("lyndon1"));
+        Assert.assertEquals(5L, elementData.edgeInfo.get("lyndon1").count);
+        Assert.assertTrue(elementData.edgeInfo.get("lyndon1").properties.containsAll(Set.of("foo1", "foo2", "foo3", "foo4")));
     }
 
     @Test

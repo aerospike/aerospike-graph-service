@@ -17,6 +17,7 @@ import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
@@ -43,15 +44,17 @@ public class RecoveryUtil {
         EDGE_VERIFY
     }
 
-    public static void truncate(final AerospikeConnection db) {
+    public static void truncate(final FireflyGraph graph) {
         try {
+            final AerospikeConnection db = graph.getBaseGraph();
             db.truncate(null, db.BULK_LOAD_RECOVERY_VERTEX_SET, null);
             db.truncate(null, db.BULK_LOAD_RECOVERY_EDGE_SET, null);
             db.truncate(null, db.BULK_LOAD_RECOVERY_SUPERNODE_SET, null);
             db.truncate(null, db.BULK_LOAD_RECOVERY_STATE_SET, null);
+            graph.fireflySummaryUpdater.clearVertexPartitionData();
+            graph.fireflySummaryUpdater.clearEdgePartitionData();
             Thread.sleep(1);
-        } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
+        } catch (final InterruptedException ignored) {
         }
     }
 

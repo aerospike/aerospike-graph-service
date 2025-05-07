@@ -1,17 +1,16 @@
-name: Publish Aerospike Graph Container for Dev to QE
+name: Publish Dev (QE)
 
 on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+-qe-**'
-    branches: [2.x-dev]
+    branches: [3.x-dev]
 
 env:
   QE_DOCKER_REGISTRY: secure.docker.qe.aerospike.com
   QE_DOCKER_USERNAME: firefly
 
 jobs:
-
   publish-github-amd:
     name: Publish Firefly Docker Image - AMD - QE
     permissions:

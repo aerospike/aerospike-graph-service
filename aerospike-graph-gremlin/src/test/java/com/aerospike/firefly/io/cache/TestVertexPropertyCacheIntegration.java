@@ -1,7 +1,7 @@
 package com.aerospike.firefly.io.cache;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.AfterClass;
@@ -80,5 +80,4 @@ public class TestVertexPropertyCacheIntegration {
         Assert.assertFalse(g.V().has("tail", "one").hasNext());
         Assert.assertFalse(g.V().has("eyes", "two").hasNext());
     }
-
 }

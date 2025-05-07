@@ -4,6 +4,7 @@ import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
+import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import org.apache.spark.sql.Column;
 import org.slf4j.Logger;
@@ -17,6 +18,7 @@ import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.INCREMENTA
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.RECOVERY_INFO_NO_CLEAR_EXISTING_DATA_FLAG_OR_RESUME;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.RESUME_AND_CLEAR_EXISTING_DATA;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.RESUME_WITHOUT_RECOVERY_INFO;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CLEAR_EXISTING_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
@@ -109,9 +111,9 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         final boolean incrementalLoadFlag = sparkBulkLoaderStateMachine.config.hasAction(INCREMENTAL_LOAD);
         final boolean clearExistingDataFlag = sparkBulkLoaderStateMachine.config.hasAction(CLEAR_EXISTING_DATA);
         if (forceFlag) {
-            LOGGER.info("Force flag detected. Removing recovery data before starting.");
-            RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
-            LOGGER.info("Recovery data removed, continuing load.");
+            LOGGER.info("Force flag detected; removing recovery data before starting.");
+            RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph);
+            LOGGER.info("Recovery data removed; continuing load.");
         }
 
         RecoveryUtil.RecoveryInfo info =
@@ -139,8 +141,8 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         if (clearExistingDataFlag && (sparkBulkLoaderStateMachine.initializerGraph.isEmpty() && !recoveryInfoExists)) {
             throw new IllegalStateException(CLEAR_EXISTING_DATA_EMPTY_DATABASE);
         } else if (clearExistingDataFlag) {
-            RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
-            sparkBulkLoaderStateMachine.initializerGraph.traversal().V().drop().iterate();
+            RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph);
+            sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph().dropDatabase(sparkBulkLoaderStateMachine.initializerGraph, false);
 
             // Reload recovery info after truncating the database, should be nulled out now.
             info = RecoveryUtil.recover(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
@@ -161,7 +163,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                 switch (state) {
                     case "DETECT_SUPERNODES":
                         LOGGER.info("Recovering from detectSupernodes state");
-                        // Here we have completed the preflight and persistentance of edge ids.
+                        // Here we have completed the preflight and persistence of edge ids.
                         // Therefore, we can reload the edge dataset and vertex dataset checkpoints.
                         nextState = new SparkBulkLoaderStateDetectSupernodes(sparkBulkLoaderStateMachine);
                         break;
@@ -209,7 +211,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                     default:
                         // Unknown state
                         // This should never happen.
-                        throw new IllegalStateException("Error during bulk load recovery, unknown state: " + state);
+                        throw new IllegalStateException("Error during bulk load recovery - unknown state: " + state);
                 }
             } else {
                 if (!sparkBulkLoaderStateMachine.initializerGraph.isEmpty() &&
@@ -222,10 +224,10 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                 }
 
                 // Fresh load, truncate any metadata.
-                RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
+                RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph);
 
                 // No state found, start from the beginning.
-                LOGGER.info("Unable to find state to recover from. Restarting from beginning.");
+                LOGGER.info("Unable to find state to recover from. Starting from the beginning.");
                 nextState = new SparkBulkLoaderStateReadVertices(sparkBulkLoaderStateMachine);
             }
         } else {
@@ -239,7 +241,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
             }
 
             // Fresh load, truncate any metadata.
-            RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph());
+            RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph);
 
             // Read only mode, start from the beginning.
             LOGGER.info("Read only mode detected. Starting from the beginning.");
@@ -250,5 +252,10 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
     @Override
     public SparkBulkLoaderState transitionState() {
         return nextState;
+    }
+
+    @Override
+    protected BulkLoadStateStatusMap getStateMap() {
+        return new BulkLoadStateStatusMap("initializing", false, BULK_LOAD_STATUS_IN_PROGRESS);
     }
 }

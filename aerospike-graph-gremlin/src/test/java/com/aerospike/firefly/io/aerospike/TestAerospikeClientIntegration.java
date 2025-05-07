@@ -18,16 +18,14 @@ import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.AbstractFireflySuite;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -58,9 +56,9 @@ import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.stripAllWhiteSpace;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.Sets.TEST_SET;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.Sets.TEST_SET;
 import static java.lang.Thread.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -107,7 +105,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final Policy policy = new Policy();
         policy.sendKey = false;
         assertNotEquals(null, db.read(FireflyRecord.getKey(db, db.TEST_SET, id), policy));
-        db.delete(FireflyRecord.getKey(db, db.TEST_SET, id));
+        db.delete(FireflyRecord.getKey(db, db.TEST_SET, id), null);
         assertNull(db.read(FireflyRecord.getKey(db, db.TEST_SET, id), policy));
     }
 
@@ -177,7 +175,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     }
 
     private long countQueryResults(final Statement stmt) {
-        final RecordSet rs = db.query(null, stmt);
+        final AerospikeConnection.FireflyRecordSet rs = db.query(null, stmt);
         int count = 0;
         while (rs.next()) {
             count++;
@@ -251,7 +249,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         stmt.setSetName(db.TEST_SET);
         stmt.setFilter(Filter.range("age", 34, 99));
         QueryPolicy p = new QueryPolicy();
-        RecordSet rs = db.query(null, stmt);
+        AerospikeConnection.FireflyRecordSet rs = db.query(null, stmt);
         Iterator<KeyRecord> i = rs.iterator();
         int count = 0;
         while (i.hasNext()) {
@@ -407,8 +405,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
             graph.traversal().V().drop().iterate();
             sleep(2000);
-            final Iterator<FireflyId> vertexKeys = GraphQuery.create(graph).scanVertexIds(evaluationTimeout);
-            final Iterator<FireflyId> edgeKeys = GraphQuery.create(graph).scanEdgeIds(evaluationTimeout);
+            final Iterator<FireflyId> vertexKeys = graph.graphQuery.scanVertexIds(evaluationTimeout);
+            final Iterator<FireflyId> edgeKeys = graph.graphQuery.scanEdgeIds(evaluationTimeout);
             assertFalse(vertexKeys.hasNext());
             assertFalse(edgeKeys.hasNext());
         } finally {

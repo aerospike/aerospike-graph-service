@@ -1,9 +1,8 @@
 package com.aerospike.firefly.runtime;
 
-import com.aerospike.firefly.io.aerospike.admin.AdminService;
 import com.aerospike.firefly.runtime.metrics.FireflyMetricCollector;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.dropwizard.DropwizardExports;
@@ -29,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -86,7 +84,7 @@ public class HttpServer {
         router = Router.router(vertx);
 
         // Add a handler for the metrics endpoint - this picks up the default registry.
-        router.get(prometheusPath).handler(new FireflyMetricRewiter(graph.getBaseGraph().PROMETHEUS_RENAME_ENABLED));
+        router.get(prometheusPath).handler(new FireflyMetricRewriter(graph.getBaseGraph().PROMETHEUS_RENAME_ENABLED));
 
         // Bootstrap http server with request handler on provided port.
         vertxHttpServer = vertx.createHttpServer();
@@ -126,7 +124,6 @@ public class HttpServer {
         String healthcheckPath =
                 Optional.ofNullable(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.HEALTHCHECK_PATH, configuration))
                         .orElse(DEFAULT_HEALTHCHECK_PATH);
-        healthcheckPath = "/" + graph.getBaseGraph().GRAPH_ID + healthcheckPath;
 
         try {
             // wait for router
@@ -135,20 +132,23 @@ public class HttpServer {
             throw new RuntimeException(e);
         }
 
-        router.get(healthcheckPath).handler(routingContext -> {
-            if (graph != null && graph.getBaseGraph() != null && graph.getBaseGraph().getClusterIsConnected()) {
+        final Handler<RoutingContext> handler = routingContext -> {
+            if (!FireflyGraph.NEED_PREHEAT && graph.getBaseGraph() != null && graph.getBaseGraph().getClusterIsConnected()) {
                 routingContext.response().setStatusCode(HEALTHCHECK_SUCCESS_CODE).putHeader("content-type", "text/html").
                         end(String.valueOf(List.of(Map.of("status", "true"))));
             } else {
                 routingContext.response().setStatusCode(HEALTHCHECK_ERROR_CODE).putHeader("content-type", "text/html").
                         end(String.valueOf(List.of(Map.of("status", "false"))));
             }
-        });
+        };
+
+        router.get(healthcheckPath).handler(handler);
+        router.get("/" + graph.getBaseGraph().GRAPH_ID + healthcheckPath).handler(handler);
 
         graph.getAdminServiceRegistry().appendHandlers(router);
     }
 
-    private static class FireflyMetricRewiter implements Handler<RoutingContext> {
+    private static class FireflyMetricRewriter implements Handler<RoutingContext> {
 
         /**
          * Wrap a Vert.x Buffer as a Writer so it can be used with
@@ -184,14 +184,14 @@ public class HttpServer {
         /**
          * Construct a MetricsHandler for the default registry.
          */
-        public FireflyMetricRewiter(final Boolean prometheusRenameEnabled) {
+        public FireflyMetricRewriter(final Boolean prometheusRenameEnabled) {
             this(CollectorRegistry.defaultRegistry, prometheusRenameEnabled);
         }
 
         /**
          * Construct a MetricsHandler for the given registry.
          */
-        public FireflyMetricRewiter(final CollectorRegistry registry, final Boolean prometheusRenameEnabled) {
+        public FireflyMetricRewriter(final CollectorRegistry registry, final Boolean prometheusRenameEnabled) {
             this.registry = registry;
             this.prometheusRenameEnabled = prometheusRenameEnabled;
         }

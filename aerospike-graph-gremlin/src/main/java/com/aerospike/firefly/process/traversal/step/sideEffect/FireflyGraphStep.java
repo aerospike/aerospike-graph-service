@@ -2,8 +2,8 @@ package com.aerospike.firefly.process.traversal.step.sideEffect;
 
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
-import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
+import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -16,6 +16,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.AndP;
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -28,6 +29,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -42,12 +44,54 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
     private final List<Iterator> iterators = new ArrayList<>();
     private List<String> properties = null;
     private final Long evaluationTimeout;
+    private RunType runType;
+    // todo: implement as hasContainers?
+    private Predicate idFilter;
+
+    enum RunType {
+        UNKNOWN,
+        PI,
+        SI,
+        SCAN
+    }
 
     public FireflyGraphStep(final GraphStep<S, E> originalGraphStep) {
         super(originalGraphStep.getTraversal(), originalGraphStep.getReturnClass(), originalGraphStep.isStartStep(), originalGraphStep.getIds());
         originalGraphStep.getLabels().forEach(this::addLabel);
-        this.setIteratorSupplier(() -> (Vertex.class.isAssignableFrom(this.returnClass) ? (Iterator<E>) this.vertices() : (Iterator<E>) this.edges()));
         this.evaluationTimeout = TimeoutHelper.calculate(originalGraphStep.getTraversal());
+        this.setIteratorSupplier(() -> (Vertex.class.isAssignableFrom(this.returnClass) ? (Iterator<E>) this.vertices() : (Iterator<E>) this.edges()));
+        findRunType();
+    }
+
+    private void findRunType() {
+        // If these values are stored they end up giving strange errors in some traversals later, so this is done here and repeated below.
+        final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
+        final List<HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, this.returnClass, hasContainers);
+        final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
+
+        if (ids != null && ids.length > 0) {
+            runType = RunType.PI;
+            return;
+        }
+        final HasContainer topContainer = aerospikeSideHasContainers.isEmpty() ? null : aerospikeSideHasContainers.get(0);
+        final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo;
+        if (topContainer != null && topContainer.getKey() != null) {
+            propertyIndexInfo = graph.fireflyIndexMetadata.getPropertyIndexInfo(Vertex.class.isAssignableFrom(this.returnClass) ?
+                    FireflyVertex.class : FireflyEdge.class, topContainer.getKey(), topContainer.getValue());
+        } else {
+            propertyIndexInfo = Optional.empty();
+        }
+        if (topContainer == null || topContainer.getKey() == null ||
+                (topContainer.getKey().startsWith("~") && !topContainer.getKey().equals("~label"))) {
+            runType = RunType.SCAN;
+        } else if (topContainer.getKey().equals("~label") ||
+                Number.class.isAssignableFrom(topContainer.getValue().getClass()) ||
+                String.class.isAssignableFrom(topContainer.getValue().getClass())) {
+            // If we have index, query it, otherwise we need to scan (or error out).
+            runType = propertyIndexInfo.isPresent() ? RunType.SI : RunType.SCAN;
+        } else {
+            runType = RunType.UNKNOWN;
+        }
     }
 
     public void addProperties(final List<String> properties) {
@@ -127,9 +171,10 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             iterators.add(iterator);
             return iterator;
         } else if (this.ids.length > 0) {
+            final Object[] filteredIds = this.idFilter == null ? this.ids : Arrays.stream(this.ids).filter(this.idFilter).toArray();
             iterator = aerospikeSideHasContainers.isEmpty() ?
-                    getElements.getUnfiltered(this.ids) :
-                    getElements.getFiltered(aerospikeSideHasContainers, this.ids);
+                    getElements.getUnfiltered(filteredIds) :
+                    getElements.getFiltered(aerospikeSideHasContainers, filteredIds);
             iterator = this.hasContainerCheckedIterator(iterator, fireflySideHasContainers);
             iterators.add(iterator);
             return iterator;
@@ -159,14 +204,14 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
 
             // If we have index, query it, otherwise we need to scan (or error out).
             if (propertyIndexInfo.isPresent()) {
-                iterator = GraphQuery.create(graph).queryVertexSIndex(propertyIndexInfo.get(),
+                iterator = graph.graphQuery.queryVertexSIndex(propertyIndexInfo.get(),
                         topContainer.getPredicate(),
                         transformKeyRecord,
                         aerospikeSideHasContainers,
                         evaluationTimeout);
             } else {
                 LOG.debug("No index found for key {} and value {}, running scan", topContainer.getKey(), topContainer.getValue());
-                iterator = GraphQuery.create(graph).scanSet(
+                iterator = graph.graphQuery.scanSet(
                         topContainer.getKey(),
                         setName,
                         topContainer.getKey().equals("~label") ? graph.getBaseGraph().LABEL_BIN : binName,
@@ -178,6 +223,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                         true,
                         evaluationTimeout);
             }
+            // fireflySideHasContainers.add(new HasContainer(T.id.getAccessor(), idFilter));
             // Need to wrap iterator in hasContainerCheckedIterator() to apply hasContainers that could not be pushed down to Aerospike.
             iterator = this.hasContainerCheckedIterator(iterator, fireflySideHasContainers);
             iterators.add(iterator);
@@ -202,6 +248,11 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         }
         iterators.add(iterator);
         return iterator;
+    }
+
+    public void setPartitionFilter(final Predicate idFilter) {
+        this.idFilter = idFilter;
+        this.setIteratorSupplier(() -> (Vertex.class.isAssignableFrom(this.returnClass) ? (Iterator<E>) this.vertices() : (Iterator<E>) this.edges()));
     }
 
     /**
@@ -251,16 +302,6 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             this.isLabel = "~label".equals(hasContainer.getKey());
             this.isSupported = true;
         }
-    }
-
-    @Override
-    public String toString() {
-        if (this.hasContainers.isEmpty())
-            return super.toString();
-        else
-            return (null == this.ids || 0 == this.ids.length) ?
-                    StringFactory.stepString(this, this.returnClass.getSimpleName().toLowerCase(), this.hasContainers) :
-                    StringFactory.stepString(this, this.returnClass.getSimpleName().toLowerCase(), Arrays.toString(this.ids), this.hasContainers);
     }
 
     static class HasContainerIterator<E extends Element> implements Iterator<E>, AutoCloseable {
@@ -397,5 +438,17 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
     @Override
     public void close() {
         iterators.forEach(CloseableIterator::closeIterator);
+    }
+
+    @Override
+    public String toString() {
+        if (this.hasContainers.isEmpty()) {
+            return StringFactory.stepString(this, this.returnClass.getSimpleName().toLowerCase(), this.runType, Arrays.toString(this.ids));
+        }
+        else {
+            return (null == this.ids || 0 == this.ids.length) ?
+                    StringFactory.stepString(this, this.returnClass.getSimpleName().toLowerCase(), this.runType, this.hasContainers) :
+                    StringFactory.stepString(this, this.returnClass.getSimpleName().toLowerCase(), this.runType, Arrays.toString(this.ids), this.hasContainers);
+        }
     }
 }

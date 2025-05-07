@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure.iterator;
 
-import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
@@ -40,7 +39,7 @@ public class FireflyFilteredBatchEdgeIterator<E extends Edge> extends FireflyBat
             while (idIterator.hasNext() && fireflyIdList.size() < graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 fireflyIdList.add(idIterator.next());
             }
-            elementIterator = FireflyEdge.readEdges(graph, fireflyIdList).iterator();
+            elementIterator = graph.getOperations().readEdges(fireflyIdList).iterator();
             return hasNext();
         } else {
             // Search the current element iterator for one that passes the filters.

@@ -5,12 +5,11 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.google.common.collect.Iterators;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Property;
@@ -28,8 +27,8 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.PHAT_EDGE_SIZE;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.PHAT_EDGE_SIZE;
 
 public class TestAdjacencySindexFilters {
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -252,53 +251,6 @@ public class TestAdjacencySindexFilters {
         Assert.assertEquals(4, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(gte100, lte400))));
         Assert.assertEquals(1, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(gt100, lte400, barGt150, barLt250))));
         Assert.assertEquals(0, Iterators.size(v2.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(gt100, lte400, barGt250, barLt150))));
-    }
-
-    @Test
-    public void testPushdownDisabledCompatibility() {
-        if (Integer.parseInt(FireflyGraph.dataModelVersion().toString().split("\\.")[0]) >= 3) {
-            throw new UnsupportedOperationException("Check if this test still makes sense on AGS > 2.x.x");
-        }
-        this.graph.getBaseGraph().setGraphMetadata("packed", "2.0.0");
-        // Need to close graph since underlying AerospikeConnection is shared
-        this.graph.close();
-
-        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-            // Ensure that seeing an existing 2.0.0 data model disables pushdown
-            Assert.assertFalse(graph.getBaseGraph().isSupernodePushdownEnabled);
-
-            // Write data using 2.0.0 data model compatibility mode
-            var g = graph.traversal();
-            g.addE("e1").from(__.V(v1.id())).to(__.V(v2.id())).iterate();
-            g.E().hasLabel("e1").property("foo", 100).iterate();
-            g.addE("e1").property("foo", "100").from(__.V(v1.id())).to(__.V(v2.id())).iterate();
-            g.addE("e2").from(__.V(v1.id())).to(__.V(v2.id())).iterate();
-            g.E().hasLabel("e2").property("foo", 200).iterate();
-            g.addE("e2").property("foo", "200").from(__.V(v1.id())).to(__.V(v2.id())).iterate();
-
-            // Check reading using compatibility mode
-            var traversal = g.V().outE().has("foo", "100");
-            Assert.assertEquals(1, Iterators.size(traversal));
-            traversal = g.V().outE().has("foo", P.gt(99));
-            Assert.assertEquals(2, Iterators.size(traversal));
-
-            // Reset the version metadata to the actual version
-            graph.getBaseGraph().setGraphMetadata(graph.getDataModel(), FireflyGraph.dataModelVersion().toString());
-        }
-
-        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-            // Ensure that pushdown was re-enabled
-            Assert.assertTrue(graph.getBaseGraph().isSupernodePushdownEnabled);
-
-            // See that the previous writes done in compatibility mode did not write to pushdown bins
-            var g = graph.traversal();
-            var traversal = g.V().outE().has("foo", "100");
-            Assert.assertFalse(traversal.hasNext());
-            traversal = g.V().outE().has("foo", P.gt(99));
-            Assert.assertFalse(traversal.hasNext());
-        }
-
-        this.graph = FireflyGraph.open(CONFIG);
     }
 
     @Test
@@ -583,5 +535,38 @@ public class TestAdjacencySindexFilters {
             Assert.assertEquals(1, supernodePMap.get(v2.id.getKeyHashString()).get("~label").size());
             Assert.assertFalse(supernodePMap.get(v2.id.getKeyHashString()).containsKey("culprit"));
         }
+    }
+
+    @Test
+    public void testContainsWithinPushdown() {
+        GraphTraversalSource g = graph.traversal();
+        g.addE("e1").property("foo", "Simon").from(v1).to(v2).iterate();
+        g.addE("e2").property("foo", "Lyndon").from(v1).to(v2).iterate();
+        g.addE("e3").property("foo", 100).from(v1).to(v2).iterate();
+        g.addE("e4").property("foo", 200).from(v1).to(v2).iterate();
+        g.addE("e5").property("foo", "Valentyn").property("bar", 200).from(v1).to(v2).iterate();
+        g.addE("e6").property("foo", 100).property("bar", "Lyndon").from(v1).to(v2).iterate();
+
+        HasContainer hasFooSimon100 = new HasContainer("foo", P.within("Simon", 100));
+        HasContainer hasBarLyndon = new HasContainer("bar", P.within("Lyndon"));
+        HasContainer hasFooValentyn200Ishaan = new HasContainer("foo", P.within("Valentyn", 200, "Ishaan"));
+        HasContainer compoundWithinHasBarLyndon = new HasContainer("foo", P.within(100, 200));
+        HasContainer compoundEqHasBarLyndon = new HasContainer("foo", P.eq(100));
+        HasContainer compoundNomatchHasBarLyndon = new HasContainer("foo", P.within(200, "Simon"));
+
+        final FireflyVertex v1 = (FireflyVertex) g.V().hasLabel("v1").next();
+        Assert.assertEquals(3, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasFooSimon100))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarLyndon))));
+        Assert.assertEquals(2, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasFooValentyn200Ishaan))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarLyndon, compoundWithinHasBarLyndon))));
+        Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarLyndon, compoundEqHasBarLyndon))));
+        Assert.assertEquals(0, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasBarLyndon, compoundNomatchHasBarLyndon))));
+
+        Assert.assertEquals(3, Iterators.size(g.V(v1.id()).outE().has("foo", P.within("Simon", 100))));
+        Assert.assertEquals(1, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Lyndon"))));
+        Assert.assertEquals(2, Iterators.size(g.V(v1.id()).outE().has("foo", P.within("Valentyn", "Ishaan", 200))));
+        Assert.assertEquals(1, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Lyndon")).has("foo", P.within(100, 200))));
+        Assert.assertEquals(1, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Lyndon")).has("foo", 100)));
+        Assert.assertEquals(0, Iterators.size(g.V(v1.id()).outE().has("bar", P.within("Lyndon")).has("foo", P.within(200, "Simon"))));
     }
 }

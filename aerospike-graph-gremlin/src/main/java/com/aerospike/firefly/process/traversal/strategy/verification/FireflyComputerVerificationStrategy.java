@@ -1,8 +1,5 @@
 package com.aerospike.firefly.process.traversal.strategy.verification;
 
-import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.ConnectedComponentVertexProgramStep;
-import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.PageRankVertexProgramStep;
-import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.PeerPressureVertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.ShortestPathVertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
@@ -19,10 +16,7 @@ import java.util.Set;
 public final class FireflyComputerVerificationStrategy extends AbstractTraversalStrategy<TraversalStrategy.VerificationStrategy> implements TraversalStrategy.VerificationStrategy {
     private static final FireflyComputerVerificationStrategy INSTANCE = new FireflyComputerVerificationStrategy();
     private static final Set<Class<?>> UNSUPPORTED_ALGORITHM_STEPS = new HashSet<>(Arrays.asList(
-            PageRankVertexProgramStep.class,
-            ShortestPathVertexProgramStep.class,
-            PeerPressureVertexProgramStep.class,
-            ConnectedComponentVertexProgramStep.class));
+            ShortestPathVertexProgramStep.class));
 
     private FireflyComputerVerificationStrategy() {
     }

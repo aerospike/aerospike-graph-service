@@ -4,7 +4,6 @@ import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -16,13 +15,11 @@ import org.apache.tinkerpop.gremlin.process.computer.VertexComputeKey;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,7 +29,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SupportedValueTypes;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SUPPORTED_ARR_TYPES;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SUPPORTED_VALUE_TYPES;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -65,18 +63,48 @@ public final class FireflyHelper {
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static <V> V validateGraphVariableValue(V v) {
-        Set<Class<? extends Serializable>> supported = SupportedValueTypes.keySet();
-        if (v != null && !supported.contains(v.getClass()))
-            throw Graph.Variables.Exceptions.dataTypeOfVariableValueNotSupported(v);
-        return v;
+    public static Object validateGraphVariableValue(final Object v) {
+        return validatePropertyValue(v);
     }
 
-    public static <V> V validatePropertyValue(V v) {
-        Set<Class<? extends Serializable>> supported = SupportedValueTypes.keySet();
-        if (v != null && !supported.contains(v.getClass()))
+    public static Object validatePropertyValue(final Object v) {
+        final Object value;
+        if (v != null && SUPPORTED_ARR_TYPES.contains(v.getClass())) {
+            final ArrayList vList = new ArrayList<>();
+            if (v instanceof boolean[]) {
+                final boolean[] vArray = (boolean[]) v;
+                for (int i = 0; i < vArray.length; i++) {
+                    vList.add(vArray[i]);
+                }
+            } else if (v instanceof double[]) {
+                final double[] vArray = (double[]) v;
+                for (int i = 0; i < vArray.length; i++) {
+                    vList.add(vArray[i]);
+                }
+            } else if (v instanceof int[]) {
+                final int[] vArray = (int[]) v;
+                for (int i = 0; i < vArray.length; i++) {
+                    vList.add(vArray[i]);
+                }
+            } else if (v instanceof long[]) {
+                final long[] vArray = (long[]) v;
+                for (int i = 0; i < vArray.length; i++) {
+                    vList.add(vArray[i]);
+                }
+            } else {
+                final Object[] vArray = (Object[]) v;
+                for (int i = 0; i < vArray.length; i++) {
+                    vList.add(vArray[i]);
+                }
+            }
+            value = vList;
+        } else {
+            value = v;
+        }
+        if (value != null && !SUPPORTED_VALUE_TYPES.containsKey(value.getClass())) {
             throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(v);
-        return v;
+        }
+        return value;
     }
 
     public static void legalPropertyKeyValueArray(Object... keyValues) {
@@ -118,7 +146,7 @@ public final class FireflyHelper {
             queryPolicy.setTimeout(evaluationTimeout.intValue());
 
             // Query index.
-            final Iterator<KeyRecord> keyRecordIterator = GraphQuery.create(graph).querySIndex(
+            final Iterator<KeyRecord> keyRecordIterator = graph.graphQuery.querySIndex(
                     info.get().setName,
                     info.get().indexName,
                     GraphQueryHelper.predicateToFilter(db, topHasContainer.getPredicate(), info.get()),

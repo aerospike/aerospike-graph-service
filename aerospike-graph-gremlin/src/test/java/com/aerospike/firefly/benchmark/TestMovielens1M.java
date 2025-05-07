@@ -2,7 +2,7 @@ package com.aerospike.firefly.benchmark;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
 import com.aerospike.firefly.util.Movielens;
 import com.aerospike.firefly.util.Unzip;

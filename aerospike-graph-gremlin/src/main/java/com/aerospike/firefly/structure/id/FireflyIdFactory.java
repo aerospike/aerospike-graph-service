@@ -20,8 +20,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_PACKING_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 
@@ -39,7 +39,6 @@ public class FireflyIdFactory {
     public static final Map<Class<? extends Serializable>, Long> VERTEX_ID_TYPE_TO_HINT = new HashMap<>() {{
         put(Long.class, 1L);
         put(Integer.class, 2L);
-        put(Double.class, 3L);
         put(String.class, 5L);
     }};
 
@@ -50,7 +49,11 @@ public class FireflyIdFactory {
     public FireflyIdFactory(final AerospikeConnection db) {
         this.db = db;
         this.vertexIdManager = new BufferedNumericIdManager(VERTEX_ID_COUNTER, db.VERTEX_ID_BUFFER_SIZE);
-        this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_RECYCLED_ID_COUNTER, EDGE_UNIQUE_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE);
+        if (db.MRT_ENABLED && !db.getBulkLoaderFlag()) {
+            this.edgeIdManager = new MrtRecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, db.EDGE_ID_RECYCLE_BUFFER_SIZE, db.PHAT_EDGE_SIZE);
+        } else {
+            this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, db.EDGE_ID_RECYCLE_BUFFER_SIZE);
+        }
         this.vertexPropertyIdManager = new BufferedNumericIdManager(VERTEX_PROPERTY_ID_COUNTER, db.PROPERTY_ID_BUFFER_SIZE);
     }
 
@@ -60,10 +63,6 @@ public class FireflyIdFactory {
             return ((FireflyElement) id).id;
         } else if (id instanceof Element) {
             convertedId = ((Element) id).id();
-        }
-
-        if (convertedId instanceof Float) {
-            convertedId = ((Float) id).doubleValue();
         }
 
         if (convertedId instanceof String) {
@@ -155,24 +154,16 @@ public class FireflyIdFactory {
      * @return a FireflyIdComposite representing an edge and an adjacent Vertex
      */
     public FireflyIdComposite createCompositeEdgeId(final FireflyEdgeId edgeId, final FireflyId adjacentVertex) {
-        if (this.db.ENABLE_CACHED_ADJACENT_ID_STRATEGY) {
-            return new FireflyUserIdComposite(db, edgeId, adjacentVertex);
-        } else {
-            return new FireflyIdComposite(db, edgeId, adjacentVertex);
-        }
+        return new FireflyIdComposite(db, edgeId, adjacentVertex);
     }
 
     /**
-     * Create a composite id from a byte array
-     * @param compositeIdBytes  the bytes that form a FireflyIdComposite
+     * Create a composite id from a List
+     * @param compositeIdArray  the List that forms a FireflyIdComposite
      * @return a FireflyIdComposite representing an edge and an adjacent Vertex
      */
-    public FireflyIdComposite createCompositeEdgeId(final byte[] compositeIdBytes) {
-        if (this.db.ENABLE_CACHED_ADJACENT_ID_STRATEGY) {
-            return new FireflyUserIdComposite(db, compositeIdBytes);
-        } else {
-            return new FireflyIdComposite(db, compositeIdBytes);
-        }
+    public FireflyIdComposite createCompositeEdgeId(final List<Object> compositeIdArray) {
+        return new FireflyIdComposite(db, compositeIdArray);
     }
 
     /**

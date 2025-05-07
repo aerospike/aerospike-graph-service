@@ -1,29 +1,32 @@
 package com.aerospike.firefly.io.aerospike.query.paged;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.SindexRecentlyDroppedException;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class PageFetcher<E> {
     private static final Logger LOG = LoggerFactory.getLogger(PageFetcher.class);
     protected final FireflyGraph graph;
-    private final ExecutorService readLoopExecutorService;
+    protected final ExecutorService readLoopExecutorService;
     protected final BlockingQueue<Page> pageQueue;
     private final FireflyGraph.TransformKeyRecord<E> transformKeyRecord;
     protected final PartitionFilter filter;
@@ -31,19 +34,33 @@ public abstract class PageFetcher<E> {
     protected AtomicBoolean isClosing = new AtomicBoolean(false);
 
     public PageFetcher(final FireflyGraph graph,
-                       final int maxQueueSize,
-                       final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
-        this(graph, maxQueueSize, transformKeyRecord, null);
+                       final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
+                       final String indexName) {
+        this(
+                graph,
+                transformKeyRecord,
+                indexName,
+                PartitionFilter.all(),
+                Executors.newSingleThreadExecutor(r -> {
+                    final Thread t = new Thread(r);
+                    t.setName("Aerospike-Graph-Pagination-Worker-" + t.getId());
+                    t.setDaemon(true);
+                    return t;
+                }),
+                new LinkedBlockingQueue<>(graph.getBaseGraph().PAGINATION_PAGE_QUEUE_SIZE)
+        );
     }
 
     public PageFetcher(final FireflyGraph graph,
-                       final int maxQueueSize,
                        final FireflyGraph.TransformKeyRecord<E> transformKeyRecord,
-                       final String indexName) {
+                       final String indexName,
+                       final PartitionFilter partitionFilter,
+                       final ExecutorService readLoopExecutorService,
+                       final BlockingQueue<Page> pageQueue) {
         this.graph = graph;
-        this.filter = PartitionFilter.all();
-        this.readLoopExecutorService = Executors.newSingleThreadExecutor();
-        this.pageQueue = new LinkedBlockingQueue<>(maxQueueSize);
+        this.filter = partitionFilter;
+        this.readLoopExecutorService = readLoopExecutorService;
+        this.pageQueue = pageQueue;
         this.transformKeyRecord = transformKeyRecord;
         this.indexName = indexName;
     }
@@ -60,13 +77,13 @@ public abstract class PageFetcher<E> {
         return new PageFetcher.PageIterator();
     }
 
-    public BlockingQueue<Page> startQueryPagesDirect() {
+    public BlockingQueue<Page> startQueryDirect() {
         // Start loop.
         readPages();
-        return this.pageQueue;
+        return pageQueue;
     }
 
-    private void readPages() {
+    protected void readPages() {
         readLoopExecutorService.submit(() -> {
             while (true) {
                 try {
@@ -94,7 +111,6 @@ public abstract class PageFetcher<E> {
             }
         });
     }
-
 
     public static class PoisonPill extends Page {
 
@@ -127,6 +143,16 @@ public abstract class PageFetcher<E> {
         }
     }
 
+
+    public static class VertexPage extends Page {
+        public CloseableIterator<FireflyVertex> vertices;
+
+        public VertexPage(final CloseableIterator<FireflyVertex> vertices) {
+            super(CloseableIterator.EmptyCloseableIterator.instance());
+            this.vertices = vertices;
+        }
+    }
+
     public class PageIterator implements CloseableIterator<E> {
         private static final String NO_ERROR = "";
         private static final String INDEX_DROPPED = "INDEX_DROPPED";
@@ -137,6 +163,11 @@ public abstract class PageFetcher<E> {
         private Throwable error = null;
 
         private void removePage() {
+            // Race condition protection - if an error has occurred already reading is stopped.
+            if (!NO_ERROR.equals(errorMessage)) {
+                return;
+            }
+
             // Check if possible.
             // No more data is coming in and there's no more pages available.
             if (readLoopExecutorService.isTerminated()) {
@@ -210,18 +241,20 @@ public abstract class PageFetcher<E> {
                     } catch (final Exception e) {
                         LOG.warn("Updating Index metadata forcibly due to using a dropped index failed.", e);
                     }
-                    final StringBuilder sb = new StringBuilder();
-                    sb.append("This query is temporarily unavailable due to the index it utilizes");
+                    final String displayName;
                     if (indexName != null) {
-                        sb.append(", \"").append(indexName).append("\",");
+                        displayName = ", '" + indexName + "',";
+                    } else {
+                        displayName = "";
                     }
-                    sb.append(" being recently dropped. Please wait ");
-                    sb.append(graph.getBaseGraph().INDEX_METADATA_UPDATE_FREQUENCY / 1000);
-                    sb.append(" seconds and try again.");
-                    throw new RuntimeException(sb.toString());
+                    throw new SindexRecentlyDroppedException(displayName, graph.getBaseGraph().INDEX_METADATA_UPDATE_FREQUENCY / 1000);
                 }
                 if (!NO_ERROR.equals(errorMessage)) {
-                    throw new RuntimeException(errorMessage, error);
+                    if (error instanceof AerospikeGraphException) {
+                        throw (AerospikeGraphException) error;
+                    } else {
+                        throw new RuntimeException(errorMessage, error);
+                    }
                 }
                 return transformKeyRecord.transform(currentIterator.next());
             }
@@ -284,13 +317,24 @@ public abstract class PageFetcher<E> {
         readLoopExecutorService.shutdown();
     }
 
+    public void shutdownAwait() {
+        // Signal to readLoopExecutor that it needs to shut down.
+        readLoopExecutorService.shutdown();
+        try {
+            if (!readLoopExecutorService.awaitTermination(5000, TimeUnit.MILLISECONDS)) {
+                readLoopExecutorService.shutdownNow();
+            }
+        } catch (final InterruptedException e) {
+        }
+    }
+
     protected void signalError(final String error) {
         signalError(error, null);
     }
 
     protected void signalError(final String error, final Throwable exception) {
         if (!isClosing.get()) {
-            LOG.error("{} attempting to signal error to iterator.", error);
+            LOG.error("Attempting to signal error to iterator: {}", error);
         }
         try {
             if (!isClosing.get()) {

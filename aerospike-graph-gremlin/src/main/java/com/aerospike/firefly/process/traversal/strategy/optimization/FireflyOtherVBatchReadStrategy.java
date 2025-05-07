@@ -1,9 +1,10 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.computer.local.ComputerHelper;
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyOtherVBatchReadStep;
+import com.aerospike.firefly.process.traversal.step.computer.FireflyOtherVBatchReadStepLocal;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
@@ -28,15 +29,15 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
     }
 
     @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
+    protected void doApply(final Traversal.Admin<?, ?> traversal) {
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
 
         if (!graph.getBaseGraph().ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY) {
             return;
         }
 
-        if (ComputerHelper.onGraphComputer(traversal))
-            return;
+//        if (ComputerHelper.onGraphComputer(traversal))
+//            return;
 
         final List<Step> steps = traversal.getSteps();
 
@@ -83,11 +84,19 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
                 }
             }
 
-            final FireflyOtherVBatchReadStep optimizedStep = new FireflyOtherVBatchReadStep(
-                    traversal,
-                    hasContainers,
-                    labels,
-                    graph.getBaseGraph().MOVEMENT_BARRIER_SIZE);
+            final Step<?, ?> optimizedStep;
+            if (ComputerHelper.onGraphComputer(traversal)) {
+                optimizedStep = new FireflyOtherVBatchReadStepLocal(
+                        traversal,
+                        hasContainers,
+                        labels);
+            } else {
+                optimizedStep = new FireflyOtherVBatchReadStep(
+                        traversal,
+                        hasContainers,
+                        labels,
+                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE);
+            }
 
             TraversalHelper.replaceStep(original, optimizedStep, traversal);
         }

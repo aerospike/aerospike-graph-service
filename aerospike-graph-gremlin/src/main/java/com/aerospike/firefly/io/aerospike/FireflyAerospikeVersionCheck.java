@@ -1,11 +1,11 @@
 package com.aerospike.firefly.io.aerospike;
 
-import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.cluster.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -17,17 +17,14 @@ public class FireflyAerospikeVersionCheck {
     private static final int MINOR_MINIMUM = 2;
     private static final int REVISION_MINIMUM = 0;
     private static final int EXTENSION_MINIMUM = 7;
-
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyAerospikeVersionCheck.class);
+    private static boolean versionLogged = false;
     private final int major;
     private final int minor;
     private final int revision;
     private final int extension;
-    private static boolean versionLogged = false;
-
-    private static final Logger LOG = LoggerFactory.getLogger(FireflyAerospikeVersionCheck.class);
 
     public FireflyAerospikeVersionCheck(final String version) {
-        int extension1;
         if (version == null) {
             throw new IllegalArgumentException("Aerospike version cannot be null");
         }
@@ -37,52 +34,31 @@ public class FireflyAerospikeVersionCheck {
             versionLogged = true;
         }
 
-        int begin = 0;
-        int i = begin;
-        int max = version.length();
+        final String[] parts = version.split("\\.");
 
-        while (i < max) {
-            if (!Character.isDigit(version.charAt(i))) {
-                break;
-            }
-            i++;
-        }
-
-        major = (i > begin) ? Integer.parseInt(version.substring(begin, i)) : 0;
-        begin = ++i;
-
-        while (i < max) {
-            if (!Character.isDigit(version.charAt(i))) {
-                break;
-            }
-            i++;
-        }
-
-        minor = (i > begin) ? Integer.parseInt(version.substring(begin, i)) : 0;
-        begin = ++i;
-
-        while (i < max) {
-            if (!Character.isDigit(version.charAt(i))) {
-                break;
-            }
-            i++;
-        }
-
-        revision = (i > begin) ? Integer.parseInt(version.substring(begin, i)) : 0;
-        begin = i;
-        final String extensionString = version.substring(begin + 1);
-        if (extensionString.contains("-")) {
-            extension1 = Integer.parseInt(extensionString.substring(0, extensionString.indexOf("-")));
-        } else if (extensionString.contains("_")) {
-            extension1 = Integer.parseInt(extensionString.substring(0, extensionString.indexOf("_")));
+        this.major = Integer.parseInt(parts[0]);
+        if (this.major >= 10) { // Epoch Semantic Version, extension omitted in this version
+            this.minor = Integer.parseInt(parts[1]);
+            this.revision = parseNumberFromString(parts[2]);
+            this.extension = 0;
         } else {
-            try {
-                extension1 = Integer.parseInt(extensionString);
-            } catch (final NumberFormatException e) {
-                extension1 = 0;
+            this.minor = Integer.parseInt(parts[1]);
+            this.revision = Integer.parseInt(parts[2]);
+            this.extension = parseNumberFromString(parts[3]);
+        }
+    }
+
+    private static int parseNumberFromString(final String parse) {
+        final StringBuilder builder = new StringBuilder();
+        for (final char c : parse.toCharArray()) {
+            if (Character.isDigit(c)) {
+                builder.append(c);
+            } else {
+                break;
             }
         }
-        extension = extension1;
+
+        return Integer.parseInt(builder.toString());
     }
 
     public static void validateVersion(final IAerospikeClient client, final boolean requireMRTSupport) {
@@ -111,4 +87,5 @@ public class FireflyAerospikeVersionCheck {
                         (version.minor == MINOR_MINIMUM && (version.revision > REVISION_MINIMUM ||
                                 (version.revision == REVISION_MINIMUM && version.extension >= EXTENSION_MINIMUM)))));
     }
+
 }

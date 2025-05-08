@@ -28,7 +28,6 @@ public class FireflyTtlHandler implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyTtlHandler.class);
     private static final QueryPolicy INDEX_POLICY = new QueryPolicy();
     static {
-        INDEX_POLICY.sendKey = true;
         INDEX_POLICY.includeBinData = true;
     }
     public static final String TTL_TIME_KEY = "TTL_TIME_KEY";

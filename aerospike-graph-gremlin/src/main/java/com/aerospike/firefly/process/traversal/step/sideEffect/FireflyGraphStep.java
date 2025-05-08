@@ -220,7 +220,6 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                         aerospikeSideHasContainers,
                         elementClass,
                         true,
-                        true,
                         evaluationTimeout);
             }
             // fireflySideHasContainers.add(new HasContainer(T.id.getAccessor(), idFilter));

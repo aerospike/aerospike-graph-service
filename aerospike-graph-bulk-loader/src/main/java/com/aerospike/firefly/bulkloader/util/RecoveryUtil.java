@@ -237,7 +237,6 @@ public class RecoveryUtil {
     public static RecoveryInfo recover(final AerospikeConnection db) {
         final ScanPolicy scanPolicy = new ScanPolicy();
         db.configureScanPolicy(scanPolicy);
-        scanPolicy.sendKey = true;
         final RecoveryRecordSequenceListener listener = new RecoveryRecordSequenceListener(db);
         recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_VERTEX_SET, RecoveryRecordSequenceListener.RecoveryMode.VERTEX);
         recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_EDGE_SET, RecoveryRecordSequenceListener.RecoveryMode.EDGE);
@@ -255,7 +254,6 @@ public class RecoveryUtil {
     public static Set<Long> completedVertexPartitions(final AerospikeConnection db) {
         final ScanPolicy scanPolicy = new ScanPolicy();
         db.configureScanPolicy(scanPolicy);
-        scanPolicy.sendKey = true;
         final RecoveryRecordSequenceListener listener = new RecoveryRecordSequenceListener(db);
         recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_VERTEX_SET, RecoveryRecordSequenceListener.RecoveryMode.VERTEX);
         return listener.vertexPartitions;
@@ -264,7 +262,6 @@ public class RecoveryUtil {
     public static Set<Long> completedEdgePartitions(final AerospikeConnection db) {
         final ScanPolicy scanPolicy = new ScanPolicy();
         db.configureScanPolicy(scanPolicy);
-        scanPolicy.sendKey = true;
         final RecoveryRecordSequenceListener listener = new RecoveryRecordSequenceListener(db);
         recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_EDGE_SET, RecoveryRecordSequenceListener.RecoveryMode.EDGE);
         return listener.edgePartitions;

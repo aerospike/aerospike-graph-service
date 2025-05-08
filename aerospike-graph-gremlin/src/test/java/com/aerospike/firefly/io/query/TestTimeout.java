@@ -61,7 +61,7 @@ public class TestTimeout {
 
         final AtomicReference<Long> timeout = new AtomicReference<>();
         doAnswer((Answer<Void>) invocation -> {
-            timeout.set(invocation.getArgument(9));
+            timeout.set(invocation.getArgument(8));
             return null;
         }).when(graphQuery).scanSet(any(String.class),
                 isNull(),

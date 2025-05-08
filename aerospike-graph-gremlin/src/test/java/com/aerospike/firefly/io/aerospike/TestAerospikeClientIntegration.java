@@ -154,30 +154,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     }
 
     @Test
-    public void testFireflyRecordIntegerId() {
-        final FireflyId intId = db.getIdFactory().getTestId(1);
-        final Bin bin21 = new Bin("name", "Jane Doe");
-        final Bin bin22 = new Bin("age", 32);
-        final Operation bin21Op = Operation.put(bin21);
-        final Operation bin22Op = Operation.put(bin22);
-        db.writeOperate(null, getKey(db, db.TEST_SET, intId), bin21Op, bin22Op);
-        FireflyRecord record = FireflyRecord.read(db, db.TEST_SET, intId);
-        assertEquals(record.id(), intId.getUserId());
-    }
-
-    @Test
-    public void testFireflyRecordLongId() {
-        final FireflyId fid = db.getIdFactory().getTestId(1L);
-        final Bin bin21 = new Bin("name", "Jane Doe");
-        final Bin bin22 = new Bin("age", 32);
-        final Operation bin21Op = Operation.put(bin21);
-        final Operation bin22Op = Operation.put(bin22);
-        db.writeOperate(null, getKey(db, db.TEST_SET, fid), bin21Op, bin22Op);
-        FireflyRecord record = FireflyRecord.read(db, db.TEST_SET, fid);
-        assertEquals(record.id(), fid.getUserId());
-    }
-
-    @Test
     public void testCreateDropIndex() {
         String binName = "aBin";
         db.createIndex(new ArrayList<>(), db.TEST_SET, "testIndex", binName, IndexType.STRING, IndexCollectionType.LIST);
@@ -451,7 +427,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         }});
         final Bin edgeDataBin = new Bin(edgeDirection, Value.get(labelEdges, MapOrder.KEY_ORDERED));
         final Operation edgeDataBinOp = Operation.put(edgeDataBin);
-        db.writeOperate(null, getKey(db, db.TEST_SET, vertexFid), edgeDataBinOp);
+        db.writeOperate(null, getKey(db, TEST_SET.name(), vertexFid), edgeDataBinOp);
         final Key vertexAeroKey = new Key(db.getNamespace(), TEST_SET.name(), (Long) vertexFid.getUserId());
         Record operateResultRecord = db.writeOperate(null, vertexAeroKey,
                 ListOperation.append(edgeDirection, Value.get(additionalEdgeRawId), CTX.mapKey(Value.get(edgeLabel))),
@@ -485,7 +461,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
         final Bin edgeDataBin = new Bin(edgeDirection, Value.get(labelEdges));
         final Operation edgeDataBinOp = Operation.put(edgeDataBin);
-        db.writeOperate(null, getKey(db, db.TEST_SET, vertexFid), edgeDataBinOp);
+        db.writeOperate(null, getKey(db, TEST_SET.name(), vertexFid), edgeDataBinOp);
         final Key vertexAeroKey = new Key(db.getNamespace(), TEST_SET.name(), (Long) vertexFid.getUserId());
         Record operateResultRecord = db.writeOperate(null, vertexAeroKey,
                 ListOperation.append(edgeDirection, Value.get(additionalEdgeRawId), CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.KEY_ORDERED)),

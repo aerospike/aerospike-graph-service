@@ -89,13 +89,6 @@ public class FireflyRecord {
         return SupportedIdTypes.entrySet().stream().filter(e -> e.getValue() == hint).collect(Collectors.toList()).get(0).getKey();
     }
 
-    //return the TinkerPop ID of this firefly record
-    public Object id() {
-        final long idVal = key.userKey.toLong();
-        final long idTypeHint = record.getLong(this.ac.ID_TYPE_BIN);
-        return idStorageTypeToOriginalType(idVal, idTypeHint);
-    }
-
     public Record record() {
         return record;
     }

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure.id;
 
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -91,18 +92,15 @@ public class FireflyIdFactory {
      * @param record the Vertex record
      * @return The FireflyId for the Vertex with a persisted user id type hint.
      */
-    public FireflyId createVertexIdFromRecord(final FireflyRecord record) {
+    public FireflyId createVertexIdFromRecord(final KeyRecord record) {
         final Object userId;
-        final long typeHint;
-        if (record.key().userKey.getObject() != null) {
-            userId = record.key().userKey.getObject();
-        } else if (record.record().getValue(db.USER_KEY_BIN) != null) {
-            userId = record.record().getValue(db.USER_KEY_BIN);
+        if (record.record.getValue(db.USER_KEY_BIN) != null) {
+            userId = record.record.getValue(db.USER_KEY_BIN);
         } else {
             // This should never happen since Vertex records should always have user id stored.
             throw new RuntimeException("Vertex record did not contain a user key.");
         }
-        typeHint = record.record().getLong(db.ID_TYPE_BIN) == 0 ? VERTEX_ID_TYPE_TO_HINT.get(userId.getClass()) : record.record().getLong(db.ID_TYPE_BIN);
+        final long typeHint = record.record.getLong(db.ID_TYPE_BIN);
         if (HINT_TO_TYPE.containsKey(typeHint)) {
             return FireflyIdPoly.fromObject(userId, HINT_TO_TYPE.get(typeHint), db.setFromElementType(FireflyVertex.class));
         } else {

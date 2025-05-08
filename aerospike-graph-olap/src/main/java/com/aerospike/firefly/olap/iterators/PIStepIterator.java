@@ -147,7 +147,6 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
                     }
                     final String indexName = direction == Direction.OUT ? db.E_OUT_INDEX_NAME : db.E_IN_INDEX_NAME;
                     final QueryPolicy queryPolicy = new QueryPolicy();
-                    queryPolicy.sendKey = true;
                     queryPolicy.includeBinData = true;
                     // TODO: HasContainer support.
                     //final Set<String> labels = Set.of(vertexStep.getEdgeLabels());

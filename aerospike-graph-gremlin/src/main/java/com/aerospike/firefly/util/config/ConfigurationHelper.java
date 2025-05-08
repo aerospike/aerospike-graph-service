@@ -226,7 +226,7 @@ public final class ConfigurationHelper {
             GRAPH_VARIABLES_BIN(Pair.of((byte) 1, "GRAPH_VARS")),
             VERTEX_PROPERTY_NAME_TO_VALUE_BIN(Pair.of((byte) 2, "VP_NAME_VAL")),
             VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN(Pair.of((byte) 3, "VP_HINT")),
-            RELATIONAL_VERTEX_TYPE_HINT_BIN(Pair.of((byte) 4, "REL_VP_HINT")),
+            LOCK_BIN(Pair.of((byte) 4, "LOCK")),
             EDGE_CACHE_DISABLED_BIN(Pair.of((byte) 6, "ECACHE_OFF")),
             IN_EDGES_BIN(Pair.of((byte) 7, "IN_EDGES")),
             OUT_EDGES_BIN(Pair.of((byte) 8, "OUT_EDGES")),

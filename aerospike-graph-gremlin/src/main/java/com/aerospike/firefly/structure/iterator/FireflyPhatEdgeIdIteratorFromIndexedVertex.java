@@ -94,12 +94,12 @@ public class FireflyPhatEdgeIdIteratorFromIndexedVertex extends FireflyPhatEdgeI
         if (adjacentVertexId != null) {
             final Map<String, Object> adjacencyPushdowns = (Map<String, Object>) record.getMap(db.SUPERNODE_EDGE_PROPERTIES_BIN);
             if (adjacencyPushdowns != null) {
-                final Map<String, Object> propertyKeys = (Map<String, Object>) adjacencyPushdowns.get(vertexId.getKeyHashString());
+                final Map<String, Object> propertyKeys = (Map<String, Object>) adjacencyPushdowns.get(vertexId.getUserId());
                 if (propertyKeys != null) {
                     final Map<Long, String> edgeIdToVertexId = (Map<Long, String>) propertyKeys.get(adjacentVertexMapKey);
                     if (edgeIdToVertexId != null) {
                         for (final Map.Entry<Long, String> edgeUniqueIdToVertexIdEntry : edgeIdToVertexId.entrySet()) {
-                            if (edgeUniqueIdToVertexIdEntry.getValue().equals(adjacentVertexId.getKeyHashString())) {
+                            if (edgeUniqueIdToVertexIdEntry.getValue().equals(adjacentVertexId.getUserId())) {
                                 uniqueEdgeIdsAttachedToAdjacentVertex.add(edgeUniqueIdToVertexIdEntry.getKey());
                             }
                         }

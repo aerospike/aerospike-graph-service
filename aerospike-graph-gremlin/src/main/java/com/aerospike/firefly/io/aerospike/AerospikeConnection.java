@@ -286,8 +286,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean IS_AUDIT_LOG_ENABLED;
     public final boolean AUTHENTICATION_ENABLED;
     public final boolean USAGE_STATS_SET_INDEX_ENABLED;
-    public boolean isSupernodePushdownEnabled = true;
-    public boolean isMergeEdgeDataModelEnabled = true;
     public final List<String> vertexNonPropertyBins = new ArrayList<>();
     public final List<String> vertexPropertyBins = new ArrayList<>();
 

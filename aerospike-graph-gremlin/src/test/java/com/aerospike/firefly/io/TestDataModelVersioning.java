@@ -120,7 +120,7 @@ public class TestDataModelVersioning {
 
     @Test
     public void TestClearDataConfig() {
-        final Configuration CLEAR_CONFIG = ConfigurationHelper.loadFromFile("../../../resources/integration-test-settings-clear-on-build.properties");
+        final Configuration CLEAR_CONFIG = ConfigurationHelper.loadFromFile("../conf/aerospike-graph.properties");
         //first set to a 2 level model and add data to server
         db.setGraphMetadata("packed", "2.0.0");
 

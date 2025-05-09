@@ -50,8 +50,8 @@ public class FireflyEdgeFactory {
 
         final Map<Long, String> outSupernodes = (Map<Long, String>) record.getMap(graph.getBaseGraph().SUPERNODES_OUT_BIN);
         final Map<Long, String> inSupernodes = (Map<Long, String>) record.getMap(graph.getBaseGraph().SUPERNODES_IN_BIN);
-        final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(((FireflyEdgeId) edgeId).getPackingId());
-        final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(((FireflyEdgeId) edgeId).getPackingId());
+        final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(((FireflyEdgeId) edgeId).getUniqueId());
+        final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(((FireflyEdgeId) edgeId).getUniqueId());
 
         return create(edgeId, label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, record.generation);
     }

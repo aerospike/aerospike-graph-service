@@ -768,12 +768,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         // Write to supernodes bin if vertex cache overflowed.
         if (inVSupernode) {
             final Operation writeInVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_IN_BIN,
-                    Value.get(id.getPackingId()), Value.get(inId.getKeyHashString()));
+                    Value.get(id.getUniqueId()), Value.get(inId.getKeyHashString()));
             operations.add(writeInVSupernode);
         }
         if (outVSupernode) {
             final Operation writeOutVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_OUT_BIN,
-                    Value.get(id.getPackingId()), Value.get(outId.getKeyHashString()));
+                    Value.get(id.getUniqueId()), Value.get(outId.getKeyHashString()));
             operations.add(writeOutVSupernode);
         }
 

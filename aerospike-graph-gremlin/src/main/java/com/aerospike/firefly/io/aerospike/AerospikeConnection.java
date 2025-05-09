@@ -33,7 +33,6 @@ import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.policy.AuthMode;
 import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.ClientPolicy;
-import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
@@ -1999,17 +1998,17 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Decrement an Id counter.
+     * Add to an Id counter.
      * <p>
      * This is primarily used to reserve a range of Ids for use and management of reserved Ids must be handled explicitly.
      *
      * @param name   name of Counter to operate on
-     * @param amount amount on Counter to decrement
+     * @param amount amount on Counter to add
      * @return value of counter after operation
      */
-    public long decrementIdCounter(final String name, final long amount) {
+    public long addIdCounter(final String name, final long amount) {
         final Key key = new Key(namespace, ID_MANAGER_SET, name);
-        final Bin ctr = new Bin(COUNTER_BIN, -amount);
+        final Bin ctr = new Bin(COUNTER_BIN, amount);
         final Record record = this.writeOperate(null, key,
                 Operation.add(ctr),
                 Operation.get(COUNTER_BIN));

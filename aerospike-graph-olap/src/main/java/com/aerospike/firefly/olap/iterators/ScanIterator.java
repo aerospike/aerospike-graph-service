@@ -211,8 +211,8 @@ public class ScanIterator implements CloseableIterator<Traverser> {
 
             final Map<Long, String> outSupernodes = (Map<Long, String>) kr.record.getMap(graph.getBaseGraph().SUPERNODES_OUT_BIN);
             final Map<Long, String> inSupernodes = (Map<Long, String>) kr.record.getMap(graph.getBaseGraph().SUPERNODES_IN_BIN);
-            final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(edgeId.getPackingId());
-            final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(edgeId.getPackingId());
+            final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(edgeId.getUniqueId());
+            final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(edgeId.getUniqueId());
 
             final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, kr.record.generation);
             Traverser t = tg.generate(edge, graphStep, 1L);

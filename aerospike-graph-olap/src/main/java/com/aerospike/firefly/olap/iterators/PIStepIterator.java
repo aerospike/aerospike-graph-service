@@ -241,23 +241,23 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
             }
         }
 
-        final Map<Long, String> edgeIdToVertexIdMap = (Map<Long, String>) record.getMap(directionKey);
-        if (edgeIdToVertexIdMap == null) {
+        final Map<Long, String> edgeUniqueIdToVertexIdMap = (Map<Long, String>) record.getMap(directionKey);
+        if (edgeUniqueIdToVertexIdMap == null) {
             return;
         }
         final Map<ByteBuffer, List<?>> edgeIdToData = (Map<ByteBuffer, List<?>>) record.getMap(graph.getBaseGraph().EDGE_DATA_BIN);
         if (edgeIdToData == null) {
             return;
         }
-        final Map<Long, FireflyPhatEdgeId> packingIdToEdgeId = new HashMap<>();
+        final Map<Long, FireflyPhatEdgeId> uniqueIdToEdgeId = new HashMap<>();
         for (final ByteBuffer byteId : edgeIdToData.keySet()) {
             final FireflyPhatEdgeId edgeId = graph.getBaseGraph().getIdFactory().createEdgeId(byteId);
-            packingIdToEdgeId.put(edgeId.getPackingId(), edgeId);
+            uniqueIdToEdgeId.put(edgeId.getUniqueId(), edgeId);
         }
 
-        for (final Map.Entry<Long, String> edgePackingIdToVertexId : edgeIdToVertexIdMap.entrySet()) {
-            if (edgePackingIdToVertexId.getValue().equals(inputVertexId.getKeyHashString())) {
-                final Edge edge = FireflyEdgeFactory.create(packingIdToEdgeId.get(edgePackingIdToVertexId.getKey()), record, graph);
+        for (final Map.Entry<Long, String> edgeUniqueIdToVertexId : edgeUniqueIdToVertexIdMap.entrySet()) {
+            if (edgeUniqueIdToVertexId.getValue().equals(inputVertexId.getKeyHashString())) {
+                final Edge edge = FireflyEdgeFactory.create(uniqueIdToEdgeId.get(edgeUniqueIdToVertexId.getKey()), record, graph);
                 if (HasContainer.testAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
                     currentEdges.add(edge);
                 }

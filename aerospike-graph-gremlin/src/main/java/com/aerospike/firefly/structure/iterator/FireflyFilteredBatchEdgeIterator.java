@@ -12,7 +12,6 @@ import java.util.NoSuchElementException;
 
 /**
  * Used for FireflyMergeEdge step, which filters Adjacent Vertex ID and Label beforehand.
- *
  */
 public class FireflyFilteredBatchEdgeIterator<E extends Edge> extends FireflyBatchEdgeIterator<E> {
     private final List<HasContainer> filters;
@@ -26,33 +25,33 @@ public class FireflyFilteredBatchEdgeIterator<E extends Edge> extends FireflyBat
 
     @Override
     public boolean hasNext() {
-        if (next != null) {
-            // We're holding a valid element to return.
-            return true;
-        }
-        if (elementIterator == null || !elementIterator.hasNext()) {
-            // The current element iterator has been exhausted. Grab more elements using the ID iterator.
-            if (!idIterator.hasNext()) {
-                return false;
+        while (true) {
+            if (next != null) {
+                // We're holding a valid element to return.
+                return true;
             }
-            final List<FireflyId> fireflyIdList = new ArrayList<>();
-            while (idIterator.hasNext() && fireflyIdList.size() < graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
-                fireflyIdList.add(idIterator.next());
-            }
-            elementIterator = graph.getOperations().readEdges(fireflyIdList).iterator();
-            return hasNext();
-        } else {
-            // Search the current element iterator for one that passes the filters.
-            while (elementIterator.hasNext()) {
-                final E edge = (E) elementIterator.next();
-                if (HasContainer.testAll(edge, filters)) {
-                    // We found an element. Break and return.
-                    next = edge;
-                    return true;
+            if (elementIterator == null || !elementIterator.hasNext()) {
+                // The current element iterator has been exhausted. Grab more elements using the ID iterator.
+                if (!idIterator.hasNext()) {
+                    return false;
                 }
-            }
-            // A valid element could not be found using the current iterator. Start again.
-            return hasNext();
+                final List<FireflyId> fireflyIdList = new ArrayList<>();
+                while (idIterator.hasNext() && fireflyIdList.size() < graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+                    fireflyIdList.add(idIterator.next());
+                }
+                elementIterator = graph.getOperations().readEdges(fireflyIdList).iterator();
+                // Now we loop again
+            } else {
+                // Search the current element iterator for one that passes the filters.
+                while (elementIterator.hasNext()) {
+                    final E edge = (E) elementIterator.next();
+                    if (HasContainer.testAll(edge, filters)) {
+                        // We found an element. Break and return.
+                        next = edge;
+                        return true;
+                    }
+                }
+            } // A valid element could not be found using the current iterator. Loop
         }
     }
 

@@ -21,7 +21,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,16 +42,16 @@ public class ScanIterator implements CloseableIterator<Traverser> {
     final FireflyGraph graph;
     final LinkedBlockingQueue<PageFetcher.Page> pageQueue;
     final List<Row> rows = new ArrayList<>();
-    int rowCount = 0;
     final List<HasContainer> hasContainers;
     final String startStep;
     final Codec codec;
     final Traversal traversal;
     final TraverserGenerator tg;
-    PageFetcher<?> pageFetcher = null;
-    PageFetcher.Page page = null;
     final GraphStep graphStep;
     final Expression expression;
+    int rowCount = 0;
+    PageFetcher<?> pageFetcher = null;
+    PageFetcher.Page page = null;
     Iterator<Map.Entry<ByteBuffer, List>> edgeIterator;
     KeyRecord kr = null;
 
@@ -82,89 +81,89 @@ public class ScanIterator implements CloseableIterator<Traverser> {
 
     @Override
     public boolean hasNext() {
-        if (edgeIterator != null && edgeIterator.hasNext()) {
-            return true;
-        }
-
-        if (rows.isEmpty() || rows.size() == rowCount) {
-            return false;
-        }
-
-        if (page != null) {
-            if (page.keyRecords.hasNext()) {
+        while (true) {
+            if (edgeIterator != null && edgeIterator.hasNext()) {
                 return true;
-            } else {
-                final PaginationIterator pi = (PaginationIterator) page.keyRecords;
-                pi.close();
             }
-        }
 
-        // Now current index.
-        if (pageFetcher == null) {
-            int attemptCount = 0;
-            while (true) {
-                try {
-                    final Row row = rows.get(rowCount);
-                    final PartitionFilter partitionFilter = PartitionFilter.range(
-                            row.getInt(row.fieldIndex(START_COL)),
-                            row.getInt(row.fieldIndex(COUNT_COL)));
+            if (rows.isEmpty() || rows.size() == rowCount) {
+                return false;
+            }
 
-                    TaskLogger.logDebuggingMessage("Row number " + rowCount, LOGGER);
+            if (page != null) {
+                if (page.keyRecords.hasNext()) {
+                    return true;
+                } else {
+                    final PaginationIterator pi = (PaginationIterator) page.keyRecords;
+                    pi.close();
+                }
+            }
 
-                    // TODO: Can omit some bins here.
-                    final int evaluationTimeout = Long.valueOf(TimeoutHelper.calculate(traversal.asAdmin())).intValue();
+            // Now current index.
+            if (pageFetcher == null) {
+                int attemptCount = 0;
+                while (true) {
+                    try {
+                        final Row row = rows.get(rowCount);
+                        final PartitionFilter partitionFilter = PartitionFilter.range(
+                                row.getInt(row.fieldIndex(START_COL)),
+                                row.getInt(row.fieldIndex(COUNT_COL)));
 
-                    final ScanPolicy policy = new ScanPolicy();
-                    policy.setTimeout(evaluationTimeout);
-                    policy.filterExp = expression;
-                    attemptCount++;
-                    pageFetcher = new ScanPageFetcher<>(
-                            graph,
-                            policy,
-                            graphStep.returnsVertex() ? graph.getBaseGraph().VERTEX_AERO_SET : graph.getBaseGraph().EDGE_AERO_SET,
-                            null,
-                            graph.getBaseGraph().PAGINATION_PAGE_SIZE,
-                            null,
-                            partitionFilter,
-                            Executors.newSingleThreadExecutor(),
-                            pageQueue,
-                            graph::vertexFromRecord);
+                        TaskLogger.logDebuggingMessage("Row number " + rowCount, LOGGER);
 
-                    // Intentionally not using return value here.
-                    pageFetcher.startQueryDirect();
-                    break;
-                } catch (final Exception e) {
-                    TaskLogger.logDebuggingMessage("Got exception " + e.getMessage(), LOGGER);
-                    if (attemptCount > 10) {
-                        throw new RuntimeException("Failed to run query after " + attemptCount + " attempts.", e);
-                    } else if (e.getMessage().contains("Operation not allowed at this time")) {
-                        TaskLogger.logDebuggingMessage("Sleeping.", LOGGER);
-                        try {
-                            Thread.sleep(1000L * (attemptCount + 1));
-                        } catch (InterruptedException e1) {
-                            throw new RuntimeException(e1);
+                        // TODO: Can omit some bins here.
+                        final int evaluationTimeout = Long.valueOf(TimeoutHelper.calculate(traversal.asAdmin())).intValue();
+
+                        final ScanPolicy policy = new ScanPolicy();
+                        policy.setTimeout(evaluationTimeout);
+                        policy.filterExp = expression;
+                        attemptCount++;
+                        pageFetcher = new ScanPageFetcher<>(
+                                graph,
+                                policy,
+                                graphStep.returnsVertex() ? graph.getBaseGraph().VERTEX_AERO_SET : graph.getBaseGraph().EDGE_AERO_SET,
+                                null,
+                                graph.getBaseGraph().PAGINATION_PAGE_SIZE,
+                                null,
+                                partitionFilter,
+                                Executors.newSingleThreadExecutor(),
+                                pageQueue,
+                                graph::vertexFromRecord);
+
+                        // Intentionally not using return value here.
+                        pageFetcher.startQueryDirect();
+                        break;
+                    } catch (final Exception e) {
+                        TaskLogger.logDebuggingMessage("Got exception " + e.getMessage(), LOGGER);
+                        if (attemptCount > 10) {
+                            throw new RuntimeException("Failed to run query after " + attemptCount + " attempts.", e);
+                        } else if (e.getMessage().contains("Operation not allowed at this time")) {
+                            TaskLogger.logDebuggingMessage("Sleeping.", LOGGER);
+                            try {
+                                Thread.sleep(1000L * (attemptCount + 1));
+                            } catch (InterruptedException e1) {
+                                throw new RuntimeException(e1);
+                            }
                         }
                     }
                 }
             }
-        }
 
-        try {
-            page = pageQueue.take();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            try {
+                page = pageQueue.take();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            if (page instanceof PageFetcher.ErrorPage) {
+                final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
+                throw new RuntimeException("Error fetching page: " + errorPage.errorMessage, errorPage.exception);
+            } else if (page instanceof PageFetcher.PoisonPill) {
+                pageFetcher.shutdownAwait();
+                pageFetcher = null;
+                page = null;
+                rowCount++;
+            }
         }
-        if (page instanceof PageFetcher.ErrorPage) {
-            final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
-            throw new RuntimeException("Error fetching page: " + errorPage.errorMessage, errorPage.exception);
-        } else if (page instanceof PageFetcher.PoisonPill) {
-            pageFetcher.shutdownAwait();
-            pageFetcher = null;
-            page = null;
-            rowCount++;
-        }
-
-        return hasNext();
     }
 
     private void verifyPageHasNext() {

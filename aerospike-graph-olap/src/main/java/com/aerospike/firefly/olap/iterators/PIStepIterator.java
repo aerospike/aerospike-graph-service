@@ -94,111 +94,112 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
 
     @Override
     public boolean hasNext() {
-        if (!currentEdges.isEmpty()) {
-            return true;
-        }
-
-        if (rows.isEmpty() || rows.size() == rowCount) {
-            return false;
-        }
-
-        if (page != null) {
-            while (currentEdges.isEmpty() && page.keyRecords.hasNext()) {
-                    final KeyRecord kr = page.keyRecords.next();
-                    getIndividualEdgeIdsAttachedToVertex(kr.record);
-            }
+        while(true) {
             if (!currentEdges.isEmpty()) {
                 return true;
-            } else {
-                final PaginationIterator pi = (PaginationIterator) page.keyRecords;
-                pi.close();
             }
-        }
 
-        // Now current index.
-        if (pageFetcher == null) {
-            int attemptCount = 0;
-            while (true) {
-                try {
-                    attemptCount++;
-                    final Row row = rows.get(rowCount);
-                    final PartitionFilter partitionFilter = PartitionFilter.range(
-                            row.getInt(row.fieldIndex(START_COL)),
-                            row.getInt(row.fieldIndex(COUNT_COL)));
-                    final AerospikeConnection db = graph.getBaseGraph();
+            if (rows.isEmpty() || rows.size() == rowCount) {
+                return false;
+            }
 
-                    final String keyHashString = inputVertexId.getKeyHashString();
-                    if (row.getBoolean(row.fieldIndex(FIRST_COL))) {
-                        final FireflyVertex v = graph.readVertex(inputVertexId);
-                        // Vertex doesn't exist, therefore no output from here.
-                        if (v == null) {
-                            return false;
-                        }
-                        final List<FireflyId> edgeIds = v.getCachedEdgeIds(direction, Set.of(vertexStep.getEdgeLabels()));
-                        final List<FireflyEdge> cachedEdges = graph.readEdges(List.of(), edgeIds, null);
-                        for (final FireflyEdge edge : cachedEdges) {
-                            if (HasContainer.testAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
-                                currentEdges.add(edge);
+            if (page != null) {
+                while (currentEdges.isEmpty() && page.keyRecords.hasNext()) {
+                    final KeyRecord kr = page.keyRecords.next();
+                    getIndividualEdgeIdsAttachedToVertex(kr.record);
+                }
+                if (!currentEdges.isEmpty()) {
+                    return true;
+                } else {
+                    final PaginationIterator pi = (PaginationIterator) page.keyRecords;
+                    pi.close();
+                }
+            }
+
+            // Now current index.
+            if (pageFetcher == null) {
+                int attemptCount = 0;
+                while (true) {
+                    try {
+                        attemptCount++;
+                        final Row row = rows.get(rowCount);
+                        final PartitionFilter partitionFilter = PartitionFilter.range(
+                                row.getInt(row.fieldIndex(START_COL)),
+                                row.getInt(row.fieldIndex(COUNT_COL)));
+                        final AerospikeConnection db = graph.getBaseGraph();
+
+                        final String keyHashString = inputVertexId.getKeyHashString();
+                        if (row.getBoolean(row.fieldIndex(FIRST_COL))) {
+                            final FireflyVertex v = graph.readVertex(inputVertexId);
+                            // Vertex doesn't exist, therefore no output from here.
+                            if (v == null) {
+                                return false;
+                            }
+                            final List<FireflyId> edgeIds = v.getCachedEdgeIds(direction, Set.of(vertexStep.getEdgeLabels()));
+                            final List<FireflyEdge> cachedEdges = graph.readEdges(List.of(), edgeIds, null);
+                            for (final FireflyEdge edge : cachedEdges) {
+                                if (HasContainer.testAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
+                                    currentEdges.add(edge);
+                                }
                             }
                         }
-                    }
-                    if (direction == Direction.BOTH) {
-                        throw new IllegalStateException("Error, cannot run this optimization on 'both'.");
-                    }
-                    final String indexName = direction == Direction.OUT ? db.E_OUT_INDEX_NAME : db.E_IN_INDEX_NAME;
-                    final QueryPolicy queryPolicy = new QueryPolicy();
-                    queryPolicy.includeBinData = true;
-                    // TODO: HasContainer support.
-                    //final Set<String> labels = Set.of(vertexStep.getEdgeLabels());
-                    //final String supernodeBin = direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN;
-                    //queryPolicy.filterExp = GraphQueryHelper.phatEdgeHasContainerListToExpression(db, hasContainers, labels,
-                    //        keyHashString, null, direction);
-                    pageFetcher = new PartitionedSindexPageFetcher<>(
-                            graph,
-                            queryPolicy,
-                            db.EDGE_AERO_SET,
-                            graph.getBaseGraph().getNamespace(),
-                            Filter.contains(direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN, IndexCollectionType.MAPVALUES, keyHashString),
-                            graph.getBaseGraph().PAGINATION_PAGE_SIZE,
-                            graph::vertexFromRecord,
-                            indexName,
-                            partitionFilter,
-                            pageQueue);
+                        if (direction == Direction.BOTH) {
+                            throw new IllegalStateException("Error, cannot run this optimization on 'both'.");
+                        }
+                        final String indexName = direction == Direction.OUT ? db.E_OUT_INDEX_NAME : db.E_IN_INDEX_NAME;
+                        final QueryPolicy queryPolicy = new QueryPolicy();
+                        queryPolicy.sendKey = true;
+                        queryPolicy.includeBinData = true;
+                        // TODO: HasContainer support.
+                        //final Set<String> labels = Set.of(vertexStep.getEdgeLabels());
+                        //final String supernodeBin = direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN;
+                        //queryPolicy.filterExp = GraphQueryHelper.phatEdgeHasContainerListToExpression(db, hasContainers, labels,
+                        //        keyHashString, null, direction);
+                        pageFetcher = new PartitionedSindexPageFetcher<>(
+                                graph,
+                                queryPolicy,
+                                db.EDGE_AERO_SET,
+                                graph.getBaseGraph().getNamespace(),
+                                Filter.contains(direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN, IndexCollectionType.MAPVALUES, keyHashString),
+                                graph.getBaseGraph().PAGINATION_PAGE_SIZE,
+                                graph::vertexFromRecord,
+                                indexName,
+                                partitionFilter,
+                                pageQueue);
 
-                    // Intentionally not using return value here.
-                    pageFetcher.startQueryDirect();
-                    break;
-                } catch (final Exception e) {
-                    if (attemptCount > 10) {
-                        throw new RuntimeException("Failed to run query after " + attemptCount + " attempts.", e);
-                    } else if (e.getMessage().contains("Operation not allowed at this time")) {
-                        TaskLogger.logDebuggingMessage("Sleeping.", LOGGER);
-                        try {
-                            Thread.sleep(1000L * (attemptCount + 1));
-                        } catch (final InterruptedException e1) {
-                            throw new RuntimeException(e1);
+                        // Intentionally not using return value here.
+                        pageFetcher.startQueryDirect();
+                        break;
+                    } catch (final Exception e) {
+                        if (attemptCount > 10) {
+                            throw new RuntimeException("Failed to run query after " + attemptCount + " attempts.", e);
+                        } else if (e.getMessage().contains("Operation not allowed at this time")) {
+                            TaskLogger.logDebuggingMessage("Sleeping.", LOGGER);
+                            try {
+                                Thread.sleep(1000L * (attemptCount + 1));
+                            } catch (final InterruptedException e1) {
+                                throw new RuntimeException(e1);
+                            }
                         }
                     }
                 }
             }
-        }
 
-        try {
-            page = pageQueue.take();
-        } catch (final InterruptedException e) {
-            throw new RuntimeException(e);
+            try {
+                page = pageQueue.take();
+            } catch (final InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            if (page instanceof PageFetcher.ErrorPage) {
+                final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
+                throw new RuntimeException("Error fetching page: " + errorPage.errorMessage, errorPage.exception);
+            } else if (page instanceof PageFetcher.PoisonPill) {
+                pageFetcher.shutdownAwait();
+                pageFetcher = null;
+                page = null;
+                rowCount++;
+            }
         }
-        if (page instanceof PageFetcher.ErrorPage) {
-            final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
-            throw new RuntimeException("Error fetching page: " + errorPage.errorMessage, errorPage.exception);
-        } else if (page instanceof PageFetcher.PoisonPill) {
-            pageFetcher.shutdownAwait();
-            pageFetcher = null;
-            page = null;
-            rowCount++;
-        }
-
-        return hasNext();
     }
 
     @Override

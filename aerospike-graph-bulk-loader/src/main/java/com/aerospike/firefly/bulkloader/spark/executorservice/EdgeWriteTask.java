@@ -94,7 +94,7 @@ public class EdgeWriteTask {
     }
 
     public static CompletionStage<Void> writeBatch(final ScheduledExecutorService service,
-                                                    final FireflyGraph graph,
+                                                   final FireflyGraph graph,
                                                    final List<EdgeWriteTask> edgeWriteTask) {
         if (edgeWriteTask.isEmpty()) {
             return CompletableFuture.completedFuture(null);

@@ -375,14 +375,14 @@ public class RecoveryUtil {
     }
 
     public static class RecoveryInfo {
-        private Set<Long> vertexPartitions;
-        private Set<Long> edgePartitions;
-        private Set<Object> supernodes;
-        private String state;
-        private int vertexPartitionCount;
-        private int edgePartitionCount;
-        private String tempEdgeDirectory;
-        private String tempVertexDirectory;
+        final private Set<Long> vertexPartitions;
+        final private Set<Long> edgePartitions;
+        final private Set<Object> supernodes;
+        final private String state;
+        final private int vertexPartitionCount;
+        final private int edgePartitionCount;
+        final private String tempEdgeDirectory;
+        final private String tempVertexDirectory;
 
         public RecoveryInfo(final Set<Long> vertexPartitions,
                             final Set<Long> edgePartitions,

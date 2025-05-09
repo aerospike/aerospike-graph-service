@@ -34,6 +34,7 @@ import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.storage.StorageLevel;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
@@ -75,6 +76,7 @@ import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIM
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
+import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement.ID_HEADER;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_EDGES_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_ENTRY_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
@@ -87,6 +89,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException.isRetryable;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
+import static org.apache.spark.sql.functions.col;
 
 public class EdgeOperations implements Serializable {
     public static final List<String> REQUIRED_EDGE_HEADERS = List.of(FROM_VERTEX_HEADER, TO_VERTEX_HEADER);
@@ -112,7 +115,7 @@ public class EdgeOperations implements Serializable {
 
     public void writeEdges(final Dataset<Row> persistedEdgeDS,
                            final Set<Long> completedEdgePartitions,
-                           final boolean readOnly) {
+                           final boolean readOnly, final boolean generateEdgeCaches) {
         persistedEdgeDS.foreachPartition(rowIterator -> {
             final int partitionId = TaskContext.getPartitionId();
             if (!readOnly) {
@@ -168,7 +171,7 @@ public class EdgeOperations implements Serializable {
                     if (futures.size() >= bufferSize) {
                         final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
                         megaTask.join();
-                        if (readOnly) {
+                        if (!generateEdgeCaches) {
                             writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
                         }
                         LOGGER.info(String.format("Edge write, partitionId: %d, batch: %d, time taken(in milli-seconds): %d, super node size: %d, cleaning all cached vertex maps", partitionId,
@@ -185,8 +188,8 @@ public class EdgeOperations implements Serializable {
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, DatasetOperations.COLUMNS_TO_REMOVE);
 
                     try {
-                        if (!readOnly) {
-                            final Long packingId = Long.parseLong(metadataRow.getString(metadataRow.fieldIndex(PACKING_ID_COLUMN)));
+                        if (generateEdgeCaches) {
+                            final Long packingId = metadataRow.getLong(metadataRow.fieldIndex(PACKING_ID_COLUMN));
                             final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
                                     providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
                                     metadataRow, usePersistedEdgeId, partitionId);
@@ -212,7 +215,7 @@ public class EdgeOperations implements Serializable {
                     }
                 }
 
-                if (!readOnly) {
+                if (generateEdgeCaches) {
                     // Kick off the last batch.
                     futures.add(EdgeWriteTask.writeBatch(executor, graph, tasks));
                 }
@@ -227,7 +230,7 @@ public class EdgeOperations implements Serializable {
                 } else {
                     // Flush Vertex Edge cache maps when all Edge writes are done.
                     try {
-                        if (!readOnly) {
+                        if (!generateEdgeCaches) {
                             writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
                         }
                     } catch (final RuntimeException e) {
@@ -250,7 +253,6 @@ public class EdgeOperations implements Serializable {
     private void writeEdgeCacheToDB(final FireflyGraph graph,
                                     final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap,
                                     final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap) {
-        // TODO: Figure out how to find detatched edges.
         final long allowedDetachedEdges = this.config.getOrDefaultInt(ALLOWED_BAD_EDGES_COUNT);
         final Set<byte[]> invalidEdgeIds = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
@@ -559,21 +561,6 @@ public class EdgeOperations implements Serializable {
         }
     }
 
-    static private class PackingIDAdditionFunction implements MapPartitionsFunction, Serializable {
-        final Map<String, Object> fileConfig;
-        final StructType schema;
-
-        public PackingIDAdditionFunction(final Map<String, Object> fileConfig, final StructType writeSchema) {
-            this.fileConfig = fileConfig;
-            this.schema = writeSchema;
-        }
-
-        @Override
-        public Iterator call(final Iterator input) {
-            return new PackingIDOutputIterator(fileConfig, input, schema);
-        }
-    }
-
     static private class EdgeIDOutputIterator implements Iterator<Row>, Serializable {
         private long counter = 0L;
         private final Logger ITER_LOGGER = LoggerFactory.getLogger(EdgeIDOutputIterator.class);
@@ -629,69 +616,10 @@ public class EdgeOperations implements Serializable {
             }
             // Add the edgeID
             final FireflyPhatEdgeId edgeId = (FireflyPhatEdgeId) getFireflyGraph().getIdFactory().generateId(getFireflyGraph(), FireflyEdge.class);
-            outputRow.add(encodeID(edgeId)); // Encode using our custom encoder
-            return new GenericRowWithSchema(outputRow.toArray(), schema);
-        }
-    }
-
-    static private class PackingIDOutputIterator implements Iterator<Row>, Serializable {
-        private long counter = 0L;
-        private final Logger ITER_LOGGER = LoggerFactory.getLogger(PackingIDOutputIterator.class);
-        final Map<String, Object> config;
-        final Iterator<Row> data;
-        final StructType schema;
-        final Instant start;
-
-        private final Supplier<FireflyGraph> graphSupplier = new Supplier<>() {
-            private FireflyGraph instance = null;
-
-            @Override
-            public FireflyGraph get() {
-                if (instance == null) {
-                    synchronized (this) {
-                        if (instance == null) {
-                            instance = FireflyGraph.open(new MapConfiguration(config));
-                        }
-                    }
-                }
-                return instance;
-            }
-        };
-
-        public FireflyGraph getFireflyGraph() {
-            return graphSupplier.get();
-        }
-
-        public PackingIDOutputIterator(final Map<String, Object> conf, final Iterator<Row> data, final StructType writeSchema) {
-            start = Instant.now();
-            this.config = conf;
-            this.data = data;
-            this.schema = writeSchema;
-        }
-
-        @Override
-        public boolean hasNext() {
-            final boolean hasMore = data.hasNext();
-            if (!hasMore) {
-                ITER_LOGGER.info("Done processing edgeID write task in partition:{}, rows:{}, time taken(in seconds):{}", TaskContext.getPartitionId(), counter, Duration.between(start, Instant.now()).getSeconds());
-                getFireflyGraph().close();
-            }
-            return hasMore;
-        }
-
-        @Override
-        public Row next() {
-            counter++;
-            final Row input = data.next();
-            final List<Object> outputRow = new ArrayList<>();
-            for (int i = 0; i < input.size(); i++) {
-                outputRow.add(input.get(i));
-            }
-
-            // Get packing id and snip to pure pack.
-            final String idString = input.getString(input.fieldIndex(EDGE_ID_COLUMN));
-            final Long id = Long.parseLong(idString.split(":")[0]) / getFireflyGraph().getBaseGraph().PHAT_EDGE_SIZE;
-            outputRow.add(id);
+            final String encodedId = encodeID(edgeId);
+            outputRow.add(encodedId);
+            final Long packingId = Long.parseLong(encodedId.split(":")[0]) / getFireflyGraph().getBaseGraph().PHAT_EDGE_SIZE;
+            outputRow.add(packingId);
             return new GenericRowWithSchema(outputRow.toArray(), schema);
         }
     }
@@ -717,27 +645,69 @@ public class EdgeOperations implements Serializable {
 
     /***
      * Assigns each edge record with an ~edgeID and writes them to user specified location.
-     * @param edgeDataSet
+     * @param edgeDataset
      * @param writeLocation
      * @param config
      */
-    public Dataset<Row> writeEdgeIDsToDataframe(final Dataset<Row> edgeDataSet, final String writeLocation,
-                                      final Map<String, Object> config, final boolean readOnly) {
+    public Dataset<Row> writeEdgeIDsToDataframe(final Dataset<Row> edgeDataset, final String writeLocation,
+                                                final Map<String, Object> config, final boolean readOnly) {
         final Instant startWriteEdge = Instant.now();
         final String taskName = "Edges ID write";
-        final StructType writeSchema = edgeDataSet.schema().add(DataTypes.createStructField(EDGE_ID_COLUMN, DataTypes.StringType, false));
-        edgeDataSet.sparkSession().sparkContext().setJobGroup(taskName, "Edges ID write task", true);
+        final StructType writeSchema = edgeDataset.schema().
+                add(DataTypes.createStructField(EDGE_ID_COLUMN, DataTypes.StringType, false)).
+                add(DataTypes.createStructField(PACKING_ID_COLUMN, DataTypes.LongType, false));
+        edgeDataset.sparkSession().sparkContext().setJobGroup(taskName, "Edges ID write task", true);
         final ExpressionEncoder<Row> edgeIdEncoder = RowEncoder.apply(writeSchema);
-        final Dataset<Row> edgeIdDataset = edgeDataSet.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), edgeIdEncoder);
-        final StructType writePackingSchema = edgeIdDataset.schema().add(DataTypes.createStructField(PACKING_ID_COLUMN, DataTypes.LongType, false));
-        final ExpressionEncoder<Row> packingIdEncoder = RowEncoder.apply(writePackingSchema);
-        final Dataset<Row> packingIdDataset = edgeIdDataset.mapPartitions(new PackingIDAdditionFunction(config, writePackingSchema), packingIdEncoder);
+        final Dataset<Row> edgeIdDataset = edgeDataset.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), edgeIdEncoder);
         if (!readOnly) {
-            packingIdDataset.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "bzip2").csv(writeLocation);
+            edgeIdDataset.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "bzip2").csv(writeLocation);
+            edgeIdDataset.persist(StorageLevel.DISK_ONLY());
+
         }
-        edgeDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
+        edgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
         LOGGER.info("Execution time in seconds for Edge ID write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
-        return packingIdDataset;
+        return edgeIdDataset;
+    }
+
+    public void writeBadEdges(final Dataset<Row> edgeDataset,
+                              final Dataset<Row> vertexDataset,
+                              final BulkLoaderConfigHelper config) {
+        final Instant startWriteEdge = Instant.now();
+        final String taskName = "Write bad edges";
+        edgeDataset.sparkSession().sparkContext().setJobGroup(taskName, "Write bad edges", true);
+
+        // Step 1: Prepare filtered vertex set
+        Dataset<Row> vertexIdSet = vertexDataset.select(ID_HEADER).distinct();
+
+        // Step 2: Find unmatched ~to values
+        Dataset<Row> unmatchedTo = edgeDataset
+                .select(col(TO_VERTEX_HEADER).alias("missing_vertex_id"))
+                .join(vertexIdSet, col("missing_vertex_id").equalTo(vertexIdSet.col(ID_HEADER)), "left_anti");
+
+        // Step 3: Find unmatched ~from values
+        Dataset<Row> unmatchedFrom = edgeDataset
+                .select(col(FROM_VERTEX_HEADER).alias("missing_vertex_id"))
+                .join(vertexIdSet, col("missing_vertex_id").equalTo(vertexIdSet.col(ID_HEADER)), "left_anti");
+
+        // Step 4: Combine both, then group and count
+        Dataset<Row> allUnmatched = unmatchedTo.union(unmatchedFrom);
+
+        Dataset<Row> unmatchedCounts = allUnmatched.groupBy("missing_vertex_id").count();
+        unmatchedCounts.foreachPartition(
+                partition -> {
+                    try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
+                        while (partition.hasNext()) {
+                            final Row row = partition.next();
+                            final String vertexId = row.getString(0);
+                            final long count = row.getLong(1);
+                            graph.getOperations().writeBadEdge(vertexId, count);
+                            LOGGER.error("Vertex ID {} has {} unmatched edges", vertexId, count);
+                        }
+                    }
+                });
+
+        edgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
+        LOGGER.info("Execution time in seconds for Write bad edges: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
     }
 
     /***
@@ -777,13 +747,13 @@ public class EdgeOperations implements Serializable {
 
     public void writeEdgeToDB(final Dataset<Row> edgeIdDataSet,
                               final Set<Long> completedEdgePartitions,
-                              final boolean readOnly) {
+                              final boolean readOnly, final boolean generateEdgeCaches) {
         if (!this.config.hasAction(DISABLE_EDGE_WRITE)) {
             final Instant startWriteEdge = Instant.now();
             final String taskName = "Edges write to Aerospike Database";
             edgeIdDataSet.sparkSession().sparkContext().setJobGroup(taskName,
                     "Edges write task", true);
-            writeEdges(edgeIdDataSet, completedEdgePartitions, readOnly);
+            writeEdges(edgeIdDataSet, completedEdgePartitions, readOnly, generateEdgeCaches);
             edgeIdDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
             LOGGER.info("Execution time in seconds for Edge write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
         }

@@ -745,7 +745,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final List<FireflyId> inIds = inVertexIds.stream().map(id -> graph.getIdFactory().createVertexId(id)).collect(Collectors.toList());
         final List<FireflyId> outIds = outVertexIds.stream().map(id -> graph.getIdFactory().createVertexId(id)).collect(Collectors.toList());
 
-
         final List<Map<String, Object>> propertyMaps = new ArrayList<>();
         final List<Map<String, Object>> typeHintss = new ArrayList<>();
         for (final List<Map.Entry<String, Object>> properties : propertiess) {

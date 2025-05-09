@@ -28,7 +28,8 @@ public class SparkBulkLoaderStateWriteEdges extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.edgeOperations.writeEdgeToDB(
                 sparkBulkLoaderStateMachine.edgeDataset,
                 sparkBulkLoaderStateMachine.completedEdgePartitions,
-                sparkBulkLoaderStateMachine.readOnly);
+                sparkBulkLoaderStateMachine.readOnly,
+                sparkBulkLoaderStateMachine.generateEdgeCaches);
         sparkBulkLoaderStateMachine.progressBar.setEdgeLoadComplete();
         sparkBulkLoaderStateMachine.initializerGraph.fireflySummaryUpdater.clearEdgePartitionData();
     }

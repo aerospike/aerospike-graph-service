@@ -42,7 +42,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.vertexOperations = new VertexOperations(
                 sparkBulkLoaderStateMachine.config,
                 sparkBulkLoaderStateMachine.vertexDirectories);
-        if ("SUPERNODE_DETECTION".equals(info.getState())) {
+        if (RecoveryUtil.RecoveryState.DETECT_SUPERNODES.name().equals(info.getState())) {
             // Edge caches not yet generated.
             sparkBulkLoaderStateMachine.vertexDataset = DatasetOperations.loadDataset(
                     sparkBulkLoaderStateMachine.spark,
@@ -175,14 +175,15 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
             if (state != null && !state.isEmpty()) {
                 loadCheckpointDatasets(info);
                 sparkBulkLoaderStateMachine.progressBar.setResumeableLoadComplete();
-                switch (state) {
-                    case "DETECT_SUPERNODES":
+                final RecoveryUtil.RecoveryState recoveryState = RecoveryUtil.RecoveryState.valueOf(state);
+                switch (recoveryState) {
+                    case DETECT_SUPERNODES:
                         LOGGER.info("Recovering from detectSupernodes state");
                         // Here we have completed the preflight and persistence of edge ids.
                         // Therefore, we can reload the edge dataset and vertex dataset checkpoints.
                         nextState = new SparkBulkLoaderStateDetectSupernodes(sparkBulkLoaderStateMachine);
                         break;
-                    case "GENERATE_EDGE_CACHES":
+                    case GENERATE_EDGE_CACHES:
                         LOGGER.info("Recovering from generateEdgeCaches state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
                         // Here we have completed the supernode detection and died during edge cache generation.
@@ -190,7 +191,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                         // We can also load the supernodes and vertex partitions.
                         nextState = new SparkBulkLoaderStateGenerateEdgeCaches(sparkBulkLoaderStateMachine);
                         break;
-                    case "VERTEX_WRITE":
+                    case VERTEX_WRITE:
                         LOGGER.info("Recovering from writeVertices state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
                         sparkBulkLoaderStateMachine.progressBar.setGenerateEdgeCachesComplete();
@@ -200,7 +201,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                         // We can also load the supernodes and vertex partitions.
                         nextState = new SparkBulkLoaderStateWriteVertices(sparkBulkLoaderStateMachine);
                         break;
-                    case "VERTEX_VERIFY":
+                    case VERTEX_VERIFY:
                         LOGGER.info("Recovering from verifyVertices state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
                         sparkBulkLoaderStateMachine.progressBar.setGenerateEdgeCachesComplete();
@@ -211,7 +212,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                         // Vertex partitions are irrelevant, and we can restart the vertex verification step.
                         nextState = new SparkBulkLoaderStateVerifyVertices(sparkBulkLoaderStateMachine);
                         break;
-                    case "EDGE_WRITE":
+                    case EDGE_WRITE:
                         LOGGER.info("Recovering from writeEdges state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
                         sparkBulkLoaderStateMachine.progressBar.setVertexLoadComplete();
@@ -222,7 +223,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                         // Vertex partitions are irrelevant, and we can restart the edge writing step.
                         nextState = new SparkBulkLoaderStateWriteEdges(sparkBulkLoaderStateMachine);
                         break;
-                    case "EDGE_VERIFY":
+                    case EDGE_VERIFY:
                         LOGGER.info("Recovering from verifyEdges state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
                         sparkBulkLoaderStateMachine.progressBar.setVertexLoadComplete();

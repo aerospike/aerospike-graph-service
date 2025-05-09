@@ -64,6 +64,7 @@ public class SparkBulkLoaderStateMachine {
     public List<String> edgeDirectories;
     public String edgeRecoveryDirectory;
     public boolean incrementalLoad;
+    public boolean generateEdgeCaches;
     public BulkLoaderConfigHelper config;
     public SparkSession spark;
     public VertexOperations vertexOperations;
@@ -80,6 +81,9 @@ public class SparkBulkLoaderStateMachine {
     public Set<Long> completedVertexPartitions = new HashSet<>();
     public Set<Long> completedEdgePartitions = new HashSet<>();
     public double supernodeSamplingPercentage;
+    public Long vertexCount = -1L;
+    public Long edgeCount = -1L;
+    public Long edgeCountAfterRemoval = -1L;
 
     public SparkBulkLoaderStateMachine(final String[] args) {
         try {
@@ -180,6 +184,8 @@ public class SparkBulkLoaderStateMachine {
                         fileSystem.equals(SparkBulkLoaderStateMachine.LOCAL) ? File.separator : "/");
                 configureFileSystem(spark, cmd, edgeRecoveryDirectory);
             }
+            generateEdgeCaches = !incrementalLoad && !readOnly;
+            progressBar.setIsEdgeCacheGenerationRequired(generateEdgeCaches);
         } catch (final Exception e) {
             LOGGER.error("Failed to initialize SparkBulkLoaderStateMachine", e);
             cleanup();

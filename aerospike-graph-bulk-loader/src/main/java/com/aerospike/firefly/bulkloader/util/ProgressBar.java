@@ -14,6 +14,7 @@ public class ProgressBar extends TimerTask {
     private final int intervalMillis;
     private FireflyGraph graph = null;
     private boolean isL2Mode = false;
+    private boolean isEdgeCacheGenerationRequired = false;
     private boolean preflightCheckComplete = false;
     private boolean generateEdgeCachesComplete = false;
     private boolean superNodeExtractionComplete = false;
@@ -34,6 +35,8 @@ public class ProgressBar extends TimerTask {
     private Double vertexPartitionWritePercentage = null;
     private Double edgePartitionWritePercentage = null;
     private AerospikeGraphException lastException = null;
+    private long vertexLineCount = -1L;
+    private long edgeLineCount = -1L;
 
     public ProgressBar(final int intervalMillis) {
         this.intervalMillis = intervalMillis;
@@ -70,6 +73,12 @@ public class ProgressBar extends TimerTask {
     public void setIsL2Mode(final boolean isL2Mode) {
         synchronized (ProgressBar.class) {
             this.isL2Mode = isL2Mode;
+        }
+    }
+
+    public void setIsEdgeCacheGenerationRequired(final boolean isEdgeCacheGenerationRequired) {
+        synchronized (ProgressBar.class) {
+            this.isEdgeCacheGenerationRequired = isEdgeCacheGenerationRequired;
         }
     }
 
@@ -124,6 +133,18 @@ public class ProgressBar extends TimerTask {
     public void setSuperNodeExtractionComplete() {
         synchronized (ProgressBar.class) {
             this.superNodeExtractionComplete = true;
+        }
+    }
+
+    public void setVertexTotalCount(final long vertexLineCount) {
+        synchronized (ProgressBar.class) {
+            this.vertexLineCount = vertexLineCount;
+        }
+    }
+
+    public void setEdgeTotalCount(final long edgeLineCount) {
+        synchronized (ProgressBar.class) {
+            this.edgeLineCount = edgeLineCount;
         }
     }
 
@@ -182,39 +203,73 @@ public class ProgressBar extends TimerTask {
     private Double getPartitionProgressPercentage(final int totalPartitions, final int completePartitions) {
         if (graph == null || totalPartitions <= 0) {
             return null;
-        } else {
-            return (double) completePartitions / totalPartitions;
         }
+        return (double) completePartitions / totalPartitions;
     }
-
 
     private String getPartitionProgress(final int totalPartitions, final int completePartitions, final Double percentComplete) {
         if (graph == null || totalPartitions <= 0 || percentComplete == null) {
             return null;
-        } else {
-            return "\t\t\t" + completePartitions + " of " + totalPartitions + " partitions complete (" +
-                    String.format("%.2f", percentComplete * 100) + "%)\n";
         }
+        return "\t\t\t" + completePartitions + " of " + totalPartitions + " partitions complete (" +
+                String.format("%.2f", percentComplete * 100) + "%)\n";
+    }
+
+
+    private String getLineProgress(final long totalLines,
+                                   final long linesPerSecond,
+                                   final long completedLines,
+                                   final String type) {
+        if (graph == null || totalLines == -1L) {
+            return null;
+        }
+        final long remainingLines = totalLines - completedLines;
+        final long remainingSeconds = remainingLines / linesPerSecond;
+        final long seconds = remainingSeconds % 60;
+        final long minutes = (remainingSeconds / 60) % 60;
+        final long hours = remainingSeconds / 3600;
+        final double percentComplete;
+        if (totalLines != 0) {
+            percentComplete = (double) completedLines / totalLines;
+        } else {
+            percentComplete = 0.0;
+        }
+
+        return String.format("\t\t\t%d of %d %s complete (%.2f%%)\n\t\t\tEstimated time remaining = %02dh:%02dm:%02ds\n",
+                completedLines,
+                totalLines,
+                type,
+                percentComplete * 100,
+                hours,
+                minutes,
+                seconds);
     }
 
     private String getVertexWritingProgress(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         if (vertexLoadComplete) {
             return "\t\tVertex writing complete\n" +
                     "\t\t\tTotal of " + (elementMetadata.totalVertexCount() - verticesInitial) + " vertices have been successfully written\n";
-        } else if ((isL2Mode && superNodeExtractionComplete) || (!isL2Mode && generateEdgeCachesComplete)) {
+        } else if ((!isEdgeCacheGenerationRequired && superNodeExtractionComplete) ||
+                (isEdgeCacheGenerationRequired && generateEdgeCachesComplete)) {
             if (verticesWritten == 0) {
                 updateAndGetDeltaVertexCount(elementMetadata);
                 return "\t\tVertex writing in progress\n";
             } else {
                 final long delta = updateAndGetDeltaVertexCount(elementMetadata);
-                final String output = "\t\tVertex writing in progress\n" +
-                        "\t\t\tWriting " + delta / (intervalMillis / 1000) + " vertices per second\n" +
-                        "\t\t\tTotal of " + verticesWritten + " vertices have been successfully written\n";
+                String output = "\t\tVertex writing in progress\n" +
+                        "\t\t\tWriting " + delta / (intervalMillis / 1000) + " vertices per second\n";
                 final int totalPartitions = vertexPartitions;
                 final int completePartitions = RecoveryUtil.completedVertexPartitions(graph.getBaseGraph()).size();
                 vertexPartitionWritePercentage = getPartitionProgressPercentage(totalPartitions, completePartitions);
                 final String partitionProgress = getPartitionProgress(totalPartitions, completePartitions, vertexPartitionWritePercentage);
-                return output + (partitionProgress == null ? "" : partitionProgress);
+                final String lineProgress = getLineProgress(vertexLineCount, delta / (intervalMillis / 1000), verticesWritten, "vertices");
+                if (partitionProgress != null) {
+                    output += partitionProgress;
+                }
+                if (lineProgress != null) {
+                    output += lineProgress;
+                }
+                return output;
             }
         } else {
             return "\t\tVertex writing not started\n";
@@ -238,7 +293,7 @@ public class ProgressBar extends TimerTask {
                 return "\t\tEdge writing in progress\n";
             } else {
                 final long delta = updateAndGetDeltaEdgeCount(elementMetadata);
-                final String output;
+                String output;
                 final int totalPartitions = edgePartitions;
                 if (delta >= 0) {
                     output = "\t\tEdge writing in progress\n" +
@@ -259,7 +314,14 @@ public class ProgressBar extends TimerTask {
                 final int completePartitions = RecoveryUtil.completedEdgePartitions(graph.getBaseGraph()).size();
                 edgePartitionWritePercentage = getPartitionProgressPercentage(totalPartitions, completePartitions);
                 final String partitionProgress = getPartitionProgress(totalPartitions, completePartitions, edgePartitionWritePercentage);
-                return output + (partitionProgress == null ? "" : partitionProgress);
+                final String lineProgress = getLineProgress(edgeLineCount, delta / (intervalMillis / 1000), edgesWritten, "edges");
+                if (partitionProgress != null) {
+                    output += partitionProgress;
+                }
+                if (lineProgress != null) {
+                    output += lineProgress;
+                }
+                return output;
             }
         } else {
             return "\t\tEdge writing not started\n";
@@ -305,7 +367,7 @@ public class ProgressBar extends TimerTask {
     }
 
     private String getGenerateEdgeIdsProgress() {
-        if (this.isL2Mode) {
+        if (!this.isEdgeCacheGenerationRequired) {
             return "";
         }
         if (generateEdgeCachesComplete) {

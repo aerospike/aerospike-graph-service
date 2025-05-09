@@ -9,6 +9,9 @@ import org.apache.spark.sql.Column;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
+import java.time.Instant;
+
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
 
 public class SparkBulkLoaderStateReadVertices extends SparkBulkLoaderState {
@@ -29,6 +32,13 @@ public class SparkBulkLoaderStateReadVertices extends SparkBulkLoaderState {
                 sparkBulkLoaderStateMachine.vertexDirectories,
                 VertexOperations.REQUIRED_VERTEX_HEADERS,
                 DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config));
+        // TODO: Remove.
+        Instant start = Instant.now();
+        sparkBulkLoaderStateMachine.vertexCount = sparkBulkLoaderStateMachine.vertexDataset.count();
+        LOGGER.info("Vertex count: {} took {} ms",
+                sparkBulkLoaderStateMachine.vertexCount,
+                Duration.between(start, Instant.now()).toMillis());
+        sparkBulkLoaderStateMachine.progressBar.setVertexTotalCount(sparkBulkLoaderStateMachine.vertexCount);
     }
 
     @Override

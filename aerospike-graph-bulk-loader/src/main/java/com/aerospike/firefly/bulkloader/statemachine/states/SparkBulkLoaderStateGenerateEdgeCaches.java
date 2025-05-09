@@ -3,6 +3,7 @@ package com.aerospike.firefly.bulkloader.statemachine.states;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
+import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -36,7 +37,7 @@ public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState
     @Override
     public void executeState() {
         // Since we can't persist the edgeIds, spark re-generates them over and over and it screws up the ids.
-        if (!sparkBulkLoaderStateMachine.readOnly) {
+        if (!sparkBulkLoaderStateMachine.generateEdgeCaches) {
             return;
         }
 
@@ -45,6 +46,10 @@ public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState
         final String taskName = "Edge Cache Generation";
         sparkBulkLoaderStateMachine.spark.sparkContext().
                 setJobGroup(taskName, "Edge cache generation task.", true);
+
+        // TODO: L3 test suite
+        // TODO: Test dangling edges
+        // TODO: Test near supernodes
 
         // Create the edge cache data.
         final Dataset<Row> fromEdgeDataset = sparkBulkLoaderStateMachine.edgeDataset.
@@ -69,6 +74,12 @@ public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState
                 withColumn(TO_VERTEX_CACHE_HEADER,
                         functions.when(new Column(TO_VERTEX_CACHE_HEADER).isNotNull(),
                                 functions.to_json(new Column(TO_VERTEX_CACHE_HEADER))).otherwise(null));
+
+        // This is a testing config, used to force failure in specific spots to allow us to test the recovery modes.
+        final String failOnEdgeCaches = sparkBulkLoaderStateMachine.config.getOrDefault(BulkLoaderConfigHelper.RECOVERY_FAILURE);
+        if (RecoveryUtil.RecoveryState.GENERATE_EDGE_CACHES.name().equals(failOnEdgeCaches)) {
+            throw new RuntimeException("Testing recovery failure, please contact support.");
+        }
 
         // Merge in the edge cache data into the vertex dataset.
         sparkBulkLoaderStateMachine.vertexDataset = sparkBulkLoaderStateMachine.vertexDataset.join(

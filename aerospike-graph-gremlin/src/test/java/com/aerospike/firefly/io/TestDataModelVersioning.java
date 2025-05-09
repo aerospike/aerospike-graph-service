@@ -121,7 +121,7 @@ public class TestDataModelVersioning {
     @Test
     public void TestClearDataConfig() {
         final Configuration CLEAR_CONFIG = ConfigurationHelper.loadFromFile("../conf/aerospike-graph.properties");
-        //first set to a 2 level model and add data to server
+        //set to a lower major and add data
         db.setGraphMetadata("packed", "2.0.0");
 
         Key key = new Key(db.getNamespace(), "demo", "user1");
@@ -129,7 +129,7 @@ public class TestDataModelVersioning {
         Bin ageBin = new Bin("age", 30);
         db.checkedPut(null, key, nameBin, ageBin);
 
-        //then change model to 3 level and try to start (throws error)
+        //change model to 3 level and try to start (throws error)
         db.setGraphMetadata("packed", "3.0.0");
         try {
             final FireflyGraph graph = FireflyGraph.open(CONFIG);
@@ -138,7 +138,7 @@ public class TestDataModelVersioning {
             Assert.assertEquals(GraphError.DATA_MODEL_VERSION_MISMATCH.code, e.errorCode);
         }
 
-        //then change config to clear enabled and try again
+        //change config to clear enabled and try again
         FireflyGraph clearGraph = null;
         try {
             clearGraph = FireflyGraph.open(CLEAR_CONFIG);

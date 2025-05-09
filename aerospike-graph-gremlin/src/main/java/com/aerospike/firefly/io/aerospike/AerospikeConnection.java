@@ -2677,6 +2677,7 @@ public class AerospikeConnection implements AutoCloseable {
             synchronized (DefaultAerospikeClientProvider.class) {
                 if (OPEN_COUNT.decrementAndGet() == 0) {
                     LOG.info("Closing Aerospike client.");
+                    System.out.println("Closing Aerospike client.");
                     CLIENT.close();
                     EVENT_LOOPS.close();
                     THREADED_EXECUTOR_SERVICE.shutdown();

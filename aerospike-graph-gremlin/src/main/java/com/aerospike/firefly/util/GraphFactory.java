@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 
 import static com.aerospike.firefly.structure.FireflyGraph.getGremlinServerSettings;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.CLEAR_ON_BUILD_ENABLED;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.FIREFLY_DATA_MODEL;
 
 /**
@@ -35,9 +36,9 @@ final public class GraphFactory {
             try {
                 DataModelVersioning.checkVersionCompatibility(db);
             } catch (DataModelVersionMismatchException e) {
-                if (db.CLEAR_ON_BUILD_ENABLED_FLAG) {
+                if (ConfigurationHelper.getOrDefaultBool(CLEAR_ON_BUILD_ENABLED, config)) {
                     LOG.info("Clearing graph...");
-                    db.clearNamespace(false);
+                    db.dropDatabase(null, false);
                 } else {
                     throw e;
                 }

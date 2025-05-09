@@ -100,7 +100,7 @@ public final class ConfigurationHelper {
         put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.GLOBAL_EDGE_CACHE_ENABLED, "true");
-        put(Keys.CLEAR_ON_BUILD_ENABLED, "true");
+        put(Keys.CLEAR_ON_BUILD_ENABLED, "false");
         put(Keys.HTTP_PORT, "9090");
         put(Keys.HTTP_ENABLED, "true");
         put(Keys.PROMETHEUS_PATH, "/metrics");

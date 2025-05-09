@@ -520,10 +520,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return FireflyGraph.getDataModelName();
     }
 
-    protected int getTypeHint() {
-        return FireflyVertex.VERTEX_TYPE_HINT;
-    }
-
     /**
      * Function to write vertex to Aerospike.
      *
@@ -542,7 +538,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
         final boolean isEdgeCacheOverflowed = !this.db.GLOBAL_EDGE_CACHE_ENABLED_FLAG ||
                 this.db.ON_RECORD_ID_LIMIT <= 0 || supernodeFlag != null;
-        return operations.writeVertex(idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
+        return operations.writeVertex(idValue, label, properties, true, isEdgeCacheOverflowed);
     }
 
     public void bulkWriteMergeVertex(final Object id, final String label, final List<Map.Entry<String, Object>> properties, final int partitionId) {
@@ -590,7 +586,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         try {
             // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
             // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
-            operations.writeVertex(idValue, label, properties, getTypeHint(), false, supernode, partitionId, toEdgeCache, fromEdgeCache);
+            operations.writeVertex(idValue, label, properties, false, supernode, partitionId, toEdgeCache, fromEdgeCache);
         } catch (final AerospikeGraphException e) {
             throw new FireflyLoadingException(e);
         }
@@ -601,8 +597,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final Key key = new Key(db.namespace, db.BULK_LOAD_DUPLICATE_VID_SET, Value.get(id.getStorageId()));
         final Bin addBin = new Bin(db.COUNTER_BIN, count);
         final WritePolicy policy = new WritePolicy();
-        policy.recordExistsAction = RecordExistsAction.UPDATE;
         policy.sendKey = true;
+        policy.recordExistsAction = RecordExistsAction.UPDATE;
         try {
             this.db.writeOperate(policy, key, Operation.add(addBin));
         } catch (final AerospikeGraphException e) {
@@ -627,7 +623,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final Bin fileBin = new Bin(db.BL_FILE_BIN, fileName);
         final WritePolicy policy = new WritePolicy();
         policy.recordExistsAction = RecordExistsAction.UPDATE;
-        policy.sendKey = false;
         try {
             this.db.writeOperate(policy, key, Operation.put(rowBin), Operation.put(fileBin));
         } catch (final AerospikeGraphException e) {
@@ -727,7 +722,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public FireflyId vertexIdFromRecord(final KeyRecord keyRecord) {
-        return getIdFactory().createVertexId(keyRecord.key.userKey.getObject());
+        return getIdFactory().createVertexIdFromRecord(keyRecord);
     }
 
     // This function is used via reflection in Upgrade.java. Removing will cause issues.
@@ -889,7 +884,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         operations.add(createIndividualEdgeMap);
 
         final WritePolicy writePolicy = new WritePolicy();
-        writePolicy.sendKey = true;
         final Key key = getKey(db, db.EDGE_AERO_SET, id);
         try {
             db.writeOperate(writePolicy, key, operations.toArray(new Operation[0]));

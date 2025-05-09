@@ -20,7 +20,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,14 +39,14 @@ public class IndexIterator implements CloseableIterator<Traverser> {
     final Filter filter;
     final LinkedBlockingQueue<PageFetcher.Page> pageQueue;
     final List<Row> rows = new ArrayList<>();
-    int rowCount = 0;
     final List<HasContainer> hasContainers;
     final String startStep;
     final Codec codec;
     final Traversal traversal;
     final FireflyIndexMetadata.IndexInfo indexInfo;
-    private final GraphStep graphStep;
     final TraverserGenerator tg;
+    private final GraphStep graphStep;
+    int rowCount = 0;
     PageFetcher<?> pageFetcher = null;
     PageFetcher.Page page = null;
 
@@ -79,81 +78,81 @@ public class IndexIterator implements CloseableIterator<Traverser> {
 
     @Override
     public boolean hasNext() {
-        if (rows.isEmpty() || rows.size() == rowCount) {
-            return false;
-        }
-
-        if (page != null) {
-            if (page.keyRecords.hasNext()) {
-                return true;
-            } else {
-                final PaginationIterator pi = (PaginationIterator) page.keyRecords;
-                pi.close();
+        while (true) {
+            if (rows.isEmpty() || rows.size() == rowCount) {
+                return false;
             }
-        }
 
-        // Now current index.
-        if (pageFetcher == null) {
-            int attemptCount = 0;
-            while (true) {
-                try {
-                    final Row row = rows.get(rowCount);
-                    final PartitionFilter partitionFilter = PartitionFilter.range(
-                            row.getInt(row.fieldIndex(START_COL)),
-                            row.getInt(row.fieldIndex(COUNT_COL)));
+            if (page != null) {
+                if (page.keyRecords.hasNext()) {
+                    return true;
+                } else {
+                    final PaginationIterator pi = (PaginationIterator) page.keyRecords;
+                    pi.close();
+                }
+            }
+
+            // Now current index.
+            if (pageFetcher == null) {
+                int attemptCount = 0;
+                while (true) {
+                    try {
+                        final Row row = rows.get(rowCount);
+                        final PartitionFilter partitionFilter = PartitionFilter.range(
+                                row.getInt(row.fieldIndex(START_COL)),
+                                row.getInt(row.fieldIndex(COUNT_COL)));
 
 
-                    // TODO: Can omit some bins here.
-                    final int evaluationTimeout = Long.valueOf(TimeoutHelper.calculate(traversal.asAdmin())).intValue();
-                    final QueryPolicy policy = new QueryPolicy();
-                    policy.setTimeout(evaluationTimeout);
-                    attemptCount++;
-                    pageFetcher = new PartitionedSindexPageFetcher<>(
-                            graph,
-                            policy,
-                            indexInfo.setName,
-                            graph.getBaseGraph().getNamespace(),
-                            filter,
-                            graph.getBaseGraph().PAGINATION_PAGE_SIZE,
-                            graph::vertexFromRecord,
-                            indexInfo.indexName,
-                            partitionFilter,
-                            pageQueue);
+                        // TODO: Can omit some bins here.
+                        final int evaluationTimeout = Long.valueOf(TimeoutHelper.calculate(traversal.asAdmin())).intValue();
+                        final QueryPolicy policy = new QueryPolicy();
+                        policy.setTimeout(evaluationTimeout);
+                        attemptCount++;
+                        pageFetcher = new PartitionedSindexPageFetcher<>(
+                                graph,
+                                policy,
+                                indexInfo.setName,
+                                graph.getBaseGraph().getNamespace(),
+                                filter,
+                                graph.getBaseGraph().PAGINATION_PAGE_SIZE,
+                                graph::vertexFromRecord,
+                                indexInfo.indexName,
+                                partitionFilter,
+                                pageQueue);
 
-                    // Intentionally not using return value here.
-                    pageFetcher.startQueryDirect();
-                    break;
-                } catch (final Exception e) {
-                    if (attemptCount > 10) {
-                        throw new RuntimeException("Failed to run query after " + attemptCount + " attempts.", e);
-                    } else if (e.getMessage().contains("Operation not allowed at this time")) {
-                        TaskLogger.logDebuggingMessage("Sleeping.", LOGGER);
-                        try {
-                            Thread.sleep(1000L * (attemptCount + 1));
-                        } catch (final InterruptedException e1) {
-                            throw new RuntimeException(e1);
+                        // Intentionally not using return value here.
+                        pageFetcher.startQueryDirect();
+                        break;
+                    } catch (final Exception e) {
+                        if (attemptCount > 10) {
+                            throw new RuntimeException("Failed to run query after " + attemptCount + " attempts.", e);
+                        } else if (e.getMessage().contains("Operation not allowed at this time")) {
+                            TaskLogger.logDebuggingMessage("Sleeping.", LOGGER);
+                            try {
+                                Thread.sleep(1000L * (attemptCount + 1));
+                            } catch (final InterruptedException e1) {
+                                throw new RuntimeException(e1);
+                            }
                         }
                     }
                 }
             }
-        }
 
-        try {
-            page = pageQueue.take();
-        } catch (final InterruptedException e) {
-            throw new RuntimeException(e);
+            try {
+                page = pageQueue.take();
+            } catch (final InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            if (page instanceof PageFetcher.ErrorPage) {
+                final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
+                throw new RuntimeException("Error fetching page: " + errorPage.errorMessage, errorPage.exception);
+            } else if (page instanceof PageFetcher.PoisonPill) {
+                pageFetcher.shutdownAwait();
+                pageFetcher = null;
+                page = null;
+                rowCount++;
+            }
         }
-        if (page instanceof PageFetcher.ErrorPage) {
-            final PageFetcher.ErrorPage errorPage = (PageFetcher.ErrorPage) page;
-            throw new RuntimeException("Error fetching page: " + errorPage.errorMessage, errorPage.exception);
-        } else if (page instanceof PageFetcher.PoisonPill) {
-            pageFetcher.shutdownAwait();
-            pageFetcher = null;
-            page = null;
-            rowCount++;
-        }
-
-        return hasNext();
     }
 
     @Override

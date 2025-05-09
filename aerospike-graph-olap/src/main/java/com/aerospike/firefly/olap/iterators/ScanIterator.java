@@ -14,6 +14,7 @@ import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.util.TimeoutHelper;
 import org.apache.spark.sql.Row;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -21,7 +22,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -197,23 +197,24 @@ public class ScanIterator implements CloseableIterator<Traverser> {
             }
 
             final Map.Entry<ByteBuffer, List> entry = edgeIterator.next();
+            final FireflyPhatEdgeId edgeId = graph.getIdFactory().createEdgeId(entry.getKey());
             final String label = (String) entry.getValue().get(FireflyEdge.LABEL_POSITION);
 
-            final String outV = (String) entry.getValue().get(FireflyEdge.OUT_V_POSITION);
-            final FireflyId outVertex = graph.getIdFactory().createVertexIdFromHash(outV);
+            final Object outV = entry.getValue().get(FireflyEdge.OUT_V_POSITION);
+            final FireflyId outVertex = graph.getIdFactory().createVertexId(outV);
 
-            final String inV = (String) entry.getValue().get(FireflyEdge.IN_V_POSITION);
-            final FireflyId inVertex = graph.getIdFactory().createVertexIdFromHash(inV);
+            final Object inV = entry.getValue().get(FireflyEdge.IN_V_POSITION);
+            final FireflyId inVertex = graph.getIdFactory().createVertexId(inV);
 
             final Map<String, Object> properties = (Map<String, Object>) entry.getValue().get(FireflyEdge.PROPERTIES_POSITION);
             final Map<String, Object> typeHints = (Map<String, Object>) entry.getValue().get(FireflyEdge.TYPE_HINTS_POSITION);
 
-            final Map<ByteBuffer, String> outSupernodes = (Map<ByteBuffer, String>) kr.record.getMap(graph.getBaseGraph().SUPERNODES_OUT_BIN);
-            final Map<ByteBuffer, String> inSupernodes = (Map<ByteBuffer, String>) kr.record.getMap(graph.getBaseGraph().SUPERNODES_IN_BIN);
-            final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(entry.getKey());
-            final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(entry.getKey());
+            final Map<Long, String> outSupernodes = (Map<Long, String>) kr.record.getMap(graph.getBaseGraph().SUPERNODES_OUT_BIN);
+            final Map<Long, String> inSupernodes = (Map<Long, String>) kr.record.getMap(graph.getBaseGraph().SUPERNODES_IN_BIN);
+            final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(edgeId.getPackingId());
+            final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(edgeId.getPackingId());
 
-            final FireflyEdge edge = FireflyEdgeFactory.create(graph.getIdFactory().createEdgeId(entry.getKey()), label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, kr.record.generation);
+            final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, kr.record.generation);
             Traverser t = tg.generate(edge, graphStep, 1L);
             t.asAdmin().setStepId(startStep);
             return t;

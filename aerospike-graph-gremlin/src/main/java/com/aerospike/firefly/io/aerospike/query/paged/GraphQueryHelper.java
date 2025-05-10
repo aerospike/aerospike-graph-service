@@ -253,7 +253,8 @@ public class GraphQueryHelper {
             // This should never happen.
             throw new IllegalArgumentException("Adjacency pushdown filter for adjacent Vertex ID can not be invoked with Direction BOTH.");
         }
-         return MapExp.getByValue(MapReturnType.EXISTS, Exp.val(adjacentVertexId.getKeyHashString()),
+        final Exp vertexUserIdExp = adjacentVertexId.getUserId() instanceof String ? Exp.val((String) adjacentVertexId.getUserId()) : Exp.val((long) adjacentVertexId.getUserId());
+        return MapExp.getByValue(MapReturnType.EXISTS, vertexUserIdExp,
                  Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexId.getUserId())),
                  CTX.mapKey(Value.get(directionMapKey)));
     }

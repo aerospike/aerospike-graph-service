@@ -7,7 +7,6 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 
 import java.nio.ByteBuffer;
@@ -96,9 +95,9 @@ public class FireflyPhatEdgeIdIteratorFromIndexedVertex extends FireflyPhatEdgeI
             if (adjacencyPushdowns != null) {
                 final Map<String, Object> propertyKeys = (Map<String, Object>) adjacencyPushdowns.get(vertexId.getUserId());
                 if (propertyKeys != null) {
-                    final Map<Long, String> edgeIdToVertexId = (Map<Long, String>) propertyKeys.get(adjacentVertexMapKey);
+                    final Map<Long, Object> edgeIdToVertexId = (Map<Long, Object>) propertyKeys.get(adjacentVertexMapKey);
                     if (edgeIdToVertexId != null) {
-                        for (final Map.Entry<Long, String> edgeUniqueIdToVertexIdEntry : edgeIdToVertexId.entrySet()) {
+                        for (final Map.Entry<Long, Object> edgeUniqueIdToVertexIdEntry : edgeIdToVertexId.entrySet()) {
                             if (edgeUniqueIdToVertexIdEntry.getValue().equals(adjacentVertexId.getUserId())) {
                                 uniqueEdgeIdsAttachedToAdjacentVertex.add(edgeUniqueIdToVertexIdEntry.getKey());
                             }

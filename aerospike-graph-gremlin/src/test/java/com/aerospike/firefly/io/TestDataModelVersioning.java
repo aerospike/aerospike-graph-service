@@ -6,11 +6,13 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.DataModelVersioning;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
+import com.aerospike.firefly.util.config.FireflyConfiguration;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.DataModelVersionMismatchException;
 import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.lang3.StringUtils;
+import com.aerospike.firefly.util.GraphFactory;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -121,18 +123,25 @@ public class TestDataModelVersioning {
     @Test
     public void TestClearDataConfig() {
         final Configuration CLEAR_CONFIG = ConfigurationHelper.loadFromFile("../conf/aerospike-graph.properties");
+        CLEAR_CONFIG.addProperty("aerospike.graph.clear.on.build.enabled", "true");
+        final FireflyConfiguration FF_CONFIG = FireflyConfiguration.fromConfiguration(CONFIG);
+        final FireflyConfiguration FF_CLEAR_CONFIG = FireflyConfiguration.fromConfiguration(CLEAR_CONFIG);
         //set to a lower major and add data
-        db.setGraphMetadata("packed", "2.0.0");
 
+        AerospikeConnection db = AerospikeConnection.connect(CONFIG);
+        db.clearNamespace(false);
+        //db.setGraphMetadata("packed", "2.0.0");
+        db.setGraphMetadata(FireflyGraph.getDataModelName(), getAdjustedMajorVersion(-1));
         Key key = new Key(db.getNamespace(), "demo", "user1");
         Bin nameBin = new Bin("name", "alice");
         Bin ageBin = new Bin("age", 30);
         db.checkedPut(null, key, nameBin, ageBin);
 
         //change model to 3 level and try to start (throws error)
-        db.setGraphMetadata("packed", "3.0.0");
+        //db.setGraphMetadata("packed", "3.0.0");
+        db.setGraphMetadata(FireflyGraph.getDataModelName(), getAdjustedMajorVersion(1));
         try {
-            final FireflyGraph graph = FireflyGraph.open(CONFIG);
+            final FireflyGraph graph = GraphFactory.createGraph(db, FF_CONFIG);
             Assert.fail("Should have failed due to model mismatch");
         } catch (final DataModelVersionMismatchException e) {
             Assert.assertEquals(GraphError.DATA_MODEL_VERSION_MISMATCH.code, e.errorCode);
@@ -141,8 +150,7 @@ public class TestDataModelVersioning {
         //change config to clear enabled and try again
         FireflyGraph clearGraph = null;
         try {
-            clearGraph = FireflyGraph.open(CLEAR_CONFIG);
-            Assert.fail("Should have failed due to model mismatch");
+            clearGraph = GraphFactory.createGraph(db, FF_CLEAR_CONFIG);
         } catch (Exception e) {
             Assert.fail("Opening graph should not have thrown, but got: " + e);
         }

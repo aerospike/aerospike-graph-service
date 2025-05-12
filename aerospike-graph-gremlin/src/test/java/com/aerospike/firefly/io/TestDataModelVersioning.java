@@ -129,7 +129,6 @@ public class TestDataModelVersioning {
         //set to a lower major and add data
 
         AerospikeConnection db = AerospikeConnection.connect(CONFIG);
-        db.clearNamespace(false);
 
         db.setGraphMetadata(FireflyGraph.getDataModelName(), getAdjustedMajorVersion(-1));
         Key key = new Key(db.getNamespace(), "demo", "user1");

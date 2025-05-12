@@ -1595,12 +1595,12 @@ public class AerospikeConnection implements AutoCloseable {
 
     /**
      * Delete all data from the namespace
+     * clearFlag = true drops indexes
+     * clearFlag = false does not drop indexes
      */
     public void clearNamespace(final boolean clearFlag) {
+        client.truncate(null, namespace, null, null);
         if (clearFlag) {
-            client.truncate(null, namespace, null, null);
-        } else {
-            client.truncate(null, namespace, null, null);
             final List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(this);
             for (final Map.Entry<String, String> entry : indexes) {
                 dropIndex(entry.getValue(), entry.getKey());

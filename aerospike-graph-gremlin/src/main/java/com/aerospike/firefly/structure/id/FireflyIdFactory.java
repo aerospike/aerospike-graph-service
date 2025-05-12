@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure.id;
 
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -20,8 +21,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_PACKING_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 
@@ -50,9 +51,9 @@ public class FireflyIdFactory {
         this.db = db;
         this.vertexIdManager = new BufferedNumericIdManager(VERTEX_ID_COUNTER, db.VERTEX_ID_BUFFER_SIZE);
         if (db.MRT_ENABLED && !db.getBulkLoaderFlag()) {
-            this.edgeIdManager = new MrtRecyclingBufferedNumericIdManager(EDGE_RECYCLED_ID_COUNTER, EDGE_UNIQUE_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, db.PHAT_EDGE_SIZE);
+            this.edgeIdManager = new MrtRecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, db.EDGE_ID_RECYCLE_BUFFER_SIZE, db.PHAT_EDGE_SIZE);
         } else {
-            this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_RECYCLED_ID_COUNTER, EDGE_UNIQUE_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE);
+            this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, db.EDGE_ID_RECYCLE_BUFFER_SIZE);
         }
         this.vertexPropertyIdManager = new BufferedNumericIdManager(VERTEX_PROPERTY_ID_COUNTER, db.PROPERTY_ID_BUFFER_SIZE);
     }
@@ -91,18 +92,15 @@ public class FireflyIdFactory {
      * @param record the Vertex record
      * @return The FireflyId for the Vertex with a persisted user id type hint.
      */
-    public FireflyId createVertexIdFromRecord(final FireflyRecord record) {
+    public FireflyId createVertexIdFromRecord(final KeyRecord record) {
         final Object userId;
-        final long typeHint;
-        if (record.key().userKey.getObject() != null) {
-            userId = record.key().userKey.getObject();
-        } else if (record.record().getValue(db.USER_KEY_BIN) != null) {
-            userId = record.record().getValue(db.USER_KEY_BIN);
+        if (record.record.getValue(db.USER_KEY_BIN) != null) {
+            userId = record.record.getValue(db.USER_KEY_BIN);
         } else {
             // This should never happen since Vertex records should always have user id stored.
             throw new RuntimeException("Vertex record did not contain a user key.");
         }
-        typeHint = record.record().getLong(db.ID_TYPE_BIN) == 0 ? VERTEX_ID_TYPE_TO_HINT.get(userId.getClass()) : record.record().getLong(db.ID_TYPE_BIN);
+        final long typeHint = record.record.getLong(db.ID_TYPE_BIN);
         if (HINT_TO_TYPE.containsKey(typeHint)) {
             return FireflyIdPoly.fromObject(userId, HINT_TO_TYPE.get(typeHint), db.setFromElementType(FireflyVertex.class));
         } else {
@@ -154,24 +152,16 @@ public class FireflyIdFactory {
      * @return a FireflyIdComposite representing an edge and an adjacent Vertex
      */
     public FireflyIdComposite createCompositeEdgeId(final FireflyEdgeId edgeId, final FireflyId adjacentVertex) {
-        if (this.db.ENABLE_CACHED_ADJACENT_ID_STRATEGY) {
-            return new FireflyUserIdComposite(db, edgeId, adjacentVertex);
-        } else {
-            return new FireflyIdComposite(db, edgeId, adjacentVertex);
-        }
+        return new FireflyIdComposite(db, edgeId, adjacentVertex);
     }
 
     /**
-     * Create a composite id from a byte array
-     * @param compositeIdBytes  the bytes that form a FireflyIdComposite
+     * Create a composite id from a List
+     * @param compositeIdArray  the List that forms a FireflyIdComposite
      * @return a FireflyIdComposite representing an edge and an adjacent Vertex
      */
-    public FireflyIdComposite createCompositeEdgeId(final byte[] compositeIdBytes) {
-        if (this.db.ENABLE_CACHED_ADJACENT_ID_STRATEGY) {
-            return new FireflyUserIdComposite(db, compositeIdBytes);
-        } else {
-            return new FireflyIdComposite(db, compositeIdBytes);
-        }
+    public FireflyIdComposite createCompositeEdgeId(final List<Object> compositeIdArray) {
+        return new FireflyIdComposite(db, compositeIdArray);
     }
 
     /**

@@ -40,6 +40,7 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
 
     @AfterClass
     public static void afterAll() {
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
         SETUP_GRAPH.close();
     }
 
@@ -55,30 +56,25 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
         return buffer.getLong();
     }
 
-    private byte[] getBaselineId(final long offsetLower, final long offsetUpper) {
-        final byte[] lower = new byte[Long.BYTES];
-        final byte[] upper = new byte[Long.BYTES];
-        System.arraycopy(baseline, 0, lower, 0, Long.BYTES);
-        System.arraycopy(baseline, Long.BYTES, upper, 0, Long.BYTES);
-        final long lowerLong = bytesToLong(lower) + offsetLower;
-        final long upperLong = bytesToLong(upper) + offsetUpper;
-        final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2);
-        buffer.putLong(lowerLong);
-        buffer.putLong(upperLong);
+    private byte[] getComparableNewIdFromBaseline(final long offset) {
+        final byte[] packing = new byte[Long.BYTES];
+        System.arraycopy(baseline, 0, packing, 0, Long.BYTES);
+        final long packingLong = bytesToLong(packing) + offset;
+        final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+        buffer.putLong(packingLong);
         return buffer.array();
     }
-
 
     @Test
     public void testBufferedAndUnbufferedIdGet() {
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             final RecyclingBufferedNumericIdManager idManager = (RecyclingBufferedNumericIdManager) graph.getIdFactory().getEdgeIdManager();
             // Buffer -1, -2, -3
-            Assert.assertArrayEquals(idManager.getNextId(graph), getBaselineId(-OFFSET_BASELINE - 1, -OFFSET_BASELINE - 1));
-            Assert.assertArrayEquals(idManager.getNextId(graph), getBaselineId(-OFFSET_BASELINE - 2, -OFFSET_BASELINE - 2));
+            Assert.assertArrayEquals(idManager.getNextId(graph), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 1));
+            Assert.assertArrayEquals(idManager.getNextId(graph), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 2));
+            Assert.assertArrayEquals(idManager.getNextId(graph), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 3));
             // Buffer -4
-            Assert.assertArrayEquals(idManager.getNextId(graph), getBaselineId(-OFFSET_BASELINE - 3, -OFFSET_BASELINE - 3));
-            Assert.assertArrayEquals(idManager.getNextId(graph), getBaselineId(-OFFSET_BASELINE - 4, -OFFSET_BASELINE - 4));
+            Assert.assertArrayEquals(idManager.getNextId(graph), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 4));
         }
     }
 
@@ -89,18 +85,18 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
             final RecyclingBufferedNumericIdManager idManager1 = (RecyclingBufferedNumericIdManager) graph1.getIdFactory().getEdgeIdManager();
             final RecyclingBufferedNumericIdManager idManager2 = (RecyclingBufferedNumericIdManager) graph2.getIdFactory().getEdgeIdManager();
 
-            Assert.assertArrayEquals(idManager1.getNextId(graph1), getBaselineId(-OFFSET_BASELINE - 1, -OFFSET_BASELINE - 1));
-            Assert.assertArrayEquals(idManager2.getNextId(graph2), getBaselineId(-OFFSET_BASELINE - BUFFER_SIZE - 1, -OFFSET_BASELINE - BUFFER_SIZE - 1));
-            Assert.assertArrayEquals(idManager1.getNextId(graph1), getBaselineId(-OFFSET_BASELINE - 2, -OFFSET_BASELINE - 2));
-            Assert.assertArrayEquals(idManager1.getNextId(graph1), getBaselineId(-OFFSET_BASELINE - 3, -OFFSET_BASELINE - 3));
-            Assert.assertArrayEquals(idManager2.getNextId(graph2), getBaselineId(-OFFSET_BASELINE - BUFFER_SIZE - 2, -OFFSET_BASELINE - BUFFER_SIZE - 2));
-            Assert.assertArrayEquals(idManager2.getNextId(graph2), getBaselineId(-OFFSET_BASELINE - BUFFER_SIZE - 3, -OFFSET_BASELINE - BUFFER_SIZE - 3));
+            Assert.assertArrayEquals(idManager1.getNextId(graph1), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 1));
+            Assert.assertArrayEquals(idManager2.getNextId(graph2), getComparableNewIdFromBaseline(-OFFSET_BASELINE - BUFFER_SIZE - 1));
+            Assert.assertArrayEquals(idManager1.getNextId(graph1), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 2));
+            Assert.assertArrayEquals(idManager1.getNextId(graph1), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 3));
+            Assert.assertArrayEquals(idManager2.getNextId(graph2), getComparableNewIdFromBaseline(-OFFSET_BASELINE - BUFFER_SIZE - 2));
+            Assert.assertArrayEquals(idManager2.getNextId(graph2), getComparableNewIdFromBaseline(-OFFSET_BASELINE - BUFFER_SIZE - 3));
 
             // Fourth element of idManager1 will rebuffer and have to go after idManager2.
-            Assert.assertArrayEquals(idManager1.getNextId(graph1), getBaselineId(-OFFSET_BASELINE - 2*BUFFER_SIZE - 1, -OFFSET_BASELINE - 2*BUFFER_SIZE - 1));
+            Assert.assertArrayEquals(idManager1.getNextId(graph1), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 2*BUFFER_SIZE - 1));
 
             // Fourth element of idManager2 will rebuffer and have to go after idManager1.
-            Assert.assertArrayEquals(idManager2.getNextId(graph2), getBaselineId(-OFFSET_BASELINE - 3*BUFFER_SIZE - 1, -OFFSET_BASELINE - 3*BUFFER_SIZE - 1));
+            Assert.assertArrayEquals(idManager2.getNextId(graph2), getComparableNewIdFromBaseline(-OFFSET_BASELINE - 3*BUFFER_SIZE - 1));
         }
     }
 

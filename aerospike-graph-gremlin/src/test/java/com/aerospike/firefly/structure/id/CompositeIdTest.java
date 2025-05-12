@@ -2,9 +2,6 @@ package com.aerospike.firefly.structure.id;
 
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
-import com.aerospike.client.policy.QueryPolicy;
-import com.aerospike.firefly.structure.FireflyEdge;
-import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -59,7 +56,7 @@ public class CompositeIdTest extends AbstractFireflySuite {
         Assert.assertTrue(fooOutFireflyIdMap.containsKey("baz"));
         Assert.assertEquals(1, barInFireflyIdMap.get("baz").size());
         Assert.assertEquals(1, fooOutFireflyIdMap.get("baz").size());
-        Assert.assertArrayEquals((byte[]) compositeFooId.getCachedId(), (byte[]) barInFireflyIdMap.get("baz").get(0).transform().getCachedId());
-        Assert.assertArrayEquals((byte[]) compositeBarId.getCachedId(), (byte[]) fooOutFireflyIdMap.get("baz").get(0).transform().getCachedId());
+        Assert.assertEquals(compositeFooId.getCachedId(), barInFireflyIdMap.get("baz").get(0).transform().getCachedId());
+        Assert.assertEquals(compositeBarId.getCachedId(), fooOutFireflyIdMap.get("baz").get(0).transform().getCachedId());
     }
 }

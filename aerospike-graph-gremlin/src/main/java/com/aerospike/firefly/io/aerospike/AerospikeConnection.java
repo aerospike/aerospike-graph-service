@@ -103,6 +103,10 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
+import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_PACKING_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
@@ -147,7 +151,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final String IN_EDGES_BIN;
     public final String OUT_EDGES_BIN;
     public final String EDGE_CACHE_DISABLED_BIN;
-    public final String RELATIONAL_VERTEX_TYPE_HINT_BIN;
+    public final String LOCK_BIN;
     public final String INDEX_METADATA_SET;
 
     public final String GRAPH_METADATA_SET;
@@ -240,6 +244,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final long PROPERTY_ID_BUFFER_SIZE;
     public final long VERTEX_ID_BUFFER_SIZE;
     public final long EDGE_ID_BUFFER_SIZE;
+    public final long EDGE_ID_RECYCLE_BUFFER_SIZE;
     public final long USAGE_STATS_UPDATE_INTERVAL;
     public final boolean WARMUP_MODE;
     public final boolean PROMETHEUS_RENAME_ENABLED;
@@ -432,10 +437,13 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf);
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf);
         ENABLE_BATCHED_REPEAT_STEP_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf);
-        ENABLE_CACHED_ADJACENT_ID_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, conf);
+        final boolean adjacentIdEnabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, conf);
 
-        if (ENABLE_CACHED_ADJACENT_ID_STRATEGY && !ENABLE_COMPOSITE_ID_STRATEGY) {
-            throw new AerospikeGraphException(GraphError.CACHE_ADJACENT_ENABLED_COMPOSITE_ID_DISABLED);
+        if (adjacentIdEnabled && !ENABLE_COMPOSITE_ID_STRATEGY) {
+            LOG.warn(new AerospikeGraphException(GraphError.CACHE_ADJACENT_ENABLED_COMPOSITE_ID_DISABLED).getMessage());
+            ENABLE_CACHED_ADJACENT_ID_STRATEGY = false;
+        } else {
+            ENABLE_CACHED_ADJACENT_ID_STRATEGY = adjacentIdEnabled;
         }
 
         TTL_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf);
@@ -527,7 +535,7 @@ public class AerospikeConnection implements AutoCloseable {
         IN_EDGES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.IN_EDGES_BIN.name(), conf);
         OUT_EDGES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.OUT_EDGES_BIN.name(), conf);
         EDGE_CACHE_DISABLED_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.EDGE_CACHE_DISABLED_BIN.name(), conf);
-        RELATIONAL_VERTEX_TYPE_HINT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.RELATIONAL_VERTEX_TYPE_HINT_BIN.name(), conf);
+        LOCK_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.LOCK_BIN.name(), conf);
         SUPERNODES_IN_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODES_IN.name(), conf);
         SUPERNODES_OUT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODES_OUT.name(), conf);
         SUPERNODE_EDGE_PROPERTIES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODE_EDGE_PROPERTIES_BIN.name(), conf);
@@ -550,6 +558,7 @@ public class AerospikeConnection implements AutoCloseable {
         PROPERTY_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, conf);
         VERTEX_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, conf);
         EDGE_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, conf);
+        EDGE_ID_RECYCLE_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.EDGE_ID_RECYCLE_BUFFER_SIZE, conf);
 
         MERGE_EDGE_TTL = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MERGE_EDGE_TTL, conf);
         MERGE_EDGE_EVAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MERGE_EDGE_EVAL_TIMEOUT, conf);
@@ -566,6 +575,7 @@ public class AerospikeConnection implements AutoCloseable {
         bulkLoaderInitializerFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_INITIALIZER_FLAG, conf);
         olapEnabledFlag = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.OLAP_ENABLED, conf);
 
+        initializeIdSet();
         idFactory = new FireflyIdFactory(this);
 
         MRT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MRT_TIMEOUT, conf);
@@ -576,7 +586,6 @@ public class AerospikeConnection implements AutoCloseable {
 
         vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_BIN); // 2
         vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN); // 3
-        vertexNonPropertyBins.add(RELATIONAL_VERTEX_TYPE_HINT_BIN); // 4
         vertexNonPropertyBins.add(EDGE_CACHE_DISABLED_BIN); // 6
         vertexNonPropertyBins.add(IN_EDGES_BIN); // 7
         vertexNonPropertyBins.add(OUT_EDGES_BIN); // 8
@@ -697,7 +706,6 @@ public class AerospikeConnection implements AutoCloseable {
     public GraphMetadata getDataModelMetadata() {
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
         final Policy policy = new Policy();
-        policy.sendKey = false;
         Record dataModelRec = read(k, policy, null);
         return new GraphMetadata(dataModelRec);
     }
@@ -1574,7 +1582,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     private Record[] batchRead(final Key[] keys, final BatchPolicy policy, final Operation[] operations, final FireflyCache cache) {
         final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
-        batchPolicy.sendKey = false;
         configureReadPolicy(batchPolicy);
         try {
             return (cache != null) ? cache.read(keys, batchPolicy, operations) : client.get(batchPolicy, keys, operations);
@@ -1593,7 +1600,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     private Record[] batchRead(final Key[] keys, final BatchPolicy policy, final FireflyCache cache) {
         final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
-        batchPolicy.sendKey = false;
         configureReadPolicy(batchPolicy);
         try {
             return (cache != null) ? cache.read(keys, batchPolicy) : client.get(batchPolicy, keys);
@@ -1658,7 +1664,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     Record[] skipCacheRead(final Key[] keys, final BatchPolicy policy, Operation[] operations) {
         final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
-        batchPolicy.sendKey = false;
         configureReadPolicy(batchPolicy);
         try {
             return client.get(batchPolicy, keys, operations);
@@ -1677,7 +1682,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     Record[] skipCacheRead(final Key[] keys, final BatchPolicy policy) {
         final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
-        batchPolicy.sendKey = false;
         configureReadPolicy(batchPolicy);
         try {
             return client.get(batchPolicy, keys);
@@ -1736,65 +1740,6 @@ public class AerospikeConnection implements AutoCloseable {
             return new FireflyRecordSet(this.client.query(queryPolicy, statement));
         } catch (final AerospikeException e) {
             throw fromAerospikeException(e);
-        }
-    }
-
-    /**
-     * Write to Aerospike, notify the cache implementation
-     *
-     * @param key  Key to write Bins into
-     * @param bins Data Bin(s) to write
-     */
-    public void write(final Key key, final Bin... bins) {
-        Bin[] newBins;
-        //@todo This is a temporary measure to pack the user key into a bin.
-        //@todo Remove when sendKey works to recover the user key for hash constructed keys
-        if (key.userKey.getObject() != null) {
-            newBins = Arrays.copyOf(bins, bins.length + 1);
-            newBins[bins.length] = new Bin(USER_KEY_BIN, Value.get(key.userKey.getObject()));
-        } else {
-            newBins = bins;
-        }
-        write(key, false, -1, newBins);
-    }
-
-    /**
-     * Write to Aerospike, notify the cache implementation
-     *
-     * @param key  Key to write Bins into
-     * @param bins Data Bin(s) to write
-     */
-    public void write(final Key key, final boolean writeOnly, final int generation, final Bin... bins) {
-        Bin[] newBins;
-        //@todo This is a temporary measure to pack the user key into a bin.
-        //@todo Remove when sendKey works to recover the user key for hash constructed keys
-        if (key.userKey.getObject() != null) {
-            newBins = Arrays.copyOf(bins, bins.length + 1);
-            newBins[bins.length] = new Bin(USER_KEY_BIN, Value.get(key.userKey.getObject()));
-        } else {
-            newBins = bins;
-        }
-
-        writeMetric.incrementAndGet();
-        final WritePolicy writePolicy = new WritePolicy();
-        writePolicy.sendKey = true;
-        if (writeOnly) {
-            writePolicy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
-        }
-        if (generation != -1) {
-            // Set generation for write.
-            writePolicy.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
-            writePolicy.generation = generation;
-        }
-        final FireflyCache cache = transactionCache.get();
-        final FireflyCache noPropsCache = emptyPropsTransactionCache.get();
-        if (cache != null) {
-            cache.write(writePolicy, key, newBins);
-        } else {
-            checkedPut(writePolicy, key, newBins);
-        }
-        if (noPropsCache != null) {
-            noPropsCache.remove(key);
         }
     }
 
@@ -2071,6 +2016,32 @@ public class AerospikeConnection implements AutoCloseable {
         return record.getLong(COUNTER_BIN);
     }
 
+    private void initializeIdSet() {
+        WritePolicy policy = new WritePolicy();
+        policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
+        configureWritePolicy(policy);
+        final Map<String, Key> idKeys = new HashMap<>();
+        idKeys.put("Vertex", new Key(namespace, ID_MANAGER_SET, VERTEX_ID_COUNTER));
+        idKeys.put("Vertex Property", new Key(namespace, ID_MANAGER_SET, VERTEX_PROPERTY_ID_COUNTER));
+        idKeys.put("Edge Packing", new Key(namespace, ID_MANAGER_SET, EDGE_PACKING_ID_COUNTER));
+        idKeys.put("Edge Unique", new Key(namespace, ID_MANAGER_SET, EDGE_UNIQUE_ID_COUNTER));
+
+        for (final Map.Entry<String, Key> key : idKeys.entrySet()) {
+            try {
+                final int initialValue = key.getKey().equals("Vertex") ? 0 : Integer.MAX_VALUE;
+                final Operation initialize = Operation.put(new Bin(COUNTER_BIN, initialValue));
+                LOG.info("Initializing {} ID metadata.", key.getKey());
+                this.client.operate(policy, key.getValue(), initialize);
+            } catch (final AerospikeException e) {
+                if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                    LOG.info("Existing {} ID metadata found.", key.getKey());
+                } else {
+                    throw fromAerospikeException(e);
+                }
+            }
+        }
+    }
+
     /**
      * Get the time of the last TTL purge was run, and set it to the given time.
      *
@@ -2309,7 +2280,7 @@ public class AerospikeConnection implements AutoCloseable {
         policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
         policy.expiration = ttlMillis / 1000;
         configureWritePolicy(policy);
-        final Operation createLockRecord = Operation.put(new Bin(this.USER_KEY_BIN, false));
+        final Operation createLockRecord = Operation.put(new Bin(this.LOCK_BIN, false));
         try {
             return this.client.operate(policy, key, createLockRecord);
         } catch (final AerospikeException e) {
@@ -2533,7 +2504,6 @@ public class AerospikeConnection implements AutoCloseable {
 
             final Txn txn = new Txn();
             final WritePolicy writePolicy = new WritePolicy();
-            writePolicy.sendKey = true;
             writePolicy.txn = txn;
 
             checkedPut(writePolicy, key, bin);

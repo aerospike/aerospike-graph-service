@@ -96,11 +96,11 @@ public class GraphQuery {
 
         if (FireflyVertex.class.isAssignableFrom(clazz)) {
             return scanSet(mapKey, db.VERTEX_AERO_SET, binName, predicate, graph::vertexIdFromRecord,
-                    hasContainers, clazz, true, true, evaluationTimeout);
+                    hasContainers, clazz, true, evaluationTimeout);
         } else if (FireflyEdge.class.isAssignableFrom(clazz)) {
             return new FireflyPhatEdgeIdIterator(scanSet(
                     mapKey, db.EDGE_AERO_SET, binName, predicate, (it) -> it,
-                    hasContainers, clazz, true, true, evaluationTimeout), db);
+                    hasContainers, clazz, true, evaluationTimeout), db);
         } else {
             throw new IllegalArgumentException("Cannot scan all element ids for unknown class: " + clazz);
         }
@@ -117,8 +117,8 @@ public class GraphQuery {
                                    final P<?> predicate,
                                    final FireflyGraph.TransformKeyRecord<E> transform,
                                    final Long evaluationTimeout) {
-        return scanSet(mapKey, setName, binName, predicate, transform, List.of(), FireflyVertex.class,
-                true, true, evaluationTimeout);
+        return scanSet(mapKey, setName, binName, predicate, transform, List.of(), FireflyVertex.class, true,
+                evaluationTimeout);
     }
 
     public <E> Iterator<E> scanSet(final String mapKey,
@@ -128,12 +128,9 @@ public class GraphQuery {
                                    final FireflyGraph.TransformKeyRecord<E> transform,
                                    final List<HasContainer> hasContainers,
                                    final Class<? extends FireflyElement> clazz,
-                                   final boolean sendKey,
                                    final boolean includeBinData,
-                                   final Long evaluationTimeout,
-                                   final String... binNames) {
+                                   final Long evaluationTimeout) {
         final ScanPolicy policy = new ScanPolicy();
-        policy.sendKey = sendKey;
         policy.includeBinData = includeBinData;
         policy.setTimeout(evaluationTimeout.intValue());
         // Build expression using predicate.
@@ -267,7 +264,7 @@ public class GraphQuery {
         }
 
         return scanSetPagesBlocking(mapKey, db.VERTEX_AERO_SET, binName, predicate, graph::vertexFromRecord,
-                hasContainers, FireflyVertex.class, true, true, evaluationTimeout);
+                hasContainers, FireflyVertex.class, true, evaluationTimeout);
     }
 
     // GRAPH-1380 - Figure out dynamic paging.
@@ -335,15 +332,14 @@ public class GraphQuery {
 
         // to scan.
         return scanSetPagesBlocking(mapKey, db.VERTEX_AERO_SET, binName, predicate, graph::vertexIdFromRecord,
-                hasContainers, FireflyVertex.class, true, true, evaluationTimeout);
+                hasContainers, FireflyVertex.class, true, evaluationTimeout);
     }
 
     public <E> BlockingQueue<PageFetcher.Page> scanSetPagesBlocking(final String mapKey, final String setName, final String binName, final P<?> predicate,
                                                                     final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
-                                                                    final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
-                                                                    final Long evaluationTimeout, final String... binNames) {
+                                                                    final Class<? extends FireflyElement> clazz, final boolean includeBinData,
+                                                                    final Long evaluationTimeout) {
         final ScanPolicy policy = new ScanPolicy();
-        policy.sendKey = sendKey;
         policy.includeBinData = includeBinData;
         policy.setTimeout(evaluationTimeout.intValue());
 

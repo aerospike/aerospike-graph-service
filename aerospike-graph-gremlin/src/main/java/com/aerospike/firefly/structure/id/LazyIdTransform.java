@@ -1,7 +1,8 @@
 package com.aerospike.firefly.structure.id;
 
-
 import com.aerospike.firefly.structure.FireflyGraph;
+
+import java.util.List;
 
 public class LazyIdTransform {
     protected FireflyGraph graph;
@@ -24,7 +25,7 @@ public class LazyIdTransform {
     public static LazyIdTransform create(final Object objectId, final FireflyGraph graph,
                                          final Class<? extends LazyIdTransform> type) {
         if (LazyEdgeCacheIdTransform.class.isAssignableFrom(type)) {
-            return new LazyEdgeCacheIdTransform((byte[]) objectId, graph);
+            return new LazyEdgeCacheIdTransform((List<Object>) objectId, graph);
         } else if (LazyVertexPropertyIdTransform.class.isAssignableFrom(type)) {
             return new LazyVertexPropertyIdTransform(objectId, graph);
         } else {

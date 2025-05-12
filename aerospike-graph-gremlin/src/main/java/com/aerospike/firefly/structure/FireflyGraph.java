@@ -576,6 +576,16 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
     }
 
+    public List<Boolean> bulkVertexExists(final List<Object> ids) {
+        try {
+            // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
+            // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
+            return operations.verticesExist(ids);
+        } catch (final AerospikeGraphException e) {
+            throw new FireflyLoadingException(e);
+        }
+    }
+
     public void bulkWriteVertex(final FireflyId idValue,
                                 final String label,
                                 final List<Map.Entry<String, Object>> properties,

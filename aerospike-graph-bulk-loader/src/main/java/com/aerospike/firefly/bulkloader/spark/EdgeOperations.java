@@ -12,6 +12,7 @@ import com.aerospike.firefly.process.call.bulkload.utils.exception.BadCsvEntryEx
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
@@ -46,6 +47,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
+import scala.Tuple3;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -150,14 +152,15 @@ public class EdgeOperations implements Serializable {
             LOGGER.info("Starting to write EdgeDataset in PartitionId: " + partitionId);
 
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
+                final long allowedDetachedEdges = this.config.getOrDefaultInt(ALLOWED_BAD_EDGES_COUNT);
                 graph.fireflySummaryUpdater.startEdgePartition(partitionId);
                 LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
+                final List<Tuple3<FireflyId, Object, Object>> edgeToFromIdList = new ArrayList<>();
                 Long currentId = null;
                 List<EdgeWriteTask> tasks = new ArrayList<>();
                 final long allowBadEntryCount = this.config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
-
                 final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
                 final ExponentialBackoffRetry retry = new ExponentialBackoffRetry("edge-write-partitionid-" + partitionId);
                 final int bufferSize = getEdgeWriteBufferSize();
@@ -173,6 +176,8 @@ public class EdgeOperations implements Serializable {
                         megaTask.join();
                         if (!generateEdgeCaches) {
                             writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
+                        } else {
+                            removeDetatchedEdgesPreGenerated(graph, edgeToFromIdList, bufferSize, allowedDetachedEdges);
                         }
                         LOGGER.info(String.format("Edge write, partitionId: %d, batch: %d, time taken(in milli-seconds): %d, super node size: %d, cleaning all cached vertex maps", partitionId,
                                 batch, Duration.between(start, Instant.now()).toMillis(), supernodes.size()));
@@ -193,6 +198,7 @@ public class EdgeOperations implements Serializable {
                             final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
                                     providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
                                     metadataRow, usePersistedEdgeId, partitionId);
+                            edgeToFromIdList.add(new Tuple3<>(ewt.edgeId, ewt.inVertexId, ewt.outVertexId));
                             if (!packingId.equals(currentId)) {
                                 // Kick off the previous batch.
                                 futures.add(EdgeWriteTask.writeBatch(executor, graph, tasks));
@@ -232,6 +238,8 @@ public class EdgeOperations implements Serializable {
                     try {
                         if (!generateEdgeCaches) {
                             writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
+                        } else {
+                            removeDetatchedEdgesPreGenerated(graph, edgeToFromIdList, bufferSize, allowedDetachedEdges);
                         }
                     } catch (final RuntimeException e) {
                         LOGGER.error("Failed to flush Vertex Edge cache maps", e);
@@ -247,6 +255,38 @@ public class EdgeOperations implements Serializable {
                 LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
             }
         });
+    }
+
+    private void removeDetatchedEdgesPreGenerated(final FireflyGraph graph,
+                                                  final List<Tuple3<FireflyId, Object, Object>> edgeToFromIdList,
+                                                  final int bufferSize,
+                                                  final long allowedDetachedEdges) {
+
+        if (edgeToFromIdList.size() > bufferSize) {
+            final Set<Object> vertexIds = new HashSet<>();
+            for (final Tuple3<FireflyId, Object, Object> edgeToFrom : edgeToFromIdList) {
+                vertexIds.add(edgeToFrom._2());
+                vertexIds.add(edgeToFrom._3());
+            }
+            final List<Object> vertexIdList = new ArrayList<>(vertexIds);
+            final List<Boolean> vertexExistsList = graph.bulkVertexExists(vertexIdList);
+            final Set<Object> vertexDoesntExistList = new HashSet<>();
+            for (int i = 0; i < vertexIdList.size(); i++) {
+                final Object vertexId = vertexIdList.get(i);
+                if (!vertexExistsList.get(i)) {
+                    // If the vertex does not exist, we need to remove it from the supernodes set.
+                    vertexDoesntExistList.add(vertexId);
+                }
+            }
+            final Set<byte[]> edgesToRemove = new HashSet<>();
+            for (final Tuple3<FireflyId, Object, Object> edgeToFrom : edgeToFromIdList) {
+                if (vertexDoesntExistList.contains(edgeToFrom._2()) ||
+                        vertexDoesntExistList.contains(edgeToFrom._3())) {
+                    edgesToRemove.add(edgeToFrom._1().getKeyHash());
+                }
+            }
+            GraphOperations.dropDetachedEdges(graph, edgesToRemove, allowedDetachedEdges);
+        }
     }
 
 

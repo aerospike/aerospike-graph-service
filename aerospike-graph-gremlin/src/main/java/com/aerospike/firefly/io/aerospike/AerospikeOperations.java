@@ -143,6 +143,20 @@ public class AerospikeOperations {
         return writeVertex(vertexId, label, properties, createOnly, isEdgeCacheOverflowed, null, Optional.empty(), Optional.empty());
     }
 
+    public List<Boolean> verticesExist(final List<Object> ids) {
+        final List<Key> keys = new ArrayList<>();
+        for (final Object id : ids) {
+            final FireflyId fireflyId = graph.getIdFactory().createVertexId(id);
+            keys.add(getKey(db, db.VERTEX_AERO_SET, fireflyId));
+        }
+        final boolean[] exists = db.exists(keys.toArray(new Key[0]));
+        final List<Boolean> existsList = new ArrayList<>();
+        for (final boolean exist : exists) {
+            existsList.add(exist);
+        }
+        return existsList;
+    }
+
     /**
      * Write and construct a FireflyVertex using the provided parameters.
      *

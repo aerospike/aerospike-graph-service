@@ -35,10 +35,10 @@ public class EdgeWriteTask {
     private final GenericRowWithSchema fireflyRow;
     private final GenericRowWithSchema fireflyMetadataRow;
     private final boolean edgeCacheEnabled;
-    private final FireflyId edgeId;
+    public final FireflyId edgeId;
     public final SparkFireflyEdge sparkEdge;
-    private final Object inVertexId;
-    private final Object outVertexId;
+    public final Object inVertexId;
+    public final Object outVertexId;
     private final String edgeLabel;
     private final boolean inVertexSupernode;
     private final boolean outVertexSupernode;
@@ -49,7 +49,8 @@ public class EdgeWriteTask {
             final Set<Object> supernodes,
             final boolean keepProvidedId,
             final String providedIdPropertyName,
-            final String nullValue, final FireflyGraph graph,
+            final String nullValue,
+            final FireflyGraph graph,
             final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap,
             final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap,
             final GenericRowWithSchema rowForFirefly,

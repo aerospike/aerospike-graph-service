@@ -93,12 +93,16 @@ public class FireflyPhatEdgeIdIteratorFromIndexedVertex extends FireflyPhatEdgeI
         if (adjacentVertexId != null) {
             final Map<Object, Object> adjacencyPushdowns = (Map<Object, Object>) record.getMap(db.SUPERNODE_EDGE_PROPERTIES_BIN);
             if (adjacencyPushdowns != null) {
-                final Map<String, Object> propertyKeys = (Map<String, Object>) adjacencyPushdowns.get(vertexId.getUserId());
+                final Object comparableVertexUserId = vertexId.getUserId() instanceof Number ?
+                        ((Number) vertexId.getUserId()).longValue() : vertexId.getUserId();
+                final Map<String, Object> propertyKeys = (Map<String, Object>) adjacencyPushdowns.get(comparableVertexUserId);
                 if (propertyKeys != null) {
                     final Map<Long, Object> edgeIdToVertexId = (Map<Long, Object>) propertyKeys.get(adjacentVertexMapKey);
                     if (edgeIdToVertexId != null) {
+                        final Object comparableAdjacentVertexUserId = adjacentVertexId.getUserId() instanceof Number ?
+                                ((Number) adjacentVertexId.getUserId()).longValue() : adjacentVertexId.getUserId();
                         for (final Map.Entry<Long, Object> edgeUniqueIdToVertexIdEntry : edgeIdToVertexId.entrySet()) {
-                            if (edgeUniqueIdToVertexIdEntry.getValue().equals(adjacentVertexId.getUserId())) {
+                            if (edgeUniqueIdToVertexIdEntry.getValue().equals(comparableAdjacentVertexUserId)) {
                                 uniqueEdgeIdsAttachedToAdjacentVertex.add(edgeUniqueIdToVertexIdEntry.getKey());
                             }
                         }

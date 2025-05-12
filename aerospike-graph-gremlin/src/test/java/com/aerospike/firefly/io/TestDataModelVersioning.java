@@ -130,7 +130,7 @@ public class TestDataModelVersioning {
 
         AerospikeConnection db = AerospikeConnection.connect(CONFIG);
         db.clearNamespace(false);
-        //db.setGraphMetadata("packed", "2.0.0");
+
         db.setGraphMetadata(FireflyGraph.getDataModelName(), getAdjustedMajorVersion(-1));
         Key key = new Key(db.getNamespace(), "demo", "user1");
         Bin nameBin = new Bin("name", "alice");
@@ -138,7 +138,6 @@ public class TestDataModelVersioning {
         db.checkedPut(null, key, nameBin, ageBin);
 
         //change model to 3 level and try to start (throws error)
-        //db.setGraphMetadata("packed", "3.0.0");
         db.setGraphMetadata(FireflyGraph.getDataModelName(), getAdjustedMajorVersion(1));
         try {
             final FireflyGraph graph = GraphFactory.createGraph(db, FF_CONFIG);

@@ -68,7 +68,7 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
                 for (final ByteBuffer edgeId : outEdgeIds) {
                     if (labels.isEmpty() || labels.contains((String) edgeIdToData.get(edgeId).get(LABEL_POSITION))) {
                         if (outputType == OutputType.VERTEX_ID) {
-                            final String vertexId = (String) edgeIdToData.get(edgeId).get(IN_V_POSITION);
+                            final Object vertexId = edgeIdToData.get(edgeId).get(IN_V_POSITION);
                             outputIds.add(vertexId);
                         } else {
                             outputIds.add(edgeId);
@@ -82,7 +82,7 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
                 for (final ByteBuffer edgeId : inEdgeIds) {
                     if (labels.isEmpty() || labels.contains((String) edgeIdToData.get(edgeId).get(LABEL_POSITION))) {
                         if (outputType == OutputType.VERTEX_ID) {
-                            final String vertexId = (String) edgeIdToData.get(edgeId).get(OUT_V_POSITION);
+                            final Object vertexId = edgeIdToData.get(edgeId).get(OUT_V_POSITION);
                             outputIds.add(vertexId);
                         } else {
                             outputIds.add(edgeId);
@@ -108,8 +108,8 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
         final Map<ByteBuffer, List<?>> edgeDataMap = (Map<ByteBuffer, List<?>>) record.getMap(db.EDGE_DATA_BIN);
         for (final Map.Entry<ByteBuffer, List<?>> edgeDataEntry : edgeDataMap.entrySet()) {
             final List<?> edgeData = edgeDataEntry.getValue();
-            final String vertexId = (String) edgeData.get(directionIndex);
-            if (vertexId.equals(this.vertexId.getKeyHashString())) {
+            final Object vertexId = edgeData.get(directionIndex);
+            if (vertexId.equals(this.vertexId.getUserId())) {
                 attachedEdgeIds.add(edgeDataEntry.getKey());
             }
         }
@@ -124,7 +124,7 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
                 throw FastNoSuchElementException.instance();
             }
             if (outputType.equals(OutputType.VERTEX_ID)) {
-                return this.db.getIdFactory().createVertexIdFromHash((String) element);
+                return this.db.getIdFactory().createVertexId(element);
             } else {
                 return this.db.getIdFactory().createEdgeId(element);
             }

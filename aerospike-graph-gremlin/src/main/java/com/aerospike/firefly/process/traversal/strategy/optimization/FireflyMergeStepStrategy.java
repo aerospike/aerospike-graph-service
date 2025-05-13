@@ -3,7 +3,6 @@ package com.aerospike.firefly.process.traversal.strategy.optimization;
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyMergeEdgeStep;
 import com.aerospike.firefly.process.traversal.step.FireflyMergeVertexStep;
-import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeEdgeStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeVertexStep;
@@ -29,11 +28,9 @@ public class FireflyMergeStepStrategy extends FireflyStrategyBase {
             TraversalHelper.replaceStep(originalMergeVertexStep, fireflyMergeVertexStep, traversal);
         }
 
-        if (((FireflyGraph) traversal.getGraph().get()).getBaseGraph().isMergeEdgeDataModelEnabled) {
-            for (final MergeEdgeStep originalMergeEdgeStep : TraversalHelper.getStepsOfClass(MergeEdgeStep.class, traversal)) {
-                final FireflyMergeEdgeStep fireflyMergeEdgeStep = new FireflyMergeEdgeStep(originalMergeEdgeStep);
-                TraversalHelper.replaceStep(originalMergeEdgeStep, fireflyMergeEdgeStep, traversal);
-            }
+        for (final MergeEdgeStep originalMergeEdgeStep : TraversalHelper.getStepsOfClass(MergeEdgeStep.class, traversal)) {
+            final FireflyMergeEdgeStep fireflyMergeEdgeStep = new FireflyMergeEdgeStep(originalMergeEdgeStep);
+            TraversalHelper.replaceStep(originalMergeEdgeStep, fireflyMergeEdgeStep, traversal);
         }
     }
 }

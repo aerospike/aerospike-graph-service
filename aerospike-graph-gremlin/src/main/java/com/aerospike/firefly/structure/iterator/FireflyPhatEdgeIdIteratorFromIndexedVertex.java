@@ -7,14 +7,14 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Edge;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -84,22 +84,26 @@ public class FireflyPhatEdgeIdIteratorFromIndexedVertex extends FireflyPhatEdgeI
             }
         }
 
-        final Map<ByteBuffer, String> edgeIdToVertexIdMap = (Map<ByteBuffer, String>) record.getMap(directionKey);
-        if (edgeIdToVertexIdMap == null) {
+        final Map<Long, String> edgeUniqueIdToVertexIdMap = (Map<Long, String>) record.getMap(directionKey);
+        if (edgeUniqueIdToVertexIdMap == null) {
             return Collections.emptySet();
         }
 
         final Set<Long> uniqueEdgeIdsAttachedToAdjacentVertex = new HashSet<>();
         if (adjacentVertexId != null) {
-            final Map<String, Object> adjacencyPushdowns = (Map<String, Object>) record.getMap(db.SUPERNODE_EDGE_PROPERTIES_BIN);
+            final Map<Object, Object> adjacencyPushdowns = (Map<Object, Object>) record.getMap(db.SUPERNODE_EDGE_PROPERTIES_BIN);
             if (adjacencyPushdowns != null) {
-                final Map<String, Object> propertyKeys = (Map<String, Object>) adjacencyPushdowns.get(vertexId.getKeyHashString());
+                final Object comparableVertexUserId = vertexId.getUserId() instanceof Number ?
+                        ((Number) vertexId.getUserId()).longValue() : vertexId.getUserId();
+                final Map<String, Object> propertyKeys = (Map<String, Object>) adjacencyPushdowns.get(comparableVertexUserId);
                 if (propertyKeys != null) {
-                    final Map<Long, String> edgeIdToVertexId = (Map<Long, String>) propertyKeys.get(adjacentVertexMapKey);
+                    final Map<Long, Object> edgeIdToVertexId = (Map<Long, Object>) propertyKeys.get(adjacentVertexMapKey);
                     if (edgeIdToVertexId != null) {
-                        for (final Map.Entry<Long, String> edgeIdToVertexIdEntry : edgeIdToVertexId.entrySet()) {
-                            if (edgeIdToVertexIdEntry.getValue().equals(adjacentVertexId.getKeyHashString())) {
-                                uniqueEdgeIdsAttachedToAdjacentVertex.add(edgeIdToVertexIdEntry.getKey());
+                        final Object comparableAdjacentVertexUserId = adjacentVertexId.getUserId() instanceof Number ?
+                                ((Number) adjacentVertexId.getUserId()).longValue() : adjacentVertexId.getUserId();
+                        for (final Map.Entry<Long, Object> edgeUniqueIdToVertexIdEntry : edgeIdToVertexId.entrySet()) {
+                            if (edgeUniqueIdToVertexIdEntry.getValue().equals(comparableAdjacentVertexUserId)) {
+                                uniqueEdgeIdsAttachedToAdjacentVertex.add(edgeUniqueIdToVertexIdEntry.getKey());
                             }
                         }
                     }
@@ -107,15 +111,21 @@ public class FireflyPhatEdgeIdIteratorFromIndexedVertex extends FireflyPhatEdgeI
             }
         }
 
+        final Map<ByteBuffer, List<?>> edgeIdToData = (Map<ByteBuffer, List<?>>) record.getMap(db.EDGE_DATA_BIN);
+        final Map<Long, ByteBuffer> uniqueIdToByteId = new HashMap<>();
+        for (final ByteBuffer byteId : edgeIdToData.keySet()) {
+            final long uniqueId = this.db.getIdFactory().createEdgeId(byteId).getUniqueId();
+            uniqueIdToByteId.put(uniqueId, byteId);
+        }
+
         final Set<ByteBuffer> attachedEdgeIds = new HashSet<>();
-        for (final Map.Entry<ByteBuffer, String> edgeIdToVertexId : edgeIdToVertexIdMap.entrySet()) {
-            if (edgeIdToVertexId.getValue().equals(this.vertexId.getKeyHashString())) {
+        for (final Map.Entry<Long, String> edgeUniqueIdToVertexId : edgeUniqueIdToVertexIdMap.entrySet()) {
+            if (edgeUniqueIdToVertexId.getValue().equals(this.vertexId.getKeyHashString())) {
                 if (adjacentVertexId == null) {
-                    attachedEdgeIds.add(edgeIdToVertexId.getKey());
+                    attachedEdgeIds.add(uniqueIdToByteId.get(edgeUniqueIdToVertexId.getKey()));
                 } else {
-                    final FireflyPhatEdgeId edgeId = this.db.getIdFactory().createEdgeId(edgeIdToVertexId.getKey());
-                    if (uniqueEdgeIdsAttachedToAdjacentVertex.contains(edgeId.getUniqueId())) {
-                        attachedEdgeIds.add(edgeIdToVertexId.getKey());
+                    if (uniqueEdgeIdsAttachedToAdjacentVertex.contains(edgeUniqueIdToVertexId.getKey())) {
+                        attachedEdgeIds.add(uniqueIdToByteId.get(edgeUniqueIdToVertexId.getKey()));
                     }
                 }
             }

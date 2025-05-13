@@ -7,10 +7,8 @@ import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.GroupStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupSideEffectStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 
 import java.util.List;
@@ -77,11 +75,9 @@ public class FireflyBatchEdgeReadLocalStrategy extends FireflyStrategyBase {
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
                 } else if (steps.get(index) instanceof HasStep) {
-                    if (graph.getBaseGraph().isSupernodePushdownEnabled) {
-                        hasContainers = ((HasStep) steps.get(index)).getHasContainers();
-                        labels = steps.get(index).getLabels();
-                        traversal.removeStep(steps.get(index));
-                    }
+                    hasContainers = ((HasStep) steps.get(index)).getHasContainers();
+                    labels = steps.get(index).getLabels();
+                    traversal.removeStep(steps.get(index));
                 } else {
                     // Unknown step, break.
                     break;

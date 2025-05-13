@@ -16,13 +16,13 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class BufferedNumericIdManager implements IdManager<Long> {
-    private static final Logger LOG = LoggerFactory.getLogger(BufferedNumericIdManager.class);
+public abstract class BufferedNumericIdManager implements IdManager<Long> {
+    protected static final Logger LOG = LoggerFactory.getLogger(BufferedNumericIdManager.class);
     private final long bufferSize;
     private AtomicLong bufferedId = null;
     private AtomicLong bufferTrigger = null;
-    private final String counterName;
-    private final String readableIdName;
+    protected final String counterName;
+    protected final String readableIdName;
 
     // Bulk loader mode specifics
     private static final Object VP_LOCK = new Object();
@@ -70,26 +70,17 @@ public class BufferedNumericIdManager implements IdManager<Long> {
             this.bufferedId = new AtomicLong();
             this.bufferTrigger = new AtomicLong();
             bufferIds(graph, this.bufferSize, this.bufferedId, this.bufferTrigger);
-            return getNextId(graph);
         }
 
-        final long id = bufferedId.getAndDecrement();
-        if (id <= this.bufferTrigger.get()) {
-            // The ID we got is the last reserved ID so we need to buffer more
-            bufferIds(graph, this.bufferSize, this.bufferedId, this.bufferTrigger);
-        }
-        return id;
+        return getNextIdFromBuffers(graph, this.bufferSize, this.bufferedId, this.bufferTrigger);
     }
 
-    private void bufferIds(final FireflyGraph graph, final long bufferSize, final AtomicLong idTracker,
-                           final AtomicLong idTrigger) {
-        LOG.info("Allocating batch of {} {}.", bufferSize, this.readableIdName);
-        // This is the new last reserved ID
-        idTrigger.set(graph.getBaseGraph().decrementIdCounter(this.counterName, bufferSize));
-        // Since Firefly returns decrementing long values as generated IDs, the first buffered ID to return is
-        // the largest one
-        idTracker.set(idTrigger.get() + bufferSize - 1);
-    }
+    abstract protected Long getNextIdFromBuffers(final FireflyGraph graph, final long bufferSize,
+                                                 final AtomicLong idTracker, final AtomicLong idTrigger);
+
+
+    abstract protected void bufferIds(final FireflyGraph graph, final long bufferSize, final AtomicLong idTracker,
+                           final AtomicLong idTrigger);
 
     @Override
     public void recycleId(final FireflyId id) {
@@ -123,11 +114,6 @@ public class BufferedNumericIdManager implements IdManager<Long> {
         if (idTracker.get() == Long.MAX_VALUE) {
             bufferIds(graph, graph.bulkLoadIdBufferSize, idTracker, idTrigger);
         }
-        final long id = idTracker.getAndDecrement();
-        if (id <= idTrigger.get()) {
-            // The ID we got is the last reserved ID so we need to buffer more
-            bufferIds(graph, graph.bulkLoadIdBufferSize, idTracker, idTrigger);
-        }
-        return id;
+        return getNextIdFromBuffers(graph, graph.bulkLoadIdBufferSize, idTracker, idTrigger);
     }
 }

@@ -13,6 +13,7 @@ import com.aerospike.firefly.olap.iterators.QueryInfo;
 import com.aerospike.firefly.olap.iterators.ScanIterator;
 import com.aerospike.firefly.olap.process.BatchJob;
 import com.aerospike.firefly.olap.process.FireflyProgram;
+import com.aerospike.firefly.olap.process.traversal.step.SparkOperation;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
@@ -38,6 +39,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
@@ -47,6 +49,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -55,6 +59,9 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.getIdType;
 import static com.aerospike.firefly.olap.helper.ProgramHelper.createVertexProgram;
+import static com.aerospike.firefly.olap.process.TraversalProgram.MUTATED_MEMORY_KEYS;
+import static com.aerospike.firefly.olap.process.TraversalProgram.SPARK_FLAG;
+import static com.aerospike.firefly.olap.process.TraversalProgram.VOTE_TO_HALT;
 import static com.aerospike.firefly.olap.structure.DistributedGraphComputer.magicSwap;
 
 public class DistributedWorkerExecutor {
@@ -312,6 +319,46 @@ public class DistributedWorkerExecutor {
                 throw e;
             }
         }, RowEncoder.apply(schema));
+    }
+
+    public static Pair<Boolean, Dataset<Row>> executeNative(final Traversal<?, ?> traversal,
+                                                            final Dataset<Row> input,
+                                                            final DistributedMemory memory,
+                                                            final Codec codec) {
+        // no spark native step or not reached so far
+        if (!memory.exists(SPARK_FLAG) || !memory.<Boolean>get(SPARK_FLAG)) {
+            return Pair.with(false, null);
+        }
+
+        if (input.isEmpty()) {
+            memory.set(SPARK_FLAG, false);
+            return Pair.with(false, null);
+        }
+
+        // another option to get current sortStep is from MUTATED_MEMORY_KEYS
+        final Traverser.Admin t = codec.decode(input.first()).asAdmin();
+        final Optional<Step> step = traversal.asAdmin().getSteps().stream().filter(s -> s.getId().equals(t.getStepId())).findFirst();
+
+        // travserser already set to next step, so need to step back to get SparkOperation.
+        // Or SparkOperation can be last step
+        final SparkOperation op = step.isPresent() ? (SparkOperation) step.get().getPreviousStep() : (SparkOperation) traversal.asAdmin().getEndStep();
+        final Dataset<Row> results = op.operate(input);
+
+        if (op.canContinueDistributed())
+            return Pair.with(true, results);
+
+        // copy rows to traverserSet
+        final List<Row> rows = results.collectAsList();
+        final TraverserSet traversers = new TraverserSet();
+        rows.stream().forEach(row -> traversers.add(codec.decode(row).asAdmin()));
+
+        // set barrier with sorted data
+        memory.set(((Step)op).getId(), traversers);
+        memory.set(MUTATED_MEMORY_KEYS, new HashSet<>(Collections.singleton(((Step)op).getId())));
+        memory.set(VOTE_TO_HALT, true);
+
+        // following steps will be local
+        return Pair.with(true, results.limit(0));
     }
 
     public static class Range {

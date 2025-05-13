@@ -29,27 +29,27 @@ public class RowCodecFactory {
     }
 
 
-    public RowCodec getCodec(final Set<TraverserRequirement> requirements) {
+    public RowCodec getCodec(final Set<TraverserRequirement> requirements, final int nativeSparkOperationColumns) {
         if (requirements.contains(TraverserRequirement.ONE_BULK)) {
             if (O_OB_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
                 return new RowCodec(
                         List.of(RowCodec.CodecRequirements.BASE,
                                 RowCodec.CodecRequirements.SINGLE_LOOP),
-                        requirements);
+                        requirements, nativeSparkOperationColumns);
 
             if (NL_O_OB_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
                 return new RowCodec(
                         List.of(RowCodec.CodecRequirements.BASE,
                                 RowCodec.CodecRequirements.NESTED_LOOP,
                                 RowCodec.CodecRequirements.SINGLE_LOOP),
-                        requirements);
+                        requirements, nativeSparkOperationColumns);
 
             if (LP_O_OB_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
                 return new RowCodec(
                         List.of(RowCodec.CodecRequirements.BASE,
                                 RowCodec.CodecRequirements.PATH,
                                 RowCodec.CodecRequirements.SINGLE_LOOP),
-                        requirements);
+                        requirements, nativeSparkOperationColumns);
 
             if (LP_NL_O_OB_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
                 return new RowCodec(
@@ -58,14 +58,14 @@ public class RowCodecFactory {
 
                                 RowCodec.CodecRequirements.SINGLE_LOOP,
                                 RowCodec.CodecRequirements.NESTED_LOOP),
-                        requirements);
+                        requirements, nativeSparkOperationColumns);
 
             if (LP_O_OB_P_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
                 return new RowCodec(
                         List.of(RowCodec.CodecRequirements.BASE,
                                 RowCodec.CodecRequirements.PATH,
                                 RowCodec.CodecRequirements.SINGLE_LOOP),
-                        requirements);
+                        requirements, nativeSparkOperationColumns);
 
             if (LP_NL_O_OB_P_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
                 return new RowCodec(
@@ -73,19 +73,19 @@ public class RowCodecFactory {
                                 RowCodec.CodecRequirements.PATH,
                                 RowCodec.CodecRequirements.SINGLE_LOOP,
                                 RowCodec.CodecRequirements.NESTED_LOOP),
-                        requirements);
+                        requirements, nativeSparkOperationColumns);
         } else {
             if (B_O_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
                 return new RowCodec(
                         List.of(RowCodec.CodecRequirements.BASE,
-                                RowCodec.CodecRequirements.BULK), requirements);
+                                RowCodec.CodecRequirements.BULK), requirements, nativeSparkOperationColumns);
 
             if (B_O_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
                 return new RowCodec(
                         List.of(RowCodec.CodecRequirements.BASE,
                                 RowCodec.CodecRequirements.BULK,
                                 RowCodec.CodecRequirements.SINGLE_LOOP),
-                        requirements);
+                        requirements, nativeSparkOperationColumns);
 
             if (B_NL_O_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
                 return new RowCodec(
@@ -93,14 +93,14 @@ public class RowCodecFactory {
                                 RowCodec.CodecRequirements.BULK,
                                 RowCodec.CodecRequirements.SINGLE_LOOP,
                                 RowCodec.CodecRequirements.NESTED_LOOP),
-                        requirements);
+                        requirements, nativeSparkOperationColumns);
 
             if (B_LP_O_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
                 return new RowCodec(
                         List.of(RowCodec.CodecRequirements.BASE,
                                 RowCodec.CodecRequirements.BULK,
                                 RowCodec.CodecRequirements.SINGLE_LOOP,
-                                RowCodec.CodecRequirements.PATH), requirements);
+                                RowCodec.CodecRequirements.PATH), requirements, nativeSparkOperationColumns);
 
             if (B_LP_NL_O_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
                 return new RowCodec(
@@ -108,14 +108,14 @@ public class RowCodecFactory {
                                 RowCodec.CodecRequirements.BULK,
                                 RowCodec.CodecRequirements.SINGLE_LOOP,
                                 RowCodec.CodecRequirements.NESTED_LOOP),
-                        requirements);
+                        requirements, nativeSparkOperationColumns);
 
             if (B_LP_O_P_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
                 return new RowCodec(
                         List.of(RowCodec.CodecRequirements.BASE,
                                 RowCodec.CodecRequirements.BULK,
                                 RowCodec.CodecRequirements.SINGLE_LOOP,
-                                RowCodec.CodecRequirements.PATH), requirements);
+                                RowCodec.CodecRequirements.PATH), requirements, nativeSparkOperationColumns);
 
             if (B_LP_NL_O_P_S_SE_SL_TraverserGenerator.instance().getProvidedRequirements().containsAll(requirements))
                 return new RowCodec(
@@ -124,7 +124,7 @@ public class RowCodecFactory {
                                 RowCodec.CodecRequirements.PATH,
                                 RowCodec.CodecRequirements.SINGLE_LOOP,
                                 RowCodec.CodecRequirements.NESTED_LOOP),
-                        requirements);
+                        requirements, nativeSparkOperationColumns);
         }
 
         throw new IllegalStateException("The provided traverser generator factory does not support the requirements of the traversal: " + this.getClass().getCanonicalName() + requirements);

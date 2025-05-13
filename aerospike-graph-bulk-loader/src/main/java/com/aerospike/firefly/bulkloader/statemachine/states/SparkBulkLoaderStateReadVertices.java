@@ -32,12 +32,7 @@ public class SparkBulkLoaderStateReadVertices extends SparkBulkLoaderState {
                 sparkBulkLoaderStateMachine.vertexDirectories,
                 VertexOperations.REQUIRED_VERTEX_HEADERS,
                 DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config));
-        // TODO: Remove.
-        Instant start = Instant.now();
         sparkBulkLoaderStateMachine.vertexCount = sparkBulkLoaderStateMachine.vertexDataset.count();
-        LOGGER.info("Vertex count: {} took {} ms",
-                sparkBulkLoaderStateMachine.vertexCount,
-                Duration.between(start, Instant.now()).toMillis());
         sparkBulkLoaderStateMachine.progressBar.setVertexTotalCount(sparkBulkLoaderStateMachine.vertexCount);
     }
 

@@ -36,13 +36,7 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
 
         if (sparkBulkLoaderStateMachine.generateEdgeCaches) {
             // Calculate after they are written so data is fresh.
-            // TODO: Remove.
-            LOGGER.info("Starting edge counting");
-            Instant start = Instant.now();
             sparkBulkLoaderStateMachine.edgeCountAfterRemoval = sparkBulkLoaderStateMachine.edgeDataset.count();
-            LOGGER.info("Edge count after removal of dangling edges: {} took {} ms",
-                    sparkBulkLoaderStateMachine.edgeCountAfterRemoval,
-                    Duration.between(start, Instant.now()).toMillis());
             sparkBulkLoaderStateMachine.progressBar.setEdgeTotalCount(sparkBulkLoaderStateMachine.edgeCountAfterRemoval);
 
             final long allowedDetachedEdges = sparkBulkLoaderStateMachine.config.getOrDefaultInt(ALLOWED_BAD_EDGES_COUNT);

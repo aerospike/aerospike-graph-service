@@ -81,16 +81,14 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
                 } else if (steps.get(index) instanceof HasStep) {
-                    if (graph.getBaseGraph().isSupernodePushdownEnabled) {
-                        if (sampleSize != -1 || limitSize != -1) {
-                            // outE().limit/sample(<amount>).has(...)
-                            // Can't pushdown HasContainers, therefore just break here and let them be applied after.
-                            break;
-                        }
-                        hasContainers = ((HasStep) steps.get(index)).getHasContainers();
-                        labels = steps.get(index).getLabels();
-                        traversal.removeStep(steps.get(index));
+                    if (sampleSize != -1 || limitSize != -1) {
+                        // outE().limit/sample(<amount>).has(...)
+                        // Can't pushdown HasContainers, therefore just break here and let them be applied after.
+                        break;
                     }
+                    hasContainers = ((HasStep) steps.get(index)).getHasContainers();
+                    labels = steps.get(index).getLabels();
+                    traversal.removeStep(steps.get(index));
                     break;
                 } else if (steps.get(index) instanceof SampleGlobalStep) {
                     if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY) {
@@ -129,11 +127,6 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                             labels.clear();
                         }
                         traversal.addStep(index, step);
-
-                        if (graph.getBaseGraph().isSupernodePushdownEnabled) {
-                            // Cannot push down HasStep after pushing down sample so need to break.
-                            break;
-                        }
                     } catch (final NoSuchFieldException | IllegalAccessException ignored) {
                         // Failed to get sample size, just ignore it.
                     }

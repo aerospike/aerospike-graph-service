@@ -18,13 +18,13 @@ import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.spark.sql.Row;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -241,15 +242,23 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
             }
         }
 
-        final Map<ByteBuffer, String> edgeIdToVertexIdMap = (Map<ByteBuffer, String>) record.getMap(directionKey);
-        if (edgeIdToVertexIdMap == null) {
+        final Map<Long, String> edgeUniqueIdToVertexIdMap = (Map<Long, String>) record.getMap(directionKey);
+        if (edgeUniqueIdToVertexIdMap == null) {
             return;
         }
+        final Map<ByteBuffer, List<?>> edgeIdToData = (Map<ByteBuffer, List<?>>) record.getMap(graph.getBaseGraph().EDGE_DATA_BIN);
+        if (edgeIdToData == null) {
+            return;
+        }
+        final Map<Long, FireflyPhatEdgeId> uniqueIdToEdgeId = new HashMap<>();
+        for (final ByteBuffer byteId : edgeIdToData.keySet()) {
+            final FireflyPhatEdgeId edgeId = graph.getBaseGraph().getIdFactory().createEdgeId(byteId);
+            uniqueIdToEdgeId.put(edgeId.getUniqueId(), edgeId);
+        }
 
-        for (final Map.Entry<ByteBuffer, String> edgeIdToVertexId : edgeIdToVertexIdMap.entrySet()) {
-            if (edgeIdToVertexId.getValue().equals(inputVertexId.getKeyHashString())) {
-                final FireflyId edgeId = graph.getBaseGraph().getIdFactory().createEdgeId(edgeIdToVertexId.getKey());
-                final Edge edge = FireflyEdgeFactory.create(edgeId, record, graph);
+        for (final Map.Entry<Long, String> edgeUniqueIdToVertexId : edgeUniqueIdToVertexIdMap.entrySet()) {
+            if (edgeUniqueIdToVertexId.getValue().equals(inputVertexId.getKeyHashString())) {
+                final Edge edge = FireflyEdgeFactory.create(uniqueIdToEdgeId.get(edgeUniqueIdToVertexId.getKey()), record, graph);
                 if (HasContainer.testAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
                     currentEdges.add(edge);
                 }

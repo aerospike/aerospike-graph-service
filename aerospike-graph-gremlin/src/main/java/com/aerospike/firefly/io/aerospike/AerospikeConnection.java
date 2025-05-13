@@ -2111,21 +2111,10 @@ public class AerospikeConnection implements AutoCloseable {
      * Delete all data from the namespace
      */
     public void clearNamespace() {
-        clearNamespace(true);
-    }
-
-    /**
-     * Delete all data from the namespace
-     * clearFlag = true : drop all indices
-     * clearFlag = false : don't drop indices
-     */
-    public void clearNamespace(boolean clearFlag) {
         client.truncate(null, namespace, null, null);
-        if(clearFlag) {
-            final List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(this);
-            for (final Map.Entry<String, String> entry : indexes) {
-                dropIndex(entry.getValue(), entry.getKey());
-            }
+        final List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(this);
+        for (final Map.Entry<String, String> entry : indexes) {
+            dropIndex(entry.getValue(), entry.getKey());
         }
     }
 

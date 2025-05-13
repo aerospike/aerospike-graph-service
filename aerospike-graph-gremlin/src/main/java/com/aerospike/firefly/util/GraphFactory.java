@@ -27,7 +27,6 @@ final public class GraphFactory {
     private static final Logger LOG = LoggerFactory.getLogger(GraphFactory.class);
 
     public static FireflyGraph createGraph(final AerospikeConnection db, final FireflyConfiguration config) {
-
         final String dataModel = ConfigurationHelper.getOrDefaultString(FIREFLY_DATA_MODEL, config);
         if (!DATA_MODEL_MAP.containsKey(dataModel)) {
             throw new IllegalArgumentException("Unknown graph type: " + dataModel);

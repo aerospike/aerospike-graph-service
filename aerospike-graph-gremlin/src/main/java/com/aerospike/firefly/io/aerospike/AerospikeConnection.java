@@ -33,6 +33,7 @@ import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.policy.AuthMode;
 import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.ClientPolicy;
+import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
@@ -57,9 +58,9 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.DiagnosticUtil;
 import com.aerospike.firefly.util.WarmupUtil;
-import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.config.FireflyConfiguration;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.GraphError;
@@ -102,8 +103,8 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
-import static com.aerospike.firefly.util.Tokens.EDGE_PACKING_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_PACKING_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
@@ -119,48 +120,19 @@ import static com.aerospike.firefly.util.exceptions.AerospikeGraphException.from
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 public class AerospikeConnection implements AutoCloseable {
-    public static final String DATA_MODEL_KEY = "DATA_MODEL_KEY";
-    public static final String DATA_MODEL_NAME = "DATA_MODEL_NAME";
-    public static final String DATA_MODEL_VER = "DATA_MODEL_VER";
-    public static final String DATA_MODEL_CONF = "DATA_MODEL_CONF";
-    public static final AtomicLong instanceCounter = new AtomicLong(0);
-    public static final Map<Class<? extends Serializable>, Long> SUPPORTED_VALUE_TYPES = new HashMap<>() {{
-        put(Long.class, 1L);
-        put(Integer.class, 2L);
-        put(Double.class, 3L);
-        put(byte[].class, 4L);
-        put(Byte[].class, 4L);
-        put(String.class, 5L);
-        put(Boolean.class, 6L);
-        put(ArrayList.class, 7L);
-    }};
-    public static final Map<Long, Class<? extends Serializable>> SUPPORTED_TYPE_VALUES = new HashMap<>() {{
-        put(1L, Long.class);
-        put(2L, Integer.class);
-        put(3L, Double.class);
-        put(4L, byte[].class);
-        put(5L, String.class);
-        put(6L, Boolean.class);
-        put(7L, ArrayList.class);
-    }};
-    public static final Set<Class<? extends Serializable>> SUPPORTED_ARR_TYPES = new HashSet<>() {{
-        add(boolean[].class);
-        add(Boolean[].class);
-        add(double[].class);
-        add(Double[].class);
-        add(int[].class);
-        add(Integer[].class);
-        add(String[].class);
-        add(long[].class);
-        add(Long[].class);
-    }};
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
-    static AtomicLong readMetric = new AtomicLong(0);
-    static AtomicLong writeMetric = new AtomicLong(0);
+    private final IAerospikeClient client;
+    private final EventLoops eventLoops;
+    private final ExecutorService threadedReadExecutor;
 
     static {
         Value.UseBoolBin = true;
     }
+
+    public static final String DATA_MODEL_KEY = "DATA_MODEL_KEY";
+    public static final String DATA_MODEL_NAME = "DATA_MODEL_NAME";
+    public static final String DATA_MODEL_VER = "DATA_MODEL_VER";
+    public static final String DATA_MODEL_CONF = "DATA_MODEL_CONF";
 
     public final String GRAPH_ID;
     public final boolean MRT_ENABLED;
@@ -172,13 +144,16 @@ public class AerospikeConnection implements AutoCloseable {
     public final String E_IN_INDEX_NAME;
     public final String E_OUT_INDEX_NAME;
     public final String namespace;
+
     public final String USER_KEY_BIN;
+
     public final String LABEL_BIN;
     public final String IN_EDGES_BIN;
     public final String OUT_EDGES_BIN;
     public final String EDGE_CACHE_DISABLED_BIN;
     public final String LOCK_BIN;
     public final String INDEX_METADATA_SET;
+
     public final String GRAPH_METADATA_SET;
     public final String BULK_LOAD_METADATA_SET;
     public final String BULK_LOAD_DUPLICATE_VID_SET;
@@ -193,6 +168,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final Object GRAPH_VARIABLES_REC_KEY;
     public final String GRAPH_VARIABLES_BIN;
     public final String EDGE_AERO_SET;
+
     public final String VERTEX_AERO_SET;
     public final String IN_VP_SET;
     public final String OUT_VP_SET;
@@ -211,6 +187,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final String TEST_SET;
     public final String OLAP_SET;
     public final String OLAP_LIMIT_BIN;
+
     public final Configuration conf;
     public final String USER_SUPPLIED_ID_CACHE_SET;
     public final long CARDINALITY_METADATA_UPDATE_FREQUENCY;
@@ -240,6 +217,31 @@ public class AerospikeConnection implements AutoCloseable {
     public final int TTL_PURGE_INTERVAL_SECONDS;
     public final boolean SUPERNODE_TRAVERSAL_LOG_WARNING;
     public final boolean REDACT_SCRIPT_LITERALS_ENABLED;
+    public long lastQueryMissCount = 0; // For testing
+    public long lastQueryHitCount = 0; // For testing
+
+    private final int AEROSPIKE_MAX_RETRIES;
+    private final int WRITE_SLEEP_BETWEEN_RETRY;
+    private final int READ_SLEEP_BETWEEN_RETRY;
+    private final int WRITE_TOTAL_TIMEOUT;
+    private final int READ_TOTAL_TIMEOUT;
+    private final int READ_TOTAL_TIMEOUT_BULK_LOAD;
+    private final int WRITE_SOCKET_TIMEOUT;
+    private final int READ_SOCKET_TIMEOUT;
+    private final int READ_SOCKET_TIMEOUT_BULK_LOAD;
+    private final int CONNECT_TIMEOUT;
+    private final int TIMEOUT_DELAY;
+
+    private final int SCAN_TOTAL_TIMEOUT;
+    private final int SCAN_SOCKET_TIMEOUT;
+    private final int SCAN_CONNECT_TIMEOUT;
+    private final int SCAN_TIMEOUT_DELAY;
+
+    private final int INDEX_TOTAL_TIMEOUT;
+    private final int INDEX_SOCKET_TIMEOUT;
+    private final int INDEX_CONNECT_TIMEOUT;
+    private final int INDEX_TIMEOUT_DELAY;
+
     public final long PROPERTY_ID_BUFFER_SIZE;
     public final long VERTEX_ID_BUFFER_SIZE;
     public final long EDGE_ID_BUFFER_SIZE;
@@ -247,10 +249,15 @@ public class AerospikeConnection implements AutoCloseable {
     public final long USAGE_STATS_UPDATE_INTERVAL;
     public final boolean WARMUP_MODE;
     public final boolean PROMETHEUS_RENAME_ENABLED;
+
     // Bulk Loader fields
     public final Object BL_DUPLICATE_VERTEX_COUNT_KEY;
     public final Object BL_BAD_EDGES_COUNT_KEY;
     public final Object BL_BAD_ENTRY_COUNT_KEY;
+
+    public static final AtomicLong instanceCounter = new AtomicLong(0);
+
+    private final FireflyIdFactory idFactory;
     public final boolean ENABLE_COMPOSITE_ID_STRATEGY;
     public final boolean ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY;
     public final boolean ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY;
@@ -261,11 +268,13 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY;
     public final boolean ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY;
     public final boolean ENABLE_CACHED_ADJACENT_ID_STRATEGY;
+
     // MergeEdge fields
     public final int MERGE_EDGE_EVAL_TIMEOUT;
     public final int MERGE_EDGE_TTL;
     public final int MERGE_EDGE_POLL_INTERVAL;
     public final boolean MERGE_EDGE_STARVATION_PROTECTION;
+
     // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
     public final boolean ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY;
     public final boolean ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY;
@@ -279,39 +288,107 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean IS_AUDIT_LOG_ENABLED;
     public final boolean AUTHENTICATION_ENABLED;
     public final boolean USAGE_STATS_SET_INDEX_ENABLED;
+    public boolean isSupernodePushdownEnabled = true;
+    public boolean isMergeEdgeDataModelEnabled = true;
     public final List<String> vertexNonPropertyBins = new ArrayList<>();
     public final List<String> vertexPropertyBins = new ArrayList<>();
+
     public final String QUERY_IMPL;
-    private final IAerospikeClient client;
-    private final EventLoops eventLoops;
-    private final ExecutorService threadedReadExecutor;
-    private final int AEROSPIKE_MAX_RETRIES;
-    private final int WRITE_SLEEP_BETWEEN_RETRY;
-    private final int READ_SLEEP_BETWEEN_RETRY;
-    private final int WRITE_TOTAL_TIMEOUT;
-    private final int READ_TOTAL_TIMEOUT;
-    private final int READ_TOTAL_TIMEOUT_BULK_LOAD;
-    private final int WRITE_SOCKET_TIMEOUT;
-    private final int READ_SOCKET_TIMEOUT;
-    private final int READ_SOCKET_TIMEOUT_BULK_LOAD;
-    private final int CONNECT_TIMEOUT;
-    private final int TIMEOUT_DELAY;
-    private final int SCAN_TOTAL_TIMEOUT;
-    private final int SCAN_SOCKET_TIMEOUT;
-    private final int SCAN_CONNECT_TIMEOUT;
-    private final int SCAN_TIMEOUT_DELAY;
-    private final int INDEX_TOTAL_TIMEOUT;
-    private final int INDEX_SOCKET_TIMEOUT;
-    private final int INDEX_CONNECT_TIMEOUT;
-    private final int INDEX_TIMEOUT_DELAY;
-    private final FireflyIdFactory idFactory;
+
     private final boolean bulkLoaderFlag;
     private final boolean bulkLoaderInitializerFlag;
     private final boolean olapEnabledFlag;
-    public long lastQueryMissCount = 0; // For testing
-    public long lastQueryHitCount = 0; // For testing
-    public boolean isSupernodePushdownEnabled = true;
-    public boolean isMergeEdgeDataModelEnabled = true;
+
+    public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
+        final ClientPolicy clientPolicy = new ClientPolicy();
+
+        clientPolicy.maxConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf);
+        clientPolicy.minConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE, conf);
+        if (clientPolicy.maxConnsPerNode < clientPolicy.minConnsPerNode) {
+            throw new IllegalStateException("Error: 'aerospike.client.clientPolicy.minConnsPerNode' is set to '" +
+                    clientPolicy.minConnsPerNode
+                    + "' which is greater than 'aerospike.client.clientPolicy.maxConnsPerNode' set to '" +
+                    clientPolicy.maxConnsPerNode + "'. 'aerospike.client.clientPolicy.minConnsPerNode' must be less " +
+                    "than or equal to 'aerospike.client.clientPolicy.maxConnsPerNode'.");
+        }
+        clientPolicy.timeout = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf);
+        clientPolicy.eventLoops = eventLoops;
+
+        // If username and password are not null or empty strings, then set the user and password on the client policy.
+        final String user = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_USER, conf);
+        final String password = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PASSWORD, conf);
+        if (user != null && !user.equals("") && password != null && !password.equals("")) {
+            LOG.info("Setting Aerospike user and password.");
+            clientPolicy.user = user;
+            clientPolicy.password = password;
+        }
+        final boolean tlsEnabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TLS, conf);
+        if (tlsEnabled) {
+            clientPolicy.tlsPolicy = new TlsPolicy();
+
+        }
+        clientPolicy.maxErrorRate = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MAX_ERROR_RATE, conf);
+        clientPolicy.authMode = AuthMode.valueOf(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AUTH_MODE, conf).toUpperCase());
+        clientPolicy.useServicesAlternate = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.CLIENT_SERVICES_ALTERNATE, conf);
+        final String clusterName = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLUSTER_NAME, conf);
+        if (clusterName != null && !clusterName.isBlank()) {
+            clientPolicy.clusterName = clusterName;
+        }
+        // This setting should only be disabled for internal testing use.
+        clientPolicy.validateClusterName = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.VALIDATE_CLUSTER_NAME, conf);
+        return clientPolicy;
+    }
+
+    public static AerospikeClient setupDefaultClient(final Configuration conf, final ClientPolicy policy) {
+        final String hostFromConf = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
+        final String hostsString = stripAllWhiteSpace(hostFromConf);
+        final int defaultPort = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
+
+        final Host[] hosts = Host.parseHosts(hostsString, defaultPort);
+
+        final AerospikeClient aerospikeClient;
+        try {
+            aerospikeClient = new AerospikeClient(policy, hosts);
+        } catch (final AerospikeException e) {
+            LOG.error("Error connecting to Aerospike", e);
+            throw fromAerospikeException(e);
+        } catch (final Exception e) {
+            LOG.error("Error connecting to Aerospike", e);
+            throw e;
+        }
+
+        FireflyAerospikeVersionCheck.validateVersion(aerospikeClient, false);
+        FireflyAerospikeGraphServiceCheck.checkFeatureKey(aerospikeClient);
+
+        if (ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.CLIENT_FAILURE_TEST, conf)) {
+            return DiagnosticUtil.enableWriteFails(aerospikeClient, conf);
+        } else {
+            return aerospikeClient;
+        }
+    }
+
+    public static String stripAllWhiteSpace(final String hosts) {
+        return hosts.replaceAll("\\s+", "");
+    }
+
+    public static int getDefaultThreadPoolSize(final Settings gremlinServerSettings) {
+        // Min connections per node should be at least the thread pool size.
+        // In batching we may use up to 1 connection per node per thread at a time.
+        // We must add 2 because both the metadata updater thread and the cardinality metadata threads using the connection.
+        //
+        // The bulk loader uses 2 * availableProcessors + 4 for buffer + 10 for:
+        // - Metadata updater thread
+        // - Graph summary reader (via Progress bar)
+        // - Cardinality metadata
+        // - Index metadata
+        // - Graph summary writer
+        // - Usage stats writing
+        // - Usage stats reading (via prometheus)
+        // - TTL thread background worker
+        //
+        // Because of this, we need to use the greatest of either what the bulk loader would use or what gremlin-server would use.
+        return Math.max(2 * Runtime.getRuntime().availableProcessors() + 14, 2 * gremlinServerSettings.gremlinPool + 14);
+    }
 
     /**
      * Construct a new AerospikeConnection
@@ -545,95 +622,11 @@ public class AerospikeConnection implements AutoCloseable {
         ON_RECORD_ID_LIMIT = onRecordIdLimit;
     }
 
-    public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
-        final ClientPolicy clientPolicy = new ClientPolicy();
-
-        clientPolicy.maxConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf);
-        clientPolicy.minConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE, conf);
-        if (clientPolicy.maxConnsPerNode < clientPolicy.minConnsPerNode) {
-            throw new IllegalStateException("Error: 'aerospike.client.clientPolicy.minConnsPerNode' is set to '" +
-                    clientPolicy.minConnsPerNode
-                    + "' which is greater than 'aerospike.client.clientPolicy.maxConnsPerNode' set to '" +
-                    clientPolicy.maxConnsPerNode + "'. 'aerospike.client.clientPolicy.minConnsPerNode' must be less " +
-                    "than or equal to 'aerospike.client.clientPolicy.maxConnsPerNode'.");
-        }
-        clientPolicy.timeout = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf);
-        clientPolicy.eventLoops = eventLoops;
-
-        // If username and password are not null or empty strings, then set the user and password on the client policy.
-        final String user = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_USER, conf);
-        final String password = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PASSWORD, conf);
-        if (user != null && !user.equals("") && password != null && !password.equals("")) {
-            LOG.info("Setting Aerospike user and password.");
-            clientPolicy.user = user;
-            clientPolicy.password = password;
-        }
-        final boolean tlsEnabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TLS, conf);
-        if (tlsEnabled) {
-            clientPolicy.tlsPolicy = new TlsPolicy();
-
-        }
-        clientPolicy.maxErrorRate = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MAX_ERROR_RATE, conf);
-        clientPolicy.authMode = AuthMode.valueOf(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AUTH_MODE, conf).toUpperCase());
-        clientPolicy.useServicesAlternate = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.CLIENT_SERVICES_ALTERNATE, conf);
-        final String clusterName = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLUSTER_NAME, conf);
-        if (clusterName != null && !clusterName.isBlank()) {
-            clientPolicy.clusterName = clusterName;
-        }
-        // This setting should only be disabled for internal testing use.
-        clientPolicy.validateClusterName = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.VALIDATE_CLUSTER_NAME, conf);
-        return clientPolicy;
-    }
-
-    public static AerospikeClient setupDefaultClient(final Configuration conf, final ClientPolicy policy) {
-        final String hostFromConf = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
-        final String hostsString = stripAllWhiteSpace(hostFromConf);
-        final int defaultPort = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
-
-        final Host[] hosts = Host.parseHosts(hostsString, defaultPort);
-
-        final AerospikeClient aerospikeClient;
-        try {
-            aerospikeClient = new AerospikeClient(policy, hosts);
-        } catch (final AerospikeException e) {
-            LOG.error("Error connecting to Aerospike", e);
-            throw fromAerospikeException(e);
-        } catch (final Exception e) {
-            LOG.error("Error connecting to Aerospike", e);
-            throw e;
-        }
-
-        FireflyAerospikeVersionCheck.validateVersion(aerospikeClient, false);
-        FireflyAerospikeGraphServiceCheck.checkFeatureKey(aerospikeClient);
-
-        if (ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.CLIENT_FAILURE_TEST, conf)) {
-            return DiagnosticUtil.enableWriteFails(aerospikeClient, conf);
-        } else {
-            return aerospikeClient;
-        }
-    }
-
-    public static String stripAllWhiteSpace(final String hosts) {
-        return hosts.replaceAll("\\s+", "");
-    }
-
-    public static int getDefaultThreadPoolSize(final Settings gremlinServerSettings) {
-        // Min connections per node should be at least the thread pool size.
-        // In batching we may use up to 1 connection per node per thread at a time.
-        // We must add 2 because both the metadata updater thread and the cardinality metadata threads using the connection.
-        //
-        // The bulk loader uses 2 * availableProcessors + 4 for buffer + 10 for:
-        // - Metadata updater thread
-        // - Graph summary reader (via Progress bar)
-        // - Cardinality metadata
-        // - Index metadata
-        // - Graph summary writer
-        // - Usage stats writing
-        // - Usage stats reading (via prometheus)
-        // - TTL thread background worker
-        //
-        // Because of this, we need to use the greatest of either what the bulk loader would use or what gremlin-server would use.
-        return Math.max(2 * Runtime.getRuntime().availableProcessors() + 14, 2 * gremlinServerSettings.gremlinPool + 14);
+    private long getRecordIdLimitFromAerospike(final double fillPercentage) {
+        final double maxRecordSizeBytes = InfoOps.getMaxRecordSizeBytes(this.client, this.namespace);
+        final double edgeCacheIdSizeBytes = 36;
+        final double numberOfCaches = 2;
+        return (long) (((maxRecordSizeBytes * fillPercentage) / edgeCacheIdSizeBytes) / numberOfCaches);
     }
 
     /**
@@ -651,6 +644,7 @@ public class AerospikeConnection implements AutoCloseable {
         return new AerospikeConnection(conf, client, eventLoops, threadedReadExecutor);
     }
 
+
     /**
      * Connect to an Aerospike cluster.
      *
@@ -664,70 +658,6 @@ public class AerospikeConnection implements AutoCloseable {
                 provider.getThreadedExecutorService(fireflyConfig));
     }
 
-    /**
-     * If the value parameter is scalar, return the numeric id of the on disk type if value is an Integer - else null.
-     * If the value parameter is an ArrayList, return an ArrayList containing the indices at which the values within the
-     * parameter ArrayList is an Integer. Returns null if the ArrayList contained no Integer values.
-     *
-     * @param value Object to get type hint ID of
-     * @return Type hint value or null
-     */
-    public static Object getTypeHintOf(final Object value) {
-        final Class clazz = value.getClass();
-        if (!SUPPORTED_VALUE_TYPES.containsKey(clazz)) {
-            throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(value);
-        } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(ArrayList.class))) {
-            // Values within a list for our supported types are stored on disk as expected except for Integers which get
-            // stored as a Long. We need to keep track of which indexes within the list were inputted as Integers to
-            // properly cast them back upon a read.
-            final ArrayList<Long> integerIndices = new ArrayList<>();
-            final ArrayList<?> valueList = (ArrayList<?>) value;
-            for (int i = 0; i < valueList.size(); i++) {
-                final Object valueInList = valueList.get(i);
-                if (valueInList != null) {
-                    final Class valueClass = valueInList.getClass();
-                    if (!SUPPORTED_VALUE_TYPES.containsKey(valueClass) ||
-                            SUPPORTED_VALUE_TYPES.get(valueClass).equals(SUPPORTED_VALUE_TYPES.get(ArrayList.class))) {
-                        throw new IllegalArgumentException(valueClass.getName()
-                                + " within a List is not a supported value type");
-                    }
-                    if (valueList.get(i).getClass().equals(Integer.class)) {
-                        integerIndices.add((long) i);
-                    }
-                }
-            }
-            return integerIndices.isEmpty() ? null : integerIndices;
-        }
-        return Objects.equals(SUPPORTED_VALUE_TYPES.get(clazz), SUPPORTED_VALUE_TYPES.get(Integer.class)) ? SUPPORTED_VALUE_TYPES.get(Integer.class) : null;
-    }
-
-    private static EventLoops initializeEventLoops(final EventLoopType eventLoopType,
-                                                   final int numLoops, final int commandsPerEventLoop,
-                                                   final int maxCommandsInQueue) {
-        final EventPolicy eventPolicy = new EventPolicy();
-        eventPolicy.maxCommandsInProcess = commandsPerEventLoop;
-        eventPolicy.maxCommandsInQueue = maxCommandsInQueue;
-        switch (eventLoopType) {
-            case DIRECT_NIO:
-                return new NioEventLoops(eventPolicy, numLoops);
-            case NETTY_NIO:
-                final NioEventLoopGroup nioGroup = new NioEventLoopGroup(numLoops);
-                return new NettyEventLoops(eventPolicy, nioGroup);
-            case NETTY_EPOLL:
-                final EpollEventLoopGroup epollGroup = new EpollEventLoopGroup(numLoops);
-                return new NettyEventLoops(eventPolicy, epollGroup);
-            default:
-                // This should never happen.
-                throw new IllegalArgumentException("Unsupported event loop type: " + eventLoopType);
-        }
-    }
-
-    private long getRecordIdLimitFromAerospike(final double fillPercentage) {
-        final double maxRecordSizeBytes = InfoOps.getMaxRecordSizeBytes(this.client, this.namespace);
-        final double edgeCacheIdSizeBytes = 36;
-        final double numberOfCaches = 2;
-        return (long) (((maxRecordSizeBytes * fillPercentage) / edgeCacheIdSizeBytes) / numberOfCaches);
-    }
 
     /**
      * Aerospike put with exception handling
@@ -838,6 +768,542 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
+    public static class GraphMetadata {
+        public final Record metadataRecord;
+
+        public GraphMetadata(final Record metadata) {
+            this.metadataRecord = metadata;
+        }
+
+        public ComparableVersion getDataModelVersion() {
+            if (this.metadataRecord == null) {
+                return null;
+            } else {
+                return new ComparableVersion(this.metadataRecord.getString(DATA_MODEL_VER));
+            }
+        }
+
+        public String getDataModelName() {
+            if (this.metadataRecord == null) {
+                return null;
+            } else {
+                return this.metadataRecord.getString(DATA_MODEL_NAME);
+            }
+        }
+
+        public Map<String, String> getExistingImmutableConfigs() {
+            if (this.metadataRecord == null) {
+                return null;
+            } else {
+                final Map<?, ?> fixedConfig = this.metadataRecord.getMap(DATA_MODEL_CONF);
+                if (fixedConfig == null) {
+                    return null;
+                } else {
+                    return (Map<String, String>) fixedConfig;
+                }
+            }
+        }
+    }
+
+    public static class InfoOps {
+        public static class Keys {
+            public static final String SET = "set";
+            public static final String SETS = "sets";
+            public static final String NS = "ns";
+            public static final String OBJECTS = "objects";
+            public static final String SINDEX = "sindex";
+            public static final String SINDEX_LIST = "sindex-list";
+            public static final String FEATURE_KEY = "feature-key";
+            public static final String INDEXNAME = "indexname";
+            public static final String RESULT = "result";
+            public static final String GET_CONFIG = "get-config:context=namespace;id=";
+            public static final String GET_SERVICE = "get-config:context=service";
+            public static final String SHOW_ALL_QUERY = "query-show";
+            public static final String QUERY_ABORT = "query-abort:trid=";
+        }
+
+        private static final String MAX_RECORD_SIZE = "max-record-size";
+        private static final String DEFAULT_TTL = "default-ttl";
+        private static final String STORAGE_ENGINE = "storage-engine";
+        private static final String WRITE_BLOCK_SIZE = "storage-engine.write-block-size";
+        private static final String STORAGE_ENGINE_PMEM = "pmem";
+        private static final String STORAGE_ENGINE_MEMORY = "memory";
+        private static final String QUERY_STATUS = "status";
+        private static final String QUERY_TRID = "trid";
+        private static final String QUERY_ABORT_RESULT = "result";
+        private static final String QUERY_ABORT_SUCCESS = "OK";
+        private static final String QUERY_ABORT_TRID_INACTIVE = "trid-not-active";
+        private static final String QUERY_THREADS_LIMIT = "query-threads-limit";
+        private static final String SINGLE_QUERY_THREADS = "single-query-threads";
+
+        //Parse the whole infoResponse and return it as a List of Maps
+        public static List<Map<String, String>> parseRaw(final String infoResponse) {
+            final List<Map<String, String>> results = new ArrayList<>();
+            Arrays.stream(infoResponse.split(";"))
+                    .map(str -> str.split(":"))
+                    .forEach(strAry -> {
+                        Map<String, String> data = new TreeMap<>();
+                        Arrays.stream(strAry).forEach(entryStr -> {
+                            if (entryStr.isEmpty())
+                                return;
+                            if (entryStr.contains("="))
+                                data.put(entryStr.split("=")[0], entryStr.split("=")[1]);
+                            else
+                                data.put(Keys.RESULT, entryStr);
+                        });
+                        if (data.size() > 0)
+                            results.add(data);
+                    });
+            return results;
+        }
+
+        public static Map<String, Map<String, String>> parseBySet(final String infoResponse, final String namespace) {
+            final Map<String, Map<String, String>> results = new TreeMap<>();
+            Arrays.stream(infoResponse.split(";"))
+                    .filter(str -> str.startsWith(Keys.NS + "=" + namespace))
+                    .map(str -> str.split(":"))
+                    .forEach(strAry -> {
+                        Map<String, String> data = new TreeMap<>();
+                        Arrays.stream(strAry).forEach(kvStr -> {
+                            data.put(kvStr.split("=")[0], kvStr.split("=")[1]);
+                        });
+                        results.put(data.get(Keys.SET), data);
+                    });
+            return results;
+        }
+
+        /**
+         * Return list of existing indices in a list of map entries.
+         *
+         * @param db AerospikeConnection
+         * @return List of existing indices in a list of map entries.
+         * First item of map entry is index
+         * Second item of map entry is set the index belongs to
+         */
+        public static List<Map.Entry<String, String>> listExistingIndexes(final AerospikeConnection db) {
+            final IAerospikeClient client = db.client;
+            final String namespace = db.namespace;
+            // Using client.getNodes()[0] is okay here since indexes exist across all nodes.
+            LOG.debug("Info.request: {}", Keys.SINDEX);
+            try {
+                final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SINDEX);
+                return parseRaw(infoResponse).stream()
+                        .filter(m -> m.get(Keys.NS).equals(namespace))
+                        .map(m -> (Map.Entry<String, String>)
+                                new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET)))
+                        .collect(Collectors.toList());
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        public static List<String> createSetIndex(final AerospikeConnection db, final String set) {
+            final IAerospikeClient client = db.client;
+            final String namespace = db.namespace;
+            final String command = "set-config:context=namespace;id=" + namespace + ";set=" + set + ";enable-index=true";
+            final List<String> results = new ArrayList<>();
+            try {
+                for (final Node node : client.getNodes()) {
+                    results.add(Info.request(new InfoPolicy(), node, command));
+                }
+                return results;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        /**
+         * Return list of usable indices in a list of map entries.
+         *
+         * @param db        AerospikeConnnection.
+         * @param namespace Namespace.
+         * @return List of existing indices in a list of map entries.
+         * First item of map entry is index
+         * Second item of map entry is set the index belongs to
+         */
+        public static List<String> listUsableIndexes(final AerospikeConnection db, final String namespace) {
+            final List<Set<String>> indexSets = new ArrayList<>();
+            try {
+                for (final Node node : db.client.getNodes()) {
+                    LOG.debug("Info.request: {}", Keys.SINDEX);
+                    final String infoResponse = Info.request(new InfoPolicy(), node, Keys.SINDEX);
+                    final List<Map.Entry<String, String>> raw = parseRaw(infoResponse).stream()
+                            .filter(m -> m.get(Keys.NS).equals(namespace))
+                            .filter(m -> m.get("state").equals("RW"))
+                            .map(m -> (Map.Entry<String, String>)
+                                    new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET)))
+                            .collect(Collectors.toList());
+                    indexSets.add(raw.stream().map(Map.Entry::getKey).filter(s ->
+                                    s.startsWith(db.getVpIndexPrefix()) ||
+                                            s.startsWith(db.getEpIndexPrefix()) ||
+                                            db.V_LABEL_INDEX_NAME.equals(s) ||
+                                            db.E_LABEL_INDEX_NAME.equals(s)).
+                            collect(Collectors.toSet()));
+                }
+
+                final List<String> indexList = new ArrayList<>();
+                for (final Set<String> set : indexSets) {
+                    if (indexList.isEmpty()) {
+                        indexList.addAll(set);
+                    } else {
+                        indexList.retainAll(set);
+                    }
+                }
+                return indexList;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        public static int getMaxParallelSindexes(final AerospikeConnection db, final String namespace) {
+            final String namespaceConfigKey = Keys.GET_CONFIG + namespace;
+            final String serviceConfigKey = Keys.GET_SERVICE;
+            int maxParallelSindexes = Integer.MAX_VALUE;
+
+            try {
+                final IAerospikeClient client = db.client;
+                for (final Node node : client.getNodes()) {
+                    LOG.debug("Info.request: {}", namespaceConfigKey);
+                    final String singleQueryThreads = Info.request(new InfoPolicy(), node, namespaceConfigKey);
+                    List<Map<String, String>> listOfConfigs = parseRaw(singleQueryThreads);
+                    int singleQueryThreadsValue = 4; // https://aerospike.com/docs/server/reference/configuration#namespace__single-query-threads
+                    for (final Map<String, String> config : listOfConfigs) {
+                        if (config.containsKey(SINGLE_QUERY_THREADS))
+                            singleQueryThreadsValue = Integer.parseInt(config.get(SINGLE_QUERY_THREADS));
+                    }
+                    LOG.debug("Info.request: {}", namespaceConfigKey);
+                    final String queryThreadsLimit = Info.request(new InfoPolicy(), node, serviceConfigKey);
+                    listOfConfigs = parseRaw(queryThreadsLimit);
+                    int queryThreadsLimitValue = 128; // https://aerospike.com/docs/server/reference/configuration#service__query-threads-limit
+                    for (final Map<String, String> config : listOfConfigs) {
+                        if (config.containsKey(QUERY_THREADS_LIMIT))
+                            queryThreadsLimitValue = Integer.parseInt(config.get(QUERY_THREADS_LIMIT));
+                    }
+
+                    maxParallelSindexes = Math.min(maxParallelSindexes, queryThreadsLimitValue / singleQueryThreadsValue);
+                }
+                System.out.println("Max parallel sindexes: " + maxParallelSindexes);
+                return maxParallelSindexes;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        public static List<String> getIndexStatuses(final AerospikeConnection db, final String indexName) {
+            final String infoQueryFormat = "sindex/%s/%s"; // "sindex/<namespace>/<index name>
+            final String infoVar = String.format(infoQueryFormat, db.namespace, indexName);
+            final InfoPolicy policy = new InfoPolicy();
+            final List<String> responses = new ArrayList<>();
+            LOG.debug("Info.request: {}", infoVar);
+            for (final Node node : db.client.getNodes()) {
+                try {
+                    final String infoResponse = Info.request(policy, node, infoVar);
+                    responses.add(infoResponse);
+                } catch (final AerospikeException e) {
+                    throw fromAerospikeException(e);
+                }
+            }
+            return responses;
+        }
+
+        /**
+         * Get whether TTL is enabled in Aerospike or not.
+         *
+         * @param client    client.
+         * @param namespace Namespace.
+         * @return True if enabled on any node, false otherwise.
+         */
+        public static boolean getIsAerospikeTTLEnabled(final AerospikeClient client, final String namespace) {
+            final String requestKey = Keys.GET_CONFIG + namespace;
+
+            try {
+                final Node[] nodes = client.getNodes();
+                for (final Node node : nodes) {
+                    LOG.debug("Info.request: {}", requestKey);
+                    final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
+                    final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
+                    for (final Map<String, String> config : listOfConfigs) {
+                        if (config.containsKey(DEFAULT_TTL)) {
+                            if (!config.get(DEFAULT_TTL).equals("0")) {
+                                LOG.error("One or more Aerospike node has default-ttl set to non-zero value: " + config.get(DEFAULT_TTL) +
+                                        " in the namespace '" + namespace + "'. Please set default-ttl to 0 in all Aerospike " +
+                                        "configuration files under the namespace '" + namespace + "'.");
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        /**
+         * Return the max-record-size configured on Aerospike. If Aerospike is in a cluster, returns the value for the
+         * node with the smallest max-record-size.
+         *
+         * @param client    client.
+         * @param namespace Namespace.
+         * @return The max-record-size.
+         */
+        public static long getMaxRecordSizeBytes(final IAerospikeClient client, final String namespace) {
+            final String requestKey = Keys.GET_CONFIG + namespace;
+            long maxRecordSize = Long.MAX_VALUE;
+
+            try {
+                final Node[] nodes = client.getNodes();
+                for (final Node node : nodes) {
+                    LOG.debug("Info.request: {}", requestKey);
+                    final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
+                    final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
+                    final Map<String, String> relevantConfigs = new HashMap<>();
+                    for (final Map<String, String> config : listOfConfigs) {
+                        if (config.containsKey(MAX_RECORD_SIZE)) {
+                            relevantConfigs.put(MAX_RECORD_SIZE, config.get(MAX_RECORD_SIZE));
+                        }
+                        if (config.containsKey(WRITE_BLOCK_SIZE)) {
+                            relevantConfigs.put(WRITE_BLOCK_SIZE, config.get(WRITE_BLOCK_SIZE));
+                        }
+                        if (config.containsKey(STORAGE_ENGINE)) {
+                            relevantConfigs.put(STORAGE_ENGINE, config.get(STORAGE_ENGINE));
+                        }
+                    }
+
+                    if (relevantConfigs.containsKey(MAX_RECORD_SIZE) && Long.parseLong(relevantConfigs.get(MAX_RECORD_SIZE)) != 0) {
+                        maxRecordSize = Long.min(maxRecordSize, Long.parseLong(relevantConfigs.get(MAX_RECORD_SIZE)));
+                    } else if (relevantConfigs.containsKey(WRITE_BLOCK_SIZE)) {
+                        // When max-record-size is 0, it means that it was not set and will use the value of write-block-size instead
+                        maxRecordSize = Long.min(maxRecordSize, Long.parseLong(relevantConfigs.get(WRITE_BLOCK_SIZE)));
+                    } else if (STORAGE_ENGINE_PMEM.equals(relevantConfigs.get(STORAGE_ENGINE)) ||
+                            STORAGE_ENGINE_MEMORY.equals(relevantConfigs.get(STORAGE_ENGINE))) {
+                        // These storage types are hard-coded to 8MiB
+                        LOG.info("Storage type \"" + relevantConfigs.get(STORAGE_ENGINE) + "\" detected. Using maximum record size of 8MiB.");
+                        maxRecordSize = Long.min(maxRecordSize, 8388608);
+                    } else {
+                        LOG.warn("Unexpected failure to determine maximum record size based on Aerospike configuration. Falling back to maximum record size of 1MiB.");
+                        maxRecordSize = Long.min(maxRecordSize, 1048576);
+                    }
+                }
+
+                return maxRecordSize;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        public static Map<String, Integer> abortAllQueries(final IAerospikeClient client, final String namespace) {
+            final String requestKey = Keys.SHOW_ALL_QUERY;
+
+            final Set<String> activeTrids = new HashSet<>();
+
+            try {
+                final Node[] nodes = client.getNodes();
+                for (final Node node : nodes) {
+                    LOG.debug("Info.request: {}", requestKey);
+                    final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
+                    final List<Map<String, String>> listOfQueries = parseRaw(infoResponse).stream()
+                            .filter(m -> m.get(Keys.NS).equals(namespace))
+                            .collect(Collectors.toList());
+                    for (final Map<String, String> query : listOfQueries) {
+                        if (!query.containsKey(QUERY_STATUS)) {
+                            LOG.error("Unexpected failure to get a query's status when aborting all queries. Please contact support if an ongoing query persists.");
+                            continue;
+                        }
+                        if (query.get(QUERY_STATUS).contains(("active"))) {
+                            if (!query.containsKey(QUERY_TRID)) {
+                                LOG.error("Unexpected failure to get an active query's trid when aborting all queries. Please contact support if an ongoing query persists.");
+                                continue;
+                            }
+                            activeTrids.add(query.get(QUERY_TRID));
+                        }
+                    }
+                }
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+
+            final Map<String, Integer> resultMap = new HashMap<>();
+            LOG.info("Found {} active queries to abort.", activeTrids.size());
+            resultMap.put("found", activeTrids.size());
+            int successfulAborts = 0;
+            for (final String trid : activeTrids) {
+                if (abortQuery(client, trid)) {
+                    successfulAborts++;
+                }
+            }
+            LOG.info("{} active queries were successfully aborted.", successfulAborts);
+            resultMap.put("aborted", successfulAborts);
+            return resultMap;
+        }
+
+        public static boolean abortQuery(final IAerospikeClient client, final String trid) {
+            final String requestKey = Keys.QUERY_ABORT + trid;
+
+            try {
+                boolean success = false;
+                String lastAbortResult = null;
+                final Node[] nodes = client.getNodes();
+                for (final Node node : nodes) {
+                    LOG.debug("Info.request: {}", requestKey);
+                    final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
+                    final List<Map<String, String>> queryAbortResponses = parseRaw(infoResponse);
+                    for (final Map<String, String> abortResponse : queryAbortResponses) {
+                        if (abortResponse.containsKey(QUERY_ABORT_RESULT)) {
+                            final String abortResult = abortResponse.get(QUERY_ABORT_RESULT);
+                            if (QUERY_ABORT_SUCCESS.equals(abortResult) || QUERY_ABORT_TRID_INACTIVE.equals(abortResult)) {
+                                success = true;
+                            } else {
+                                if (!abortResult.equals(lastAbortResult)) {
+                                    LOG.error("Aborting query with trid {} failed with response: {}", trid, abortResult);
+                                    lastAbortResult = abortResult;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (!success) {
+                    LOG.error("Failed to abort query with trid {}. Please contact support if an ongoing query persists.", trid);
+                }
+                return success;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        /**
+         * Is the first connected Aerospike instance "Enterprise Edition"
+         *
+         * @param db AerospikeConnection instance
+         * @return enterprise or not
+         */
+        public static boolean isEnterprise(final AerospikeConnection db) {
+            final IAerospikeClient client = db.client;
+            // Using client.getNodes()[0] is okay here since if one is enterprise, the entire cluster is.
+            LOG.debug("Info.request: {}", Keys.FEATURE_KEY);
+            try {
+                final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.FEATURE_KEY);
+                return (infoResponse != null && !infoResponse.isEmpty());
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        public static String getClusterName(final AerospikeConnection db) {
+            final IAerospikeClient client = db.client;
+            LOG.debug("Info.request: get-config");
+            try {
+                final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], "get-config");
+                final String[] delimitedResponse = infoResponse.split(";");
+                for (final String s : delimitedResponse) {
+                    if (s.startsWith("cluster-name=")) {
+                        if ("null".equals(s.split("=")[1])) {
+                            return "";
+                        }
+                        return s.split("=")[1];
+                    }
+                }
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+            throw new IllegalStateException("Could not find cluster-name in get-config response.");
+        }
+
+        /**
+         * Get a list of all the Sets in a namespace that have a number of records > 0
+         *
+         * @param db AerospikeConnection instance
+         * @return Set of namespaces
+         */
+        public static Set<String> getNonEmptySetList(final AerospikeConnection db) {
+            final IAerospikeClient client = db.client;
+            final String namespace = db.namespace;
+            final Set<String> allSets = new HashSet<>();
+
+            // Need to loop all nodes here in case one of the sets only has data on a single node.
+            try {
+                for (final Node node : client.getNodes()) {
+                    LOG.debug("Info.request: {}", Keys.SETS);
+                    final String infoResponse = Info.request(new InfoPolicy(), node, Keys.SETS);
+                    allSets.addAll(parseBySet(infoResponse, namespace).entrySet().stream().filter(entry -> {
+                                Map<String, String> map = entry.getValue();
+                                return Integer.parseInt(map.get(Keys.OBJECTS)) > 0;
+                            })
+                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (x, y) -> y, LinkedHashMap::new))
+                            .keySet());
+                }
+                return allSets;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        public static String getDatabaseVersionString(final AerospikeConnection db) {
+            final IAerospikeClient client = db.client;
+            final StringBuilder versionString = new StringBuilder();
+            try {
+                for (final Node node : client.getNodes()) {
+                    LOG.debug("Info.request: build");
+                    final String response = Info.request(null, node, "build");
+                    if (!versionString.toString().isEmpty()) {
+                        versionString.append(",");
+                    }
+                    versionString.append(node.getAddress().getHostName()).append(":").append(response);
+                }
+                return versionString.toString();
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        public static String singleNodeInfoRequest(final AerospikeConnection db, final String infoVar) {
+            LOG.debug("Info.request: {}", infoVar);
+            final Node[] nodes = db.client.getNodes();
+            if (nodes.length == 0) {
+                throw new AerospikeGraphException(GraphError.NO_ACTIVE_NODES);
+            }
+            try {
+                return Info.request(null, nodes[0], infoVar);
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+    }
+
+    public static final Map<Class<? extends Serializable>, Long> SUPPORTED_VALUE_TYPES = new HashMap<>() {{
+        put(Long.class, 1L);
+        put(Integer.class, 2L);
+        put(Double.class, 3L);
+        put(byte[].class, 4L);
+        put(Byte[].class, 4L);
+        put(String.class, 5L);
+        put(Boolean.class, 6L);
+        put(ArrayList.class, 7L);
+    }};
+    public static final Map<Long, Class<? extends Serializable>> SUPPORTED_TYPE_VALUES = new HashMap<>() {{
+        put(1L, Long.class);
+        put(2L, Integer.class);
+        put(3L, Double.class);
+        put(4L, byte[].class);
+        put(5L, String.class);
+        put(6L, Boolean.class);
+        put(7L, ArrayList.class);
+    }};
+    public static final Set<Class<? extends Serializable>> SUPPORTED_ARR_TYPES = new HashSet<>() {{
+        add(boolean[].class);
+        add(Boolean[].class);
+        add(double[].class);
+        add(Double[].class);
+        add(int[].class);
+        add(Integer[].class);
+        add(String[].class);
+        add(long[].class);
+        add(Long[].class);
+    }};
+
+    static AtomicLong readMetric = new AtomicLong(0);
+    static AtomicLong writeMetric = new AtomicLong(0);
+
     /**
      * Return the name of the set associated with the FireflyElement class
      *
@@ -853,6 +1319,43 @@ public class AerospikeConnection implements AutoCloseable {
             return VERTEX_AERO_SET;
         }
         throw new UnsupportedOperationException("Element not supported " + type.getName());
+    }
+
+    /**
+     * If the value parameter is scalar, return the numeric id of the on disk type if value is an Integer - else null.
+     * If the value parameter is an ArrayList, return an ArrayList containing the indices at which the values within the
+     * parameter ArrayList is an Integer. Returns null if the ArrayList contained no Integer values.
+     *
+     * @param value Object to get type hint ID of
+     * @return Type hint value or null
+     */
+    public static Object getTypeHintOf(final Object value) {
+        final Class clazz = value.getClass();
+        if (!SUPPORTED_VALUE_TYPES.containsKey(clazz)) {
+            throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(value);
+        } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(ArrayList.class))) {
+            // Values within a list for our supported types are stored on disk as expected except for Integers which get
+            // stored as a Long. We need to keep track of which indexes within the list were inputted as Integers to
+            // properly cast them back upon a read.
+            final ArrayList<Long> integerIndices = new ArrayList<>();
+            final ArrayList<?> valueList = (ArrayList<?>) value;
+            for (int i = 0; i < valueList.size(); i++) {
+                final Object valueInList = valueList.get(i);
+                if (valueInList != null) {
+                    final Class valueClass = valueInList.getClass();
+                    if (!SUPPORTED_VALUE_TYPES.containsKey(valueClass) ||
+                            SUPPORTED_VALUE_TYPES.get(valueClass).equals(SUPPORTED_VALUE_TYPES.get(ArrayList.class))) {
+                        throw new IllegalArgumentException(valueClass.getName()
+                                + " within a List is not a supported value type");
+                    }
+                    if (valueList.get(i).getClass().equals(Integer.class)) {
+                        integerIndices.add((long) i);
+                    }
+                }
+            }
+            return integerIndices.isEmpty() ? null : integerIndices;
+        }
+        return Objects.equals(SUPPORTED_VALUE_TYPES.get(clazz), SUPPORTED_VALUE_TYPES.get(Integer.class)) ? SUPPORTED_VALUE_TYPES.get(Integer.class) : null;
     }
 
     /**
@@ -977,6 +1480,27 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public String getNamespace() {
         return this.namespace;
+    }
+
+    private static EventLoops initializeEventLoops(final EventLoopType eventLoopType,
+                                                   final int numLoops, final int commandsPerEventLoop,
+                                                   final int maxCommandsInQueue) {
+        final EventPolicy eventPolicy = new EventPolicy();
+        eventPolicy.maxCommandsInProcess = commandsPerEventLoop;
+        eventPolicy.maxCommandsInQueue = maxCommandsInQueue;
+        switch (eventLoopType) {
+            case DIRECT_NIO:
+                return new NioEventLoops(eventPolicy, numLoops);
+            case NETTY_NIO:
+                final NioEventLoopGroup nioGroup = new NioEventLoopGroup(numLoops);
+                return new NettyEventLoops(eventPolicy, nioGroup);
+            case NETTY_EPOLL:
+                final EpollEventLoopGroup epollGroup = new EpollEventLoopGroup(numLoops);
+                return new NettyEventLoops(eventPolicy, epollGroup);
+            default:
+                // This should never happen.
+                throw new IllegalArgumentException("Unsupported event loop type: " + eventLoopType);
+        }
     }
 
     /**
@@ -1595,12 +2119,12 @@ public class AerospikeConnection implements AutoCloseable {
 
     /**
      * Delete all data from the namespace
-     * clearFlag = true drops indexes
-     * clearFlag = false does not drop indexes
+     * clearFlag = true : drop all indices
+     * clearFlag = false : don't drop indices
      */
-    public void clearNamespace(final boolean clearFlag) {
+    public void clearNamespace(boolean clearFlag) {
         client.truncate(null, namespace, null, null);
-        if (clearFlag) {
+        if(clearFlag) {
             final List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(this);
             for (final Map.Entry<String, String> entry : indexes) {
                 dropIndex(entry.getValue(), entry.getKey());
@@ -2035,514 +2559,6 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
-    /**
-     * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
-     */
-
-    enum EventLoopType {DIRECT_NIO, NETTY_NIO, NETTY_EPOLL}
-
-    public static class GraphMetadata {
-        public final Record metadataRecord;
-
-        public GraphMetadata(final Record metadata) {
-            this.metadataRecord = metadata;
-        }
-
-        public ComparableVersion getDataModelVersion() {
-            if (this.metadataRecord == null) {
-                return null;
-            } else {
-                return new ComparableVersion(this.metadataRecord.getString(DATA_MODEL_VER));
-            }
-        }
-
-        public String getDataModelName() {
-            if (this.metadataRecord == null) {
-                return null;
-            } else {
-                return this.metadataRecord.getString(DATA_MODEL_NAME);
-            }
-        }
-
-        public Map<String, String> getExistingImmutableConfigs() {
-            if (this.metadataRecord == null) {
-                return null;
-            } else {
-                final Map<?, ?> fixedConfig = this.metadataRecord.getMap(DATA_MODEL_CONF);
-                if (fixedConfig == null) {
-                    return null;
-                } else {
-                    return (Map<String, String>) fixedConfig;
-                }
-            }
-        }
-    }
-
-    public static class InfoOps {
-        private static final String MAX_RECORD_SIZE = "max-record-size";
-        private static final String DEFAULT_TTL = "default-ttl";
-        private static final String STORAGE_ENGINE = "storage-engine";
-        private static final String WRITE_BLOCK_SIZE = "storage-engine.write-block-size";
-        private static final String STORAGE_ENGINE_PMEM = "pmem";
-        private static final String STORAGE_ENGINE_MEMORY = "memory";
-        private static final String QUERY_STATUS = "status";
-        private static final String QUERY_TRID = "trid";
-        private static final String QUERY_ABORT_RESULT = "result";
-        private static final String QUERY_ABORT_SUCCESS = "OK";
-        private static final String QUERY_ABORT_TRID_INACTIVE = "trid-not-active";
-        private static final String QUERY_THREADS_LIMIT = "query-threads-limit";
-        private static final String SINGLE_QUERY_THREADS = "single-query-threads";
-
-        //Parse the whole infoResponse and return it as a List of Maps
-        public static List<Map<String, String>> parseRaw(final String infoResponse) {
-            final List<Map<String, String>> results = new ArrayList<>();
-            Arrays.stream(infoResponse.split(";"))
-                    .map(str -> str.split(":"))
-                    .forEach(strAry -> {
-                        Map<String, String> data = new TreeMap<>();
-                        Arrays.stream(strAry).forEach(entryStr -> {
-                            if (entryStr.isEmpty())
-                                return;
-                            if (entryStr.contains("="))
-                                data.put(entryStr.split("=")[0], entryStr.split("=")[1]);
-                            else
-                                data.put(Keys.RESULT, entryStr);
-                        });
-                        if (data.size() > 0)
-                            results.add(data);
-                    });
-            return results;
-        }
-
-        public static Map<String, Map<String, String>> parseBySet(final String infoResponse, final String namespace) {
-            final Map<String, Map<String, String>> results = new TreeMap<>();
-            Arrays.stream(infoResponse.split(";"))
-                    .filter(str -> str.startsWith(Keys.NS + "=" + namespace))
-                    .map(str -> str.split(":"))
-                    .forEach(strAry -> {
-                        Map<String, String> data = new TreeMap<>();
-                        Arrays.stream(strAry).forEach(kvStr -> {
-                            data.put(kvStr.split("=")[0], kvStr.split("=")[1]);
-                        });
-                        results.put(data.get(Keys.SET), data);
-                    });
-            return results;
-        }
-
-        /**
-         * Return list of existing indices in a list of map entries.
-         *
-         * @param db AerospikeConnection
-         * @return List of existing indices in a list of map entries.
-         * First item of map entry is index
-         * Second item of map entry is set the index belongs to
-         */
-        public static List<Map.Entry<String, String>> listExistingIndexes(final AerospikeConnection db) {
-            final IAerospikeClient client = db.client;
-            final String namespace = db.namespace;
-            // Using client.getNodes()[0] is okay here since indexes exist across all nodes.
-            LOG.debug("Info.request: {}", Keys.SINDEX);
-            try {
-                final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SINDEX);
-                return parseRaw(infoResponse).stream()
-                        .filter(m -> m.get(Keys.NS).equals(namespace))
-                        .map(m -> (Map.Entry<String, String>)
-                                new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET)))
-                        .collect(Collectors.toList());
-            } catch (final AerospikeException e) {
-                throw fromAerospikeException(e);
-            }
-        }
-
-        public static List<String> createSetIndex(final AerospikeConnection db, final String set) {
-            final IAerospikeClient client = db.client;
-            final String namespace = db.namespace;
-            final String command = "set-config:context=namespace;id=" + namespace + ";set=" + set + ";enable-index=true";
-            final List<String> results = new ArrayList<>();
-            try {
-                for (final Node node : client.getNodes()) {
-                    results.add(Info.request(new InfoPolicy(), node, command));
-                }
-                return results;
-            } catch (final AerospikeException e) {
-                throw fromAerospikeException(e);
-            }
-        }
-
-        /**
-         * Return list of usable indices in a list of map entries.
-         *
-         * @param db        AerospikeConnnection.
-         * @param namespace Namespace.
-         * @return List of existing indices in a list of map entries.
-         * First item of map entry is index
-         * Second item of map entry is set the index belongs to
-         */
-        public static List<String> listUsableIndexes(final AerospikeConnection db, final String namespace) {
-            final List<Set<String>> indexSets = new ArrayList<>();
-            try {
-                for (final Node node : db.client.getNodes()) {
-                    LOG.debug("Info.request: {}", Keys.SINDEX);
-                    final String infoResponse = Info.request(new InfoPolicy(), node, Keys.SINDEX);
-                    final List<Map.Entry<String, String>> raw = parseRaw(infoResponse).stream()
-                            .filter(m -> m.get(Keys.NS).equals(namespace))
-                            .filter(m -> m.get("state").equals("RW"))
-                            .map(m -> (Map.Entry<String, String>)
-                                    new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET)))
-                            .collect(Collectors.toList());
-                    indexSets.add(raw.stream().map(Map.Entry::getKey).filter(s ->
-                                    s.startsWith(db.getVpIndexPrefix()) ||
-                                            s.startsWith(db.getEpIndexPrefix()) ||
-                                            db.V_LABEL_INDEX_NAME.equals(s) ||
-                                            db.E_LABEL_INDEX_NAME.equals(s)).
-                            collect(Collectors.toSet()));
-                }
-
-                final List<String> indexList = new ArrayList<>();
-                for (final Set<String> set : indexSets) {
-                    if (indexList.isEmpty()) {
-                        indexList.addAll(set);
-                    } else {
-                        indexList.retainAll(set);
-                    }
-                }
-                return indexList;
-            } catch (final AerospikeException e) {
-                throw fromAerospikeException(e);
-            }
-        }
-
-        public static int getMaxParallelSindexes(final AerospikeConnection db, final String namespace) {
-            final String namespaceConfigKey = Keys.GET_CONFIG + namespace;
-            final String serviceConfigKey = Keys.GET_SERVICE;
-            int maxParallelSindexes = Integer.MAX_VALUE;
-
-            try {
-                final IAerospikeClient client = db.client;
-                for (final Node node : client.getNodes()) {
-                    LOG.debug("Info.request: {}", namespaceConfigKey);
-                    final String singleQueryThreads = Info.request(new InfoPolicy(), node, namespaceConfigKey);
-                    List<Map<String, String>> listOfConfigs = parseRaw(singleQueryThreads);
-                    int singleQueryThreadsValue = 4; // https://aerospike.com/docs/server/reference/configuration#namespace__single-query-threads
-                    for (final Map<String, String> config : listOfConfigs) {
-                        if (config.containsKey(SINGLE_QUERY_THREADS))
-                            singleQueryThreadsValue = Integer.parseInt(config.get(SINGLE_QUERY_THREADS));
-                    }
-                    LOG.debug("Info.request: {}", namespaceConfigKey);
-                    final String queryThreadsLimit = Info.request(new InfoPolicy(), node, serviceConfigKey);
-                    listOfConfigs = parseRaw(queryThreadsLimit);
-                    int queryThreadsLimitValue = 128; // https://aerospike.com/docs/server/reference/configuration#service__query-threads-limit
-                    for (final Map<String, String> config : listOfConfigs) {
-                        if (config.containsKey(QUERY_THREADS_LIMIT))
-                            queryThreadsLimitValue = Integer.parseInt(config.get(QUERY_THREADS_LIMIT));
-                    }
-
-                    maxParallelSindexes = Math.min(maxParallelSindexes, queryThreadsLimitValue / singleQueryThreadsValue);
-                }
-                System.out.println("Max parallel sindexes: " + maxParallelSindexes);
-                return maxParallelSindexes;
-            } catch (final AerospikeException e) {
-                throw fromAerospikeException(e);
-            }
-        }
-
-        public static List<String> getIndexStatuses(final AerospikeConnection db, final String indexName) {
-            final String infoQueryFormat = "sindex/%s/%s"; // "sindex/<namespace>/<index name>
-            final String infoVar = String.format(infoQueryFormat, db.namespace, indexName);
-            final InfoPolicy policy = new InfoPolicy();
-            final List<String> responses = new ArrayList<>();
-            LOG.debug("Info.request: {}", infoVar);
-            for (final Node node : db.client.getNodes()) {
-                try {
-                    final String infoResponse = Info.request(policy, node, infoVar);
-                    responses.add(infoResponse);
-                } catch (final AerospikeException e) {
-                    throw fromAerospikeException(e);
-                }
-            }
-            return responses;
-        }
-
-        /**
-         * Get whether TTL is enabled in Aerospike or not.
-         *
-         * @param client    client.
-         * @param namespace Namespace.
-         * @return True if enabled on any node, false otherwise.
-         */
-        public static boolean getIsAerospikeTTLEnabled(final AerospikeClient client, final String namespace) {
-            final String requestKey = Keys.GET_CONFIG + namespace;
-
-            try {
-                final Node[] nodes = client.getNodes();
-                for (final Node node : nodes) {
-                    LOG.debug("Info.request: {}", requestKey);
-                    final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
-                    final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
-                    for (final Map<String, String> config : listOfConfigs) {
-                        if (config.containsKey(DEFAULT_TTL)) {
-                            if (!config.get(DEFAULT_TTL).equals("0")) {
-                                LOG.error("One or more Aerospike node has default-ttl set to non-zero value: " + config.get(DEFAULT_TTL) +
-                                        " in the namespace '" + namespace + "'. Please set default-ttl to 0 in all Aerospike " +
-                                        "configuration files under the namespace '" + namespace + "'.");
-                                return true;
-                            }
-                        }
-                    }
-                }
-                return false;
-            } catch (final AerospikeException e) {
-                throw fromAerospikeException(e);
-            }
-        }
-
-        /**
-         * Return the max-record-size configured on Aerospike. If Aerospike is in a cluster, returns the value for the
-         * node with the smallest max-record-size.
-         *
-         * @param client    client.
-         * @param namespace Namespace.
-         * @return The max-record-size.
-         */
-        public static long getMaxRecordSizeBytes(final IAerospikeClient client, final String namespace) {
-            final String requestKey = Keys.GET_CONFIG + namespace;
-            long maxRecordSize = Long.MAX_VALUE;
-
-            try {
-                final Node[] nodes = client.getNodes();
-                for (final Node node : nodes) {
-                    LOG.debug("Info.request: {}", requestKey);
-                    final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
-                    final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
-                    final Map<String, String> relevantConfigs = new HashMap<>();
-                    for (final Map<String, String> config : listOfConfigs) {
-                        if (config.containsKey(MAX_RECORD_SIZE)) {
-                            relevantConfigs.put(MAX_RECORD_SIZE, config.get(MAX_RECORD_SIZE));
-                        }
-                        if (config.containsKey(WRITE_BLOCK_SIZE)) {
-                            relevantConfigs.put(WRITE_BLOCK_SIZE, config.get(WRITE_BLOCK_SIZE));
-                        }
-                        if (config.containsKey(STORAGE_ENGINE)) {
-                            relevantConfigs.put(STORAGE_ENGINE, config.get(STORAGE_ENGINE));
-                        }
-                    }
-
-                    if (relevantConfigs.containsKey(MAX_RECORD_SIZE) && Long.parseLong(relevantConfigs.get(MAX_RECORD_SIZE)) != 0) {
-                        maxRecordSize = Long.min(maxRecordSize, Long.parseLong(relevantConfigs.get(MAX_RECORD_SIZE)));
-                    } else if (relevantConfigs.containsKey(WRITE_BLOCK_SIZE)) {
-                        // When max-record-size is 0, it means that it was not set and will use the value of write-block-size instead
-                        maxRecordSize = Long.min(maxRecordSize, Long.parseLong(relevantConfigs.get(WRITE_BLOCK_SIZE)));
-                    } else if (STORAGE_ENGINE_PMEM.equals(relevantConfigs.get(STORAGE_ENGINE)) ||
-                            STORAGE_ENGINE_MEMORY.equals(relevantConfigs.get(STORAGE_ENGINE))) {
-                        // These storage types are hard-coded to 8MiB
-                        LOG.info("Storage type \"" + relevantConfigs.get(STORAGE_ENGINE) + "\" detected. Using maximum record size of 8MiB.");
-                        maxRecordSize = Long.min(maxRecordSize, 8388608);
-                    } else {
-                        LOG.warn("Unexpected failure to determine maximum record size based on Aerospike configuration. Falling back to maximum record size of 1MiB.");
-                        maxRecordSize = Long.min(maxRecordSize, 1048576);
-                    }
-                }
-
-                return maxRecordSize;
-            } catch (final AerospikeException e) {
-                throw fromAerospikeException(e);
-            }
-        }
-
-        public static Map<String, Integer> abortAllQueries(final IAerospikeClient client, final String namespace) {
-            final String requestKey = Keys.SHOW_ALL_QUERY;
-
-            final Set<String> activeTrids = new HashSet<>();
-
-            try {
-                final Node[] nodes = client.getNodes();
-                for (final Node node : nodes) {
-                    LOG.debug("Info.request: {}", requestKey);
-                    final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
-                    final List<Map<String, String>> listOfQueries = parseRaw(infoResponse).stream()
-                            .filter(m -> m.get(Keys.NS).equals(namespace))
-                            .collect(Collectors.toList());
-                    for (final Map<String, String> query : listOfQueries) {
-                        if (!query.containsKey(QUERY_STATUS)) {
-                            LOG.error("Unexpected failure to get a query's status when aborting all queries. Please contact support if an ongoing query persists.");
-                            continue;
-                        }
-                        if (query.get(QUERY_STATUS).contains(("active"))) {
-                            if (!query.containsKey(QUERY_TRID)) {
-                                LOG.error("Unexpected failure to get an active query's trid when aborting all queries. Please contact support if an ongoing query persists.");
-                                continue;
-                            }
-                            activeTrids.add(query.get(QUERY_TRID));
-                        }
-                    }
-                }
-            } catch (final AerospikeException e) {
-                throw fromAerospikeException(e);
-            }
-
-            final Map<String, Integer> resultMap = new HashMap<>();
-            LOG.info("Found {} active queries to abort.", activeTrids.size());
-            resultMap.put("found", activeTrids.size());
-            int successfulAborts = 0;
-            for (final String trid : activeTrids) {
-                if (abortQuery(client, trid)) {
-                    successfulAborts++;
-                }
-            }
-            LOG.info("{} active queries were successfully aborted.", successfulAborts);
-            resultMap.put("aborted", successfulAborts);
-            return resultMap;
-        }
-
-        public static boolean abortQuery(final IAerospikeClient client, final String trid) {
-            final String requestKey = Keys.QUERY_ABORT + trid;
-
-            try {
-                boolean success = false;
-                String lastAbortResult = null;
-                final Node[] nodes = client.getNodes();
-                for (final Node node : nodes) {
-                    LOG.debug("Info.request: {}", requestKey);
-                    final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
-                    final List<Map<String, String>> queryAbortResponses = parseRaw(infoResponse);
-                    for (final Map<String, String> abortResponse : queryAbortResponses) {
-                        if (abortResponse.containsKey(QUERY_ABORT_RESULT)) {
-                            final String abortResult = abortResponse.get(QUERY_ABORT_RESULT);
-                            if (QUERY_ABORT_SUCCESS.equals(abortResult) || QUERY_ABORT_TRID_INACTIVE.equals(abortResult)) {
-                                success = true;
-                            } else {
-                                if (!abortResult.equals(lastAbortResult)) {
-                                    LOG.error("Aborting query with trid {} failed with response: {}", trid, abortResult);
-                                    lastAbortResult = abortResult;
-                                }
-                            }
-                        }
-                    }
-                }
-                if (!success) {
-                    LOG.error("Failed to abort query with trid {}. Please contact support if an ongoing query persists.", trid);
-                }
-                return success;
-            } catch (final AerospikeException e) {
-                throw fromAerospikeException(e);
-            }
-        }
-
-        /**
-         * Is the first connected Aerospike instance "Enterprise Edition"
-         *
-         * @param db AerospikeConnection instance
-         * @return enterprise or not
-         */
-        public static boolean isEnterprise(final AerospikeConnection db) {
-            final IAerospikeClient client = db.client;
-            // Using client.getNodes()[0] is okay here since if one is enterprise, the entire cluster is.
-            LOG.debug("Info.request: {}", Keys.FEATURE_KEY);
-            try {
-                final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.FEATURE_KEY);
-                return (infoResponse != null && !infoResponse.isEmpty());
-            } catch (final AerospikeException e) {
-                throw fromAerospikeException(e);
-            }
-        }
-
-        public static String getClusterName(final AerospikeConnection db) {
-            final IAerospikeClient client = db.client;
-            LOG.debug("Info.request: get-config");
-            try {
-                final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], "get-config");
-                final String[] delimitedResponse = infoResponse.split(";");
-                for (final String s : delimitedResponse) {
-                    if (s.startsWith("cluster-name=")) {
-                        if ("null".equals(s.split("=")[1])) {
-                            return "";
-                        }
-                        return s.split("=")[1];
-                    }
-                }
-            } catch (final AerospikeException e) {
-                throw fromAerospikeException(e);
-            }
-            throw new IllegalStateException("Could not find cluster-name in get-config response.");
-        }
-
-        /**
-         * Get a list of all the Sets in a namespace that have a number of records > 0
-         *
-         * @param db AerospikeConnection instance
-         * @return Set of namespaces
-         */
-        public static Set<String> getNonEmptySetList(final AerospikeConnection db) {
-            final IAerospikeClient client = db.client;
-            final String namespace = db.namespace;
-            final Set<String> allSets = new HashSet<>();
-
-            // Need to loop all nodes here in case one of the sets only has data on a single node.
-            try {
-                for (final Node node : client.getNodes()) {
-                    LOG.debug("Info.request: {}", Keys.SETS);
-                    final String infoResponse = Info.request(new InfoPolicy(), node, Keys.SETS);
-                    allSets.addAll(parseBySet(infoResponse, namespace).entrySet().stream().filter(entry -> {
-                                Map<String, String> map = entry.getValue();
-                                return Integer.parseInt(map.get(Keys.OBJECTS)) > 0;
-                            })
-                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (x, y) -> y, LinkedHashMap::new))
-                            .keySet());
-                }
-                return allSets;
-            } catch (final AerospikeException e) {
-                throw fromAerospikeException(e);
-            }
-        }
-
-        public static String getDatabaseVersionString(final AerospikeConnection db) {
-            final IAerospikeClient client = db.client;
-            final StringBuilder versionString = new StringBuilder();
-            try {
-                for (final Node node : client.getNodes()) {
-                    LOG.debug("Info.request: build");
-                    final String response = Info.request(null, node, "build");
-                    if (!versionString.toString().isEmpty()) {
-                        versionString.append(",");
-                    }
-                    versionString.append(node.getAddress().getHostName()).append(":").append(response);
-                }
-                return versionString.toString();
-            } catch (final AerospikeException e) {
-                throw fromAerospikeException(e);
-            }
-        }
-
-        public static String singleNodeInfoRequest(final AerospikeConnection db, final String infoVar) {
-            LOG.debug("Info.request: {}", infoVar);
-            final Node[] nodes = db.client.getNodes();
-            if (nodes.length == 0) {
-                throw new AerospikeGraphException(GraphError.NO_ACTIVE_NODES);
-            }
-            try {
-                return Info.request(null, nodes[0], infoVar);
-            } catch (final AerospikeException e) {
-                throw fromAerospikeException(e);
-            }
-        }
-
-        public static class Keys {
-            public static final String SET = "set";
-            public static final String SETS = "sets";
-            public static final String NS = "ns";
-            public static final String OBJECTS = "objects";
-            public static final String SINDEX = "sindex";
-            public static final String SINDEX_LIST = "sindex-list";
-            public static final String FEATURE_KEY = "feature-key";
-            public static final String INDEXNAME = "indexname";
-            public static final String RESULT = "result";
-            public static final String GET_CONFIG = "get-config:context=namespace;id=";
-            public static final String GET_SERVICE = "get-config:context=service";
-            public static final String SHOW_ALL_QUERY = "query-show";
-            public static final String QUERY_ABORT = "query-abort:trid=";
-        }
-    }
-
     public static class FireflyRecordSet implements Iterable<KeyRecord>, Closeable {
         private final RecordSet recordSet;
 
@@ -2606,10 +2622,11 @@ public class AerospikeConnection implements AutoCloseable {
      */
     private static class DefaultAerospikeClientProvider implements AerospikeClientProvider, AutoCloseable {
         public static final AtomicLong OPEN_COUNT = new AtomicLong(0);
-        public static final DefaultAerospikeClientProvider INSTANCE = new DefaultAerospikeClientProvider();
         public static AerospikeClient CLIENT;
         public static EventLoops EVENT_LOOPS;
         public static ExecutorService THREADED_EXECUTOR_SERVICE;
+
+        public static final DefaultAerospikeClientProvider INSTANCE = new DefaultAerospikeClientProvider();
 
         private DefaultAerospikeClientProvider() {
         }
@@ -2677,7 +2694,6 @@ public class AerospikeConnection implements AutoCloseable {
             synchronized (DefaultAerospikeClientProvider.class) {
                 if (OPEN_COUNT.decrementAndGet() == 0) {
                     LOG.info("Closing Aerospike client.");
-                    System.out.println("Closing Aerospike client.");
                     CLIENT.close();
                     EVENT_LOOPS.close();
                     THREADED_EXECUTOR_SERVICE.shutdown();
@@ -2691,4 +2707,10 @@ public class AerospikeConnection implements AutoCloseable {
             }
         }
     }
+
+    /**
+     * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+     */
+
+    enum EventLoopType {DIRECT_NIO, NETTY_NIO, NETTY_EPOLL}
 }

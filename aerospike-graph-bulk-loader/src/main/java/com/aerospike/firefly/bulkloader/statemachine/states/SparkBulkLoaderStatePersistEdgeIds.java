@@ -25,15 +25,12 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
     @Override
     public void executeState() {
         if (!sparkBulkLoaderStateMachine.readOnly) {
-            LOGGER.info("Writing ids");
             sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeOperations.writeEdgeIDsToDataframe(
                     sparkBulkLoaderStateMachine.edgeDataset,
                     sparkBulkLoaderStateMachine.edgeRecoveryDirectory,
-                    sparkBulkLoaderStateMachine.fileConfig,
-                    sparkBulkLoaderStateMachine.readOnly);
+                    sparkBulkLoaderStateMachine.fileConfig);
 
             // Latch recovery directory.
-            LOGGER.info("Ids written");
             RecoveryUtil.writeTempEdgeDirectory(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), sparkBulkLoaderStateMachine.edgeRecoveryDirectory);
         }
 

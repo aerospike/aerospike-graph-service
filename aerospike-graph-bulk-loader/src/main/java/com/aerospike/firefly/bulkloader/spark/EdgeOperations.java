@@ -690,7 +690,7 @@ public class EdgeOperations implements Serializable {
      * @param config
      */
     public Dataset<Row> writeEdgeIDsToDataframe(final Dataset<Row> edgeDataset, final String writeLocation,
-                                                final Map<String, Object> config, final boolean readOnly) {
+                                                final Map<String, Object> config) {
         final Instant startWriteEdge = Instant.now();
         final String taskName = "Edges ID write";
         final StructType writeSchema = edgeDataset.schema().
@@ -699,11 +699,8 @@ public class EdgeOperations implements Serializable {
         edgeDataset.sparkSession().sparkContext().setJobGroup(taskName, "Edges ID write task", true);
         final ExpressionEncoder<Row> edgeIdEncoder = RowEncoder.apply(writeSchema);
         final Dataset<Row> edgeIdDataset = edgeDataset.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), edgeIdEncoder);
-        if (!readOnly) {
-            edgeIdDataset.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "bzip2").csv(writeLocation);
-            edgeIdDataset.persist(StorageLevel.DISK_ONLY());
-
-        }
+        edgeIdDataset.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "bzip2").csv(writeLocation);
+        edgeIdDataset.persist(StorageLevel.DISK_ONLY());
         edgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
         LOGGER.info("Execution time in seconds for Edge ID write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
         return edgeIdDataset;

@@ -6,6 +6,7 @@ import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
+import com.aerospike.firefly.io.FireflyEdgeRecord;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
@@ -17,6 +18,7 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.spark.sql.Row;
@@ -230,35 +232,22 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
     }
 
     protected void getIndividualEdgeIdsAttachedToVertex(final Record record) {
-        final String directionKey;
         if (direction == Direction.BOTH) {
             // Direction.BOTH should not be propagated here and should be combined at a higher level.
             throw new RuntimeException("Cannot get individual Edge IDs attached to a Vertex with Direction.BOTH");
-        } else {
+        }
+
+        final FireflyEdgeRecord edgeRecord = new FireflyEdgeRecord(record, graph.getBaseGraph());
+        final List<FireflyEdgeId> edgeIdsInRecord = edgeRecord.getEdgeIds();
+        for (final FireflyEdgeId edgeId : edgeIdsInRecord) {
+            final FireflyId vertexId;
             if (direction == Direction.OUT) {
-                directionKey = graph.getBaseGraph().SUPERNODES_OUT_BIN;
+                vertexId = edgeRecord.getOutV(edgeId);
             } else {
-                directionKey = graph.getBaseGraph().SUPERNODES_IN_BIN;
+                vertexId = edgeRecord.getInV(edgeId);
             }
-        }
-
-        final Map<Long, String> edgeUniqueIdToVertexIdMap = (Map<Long, String>) record.getMap(directionKey);
-        if (edgeUniqueIdToVertexIdMap == null) {
-            return;
-        }
-        final Map<ByteBuffer, List<?>> edgeIdToData = (Map<ByteBuffer, List<?>>) record.getMap(graph.getBaseGraph().EDGE_DATA_BIN);
-        if (edgeIdToData == null) {
-            return;
-        }
-        final Map<Long, FireflyPhatEdgeId> uniqueIdToEdgeId = new HashMap<>();
-        for (final ByteBuffer byteId : edgeIdToData.keySet()) {
-            final FireflyPhatEdgeId edgeId = graph.getBaseGraph().getIdFactory().createEdgeId(byteId);
-            uniqueIdToEdgeId.put(edgeId.getUniqueId(), edgeId);
-        }
-
-        for (final Map.Entry<Long, String> edgeUniqueIdToVertexId : edgeUniqueIdToVertexIdMap.entrySet()) {
-            if (edgeUniqueIdToVertexId.getValue().equals(inputVertexId.getKeyHashString())) {
-                final Edge edge = FireflyEdgeFactory.create(uniqueIdToEdgeId.get(edgeUniqueIdToVertexId.getKey()), record, graph);
+            if (this.inputVertexId.getKeyHashString().equals(vertexId.getKeyHashString())) {
+                final Edge edge = FireflyEdgeFactory.create(edgeId, edgeRecord, graph);
                 if (HasContainer.testAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
                     currentEdges.add(edge);
                 }

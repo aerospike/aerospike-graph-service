@@ -9,7 +9,6 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +21,7 @@ import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_POSITION;
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
-public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterator {
+public abstract class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterator {
     protected final Direction direction;
     protected final FireflyId vertexId;
     protected final Set<String> labels;
@@ -95,26 +94,8 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
         this.currentRecordIds = outputIds.iterator();
     }
 
-    protected Set<ByteBuffer> getIndividualEdgeIdsAttachedToVertex(final Record record, final Direction direction) {
-        final int directionIndex;
-        if (direction == Direction.BOTH) {
-            // Direction.BOTH should not be propagated here and should be combined at a higher level.
-            throw new RuntimeException("Cannot get individual Edge IDs attached to a Vertex with Direction.BOTH");
-        } else {
-            directionIndex = direction == Direction.OUT ? OUT_V_POSITION : IN_V_POSITION;
-        }
-
-        final Set<ByteBuffer> attachedEdgeIds = new HashSet<>();
-        final Map<ByteBuffer, List<?>> edgeDataMap = (Map<ByteBuffer, List<?>>) record.getMap(db.EDGE_DATA_BIN);
-        for (final Map.Entry<ByteBuffer, List<?>> edgeDataEntry : edgeDataMap.entrySet()) {
-            final List<?> edgeData = edgeDataEntry.getValue();
-            final Object vertexId = edgeData.get(directionIndex);
-            if (vertexId.equals(this.vertexId.getUserId())) {
-                attachedEdgeIds.add(edgeDataEntry.getKey());
-            }
-        }
-        return attachedEdgeIds;
-    }
+    // Make this not abstract if we ever need to use this class in the future
+    protected abstract Set<ByteBuffer> getIndividualEdgeIdsAttachedToVertex(final Record record, final Direction direction);
 
     @Override
     public FireflyId next() {

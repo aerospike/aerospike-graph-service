@@ -117,7 +117,7 @@ public class WriteFailureTest {
             List<Object> properties = g.V().values("key").toList();
             Assert.assertTrue(properties.isEmpty());
 
-            fireflyGraph.getOperations().writeVertexProperty(a, fireflyVertexProperty);
+            fireflyGraph.getOperations().writeVpProperty(a, fireflyVertexProperty);
 
             properties = g.V().values("key").toList();
             Assert.assertFalse(properties.isEmpty());

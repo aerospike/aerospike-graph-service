@@ -1,14 +1,11 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.Record;
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.FireflyEdgeRecord;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 
-import java.nio.ByteBuffer;
-import java.util.List;
 import java.util.Map;
 
 public class FireflyEdgeFactory {
@@ -25,34 +22,24 @@ public class FireflyEdgeFactory {
         return new FireflyEdge(edgeId, label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, generation);
     }
 
-    public static FireflyEdge create(final FireflyId edgeId, final Record record, final FireflyGraph graph) {
-        if (record == null) {
+    public static FireflyEdge create(final FireflyEdgeId edgeId, final FireflyEdgeRecord edgeRecord, final FireflyGraph graph) {
+        final String label = edgeRecord.getLabel(edgeId);
+        if (label == null) {
+            // This means the Edge no longer exists in this record.
             return null;
         }
-        final AerospikeConnection db = graph.getBaseGraph();
-        final ByteBuffer edgeIdMapKey = ((FireflyEdgeId) edgeId).getEdgeIdBytes();
-        final Map<ByteBuffer, List> edgeData = (Map<ByteBuffer, List>) record.getMap(db.EDGE_DATA_BIN);
-        // Implicitly assume that if the key is found for label, which is required, then the key exists for the
-        // other phat edge maps, since they are all written in the same operate.
-        if (!edgeData.containsKey(edgeIdMapKey)) {
-            return null;
-        }
-        final String label = (String) edgeData.get(edgeIdMapKey).get(FireflyEdge.LABEL_POSITION);
 
-        final Object outV = edgeData.get(edgeIdMapKey).get(FireflyEdge.OUT_V_POSITION);
-        final FireflyId outVertex = db.getIdFactory().createVertexId(outV);
+        final FireflyId outVertex = edgeRecord.getOutV(edgeId);
+        final FireflyId inVertex = edgeRecord.getInV(edgeId);
 
-        final Object inV = edgeData.get(edgeIdMapKey).get(FireflyEdge.IN_V_POSITION);
-        final FireflyId inVertex = db.getIdFactory().createVertexId(inV);
+        final Map<String, Object> properties = edgeRecord.getProperties(edgeId);
+        final Map<String, Object> typeHints = edgeRecord.getTypeHints(edgeId);
 
-        final Map<String, Object> properties = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(FireflyEdge.PROPERTIES_POSITION);
-        final Map<String, Object> typeHints = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(FireflyEdge.TYPE_HINTS_POSITION);
+        final boolean isOutSupernode = edgeRecord.getIsOutSupernode(edgeId);
+        final boolean isInSupernode = edgeRecord.getIsInSupernode(edgeId);
 
-        final Map<Long, String> outSupernodes = (Map<Long, String>) record.getMap(graph.getBaseGraph().SUPERNODES_OUT_BIN);
-        final Map<Long, String> inSupernodes = (Map<Long, String>) record.getMap(graph.getBaseGraph().SUPERNODES_IN_BIN);
-        final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(((FireflyEdgeId) edgeId).getUniqueId());
-        final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(((FireflyEdgeId) edgeId).getUniqueId());
+        final int generation = edgeRecord.getGeneration();
 
-        return create(edgeId, label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, record.generation);
+        return create(edgeId, label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, generation);
     }
 }

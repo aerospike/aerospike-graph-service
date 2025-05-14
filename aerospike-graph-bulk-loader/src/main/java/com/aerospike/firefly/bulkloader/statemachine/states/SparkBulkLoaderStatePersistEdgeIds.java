@@ -7,9 +7,7 @@ import org.apache.spark.sql.Column;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
-import java.time.Instant;
-
+import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.BUCKET_ID_COLUMN;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.PACKING_ID_COLUMN;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.BAD_EDGE_COUNT_EXCEEDED;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
@@ -24,6 +22,9 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
 
     @Override
     public void executeState() {
+        sparkBulkLoaderStateMachine.edgePartitionCount = sparkBulkLoaderStateMachine.edgeDataset.rdd().getPartitions().length;
+        LOGGER.info("EdgeId dataset has {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
+
         if (!sparkBulkLoaderStateMachine.readOnly) {
             sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeOperations.writeEdgeIDsToDataframe(
                     sparkBulkLoaderStateMachine.edgeDataset,
@@ -47,16 +48,13 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
             }
         }
 
-        sparkBulkLoaderStateMachine.edgePartitionCount = sparkBulkLoaderStateMachine.edgeDataset.rdd().getPartitions().length;
-        LOGGER.info("EdgeId dataset has {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
-
         if (!sparkBulkLoaderStateMachine.readOnly) {
             // Update edge recovery info.
             RecoveryUtil.updateEdgeRecovery(
                     sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
                     sparkBulkLoaderStateMachine.edgePartitionCount);
-            sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartition(
-                    sparkBulkLoaderStateMachine.edgePartitionCount, new Column(PACKING_ID_COLUMN));
+            sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartitionByRange(
+                    sparkBulkLoaderStateMachine.edgePartitionCount, new Column(BUCKET_ID_COLUMN));
             sparkBulkLoaderStateMachine.progressBar.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
             sparkBulkLoaderStateMachine.edgeDataset.sortWithinPartitions(new Column(PACKING_ID_COLUMN));
         }

@@ -55,6 +55,7 @@ public class TestBulkLoaderRecovery1 extends TestBulkLoaderRecovery {
     public void testDefault() {
         System.out.println("Testing testDefault");
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+        waitForBulkLoad(graph.traversal());
         Assert.assertEquals(vertexLineCount, graph.traversal().V().count().next().longValue());
         Assert.assertEquals(edgeLineCount, graph.traversal().E().count().next().longValue());
     }

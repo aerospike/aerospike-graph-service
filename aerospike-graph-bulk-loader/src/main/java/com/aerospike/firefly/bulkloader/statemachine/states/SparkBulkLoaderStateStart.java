@@ -10,6 +10,7 @@ import org.apache.spark.sql.Column;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.BUCKET_ID_COLUMN;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.PACKING_ID_COLUMN;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.CLEAR_EXISTING_DATA_EMPTY_DATABASE;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
@@ -57,7 +58,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                     sparkBulkLoaderStateMachine.cmd,
                     vertexRecoveryDirectory);
             sparkBulkLoaderStateMachine.vertexDataset = sparkBulkLoaderStateMachine.spark.
-                    read().option("header", "true").csv(vertexRecoveryDirectory);
+                    read().option("header", "true").option("compression", "snappy").parquet(vertexRecoveryDirectory);
 
             // Repartition the vertex dataset and set the partition count.
             sparkBulkLoaderStateMachine.vertexPartitionCount = info.getVertexPartitionCount();
@@ -81,12 +82,13 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                 sparkBulkLoaderStateMachine.spark,
                 sparkBulkLoaderStateMachine.cmd,
                 edgeRecoveryDirectory);
-        sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.spark.
-                read().option("header", "true").csv(edgeRecoveryDirectory);
+                sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.spark.
+                read().option("header", "true").parquet(edgeRecoveryDirectory);
+
 
         sparkBulkLoaderStateMachine.edgePartitionCount = info.getEdgePartitionCount();
-        sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartition(
-                sparkBulkLoaderStateMachine.edgePartitionCount, new Column(PACKING_ID_COLUMN));
+        sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartitionByRange(
+                sparkBulkLoaderStateMachine.edgePartitionCount, new Column(BUCKET_ID_COLUMN));
 
         LOGGER.info("EdgeId dataset has {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
         sparkBulkLoaderStateMachine.progressBar.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
@@ -112,10 +114,6 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         // Update progress bar.
         sparkBulkLoaderStateMachine.progressBar.setPreflightCheckComplete();
         sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();
-
-        // Calculate the number of partitions.
-        sparkBulkLoaderStateMachine.vertexPartitionCount = sparkBulkLoaderStateMachine.vertexDataset.rdd().partitions().length;
-        sparkBulkLoaderStateMachine.edgePartitionCount = sparkBulkLoaderStateMachine.edgeDataset.rdd().partitions().length;
     }
 
     @Override

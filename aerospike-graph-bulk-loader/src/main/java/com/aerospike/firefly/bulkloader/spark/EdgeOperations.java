@@ -67,10 +67,12 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.exponentialBackoff;
+import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.BUCKET_ID_COLUMN;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNS_TO_REMOVE;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.EDGE_ID_COLUMN;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.PACKING_ID_COLUMN;
@@ -284,6 +286,9 @@ public class EdgeOperations implements Serializable {
                         vertexDoesntExistList.contains(edgeToFrom._3())) {
                     edgesToRemove.add(edgeToFrom._1().getKeyHash());
                 }
+            }
+            if (edgesToRemove.isEmpty()) {
+                return;
             }
             GraphOperations.dropDetachedEdges(graph, edgesToRemove, allowedDetachedEdges);
         }
@@ -589,15 +594,19 @@ public class EdgeOperations implements Serializable {
     static private class EdgeIDAdditionFunction implements MapPartitionsFunction, Serializable {
         final Map<String, Object> fileConfig;
         final StructType schema;
+        final int partitionCount;
 
-        public EdgeIDAdditionFunction(final Map<String, Object> fileConfig, final StructType writeSchema) {
+        public EdgeIDAdditionFunction(final Map<String, Object> fileConfig,
+                                      final StructType writeSchema,
+                                      final int partitionCount) {
             this.fileConfig = fileConfig;
             this.schema = writeSchema;
+            this.partitionCount = partitionCount;
         }
 
         @Override
         public Iterator call(final Iterator input) {
-            return new EdgeIDOutputIterator(fileConfig, input, schema);
+            return new EdgeIDOutputIterator(fileConfig, input, partitionCount, schema);
         }
     }
 
@@ -608,6 +617,7 @@ public class EdgeOperations implements Serializable {
         final Iterator<Row> data;
         final StructType schema;
         final Instant start;
+        final int partitionCount;
 
         private final Supplier<FireflyGraph> graphSupplier = new Supplier<>() {
             private FireflyGraph instance = null;
@@ -629,11 +639,15 @@ public class EdgeOperations implements Serializable {
             return graphSupplier.get();
         }
 
-        public EdgeIDOutputIterator(final Map<String, Object> conf, final Iterator<Row> data, final StructType writeSchema) {
+        public EdgeIDOutputIterator(final Map<String, Object> conf,
+                                    final Iterator<Row> data,
+                                    final int partitionCount,
+                                    final StructType writeSchema) {
             start = Instant.now();
             this.config = conf;
             this.data = data;
             this.schema = writeSchema;
+            this.partitionCount = partitionCount;
         }
 
         @Override
@@ -660,6 +674,8 @@ public class EdgeOperations implements Serializable {
             outputRow.add(encodedId);
             final Long packingId = Long.parseLong(encodedId.split(":")[0]) / getFireflyGraph().getBaseGraph().PHAT_EDGE_SIZE;
             outputRow.add(packingId);
+            final int bucketId = Math.floorMod(packingId, partitionCount);
+            outputRow.add(bucketId);
             return new GenericRowWithSchema(outputRow.toArray(), schema);
         }
     }
@@ -695,56 +711,16 @@ public class EdgeOperations implements Serializable {
         final String taskName = "Edges ID write";
         final StructType writeSchema = edgeDataset.schema().
                 add(DataTypes.createStructField(EDGE_ID_COLUMN, DataTypes.StringType, false)).
-                add(DataTypes.createStructField(PACKING_ID_COLUMN, DataTypes.LongType, false));
+                add(DataTypes.createStructField(PACKING_ID_COLUMN, DataTypes.LongType, false)).
+                add(DataTypes.createStructField(BUCKET_ID_COLUMN, DataTypes.IntegerType, false));
         edgeDataset.sparkSession().sparkContext().setJobGroup(taskName, "Edges ID write task", true);
         final ExpressionEncoder<Row> edgeIdEncoder = RowEncoder.apply(writeSchema);
-        final Dataset<Row> edgeIdDataset = edgeDataset.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), edgeIdEncoder);
-        edgeIdDataset.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "bzip2").csv(writeLocation);
+        final Dataset<Row> edgeIdDataset = edgeDataset.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema, edgeDataset.rdd().getPartitions().length), edgeIdEncoder);
+        edgeIdDataset.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "snappy").parquet(writeLocation);
         edgeIdDataset.persist(StorageLevel.DISK_ONLY());
         edgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
         LOGGER.info("Execution time in seconds for Edge ID write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
         return edgeIdDataset;
-    }
-
-    public void writeBadEdges(final Dataset<Row> edgeDataset,
-                              final Dataset<Row> vertexDataset,
-                              final BulkLoaderConfigHelper config) {
-        final Instant startWriteEdge = Instant.now();
-        final String taskName = "Write bad edges";
-        edgeDataset.sparkSession().sparkContext().setJobGroup(taskName, "Write bad edges", true);
-
-        // Step 1: Prepare filtered vertex set
-        Dataset<Row> vertexIdSet = vertexDataset.select(ID_HEADER).distinct();
-
-        // Step 2: Find unmatched ~to values
-        Dataset<Row> unmatchedTo = edgeDataset
-                .select(col(TO_VERTEX_HEADER).alias("missing_vertex_id"))
-                .join(vertexIdSet, col("missing_vertex_id").equalTo(vertexIdSet.col(ID_HEADER)), "left_anti");
-
-        // Step 3: Find unmatched ~from values
-        Dataset<Row> unmatchedFrom = edgeDataset
-                .select(col(FROM_VERTEX_HEADER).alias("missing_vertex_id"))
-                .join(vertexIdSet, col("missing_vertex_id").equalTo(vertexIdSet.col(ID_HEADER)), "left_anti");
-
-        // Step 4: Combine both, then group and count
-        Dataset<Row> allUnmatched = unmatchedTo.union(unmatchedFrom);
-
-        Dataset<Row> unmatchedCounts = allUnmatched.groupBy("missing_vertex_id").count();
-        unmatchedCounts.foreachPartition(
-                partition -> {
-                    try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
-                        while (partition.hasNext()) {
-                            final Row row = partition.next();
-                            final String vertexId = row.getString(0);
-                            final long count = row.getLong(1);
-                            graph.getOperations().writeBadEdge(vertexId, count);
-                            LOGGER.error("Vertex ID {} has {} unmatched edges", vertexId, count);
-                        }
-                    }
-                });
-
-        edgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
-        LOGGER.info("Execution time in seconds for Write bad edges: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
     }
 
     /***

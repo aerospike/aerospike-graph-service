@@ -41,7 +41,8 @@ public class DatasetOperations implements Serializable {
     public static final String FILENAME_COLUMN = "~fileName";
     public static final String EDGE_ID_COLUMN = "~edgeid";
     public static final String PACKING_ID_COLUMN = "~packingid";
-    public static final Set<String> COLUMNS_TO_REMOVE = Set.of(FILENAME_COLUMN, EDGE_ID_COLUMN, PACKING_ID_COLUMN);
+    public static final String BUCKET_ID_COLUMN = "~bucketid";
+    public static final Set<String> COLUMNS_TO_REMOVE = Set.of(FILENAME_COLUMN, EDGE_ID_COLUMN, PACKING_ID_COLUMN, BUCKET_ID_COLUMN);
     private static final Logger LOGGER = LoggerFactory.getLogger(DatasetOperations.class);
 
     public DatasetOperations() {}

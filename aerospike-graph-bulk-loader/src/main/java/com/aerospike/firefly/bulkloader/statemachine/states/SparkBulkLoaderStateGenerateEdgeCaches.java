@@ -99,7 +99,7 @@ public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState
                 sparkBulkLoaderStateMachine.fileSystem.equals(SparkBulkLoaderStateMachine.LOCAL)
                         ? File.separator : "/");
         sparkBulkLoaderStateMachine.vertexDataset.write().option("header", true).
-                mode(SaveMode.Overwrite).option("compression", "bzip2").csv(vertexMergedDataset);
+                mode(SaveMode.Overwrite).option("compression", "snappy").parquet(vertexMergedDataset);
 
         // Latch and log vertex dataset partition count.
         sparkBulkLoaderStateMachine.vertexPartitionCount = sparkBulkLoaderStateMachine.vertexDataset.rdd().partitions().length;

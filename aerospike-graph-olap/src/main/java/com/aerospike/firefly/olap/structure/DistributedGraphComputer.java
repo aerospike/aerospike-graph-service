@@ -8,6 +8,7 @@ import com.aerospike.firefly.olap.helper.AttachmentHelper;
 import com.aerospike.firefly.olap.process.FireflyProgram;
 import com.aerospike.firefly.olap.process.TraversalProgram;
 import com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection;
+import com.aerospike.firefly.olap.process.traversal.strategy.SparkOptimizationStrategy;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.strategy.verification.FireflyComputerVerificationStrategy;
@@ -40,6 +41,7 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.javatuples.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,7 +95,8 @@ public class DistributedGraphComputer implements GraphComputer {
         TraversalStrategies.GlobalCache.registerStrategies(DistributedGraphComputer.class,
                 TraversalStrategies.GlobalCache.getStrategies(GraphComputer.class).clone()
                         .removeStrategies(MessagePassingReductionStrategy.class)
-                        .addStrategies(FireflyComputerVerificationStrategy.instance()));
+                        .addStrategies(FireflyComputerVerificationStrategy.instance(),
+                                SparkOptimizationStrategy.instance()));
     }
 
     public DistributedGraphComputer(final FireflyGraph graph, final Object sparkSession) {
@@ -443,25 +446,30 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 memory.setInExecute(false);
 
-                final Dataset<Row> resultsTemp = magicSwap(
-                        df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true)));
-
-                // Filter out halted vertices.
-                if (results == null) {
-                    results = resultsTemp;
-                } else {
-                    results = magicSwap(results.union(resultsTemp));
+                // we can use native spark sort and continue execution locally, so data in dataframe become obsolete.
+                boolean skipResults = false;
+                final Pair<Boolean, Dataset<Row>> nativeResult = DistributedWorkerExecutor.executeNative(traversal.get(), df, memory, codec);
+                if (nativeResult.getValue0()) {
+                    if (nativeResult.getValue1() == null) {
+                        skipResults = true;
+                    }
+                    df = magicSwap(nativeResult.getValue1());
                 }
 
-                //if (LOGGER.isDebugEnabled())
-                //System.out.println("====================== Results ======================");
-                //results.show();
+                if (!skipResults) {
+                    final Dataset<Row> resultsTemp = magicSwap(
+                            df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true)));
+
+                    // Filter out halted vertices.
+                    if (results == null) {
+                        results = resultsTemp;
+                    } else {
+                        results = magicSwap(results.union(resultsTemp));
+                    }
+                }
 
                 // Filter out vertices that are not halted.
                 df = magicSwap(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false)));
-
-                //System.out.println("====================== DF2 ======================");
-                //df.show();
 
                 // TODO: Ultimately probably don't want to do isEmpty() check here b/c we could have a query that pulls more data from graph later and
                 // we could screw it up.
@@ -486,14 +494,16 @@ public class DistributedGraphComputer implements GraphComputer {
             } catch (IllegalArgumentException e) {
                 // No data in memory.
             }
-            System.out.println("Memory traversers: " + traversers.size());
+            System.out.println("Memory traversers: " + traversers.size() + "; bulkSize: " + traversers.bulkSize());
 
-            // Collect results.
-            final List<Row> rows = results.collectAsList();
+            if (results != null) {
+                // Collect results.
+                final List<Row> rows = results.collectAsList();
 
-            // Create traversers.
-            rows.stream().forEach(row -> traversers.add(codec.decode(row).asAdmin()));
-            System.out.println("Results: " + rows.size());
+                // Create traversers.
+                rows.stream().forEach(row -> traversers.add(codec.decode(row).asAdmin()));
+                System.out.println("Results: " + rows.size());
+            }
 
             if (configHelper.isDebugDf()) {
                 System.out.println("Traversers: " + traversers);

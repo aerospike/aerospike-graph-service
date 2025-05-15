@@ -179,7 +179,8 @@ public class EdgeOperations implements Serializable {
                         if (!generateEdgeCaches) {
                             writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
                         } else {
-                            removeDetatchedEdgesPreGenerated(graph, edgeToFromIdList, bufferSize, allowedDetachedEdges);
+                            if (edgeToFromIdList.size() > bufferSize)
+                                removeDetatchedEdgesPreGenerated(graph, edgeToFromIdList, allowedDetachedEdges);
                         }
                         LOGGER.info(String.format("Edge write, partitionId: %d, batch: %d, time taken(in milli-seconds): %d, super node size: %d, cleaning all cached vertex maps", partitionId,
                                 batch, Duration.between(start, Instant.now()).toMillis(), supernodes.size()));
@@ -241,7 +242,8 @@ public class EdgeOperations implements Serializable {
                         if (!generateEdgeCaches) {
                             writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
                         } else {
-                            removeDetatchedEdgesPreGenerated(graph, edgeToFromIdList, bufferSize, allowedDetachedEdges);
+                            // Buffer size 0 to force flushing.
+                            removeDetatchedEdgesPreGenerated(graph, edgeToFromIdList, allowedDetachedEdges);
                         }
                     } catch (final RuntimeException e) {
                         LOGGER.error("Failed to flush Vertex Edge cache maps", e);
@@ -261,37 +263,33 @@ public class EdgeOperations implements Serializable {
 
     private void removeDetatchedEdgesPreGenerated(final FireflyGraph graph,
                                                   final List<Tuple3<FireflyId, Object, Object>> edgeToFromIdList,
-                                                  final int bufferSize,
                                                   final long allowedDetachedEdges) {
-
-        if (edgeToFromIdList.size() > bufferSize) {
-            final Set<Object> vertexIds = new HashSet<>();
-            for (final Tuple3<FireflyId, Object, Object> edgeToFrom : edgeToFromIdList) {
-                vertexIds.add(edgeToFrom._2());
-                vertexIds.add(edgeToFrom._3());
-            }
-            final List<Object> vertexIdList = new ArrayList<>(vertexIds);
-            final List<Boolean> vertexExistsList = graph.bulkVertexExists(vertexIdList);
-            final Set<Object> vertexDoesntExistList = new HashSet<>();
-            for (int i = 0; i < vertexIdList.size(); i++) {
-                final Object vertexId = vertexIdList.get(i);
-                if (!vertexExistsList.get(i)) {
-                    // If the vertex does not exist, we need to remove it from the supernodes set.
-                    vertexDoesntExistList.add(vertexId);
-                }
-            }
-            final Set<byte[]> edgesToRemove = new HashSet<>();
-            for (final Tuple3<FireflyId, Object, Object> edgeToFrom : edgeToFromIdList) {
-                if (vertexDoesntExistList.contains(edgeToFrom._2()) ||
-                        vertexDoesntExistList.contains(edgeToFrom._3())) {
-                    edgesToRemove.add(edgeToFrom._1().getKeyHash());
-                }
-            }
-            if (edgesToRemove.isEmpty()) {
-                return;
-            }
-            GraphOperations.dropDetachedEdges(graph, edgesToRemove, allowedDetachedEdges);
+        final Set<Object> vertexIds = new HashSet<>();
+        for (final Tuple3<FireflyId, Object, Object> edgeToFrom : edgeToFromIdList) {
+            vertexIds.add(edgeToFrom._2());
+            vertexIds.add(edgeToFrom._3());
         }
+        final List<Object> vertexIdList = new ArrayList<>(vertexIds);
+        final List<Boolean> vertexExistsList = graph.bulkVertexExists(vertexIdList);
+        final Set<Object> vertexDoesntExistList = new HashSet<>();
+        for (int i = 0; i < vertexIdList.size(); i++) {
+            final Object vertexId = vertexIdList.get(i);
+            if (!vertexExistsList.get(i)) {
+                // If the vertex does not exist, we need to remove it from the supernodes set.
+                vertexDoesntExistList.add(vertexId);
+            }
+        }
+        final Set<Object> edgesToRemove = new HashSet<>();
+        for (final Tuple3<FireflyId, Object, Object> edgeToFrom : edgeToFromIdList) {
+            if (vertexDoesntExistList.contains(edgeToFrom._2()) ||
+                    vertexDoesntExistList.contains(edgeToFrom._3())) {
+                edgesToRemove.add(edgeToFrom._1().getUserId());
+            }
+        }
+        if (edgesToRemove.isEmpty()) {
+            return;
+        }
+        GraphOperations.dropDetachedEdges(graph, edgesToRemove, allowedDetachedEdges);
     }
 
 
@@ -299,7 +297,7 @@ public class EdgeOperations implements Serializable {
                                     final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap,
                                     final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap) {
         final long allowedDetachedEdges = this.config.getOrDefaultInt(ALLOWED_BAD_EDGES_COUNT);
-        final Set<byte[]> invalidEdgeIds = Collections.newSetFromMap(new ConcurrentHashMap<>());
+        final Set<Object> invalidEdgeIds = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
         GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, allowedDetachedEdges, invalidEdgeIds);
         GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, allowedDetachedEdges, invalidEdgeIds);

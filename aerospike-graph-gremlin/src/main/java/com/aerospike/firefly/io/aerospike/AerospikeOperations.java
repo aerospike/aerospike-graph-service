@@ -511,13 +511,17 @@ public class AerospikeOperations {
             writeValue = MapOperation.put(policy, db.PROPERTIES_BIN, Value.get(propertyKey), Value.get(propertyValue),
                     CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
             operations.add(writeValue);
-            final Object typeHint = Value.get(getTypeHintOf(propertyValue));
+            final Object typeHint = getTypeHintOf(propertyValue);
+            final Operation writeTypeHint;
             if (typeHint != null) {
-                final Operation writeTypeHint = MapOperation.put(policy, db.TYPE_HINTS_BIN, Value.get(propertyKey),
+                writeTypeHint = MapOperation.put(policy, db.TYPE_HINTS_BIN, Value.get(propertyKey),
                         Value.get(typeHint),
                         CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
-                operations.add(writeTypeHint);
+            } else {
+                writeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(propertyKey), MapReturnType.NONE,
+                        CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
             }
+            operations.add(writeTypeHint);
         }
 
         final WritePolicy writePolicy = new WritePolicy();

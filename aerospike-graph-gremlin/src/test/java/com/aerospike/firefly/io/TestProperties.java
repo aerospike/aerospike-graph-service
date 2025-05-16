@@ -514,6 +514,62 @@ public class TestProperties {
         assertListPropertyValue(listValue, returnedListValue);
     }
 
+    @Test
+    public void testTypeHintsPersistence() {
+        final GraphTraversalSource g = graph.traversal();
+        final Vertex v1 = g.addV().next();
+        final Vertex v2 = g.addV().property("vp", "foo").next();
+        final Edge e = g.addE("edge").from(v1).to(v2).next();
+
+        Object propertyValue = Integer.valueOf(123);
+        g.V(v1.id()).property("test", propertyValue).iterate();
+        g.E(e.id()).property("test", propertyValue).iterate();
+        g.V(v2.id()).properties("vp").property("test", propertyValue).iterate();
+
+        Object vertexPValue = g.V(v1.id()).values("test").next();
+        Object edgePValue = g.E(e.id()).values("test").next();
+        Object vpPValue = g.V(v2.id()).properties("vp").values("test").next();
+        Assert.assertEquals(propertyValue, vertexPValue);
+        Assert.assertEquals(propertyValue, edgePValue);
+        Assert.assertEquals(propertyValue, vpPValue);
+
+        propertyValue = Long.valueOf(456);
+        g.V(v1.id()).property("test", propertyValue).iterate();
+        g.E(e.id()).property("test", propertyValue).iterate();
+        g.V(v2.id()).properties("vp").property("test", propertyValue).iterate();
+
+        vertexPValue = g.V(v1.id()).values("test").next();
+        edgePValue = g.E(e.id()).values("test").next();
+        vpPValue = g.V(v2.id()).properties("vp").values("test").next();
+        Assert.assertEquals(propertyValue, vertexPValue);
+        Assert.assertEquals(propertyValue, edgePValue);
+        Assert.assertEquals(propertyValue, vpPValue);
+
+        propertyValue = Integer.valueOf(123);
+        g.V(v1.id()).property("test", propertyValue).iterate();
+        g.E(e.id()).property("test", propertyValue).iterate();
+        g.V(v2.id()).properties("vp").property("test", propertyValue).iterate();
+
+        vertexPValue = g.V(v1.id()).values("test").next();
+        edgePValue = g.E(e.id()).values("test").next();
+        vpPValue = g.V(v2.id()).properties("vp").values("test").next();
+        Assert.assertEquals(propertyValue, vertexPValue);
+        Assert.assertEquals(propertyValue, edgePValue);
+        Assert.assertEquals(propertyValue, vpPValue);
+
+        propertyValue = "123";
+        g.V(v1.id()).property("test", propertyValue).iterate();
+        g.E(e.id()).property("test", propertyValue).iterate();
+        g.V(v2.id()).properties("vp").property("test", propertyValue).iterate();
+
+        vertexPValue = g.V(v1.id()).values("test").next();
+        edgePValue = g.E(e.id()).values("test").next();
+        vpPValue = g.V(v2.id()).properties("vp").values("test").next();
+        Assert.assertEquals(propertyValue, vertexPValue);
+        Assert.assertEquals(propertyValue, edgePValue);
+        Assert.assertEquals(propertyValue, vpPValue);
+    }
+
     @Ignore
     @Test
     public void benchmarkPropertyInsertion() {

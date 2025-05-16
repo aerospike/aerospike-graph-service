@@ -113,7 +113,7 @@ public class FireflyPhatEdgeIdIteratorFromIndexedVertex extends FireflyPhatEdgeI
             final Map<Long, Object> edgeUniqueIdToAdjacentUserVertexIdMap =
                     (Map<Long, Object>) propertyKeysToEdgeUniqueIdMaps.get(adjacentVertexMapKey);
             final Object comparableVertexUserId = vertexId.getUserId() instanceof Number ?
-                    ((Number) vertexId.getUserId()).longValue() : vertexId.getUserId();
+                    ((Number) this.adjacentVertexId.getUserId()).longValue() : this.adjacentVertexId.getUserId();
             for (final Map.Entry<Long, Object> uniqueIdToVertexUserId : edgeUniqueIdToAdjacentUserVertexIdMap.entrySet()) {
                 if (uniqueIdToVertexUserId.getValue().equals(comparableVertexUserId)) {
                     attachedEdgeIds.add(uniqueIdToByteId.get(uniqueIdToVertexUserId.getKey()));

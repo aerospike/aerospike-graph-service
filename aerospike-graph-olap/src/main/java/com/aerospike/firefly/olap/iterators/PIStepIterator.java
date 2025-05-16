@@ -163,7 +163,7 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
                                 queryPolicy,
                                 db.EDGE_AERO_SET,
                                 graph.getBaseGraph().getNamespace(),
-                                Filter.contains(direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN, IndexCollectionType.MAPVALUES, keyHashString),
+                                Filter.contains(direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN, IndexCollectionType.MAPKEYS, keyHashString),
                                 graph.getBaseGraph().PAGINATION_PAGE_SIZE,
                                 graph::vertexFromRecord,
                                 indexName,

@@ -731,7 +731,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                               final Object inVertexId, final Object outVertexId, final boolean inVSupernode,
                               final boolean outVSupernode, final int partitionId) {
         FireflyGraph.LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertexId, label, inVertexId, properties);
-        final FireflyId id = getIdFactory().createEdgeId(edgeId);
+        final FireflyPhatEdgeId id = getIdFactory().createEdgeId(edgeId);
         final FireflyId inId = getIdFactory().createVertexId(inVertexId);
         final FireflyId outId = getIdFactory().createVertexId(outVertexId);
 
@@ -762,18 +762,18 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         // Add label to Edge data.
         edgeData.add(LABEL_POSITION, Value.get(label));
         // Add IN and OUT to Edge data.
-        edgeData.add(IN_V_POSITION, Value.get(inId.getKeyHashString()));
-        edgeData.add(OUT_V_POSITION, Value.get(outId.getKeyHashString()));
+        edgeData.add(IN_V_POSITION, Value.get(inId.getUserId()));
+        edgeData.add(OUT_V_POSITION, Value.get(outId.getUserId()));
 
         // Write to supernodes bin if vertex cache overflowed.
         if (inVSupernode) {
             final Operation writeInVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_IN_BIN,
-                    Value.get(edgeId), Value.get(inId.getKeyHashString()));
+                    Value.get(id.getUniqueId()), Value.get(inId.getKeyHashString()));
             operations.add(writeInVSupernode);
         }
         if (outVSupernode) {
             final Operation writeOutVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_OUT_BIN,
-                    Value.get(edgeId), Value.get(outId.getKeyHashString()));
+                    Value.get(id.getUniqueId()), Value.get(outId.getKeyHashString()));
             operations.add(writeOutVSupernode);
         }
 

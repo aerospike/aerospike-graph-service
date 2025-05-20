@@ -23,8 +23,8 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
                                                 final String packingIdCounterName,
                                                 final long bufferSize,
                                                 final long recycleBufferSize) {
-        this.packingIdManager = new BufferedNumericIdManager(packingIdCounterName, bufferSize);
-        this.uniqueIdManager = new BufferedNumericIdManager(uniqueIdCounterName, recycleBufferSize);
+        this.packingIdManager = new DecrementingNumericIdManager(packingIdCounterName, bufferSize);
+        this.uniqueIdManager = new IncrementingNumericIdManager(uniqueIdCounterName, recycleBufferSize);
         this.bufferSize = bufferSize;
     }
 

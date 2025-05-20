@@ -44,20 +44,6 @@ public class DataModelVersioning {
                 // Get sent to jail kid.
                 throw new DataModelVersionMismatchException(driveVersion, classVersion);
             }
-
-            // Disable supernode adjacency pushdown filters if existing data model is on 2.0.0
-            if (driveVersionMajor == 2) {
-                if (driveMinorVersion < 1) {
-                    LOG.warn("Aerospike Graph Service detected existing data model on version 2.0.x during startup. " +
-                            "Supernode edge filtering optimizations will run in compatibility mode.");
-                    db.isSupernodePushdownEnabled = false;
-                }
-                if (driveMinorVersion < 3) {
-                    LOG.warn("Aerospike Graph Service detected existing data model on version 2.1 or lower during startup. " +
-                            "MergeEdge step optimizations will run in compatibility mode.");
-                    db.isMergeEdgeDataModelEnabled = false;
-                }
-            }
         }
     }
 }

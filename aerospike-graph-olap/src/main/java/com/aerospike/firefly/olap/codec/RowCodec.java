@@ -13,15 +13,11 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
-import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
-import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertexProperty;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -57,7 +53,8 @@ public class RowCodec {
     final List<ElementEncoder> orderedElementEncoders = new ArrayList<>();
     final Set<TraverserRequirement> traverserRequirements;
 
-    RowCodec(final List<CodecRequirements> codecRequirements, final Set<TraverserRequirement> traverserRequirements) {
+    RowCodec(final List<CodecRequirements> codecRequirements, final Set<TraverserRequirement> traverserRequirements,
+             final int nativeSparkOperationColumns) {
         this.codecRequirements = codecRequirements;
         int i = 0;
         for (CodecRequirements requirement : codecRequirements) {
@@ -73,6 +70,11 @@ public class RowCodec {
                     columnToOrdinal.put(LABEL_COL, i++);
                     columnToOrdinal.put(HALTED_COL, i++);
                     columnToOrdinal.put(STEP_COL, i++);
+                    columnToOrdinal.put(BINARY_COL, i++);
+
+                    for (int j = 0; j < nativeSparkOperationColumns; j++) {
+                        columnToOrdinal.put(NATIVE_COL_PREFIX + j, i++);
+                    }
                     break;
                 case BULK:
                     orderedTraverserEncoders.add(new BulkTraverserEncoder());
@@ -101,6 +103,7 @@ public class RowCodec {
                     columnToOrdinal.put(NL_STEP_COL, i++);
             }
         }
+
         codecRequirementsSet.addAll(codecRequirements);
         this.traverserRequirements = traverserRequirements;
     }
@@ -115,14 +118,10 @@ public class RowCodec {
     public static final String LABEL_COL = "~label";
     public static final String ELEMENT_ID_COL = "~eid";
     public static final String ELEMENT_ID_TYPEHINT_COL = "~eid_typehint";
-    public static final String VERTEX_ID_COL = "~vertex_id"; // ONLY FOR VertexPropery TRAVERSERS
-    public static final String VERTEX_ID_TYPEHINT_COL = "~vertex_id_typehint"; // ONLY FOR VertexPropery TRAVERSERS
-    public static final String PROPERTIES_COL = "~properties";
-    public static final String IN_COL = "~in";
-    public static final String OUT_COL = "~out";
     public static final String HALTED_COL = "~halted";
-    public static final String REF_COL = "~ref";
     public static final String STEP_COL = "~step";
+    public static final String BINARY_COL = "~binary";
+    public static final String NATIVE_COL_PREFIX = "~n";
     public static final String BULK_COL = "~bulk";
     public static final String SL_COUNT_COL = "~slc";
     public static final String SL_NAME_COL = "~sln";
@@ -220,8 +219,11 @@ public class RowCodec {
         }
     }
 
-    public StructType getSchema() {
+    public StructType getSchema(final int nativeSparkOperationColumns) {
         StructType schema = RowCodecHelper.getBaseSchema();
+        for (int j = 0; j < nativeSparkOperationColumns; j++) {
+            schema = schema.add(NATIVE_COL_PREFIX + j, DataTypes.StringType, true);
+        }
         for (final CodecRequirements requirements : codecRequirements) {
             switch (requirements) {
                 case BULK:
@@ -260,7 +262,7 @@ public class RowCodec {
             element = new ReferenceVertex(id, label);
         } else if (traverserType == TRAVERSER_TYPE.EDGE.ordinal()) {
             element = new ReferenceEdge(id, label, new ReferenceVertex("~empty"), new ReferenceVertex("~empty"));
-        } else if (traverserType == TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal()){
+        } else if (traverserType == TRAVERSER_TYPE.VERTEX_PROPERTY.ordinal()) {
             Object elementId = row.get(columnToOrdinal.get(ELEMENT_ID_COL));
             final int elementIdTypehint = row.getInt(columnToOrdinal.get(ELEMENT_ID_TYPEHINT_COL));
             elementId = getId(elementId.toString(), elementIdTypehint); // TODO: Update.
@@ -270,6 +272,8 @@ public class RowCodec {
             final int elementIdTypehint = row.getInt(columnToOrdinal.get(ELEMENT_ID_TYPEHINT_COL));
             elementId = getId(elementId.toString(), elementIdTypehint); // TODO: Update.
             element = new DistributedReferenceEdgeProperty<>(id.toString(), (ReferenceEdge) getReferenceElement(TRAVERSER_TYPE.EDGE.ordinal(), elementId, "~empty"));
+        } else if (traverserType == TRAVERSER_TYPE.OTHER.ordinal()) {
+            element = RowCodecHelper.deserialize(row.getAs(columnToOrdinal.get(BINARY_COL)));
         } else {
             throw new RuntimeException("Error, decoder for " + row.getInt(columnToOrdinal.get(TRAVERSER_TYPE_COL)) + " is not implemented");
         }
@@ -344,13 +348,15 @@ public class RowCodec {
         META_PROPERTY,
         EDGE_PROPERTY,
         STRING,
-        INTEGER
+        INTEGER,
+        OTHER
     }
 
     public enum ID_TYPE {
         STRING,
         INTEGER,
-        LONG
+        LONG,
+        NONE
     }
 
     public enum CodecRequirements {

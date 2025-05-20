@@ -2,6 +2,7 @@ package com.aerospike.firefly.olap.process;
 
 import com.aerospike.firefly.olap.helper.AttachmentHelper;
 import com.aerospike.firefly.olap.helper.TaskLogger;
+import com.aerospike.firefly.olap.process.traversal.step.SparkOperation;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram;
@@ -101,7 +102,7 @@ public class BatchWorkerExecutor {
                     final Traverser.Admin<Object> traverser = traversers.next();
                     traversers.remove();
 
-                    if (!canContinueOnSameWorker && (traverser.get() instanceof Element || traverser.get() instanceof Property)) {
+                    if (!canContinueOnSameWorker) {
                         if (!traverser.isHalted())
                             voteToHalt.set(false);
                         job.addResult(traverser);
@@ -123,7 +124,14 @@ public class BatchWorkerExecutor {
         // try execute in slave mode
         GraphComputing.atMaster(step, false);
         TaskLogger.logDebuggingMessage("Drain step: " + step, LOGGER);
-        if (step instanceof Barrier && !(step instanceof LocalBarrier)) {
+        if (step instanceof SparkOperation) {
+            // replace traverser's with ProjectedTraverser's
+            final Barrier barrier = (Barrier) step;
+            while (barrier.hasNextBarrier()) {
+                activeTraversers.addAll((TraverserSet) barrier.nextBarrier());
+            }
+            memory.add(TraversalProgram.SPARK_FLAG, true);
+        } else if (step instanceof Barrier && !(step instanceof LocalBarrier)) {
             if (step instanceof Bypassing)
                 ((Bypassing) step).setBypass(true);
 
@@ -142,11 +150,9 @@ public class BatchWorkerExecutor {
         } else { // LOCAL PROCESSING
             final TraverserSet memoryTraversers = new TraverserSet<>();
             step.forEachRemaining(traverser -> {
-                if (traverser.isHalted()
-                        && (returnHaltedTraversers
-                        || !(traverser.get() instanceof Element) && !(traverser.get() instanceof Property))) {
+                if (traverser.isHalted()) {
                     if (returnHaltedTraversers) {
-                        memoryTraversers.add(traverser);
+                        memoryTraversers.add(traverser.detach());
                     } else {
                         haltedTraversers.add(traverser.detach());
                     }

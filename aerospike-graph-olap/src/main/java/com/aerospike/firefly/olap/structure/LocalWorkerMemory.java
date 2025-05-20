@@ -5,6 +5,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.MemoryComputeKey;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -80,6 +81,10 @@ public class LocalWorkerMemory implements Memory.Admin {
             // or ImmutableCollections.List12 (produced by List.of())
             if (result instanceof List && !(result instanceof ArrayList)) {
                 result = (R) new ArrayList<>((List) result);
+            } else if (result instanceof BulkSet) {
+                final BulkSet tmp = new BulkSet();
+                tmp.addAll((BulkSet) result);
+                result = (R) tmp;
             }
             AttachmentHelper.bulkAttach(graph, (Collection) result);
         }

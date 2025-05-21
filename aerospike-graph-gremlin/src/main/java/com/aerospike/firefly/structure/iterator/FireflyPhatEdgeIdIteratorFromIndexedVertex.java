@@ -63,7 +63,7 @@ public class FireflyPhatEdgeIdIteratorFromIndexedVertex extends FireflyPhatEdgeI
 
     @Override
     protected List<FireflyEdgeId> getIndividualEdgeIdsAttachedToVertex(final FireflyEdgeRecord record, final Direction direction) {
-        final List<FireflyEdgeId> ids = record.getIndividualEdgeIdsAttachedToVertex(this.vertexId, direction, this.adjacentVertexId);
+        final List<FireflyEdgeId> ids = record.getIndividualEdgeIdsAttachedToSupernode(this.vertexId, direction, this.adjacentVertexId);
 
         if (edgeCache != null) {
             for (final FireflyEdgeId edgeId : ids) {

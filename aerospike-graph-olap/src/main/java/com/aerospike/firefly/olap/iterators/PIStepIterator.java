@@ -234,7 +234,7 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
         }
 
         final FireflyEdgeRecord edgeRecord = new FireflyEdgeRecord(record, graph.getBaseGraph());
-        final List<FireflyEdgeId> edgeIdsInRecord = edgeRecord.getIndividualEdgeIdsAttachedToVertex(inputVertexId, direction);
+        final List<FireflyEdgeId> edgeIdsInRecord = edgeRecord.getIndividualEdgeIdsAttachedToSupernode(inputVertexId, direction);
         for (final FireflyEdgeId edgeId : edgeIdsInRecord) {
             final Edge edge = FireflyEdgeFactory.create(edgeId, edgeRecord, graph);
             if (HasContainer.testAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {

@@ -118,24 +118,24 @@ public class FireflyEdgeRecord {
         return this.edgeRecord.generation;
     }
 
-    public synchronized List<FireflyEdgeId> getIndividualEdgeIdsAttachedToVertex(final FireflyId attachedVertex,
-                                                                                 final Direction direction,
-                                                                                 final FireflyId adjacentVertexId) {
-        final int attachedPosition;
+    public synchronized List<FireflyEdgeId> getIndividualEdgeIdsAttachedToSupernode(final FireflyId supernodeVertexId,
+                                                                                    final Direction direction,
+                                                                                    final FireflyId adjacentVertexId) {
         final int adjacentPosition;
         final String supernodeDataMapBinName;
+        final Map<Long, String> edgeUniqueIdToVHashIdKey;
         if (direction == Direction.BOTH) {
             // Direction.BOTH should not be propagated here and should be combined at a higher level.
             throw new IllegalStateException("Cannot get individual Edge IDs attached to a Vertex with Direction.BOTH");
         } else {
             if (direction == Direction.OUT) {
-                attachedPosition = OUT_V_POSITION;
                 adjacentPosition = IN_V_POSITION;
                 supernodeDataMapBinName = this.db.SUPERNODES_OUT_BIN;
+                edgeUniqueIdToVHashIdKey = this.edgeIdToOutVHashIdKey;
             } else {
-                attachedPosition = IN_V_POSITION;
                 adjacentPosition = OUT_V_POSITION;
                 supernodeDataMapBinName = this.db.SUPERNODES_IN_BIN;
+                edgeUniqueIdToVHashIdKey = this.edgeIdToInVHashIdKey;
             }
         }
 
@@ -143,45 +143,18 @@ public class FireflyEdgeRecord {
         final Map<ByteBuffer, Object> edgeDataMap = (Map<ByteBuffer, Object>) edgeRecord.getMap(db.EDGE_DATA_BIN);
         for (final Map.Entry<ByteBuffer, Object> edgeByteIdToData : edgeDataMap.entrySet()) {
             final FireflyEdgeId edgeId = this.db.getIdFactory().createEdgeId(edgeByteIdToData.getKey());
-            if (edgeByteIdToData.getValue() instanceof List) {
-                final List<Object> edgeData = this.getEdgeData(edgeId);
-                if (adjacentVertexId == null) {
-                    if (((FireflyId) edgeData.get(attachedPosition)).getKeyHashString().equals(attachedVertex.getKeyHashString())) {
-                        attachedEdgeIds.add(edgeId);
-                    }
-                } else {
-                    if (((FireflyId) edgeData.get(attachedPosition)).getKeyHashString().equals(attachedVertex.getKeyHashString()) &&
-                            ((FireflyId) edgeData.get(adjacentPosition)).getKeyHashString().equals(adjacentVertexId.getKeyHashString())) {
-                        attachedEdgeIds.add(edgeId);
-                    }
-                }
-            } else {
+            if (edgeByteIdToData.getValue() instanceof Map) {
                 // This buffers the Supernode-attached Edges of the attached vertex.
-                this.flattenSupernodeDataFromVHashId(edgeId.getUniqueId(), attachedVertex.getKeyHashString(),
+                this.flattenSupernodeDataFromVHashId(edgeId.getUniqueId(), supernodeVertexId.getKeyHashString(),
                         (Map<String, Object>) edgeRecord.getMap(supernodeDataMapBinName), direction, true);
-                if (direction == Direction.OUT) {
-                    if (edgeIdToOutVHashIdKey.containsKey(edgeId.getUniqueId())) {
-                        if (attachedVertex.getKeyHashString().equals(edgeIdToOutVHashIdKey.get(edgeId.getUniqueId()))) {
-                            if (adjacentVertexId == null) {
+                if (edgeUniqueIdToVHashIdKey.containsKey(edgeId.getUniqueId())) {
+                    if (supernodeVertexId.getKeyHashString().equals(edgeUniqueIdToVHashIdKey.get(edgeId.getUniqueId()))) {
+                        if (adjacentVertexId == null) {
+                            attachedEdgeIds.add(edgeId);
+                        } else {
+                            final List<Object> edgeData = this.getEdgeData(edgeId);
+                            if (((FireflyId) edgeData.get(adjacentPosition)).getUserId().equals(adjacentVertexId.getUserId())) {
                                 attachedEdgeIds.add(edgeId);
-                            } else {
-                                final List<Object> edgeData = this.getEdgeData(edgeId);
-                                if (((FireflyId) edgeData.get(adjacentPosition)).getKeyHashString().equals(adjacentVertexId.getKeyHashString())) {
-                                    attachedEdgeIds.add(edgeId);
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    if (edgeIdToInVHashIdKey.containsKey(edgeId.getUniqueId())) {
-                        if (attachedVertex.getKeyHashString().equals(edgeIdToInVHashIdKey.get(edgeId.getUniqueId()))) {
-                            if (adjacentVertexId == null) {
-                                attachedEdgeIds.add(edgeId);
-                            } else {
-                                final List<Object> edgeData = this.getEdgeData(edgeId);
-                                if (((FireflyId) edgeData.get(adjacentPosition)).getKeyHashString().equals(adjacentVertexId.getKeyHashString())) {
-                                    attachedEdgeIds.add(edgeId);
-                                }
                             }
                         }
                     }
@@ -191,9 +164,9 @@ public class FireflyEdgeRecord {
         return attachedEdgeIds;
     }
 
-    public List<FireflyEdgeId> getIndividualEdgeIdsAttachedToVertex(final FireflyId attachedVertex,
-                                                                   final Direction direction) {
-        return getIndividualEdgeIdsAttachedToVertex(attachedVertex, direction, null);
+    public List<FireflyEdgeId> getIndividualEdgeIdsAttachedToSupernode(final FireflyId attachedVertex,
+                                                                       final Direction direction) {
+        return getIndividualEdgeIdsAttachedToSupernode(attachedVertex, direction, null);
     }
 
     private void flattenSupernodeEdgeData(final FireflyEdgeId edgeId) {

@@ -20,7 +20,6 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.spark.sql.Row;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -33,11 +32,8 @@ import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -238,19 +234,11 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
         }
 
         final FireflyEdgeRecord edgeRecord = new FireflyEdgeRecord(record, graph.getBaseGraph());
-        final List<FireflyEdgeId> edgeIdsInRecord = edgeRecord.getEdgeIds();
+        final List<FireflyEdgeId> edgeIdsInRecord = edgeRecord.getIndividualEdgeIdsAttachedToVertex(inputVertexId, direction);
         for (final FireflyEdgeId edgeId : edgeIdsInRecord) {
-            final FireflyId vertexId;
-            if (direction == Direction.OUT) {
-                vertexId = edgeRecord.getOutV(edgeId);
-            } else {
-                vertexId = edgeRecord.getInV(edgeId);
-            }
-            if (this.inputVertexId.getKeyHashString().equals(vertexId.getKeyHashString())) {
-                final Edge edge = FireflyEdgeFactory.create(edgeId, edgeRecord, graph);
-                if (HasContainer.testAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
-                    currentEdges.add(edge);
-                }
+            final Edge edge = FireflyEdgeFactory.create(edgeId, edgeRecord, graph);
+            if (HasContainer.testAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
+                currentEdges.add(edge);
             }
         }
     }

@@ -50,7 +50,6 @@ public class FireflyEdgeRecord {
     private final Set<String> scannedInVHashIds;
     private final Set<String> scannedOutVHashIds;
 
-
     public FireflyEdgeRecord(final Record phatEdgeRecord, final AerospikeConnection db) {
         this.edgeRecord = phatEdgeRecord;
         this.db = db;

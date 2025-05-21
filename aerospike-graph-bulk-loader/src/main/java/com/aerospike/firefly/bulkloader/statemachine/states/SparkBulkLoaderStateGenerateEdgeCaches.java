@@ -37,7 +37,7 @@ public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState
     @Override
     public void executeState() {
         // Since we can't persist the edgeIds, spark re-generates them over and over and it screws up the ids.
-        if (!sparkBulkLoaderStateMachine.generateEdgeCaches) {
+        if (!sparkBulkLoaderStateMachine.isEdgeCacheWrittenWithVertex) {
             return;
         }
 
@@ -46,10 +46,6 @@ public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState
         final String taskName = "Edge Cache Generation";
         sparkBulkLoaderStateMachine.spark.sparkContext().
                 setJobGroup(taskName, "Edge cache generation task.", true);
-
-        // TODO: L3 test suite
-        // TODO: Test dangling edges
-        // TODO: Test near supernodes
 
         // Create the edge cache data.
         final Dataset<Row> fromEdgeDataset = sparkBulkLoaderStateMachine.edgeDataset.
@@ -136,5 +132,4 @@ public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState
     protected BulkLoadStateStatusMap getStateMap() {
         return new BulkLoadStateStatusMap("generating edge caches", false, BULK_LOAD_STATUS_IN_PROGRESS);
     }
-
 }

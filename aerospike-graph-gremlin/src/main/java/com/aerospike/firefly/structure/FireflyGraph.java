@@ -576,7 +576,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
     }
 
-    public List<Boolean> bulkVertexExists(final List<Object> ids) {
+    public List<Boolean> bulkVertexExists(final Object[] ids) {
         try {
             // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
             // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
@@ -812,17 +812,14 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final Key key = getKey(graph.getBaseGraph(), graph.getBaseGraph().EDGE_AERO_SET, ids.get(0));
         try {
             final List<Operation> flattenedOperations = new ArrayList<>();
-            for (int i = 0; i < operationss.size(); i++) {
-                final List<Operation> operations = operationss.get(i);
-                for (int j = 0; j < operations.size(); j++) {
-                    flattenedOperations.add(operations.get(j));
-                }
+            for (final List<Operation> operations : operationss) {
+                flattenedOperations.addAll(operations);
             }
             graph.getBaseGraph().writeOperate(writePolicy, key, flattenedOperations.toArray(new Operation[0]));
         } catch (final AerospikeGraphException e) {
             throw new FireflyLoadingException(e);
         }
-        for (final int i : IntStream.range(0, ids.size()).boxed().collect(Collectors.toList())) {
+        for (int i = 0; i < ids.size(); i++) {
             final String label = labels.get(i);
             final List<Map.Entry<String, Object>> properties = propertiess.get(i);
             final int partitionId = partitionIds.get(i);

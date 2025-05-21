@@ -35,7 +35,7 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
             RecoveryUtil.writeTempEdgeDirectory(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), sparkBulkLoaderStateMachine.edgeRecoveryDirectory);
         }
 
-        if (sparkBulkLoaderStateMachine.generateEdgeCaches) {
+        if (sparkBulkLoaderStateMachine.isEdgeCacheWrittenWithVertex) {
             // Calculate after they are written so data is fresh.
             sparkBulkLoaderStateMachine.edgeCountAfterRemoval = sparkBulkLoaderStateMachine.edgeDataset.count();
             sparkBulkLoaderStateMachine.progressBar.setEdgeTotalCount(sparkBulkLoaderStateMachine.edgeCountAfterRemoval);

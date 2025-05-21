@@ -67,7 +67,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -80,7 +79,6 @@ import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIM
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
-import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement.ID_HEADER;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_EDGES_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_ENTRY_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
@@ -93,7 +91,6 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException.isRetryable;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
-import static org.apache.spark.sql.functions.col;
 
 public class EdgeOperations implements Serializable {
     public static final List<String> REQUIRED_EDGE_HEADERS = List.of(FROM_VERTEX_HEADER, TO_VERTEX_HEADER);
@@ -119,7 +116,8 @@ public class EdgeOperations implements Serializable {
 
     public void writeEdges(final Dataset<Row> persistedEdgeDS,
                            final Set<Long> completedEdgePartitions,
-                           final boolean readOnly, final boolean generateEdgeCaches) {
+                           final boolean readOnly,
+                           final boolean isEdgeCacheWrittenWithVertex) {
         persistedEdgeDS.foreachPartition(rowIterator -> {
             final int partitionId = TaskContext.getPartitionId();
             if (!readOnly) {
@@ -176,11 +174,11 @@ public class EdgeOperations implements Serializable {
                     if (futures.size() >= bufferSize) {
                         final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
                         megaTask.join();
-                        if (!generateEdgeCaches) {
+                        if (!isEdgeCacheWrittenWithVertex) {
                             writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
                         } else {
                             if (edgeToFromIdList.size() > bufferSize)
-                                removeDetatchedEdgesPreGenerated(graph, edgeToFromIdList, allowedDetachedEdges);
+                                removeDetachedEdgesPreGenerated(graph, edgeToFromIdList, allowedDetachedEdges);
                         }
                         LOGGER.info(String.format("Edge write, partitionId: %d, batch: %d, time taken(in milli-seconds): %d, super node size: %d, cleaning all cached vertex maps", partitionId,
                                 batch, Duration.between(start, Instant.now()).toMillis(), supernodes.size()));
@@ -196,7 +194,7 @@ public class EdgeOperations implements Serializable {
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, DatasetOperations.COLUMNS_TO_REMOVE);
 
                     try {
-                        if (generateEdgeCaches) {
+                        if (isEdgeCacheWrittenWithVertex) {
                             final Long packingId = metadataRow.getLong(metadataRow.fieldIndex(PACKING_ID_COLUMN));
                             final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
                                     providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
@@ -224,7 +222,7 @@ public class EdgeOperations implements Serializable {
                     }
                 }
 
-                if (generateEdgeCaches) {
+                if (isEdgeCacheWrittenWithVertex) {
                     // Kick off the last batch.
                     futures.add(EdgeWriteTask.writeBatch(executor, graph, tasks));
                 }
@@ -239,11 +237,11 @@ public class EdgeOperations implements Serializable {
                 } else {
                     // Flush Vertex Edge cache maps when all Edge writes are done.
                     try {
-                        if (!generateEdgeCaches) {
+                        if (!isEdgeCacheWrittenWithVertex) {
                             writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
                         } else {
                             // Buffer size 0 to force flushing.
-                            removeDetatchedEdgesPreGenerated(graph, edgeToFromIdList, allowedDetachedEdges);
+                            removeDetachedEdgesPreGenerated(graph, edgeToFromIdList, allowedDetachedEdges);
                         }
                     } catch (final RuntimeException e) {
                         LOGGER.error("Failed to flush Vertex Edge cache maps", e);
@@ -261,19 +259,19 @@ public class EdgeOperations implements Serializable {
         });
     }
 
-    private void removeDetatchedEdgesPreGenerated(final FireflyGraph graph,
-                                                  final List<Tuple3<FireflyId, Object, Object>> edgeToFromIdList,
-                                                  final long allowedDetachedEdges) {
+    private void removeDetachedEdgesPreGenerated(final FireflyGraph graph,
+                                                 final List<Tuple3<FireflyId, Object, Object>> edgeToFromIdList,
+                                                 final long allowedDetachedEdges) {
         final Set<Object> vertexIds = new HashSet<>();
         for (final Tuple3<FireflyId, Object, Object> edgeToFrom : edgeToFromIdList) {
             vertexIds.add(edgeToFrom._2());
             vertexIds.add(edgeToFrom._3());
         }
-        final List<Object> vertexIdList = new ArrayList<>(vertexIds);
-        final List<Boolean> vertexExistsList = graph.bulkVertexExists(vertexIdList);
+        final Object[] vertexIdArray = vertexIds.toArray();
+        final List<Boolean> vertexExistsList = graph.bulkVertexExists(vertexIdArray);
         final Set<Object> vertexDoesntExistList = new HashSet<>();
-        for (int i = 0; i < vertexIdList.size(); i++) {
-            final Object vertexId = vertexIdList.get(i);
+        for (int i = 0; i < vertexIdArray.length; i++) {
+            final Object vertexId = vertexIdArray[i];
             if (!vertexExistsList.get(i)) {
                 // If the vertex does not exist, we need to remove it from the supernodes set.
                 vertexDoesntExistList.add(vertexId);
@@ -670,7 +668,7 @@ public class EdgeOperations implements Serializable {
             final FireflyPhatEdgeId edgeId = (FireflyPhatEdgeId) getFireflyGraph().getIdFactory().generateId(getFireflyGraph(), FireflyEdge.class);
             final String encodedId = encodeID(edgeId);
             outputRow.add(encodedId);
-            final Long packingId = Long.parseLong(encodedId.split(":")[0]) / getFireflyGraph().getBaseGraph().PHAT_EDGE_SIZE;
+            final Long packingId = edgeId.getPackingId();
             outputRow.add(packingId);
             final int bucketId = Math.floorMod(packingId, partitionCount);
             outputRow.add(bucketId);
@@ -758,13 +756,13 @@ public class EdgeOperations implements Serializable {
 
     public void writeEdgeToDB(final Dataset<Row> edgeIdDataSet,
                               final Set<Long> completedEdgePartitions,
-                              final boolean readOnly, final boolean generateEdgeCaches) {
+                              final boolean readOnly, final boolean isEdgeCacheWrittenWithVertex) {
         if (!this.config.hasAction(DISABLE_EDGE_WRITE)) {
             final Instant startWriteEdge = Instant.now();
             final String taskName = "Edges write to Aerospike Database";
             edgeIdDataSet.sparkSession().sparkContext().setJobGroup(taskName,
                     "Edges write task", true);
-            writeEdges(edgeIdDataSet, completedEdgePartitions, readOnly, generateEdgeCaches);
+            writeEdges(edgeIdDataSet, completedEdgePartitions, readOnly, isEdgeCacheWrittenWithVertex);
             edgeIdDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
             LOGGER.info("Execution time in seconds for Edge write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
         }

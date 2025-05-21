@@ -143,13 +143,13 @@ public class AerospikeOperations {
         return writeVertex(vertexId, label, properties, createOnly, isEdgeCacheOverflowed, null, Optional.empty(), Optional.empty());
     }
 
-    public List<Boolean> verticesExist(final List<Object> ids) {
-        final List<Key> keys = new ArrayList<>();
-        for (final Object id : ids) {
-            final FireflyId fireflyId = graph.getIdFactory().createVertexId(id);
-            keys.add(getKey(db, db.VERTEX_AERO_SET, fireflyId));
+    public List<Boolean> verticesExist(final Object[] ids) {
+        final Key[] keys = new Key[ids.length];
+        for (int i = 0; i < ids.length; i++) {
+            final FireflyId fireflyId = graph.getIdFactory().createVertexId(ids[i]);
+            keys[i] = getKey(db, db.VERTEX_AERO_SET, fireflyId);
         }
-        final boolean[] exists = db.exists(keys.toArray(new Key[0]));
+        final boolean[] exists = db.exists(keys);
         final List<Boolean> existsList = new ArrayList<>();
         for (final boolean exist : exists) {
             existsList.add(exist);
@@ -327,16 +327,16 @@ public class AerospikeOperations {
     private Operation getEdgeCache(final Optional<Map<String, List<FireflyId>>> optionalEdgeCache, final String bin) {
         if (optionalEdgeCache.isEmpty()) {
             final Map<String, List<Long>> emptyEdgeCache = new TreeMap<>();
-            final Bin edgeCacheOutBin = new Bin(bin, Value.get(emptyEdgeCache, MapOrder.KEY_ORDERED));
-            return Operation.put(edgeCacheOutBin);
+            final Bin edgeCacheBin = new Bin(bin, Value.get(emptyEdgeCache));
+            return Operation.put(edgeCacheBin);
         }
-        final Map<String, List<FireflyId>> fromEdgeCacheMap = optionalEdgeCache.get();
-        final Map<String, List<Value>> vertexInEdgeMap = new TreeMap<>();
-        for (final Map.Entry<String, List<FireflyId>> entry : fromEdgeCacheMap.entrySet()) {
-            vertexInEdgeMap.put(entry.getKey(), entry.getValue().stream().map(e -> Value.get(e.getCachedId())).collect(Collectors.toList()));
+        final Map<String, List<FireflyId>> edgeCacheMap = optionalEdgeCache.get();
+        final Map<String, List<Value>> vertexEdgeMap = new TreeMap<>();
+        for (final Map.Entry<String, List<FireflyId>> entry : edgeCacheMap.entrySet()) {
+            vertexEdgeMap.put(entry.getKey(), entry.getValue().stream().map(e -> Value.get(e.getCachedId())).collect(Collectors.toList()));
         }
-        final Bin edgeCacheOutBin = new Bin(bin, Value.get(vertexInEdgeMap, MapOrder.KEY_ORDERED));
-        return Operation.put(edgeCacheOutBin);
+        final Bin edgeCacheBin = new Bin(bin, Value.get(vertexEdgeMap));
+        return Operation.put(edgeCacheBin);
     }
 
     /**

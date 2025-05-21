@@ -153,7 +153,9 @@ public class FireflyEdgeRecord {
                             attachedEdgeIds.add(edgeId);
                         } else {
                             final List<Object> edgeData = this.getEdgeData(edgeId);
-                            if (((FireflyId) edgeData.get(adjacentPosition)).getUserId().equals(adjacentVertexId.getUserId())) {
+                            // This is needed since type hints aren't stored for Vertex IDs in Edge records, so Aerospike will return it as a long if it's numeric.
+                            final Object adjacentUserId = adjacentVertexId.getUserId() instanceof Number ? ((Number) adjacentVertexId.getUserId()).longValue() : adjacentVertexId.getUserId();
+                            if (((FireflyId) edgeData.get(adjacentPosition)).getUserId().equals(adjacentUserId)) {
                                 attachedEdgeIds.add(edgeId);
                             }
                         }

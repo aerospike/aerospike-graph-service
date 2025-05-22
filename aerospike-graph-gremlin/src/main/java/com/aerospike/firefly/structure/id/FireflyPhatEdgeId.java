@@ -16,21 +16,29 @@ public class FireflyPhatEdgeId extends FireflyIdPoly implements FireflyEdgeId {
     private Long packingId = null;
     private Long uniqueId = null;
     private Integer hashcode = null;
+    private ByteBuffer byteBufferId = null;
 
-    private FireflyPhatEdgeId(final byte[] id, final long capacity, final String edgeSetName) {
+    private FireflyPhatEdgeId(final byte[] id, final long capacity, final String edgeSetName,
+                              final ByteBuffer byteBufferId) {
         super(id, edgeSetName);
         this.capacity = capacity;
+        this.byteBufferId = byteBufferId;
     }
 
-    static FireflyPhatEdgeId fromByteBuffer(final ByteBuffer id, final long capacity, final String edgeSetName) {
-        return fromByteArray(id.array(), capacity, edgeSetName);
-    }
-
-    static FireflyPhatEdgeId fromByteArray(final byte[] id, final long capacity, final String edgeSetName) {
+    static private FireflyPhatEdgeId fromByteArray(final byte[] id, final long capacity, final String edgeSetName,
+                                                   final ByteBuffer byteBufferId) {
         if (id.length != 16 && id.length != 8) {
             throw new IllegalArgumentException("Invalid id for edge: '" + id + "'. Provided id is not an 8 or 16 byte array.");
         }
-        return new FireflyPhatEdgeId(id, capacity, edgeSetName);
+        return new FireflyPhatEdgeId(id, capacity, edgeSetName, byteBufferId);
+    }
+
+    static FireflyPhatEdgeId fromByteBuffer(final ByteBuffer id, final long capacity, final String edgeSetName) {
+        return fromByteArray(id.array(), capacity, edgeSetName, id);
+    }
+
+    static FireflyPhatEdgeId fromByteArray(final byte[] id, final long capacity, final String edgeSetName) {
+        return fromByteArray(id, capacity, edgeSetName, null);
     }
 
     static FireflyPhatEdgeId fromBase64String(final String id, final long capacity, final String edgeSetName) {
@@ -107,7 +115,10 @@ public class FireflyPhatEdgeId extends FireflyIdPoly implements FireflyEdgeId {
 
     @Override
     public ByteBuffer getEdgeIdBytes() {
-        return ByteBuffer.wrap((byte[]) this.id);
+        if (this.byteBufferId == null) {
+            this.byteBufferId = ByteBuffer.wrap((byte[]) this.id);
+        }
+        return this.byteBufferId;
     }
 
     /**

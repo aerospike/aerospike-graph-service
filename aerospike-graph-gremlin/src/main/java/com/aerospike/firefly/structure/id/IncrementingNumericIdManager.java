@@ -21,7 +21,7 @@ public class IncrementingNumericIdManager extends BufferedNumericIdManager {
     }
 
     @Override
-    protected void bufferIds(final FireflyGraph graph, long bufferSize, final AtomicLong idTracker,
+    protected void bufferIds(final FireflyGraph graph, final long bufferSize, final AtomicLong idTracker,
                              final AtomicLong idTrigger) {
         LOG.info("Allocating batch of {} {}.", bufferSize, this.readableIdName);
         // This is the new last reserved ID

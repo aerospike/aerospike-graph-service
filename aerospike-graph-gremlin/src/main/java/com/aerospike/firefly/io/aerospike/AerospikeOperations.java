@@ -34,6 +34,7 @@ import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.FireflyCache;
+import com.aerospike.firefly.io.FireflyEdgeRecord;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
@@ -73,7 +74,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -398,11 +398,11 @@ public class AerospikeOperations {
                 vertexId, adjacentVertexId, direction);
         if (direction == Direction.OUT) {
             return new CachedIterator(graph, graph.graphQuery.querySIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME,
-                    Filter.contains(db.SUPERNODES_OUT_BIN, IndexCollectionType.MAPVALUES, vertexId.getKeyHashString()),
+                    Filter.contains(db.SUPERNODES_OUT_BIN, IndexCollectionType.MAPKEYS, vertexId.getKeyHashString()),
                     queryPolicy));
         } else if (direction == Direction.IN) {
             return new CachedIterator(graph, graph.graphQuery.querySIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME,
-                    Filter.contains(db.SUPERNODES_IN_BIN, IndexCollectionType.MAPVALUES, vertexId.getKeyHashString()),
+                    Filter.contains(db.SUPERNODES_IN_BIN, IndexCollectionType.MAPKEYS, vertexId.getKeyHashString()),
                     queryPolicy));
         } else {
             // This should never happen since this method is not invoked with BOTH.
@@ -487,14 +487,14 @@ public class AerospikeOperations {
     //////////////// VERTEX PROPERTIES ///////////////
 
     /**
-     * Write properties to element.
+     * Write properties to Vertex Property.
      *
      * @param propertyKey   Key of property to write.
      * @param propertyValue Value of property to write.
      * @param <F>           Type of property value.
      * @return Map of label to properties.
      */
-    public <F> Property<F> writeVertexProperty(final FireflyVertexProperty vertexProperty, final String propertyKey, final F propertyValue) {
+    public <F> Property<F> writeVpProperty(final FireflyVertexProperty vertexProperty, final String propertyKey, final F propertyValue) {
         final Key opKey = getKey(db, db.VERTEX_AERO_SET, vertexProperty.vertexId);
         final List<Operation> operations = new ArrayList<>();
 
@@ -511,13 +511,17 @@ public class AerospikeOperations {
             writeValue = MapOperation.put(policy, db.PROPERTIES_BIN, Value.get(propertyKey), Value.get(propertyValue),
                     CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
             operations.add(writeValue);
-            final Object typeHint = Value.get(getTypeHintOf(propertyValue));
+            final Object typeHint = getTypeHintOf(propertyValue);
+            final Operation writeTypeHint;
             if (typeHint != null) {
-                final Operation writeTypeHint = MapOperation.put(policy, db.TYPE_HINTS_BIN, Value.get(propertyKey),
+                writeTypeHint = MapOperation.put(policy, db.TYPE_HINTS_BIN, Value.get(propertyKey),
                         Value.get(typeHint),
                         CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
-                operations.add(writeTypeHint);
+            } else {
+                writeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(propertyKey), MapReturnType.NONE,
+                        CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
             }
+            operations.add(writeTypeHint);
         }
 
         final WritePolicy writePolicy = new WritePolicy();
@@ -554,7 +558,7 @@ public class AerospikeOperations {
      *
      * @param vertexProperty Vertex property to write to vertex.
      */
-    public void writeVertexProperty(final FireflyVertex vertex, final FireflyVertexProperty vertexProperty) {
+    public void writeVpProperty(final FireflyVertex vertex, final FireflyVertexProperty vertexProperty) {
         final Key key = getKey(this.db, this.db.VERTEX_AERO_SET, vertex.id);
         final List<Operation> operations = new ArrayList<>();
         boolean wroteTypeHint = false;
@@ -707,14 +711,14 @@ public class AerospikeOperations {
         LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertex.id(), label, inVertex.id(), properties);
 
         final List<Operation> operations = new ArrayList<>();
+        final boolean isAttachedToSupernode = !inVertexCacheWrite || !outVertexCacheWrite;
         // CREATE_ONLY as writing an edge will always have a newly-generated unique ID.
-        final Value edgeIdkey = Value.get(((FireflyEdgeId) edgeId).getEdgeIdBytes());
-        final Value edgeUniqueIdKey = Value.get(((FireflyEdgeId) edgeId).getUniqueId());
         final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED,
                 MapWriteFlags.CREATE_ONLY | MapWriteFlags.NO_FAIL | MapWriteFlags.PARTIAL);
+        final Value edgeIdkey = Value.get(((FireflyEdgeId) edgeId).getEdgeIdBytes());
 
         final Map<String, Object> propertyMap = new TreeMap<>();
-        final Map<String, Object> typeHints = new TreeMap<>();
+        final Map<String, Object> typeHints = new HashMap<>();
         properties.forEach(property -> {
             final String key = property.getKey();
             final Object value = FireflyHelper.validatePropertyValue(property.getValue());
@@ -749,37 +753,33 @@ public class AerospikeOperations {
         propertyMap.forEach((propertyKey, propertyValue) ->
                 validProperties.add(new AbstractMap.SimpleEntry<>(propertyKey, propertyValue)));
 
-        final List<Value> edgeData = new ArrayList<>(EDGE_DATA_SIZE);
-        // Add label to Edge data.
-        edgeData.add(LABEL_POSITION, Value.get(label));
-        // Add IN and OUT to Edge data.
-        edgeData.add(IN_V_POSITION, Value.get(inVertex.id.getUserId()));
-        edgeData.add(OUT_V_POSITION, Value.get(outVertex.id.getUserId()));
+        if (!isAttachedToSupernode) {
+            // If the Edge is not attached to a supernode, store its data in a List
+            final List<Value> edgeData = new ArrayList<>(EDGE_DATA_SIZE);
+            // Add label to Edge data.
+            edgeData.add(LABEL_POSITION, Value.get(label));
+            // Add IN and OUT to Edge data.
+            edgeData.add(IN_V_POSITION, Value.get(inVertex.id.getUserId()));
+            edgeData.add(OUT_V_POSITION, Value.get(outVertex.id.getUserId()));
 
-        // Write to supernodes bin if vertex cache overflowed.
-        if (!inVertexCacheWrite) {
-            final Operation writeInVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_IN_BIN,
-                    edgeUniqueIdKey, Value.get(inVertex.id.getKeyHashString()));
-            operations.add(writeInVSupernode);
-        }
-        if (!outVertexCacheWrite) {
-            final Operation writeOutVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_OUT_BIN,
-                    edgeUniqueIdKey, Value.get(outVertex.id.getKeyHashString()));
-            operations.add(writeOutVSupernode);
+            // Add properties and type hints to Edge data.
+            edgeData.add(PROPERTIES_POSITION, Value.get(propertyMap));
+            edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHints));
+
+            // Create Operation for writing Edge data.
+            final Operation createIndividualEdgeMap = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN,
+                    edgeIdkey, Value.get(edgeData));
+            operations.add(createIndividualEdgeMap);
+        } else {
+            // If the Edge is attached to a supernode, rest of the data has to exist elsewhere so store only type hint
+            final Operation createEdgeToTypeHint = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN, edgeIdkey,
+                    Value.get(typeHints));
+            operations.add(createEdgeToTypeHint);
         }
 
         // Write to filterable supernode bin if necessary.
         operations.addAll(createFilterableSupernodeOperations((FireflyPhatEdgeId) edgeId, !outVertexCacheWrite,
                 !inVertexCacheWrite, outVertex.id, inVertex.id, label, propertyMap));
-
-        // Add properties and type hints to Edge data.
-        edgeData.add(PROPERTIES_POSITION, Value.get(propertyMap));
-        edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHints));
-
-        // Create Operation for writing Edge data.
-        final Operation createIndividualEdgeMap = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN,
-                edgeIdkey, Value.get(edgeData));
-        operations.add(createIndividualEdgeMap);
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.txn = txn;
@@ -921,37 +921,46 @@ public class AerospikeOperations {
     }
 
     public List<Operation> createFilterableSupernodeOperations(final FireflyPhatEdgeId edgeId,
-                                                               final boolean isOutSupernode, final boolean isInSupernode,
+                                                               final boolean isOutSupernode,
+                                                               final boolean isInSupernode,
                                                                final FireflyId outVId, final FireflyId inVId,
-                                                               final String label, final Map<String, Object> propertyMap) {
+                                                               final String label,
+                                                               final Map<String, Object> propertyMap) {
         // This method is concurrent traversal safe for removed edges since it's only invoked on creation of a new edge.
         if (!isOutSupernode && !isInSupernode) {
             // No supernodes so we don't have to do anything
             return Collections.emptyList();
         }
 
-        final String binName = db.SUPERNODE_EDGE_PROPERTIES_BIN;
         final Value edgeUniqueId = Value.get(edgeId.getUniqueId());
-        final Value outVIdValue = Value.get(outVId.getUserId());
-        final Value inVIdValue = Value.get(inVId.getUserId());
+        final Value outVHashIdValue = Value.get(outVId.getKeyHashString());
+        final Value inVHashIdValue = Value.get(inVId.getKeyHashString());
+        final Value outVUserIdValue = Value.get(outVId.getUserId());
+        final Value inVUserIdValue = Value.get(inVId.getUserId());
 
         final List<Operation> operations = new ArrayList<>();
         final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
         // Adjacent Vertex ID and Label
         if (isOutSupernode) {
+            final String binName = this.db.SUPERNODES_OUT_BIN;
             final Operation labelOperation = MapOperation.put(policy, binName, edgeUniqueId, Value.get(label),
-                    CTX.mapKeyCreate(outVIdValue, MapOrder.UNORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_LABEL_KEY), MapOrder.KEY_ORDERED));
+                    CTX.mapKeyCreate(outVHashIdValue, MapOrder.KEY_ORDERED),
+                    CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_LABEL_KEY), MapOrder.KEY_ORDERED));
             operations.add(labelOperation);
-            final Operation adjacentVOperation = MapOperation.put(policy, binName, edgeUniqueId, inVIdValue,
-                    CTX.mapKeyCreate(outVIdValue, MapOrder.UNORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_IN_KEY), MapOrder.KEY_ORDERED));
+            final Operation adjacentVOperation = MapOperation.put(policy, binName, edgeUniqueId, inVUserIdValue,
+                    CTX.mapKeyCreate(outVHashIdValue, MapOrder.KEY_ORDERED),
+                    CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_IN_KEY), MapOrder.KEY_ORDERED));
             operations.add(adjacentVOperation);
         }
         if (isInSupernode) {
+            final String binName = this.db.SUPERNODES_IN_BIN;
             final Operation labelOperation = MapOperation.put(policy, binName, edgeUniqueId, Value.get(label),
-                    CTX.mapKeyCreate(inVIdValue, MapOrder.UNORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_LABEL_KEY), MapOrder.KEY_ORDERED));
+                    CTX.mapKeyCreate(inVHashIdValue, MapOrder.KEY_ORDERED),
+                    CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_LABEL_KEY), MapOrder.KEY_ORDERED));
             operations.add(labelOperation);
-            final Operation adjacentVOperation = MapOperation.put(policy, binName, edgeUniqueId, outVIdValue,
-                    CTX.mapKeyCreate(inVIdValue, MapOrder.UNORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_OUT_KEY), MapOrder.KEY_ORDERED));
+            final Operation adjacentVOperation = MapOperation.put(policy, binName, edgeUniqueId, outVUserIdValue,
+                    CTX.mapKeyCreate(inVHashIdValue, MapOrder.KEY_ORDERED),
+                    CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_OUT_KEY), MapOrder.KEY_ORDERED));
             operations.add(adjacentVOperation);
         }
         // Properties
@@ -974,31 +983,23 @@ public class AerospikeOperations {
             return;
         }
 
-        final String binName = db.SUPERNODE_EDGE_PROPERTIES_BIN;
         final Value edgeUniqueId = Value.get(edgeId.getUniqueId());
         final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
 
-        if (isPropertyValuePushdownable(propertyValue)) {
-            if (isOutSupernode) {
-                final Value outVIdValue = Value.get(outVId.getUserId());
-                final Operation propertyOperation = MapOperation.put(policy, binName, edgeUniqueId, Value.get(propertyValue),
-                        CTX.mapKey(outVIdValue), CTX.mapKeyCreate(Value.get(propertyKey), MapOrder.KEY_ORDERED));
-                operations.add(propertyOperation);
-            }
-            if (isInSupernode) {
-                final Value inVIdValue = Value.get(inVId.getUserId());
-                final Operation propertyOperation = MapOperation.put(policy, binName, edgeUniqueId, Value.get(propertyValue),
-                        CTX.mapKey(inVIdValue), CTX.mapKeyCreate(Value.get(propertyKey), MapOrder.KEY_ORDERED));
-                operations.add(propertyOperation);
-            }
+        if (isOutSupernode) {
+            final String binName = this.db.SUPERNODES_OUT_BIN;
+            final Value outVIdValue = Value.get(outVId.getKeyHashString());
+            final Operation propertyOperation = MapOperation.put(policy, binName, edgeUniqueId, Value.get(propertyValue),
+                    CTX.mapKey(outVIdValue), CTX.mapKeyCreate(Value.get(propertyKey), MapOrder.KEY_ORDERED));
+            operations.add(propertyOperation);
         }
-    }
-
-    private static boolean isPropertyValuePushdownable(final Object propertyValue) {
-        final Class<?> propertyValueClass = propertyValue.getClass();
-        return String.class.isAssignableFrom(propertyValueClass) ||
-                Long.class.isAssignableFrom(propertyValueClass) ||
-                Integer.class.isAssignableFrom(propertyValueClass);
+        if (isInSupernode) {
+            final String binName = this.db.SUPERNODES_IN_BIN;
+            final Value inVIdValue = Value.get(inVId.getKeyHashString());
+            final Operation propertyOperation = MapOperation.put(policy, binName, edgeUniqueId, Value.get(propertyValue),
+                    CTX.mapKey(inVIdValue), CTX.mapKeyCreate(Value.get(propertyKey), MapOrder.KEY_ORDERED));
+            operations.add(propertyOperation);
+        }
     }
 
     private void appendRemoveFilterableSupernodePropertyOperation(final FireflyEdge fireflyEdge,
@@ -1013,7 +1014,6 @@ public class AerospikeOperations {
             return;
         }
 
-        final String binName = db.SUPERNODE_EDGE_PROPERTIES_BIN;
         final Exp edgeUniqueId = Exp.val(edgeId.getUniqueId());
         final Value propertyKeyValue = Value.get(propertyKey);
         final Exp propertyKeyExp = Exp.val(propertyKey);
@@ -1021,7 +1021,8 @@ public class AerospikeOperations {
 
         if (isOutSupernode) {
             // Remove Edge ID : Property Value
-            final Value outVIdValue = Value.get(fireflyEdge.outVertexId().getUserId());
+            final String binName = this.db.SUPERNODES_OUT_BIN;
+            final Value outVIdValue = Value.get(fireflyEdge.outVertexId().getKeyHashString());
             final Expression removeEdgeIdToPropertyExp = Exp.build(
                     MapExp.removeByKey(edgeUniqueId, Exp.mapBin(binName),
                             CTX.mapKey(outVIdValue), CTX.mapKey(propertyKeyValue)));
@@ -1040,7 +1041,8 @@ public class AerospikeOperations {
         }
         if (isInSupernode) {
             // Remove Edge ID : Property Value
-            final Value inVIdValue = Value.get(fireflyEdge.inVertexId().getUserId());
+            final String binName = this.db.SUPERNODES_IN_BIN;
+            final Value inVIdValue = Value.get(fireflyEdge.inVertexId().getKeyHashString());
             final Expression removeEdgeIdToPropertyExp = Exp.build(
                     MapExp.removeByKey(edgeUniqueId, Exp.mapBin(binName),
                             CTX.mapKey(inVIdValue), CTX.mapKey(propertyKeyValue)));
@@ -1112,82 +1114,76 @@ public class AerospikeOperations {
         final Key key = getKey(db, db.EDGE_AERO_SET, edge.id);
         final List<Operation> operations = new ArrayList<>();
         final Value idKey = Value.get(((FireflyEdgeId) edge.id).getEdgeIdBytes());
-        final Value uniqueIdKey = Value.get(((FireflyEdgeId) edge.id).getUniqueId());
 
         final Operation removeEdgeData = MapOperation.removeByKey(db.EDGE_DATA_BIN, idKey, MapReturnType.VALUE);
         operations.add(removeEdgeData);
-        final Operation removeSupernodesIn = MapOperation.removeByKey(db.SUPERNODES_IN_BIN, uniqueIdKey, MapReturnType.NONE);
-        operations.add(removeSupernodesIn);
-        final Operation removeSupernodesOut = MapOperation.removeByKey(db.SUPERNODES_OUT_BIN, uniqueIdKey, MapReturnType.NONE);
-        operations.add(removeSupernodesOut);
         edge.properties().forEachRemaining(p -> {
-            if (isPropertyValuePushdownable(p.value())) {
-                appendRemoveFilterableSupernodePropertyOperation(edge, p.key(), operations);
-            }
+            appendRemoveFilterableSupernodePropertyOperation(edge, p.key(), operations);
         });
 
         // Remove adjacent Vertex ID and label pushdowns
         final Exp edgeUniqueId = Exp.val(((FireflyPhatEdgeId) edge.id).getUniqueId());
-        final Exp supernodePBinExp = Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN);
         final CTX labelMapKeyCtx = CTX.mapKey(Value.get(EDGE_SUPERNODE_LABEL_KEY));
         final int writeFlags = ExpWriteFlags.EVAL_NO_FAIL;
         if (edge.isOutSupernode()) {
-            final Object outVUserId = edge.outVertexId().getUserId();
-            final Value outVIdValue = Value.get(outVUserId);
-            final Exp outVIdExp = outVUserId instanceof String ? Exp.val((String) outVUserId) : Exp.val(((Number) outVUserId).longValue());
+            final String outVHashId = edge.outVertexId().getKeyHashString();
+            final Value outVIdValue = Value.get(outVHashId);
+            final Exp outSupernodeBinExp = Exp.mapBin(db.SUPERNODES_OUT_BIN);
+            final Exp outVIdExp = Exp.val(outVHashId);
             final Expression removeEdgeIdToLabelExp = Exp.build(
-                    MapExp.removeByKey(edgeUniqueId, supernodePBinExp,
+                    MapExp.removeByKey(edgeUniqueId, outSupernodeBinExp,
                             CTX.mapKey(outVIdValue), labelMapKeyCtx));
-            final Operation removeEdgeIdToLabel = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN,
+            final Operation removeEdgeIdToLabel = ExpOperation.write(db.SUPERNODES_OUT_BIN,
                     removeEdgeIdToLabelExp, writeFlags);
             operations.add(removeEdgeIdToLabel);
             final Expression removeAdjacentVIdExp = Exp.build(
-                    MapExp.removeByKey(edgeUniqueId, supernodePBinExp,
+                    MapExp.removeByKey(edgeUniqueId, outSupernodeBinExp,
                             CTX.mapKey(outVIdValue), CTX.mapKey(Value.get(EDGE_SUPERNODE_IN_KEY))));
-            final Operation removeAdjacentVId = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN,
+            final Operation removeAdjacentVId = ExpOperation.write(db.SUPERNODES_OUT_BIN,
                     removeAdjacentVIdExp, writeFlags);
             operations.add(removeAdjacentVId);
             // Remove entire vertex id key if label key is empty since that means there are no items
             final Expression removeVidKeyExp = Exp.build(
                     Exp.cond(
-                            Exp.eq(MapExp.size(supernodePBinExp, CTX.mapKey(outVIdValue),
+                            Exp.eq(MapExp.size(outSupernodeBinExp, CTX.mapKey(outVIdValue),
                                     labelMapKeyCtx), Exp.val(0)),
-                            MapExp.removeByKey(outVIdExp, supernodePBinExp),
+                            MapExp.removeByKey(outVIdExp, outSupernodeBinExp),
                             Exp.unknown()
                     )
             );
-            final Operation removeVidKey = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN,
+            final Operation removeVidKey = ExpOperation.write(db.SUPERNODES_OUT_BIN,
                     removeVidKeyExp, writeFlags);
             operations.add(removeVidKey);
         }
         if (edge.isInSupernode()) {
-            final Object inVUserId = edge.inVertexId().getUserId();
-            final Value inVidValue = Value.get(inVUserId);
-            final Exp inVidExp = inVUserId instanceof String ? Exp.val((String) inVUserId) : Exp.val(((Number) inVUserId).longValue());
+            final String inVHashId = edge.inVertexId().getKeyHashString();
+            final Value inVidValue = Value.get(inVHashId);
+            final Exp inSupernodeBinExp = Exp.mapBin(db.SUPERNODES_IN_BIN);
+            final Exp inVidExp = Exp.val(inVHashId);
             final Expression removeEdgeIdToLabelExp = Exp.build(
-                    MapExp.removeByKey(edgeUniqueId, supernodePBinExp,
+                    MapExp.removeByKey(edgeUniqueId, inSupernodeBinExp,
                             CTX.mapKey(inVidValue), labelMapKeyCtx));
-            final Operation removeEdgeIdToLabel = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN,
+            final Operation removeEdgeIdToLabel = ExpOperation.write(db.SUPERNODES_IN_BIN,
                     removeEdgeIdToLabelExp, writeFlags);
             operations.add(removeEdgeIdToLabel);
             final Expression removeAdjacentVIdExp = Exp.build(
-                    MapExp.removeByKey(edgeUniqueId, supernodePBinExp,
+                    MapExp.removeByKey(edgeUniqueId, inSupernodeBinExp,
                             CTX.mapKey(inVidValue), CTX.mapKey(Value.get(EDGE_SUPERNODE_OUT_KEY))));
-            final Operation removeAdjacentVId = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN,
+            final Operation removeAdjacentVId = ExpOperation.write(db.SUPERNODES_IN_BIN,
                     removeAdjacentVIdExp, writeFlags);
             operations.add(removeAdjacentVId);
             // Remove entire vertex id key if label key is empty since that means there are no items
             final Expression removeVidKeyExp = Exp.build(
                     Exp.cond(
-                            Exp.eq(MapExp.size(supernodePBinExp, CTX.mapKey(inVidValue),
+                            Exp.eq(MapExp.size(inSupernodeBinExp, CTX.mapKey(inVidValue),
                                     labelMapKeyCtx), Exp.val(0)),
-                            MapExp.removeByKey(inVidExp, supernodePBinExp),
+                            MapExp.removeByKey(inVidExp, inSupernodeBinExp),
                             Exp.unknown()
                     )
             );
-            final Operation removePropertyKey = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN,
+            final Operation removeVidKey = ExpOperation.write(db.SUPERNODES_IN_BIN,
                     removeVidKeyExp, writeFlags);
-            operations.add(removePropertyKey);
+            operations.add(removeVidKey);
         }
         final Operation removeTtl = MapOperation.removeByKey(db.TTL_BIN, idKey, MapReturnType.NONE);
         operations.add(removeTtl);
@@ -1208,8 +1204,6 @@ public class AerospikeOperations {
         operations.add(removeSupernodesInBin);
         final Operation removeSupernodesOutBin = ExpOperation.write(db.SUPERNODES_OUT_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
         operations.add(removeSupernodesOutBin);
-        final Operation removeSupernodePropertiesBin = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
-        operations.add(removeSupernodePropertiesBin);
         final Operation removeTtlBin = ExpOperation.write(db.TTL_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
         operations.add(removeTtlBin);
 
@@ -1234,14 +1228,13 @@ public class AerospikeOperations {
                 final Object edgeData = results.get(0);
                 // Check edgeData value was returned to protect against concurrent deletes.
                 // If this Edge was already removed edgeData returns null and this check returns false.
-                if (edgeData instanceof List) {
+                if (edgeData instanceof List || edgeData instanceof Map) {
                     if (innerTxn != null) {
                         innerTxn.addIdToRecycle(edge.id);
                     } else {
                         graph.getIdFactory().recycleEdgeId(edge.id);
                     }
-                    final String label = (String) ((List<?>) edgeData).get(LABEL_POSITION);
-                    graph.fireflySummaryUpdater.addEdgeRemoveToQueue(label);
+                    graph.fireflySummaryUpdater.addEdgeRemoveToQueue(edge.label());
                 } else if (edgeData != null) {
                     // This should never happen.
                     throw new RuntimeException("Individual Edge data in Phat Edge returned as type that is of type: " + edgeData.getClass());
@@ -1401,8 +1394,9 @@ public class AerospikeOperations {
 
         for (final FireflyId edgeId : edgeIds) {
             final FireflyRecord edgeRecord = edgeRecords.get(edgeId);
-            if (edgeRecord != null) {
-                final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, edgeRecord.record(), graph);
+            if (edgeRecord != null && edgeRecord.record() != null) {
+                final FireflyEdgeRecord fireflyEdgeRecord = new FireflyEdgeRecord(edgeRecord.record(), db);
+                final FireflyEdge edge = FireflyEdgeFactory.create((FireflyEdgeId) edgeId, fireflyEdgeRecord, graph);
                 if (edge != null) {
                     edges.add(edge);
                 }
@@ -1416,28 +1410,46 @@ public class AerospikeOperations {
 
     public <V> Property<V> writeProperty(final FireflyEdge edge, final String propertyKey, final V value) {
         final Key key = getKey(db, db.EDGE_AERO_SET, edge.id);
+        final boolean isAttachedToSupernode = edge.isInSupernode() || edge.isOutSupernode();
         final Value edgeIdMapKey = Value.get(((FireflyEdgeId) edge.id).getEdgeIdBytes());
+        final Object typeHint = getTypeHintOf(value);
+        final MapPolicy typeHintPolicy = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.DEFAULT);
 
         final List<Operation> operations = new ArrayList<>();
 
-        final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-        final Operation valueOp = MapOperation.put(policy, db.EDGE_DATA_BIN, Value.get(propertyKey), Value.get(value),
-                CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
-        operations.add(valueOp);
-        final Object typeHint = getTypeHintOf(value);
-        if (typeHint != null) {
-            final Operation typeHintOp = MapOperation.put(policy, db.EDGE_DATA_BIN, Value.get(propertyKey),
-                    Value.get(typeHint), CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
+        if (!isAttachedToSupernode) {
+            final MapPolicy propertyPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
+            final Operation valueOp = MapOperation.put(propertyPolicy, db.EDGE_DATA_BIN, Value.get(propertyKey), Value.get(value),
+                    CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
+            operations.add(valueOp);
+            final Operation typeHintOp;
+            if (typeHint != null) {
+                typeHintOp = MapOperation.put(typeHintPolicy, db.EDGE_DATA_BIN, Value.get(propertyKey),
+                        Value.get(typeHint), CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
+            } else {
+                // Remove existing type hint in case there's a previous property with the same key with a type hint
+                typeHintOp = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(propertyKey),
+                        MapReturnType.NONE, CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
+            }
             operations.add(typeHintOp);
+        } else {
+            if (typeHint != null) {
+                final Operation typeHintOp = MapOperation.put(typeHintPolicy, db.EDGE_DATA_BIN, Value.get(propertyKey),
+                        Value.get(typeHint), CTX.mapKey(edgeIdMapKey));
+                operations.add(typeHintOp);
+            } else {
+                // Workaround since appendFilterableSupernodePropertyOperation is not concurrency-safe.
+                // This will cause the entire operation to fail since the edgeIdMapKey does not exist which we want.
+                final Operation addDummyTypeHint = MapOperation.put(typeHintPolicy, db.EDGE_DATA_BIN, Value.get(propertyKey),
+                        Value.get(-1), CTX.mapKey(edgeIdMapKey));
+                operations.add(addDummyTypeHint);
+                final Operation removeTypeHint = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(propertyKey),
+                        MapReturnType.NONE, CTX.mapKey(edgeIdMapKey));
+                operations.add(removeTypeHint);
+            }
+            appendFilterableSupernodePropertyOperation((FireflyPhatEdgeId) edge.id, edge.isOutSupernode(),
+                    edge.isInSupernode(), edge.outVertexId(), edge.inVertexId(), propertyKey, value, operations);
         }
-
-        // If this property is not able to be pushed down, make sure we clean it up.
-        if (!isPropertyValuePushdownable(value)) {
-            appendRemoveFilterableSupernodePropertyOperation(edge, propertyKey, operations);
-        }
-
-        appendFilterableSupernodePropertyOperation((FireflyPhatEdgeId) edge.id, edge.isOutSupernode(),
-                edge.isInSupernode(), edge.outVertexId(), edge.inVertexId(), propertyKey, value, operations);
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
@@ -1467,22 +1479,23 @@ public class AerospikeOperations {
     }
 
     public void removeEdgeProperty(final FireflyEdgeProperty property) {
+        final boolean isAttachedToSupernode = property.edge().isInSupernode() || property.edge().isOutSupernode();
         final Key key = getKey(db, db.EDGE_AERO_SET, property.edge().id);
         final Value edgeIdMapKey = Value.get(((FireflyEdgeId) property.edge().id).getEdgeIdBytes());
         final List<Operation> operations = new ArrayList<>();
 
-        final Operation removeProperty = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(property.key()),
-                MapReturnType.NONE, CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
-        operations.add(removeProperty);
-        final Operation removeTypeHint = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(property.key()),
-                MapReturnType.NONE, CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
-        operations.add(removeTypeHint);
-        try {
-            if (isPropertyValuePushdownable(property.value())) {
-                appendRemoveFilterableSupernodePropertyOperation(property.edge(), property.key(), operations);
-            }
-        } catch (final NoSuchElementException e) {
-            // Do nothing since a property with no value is the same as a value type that can't be pushed down.
+        if (!isAttachedToSupernode) {
+            final Operation removeProperty = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(property.key()),
+                    MapReturnType.NONE, CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
+            operations.add(removeProperty);
+            final Operation removeTypeHint = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(property.key()),
+                    MapReturnType.NONE, CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
+            operations.add(removeTypeHint);
+        } else {
+            final Operation removeTypeHint = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(property.key()),
+                    MapReturnType.NONE, CTX.mapKey(edgeIdMapKey));
+            operations.add(removeTypeHint);
+            appendRemoveFilterableSupernodePropertyOperation(property.edge(), property.key(), operations);
         }
 
         try {

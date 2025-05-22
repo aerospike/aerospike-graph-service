@@ -28,6 +28,7 @@ public class FireflyIdPoly implements FireflyId {
     private final String setName;
     // Lazily instantiate this.
     private byte[] hash = null;
+    private String hashString = null;
     private String toString = null;
 
     /**
@@ -183,7 +184,10 @@ public class FireflyIdPoly implements FireflyId {
 
     @Override
     public String getKeyHashString() {
-        return new String(getKeyHash(), StandardCharsets.ISO_8859_1);
+        if (this.hashString == null) {
+            this.hashString = new String(getKeyHash(), StandardCharsets.ISO_8859_1);
+        }
+        return this.hashString;
     }
 
     @Override

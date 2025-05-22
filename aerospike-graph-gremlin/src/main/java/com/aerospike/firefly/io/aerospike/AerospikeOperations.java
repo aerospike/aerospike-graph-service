@@ -1387,16 +1387,15 @@ public class AerospikeOperations {
      */
     public List<FireflyEdge> readEdges(final List<FireflyId> edgeIds) {
         final List<FireflyEdge> edges = new ArrayList<>();
-        final Map<FireflyId, FireflyRecord> edgeRecords = FireflyRecord.batchReadPhatEdges(db, edgeIds);
+        final Map<FireflyId, FireflyEdgeRecord> edgeRecords = FireflyRecord.batchReadPhatEdges(db, edgeIds);
         if (edgeRecords.isEmpty()) {
             return edges;
         }
 
         for (final FireflyId edgeId : edgeIds) {
-            final FireflyRecord edgeRecord = edgeRecords.get(edgeId);
-            if (edgeRecord != null && edgeRecord.record() != null) {
-                final FireflyEdgeRecord fireflyEdgeRecord = new FireflyEdgeRecord(edgeRecord.record(), db);
-                final FireflyEdge edge = FireflyEdgeFactory.create((FireflyEdgeId) edgeId, fireflyEdgeRecord, graph);
+            final FireflyEdgeRecord edgeRecord = edgeRecords.get(edgeId);
+            if (edgeRecord != null) {
+                final FireflyEdge edge = FireflyEdgeFactory.create((FireflyEdgeId) edgeId, edgeRecord, graph);
                 if (edge != null) {
                     edges.add(edge);
                 }

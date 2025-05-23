@@ -180,15 +180,15 @@ public class FireflyRecord {
      * individual edges' data.
      * @param db    AerospikeConnection instance
      * @param ids   IDs of edges requested
-     * @return  Map of Edge FireflyIds to the FireflyRecord of a phat edge containing that Edge's data
+     * @return  Map of Edge FireflyIds to the FireflyEdgeRecord of a phat edge containing that Edge's data
      */
-    public static Map<FireflyId, FireflyRecord> batchReadPhatEdges(final AerospikeConnection db,
-                                                                  final List<FireflyId> ids) {
+    public static Map<FireflyId, FireflyEdgeRecord> batchReadPhatEdges(final AerospikeConnection db,
+                                                                       final List<FireflyId> ids) {
 
         // Requested IDs to their respective FireflyRecord.
-        final Map<FireflyId, FireflyRecord> records = new HashMap<>();
+        final Map<FireflyId, FireflyEdgeRecord> records = new HashMap<>();
         // Check if empty and return empty if it is.
-        if (ids.size() == 0) {
+        if (ids.isEmpty()) {
             return records;
         }
 
@@ -206,7 +206,7 @@ public class FireflyRecord {
         final Collection<Key> keys = edgeStorageIdToKey.values();
 
         // Map of phat Edge IDs to their respective FireflyRecord.
-        final Map<Long, FireflyRecord> phatEdgeStorageIdToRecord = new HashMap<>();
+        final Map<Long, FireflyEdgeRecord> phatEdgeStorageIdToRecord = new HashMap<>();
 
         for (int i = 0; i < keys.size(); i += db.AEROSPIKE_BATCH_READ_SIZE) {
             // Generate sub list using current index and batch size.
@@ -223,15 +223,15 @@ public class FireflyRecord {
     }
 
     private static void executeBatchReadPhatEdges(final AerospikeConnection db,
-                                                 final Map<Long, FireflyRecord> phatEdgeStorageIdToRecord,
-                                                 final List<Key> keysToRead) {
+                                                  final Map<Long, FireflyEdgeRecord> phatEdgeStorageIdToRecord,
+                                                  final List<Key> keysToRead) {
         final Record[] records = db.dynamicBatchRead(keysToRead.toArray(Key[]::new), null, db.transactionCache.get());
         for (int i = 0; i < records.length; i++) {
             if (records[i] != null) {
                 // Add storage id to record pair to the map.
                 final Key key = keysToRead.get(i);
                 final Long storageId = key.userKey.toLong();
-                final FireflyRecord fireflyRecord = new FireflyRecord(db, key, records[i]);
+                final FireflyEdgeRecord fireflyRecord = new FireflyEdgeRecord(records[i], db);
                 phatEdgeStorageIdToRecord.put(storageId, fireflyRecord);
             }
         }
@@ -258,6 +258,9 @@ public class FireflyRecord {
 
     @Override
     public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
         return o.getClass().equals(this.getClass()) &&
                 ((FireflyRecord) o).key.equals(key) &&
                 ((FireflyRecord) o).record.equals(record);

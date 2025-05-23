@@ -146,17 +146,25 @@ public class FireflyPhatEdgeId extends FireflyIdPoly implements FireflyEdgeId {
     @Override
     public int hashCode() {
         if (this.hashcode == null) {
-            this.hashcode = getEdgeIdBytes().hashCode();
+            this.hashcode = Arrays.hashCode(getEdgeIdBytes().array());
         }
         return this.hashcode;
     }
 
     @Override
     public boolean equals(final Object o) {
-        if (o instanceof FireflyId) {
-            return this.getUserId().equals(((FireflyId) o).getUserId()) && super.equals(o);
-        } else{
+        if (this == o) {
+            return true;
+        }
+        if (o instanceof FireflyEdgeId) {
+            return this.getUserId().equals(((FireflyEdgeId) o).getUserId());
+        } else {
             return false;
         }
+    }
+
+    @Override
+    public String toString() {
+        return (String) this.getUserId();
     }
 }

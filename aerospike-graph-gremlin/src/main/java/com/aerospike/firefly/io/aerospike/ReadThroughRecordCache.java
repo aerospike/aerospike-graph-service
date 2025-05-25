@@ -8,16 +8,16 @@ import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.FireflyCache;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheStats;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.stats.CacheStats;
+import org.jspecify.annotations.NullMarked;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -31,12 +31,12 @@ public class ReadThroughRecordCache extends FireflyCache {
     private final AtomicLong hitCounter = new AtomicLong(0);
     private final AtomicLong missCounter = new AtomicLong(0);
 
-
-    // Key->Record. getIfPresent will return null if the key is not in the cache.
     private final Cache<Key, Record> cache;
     private final AerospikeConnection db;
 
-    class Weigher implements com.google.common.cache.Weigher<Key, Record> {
+    @NullMarked
+    @SuppressWarnings("unchecked")
+    class Weigher implements com.github.benmanes.caffeine.cache.Weigher<Key, Record> {
         @Override
         public int weigh(final Key key, final Record record) {
             // Basic weight for key/record.
@@ -45,12 +45,12 @@ public class ReadThroughRecordCache extends FireflyCache {
             // Simple weight function.
             if (record.bins.containsKey(db.OUT_EDGES_BIN)) {
                 // Add 1 to weight for every out edge.
-                size += getEdgeCountOnVertexRecord((Map<String, List>) record.getMap(db.OUT_EDGES_BIN));
+                size += getEdgeCountOnVertexRecord((Map<String, List<?>>) record.getMap(db.OUT_EDGES_BIN));
             }
 
             if (record.bins.containsKey(db.IN_EDGES_BIN)) {
                 // Add 1 to weight for every in edge.
-                size += getEdgeCountOnVertexRecord((Map<String, List>) record.getMap(db.IN_EDGES_BIN));
+                size += getEdgeCountOnVertexRecord((Map<String, List<?>>) record.getMap(db.IN_EDGES_BIN));
             }
 
             if (record.bins.containsKey(db.PROPERTIES_BIN)) {
@@ -66,19 +66,18 @@ public class ReadThroughRecordCache extends FireflyCache {
             return size;
         }
 
-        private int getEdgeCountOnVertexRecord(final Map<String, List> edgeCacheMap) {
+        private int getEdgeCountOnVertexRecord(final Map<String, List<?>> edgeCacheMap) {
             int size = 0;
-            for (final List edges : edgeCacheMap.values()) {
+            for (final List<?> edges : edgeCacheMap.values()) {
                 size += edges.size();
             }
             return size;
         }
     }
 
-    public ReadThroughRecordCache(final AerospikeConnection db, final UUID uuid) {
-        super(uuid);
+    public ReadThroughRecordCache(final AerospikeConnection db) {
         this.db = db;
-        cache = CacheBuilder.newBuilder().
+        cache = Caffeine.newBuilder().
                 maximumWeight(db.FIREFLY_READ_THROUGH_CACHE_WEIGHT).
                 recordStats().
                 weigher(new Weigher()).
@@ -87,88 +86,70 @@ public class ReadThroughRecordCache extends FireflyCache {
 
     @Override
     public Record read(final Policy policy, final Key key) {
-        final Record or = cache.getIfPresent(key);
-        if (or != null) {
-            hitCounter.incrementAndGet();
-            return or;
-        } else {
-            missCounter.incrementAndGet();
-            final Record record = db.skipCacheRead(key, policy);
-            insert(key, record);
-            return record;
-        }
+        return readInternal(policy, key, null);
     }
 
     @Override
     public Record read(final WritePolicy policy, final Key key, final Operation[] operations) {
+        return readInternal(policy, key, operations);
+    }
+
+    private Record readInternal(final Policy policy, final Key key, final Operation[] operations) {
         final Record cachedRecord = cache.getIfPresent(key);
         if (cachedRecord != null) {
-            this.hitCounter.incrementAndGet();
+            hitCounter.incrementAndGet();
             return cachedRecord;
-        } else {
-            missCounter.incrementAndGet();
-            final Record record = db.skipCacheRead(key, policy, operations);
-            insert(key, record);
-            return record;
         }
+
+        missCounter.incrementAndGet();
+
+        final Record record = (operations == null)
+                ? db.skipCacheRead(key, policy)
+                : db.skipCacheRead(key, (WritePolicy) policy, operations);
+
+        insert(key, record);
+        return record;
     }
 
     @Override
     public Record[] read(final Key[] keys, final BatchPolicy policy) {
-        final List<Key> allKeys = List.of(keys);
-        final Map<Key, Record> results = new HashMap<>(cache.getAllPresent(new HashSet<>(allKeys)));
-        final List<Key> missingKeys = allKeys.stream().filter(key -> !results.containsKey(key)).collect(Collectors.toList());
-        final Set<Key> missingKeySet = new HashSet<>(missingKeys);
-
-        // Batch reading in Aerospike is capped based on settings in the server.
-        for (int i = 0; i < missingKeySet.size(); i += db.AEROSPIKE_BATCH_READ_SIZE) {
-            // Generate sub list using current index and batch size.
-            final List<Key> subList = missingKeySet.stream().skip(i).limit(db.AEROSPIKE_BATCH_READ_SIZE).collect(Collectors.toList());
-
-            // Execute batch read. subList ids are read from the database.
-            final Record[] records = db.skipCacheRead(subList.toArray(new Key[0]), policy);
-            for (int j = 0; j < records.length; j++) {
-                results.put(subList.get(j), records[j]);
-
-                // Insert to cache since these are new.
-                insert(subList.get(j), records[j]);
-            }
-        }
-
-        // Update metrics.
-        hitCounter.addAndGet(allKeys.size() - missingKeys.size());
-        missCounter.addAndGet(missingKeys.size());
-
-        // Place results into cache.
-        final Record[] records = new Record[allKeys.size()];
-        for (int i = 0; i < allKeys.size(); i++) {
-            final Key key = allKeys.get(i);
-            final Record record = results.get(key);
-            records[i] = record;
-        }
-
-        return records;
+        return readBatchInternal(keys, policy, null);
     }
 
     @Override
     public Record[] read(final Key[] keys, final BatchPolicy policy, final Operation[] operations) {
+        return readBatchInternal(keys, policy, operations);
+    }
+
+    private Record[] readBatchInternal(final Key[] keys, final BatchPolicy policy, final Operation[] operations) {
         final List<Key> allKeys = List.of(keys);
         final Map<Key, Record> results = new HashMap<>(cache.getAllPresent(new HashSet<>(allKeys)));
-        final List<Key> missingKeys = allKeys.stream().filter(key -> !results.containsKey(key)).collect(Collectors.toList());
+        final List<Key> missingKeys = allKeys.stream()
+                .filter(key -> !results.containsKey(key))
+                .collect(Collectors.toList());
+
         final Set<Key> missingKeySet = new HashSet<>(missingKeys);
 
         // Batch reading in Aerospike is capped based on settings in the server.
         for (int i = 0; i < missingKeySet.size(); i += db.AEROSPIKE_BATCH_READ_SIZE) {
             // Generate sub list using current index and batch size.
-            final List<Key> subList = missingKeySet.stream().skip(i).limit(db.AEROSPIKE_BATCH_READ_SIZE).collect(Collectors.toList());
+            final List<Key> subList = missingKeySet.stream()
+                    .skip(i)
+                    .limit(db.AEROSPIKE_BATCH_READ_SIZE)
+                    .collect(Collectors.toList());
 
             // Execute batch read. subList ids are read from the database.
-            final Record[] records = db.skipCacheRead(subList.toArray(new Key[0]), policy, operations);
-            for (int j = 0; j < records.length; j++) {
-                results.put(subList.get(j), records[j]);
+            final Record[] fetchedRecords = (operations == null)
+                    ? db.skipCacheRead(subList.toArray(new Key[0]), policy)
+                    : db.skipCacheRead(subList.toArray(new Key[0]), policy, operations);
+
+            for (int j = 0; j < fetchedRecords.length; j++) {
+                final Key key = subList.get(j);
+                final Record record = fetchedRecords[j];
+                results.put(key, record);
 
                 // Insert to cache since these are new.
-                insert(subList.get(j), records[j]);
+                insert(key, record);
             }
         }
 
@@ -177,14 +158,12 @@ public class ReadThroughRecordCache extends FireflyCache {
         missCounter.addAndGet(missingKeys.size());
 
         // Place results into cache.
-        final Record[] records = new Record[allKeys.size()];
-        for (int i = 0; i < allKeys.size(); i++) {
-            final Key key = allKeys.get(i);
-            final Record record = results.get(key);
-            records[i] = record;
-        }
+        final Record[] finalRecords = new Record[allKeys.size()];
 
-        return records;
+        for (int i = 0; i < allKeys.size(); i++) {
+            finalRecords[i] = results.get(allKeys.get(i));
+        }
+        return finalRecords;
     }
 
     /**
@@ -238,7 +217,7 @@ public class ReadThroughRecordCache extends FireflyCache {
      * @return number of entries in cache
      */
     public long size() {
-        return cache.size();
+        return cache.estimatedSize();
     }
 
     /**
@@ -247,7 +226,6 @@ public class ReadThroughRecordCache extends FireflyCache {
     public CacheStats stats() {
         return cache.stats();
     }
-
 
     /**
      * Statistic on data served from cache

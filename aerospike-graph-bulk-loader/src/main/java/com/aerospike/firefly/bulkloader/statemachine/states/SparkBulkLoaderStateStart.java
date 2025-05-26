@@ -213,6 +213,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                     case EDGE_WRITE:
                         LOGGER.info("Recovering from writeEdges state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
+                        sparkBulkLoaderStateMachine.progressBar.setGenerateEdgeCachesComplete();
                         sparkBulkLoaderStateMachine.progressBar.setVertexLoadComplete();
                         sparkBulkLoaderStateMachine.progressBar.setVertexValidationComplete();
                         // Here we have completed the vertex verification and died during edge writing.
@@ -224,6 +225,7 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                     case EDGE_VERIFY:
                         LOGGER.info("Recovering from verifyEdges state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
+                        sparkBulkLoaderStateMachine.progressBar.setGenerateEdgeCachesComplete();
                         sparkBulkLoaderStateMachine.progressBar.setVertexLoadComplete();
                         sparkBulkLoaderStateMachine.progressBar.setVertexValidationComplete();
                         sparkBulkLoaderStateMachine.progressBar.setEdgeLoadComplete();

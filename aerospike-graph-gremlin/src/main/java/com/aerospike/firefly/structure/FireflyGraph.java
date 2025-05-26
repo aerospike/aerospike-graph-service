@@ -779,20 +779,21 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         for (int i = 0; i < edgeIds.size(); i++) {
             final List<Value> edgeData = new ArrayList<>(EDGE_DATA_SIZE);
             edgeData.add(LABEL_POSITION, Value.get(labels.get(i)));
-            edgeData.add(IN_V_POSITION, Value.get(inIds.get(i).getKeyHashString()));
-            edgeData.add(OUT_V_POSITION, Value.get(outIds.get(i).getKeyHashString()));
+            edgeData.add(IN_V_POSITION, Value.get(inIds.get(i).getUserId()));
+            edgeData.add(OUT_V_POSITION, Value.get(outIds.get(i).getUserId()));
             edgeData.add(PROPERTIES_POSITION, Value.get(propertyMaps.get(i)));
             edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHintss.get(i)));
+            final FireflyPhatEdgeId id = graph.getIdFactory().createEdgeId(edgeIds.get(i));
 
             final List<Operation> operations = new ArrayList<>();
             if (inVSupernodes.get(i)) {
                 final Operation writeInVSupernode = MapOperation.put(edgeMapPolicy, graph.getBaseGraph().SUPERNODES_IN_BIN,
-                        Value.get(edgeIds.get(i)), Value.get(inIds.get(i).getKeyHashString()));
+                        Value.get(id.getUniqueId()), Value.get(inIds.get(i).getKeyHashString()));
                 operations.add(writeInVSupernode);
             }
             if (outVSupernodes.get(i)) {
                 final Operation writeOutVSupernode = MapOperation.put(edgeMapPolicy, graph.getBaseGraph().SUPERNODES_OUT_BIN,
-                        Value.get(edgeIds.get(i)), Value.get(outIds.get(i).getKeyHashString()));
+                        Value.get(id.getUniqueId()), Value.get(outIds.get(i).getKeyHashString()));
                 operations.add(writeOutVSupernode);
             }
             operations.addAll(aerospikeOperations.createFilterableSupernodeOperations((FireflyPhatEdgeId) ids.get(i), outVSupernodes.get(i),
@@ -878,7 +879,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
 
         // Write to filterable supernode bin if necessary.
-        operations.addAll(this.operations.createFilterableSupernodeOperations((FireflyPhatEdgeId) id, outVSupernode,
+        operations.addAll(this.operations.createFilterableSupernodeOperations(id, outVSupernode,
                 inVSupernode, outId, inId, label, propertyMap));
 
         // Add properties and type hints to Edge data.

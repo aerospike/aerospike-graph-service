@@ -49,6 +49,7 @@ public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState
 
         // Create the edge cache data.
         final Dataset<Row> fromEdgeDataset = sparkBulkLoaderStateMachine.edgeDataset.
+                filter(col(TO_VERTEX_HEADER).isNotNull()).
                 groupBy(col(FROM_VERTEX_HEADER), col(LABEL_HEADER)).
                 agg(collect_list(array(col(TO_VERTEX_HEADER), col(EDGE_ID_COLUMN))).alias("tmp")).
                 filter(col(LABEL_HEADER).isNotNull()).
@@ -60,6 +61,7 @@ public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState
                         functions.when(new Column(FROM_VERTEX_CACHE_HEADER).isNotNull(),
                                 functions.to_json(new Column(FROM_VERTEX_CACHE_HEADER))).otherwise(null));
         final Dataset<Row> toEdgeDataset = sparkBulkLoaderStateMachine.edgeDataset.
+                filter(col(FROM_VERTEX_HEADER).isNotNull()).
                 groupBy(col(TO_VERTEX_HEADER), col(LABEL_HEADER)).
                 agg(collect_list(array(col(FROM_VERTEX_HEADER), col(EDGE_ID_COLUMN))).alias("tmp")).
                 filter(col(LABEL_HEADER).isNotNull()).

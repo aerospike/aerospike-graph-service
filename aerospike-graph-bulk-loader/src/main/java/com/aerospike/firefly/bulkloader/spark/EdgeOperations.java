@@ -192,7 +192,12 @@ public class EdgeOperations implements Serializable {
 
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next().copy();
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, DatasetOperations.COLUMNS_TO_REMOVE);
-
+                    final boolean isNullToFrom = fireflyRow.isNullAt(fireflyRow.fieldIndex(FROM_VERTEX_HEADER)) ||
+                            fireflyRow.isNullAt(fireflyRow.fieldIndex(TO_VERTEX_HEADER));
+                    if (isNullToFrom) {
+                        // Already added to bad entry via dry run, faster to skip here than filter dataset.
+                        continue;
+                    }
                     try {
                         if (isEdgeCacheWrittenWithVertex) {
                             final Long packingId = metadataRow.getLong(metadataRow.fieldIndex(PACKING_ID_COLUMN));

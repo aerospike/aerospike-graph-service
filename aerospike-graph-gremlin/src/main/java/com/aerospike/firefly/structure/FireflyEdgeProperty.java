@@ -28,7 +28,7 @@ public class FireflyEdgeProperty<V> extends FireflyProperty<V> {
      */
     @Override
     public void remove() {
-        graph.getOperations().removeEdgeProperty(this);
+        graph.getAerospikeOperations().removeEdgeProperty(this);
     }
 
     public FireflyEdge edge() {

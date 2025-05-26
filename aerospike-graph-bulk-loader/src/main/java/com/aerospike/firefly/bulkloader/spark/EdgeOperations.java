@@ -74,7 +74,7 @@ import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.exponentialBa
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.BUCKET_ID_COLUMN;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNS_TO_REMOVE;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.EDGE_ID_COLUMN;
-import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.PACKING_ID_COLUMN;
+import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.STORAGE_ID_COLUMN;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIMIT;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
@@ -200,7 +200,7 @@ public class EdgeOperations implements Serializable {
                     }
                     try {
                         if (isEdgeCacheWrittenWithVertex) {
-                            final Long packingId = metadataRow.getLong(metadataRow.fieldIndex(PACKING_ID_COLUMN));
+                            final Long packingId = metadataRow.getLong(metadataRow.fieldIndex(STORAGE_ID_COLUMN));
                             final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
                                     providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
                                     metadataRow, usePersistedEdgeId, partitionId);
@@ -491,7 +491,7 @@ public class EdgeOperations implements Serializable {
                 results.add(new Tuple2<>(vertex.id.getUserId(), newEdgeCount + existingEdgeCount));
                 if (newEdgeCount + existingEdgeCount >= onRecordIdLimit) {
                     // This is going to become a supernode, mark it now.
-                    graph.getOperations().setCacheDisabled(vertex);
+                    graph.getAerospikeOperations().setCacheDisabled(vertex);
                 }
             }
         }
@@ -673,9 +673,9 @@ public class EdgeOperations implements Serializable {
             final FireflyPhatEdgeId edgeId = (FireflyPhatEdgeId) getFireflyGraph().getIdFactory().generateId(getFireflyGraph(), FireflyEdge.class);
             final String encodedId = encodeID(edgeId);
             outputRow.add(encodedId);
-            final Long packingId = edgeId.getPackingId();
-            outputRow.add(packingId);
-            final int bucketId = Math.floorMod(packingId, partitionCount);
+            final Long storageId = (Long) edgeId.getStorageId();
+            outputRow.add(storageId);
+            final int bucketId = Math.floorMod(storageId, partitionCount);
             outputRow.add(bucketId);
             return new GenericRowWithSchema(outputRow.toArray(), schema);
         }
@@ -712,7 +712,7 @@ public class EdgeOperations implements Serializable {
         final String taskName = "Edges ID write";
         final StructType writeSchema = edgeDataset.schema().
                 add(DataTypes.createStructField(EDGE_ID_COLUMN, DataTypes.StringType, false)).
-                add(DataTypes.createStructField(PACKING_ID_COLUMN, DataTypes.LongType, false)).
+                add(DataTypes.createStructField(STORAGE_ID_COLUMN, DataTypes.LongType, false)).
                 add(DataTypes.createStructField(BUCKET_ID_COLUMN, DataTypes.IntegerType, false));
         edgeDataset.sparkSession().sparkContext().setJobGroup(taskName, "Edges ID write task", true);
         final ExpressionEncoder<Row> edgeIdEncoder = RowEncoder.apply(writeSchema);

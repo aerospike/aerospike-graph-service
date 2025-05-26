@@ -33,7 +33,7 @@ public class FireflyBatchEdgeIterator<E extends Edge> implements CloseableIterat
                 while (idIterator.hasNext() && fireflyIdList.size() < graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                     fireflyIdList.add(idIterator.next());
                 }
-                elementIterator = graph.getOperations().readEdges(fireflyIdList).iterator();
+                elementIterator = graph.getAerospikeOperations().readEdges(fireflyIdList).iterator();
             } else { // We still have data to return.
                 return true;
             } // Just in case the ids we go to read have been removed we should not straight up return true, loop again

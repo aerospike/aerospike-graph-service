@@ -253,7 +253,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      */
     @Override
     public void remove() {
-        graph.operations.removeVertex(this);
+        graph.aerospikeOperations.removeVertex(this);
 
         removeVertexProperties();
         // Set flags to indicate vertex has been removed.
@@ -378,7 +378,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final Iterator<FireflyId> adjacentEdgeIds;
         if (isEdgeCacheOverflowed) {
             final Iterator<FireflyId> sindexEdgeIds = new FireflyPhatEdgeIdIteratorFromIndexedVertex(
-                    graph.operations.getEdgeKeyRecordsByIndex(this.id, direction, labels,
+                    graph.aerospikeOperations.getEdgeKeyRecordsByIndex(this.id, direction, labels,
                             FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, aerospikeHasContainers, adjacent),
                     this.db, direction, this.id, labels, FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, adjacent);
             adjacentEdgeIds = FireflyCloseableIteratorUtils.concat(edgeIds.iterator(), sindexEdgeIds);
@@ -573,7 +573,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             throw elementAlreadyRemoved(Vertex.class, this.id);
 
         if (SUPERNODE_PROPERTY_KEY.equals(key)) {
-            graph.operations.setCacheDisabled(this);
+            graph.aerospikeOperations.setCacheDisabled(this);
             return VertexProperty.empty();
         }
 
@@ -586,7 +586,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 return VertexProperty.empty();
             }
             if (Number.class.isAssignableFrom(value.getClass())) {
-                graph.operations.setTtl(this, ((Number) value).longValue());
+                graph.aerospikeOperations.setTtl(this, ((Number) value).longValue());
                 return VertexProperty.empty();
             } else {
                 throw new TtlArgumentException(value);
@@ -657,7 +657,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Write fully qualified edge.
         final List<Map.Entry<String, Object>> properties =
                 graph.convertFullyQualified(graph.features().edge().supportsNullPropertyValues(), keyValues);
-        return graph.getOperations().writeEdge(edgeId, label, properties, (FireflyVertex) vertex, this);
+        return graph.getAerospikeOperations().writeEdge(edgeId, label, properties, (FireflyVertex) vertex, this);
     }
 
     @Override
@@ -713,7 +713,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                                                         final Set<String> labels,
                                                         final FireflyPhatEdgeIdIteratorFromVertex.OutputType outputType,
                                                         final List<HasContainer> hasContainers) {
-        return graph.operations.getEdgeKeyRecordsByIndex(this.id, direction, labels, outputType, hasContainers, null);
+        return graph.aerospikeOperations.getEdgeKeyRecordsByIndex(this.id, direction, labels, outputType, hasContainers, null);
     }
 
     public long getEdgeCount(final Direction direction) {

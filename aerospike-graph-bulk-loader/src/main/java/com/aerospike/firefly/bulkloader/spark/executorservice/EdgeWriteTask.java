@@ -111,7 +111,7 @@ public class EdgeWriteTask {
 
         final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
             try {
-                FireflyGraph.bulkWriteEdges(graph, ids, edgeLabels, properties, inVertexIds, outVertexIds, inVertexSupernodes, outVertexSupernodes, partitionIds);
+                graph.bulkWriteEdges(ids, edgeLabels, properties, inVertexIds, outVertexIds, inVertexSupernodes, outVertexSupernodes, partitionIds);
             } catch (final Exception e) {
                 // Log the error when no longer retrying
                 edgeWriteTask.get(0).LOGGER.error(String.format("Exception occurred during Edge writing %s", edgeWriteTask), e);

@@ -74,7 +74,7 @@ public class GraphOperations {
                                 final FireflyIdComposite compositeId = graph.getIdFactory().createCompositeEdgeId(compositeIdInfoList);
                                 invalidEdgeIds.add(compositeId.getEdgeIdBytes().array());
                             }
-                            graph.getOperations().writeBadEdge(vertexId, edgeIds.size());
+                            graph.getAerospikeOperations().writeBadEdge(vertexId, edgeIds.size());
                             break;
                         } else {
                             LOGGER.error("Failed to write edges with label " + label + " into " + direction +

@@ -244,7 +244,6 @@ public final class ConfigurationHelper {
             EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
             BL_ROW_BIN(Pair.of((byte) 21, "BL_ROW")),
             BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE")),
-            SUPERNODE_EDGE_PROPERTIES_BIN(Pair.of((byte) 23, "SUPERNODE_P")),
             BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA")),
             OLAP_LIMIT_BIN(Pair.of((byte) 25, "OLAP_LIMIT"));
 

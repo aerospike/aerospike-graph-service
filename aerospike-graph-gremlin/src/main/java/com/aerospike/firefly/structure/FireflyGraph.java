@@ -832,12 +832,17 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                               final Object inVertexId, final Object outVertexId, final boolean inVSupernode,
                               final boolean outVSupernode, final int partitionId) {
         FireflyGraph.LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertexId, label, inVertexId, properties);
+
+        final List<Operation> operations = new ArrayList<>();
+        final boolean isAttachedToSupernode = inVSupernode || outVSupernode;
+        // CREATE and UPDATE are both okay since this is idempotent.
+        final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
         final FireflyPhatEdgeId id = getIdFactory().createEdgeId(edgeId);
         final FireflyId inId = getIdFactory().createVertexId(inVertexId);
         final FireflyId outId = getIdFactory().createVertexId(outVertexId);
 
         final Map<String, Object> propertyMap = new TreeMap<>();
-        final Map<String, Object> typeHints = new TreeMap<>();
+        final Map<String, Object> typeHints = new HashMap<>();
         properties.forEach(property -> {
             final String key = property.getKey();
             final Object value = FireflyHelper.validatePropertyValue(property.getValue());
@@ -854,42 +859,32 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             }
         });
 
-        final List<Value> edgeData = new ArrayList<>(EDGE_DATA_SIZE);
+        if (!isAttachedToSupernode) {
+            final List<Value> edgeData = new ArrayList<>(EDGE_DATA_SIZE);
+            // Add label to Edge data.
+            edgeData.add(LABEL_POSITION, Value.get(label));
+            // Add IN and OUT to Edge data.
+            edgeData.add(IN_V_POSITION, Value.get(inId.getUserId()));
+            edgeData.add(OUT_V_POSITION, Value.get(outId.getUserId()));
 
-        final List<Operation> operations = new ArrayList<>();
-        // CREATE and UPDATE are both okay since this is idempotent.
-        final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
+            // Add properties and type hints to Edge data.
+            edgeData.add(PROPERTIES_POSITION, Value.get(propertyMap));
+            edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHints));
 
-        // Add label to Edge data.
-        edgeData.add(LABEL_POSITION, Value.get(label));
-        // Add IN and OUT to Edge data.
-        edgeData.add(IN_V_POSITION, Value.get(inId.getUserId()));
-        edgeData.add(OUT_V_POSITION, Value.get(outId.getUserId()));
-
-        // Write to supernodes bin if vertex cache overflowed.
-        if (inVSupernode) {
-            final Operation writeInVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_IN_BIN,
-                    Value.get(id.getUniqueId()), Value.get(inId.getKeyHashString()));
-            operations.add(writeInVSupernode);
-        }
-        if (outVSupernode) {
-            final Operation writeOutVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_OUT_BIN,
-                    Value.get(id.getUniqueId()), Value.get(outId.getKeyHashString()));
-            operations.add(writeOutVSupernode);
+            // Create Operation for writing Edge data.
+            final Operation createIndividualEdgeMap = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN,
+                    Value.get(edgeId), Value.get(edgeData));
+            operations.add(createIndividualEdgeMap);
+        } else {
+            // If the Edge is attached to a supernode, rest of the data has to exist elsewhere so store only type hint
+            final Operation createEdgeToTypeHint = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN, Value.get(edgeId),
+                    Value.get(typeHints));
+            operations.add(createEdgeToTypeHint);
         }
 
         // Write to filterable supernode bin if necessary.
         operations.addAll(this.operations.createFilterableSupernodeOperations(id, outVSupernode,
                 inVSupernode, outId, inId, label, propertyMap));
-
-        // Add properties and type hints to Edge data.
-        edgeData.add(PROPERTIES_POSITION, Value.get(propertyMap));
-        edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHints));
-
-        // Create Operation for writing Edge data.
-        final Operation createIndividualEdgeMap = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN,
-                Value.get(edgeId), Value.get(edgeData));
-        operations.add(createIndividualEdgeMap);
 
         final WritePolicy writePolicy = new WritePolicy();
         final Key key = getKey(db, db.EDGE_AERO_SET, id);
@@ -1020,7 +1015,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 this, idValue, vertex, key, value, properties, typeHints);
 
         // Append vertex property to vertex.
-        operations.writeVertexProperty(vertex, fireflyVertexProperty);
+        operations.writeVpProperty(vertex, fireflyVertexProperty);
 
         // Return FireflyVertexProperty.
         return fireflyVertexProperty;

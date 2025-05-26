@@ -42,6 +42,10 @@ public class FireflyEdge extends FireflyElement implements Edge {
     public static final String EDGE_SUPERNODE_OUT_KEY = "~OUT";
     public static final String EDGE_SUPERNODE_IN_KEY = "~IN";
 
+    // These are used for FireflyEdgeRecord when unpacking a phat Edge records' data.
+    public static final int IS_IN_SUPERNODE_POSITION = 5;
+    public static final int IS_OUT_SUPERNODE_POSITION = 6;
+
     protected final AerospikeConnection db;
     public boolean removed;
     protected final FireflyGraph graph;

@@ -131,7 +131,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         }
 
         final U validatedValue = (U) FireflyHelper.validatePropertyValue(value);
-        return graph.operations.writeVertexProperty(this, key, validatedValue);
+        return graph.operations.writeVpProperty(this, key, validatedValue);
     }
 
     @Override

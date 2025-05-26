@@ -316,9 +316,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
         edgeIds.addAll(getCachedEdgeIds(direction, labels));
         if (edgeCache != null) {
-            final List<FireflyEdge> edges = graph.readEdges(hasContainers, edgeIds, null);
+            final List<FireflyEdge> edges = graph.readEdges(Collections.emptyList(), edgeIds, null);
             for (final FireflyEdge edge : edges) {
-                edgeCache.put(edge.id, edge);
+                if (HasContainer.testAll(edge, hasContainers)) {
+                    edgeCache.put(edge.id, edge);
+                }
             }
         }
         if (isEdgeCacheOverflowed) {

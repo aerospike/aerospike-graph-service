@@ -28,7 +28,7 @@ public class FireflyIdPoly implements FireflyId {
     private final String setName;
     // Lazily instantiate this.
     private byte[] hash = null;
-    private String toString = null;
+    private String hashString = null;
 
     /**
      * Constructor for Numeric Firefly Id. Object class assumed.
@@ -137,14 +137,17 @@ public class FireflyIdPoly implements FireflyId {
             return this.userId;
         }
         if (this.userClass == null) {
-            throw new RuntimeException("Error, cannot get user id for hash id.");
+            // This should never be called on an ID generated from a hash.
+            throw new IllegalStateException("Failed to generate User ID from hash-generated ID. Please contact support.");
         }
         if (CONVERT_TO_USER_CLASS.containsKey(userClass)) {
             this.userId = CONVERT_TO_USER_CLASS.get(userClass).getUserId(id);
         } else if (CONVERT_TO_USER_CLASS.containsKey(userClass.getSuperclass())) {
             this.userId = CONVERT_TO_USER_CLASS.get(userClass.getSuperclass()).getUserId(id);
         } else {
-            throw new RuntimeException(String.format("Error, cannot convert numeric id to user class of %s.", userClass.getName()));
+            // This should never happen.
+            throw new RuntimeException(String.format("Failed to convert ID type of %s to User ID type %s. Please contact support.",
+                    this.id.getClass(), userClass.getName()));
         }
         return this.userId;
     }
@@ -183,7 +186,10 @@ public class FireflyIdPoly implements FireflyId {
 
     @Override
     public String getKeyHashString() {
-        return new String(getKeyHash(), StandardCharsets.ISO_8859_1);
+        if (this.hashString == null) {
+            this.hashString = new String(getKeyHash(), StandardCharsets.ISO_8859_1);
+        }
+        return this.hashString;
     }
 
     @Override
@@ -204,25 +210,24 @@ public class FireflyIdPoly implements FireflyId {
 
     @Override
     public String toString() {
-        if (this.hash == null) {
-            this.hash = getIdHash(this.setName);
-        }
-        if (this.toString == null) {
-            this.toString = Crypto.encodeBase64(hash);
-        }
-        return toString;
+        return this.getKeyHashString();
     }
 
     @Override
     public int hashCode() {
-        return this.getKeyHash() == null ? this.getStorageId().hashCode() : Arrays.hashCode(this.getKeyHash());
+        return this.getKeyHashString().hashCode();
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o instanceof FireflyId) return Arrays.equals(getKeyHash(), ((FireflyId) o).getKeyHash());
-        return false;
+        if (this == o) {
+            return true;
+        }
+        if (o instanceof FireflyId) {
+            return Arrays.equals(getKeyHash(), ((FireflyId) o).getKeyHash());
+        } else {
+            return false;
+        }
     }
 
     static abstract class GetUserId {

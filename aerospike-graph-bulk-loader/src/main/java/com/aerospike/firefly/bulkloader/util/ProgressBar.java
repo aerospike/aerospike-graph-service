@@ -262,6 +262,7 @@ public class ProgressBar extends TimerTask {
                 final int completePartitions = RecoveryUtil.completedVertexPartitions(graph.getBaseGraph()).size();
                 vertexPartitionWritePercentage = getPartitionProgressPercentage(totalPartitions, completePartitions);
                 final String partitionProgress = getPartitionProgress(totalPartitions, completePartitions, vertexPartitionWritePercentage);
+                // TODO GRAPH-1552: check incremental mode when revamping progress bar.
                 final String lineProgress = getLineProgress(vertexLineCount, delta / (intervalMillis / 1000), verticesWritten, "vertices");
                 if (partitionProgress != null) {
                     output += partitionProgress;

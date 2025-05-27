@@ -82,17 +82,19 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                 sparkBulkLoaderStateMachine.spark,
                 sparkBulkLoaderStateMachine.cmd,
                 edgeRecoveryDirectory);
-                sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.spark.
+        sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.spark.
                 read().option("header", "true").parquet(edgeRecoveryDirectory);
+        sparkBulkLoaderStateMachine.edgeCount = sparkBulkLoaderStateMachine.edgeDataset.count();
+        sparkBulkLoaderStateMachine.progressBar.setEdgeTotalCount(sparkBulkLoaderStateMachine.edgeCount);
 
 
         sparkBulkLoaderStateMachine.edgePartitionCount = info.getEdgePartitionCount();
-        sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartitionByRange(
+        sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartition(
                 sparkBulkLoaderStateMachine.edgePartitionCount, new Column(BUCKET_ID_COLUMN));
 
         LOGGER.info("EdgeId dataset has {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
         sparkBulkLoaderStateMachine.progressBar.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
-        sparkBulkLoaderStateMachine.edgeDataset.sortWithinPartitions(new Column(STORAGE_ID_COLUMN));
+        sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.sortWithinPartitions(new Column(STORAGE_ID_COLUMN));
 
         RecoveryUtil.updateEdgeRecovery(
                 sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),

@@ -749,13 +749,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                     outVertexIds.get(i), inVSupernodes.get(i), outVSupernodes.get(i), operations);
         }
 
-        final WritePolicy writePolicy = new WritePolicy();
-        writePolicy.sendKey = true;
-
         // All ids have same packing id, so just use 0.
         final Key key = getKey(db, db.EDGE_AERO_SET, getIdFactory().createEdgeId(edgeIds.get(0)));
         try {
-            getBaseGraph().writeOperate(writePolicy, key, operations.toArray(new Operation[0]));
+            getBaseGraph().writeOperate(null, key, operations.toArray(new Operation[0]));
         } catch (final AerospikeGraphException e) {
             throw new FireflyLoadingException(e);
         }

@@ -4,6 +4,7 @@ import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStat
 import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
 import org.apache.spark.sql.Column;
+import org.apache.spark.storage.StorageLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +31,8 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
                     sparkBulkLoaderStateMachine.edgeDataset,
                     sparkBulkLoaderStateMachine.edgeRecoveryDirectory,
                     sparkBulkLoaderStateMachine.fileConfig);
-
+            sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.spark.read().parquet(sparkBulkLoaderStateMachine.edgeRecoveryDirectory);
+            sparkBulkLoaderStateMachine.edgeDataset.persist(StorageLevel.DISK_ONLY());
             // Latch recovery directory.
             RecoveryUtil.writeTempEdgeDirectory(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), sparkBulkLoaderStateMachine.edgeRecoveryDirectory);
         }
@@ -53,10 +55,10 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
             RecoveryUtil.updateEdgeRecovery(
                     sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
                     sparkBulkLoaderStateMachine.edgePartitionCount);
-            sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartitionByRange(
+            sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartition(
                     sparkBulkLoaderStateMachine.edgePartitionCount, new Column(BUCKET_ID_COLUMN));
             sparkBulkLoaderStateMachine.progressBar.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
-            sparkBulkLoaderStateMachine.edgeDataset.sortWithinPartitions(new Column(STORAGE_ID_COLUMN));
+            sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.sortWithinPartitions(new Column(STORAGE_ID_COLUMN));
         }
 
         sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();

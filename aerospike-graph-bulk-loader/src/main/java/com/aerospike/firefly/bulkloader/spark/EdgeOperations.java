@@ -200,18 +200,18 @@ public class EdgeOperations implements Serializable {
                     }
                     try {
                         if (isEdgeCacheWrittenWithVertex) {
-                            final Long packingId = metadataRow.getLong(metadataRow.fieldIndex(STORAGE_ID_COLUMN));
+                            final Long storageId = metadataRow.getLong(metadataRow.fieldIndex(STORAGE_ID_COLUMN));
                             final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
                                     providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
                                     metadataRow, usePersistedEdgeId, partitionId);
                             edgeToFromIdList.add(new Tuple3<>(ewt.edgeId, ewt.inVertexId, ewt.outVertexId));
-                            if (!packingId.equals(currentId)) {
+                            if (!storageId.equals(currentId)) {
                                 // Kick off the previous batch.
                                 futures.add(EdgeWriteTask.writeBatch(executor, graph, tasks));
 
                                 // Set up next batch.
                                 tasks.clear();
-                                currentId = packingId;
+                                currentId = storageId;
                             }
                             tasks.add(ewt);
                         } else {
@@ -743,25 +743,24 @@ public class EdgeOperations implements Serializable {
 
         final Long packingId = Objects.requireNonNull(Long.valueOf(tokens[0]), "parsed packing ID can't be null");
         final byte[] packingByte = Longs.toByteArray(packingId);
-        final byte[] graphId;
         if (NOT_RECYCLED_ID_TOKEN.equals(tokens[1])) {
-            graphId = new byte[8];
-            System.arraycopy(packingByte, 0, graphId, 0, 8);
-        } else {
-            graphId = new byte[16];
-            final Long uniqueId = Objects.requireNonNull(Long.valueOf(tokens[1]), "parsed unique ID can't be null");
-            final byte[] uniqueByte = Longs.toByteArray(uniqueId);
-
-            System.arraycopy(packingByte, 0, graphId, 0, 8);
-            System.arraycopy(uniqueByte, 0, graphId, 8, 8);
+            return packingByte;
         }
+
+        final byte[] graphId = new byte[16];
+        final Long uniqueId = Objects.requireNonNull(Long.valueOf(tokens[1]), "parsed unique ID can't be null");
+        final byte[] uniqueByte = Longs.toByteArray(uniqueId);
+
+        System.arraycopy(packingByte, 0, graphId, 0, 8);
+        System.arraycopy(uniqueByte, 0, graphId, 8, 8);
 
         return graphId;
     }
 
     public void writeEdgeToDB(final Dataset<Row> edgeIdDataSet,
                               final Set<Long> completedEdgePartitions,
-                              final boolean readOnly, final boolean isEdgeCacheWrittenWithVertex) {
+                              final boolean readOnly,
+                              final boolean isEdgeCacheWrittenWithVertex) {
         if (!this.config.hasAction(DISABLE_EDGE_WRITE)) {
             final Instant startWriteEdge = Instant.now();
             final String taskName = "Edges write to Aerospike Database";

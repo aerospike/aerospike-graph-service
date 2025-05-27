@@ -30,7 +30,7 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyIdFactory {
-    private static final Logger LOG = LoggerFactory.getLogger(FireflyVertex.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyIdFactory.class);
 
     private final AerospikeConnection db;
     private final IdManager<Long> vertexIdManager;

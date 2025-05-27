@@ -55,19 +55,19 @@ public class TestFireflyVertexEdgeLocalCountStrategyIntegration {
         final FireflyVertex grant = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(3), "person", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Joe"));
         final FireflyVertex joe = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createVertexId(4), "person", properties);
-        SETUP_GRAPH.getOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
+        SETUP_GRAPH.getAerospikeOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
                 simon, joe);
-        SETUP_GRAPH.getOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
+        SETUP_GRAPH.getAerospikeOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
                 lyndon, joe);
-        SETUP_GRAPH.getOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
+        SETUP_GRAPH.getAerospikeOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
                 grant, joe);
-        SETUP_GRAPH.getOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
+        SETUP_GRAPH.getAerospikeOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
                 simon, lyndon);
-        SETUP_GRAPH.getOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
+        SETUP_GRAPH.getAerospikeOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
                 grant, lyndon);
-        SETUP_GRAPH.getOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
+        SETUP_GRAPH.getAerospikeOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "startedBefore", Collections.emptyList(),
                 grant, simon);
-        SETUP_GRAPH.getOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "foo", Collections.emptyList(),
+        SETUP_GRAPH.getAerospikeOperations().writeEdge(SETUP_GRAPH.getIdFactory().createEdgeId(getEdgeId()), "foo", Collections.emptyList(),
                 lyndon, simon);
     }
 

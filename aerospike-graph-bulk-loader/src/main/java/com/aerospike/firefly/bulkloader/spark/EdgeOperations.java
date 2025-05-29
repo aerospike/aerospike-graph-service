@@ -292,6 +292,7 @@ public class EdgeOperations implements Serializable {
             return;
         }
         GraphOperations.dropDetachedEdges(graph, edgesToRemove, allowedDetachedEdges);
+        edgeToFromIdList.clear();
     }
 
 

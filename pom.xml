@@ -193,7 +193,8 @@
                         <exclude>**/TestAerospikeClientProviderConfiguration.java</exclude>
                         <exclude>**/TestRecoveryUtil</exclude>
                         <exclude>**/TestSparkStateMachineRecovery</exclude>
-                        <exclude>**/TestBulkLoaderRecovery</exclude>
+                        <exclude>**/TestBulkLoaderRecovery1</exclude>
+                        <exclude>**/TestBulkLoaderRecovery2</exclude>
                         <exclude>**/TestRecoveryActionFlags</exclude>
                         <exclude>**/QueryServiceAbortTest</exclude>
                         <exclude>**/TestAerospikeClientConfigEventLoop</exclude>

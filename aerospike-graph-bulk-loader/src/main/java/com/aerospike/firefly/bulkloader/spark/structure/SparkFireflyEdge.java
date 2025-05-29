@@ -19,6 +19,8 @@ import java.util.Map;
 public class SparkFireflyEdge extends SparkFireflyElement {
     public static final String FROM_VERTEX_HEADER = "~from";
     public static final String TO_VERTEX_HEADER = "~to";
+    public static final String FROM_VERTEX_CACHE_HEADER = "~from_cache";
+    public static final String TO_VERTEX_CACHE_HEADER = "~to_cache";
     private static final Logger LOG = LoggerFactory.getLogger(SparkFireflyEdge.class);
     private static final String DEFAULT_LABEL = "edge";
     private final Object fromVertexId;

@@ -117,14 +117,14 @@ public class FireflyEdge extends FireflyElement implements Edge {
     public Vertex outVertex() {
         // TODO GRAPH-1145: Restore the following and handle skipping null returns.
         //return graph.readVertex(this.outVid);
-        return graph.operations.getSingleVertex(this.outVid);
+        return graph.aerospikeOperations.getSingleVertex(this.outVid);
     }
 
     @Override
     public Vertex inVertex() {
         // TODO GRAPH-1145: Restore the following and handle skipping null returns.
         //return graph.readVertex(this.inVid);
-        return graph.operations.getSingleVertex(this.inVid);
+        return graph.aerospikeOperations.getSingleVertex(this.inVid);
     }
 
     @Override
@@ -173,7 +173,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
                 return Property.empty();
             }
             if (Number.class.isAssignableFrom(value.getClass())) {
-                graph.operations.setEdgeTTL(this, ((Number) value).longValue());
+                graph.aerospikeOperations.setEdgeTTL(this, ((Number) value).longValue());
                 return Property.empty();
             } else {
                 throw new TtlArgumentException(value);
@@ -195,12 +195,12 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
         // Write the property and add to edge.
         final V validatedValue = (V) FireflyHelper.validatePropertyValue(value);
-        return graph.getOperations().writeProperty(this, key, validatedValue);
+        return graph.getAerospikeOperations().writeProperty(this, key, validatedValue);
     }
 
     @Override
     public void remove() {
-        graph.operations.removeEdge(this, true, true, null);
+        graph.aerospikeOperations.removeEdge(this, true, true, null);
     }
 
     @Override

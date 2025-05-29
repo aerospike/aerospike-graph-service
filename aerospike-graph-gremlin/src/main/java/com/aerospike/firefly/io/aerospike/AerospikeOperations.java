@@ -140,7 +140,21 @@ public class AerospikeOperations {
                                      final List<Map.Entry<String, Object>> properties,
                                      final boolean createOnly,
                                      final boolean isEdgeCacheOverflowed) {
-        return writeVertex(vertexId, label, properties, createOnly, isEdgeCacheOverflowed, null);
+        return writeVertex(vertexId, label, properties, createOnly, isEdgeCacheOverflowed, null, Optional.empty(), Optional.empty());
+    }
+
+    public List<Boolean> verticesExist(final Object[] ids) {
+        final Key[] keys = new Key[ids.length];
+        for (int i = 0; i < ids.length; i++) {
+            final FireflyId fireflyId = graph.getIdFactory().createVertexId(ids[i]);
+            keys[i] = getKey(db, db.VERTEX_AERO_SET, fireflyId);
+        }
+        final boolean[] exists = db.exists(keys);
+        final List<Boolean> existsList = new ArrayList<>();
+        for (final boolean exist : exists) {
+            existsList.add(exist);
+        }
+        return existsList;
     }
 
     /**
@@ -160,7 +174,9 @@ public class AerospikeOperations {
                                      final List<Map.Entry<String, Object>> properties,
                                      final boolean createOnly,
                                      final boolean isEdgeCacheOverflowed,
-                                     final Integer partitionId) {
+                                     final Integer partitionId,
+                                     final Optional<Map<String, List<FireflyId>>> toEdgeCache,
+                                     final Optional<Map<String, List<FireflyId>>> fromEdgeCache) {
         Integer partition = partitionId;
         LOG.debug("Writing Vertex {} {}.", vertexId, properties);
 
@@ -231,11 +247,9 @@ public class AerospikeOperations {
         final Operation writeCacheDisabled = Operation.put(cacheDisabledBin);
         final Bin labelBin = new Bin(db.LABEL_BIN, Value.get(label));
         final Operation writeLabel = Operation.put(labelBin);
-        final Map<String, List<Long>> emptyEdgeCache = new TreeMap<>();
-        final Bin edgeCacheInBin = new Bin(db.IN_EDGES_BIN, Value.get(emptyEdgeCache, MapOrder.KEY_ORDERED));
-        final Operation writeEdgeCacheIn = Operation.put(edgeCacheInBin);
-        final Bin edgeCacheOutBin = new Bin(db.OUT_EDGES_BIN, Value.get(emptyEdgeCache, MapOrder.KEY_ORDERED));
-        final Operation writeEdgeCacheOut = Operation.put(edgeCacheOutBin);
+
+        final Operation writeEdgeCacheOut = getEdgeCache(fromEdgeCache, db.OUT_EDGES_BIN);
+        final Operation writeEdgeCacheIn = getEdgeCache(toEdgeCache, db.IN_EDGES_BIN);
 
         final Bin vertexPropertyIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID_BIN,
                 Value.get(vertexPropertyIdsWritable, MapOrder.KEY_ORDERED));
@@ -308,6 +322,21 @@ public class AerospikeOperations {
                 vertexPropertyTypeHintMap, vpProperties, vpPropertiesTypeHints,
                 isEdgeCacheOverflowed, db);
         return vertex;
+    }
+
+    private Operation getEdgeCache(final Optional<Map<String, List<FireflyId>>> optionalEdgeCache, final String bin) {
+        if (optionalEdgeCache.isEmpty()) {
+            final Map<String, List<Long>> emptyEdgeCache = new TreeMap<>();
+            final Bin edgeCacheBin = new Bin(bin, Value.get(emptyEdgeCache));
+            return Operation.put(edgeCacheBin);
+        }
+        final Map<String, List<FireflyId>> edgeCacheMap = optionalEdgeCache.get();
+        final Map<String, List<Value>> vertexEdgeMap = new TreeMap<>();
+        for (final Map.Entry<String, List<FireflyId>> entry : edgeCacheMap.entrySet()) {
+            vertexEdgeMap.put(entry.getKey(), entry.getValue().stream().map(e -> Value.get(e.getCachedId())).collect(Collectors.toList()));
+        }
+        final Bin edgeCacheBin = new Bin(bin, Value.get(vertexEdgeMap));
+        return Operation.put(edgeCacheBin);
     }
 
     /**

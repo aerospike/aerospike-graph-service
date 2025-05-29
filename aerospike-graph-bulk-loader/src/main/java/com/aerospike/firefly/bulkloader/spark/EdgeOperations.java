@@ -175,12 +175,10 @@ public class EdgeOperations implements Serializable {
                         final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
                         megaTask.join();
                         if (!isEdgeCacheWrittenWithVertex) {
-                            writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
+                            writeEdgeCacheToDBAndClear(graph, vertexOutEdgeMap, vertexInEdgeMap);
                         } else {
-                            if (edgeToFromIdList.size() > bufferSize) {
-                                removeDetachedEdgesPreGenerated(graph, edgeToFromIdList, allowedDetachedEdges);
-                                edgeToFromIdList.clear();
-                            }
+                            if (edgeToFromIdList.size() > bufferSize)
+                                removeDetachedEdgesPreGeneratedAndClear(graph, edgeToFromIdList, allowedDetachedEdges);
                         }
                         LOGGER.info(String.format("Edge write, partitionId: %d, batch: %d, time taken(in milli-seconds): %d, super node size: %d, cleaning all cached vertex maps", partitionId,
                                 batch, Duration.between(start, Instant.now()).toMillis(), supernodes.size()));
@@ -245,12 +243,10 @@ public class EdgeOperations implements Serializable {
                     // Flush Vertex Edge cache maps when all Edge writes are done.
                     try {
                         if (!isEdgeCacheWrittenWithVertex) {
-                            writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
-                        } else {
+                            writeEdgeCacheToDBAndClear(graph, vertexOutEdgeMap, vertexInEdgeMap);
+                        } else
                             // Buffer size 0 to force flushing.
-                            removeDetachedEdgesPreGenerated(graph, edgeToFromIdList, allowedDetachedEdges);
-                            edgeToFromIdList.clear();
-                        }
+                            removeDetachedEdgesPreGeneratedAndClear(graph, edgeToFromIdList, allowedDetachedEdges);
                     } catch (final RuntimeException e) {
                         LOGGER.error("Failed to flush Vertex Edge cache maps", e);
                         throw e;
@@ -267,9 +263,9 @@ public class EdgeOperations implements Serializable {
         });
     }
 
-    private void removeDetachedEdgesPreGenerated(final FireflyGraph graph,
-                                                 final List<Tuple3<FireflyId, Object, Object>> edgeToFromIdList,
-                                                 final long allowedDetachedEdges) {
+    private void removeDetachedEdgesPreGeneratedAndClear(final FireflyGraph graph,
+                                                         final List<Tuple3<FireflyId, Object, Object>> edgeToFromIdList,
+                                                         final long allowedDetachedEdges) {
         final Set<Object> vertexIds = new HashSet<>();
         for (final Tuple3<FireflyId, Object, Object> edgeToFrom : edgeToFromIdList) {
             vertexIds.add(edgeToFrom._2());
@@ -299,9 +295,9 @@ public class EdgeOperations implements Serializable {
     }
 
 
-    private void writeEdgeCacheToDB(final FireflyGraph graph,
-                                    final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap,
-                                    final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap) {
+    private void writeEdgeCacheToDBAndClear(final FireflyGraph graph,
+                                            final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap,
+                                            final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap) {
         final long allowedDetachedEdges = this.config.getOrDefaultInt(ALLOWED_BAD_EDGES_COUNT);
         final Set<Object> invalidEdgeIds = Collections.newSetFromMap(new ConcurrentHashMap<>());
 

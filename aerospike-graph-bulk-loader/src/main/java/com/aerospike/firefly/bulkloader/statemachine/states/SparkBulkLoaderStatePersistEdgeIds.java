@@ -23,8 +23,6 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
 
     @Override
     public void executeState() {
-        sparkBulkLoaderStateMachine.edgePartitionCount = sparkBulkLoaderStateMachine.edgeDataset.rdd().getPartitions().length;
-        LOGGER.info("EdgeId dataset has {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
 
         if (!sparkBulkLoaderStateMachine.readOnly) {
             sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeOperations.writeEdgeIDsToDataframe(
@@ -36,6 +34,8 @@ public class SparkBulkLoaderStatePersistEdgeIds extends SparkBulkLoaderState {
             // Latch recovery directory.
             RecoveryUtil.writeTempEdgeDirectory(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), sparkBulkLoaderStateMachine.edgeRecoveryDirectory);
         }
+        sparkBulkLoaderStateMachine.edgePartitionCount = sparkBulkLoaderStateMachine.edgeDataset.rdd().getPartitions().length;
+        LOGGER.info("EdgeId dataset has {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
 
         if (sparkBulkLoaderStateMachine.isEdgeCacheWrittenWithVertex) {
             // Calculate after they are written so data is fresh.

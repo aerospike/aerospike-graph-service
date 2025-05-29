@@ -177,8 +177,10 @@ public class EdgeOperations implements Serializable {
                         if (!isEdgeCacheWrittenWithVertex) {
                             writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
                         } else {
-                            if (edgeToFromIdList.size() > bufferSize)
+                            if (edgeToFromIdList.size() > bufferSize) {
                                 removeDetachedEdgesPreGenerated(graph, edgeToFromIdList, allowedDetachedEdges);
+                                edgeToFromIdList.clear();
+                            }
                         }
                         LOGGER.info(String.format("Edge write, partitionId: %d, batch: %d, time taken(in milli-seconds): %d, super node size: %d, cleaning all cached vertex maps", partitionId,
                                 batch, Duration.between(start, Instant.now()).toMillis(), supernodes.size()));
@@ -247,6 +249,7 @@ public class EdgeOperations implements Serializable {
                         } else {
                             // Buffer size 0 to force flushing.
                             removeDetachedEdgesPreGenerated(graph, edgeToFromIdList, allowedDetachedEdges);
+                            edgeToFromIdList.clear();
                         }
                     } catch (final RuntimeException e) {
                         LOGGER.error("Failed to flush Vertex Edge cache maps", e);

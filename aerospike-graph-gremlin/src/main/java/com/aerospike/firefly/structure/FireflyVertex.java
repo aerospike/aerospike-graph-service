@@ -862,14 +862,4 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     public void setIsEdgeCacheOverflowed(final boolean isEdgeCacheOverflowed) {
         this.isEdgeCacheOverflowed = isEdgeCacheOverflowed;
     }
-
-    public static class PropertyValueIdMaps {
-        public final Map<String, Object> valueMap;
-        public final Map<String, FireflyId> idMap;
-
-        public PropertyValueIdMaps(final Map<String, Object> valueMap, final Map<String, FireflyId> idMap) {
-            this.valueMap = valueMap;
-            this.idMap = idMap;
-        }
-    }
 }

@@ -167,7 +167,7 @@ public class TestFireflyVertexIndexes extends TestFireflyIndexes {
             Assert.assertNotNull(vertexLabelIndex);
             Assert.assertEquals(vertexLabelIndex.getValue(), (fireflyGraph.getBaseGraph().VERTEX_AERO_SET));
 
-            final Iterator<FireflyVertex> vertices = graph.graphQuery.scanSet(null, db.VERTEX_AERO_SET,db.LABEL_BIN, P.eq("person"), graph::vertexFromRecord, evaluationTimeout);
+            final Iterator<FireflyVertex> vertices = graph.graphQuery.scanSet(null, db.VERTEX_AERO_SET, db.LABEL_BIN, P.eq("person"), graph::vertexFromRecord, evaluationTimeout);
             Assert.assertTrue(vertices.hasNext());
         } finally {
             config.clearProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG.toLowerCase());
@@ -195,7 +195,7 @@ public class TestFireflyVertexIndexes extends TestFireflyIndexes {
 
             final Optional<FireflyIndexMetadata.IndexInfo> indexInfo = fireflyGraph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "~label", "person");
             Assert.assertFalse(indexInfo.isPresent());
-            final Iterator<FireflyVertex> vertices = graph.graphQuery.scanSet(null, db.VERTEX_AERO_SET,db.LABEL_BIN, P.eq("person"), graph::vertexFromRecord, evaluationTimeout);
+            final Iterator<FireflyVertex> vertices = graph.graphQuery.scanSet(null, db.VERTEX_AERO_SET, db.LABEL_BIN, P.eq("person"), graph::vertexFromRecord, evaluationTimeout);
             Assert.assertTrue(vertices.hasNext());
         } finally {
             config.clearProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG.toLowerCase());

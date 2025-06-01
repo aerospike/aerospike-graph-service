@@ -19,18 +19,22 @@ public class TestEdgeCount extends AbstractFireflySuite {
 
     @Test
     public void testEdgeCount() {
-        edgeCountTest(300);
+        // Ensure that the number of connections is low enough to avoid being considered a supernode.
+        long numOfConnections = Math.min(300, graph.getBaseGraph().ON_RECORD_ID_LIMIT);
+        edgeCountTest(numOfConnections);
     }
 
     @Test
     public void testSupernodeEdgeCount() {
-        edgeCountTest(10000);
+        // Ensure that the number of connections is high enough to be considered a supernode.
+        long numOfConnections = Math.max(10000, graph.getBaseGraph().ON_RECORD_ID_LIMIT);
+        edgeCountTest(numOfConnections);
     }
 
-    private void edgeCountTest(int numOfConnections) {
+    private void edgeCountTest(long numOfConnections) {
         final GraphTraversalSource g = graph.traversal();
 
-        // Create 3 vertices
+        // Create 3 vertices.
         Vertex v1 = g.addV("person").property("name", "v1").next();
         Vertex v2 = g.addV("movie").property("name", "v2").next();
         Vertex v3 = g.addV("movie").property("name", "v3").next();
@@ -40,7 +44,7 @@ public class TestEdgeCount extends AbstractFireflySuite {
             v1.addEdge("knows", v2, "edgeId", i);
         }
 
-        // Add a single edge from v3 to v2
+        // Add a single edge from v3 to v2.
         v3.addEdge("knows", v2, "edgeId", "solo");
 
         List<Map<String, Object>> resultIn = g.V()
@@ -65,13 +69,13 @@ public class TestEdgeCount extends AbstractFireflySuite {
         );
 
         Map<Object, Long> expectedOut = Map.of(
-                v1, (long) numOfConnections,
+                v1, numOfConnections,
                 v2, 0L,
                 v3, 1L
         );
 
         Map<Object, Long> expectedBoth = Map.of(
-                v1, (long) numOfConnections,
+                v1, numOfConnections,
                 v2, numOfConnections + 1L,
                 v3, 1L
         );

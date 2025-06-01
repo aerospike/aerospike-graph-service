@@ -26,7 +26,7 @@ public class EdgeCountTest extends AbstractFireflySuite {
         Vertex v2 = g.addV("movie").property("name", "v2").next();
         Vertex v3 = g.addV("movie").property("name", "v3").next();
 
-        // Add many edges from v1 to v2, to make sure they are considered a supernode,
+        // Add many edges from v1 to v2, to make sure they are considered a supernode.
         // Has to be a relatively high number to replicate GRAPH-1555 issue.
         for (int i = 0; i < 10000; i++) {
             v1.addEdge("knows", v2, "edgeId", i);
@@ -35,19 +35,51 @@ public class EdgeCountTest extends AbstractFireflySuite {
         // Add a single edge from v3 to v2
         v3.addEdge("knows", v2, "edgeId", "solo");
 
-        List<Map<String, Object>> result = g.V()
+        List<Map<String, Object>> resultIn = g.V()
+                .project("vertex", "edgeCount")
+                .by(__.identity())
+                .by(__.inE().count()).toList();
+
+        List<Map<String, Object>> resultOut = g.V()
+                .project("vertex", "edgeCount")
+                .by(__.identity())
+                .by(__.outE().count()).toList();
+
+        List<Map<String, Object>> resultBoth = g.V()
                 .project("vertex", "edgeCount")
                 .by(__.identity())
                 .by(__.bothE().count()).toList();
 
-        for (int i = 0; i < 3; i++) {
-            if (result.get(i).get("vertex").equals(v1)) {
-                Assert.assertEquals(10000L, result.get(i).get("edgeCount"));
-            } else if (result.get(i).get("vertex").equals(v2)) {
-                Assert.assertEquals(10001L, result.get(i).get("edgeCount"));
-            } else if (result.get(i).get("vertex").equals(v3)) {
-                Assert.assertEquals(1L, result.get(i).get("edgeCount"));
-            }
+        Map<Object, Long> expectedIn = Map.of(
+                v1, 0L,
+                v2, 10001L,
+                v3, 0L
+        );
+
+        Map<Object, Long> expectedOut = Map.of(
+                v1, 10000L,
+                v2, 0L,
+                v3, 1L
+        );
+
+        Map<Object, Long> expectedBoth = Map.of(
+                v1, 10000L,
+                v2, 10001L,
+                v3, 1L
+        );
+
+        for (int i = 0; i < resultIn.size(); i++) {
+            Map<String, Object> inEntry = resultIn.get(i);
+            Object vertex = inEntry.get("vertex");
+            Assert.assertEquals(expectedIn.get(vertex), inEntry.get("edgeCount"));
+
+            Map<String, Object> outEntry = resultOut.get(i);
+            vertex = outEntry.get("vertex");
+            Assert.assertEquals(expectedOut.get(vertex), outEntry.get("edgeCount"));
+
+            Map<String, Object> bothEntry = resultBoth.get(i);
+            vertex = bothEntry.get("vertex");
+            Assert.assertEquals(expectedBoth.get(vertex), bothEntry.get("edgeCount"));
         }
     }
 }

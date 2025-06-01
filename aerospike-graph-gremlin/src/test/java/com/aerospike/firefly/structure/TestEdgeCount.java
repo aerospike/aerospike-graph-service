@@ -10,7 +10,7 @@ import org.junit.Test;
 import java.util.List;
 import java.util.Map;
 
-public class EdgeCountTest extends AbstractFireflySuite {
+public class TestEdgeCount extends AbstractFireflySuite {
 
     @Override
     protected boolean clearData() {
@@ -19,6 +19,15 @@ public class EdgeCountTest extends AbstractFireflySuite {
 
     @Test
     public void testEdgeCount() {
+        edgeCountTest(300);
+    }
+
+    @Test
+    public void testSupernodeEdgeCount() {
+        edgeCountTest(10000);
+    }
+
+    private void edgeCountTest(int numOfConnections) {
         final GraphTraversalSource g = graph.traversal();
 
         // Create 3 vertices
@@ -27,8 +36,7 @@ public class EdgeCountTest extends AbstractFireflySuite {
         Vertex v3 = g.addV("movie").property("name", "v3").next();
 
         // Add many edges from v1 to v2, to make sure they are considered a supernode.
-        // Has to be a relatively high number to replicate GRAPH-1555 issue.
-        for (int i = 0; i < 10000; i++) {
+        for (int i = 0; i < numOfConnections; i++) {
             v1.addEdge("knows", v2, "edgeId", i);
         }
 
@@ -52,19 +60,19 @@ public class EdgeCountTest extends AbstractFireflySuite {
 
         Map<Object, Long> expectedIn = Map.of(
                 v1, 0L,
-                v2, 10001L,
+                v2, numOfConnections + 1L,
                 v3, 0L
         );
 
         Map<Object, Long> expectedOut = Map.of(
-                v1, 10000L,
+                v1, (long) numOfConnections,
                 v2, 0L,
                 v3, 1L
         );
 
         Map<Object, Long> expectedBoth = Map.of(
-                v1, 10000L,
-                v2, 10001L,
+                v1, (long) numOfConnections,
+                v2, numOfConnections + 1L,
                 v3, 1L
         );
 

@@ -30,6 +30,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyAuthenticationStrategy.class);
     transient final ThreadLocal<UserClaims> userClaims = ThreadLocal.withInitial(() -> null);
     transient final ThreadLocal<Boolean> hasMutateStep = ThreadLocal.withInitial(() -> false);
+    transient final ThreadLocal<Boolean> validatedComputer = ThreadLocal.withInitial(() -> false);
 
     public static class UserClaims {
         private final String username;
@@ -74,6 +75,10 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
 
     @Override
     protected void doApply(final Traversal.Admin<?, ?> traversal) {
+        if (validatedComputer.get()) {
+            // Already applied.
+            return;
+        }
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
         final List<CallStep> callSteps = new ArrayList<>();
         CallStep adminStep = null;
@@ -99,13 +104,20 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
             return;
         }
 
-        if (traversal.getSteps().get(0) instanceof TraversalVertexProgramStep) {
-            final List<Traversal.Admin<?, ?>> stepsToApply = ((TraversalVertexProgramStep) traversal.getSteps().get(0)).getGlobalChildren();
-            for (final Traversal.Admin<?, ?> stepTraversal : stepsToApply) {
-                doApply(stepTraversal);
+        for (final Step step : traversal.getSteps()) {
+            if (step instanceof TraversalVertexProgramStep) {
+                final TraversalVertexProgramStep tvpStep = (TraversalVertexProgramStep) step;
+                // Size always 1 - singleton list.
+                final Traversal.Admin<?, ?> globalChildTraversal = tvpStep.getGlobalChildren().get(0).clone();
+                doApply(globalChildTraversal);
+                tvpStep.setComputerTraversal(globalChildTraversal);
+
+                // We have checked traversal and removed credentials. Time to remove strategy.
+                validatedComputer.set(true);
+                return;
             }
-            return;
         }
+        System.out.println("Checking " + traversal);
         for (final Step step : traversal.getSteps()) {
             if (!(step instanceof CallStep)) {
                 if (step instanceof Mutating) {
@@ -136,7 +148,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
             }
             final String username = (String) params.get("name").get(0);
             final ROLE role = getRole(params.get("role").get(0), graph.getBaseGraph().GRAPH_ID);
-            final Map allRoles = params.get("role").get(0) instanceof Map? (Map) params.get("role").get(0) : null;
+            final Map allRoles = params.get("role").get(0) instanceof Map ? (Map) params.get("role").get(0) : null;
             userClaims.set(new UserClaims(username, role, allRoles));
             adminStep = callStep;
         }
@@ -198,6 +210,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
     public void reset() {
         userClaims.remove();
         hasMutateStep.remove();
+        validatedComputer.set(false);
     }
 
     private static ROLE getRole(final Object claim, final String graphId) {

@@ -34,9 +34,9 @@ public class TestEdgeCount extends AbstractFireflySuite {
         final GraphTraversalSource g = graph.traversal();
 
         // Create 3 vertices.
-        Vertex v1 = g.addV("person").property("name", "v1").next();
-        Vertex v2 = g.addV("movie").property("name", "v2").next();
-        Vertex v3 = g.addV("movie").property("name", "v3").next();
+        final Vertex v1 = g.addV("person").property("name", "v1").next();
+        final Vertex v2 = g.addV("movie").property("name", "v2").next();
+        final Vertex v3 = g.addV("movie").property("name", "v3").next();
 
         // Add many edges from v1 to v2, to make sure they are considered a supernode.
         for (int i = 0; i < numOfConnections; i++) {
@@ -46,34 +46,34 @@ public class TestEdgeCount extends AbstractFireflySuite {
         // Add a single edge from v3 to v2.
         v3.addEdge("knows", v2, "edgeId", "solo");
 
-        List<Map<String, Object>> resultIn = g.V()
+        final List<Map<String, Object>> resultIn = g.V()
                 .project("vertex", "edgeCount")
                 .by(__.identity())
                 .by(__.inE().count()).toList();
 
-        List<Map<String, Object>> resultOut = g.V()
+        final List<Map<String, Object>> resultOut = g.V()
                 .project("vertex", "edgeCount")
                 .by(__.identity())
                 .by(__.outE().count()).toList();
 
-        List<Map<String, Object>> resultBoth = g.V()
+        final List<Map<String, Object>> resultBoth = g.V()
                 .project("vertex", "edgeCount")
                 .by(__.identity())
                 .by(__.bothE().count()).toList();
 
-        Map<Object, Long> expectedIn = Map.of(
+        final Map<Object, Long> expectedIn = Map.of(
                 v1, 0L,
                 v2, numOfConnections + 1L,
                 v3, 0L
         );
 
-        Map<Object, Long> expectedOut = Map.of(
+        final Map<Object, Long> expectedOut = Map.of(
                 v1, numOfConnections,
                 v2, 0L,
                 v3, 1L
         );
 
-        Map<Object, Long> expectedBoth = Map.of(
+        final Map<Object, Long> expectedBoth = Map.of(
                 v1, numOfConnections,
                 v2, numOfConnections + 1L,
                 v3, 1L

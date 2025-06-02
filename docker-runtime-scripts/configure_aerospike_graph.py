@@ -118,7 +118,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
         if key not in graph_config:
             graph_config[key] = []
 
-    generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm, f"{conf_dir}/ssl")
+    generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm, f"{conf_dir}/ssl", conf_dir)
 
     for key in named_graphs:
         # copy of common properties
@@ -167,7 +167,7 @@ def set_performance_mode(yaml_properties):
     print("Setting gremlinPool to " + str(gremlin_pool) + " and threadPoolWorker to " + str(thread_pool_worker) + ".")
 
 
-def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm, ssl_out_dir):
+def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm, ssl_out_dir, conf_dir):
     rewritten_lines = []
 
     console_reporter = {
@@ -284,7 +284,7 @@ def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_co
 
     rewritten_lines.append("graphs: { ")
     for key in graph_config:
-        rewritten_lines.append(f"  {key}: conf/aerospike-graph-{key}.properties,")
+        rewritten_lines.append(f"  {key}: {conf_dir}/aerospike-graph-{key}.properties,")
     rewritten_lines.append("}")
 
     # Pop serializers in here since we can't flatten them.
@@ -312,11 +312,11 @@ processors:
         for line in lines:
             if "password" in line.lower():
                 split = line.split(":", 1)
-                output_yaml_print += split[0] + ": ********\n"
+                output_yaml_print += split[0] + ": ********,\n"
             elif "aerospike.graph-service.auth.jwt.secret" in line.lower():
-                output_yaml_print += "    aerospike.graph-service.auth.jwt.secret: ********\n"
+                output_yaml_print += "    aerospike.graph-service.auth.jwt.secret: ********,\n"
             elif "aerospike.graph-service.auth.jwt.issuer" in line.lower():
-                output_yaml_print += "    aerospike.graph-service.auth.jwt.issuer: ********\n"
+                output_yaml_print += "    aerospike.graph-service.auth.jwt.issuer: ********,\n"
             else:
                 output_yaml_print += line + "\n"
         print("Generated yaml file: " + output_yaml_file + "\n" + output_yaml_print)
@@ -431,13 +431,13 @@ def find_security_credentials(auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorit
         rewritten_lines.append("""authentication: {
   authenticator: com.aerospike.firefly.security.JWTAuthenticator,
   config: {
-    aerospike.graph-service.auth.jwt.secret: """ + secret + """,
-    aerospike.graph-service.auth.jwt.issuer: """ + issuer)
+    aerospike.graph-service.auth.jwt.secret: """ + secret + ",")
         if algorithm is not None:
-            rewritten_lines.append(""",
-    aerospike.graph-service.auth.jwt.algorithm: """ + algorithm)
-        rewritten_lines.append("""
-  }
+            rewritten_lines.append("""    aerospike.graph-service.auth.jwt.issuer: """ + issuer + ",")
+            rewritten_lines.append("""    aerospike.graph-service.auth.jwt.algorithm: """ + algorithm)
+        else:
+            rewritten_lines.append("""    aerospike.graph-service.auth.jwt.issuer: """ + issuer)
+        rewritten_lines.append("""  }
 }
 authorization: {
     authorizer: com.aerospike.firefly.security.JWTAuthorizer,

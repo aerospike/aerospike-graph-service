@@ -310,6 +310,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 }
             }
 
+            // Register admin services graph metrics since it will bootstrap the server.
+            adminServiceRegistry = new AdminServiceRegistry(this, db.WARMUP_MODE, db.getBulkLoaderFlag(), db.getOlapFlag());
+
             if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && !db.getOlapFlag()) {
                 // Create usage statistics background task. Only one per server
                 if (usageStats == null) {
@@ -319,9 +322,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                         }
                     }
                 }
-
-                // Register admin services graph metrics since it will bootstrap the server.
-                adminServiceRegistry = new AdminServiceRegistry(this);
 
                 // do not start http server if disabled in config or for bulk loader
                 final boolean httpEnabled = ConfigurationHelper.getOrDefaultBool(HTTP_ENABLED, conf);

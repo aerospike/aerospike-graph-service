@@ -288,6 +288,20 @@
                 <directory>${basedir}/src/main/resources
                 </directory>
             </resource>
+            <resource>
+                <directory>${basedir}/../docker-runtime-scripts</directory>
+                <includes>
+                    <include>configure_aerospike_graph.py</include>
+                </includes>
+                <targetPath>scripts</targetPath>
+            </resource>
+            <resource>
+                <directory>${basedir}/../conf/docker-default</directory>
+                <includes>
+                    <include>flattened-default-gremlin-server.yaml</include>
+                </includes>
+                <targetPath>scripts</targetPath>
+            </resource>
         </resources>
         <testResources>
             <testResource>
@@ -310,6 +324,7 @@
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
                     <argLine>
+                        --add-exports java.base/sun.security.action=ALL-UNNAMED
                         --add-exports java.base/sun.nio.ch=ALL-UNNAMED
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens java.base/java.lang.invoke=ALL-UNNAMED

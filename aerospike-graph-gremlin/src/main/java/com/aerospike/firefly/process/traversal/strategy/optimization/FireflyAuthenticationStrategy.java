@@ -1,8 +1,10 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphAuthException;
 import com.aerospike.firefly.structure.FireflyGraph;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.TraversalVertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -93,6 +95,14 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 if (RESERVED_CALL_STRING.equals(serviceName)) {
                     throw AerospikeGraphAuthException.credentialsProvidedAuthenticationDisabled();
                 }
+            }
+            return;
+        }
+
+        if (traversal.getSteps().get(0) instanceof TraversalVertexProgramStep) {
+            final List<Traversal.Admin<?, ?>> stepsToApply = ((TraversalVertexProgramStep) traversal.getSteps().get(0)).getGlobalChildren();
+            for (final Traversal.Admin<?, ?> stepTraversal : stepsToApply) {
+                doApply(stepTraversal);
             }
             return;
         }

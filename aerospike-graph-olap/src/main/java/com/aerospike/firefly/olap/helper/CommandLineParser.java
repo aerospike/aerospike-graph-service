@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.LOCAL_MODE;
+
 public class CommandLineParser {
     private static final Logger LOGGER = LoggerFactory.getLogger(CommandLineParser.class);
 
@@ -22,6 +24,8 @@ public class CommandLineParser {
 
     static public CommandLine parseCmdArgs(final String[] args) {
         final Options options = new Options();
+        final Option modeOption = new Option(LOCAL_MODE, "Flag to indicate job is running from IDE/JVM");
+        options.addOption(modeOption);
         final Option config = new Option(KEY_TO_CMD.get(CONFIG_DIRECTORY_KEY), CONFIG_DIRECTORY_KEY, true, "Path to config. Local: Absolute path. AWS S3: Full path after bucket name.");
         config.setRequired(true);
         options.addOption(config);

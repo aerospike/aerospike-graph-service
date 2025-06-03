@@ -1,8 +1,11 @@
 package com.aerospike.firefly.io.aerospike.schema;
 
+import com.aerospike.client.AerospikeException;
+import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
+import com.aerospike.client.ResultCode;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
 import com.aerospike.client.cdt.MapReturnType;
@@ -12,14 +15,22 @@ import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.exp.MapExp;
+import com.aerospike.client.policy.RecordExistsAction;
+import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_ADJACENT_ID_KEY;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_LABEL_KEY;
@@ -30,6 +41,8 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_PROPERTY_SCHEMA;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_SCHEMA;
 
 public class SchemaManager {
+    static private final Logger LOG = LoggerFactory.getLogger(SchemaManager.class);
+
     static private final Long DUMMY_SCHEMA_LONG = -1L;
     static private final MapPolicy SCHEMA_MAP_POLICY = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.CREATE_ONLY);
 
@@ -46,6 +59,9 @@ public class SchemaManager {
     private final BiMap<String, Long> edgeLabels;
     private final BiMap<String, Long> edgeProperties;
 
+    private final Map<Key, AtomicBoolean> initializedMap = new HashMap<>();
+    private final Map<Key, String> readableNames = new HashMap();
+
     public SchemaManager(final AerospikeConnection db) {
         this.db = db;
         this.vertexLabelsKey = new Key(db.namespace, db.SCHEMA_SET, VERTEX_LABEL_SCHEMA);
@@ -61,6 +77,18 @@ public class SchemaManager {
         this.edgeProperties = HashBiMap.create();
         this.edgeProperties.put(EDGE_SUPERNODE_LABEL_KEY, -32L);
         this.edgeProperties.put(EDGE_SUPERNODE_ADJACENT_ID_KEY, -31L);
+
+        initializedMap.put(this.vertexLabelsKey, new AtomicBoolean(false));
+        initializedMap.put(this.vertexPropertiesKey, new AtomicBoolean(false));
+        initializedMap.put(this.vpPropertiesKey, new AtomicBoolean(false));
+        initializedMap.put(this.edgeLabelsKey, new AtomicBoolean(false));
+        initializedMap.put(this.edgePropertiesKey, new AtomicBoolean(false));
+
+        readableNames.put(this.vertexLabelsKey, "Vertex label");
+        readableNames.put(this.vertexPropertiesKey, "Vertex property");
+        readableNames.put(this.vpPropertiesKey, "Vertex properties property");
+        readableNames.put(this.edgeLabelsKey, "Edge label");
+        readableNames.put(this.edgePropertiesKey, "Edge property");
     }
 
     public Long getVertexLabelWrite(final String label) {
@@ -301,7 +329,7 @@ public class SchemaManager {
     public void populateEdgePropertyStringMapToSchemaMap(final Map<String, ?> edgePropertyStringMap,
                                                          final Map<Long, Object> outMap) {
         for (final Map.Entry<String, ?> entry : edgePropertyStringMap.entrySet()) {
-            final Long schemaKey = getEdgePropertyRead(entry.getKey());
+            final Long schemaKey = getEdgePropertyWrite(entry.getKey());
             outMap.put(schemaKey, entry.getValue());
         }
     }
@@ -324,40 +352,36 @@ public class SchemaManager {
 
     private void updateVertexLabels(final String label) {
         synchronized (this.vertexLabelsKey) {
-            final Map<String, Long> diskSchema = updateSchemaMap(label, this.vertexLabelsKey);
-            this.vertexLabels.putAll(diskSchema);
+            updateSchemaMap(label, this.vertexLabelsKey, this.vertexLabels);
         }
     }
 
     private void updateVertexProperties(final String propertyKey) {
         synchronized (this.vertexPropertiesKey) {
-            final Map<String, Long> diskSchema = updateSchemaMap(propertyKey, this.vertexPropertiesKey);
-            this.vertexProperties.putAll(diskSchema);
+            updateSchemaMap(propertyKey, this.vertexPropertiesKey, this.vertexProperties);
         }
     }
 
     private void updateVpProperties(final String propertyKey) {
         synchronized (this.vpPropertiesKey) {
-            final Map<String, Long> diskSchema = updateSchemaMap(propertyKey, this.vpPropertiesKey);
-            this.vpProperties.putAll(diskSchema);
+            updateSchemaMap(propertyKey, this.vpPropertiesKey, this.vpProperties);
         }
     }
 
     private void updateEdgeLabels(final String label) {
         synchronized (this.edgeLabelsKey) {
-            final Map<String, Long> diskSchema = updateSchemaMap(label, this.edgeLabelsKey);
-            this.edgeLabels.putAll(diskSchema);
+            updateSchemaMap(label, this.edgeLabelsKey, this.edgeLabels);
         }
     }
 
     private void updateEdgeProperties(final String propertyKey) {
         synchronized (this.edgePropertiesKey) {
-            final Map<String, Long> diskSchema = updateSchemaMap(propertyKey, this.edgePropertiesKey);
-            this.edgeProperties.putAll(diskSchema);
+            updateSchemaMap(propertyKey, this.edgePropertiesKey, this.edgeProperties);
         }
     }
 
-    private Map<String, Long> updateSchemaMap(final String schemaKey, final Key recordKey) {
+    private void updateSchemaMap(final String schemaKey, final Key recordKey, final BiMap<String, Long> schemaMap) {
+        initializeSchemaSet(recordKey);
         final List<Operation> operations = new ArrayList<>();
         if (schemaKey != null) {
             final Expression incrementCounter = Exp.build(Exp.cond(
@@ -378,17 +402,63 @@ public class SchemaManager {
         final Operation readSchema = Operation.get(this.db.SCHEMA_BIN);
         operations.add(readSchema);
 
-        final Record record = this.db.writeOperate(null, recordKey, operations.toArray(new Operation[0]));
-        final Object schemaResult = record.getValue(this.db.SCHEMA_BIN);
-        if (schemaResult instanceof Map) {
-            // This was a read-only operation
-            return (Map<String, Long>) schemaResult;
-        } else if (schemaResult instanceof List) {
-            // Checked or created a new schema pair
-            return (Map<String, Long>) ((List<?>) schemaResult).get(1);
-        } else {
-            // This should never happen
-            throw new IllegalStateException("Schema mapping operation returned a type that is not Map or List. Please contact support.");
+        try {
+            final Record record = this.db.suppressedWriteOperate(null, recordKey, operations.toArray(new Operation[0]));
+            final Object schemaResult = record.getValue(this.db.SCHEMA_BIN);
+            final Map<String, Long> latestSchema;
+            if (schemaResult instanceof Map) {
+                // This was a read-only operation
+                latestSchema = (Map<String, Long>) schemaResult;
+            } else if (schemaResult instanceof List) {
+                // Checked or created a new schema pair
+                latestSchema = (Map<String, Long>) ((List<?>) schemaResult).get(1);
+            } else {
+                // This should never happen
+                throw new IllegalStateException("Schema mapping operation returned a type that is not Map or List. Please contact support.");
+            }
+            schemaMap.clear();
+            schemaMap.putAll(latestSchema);
+        } catch (final AerospikeGraphElementNotFoundException e) {
+            // Need to handle re-initialization of the schema sets if someone drops the entire database.
+            this.initializedMap.get(recordKey).set(false);
+            initializeSchemaSet(recordKey);
+            updateSchemaMap(schemaKey, recordKey, schemaMap);
+        } catch (final AerospikeException age) {
+            LOG.error(age.getMessage());
+            throw age;
+        }
+    }
+
+    private void initializeSchemaSet(final Key recordKey) {
+        if (!this.initializedMap.get(recordKey).getAndSet(true)) {
+            final WritePolicy policy = new WritePolicy();
+            policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
+
+            try {
+                final int initialSchemaValue;
+                // Only Vertex label values aren't stored in a CDT in Aerospike and therefore doesn't use MessagePack.
+                if (recordKey.equals(this.vertexLabelsKey)) {
+                    initialSchemaValue = 0;
+                } else if (recordKey.equals(this.edgePropertiesKey)) {
+                    // -32 is for label; -31 is for adjacent ID key
+                    initialSchemaValue = -30;
+                } else {
+                    initialSchemaValue = -32;
+                }
+                final Map<String, Long> initialMap = new HashMap<>();
+                final Operation initializeSchemaValue = Operation.put(new Bin(this.db.COUNTER_BIN, initialSchemaValue));
+                final Operation initializeSchemaMap = Operation.put(new Bin(this.db.SCHEMA_BIN, initialMap));
+                LOG.info("Initializing {} schema data.", this.readableNames.get(recordKey));
+                this.db.suppressedWriteOperate(policy, recordKey, initializeSchemaMap, initializeSchemaValue);
+            } catch (final AerospikeGraphException e) {
+                if (e.errorCode == ResultCode.KEY_EXISTS_ERROR) {
+                    LOG.info("Existing {} schema data found.", this.readableNames.get(recordKey));
+                } else {
+                    LOG.error(e.getMessage());
+                    this.initializedMap.get(recordKey).set(false);
+                    throw e;
+                }
+            }
         }
     }
 }

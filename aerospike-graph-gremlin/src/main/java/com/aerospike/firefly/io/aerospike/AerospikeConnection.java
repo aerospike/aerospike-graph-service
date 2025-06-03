@@ -103,15 +103,10 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
-import static com.aerospike.firefly.util.Tokens.EDGE_LABEL_SCHEMA;
-import static com.aerospike.firefly.util.Tokens.EDGE_PROPERTY_SCHEMA;
 import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.EDGE_PACKING_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
-import static com.aerospike.firefly.util.Tokens.VERTEX_LABEL_SCHEMA;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
-import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_PROPERTY_SCHEMA;
-import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_SCHEMA;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
@@ -582,7 +577,6 @@ public class AerospikeConnection implements AutoCloseable {
         olapEnabledFlag = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.OLAP_ENABLED, conf);
 
         initializeIdSet();
-        initializeSchemaSet();
         schemaManager = new SchemaManager(this);
         schemaManager.updateAll();
         idFactory = new FireflyIdFactory(this);
@@ -2051,44 +2045,6 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
-    private void initializeSchemaSet() {
-        final WritePolicy policy = new WritePolicy();
-        policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
-        configureWritePolicy(policy);
-        final Map<String, Key> idKeys = new HashMap<>();
-        idKeys.put("Vertex label", new Key(namespace, SCHEMA_SET, VERTEX_LABEL_SCHEMA));
-        idKeys.put("Vertex property", new Key(namespace, SCHEMA_SET, VERTEX_PROPERTY_SCHEMA));
-        idKeys.put("Vertex properties property", new Key(namespace, SCHEMA_SET, VERTEX_PROPERTY_PROPERTY_SCHEMA));
-        idKeys.put("Edge label", new Key(namespace, SCHEMA_SET, EDGE_LABEL_SCHEMA));
-        idKeys.put("Edge property", new Key(namespace, SCHEMA_SET, EDGE_PROPERTY_SCHEMA));
-
-        for (final Map.Entry<String, Key> key : idKeys.entrySet()) {
-            try {
-                final int initialSchemaValue;
-                // Only Vertex label values aren't stored in a CDT in Aerospike and therefore doesn't use MessagePack.
-                if (key.getKey().equals("Vertex label")) {
-                    initialSchemaValue = 0;
-                } else if (key.getKey().equals("Edge property")) {
-                    // -32 is for label; -31 is for adjacent ID key
-                    initialSchemaValue = -30;
-                } else {
-                    initialSchemaValue = -32;
-                }
-                final Map<String, Long> initialMap = new HashMap<>();
-                final Operation initializeSchemaValue = Operation.put(new Bin(COUNTER_BIN, initialSchemaValue));
-                final Operation initializeSchemaMap = Operation.put(new Bin(SCHEMA_BIN, initialMap));
-                LOG.warn("Initializing {} schema data.", key.getKey());
-                this.client.operate(policy, key.getValue(), initializeSchemaMap, initializeSchemaValue);
-            } catch (final AerospikeException e) {
-                if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
-                    LOG.warn("Existing {} schema data found.", key.getKey());
-                } else {
-                    throw fromAerospikeException(e);
-                }
-            }
-        }
-    }
-
     /**
      * Get the time of the last TTL purge was run, and set it to the given time.
      *
@@ -2133,7 +2089,6 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(null, namespace, OUT_VP_SET, null);
             client.truncate(null, namespace, IN_VP_SET, null);
             client.truncate(null, namespace, SUMMARY_SET, null);
-            client.truncate(null, namespace, SCHEMA_SET, null);
             client.truncate(null, namespace, BULK_LOAD_METADATA_SET, null);
             client.truncate(null, namespace, BULK_LOAD_RECOVERY_VERTEX_SET, null);
             client.truncate(null, namespace, BULK_LOAD_RECOVERY_EDGE_SET, null);
@@ -2144,6 +2099,9 @@ public class AerospikeConnection implements AutoCloseable {
             // id manager set and if we delete it here, they will likely insert a record with the same id as the one
             // we will eventually reach as we wrap around.
             if (dropIndices)
+                // Indexes break if Schema table is dropped.
+                client.truncate(null, namespace, SCHEMA_SET, null);
+                schemaManager.updateAll();
                 dropGraphIndices(graph);
             Thread.sleep(1);
         } catch (final InterruptedException e) {
@@ -2307,6 +2265,11 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Record resulting from operate.
      */
     private Record operate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
+        final boolean bulkLoading = conf.getBoolean(ConfigurationHelper.Keys.BULK_LOADER_FLAG, false);
+        return operate(writePolicy, key, bulkLoading, operations);
+    }
+
+    private Record operate(final WritePolicy writePolicy, final Key key, boolean suppressLogging, final Operation... operations) {
         if (writePolicy == null) {
             // This should never happen.
             throw new IllegalArgumentException("Operate policy must be set.");
@@ -2315,8 +2278,7 @@ public class AerospikeConnection implements AutoCloseable {
             return this.client.operate(writePolicy, key, operations);
         } catch (final AerospikeException ae) {
             final AerospikeGraphException age = fromAerospikeException(ae);
-            final boolean bulkLoading = conf.getBoolean(ConfigurationHelper.Keys.BULK_LOADER_FLAG, false);
-            if (!bulkLoading) {
+            if (!suppressLogging) {
                 LOG.error(age.getMessage());
             }
             throw age;
@@ -2355,6 +2317,27 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         return operate(policy, key, operations);
+    }
+
+    public Record suppressedWriteOperate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
+        final WritePolicy policy;
+        if (writePolicy == null) {
+            policy = new WritePolicy();
+        } else {
+            policy = writePolicy;
+        }
+        configureWritePolicy(policy);
+
+        final FireflyCache cache = transactionCache.get();
+        final FireflyCache noPropsCache = emptyPropsTransactionCache.get();
+        if (cache != null) {
+            cache.invalidate(key);
+        }
+        if (noPropsCache != null) {
+            noPropsCache.invalidate(key);
+        }
+
+        return operate(policy, key, true, operations);
     }
 
     public Record readOperate(final WritePolicy writePolicy, final Key key, final Operation... operations) {

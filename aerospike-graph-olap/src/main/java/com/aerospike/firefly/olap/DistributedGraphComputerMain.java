@@ -120,16 +120,20 @@ public class DistributedGraphComputerMain {
                     tempDirectory,
                     tempDirectory + "/java_options.txt");
             final Process process = processBuilder.start();
-            final BufferedReader printReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
-            while ((line = printReader.readLine()) != null) {
-                System.out.println(line);
-            }
-            final BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-            while ((line = errorReader.readLine()) != null) {
-                System.err.println(line);
-            }
-            final int exitCode = process.exitValue();
+
+            // Read output in a separate thread
+            final Thread stdoutThread = createInputReaderStreamThread(process.getInputStream(), false);
+
+            // Read error output in a separate thread
+            final Thread stderrThread = createInputReaderStreamThread(process.getErrorStream(), true);
+
+            stdoutThread.start();
+            stderrThread.start();
+
+            // Wait for threads and process to finish
+            stdoutThread.join();
+            stderrThread.join();
+            int exitCode = process.waitFor();
             if (exitCode != 0) {
                 LOGGER.error("Python script exited with code: " + exitCode);
                 System.exit(exitCode);
@@ -139,6 +143,9 @@ public class DistributedGraphComputerMain {
         } catch (final IOException e) {
             LOGGER.error("Failed to invoke python script for configuration.", e);
             System.exit(1);
+        } catch (final InterruptedException e) {
+            LOGGER.error("Unexpected interrupted exception while waiting for configuration script to run. Please contact support. ", e);
+            System.exit(1);
         }
         final int workers = spark.sparkContext().getExecutorMemoryStatus().size();
         System.out.println("Workers: " + workers);
@@ -147,6 +154,23 @@ public class DistributedGraphComputerMain {
 
         FireflyServer.setSpark(spark);
         fireflyServerForTesting = FireflyServer.start(List.of(outputServerYaml).toArray(new String[]{}));
+    }
+
+    private static Thread createInputReaderStreamThread(final InputStream stream, final boolean isErrorStream) {
+        return new Thread(() -> {
+            try (final BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (isErrorStream) {
+                        System.err.println(line);
+                    } else {
+                        System.out.println(line);
+                    }
+                }
+            } catch (final IOException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     private static String readJarFileWriteToTemp(final String directory, final String fileName) {

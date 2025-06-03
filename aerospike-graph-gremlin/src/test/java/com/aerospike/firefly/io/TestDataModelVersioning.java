@@ -123,7 +123,7 @@ public class TestDataModelVersioning {
     @Test
     public void TestClearDataConfig() {
         final Configuration CLEAR_CONFIG = ConfigurationHelper.loadFromFile("../conf/aerospike-graph.properties");
-        CLEAR_CONFIG.addProperty("aaerospike.graph.clear-on-version-incompatibility.enabled", "true");
+        CLEAR_CONFIG.addProperty("aerospike.graph.clear-on-version-incompatibility.enabled", "true");
         final FireflyConfiguration FF_CONFIG = FireflyConfiguration.fromConfiguration(CONFIG);
         final FireflyConfiguration FF_CLEAR_CONFIG = FireflyConfiguration.fromConfiguration(CLEAR_CONFIG);
         //set to a lower major and add data

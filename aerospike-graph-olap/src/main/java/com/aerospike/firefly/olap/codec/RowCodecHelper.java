@@ -49,6 +49,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 
+import static com.aerospike.firefly.olap.codec.Codec.ELEMENT_ID_COL;
+import static com.aerospike.firefly.olap.codec.Codec.ELEMENT_ID_TYPEHINT_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.BINARY_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.ID_COL;
@@ -65,8 +67,6 @@ import static com.aerospike.firefly.olap.codec.RowCodec.SL_COUNT_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.SL_NAME_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.STEP_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.TRAVERSER_TYPE_COL;
-import static com.aerospike.firefly.olap.codec.RowCodec.ELEMENT_ID_COL;
-import static com.aerospike.firefly.olap.codec.RowCodec.ELEMENT_ID_TYPEHINT_COL;
 
 public class RowCodecHelper {
     private static final String ENCODE_TOKEN = "~.~";

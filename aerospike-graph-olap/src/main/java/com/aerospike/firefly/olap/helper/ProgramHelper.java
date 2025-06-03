@@ -10,6 +10,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.clustering.connected.ConnectedComponentVertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.clustering.peerpressure.PeerPressureVertexProgram;
@@ -35,6 +36,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import static org.apache.tinkerpop.gremlin.process.computer.VertexProgram.VERTEX_PROGRAM;
+import static org.apache.tinkerpop.gremlin.process.traversal.Traverser.Admin.HALT;
 
 public class ProgramHelper {
     private ProgramHelper() {
@@ -89,21 +91,37 @@ public class ProgramHelper {
         }
     }
 
-    public static void executeVertexProgram(final TraverserSet traversers, final PureTraversal<Vertex, ?> vertexProgramTraversal) {
-        if (vertexProgramTraversal != null && !vertexProgramTraversal.get().getSteps().isEmpty()) {
+    public static String getStartStep(final Memory memory, final String memoryKey, final Traversal traversal) {
+        if (memory.exists(memoryKey)) {
+            return memory.get(memoryKey);
+        }
+        return traversal.asAdmin().getStartStep().getId();
+    }
+
+    public static void executeVertexProgram(final TraverserSet traversers,
+                                            final PureTraversal<Vertex, ?> vertexProgramTraversal,
+                                            final String startStepId) {
+        if (vertexProgramTraversal != null && !vertexProgramTraversal.get().getSteps().isEmpty() && !startStepId.equals(HALT)) {
+            traversers.forEach(traverser -> ((Traverser.Admin) traverser).setStepId(startStepId));
+
             final Traversal.Admin traversal = vertexProgramTraversal.get();
-            if (traversal.getSteps().get(0) instanceof GraphStep) {
-                final GraphStep graphStep = (GraphStep) traversal.getSteps().get(0);
-                if (graphStep.getIds().length == 0) {
-                    graphStep.setIteratorSupplier(
-                            () -> traversers.stream().map(t -> ((Traverser) t).get()).iterator());
-                } else {
-                    final List ids = Arrays.asList(graphStep.getIds());
-                    final TraverserSet finalTraversers = traversers;
-                    graphStep.setIteratorSupplier(
-                            () -> finalTraversers.stream().map(t -> ((Traverser) t).get()).filter(v -> ids.contains(((Vertex) v).id())).iterator());
+            for (Object s : traversal.getSteps()) {
+                if (((Step) s).getId().equals(startStepId)) {
+                    if (s instanceof GraphStep) {
+                        if (((GraphStep) s).getIds().length == 0) {
+                            ((GraphStep) s).setIteratorSupplier(() -> traversers.stream().map(t -> ((Traverser) t).get()).iterator());
+                        } else {
+                            final List ids = Arrays.asList(((GraphStep) s).getIds());
+                            ((GraphStep) s).setIteratorSupplier(()
+                                    -> traversers.stream().map(t -> ((Traverser) t).get()).filter(t -> ids.contains(((Vertex) t).id())).iterator());
+                        }
+                    } else {
+                        ((Step) s).addStarts(traversers.iterator());
+                    }
+                    break;
                 }
             }
+
             final TraverserGenerator tg = vertexProgramTraversal.get().getTraverserGenerator();
             final TraverserSet result = new TraverserSet();
             traversal.forEachRemaining(t -> result.add(tg.generate(t, (Step) traversal.getSteps().get(0), 1)));
@@ -122,5 +140,13 @@ public class ProgramHelper {
         final List<String> vertexIds = new ArrayList<>(cachedIds.size());
         cachedIds.forEach(id -> vertexIds.add(id.toString()));
         return vertexIds;
+    }
+
+    public static Long getVertexIdCount(final Vertex vertex, final String propertyName, final Direction direction) {
+        if (vertex instanceof DetachedVertex) {
+            return vertex.<Long>property(propertyName).value();
+        }
+
+        return ((FireflyVertex) vertex).getEdgeCount(direction);
     }
 }

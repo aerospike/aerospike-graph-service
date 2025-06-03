@@ -6,6 +6,10 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.TraverserGenerator;
 
 public interface Codec {
+    String ELEMENT_ID_COL = "~eid";
+    String ELEMENT_ID_TYPEHINT_COL = "~eid_typehint";
+    String ITERATION = "~iteration";
+
     Row encode(Traverser traverser);
 
     Traverser decode(Row row);

@@ -2,6 +2,8 @@ package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
+import com.aerospike.client.BatchRecord;
+import com.aerospike.client.BatchResults;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Host;
 import com.aerospike.client.IAerospikeClient;
@@ -1736,6 +1738,16 @@ public class AerospikeConnection implements AutoCloseable {
         } catch (final AerospikeException e) {
             throw fromAerospikeException(e);
         }
+    }
+
+    /**
+     * bulk read/operate. Not tested for write and delete.
+     *
+     * @param batchPolicy query policy.
+     * @param batchRecords operations. Also contains results for read
+     */
+    public void batchOperate(final BatchPolicy batchPolicy, final List<BatchRecord> batchRecords) {
+        client.operate(batchPolicy, batchRecords);
     }
 
     /**

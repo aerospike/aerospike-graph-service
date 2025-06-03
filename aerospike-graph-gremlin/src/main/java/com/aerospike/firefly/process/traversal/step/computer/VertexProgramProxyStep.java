@@ -11,6 +11,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Configuring;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.Parameters;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -18,6 +19,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.aerospike.firefly.process.computer.VertexProgramConfig.TRAVERSAL_VERTEX_PROGRAM_STEP;
@@ -60,7 +62,8 @@ public class VertexProgramProxyStep extends VertexProgramStep implements Travers
     public VertexProgramConfig generateProgram(final Graph graph, final Memory memory) {
         final VertexProgram program = programStep.generateProgram(graph, memory);
 
-        final Configuration config = new BaseConfiguration();
+        final Optional<OptionsStrategy> options = traversalVertexProgramStep.getTraversal().getStrategies().getStrategy(OptionsStrategy.class);
+        final Configuration config = options.isPresent() ? options.get().getConfiguration() : new BaseConfiguration();
         program.storeState(config);
 
         final VertexProgramConfig configProgram = new VertexProgramConfig();

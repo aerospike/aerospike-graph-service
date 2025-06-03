@@ -22,14 +22,22 @@ public class LocalWorkerMemory implements Memory.Admin {
     private final Map<String, Object> workerMemory = new HashMap<>();
     private final Map<String, BinaryOperator<Object>> reducers = new HashMap<>();
     // cache for attached objects from main memory
-    private final Map<String, Object> readCache = new HashMap<>();
+    private Map<String, Object> readCache;
+    private int iteration;
 
     public LocalWorkerMemory(final DistributedMemory mainMemory, final FireflyGraph graph) {
+        this(mainMemory, graph, mainMemory.getBroadcastValues(), mainMemory.getIteration());
+    }
+
+    public LocalWorkerMemory(final DistributedMemory mainMemory, final FireflyGraph graph,
+                             final Map<String, Object> readCache, final int iteration) {
         this.mainMemory = mainMemory;
         this.graph = graph;
         for (final MemoryComputeKey key : this.mainMemory.memoryComputeKeys.values()) {
             this.reducers.put(key.getKey(), key.clone().getReducer());
         }
+        this.readCache = readCache;
+        this.iteration = iteration;
         this.mainMemory.setInExecute(true);
     }
 
@@ -45,12 +53,13 @@ public class LocalWorkerMemory implements Memory.Admin {
 
     @Override
     public void setIteration(final int iteration) {
+        this.iteration = iteration;
         this.mainMemory.setIteration(iteration);
     }
 
     @Override
     public int getIteration() {
-        return this.mainMemory.getIteration();
+        return iteration;
     }
 
     @Override
@@ -101,14 +110,14 @@ public class LocalWorkerMemory implements Memory.Admin {
 
     @Override
     public void add(final String key, final Object value) {
-        if (mainMemory.memoryComputeKeys.containsKey(String.format("%s-accumulator", key))) {
+        if (mainMemory.memoryComputeKeys.containsKey(AerospikeComputeKey.createAccumulator(key))) {
             if (value instanceof Collection) {
                 final Collection<Traverser> traversers = (Collection) value;
                 long bulkCount = 0;
                 for (final Traverser traverser : traversers) {
                     bulkCount += traverser.bulk();
                 }
-                mainMemory.add(String.format("%s-accumulator", key), -bulkCount);
+                mainMemory.add(AerospikeComputeKey.createAccumulator(key), -bulkCount);
             }
         }
         this.mainMemory.checkKeyValue(key, value);
@@ -125,6 +134,7 @@ public class LocalWorkerMemory implements Memory.Admin {
             this.mainMemory.add(entry.getKey(), entry.getValue());
         }
         this.workerMemory.clear();
+        this.readCache.clear();
         this.mainMemory.setInExecute(false);
     }
 }

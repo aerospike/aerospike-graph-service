@@ -2120,7 +2120,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public void clearNamespace() {
         client.truncate(null, namespace, null, null);
-
         final List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(this);
         for (final Map.Entry<String, String> entry : indexes) {
             dropIndex(entry.getValue(), entry.getKey());

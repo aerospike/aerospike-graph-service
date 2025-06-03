@@ -386,7 +386,6 @@ public class DistributedGraphComputer implements GraphComputer {
 
             // Get traversal and apply strategies.
             final Traversal pureTraversal = traversal.getPure().asAdmin().clone();
-            pureTraversal.asAdmin().getStrategies().removeStrategies(FireflyAuthenticationStrategy.class);
             pureTraversal.asAdmin().applyStrategies();
 
             final Step<?, ?> firstStep = pureTraversal.asAdmin().getStartStep();

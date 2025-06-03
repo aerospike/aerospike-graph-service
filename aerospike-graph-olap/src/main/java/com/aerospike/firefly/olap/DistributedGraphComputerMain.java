@@ -55,26 +55,21 @@ public class DistributedGraphComputerMain {
         LOGGER.info("Starting Aerospike Graph OLAP Server");
 
         System.out.println();
-        // TODO: Ishaan wants the little gremlins surrounding the master
-        System.out.println("        /\\   /\\");
-        System.out.println("       {  o o  }");
-        System.out.println("       (   ^   )");
-        System.out.println("       |  ===  |____");
-        System.out.println("      /|  \\_/  _____)\\\\");
-        System.out.println("     (_|  |_|  |      \\\\");
-        System.out.println("       |  | |  |       \\\\");
-        System.out.println("       |  | |  |        \\\\");
-        System.out.println("      (___| |___)        //");
-        System.out.println("                         //");
-        System.out.println("                        //");
-        System.out.println("                       ===");
-        System.out.println("                        V");
-        System.out.println("\\,,,/    \\,,,/    \\,,,/    \\,,,/    \\,,,/    \\,,,/    \\,,,/    \\,,,/");
-        System.out.println("(o o)    (o o)    (o o)    (o o)    (o o)    (o o)    (o o)    (o o)");
-        System.out.println("-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-");
-        System.out.println("      \\,,,/    \\,,,/    \\,,,/    \\,,,/    \\,,,/    \\,,,/    \\,,,/");
-        System.out.println("      (o o)    (o o)    (o o)    (o o)    (o o)    (o o)    (o o)");
-        System.out.println("--oOOo-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-oOOo--");
+        System.out.println("              \\,,,/    \\,,,/    \\,,,/    \\,,,/    \\,,,/");
+        System.out.println("              (o o)    (o o)    (o o)    (o o)    (o o)");
+        System.out.println("          o00o-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-o00o");
+        System.out.println("              \\,,,/            /\\   /\\           \\,,,/");
+        System.out.println("              (o o)           {  o o  }           (o o)  ");
+        System.out.println("          o00o-(3)-oO0o       (   ^   )       o00o-(3)-o00o");
+        System.out.println("              \\,,,/           |  ===  |           \\,,,/");
+        System.out.println("              (o o)          /|  \\_/ |\\           (o o)  ");
+        System.out.println("          o00o-(3)-oO0o     (_|  |_|  |_)     o00o-(3)-o00o");
+        System.out.println("              \\,,,/           |  | |  |           \\,,,/");
+        System.out.println("              (o o)           |  | |  |           (o o)  ");
+        System.out.println("          o00o-(3)-oO0o      (___| |___)      o00o-(3)-o00o");
+        System.out.println("              \\,,,/    \\,,,/    \\,,,/    \\,,,/    \\,,,/");
+        System.out.println("              (o o)    (o o)    (o o)    (o o)    (o o)");
+        System.out.println("          o00o-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-o00o");
         System.out.println("                                                                    ");
         System.out.println("       +-----------------------------------------------------+      ");
         System.out.println("       |              AEROSPIKE GRAPH OLAP                   |      ");
@@ -85,7 +80,7 @@ public class DistributedGraphComputerMain {
         System.out.println("        +----------------------+        +-------------------+       ");
         System.out.println();
 
-        CommandLine commandLine = CommandLineParser.parseCmdArgs(args);
+        final CommandLine commandLine = CommandLineParser.parseCmdArgs(args);
         if (commandLine.getOptionValue("c") == null) {
             LOGGER.error("Configuration file is required. Please provide a configuration file using the -c option.");
             System.exit(1);
@@ -94,8 +89,8 @@ public class DistributedGraphComputerMain {
         final String pythonScriptPath = readJarFileWriteToTemp("scripts", "configure_aerospike_graph.py");
         final String serverYamlPath = readJarFileWriteToTemp("scripts", "flattened-default-gremlin-server.yaml");
         final String tempDirectory = System.getProperty("java.io.tmpdir") + File.separator + "aerospike-graph-olap" + File.separator;
+        final String outputServerYaml = tempDirectory + "gremlin-server.yaml";
 
-        final String outputServerYamlPath = tempDirectory + "gremlin-server.yaml";
         final SparkSession spark = buildSparkSession(commandLine);
         final String configPath = commandLine.hasOption("c") ? commandLine.getOptionValue("c") : null;
         configureFileSystem(spark, commandLine, commandLine.getOptionValue(CONFIG_DIRECTORY_KEY));
@@ -115,10 +110,6 @@ public class DistributedGraphComputerMain {
             LOGGER.error("Failed to write config file to file for configuration: " + configFilePath, e);
             System.exit(1);
         }
-
-        // Write python script to temp file.
-
-        final String outputServerYaml = tempDirectory + "gremlin-server.yaml";
 
         // Invoke python
         try {

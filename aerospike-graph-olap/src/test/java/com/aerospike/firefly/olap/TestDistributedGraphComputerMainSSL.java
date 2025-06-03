@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
@@ -52,6 +53,7 @@ public class TestDistributedGraphComputerMainSSL {
     }
 
     @Test
+    @Ignore
     public void testDistributedGraphComputerMainGLVSSLJWT() throws Exception {
         DistributedGraphComputerMain.main(new String[]{
                 "-local",

@@ -1,10 +1,8 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphAuthException;
 import com.aerospike.firefly.structure.FireflyGraph;
-import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.TraversalVertexProgramStep;
 import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -30,7 +28,6 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyAuthenticationStrategy.class);
     transient final ThreadLocal<UserClaims> userClaims = ThreadLocal.withInitial(() -> null);
     transient final ThreadLocal<Boolean> hasMutateStep = ThreadLocal.withInitial(() -> false);
-    transient final ThreadLocal<Boolean> validatedComputer = ThreadLocal.withInitial(() -> false);
 
     public static class UserClaims {
         private final String username;
@@ -75,10 +72,6 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
 
     @Override
     protected void doApply(final Traversal.Admin<?, ?> traversal) {
-        if (validatedComputer.get()) {
-            // Already applied.
-            return;
-        }
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
         final List<CallStep> callSteps = new ArrayList<>();
         CallStep adminStep = null;
@@ -104,20 +97,6 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
             return;
         }
 
-        for (final Step step : traversal.getSteps()) {
-            if (step instanceof TraversalVertexProgramStep) {
-                final TraversalVertexProgramStep tvpStep = (TraversalVertexProgramStep) step;
-                // Size always 1 - singleton list.
-                final Traversal.Admin<?, ?> globalChildTraversal = tvpStep.getGlobalChildren().get(0).clone();
-                doApply(globalChildTraversal);
-                tvpStep.setComputerTraversal(globalChildTraversal);
-
-                // We have checked traversal and removed credentials. Time to remove strategy.
-                validatedComputer.set(true);
-                return;
-            }
-        }
-        System.out.println("Checking " + traversal);
         for (final Step step : traversal.getSteps()) {
             if (!(step instanceof CallStep)) {
                 if (step instanceof Mutating) {
@@ -210,7 +189,6 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
     public void reset() {
         userClaims.remove();
         hasMutateStep.remove();
-        validatedComputer.set(false);
     }
 
     private static ROLE getRole(final Object claim, final String graphId) {

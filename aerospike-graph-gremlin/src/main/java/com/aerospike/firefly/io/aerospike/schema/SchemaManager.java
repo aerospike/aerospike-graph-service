@@ -168,7 +168,7 @@ public class SchemaManager {
     }
 
     public void populateVertexPropertyStringMapToSchemaMap(final Map<String, ?> vpStringMap,
-                                                                            final Map<Long, Object> outMap) {
+                                                           final Map<Long, Object> outMap) {
         for (final Map.Entry<String, ?> entry : vpStringMap.entrySet()) {
             final Long schemaKey = getVertexPropertyWrite(entry.getKey());
             outMap.put(schemaKey, entry.getValue());
@@ -177,11 +177,12 @@ public class SchemaManager {
 
     public void populateVertexPropertySchemaMapToStringMap(final Map<Long, ?> vpSchemaMap,
                                                            final Map<String, Object> outMap) {
-        for (final Map.Entry<Long, ?> entry : vpSchemaMap.entrySet()) {
-            final String key = getVertexPropertyString(entry.getKey());
-            outMap.put(key, entry.getValue());
+        if (vpSchemaMap != null) {
+            for (final Map.Entry<Long, ?> entry : vpSchemaMap.entrySet()) {
+                final String key = getVertexPropertyString(entry.getKey());
+                outMap.put(key, entry.getValue());
+            }
         }
-
     }
 
     public Long getVpPropertyWrite(final String propertyKey) {
@@ -243,10 +244,12 @@ public class SchemaManager {
     public void populateVertexVpPropertySchemaMapToStringMap(
             final Map<Object, Map<Long, Object>> vertexVpPropertyMap,
             final Map<Object, Map<String, Object>> outMap) {
-        for (final Map.Entry<Object, Map<Long, Object>> entry : vertexVpPropertyMap.entrySet()) {
-            final Map<String, Object> vpPropertyStringMap = new TreeMap<>();
-            populateVpPropertySchemaMapToStringMap(entry.getValue(), vpPropertyStringMap);
-            outMap.put(entry.getKey(), vpPropertyStringMap);
+        if (vertexVpPropertyMap != null) {
+            for (final Map.Entry<Object, Map<Long, Object>> entry : vertexVpPropertyMap.entrySet()) {
+                final Map<String, Object> vpPropertyStringMap = new TreeMap<>();
+                populateVpPropertySchemaMapToStringMap(entry.getValue(), vpPropertyStringMap);
+                outMap.put(entry.getKey(), vpPropertyStringMap);
+            }
         }
     }
 
@@ -336,9 +339,11 @@ public class SchemaManager {
 
     public void populateEdgePropertySchemaMapToStringMap(final Map<Long, ?> edgePropertySchemaMap,
                                                          final Map<String, Object> outMap) {
-        for (final Map.Entry<Long, ?> entry : edgePropertySchemaMap.entrySet()) {
-            final String key = getEdgePropertyString(entry.getKey());
-            outMap.put(key, entry.getValue());
+        if (edgePropertySchemaMap != null) {
+            for (final Map.Entry<Long, ?> entry : edgePropertySchemaMap.entrySet()) {
+                final String key = getEdgePropertyString(entry.getKey());
+                outMap.put(key, entry.getValue());
+            }
         }
     }
 
@@ -404,6 +409,13 @@ public class SchemaManager {
 
         try {
             final Record record = this.db.suppressedWriteOperate(null, recordKey, operations.toArray(new Operation[0]));
+            if (record == null) {
+                // Need to handle re-initialization of the schema sets if someone drops the entire database.
+                this.initializedMap.get(recordKey).set(false);
+                initializeSchemaSet(recordKey);
+                updateSchemaMap(schemaKey, recordKey, schemaMap);
+                return;
+            }
             final Object schemaResult = record.getValue(this.db.SCHEMA_BIN);
             final Map<String, Long> latestSchema;
             if (schemaResult instanceof Map) {

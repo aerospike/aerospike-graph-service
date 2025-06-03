@@ -23,6 +23,8 @@ jobs:
         with:
           maven-version: 3.9.5
       - name: Build Maven Project
+        env:
+          AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
           mvn install -DskipTests --no-transfer-progress

@@ -149,6 +149,9 @@ public class DistributedGraphComputerMain {
         File tempScript = null;
         try {
             tempScript = File.createTempFile(fileName.split("\\.")[0], "." + fileName.split("\\.")[1]);
+            if (!tempScript.setExecutable(true)) {
+                throw new IllegalStateException("Unable to set executable permission for temporary script file: " + tempScript.getAbsolutePath());
+            }
             tempScript.deleteOnExit();
         } catch (final IOException e) {
             LOGGER.error("Failed to create temporary file for configuration script.", e);

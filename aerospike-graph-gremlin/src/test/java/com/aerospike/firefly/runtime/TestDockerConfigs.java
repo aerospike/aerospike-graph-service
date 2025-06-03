@@ -51,7 +51,7 @@ public class TestDockerConfigs {
             LOG.warn(line);
             if (line.contains("Found named graphs: []")) {
                 foundMsg0 = true;
-            } else if (line.contains("graph: conf/aerospike-graph-graph.properties,")) {
+            } else if (line.contains("graph: /opt/conf/aerospike-graph-graph.properties,")) {
                 foundMsg1 = true;
             }
 
@@ -76,9 +76,9 @@ public class TestDockerConfigs {
             LOG.warn(line);
             if (line.contains("Found named graphs: ['graph', 'modern']")) {
                 foundMsg0 = true;
-            } else if (line.contains("graph: conf/aerospike-graph-graph.properties,")) {
+            } else if (line.contains("graph: /opt/conf/aerospike-graph-graph.properties,")) {
                 foundMsg1 = true;
-            } else if (line.contains("modern: conf/aerospike-graph-modern.properties,")) {
+            } else if (line.contains("modern: /opt/conf/aerospike-graph-modern.properties,")) {
                 foundMsg2 = true;
             }
 

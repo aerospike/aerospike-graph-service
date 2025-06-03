@@ -38,6 +38,7 @@ import com.aerospike.firefly.io.FireflyEdgeRecord;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.io.aerospike.schema.SchemaManager;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyEdgeProperty;
@@ -220,9 +221,9 @@ public class AerospikeOperations {
             operations.add(writeTtlBin);
         }
 
-        vertexPropertyIds = getPropertyValueIdMaps(validProperties);
-        vertexPropertyIdsWritable = new TreeMap<>();
-        db.schemaManager.populateVertexPropertyStringMapToSchemaMap(vertexPropertyIds, vertexPropertyIdsWritable);
+        final VertexPropertyIdMapContainer idMapContainer = getPropertyValueIdMaps(validProperties);
+        vertexPropertyIds = idMapContainer.vertexPropertyIdMap;
+        vertexPropertyIdsWritable = idMapContainer.vertexPropertyIdMapDisk;
         vertexPropertyValueMapWritable = new TreeMap<>();
         db.schemaManager.populateVertexPropertyStringMapToSchemaMap(validProperties, vertexPropertyValueMapWritable);
 
@@ -326,21 +327,28 @@ public class AerospikeOperations {
     }
 
     /**
-     * Generate Map of Vertex Property key to Vertex Property ID.
+     * Generate Maps of Vertex Property key to Vertex Property ID.
      *
-     * @param properties Properties
-     * @return Vertex Property key to ID map.
+     * @param properties Vertex properties
+     * @return VertexPropertyIdMapContainer
      */
-    private Map<String, FireflyId> getPropertyValueIdMaps(final Map<String, Object> properties) {
-        final Map<String, FireflyId> vertexPropertyIdMap = new TreeMap<>();
-        for (final Map.Entry<String, Object> property : properties.entrySet()) {
-            // Get id for vertex property.
-            final FireflyId vertexPropertyId = graph.getIdFactory().generateId(graph, FireflyVertexProperty.class);
-            vertexPropertyIdMap.put(property.getKey(), vertexPropertyId);
-        }
+    private VertexPropertyIdMapContainer getPropertyValueIdMaps(final Map<String, Object> properties) {
+        return new VertexPropertyIdMapContainer(graph, properties);
+    }
 
-        // Return vertex property value map.
-        return vertexPropertyIdMap;
+    private static class VertexPropertyIdMapContainer {
+        public final Map<String, FireflyId> vertexPropertyIdMap = new TreeMap<>();
+        public final Map<Long, Object> vertexPropertyIdMapDisk = new TreeMap<>();
+
+        private VertexPropertyIdMapContainer(final FireflyGraph graph, final Map<String, Object> vertexProperties) {
+            final SchemaManager schemaManager = graph.getBaseGraph().schemaManager;
+            for (final Map.Entry<String, Object> property : vertexProperties.entrySet()) {
+                // Get id for vertex property.
+                final FireflyId vertexPropertyId = graph.getIdFactory().generateId(graph, FireflyVertexProperty.class);
+                vertexPropertyIdMap.put(property.getKey(), vertexPropertyId);
+                vertexPropertyIdMapDisk.put(schemaManager.getVertexPropertyWrite(property.getKey()), vertexPropertyId.getStorageId());
+            }
+        }
     }
 
     /**

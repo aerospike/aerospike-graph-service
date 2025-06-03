@@ -3,11 +3,10 @@ package com.aerospike.firefly.structure;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
-import com.aerospike.firefly.structure.id.FireflyIdPoly;
-import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
+import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.structure.id.LazyIdTransform;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
@@ -16,6 +15,7 @@ import com.aerospike.firefly.structure.iterator.FireflyFilteredBatchEdgeIterator
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromIndexedVertex;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
 import com.aerospike.firefly.util.FireflyHelper;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.GraphError;
 import com.aerospike.firefly.util.exceptions.TtlArgumentException;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -726,8 +726,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     public long getEdgeCount(final Direction direction, final String[] edgeLabels, final long limit, final List<HasContainer> hasContainers) {
         if (direction == Direction.BOTH) {
-            LOG.warn("getEdgeCount invoked with direction BOTH - the return value will be correct, but this method " +
-                    "is only supposed to be invoked by FireflyVertexLocalCountStep which should never pass in BOTH.");
             long count = getEdgeCount(Direction.IN, edgeLabels, limit, hasContainers)
                     + getEdgeCount(Direction.OUT, edgeLabels, limit, hasContainers);
             if (limit != -1 && count >= limit)
@@ -736,7 +734,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         }
 
         final long count = this.isEdgeCacheOverflowed
-                ? FireflyCloseableIteratorUtils.count(getSupernodeEdgeIds(direction, Set.of(edgeLabels), hasContainers))
+                ? getCachedEdgeCount(direction, edgeLabels, hasContainers) +
+                FireflyCloseableIteratorUtils.count(getSupernodeEdgeIds(direction, Set.of(edgeLabels), hasContainers))
                 : getCachedEdgeCount(direction, edgeLabels, hasContainers);
         if (limit != -1 && count >= limit)
             return limit;

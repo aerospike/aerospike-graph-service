@@ -193,7 +193,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final long INDEX_METADATA_UPDATE_FREQUENCY;
     public final String SUPERNODES_IN_BIN;
     public final String SUPERNODES_OUT_BIN;
-    public final String SUPERNODE_EDGE_PROPERTIES_BIN;
     public final String BL_ROW_BIN;
     public final String BL_FILE_BIN;
     public final boolean GLOBAL_EDGE_CACHE_ENABLED_FLAG;
@@ -535,7 +534,6 @@ public class AerospikeConnection implements AutoCloseable {
         LOCK_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.LOCK_BIN.name(), conf);
         SUPERNODES_IN_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODES_IN.name(), conf);
         SUPERNODES_OUT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODES_OUT.name(), conf);
-        SUPERNODE_EDGE_PROPERTIES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODE_EDGE_PROPERTIES_BIN.name(), conf);
         LABEL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.LABEL_BIN.name(), conf);
         USER_KEY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.USER_KEY_BIN.name(), conf);
         TTL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.TTL_BIN.name(), conf);
@@ -1373,10 +1371,10 @@ public class AerospikeConnection implements AutoCloseable {
             // Blocking call for supernode indexes since graph doesn't function without.
             createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                     E_IN_INDEX_NAME, SUPERNODES_IN_BIN,
-                    IndexType.STRING, IndexCollectionType.MAPVALUES);
+                    IndexType.STRING, IndexCollectionType.MAPKEYS);
             createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                     E_OUT_INDEX_NAME, SUPERNODES_OUT_BIN,
-                    IndexType.STRING, IndexCollectionType.MAPVALUES);
+                    IndexType.STRING, IndexCollectionType.MAPKEYS);
 
             // Blocking call for ttl indexes since graph doesn't function without.
             if (TTL_ENABLED_FLAG) {

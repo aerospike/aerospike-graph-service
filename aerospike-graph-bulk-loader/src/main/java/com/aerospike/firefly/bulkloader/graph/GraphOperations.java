@@ -56,7 +56,7 @@ public class GraphOperations {
                                                   final String label,
                                                   final List<Value> edgeIds,
                                                   final long allowedDetachedEdges,
-                                                  final Set<byte[]> invalidEdgeIds) {
+                                                  final Set<Object> invalidEdgeIds) {
         int tryCount = 0;
         while (true) {
             try {
@@ -74,7 +74,7 @@ public class GraphOperations {
                                 final FireflyIdComposite compositeId = graph.getIdFactory().createCompositeEdgeId(compositeIdInfoList);
                                 invalidEdgeIds.add(compositeId.getEdgeIdBytes().array());
                             }
-                            graph.getOperations().writeBadEdge(vertexId, edgeIds.size());
+                            graph.getAerospikeOperations().writeBadEdge(vertexId, edgeIds.size());
                             break;
                         } else {
                             LOGGER.error("Failed to write edges with label " + label + " into " + direction +
@@ -107,7 +107,7 @@ public class GraphOperations {
                                     final Direction direction,
                                     final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap,
                                     final long allowDetachedEdges,
-                                    final Set<byte[]> invalidEdgeIds) {
+                                    final Set<Object> invalidEdgeIds) {
         for (Map.Entry<Object, ConcurrentHashMap<String, Set<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
             final Object vertexId = vertexIdToLabelMaps.getKey();
             final ConcurrentHashMap<String, Set<Value>> labelMaps = vertexIdToLabelMaps.getValue();
@@ -125,7 +125,7 @@ public class GraphOperations {
         edgeMap.clear();
     }
 
-    public static void dropDetachedEdges(final FireflyGraph graph, final Set<byte[]> invalidEdgeIds,
+    public static void dropDetachedEdges(final FireflyGraph graph, final Set<Object> invalidEdgeIds,
                                          final long allowedDetachedEdges) {
         int counterTryCount = 0;
         while (true) {
@@ -156,7 +156,7 @@ public class GraphOperations {
 
         final GraphTraversalSource g = graph.traversal();
 
-        for (final byte[] id : invalidEdgeIds) {
+        for (final Object id : invalidEdgeIds) {
             int tryCount = 0;
             while (true) {
                 try {

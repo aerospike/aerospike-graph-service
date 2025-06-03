@@ -11,7 +11,6 @@ import com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection
 import com.aerospike.firefly.olap.process.traversal.strategy.SparkOptimizationStrategy;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAuthenticationStrategy;
 import com.aerospike.firefly.process.traversal.strategy.verification.FireflyComputerVerificationStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.FireflyHelper;

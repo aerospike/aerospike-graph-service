@@ -118,7 +118,8 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
         if key not in graph_config:
             graph_config[key] = []
 
-    generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm, f"{conf_dir}/ssl", conf_dir)
+    ssl_dir = f"{conf_dir}ssl" if conf_dir.endswith("/") or conf_dir.endswith("\\") else f"{conf_dir}/ssl"
+    generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, graph_config, auth_jwt_secret, auth_jwt_issuer, auth_jwt_algorithm, ssl_dir, conf_dir)
 
     for key in named_graphs:
         # copy of common properties
@@ -284,7 +285,10 @@ def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_co
 
     rewritten_lines.append("graphs: { ")
     for key in graph_config:
-        rewritten_lines.append(f"  {key}: {conf_dir}/aerospike-graph-{key}.properties,")
+        if conf_dir.endswith("/") or conf_dir.endswith("\\"):
+            rewritten_lines.append(f"  {key}: {conf_dir}aerospike-graph-{key}.properties,")
+        else:
+            rewritten_lines.append(f"  {key}: {conf_dir}/aerospike-graph-{key}.properties,")
     rewritten_lines.append("}")
 
     # Pop serializers in here since we can't flatten them.

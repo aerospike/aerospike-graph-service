@@ -41,7 +41,6 @@ public class DistributedGraphComputerMain {
     // Public static variable to be used by test to shut down the server.
     public static FireflyServer fireflyServerForTesting = null;
 
-
     public static final String LOCAL_MODE = "local";
     public static final String GCS_KEYFILE_DIRECTORY = "aerospike.graphloader.gcs-keyfile";
     public static final String GCS_EMAIL = "aerospike.graphloader.gcs-email";
@@ -121,16 +120,27 @@ public class DistributedGraphComputerMain {
                     tempDirectory,
                     tempDirectory + "/java_options.txt");
             final Process process = processBuilder.start();
-            final BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            final BufferedReader printReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line;
-            while ((line = reader.readLine()) != null) {
+            while ((line = printReader.readLine()) != null) {
                 System.out.println(line);
             }
-        } catch (IOException e) {
+            final BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+            while ((line = errorReader.readLine()) != null) {
+                System.err.println(line);
+            }
+            final int exitCode = process.exitValue();
+            if (exitCode != 0) {
+                LOGGER.error("Python script exited with code: " + exitCode);
+                System.exit(exitCode);
+            } else {
+                LOGGER.info("Python script executed successfully.");
+            }
+        } catch (final IOException e) {
             LOGGER.error("Failed to invoke python script for configuration.", e);
             System.exit(1);
         }
-        int workers = spark.sparkContext().getExecutorMemoryStatus().size();
+        final int workers = spark.sparkContext().getExecutorMemoryStatus().size();
         System.out.println("Workers: " + workers);
         System.out.println("Memory: " + spark.sparkContext().getExecutorMemoryStatus());
         System.out.println("Configuration: " + Arrays.toString(spark.sparkContext().getConf().getAll()));

@@ -2101,11 +2101,12 @@ public class AerospikeConnection implements AutoCloseable {
             // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the
             // id manager set and if we delete it here, they will likely insert a record with the same id as the one
             // we will eventually reach as we wrap around.
-            if (dropIndices)
+            if (dropIndices) {
                 // Indexes break if Schema table is dropped.
                 client.truncate(null, namespace, SCHEMA_SET, null);
                 schemaManager.updateAll();
                 dropGraphIndices(graph);
+            }
             Thread.sleep(1);
         } catch (final InterruptedException e) {
             // Why would anyone invoke this method in a runner thread that can also have interrupt() called on it? Who

@@ -429,6 +429,10 @@ public class SchemaManager {
                 throw new IllegalStateException("Schema mapping operation returned a type that is not Map or List. Please contact support.");
             }
             schemaMap.clear();
+            if (recordKey.equals(this.edgePropertiesKey)) {
+                schemaMap.put(EDGE_SUPERNODE_LABEL_KEY, -32L);
+                schemaMap.put(EDGE_SUPERNODE_ADJACENT_ID_KEY, -31L);
+            }
             schemaMap.putAll(latestSchema);
         } catch (final AerospikeGraphElementNotFoundException e) {
             // Need to handle re-initialization of the schema sets if someone drops the entire database.

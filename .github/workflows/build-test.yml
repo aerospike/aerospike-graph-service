@@ -938,6 +938,7 @@ jobs:
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
+          pip3 install pyyaml
           bash -x scripts/start_aerospike.sh
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn clean install -DskipTests --no-transfer-progress

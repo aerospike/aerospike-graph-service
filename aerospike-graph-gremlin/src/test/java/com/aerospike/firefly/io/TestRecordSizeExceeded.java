@@ -89,8 +89,8 @@ public class TestRecordSizeExceeded {
     @Test
     public void testExceedViaEdgeCache() {
         final GraphTraversalSource g = graph.traversal();
-        final String filler = getStringOfSize(681);
-        g.V(v1.id()).property(filler, filler).iterate();
+        final String filler = getStringOfSize(2046);
+        g.V(v1.id()).property("filler", filler).iterate();
         int addedEdges = 0;
         while (true) {
             try {
@@ -111,8 +111,8 @@ public class TestRecordSizeExceeded {
     @Test
     public void testExceedViaAddVertexProperty() {
         final GraphTraversalSource g = graph.traversal();
-        final String filler = getStringOfSize(681);
-        g.V(v1.id()).property(filler, filler).iterate();
+        final String filler = getStringOfSize(2046);
+        g.V(v1.id()).property("filler", filler).iterate();
         int addedVertexProperties = 0;
         while (true) {
             try {
@@ -133,8 +133,8 @@ public class TestRecordSizeExceeded {
     @Test
     public void testExceedViaAddVpProperty() {
         final GraphTraversalSource g = graph.traversal();
-        final String filler = getStringOfSize(681);
-        g.V(v1.id()).property(filler, filler).iterate();
+        final String filler = getStringOfSize(2046);
+        g.V(v1.id()).property("filler", filler).iterate();
         int addedVpProperties = 0;
         final FireflyVertexProperty vp = (FireflyVertexProperty) g.V(v1.id()).properties("base0").next();
         while (true) {
@@ -156,8 +156,8 @@ public class TestRecordSizeExceeded {
     @Test
     public void testExceedEdgeRecord() {
         final GraphTraversalSource g = graph.traversal();
-        final String filler = getStringOfSize(1023);
-        g.E(e0.id()).property(filler, filler).iterate();
+        final String filler = getStringOfSize(2046);
+        g.E(e0.id()).property("filler", filler).iterate();
         int addedProperties = 0;
         while (true) {
             try {

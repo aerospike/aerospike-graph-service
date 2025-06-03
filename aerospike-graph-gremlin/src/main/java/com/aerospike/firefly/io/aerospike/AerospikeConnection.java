@@ -608,8 +608,11 @@ public class AerospikeConnection implements AutoCloseable {
             if (MRT_ENABLED && onRecordIdLimit > 1023) {
                 LOG.warn("The provided value for '{}' could not be used and has been instead set to the maximum allowed value of 1023 for when '{}' is set as true.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, MRT_ENABLED_FLAG);
             }
-        } catch (final ConfigurationRuntimeException ignored) {
+        } catch (final ConfigurationRuntimeException e) {
             // If it was not manually configured, dynamically adjust it relative to the max-record-size configuration of Aerospike
+            if (conf.containsKey(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT)) {
+                throw e;
+            }
             final long onRecordIdDefaultLimit = getRecordIdLimitFromAerospike(.45);
             onRecordIdLimit = onRecordIdDefaultLimit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) onRecordIdDefaultLimit;
         }

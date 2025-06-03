@@ -22,6 +22,7 @@ import static com.aerospike.client.ResultCode.SERIALIZE_ERROR;
 import static com.aerospike.client.ResultCode.SERVER_NOT_AVAILABLE;
 import static com.aerospike.firefly.structure.FireflyElement.TTL_PROPERTY_KEY;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.CLEAR_ON_VERSION_INCOMPATIBILITY;
 
 /**
  * Client codes are absolute value of ResultCode + 1000
@@ -99,7 +100,7 @@ public enum GraphError {
                 "Please disable it for all nodes in namespace.");
         ERROR_MESSAGES.put(NO_ACTIVE_NODES.code, "No active server nodes found in cluster.");
         ERROR_MESSAGES.put(DROP_INDEX_UNAUTHORIZED.code, "Failed to drop index due to role violation. Please check the permissions of the role assigned.");
-        ERROR_MESSAGES.put(DATA_MODEL_VERSION_MISMATCH.code, "The on-disk data model version '%s' is not compatible with the AGS version '%s' being used. To fix this, either use Aerospike Graph '%s', use a new namespace, or start with flag `aerospike.graph.clear-on-version-incompatibility.enabled` which will delete the old data and allow using the new model.");
+        ERROR_MESSAGES.put(DATA_MODEL_VERSION_MISMATCH.code, "The on-disk data model version '%s' is not compatible with the AGS version '%s' being used. To fix this, either use Aerospike Graph '%s', use a new namespace, or start with flag `" + CLEAR_ON_VERSION_INCOMPATIBILITY + "` which will delete the old data and allow using the new model.");
         ERROR_MESSAGES.put(SINDEX_RECENTLY_DROPPED.code, "This query is temporarily unavailable due to the index it utilizes%s being recently dropped. Please wait %s seconds and try again.");
         ERROR_MESSAGES.put(TTL_ILLEGAL_ARGUMENT.code, "Invalid value for TTL provided. Provided input [%s] of type %s must be numeric instead.");
 

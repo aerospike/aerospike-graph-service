@@ -37,7 +37,7 @@ final public class GraphFactory {
             } catch (final DataModelVersionMismatchException e) {
                 if (ConfigurationHelper.getOrDefaultBool(CLEAR_ON_VERSION_INCOMPATIBILITY, config)) {
                     LOG.warn("Data model version mismatch detected. Clearing the graph...");
-                    db.dropDatabase(null, false);
+                    db.dropDatabase(null, true);
                 } else {
                     throw e;
                 }

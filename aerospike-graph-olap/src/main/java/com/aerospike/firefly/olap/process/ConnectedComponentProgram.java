@@ -1,6 +1,5 @@
 package com.aerospike.firefly.olap.process;
 
-import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.codec.ConnectedComponentCodec;
 import com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection;
 import com.aerospike.firefly.olap.structure.MutableDetachedVertexProperty;
@@ -9,15 +8,13 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.BaseConfiguration;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
-import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.MemoryComputeKey;
-import org.apache.tinkerpop.gremlin.process.computer.VertexComputeKey;
-import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.clustering.connected.ConnectedComponentVertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.Operator;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -26,40 +23,32 @@ import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertexProperty;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import static com.aerospike.firefly.olap.codec.ConnectedComponentCodec.connectedVertexIds;
-import static com.aerospike.firefly.olap.helper.ProgramHelper.executeVertexProgram;
-import static com.aerospike.firefly.olap.helper.ProgramHelper.removeTemporaryProperties;
 import static com.aerospike.firefly.process.computer.VertexProgramConfig.TRAVERSAL_VERTEX_PROGRAM_STEP;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
-public class ConnectedComponentProgram implements FireflyProgram {
+public class ConnectedComponentProgram extends AlgorithmProgram {
 
-    private static final String COMPONENT = "gremlin.connectedComponentProgram.component";
-
-    private static final String PROPERTY = "gremlin.connectedComponentProgram.property";
-    private static final String EDGE_TRAVERSAL = "gremlin.connectedComponentProgram.edgeTraversal";
+    private static final String PROPERTY = "gremlin.connectedComponentVertexProgram.property";
+    // it's not mistake, same in TinkerPop
+    private static final String EDGE_TRAVERSAL = "gremlin.pageRankVertexProgram.edgeTraversal";
     private static final String VOTE_TO_HALT = "gremlin.connectedComponentProgram.voteToHalt";
 
+    // vertex properties
     public static final String CONNECTED_VERTICES = "~gremlin.connectedComponentProgram.connectedVertices";
 
     private static final Set<MemoryComputeKey> MEMORY_COMPUTE_KEYS = new HashSet<>(Arrays.asList(
             MemoryComputeKey.of(VOTE_TO_HALT, Operator.and, false, true),
-            MemoryComputeKey.of(HALTED_TRAVERSERS, Operator.addAll, false, false)));
+            MemoryComputeKey.of(HALTED_TRAVERSERS, Operator.addAll, false, false),
+            MemoryComputeKey.of(START_STEP, Operator.assign, true, false)));
 
-    public static String property = COMPONENT;
+    // todo: not implemented
     private PureTraversal<Vertex, Edge> edgeTraversal = null;
-    private PureTraversal<Vertex, ?> vertexProgramTraversal;
     private Configuration configuration;
-
-    private PureTraversal<Vertex, Vertex> graphTraversal;
-    private Codec codec;
-    private FireflyGraph graph;
-    private DistributedAerospikeConnection db;
 
     // for serialization
     private ConnectedComponentProgram() {
@@ -69,16 +58,16 @@ public class ConnectedComponentProgram implements FireflyProgram {
         final BaseConfiguration configuration = new BaseConfiguration();
         program.storeState(configuration);
         loadState(graph, configuration);
-
-        init(graph);
     }
 
     private void init(final FireflyGraph graph) {
         final Traversal.Admin t = graph.traversal().V().asAdmin();
-        t.setStrategies(TraversalStrategies.GlobalCache.getStrategies(graph.getClass()));
+        t.setStrategies(TraversalStrategies.GlobalCache.getStrategies(graph.getClass()).clone());
+        t.getStrategies().addStrategies(OptionsStrategy.create(configuration));
         this.graphTraversal = new PureTraversal(t);
 
-        this.codec = new ConnectedComponentCodec(t);
+        this.columnName = ConnectedComponentCodec.COMPONENT_COL;
+        this.codec = new ConnectedComponentCodec(t, this.property);
         this.graph = graph;
         this.db = new DistributedAerospikeConnection(graph);
     }
@@ -102,6 +91,8 @@ public class ConnectedComponentProgram implements FireflyProgram {
             return;
         }
 
+        updateDetached(job.getStarts(), memory.getIteration());
+
         job.getStarts().forEach(traverser -> {
             final DetachedVertex vertex = (DetachedVertex) traverser.get();
             final String id = graph.getIdFactory().createVertexId(vertex.id()).toString();
@@ -116,7 +107,7 @@ public class ConnectedComponentProgram implements FireflyProgram {
             }
 
             if (different) {
-                final MutableDetachedVertexProperty p = (MutableDetachedVertexProperty) vertex.properties(this.property).next();
+                final MutableDetachedVertexProperty p = (MutableDetachedVertexProperty) vertex.property(this.property);
                 p.setValue(currentComponent);
 
                 final String finalComponent = currentComponent;
@@ -131,7 +122,8 @@ public class ConnectedComponentProgram implements FireflyProgram {
         job.pass();
     }
 
-    private DetachedVertex buildDetached(final Vertex vertex) {
+    @Override
+    protected DetachedVertex buildDetached(final Vertex vertex) {
         if (vertex instanceof DetachedVertex)
             return (DetachedVertex) vertex;
 
@@ -141,16 +133,6 @@ public class ConnectedComponentProgram implements FireflyProgram {
         final MutableDetachedVertexProperty componentProperty = new MutableDetachedVertexProperty(null, property, vertex.id().toString(), null);
 
         return new DetachedVertex(vertex.id(), "", List.of(connectedVertexProperty, componentProperty));
-    }
-
-    @Override
-    public Codec getCodec() {
-        return codec;
-    }
-
-    @Override
-    public PureTraversal<?, ?> getTraversal() {
-        return graphTraversal;
     }
 
     @Override
@@ -181,7 +163,7 @@ public class ConnectedComponentProgram implements FireflyProgram {
         }
         this.vertexProgramTraversal = PureTraversal.loadState(configuration, TRAVERSAL_VERTEX_PROGRAM_STEP, graph);
 
-        this.property = configuration.getString(PROPERTY, COMPONENT);
+        property = configuration.getString(PROPERTY, ConnectedComponentVertexProgram.COMPONENT);
 
         init((FireflyGraph) graph);
     }
@@ -191,50 +173,13 @@ public class ConnectedComponentProgram implements FireflyProgram {
         if (configuration != null) {
             ConfigurationUtils.copy(configuration, config);
         }
-        FireflyProgram.super.storeState(config);
+        super.storeState(config);
         if (null != this.vertexProgramTraversal)
             this.vertexProgramTraversal.storeState(config, TRAVERSAL_VERTEX_PROGRAM_STEP);
     }
 
     @Override
-    public Set<VertexComputeKey> getVertexComputeKeys() {
-        return Collections.emptySet();
-    }
-
-    @Override
     public Set<MemoryComputeKey> getMemoryComputeKeys() {
         return MEMORY_COMPUTE_KEYS;
-    }
-
-    @Override
-    public VertexProgram<TraverserSet<Object>> clone() {
-        return null;
-    }
-
-    @Override
-    public GraphComputer.ResultGraph getPreferredResultGraph() {
-        return GraphComputer.ResultGraph.ORIGINAL;
-    }
-
-    @Override
-    public GraphComputer.Persist getPreferredPersist() {
-        return GraphComputer.Persist.NOTHING;
-    }
-
-    @Override
-    public Features getFeatures() {
-        return new Features() {
-            @Override
-            public boolean requiresVertexPropertyAddition() {
-                return true;
-            }
-        };
-    }
-
-    @Override
-    public void postProcessResults(final TraverserSet traversers) {
-        removeTemporaryProperties(traversers, property);
-
-        executeVertexProgram(traversers, vertexProgramTraversal);
     }
 }

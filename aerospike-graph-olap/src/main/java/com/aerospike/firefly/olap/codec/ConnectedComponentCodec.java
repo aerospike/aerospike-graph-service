@@ -1,8 +1,6 @@
 package com.aerospike.firefly.olap.codec;
 
 import com.aerospike.firefly.olap.structure.MutableDetachedVertexProperty;
-import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.types.DataTypes;
@@ -16,11 +14,9 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertexProperty;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import scala.collection.JavaConverters;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
@@ -28,18 +24,17 @@ import static com.aerospike.firefly.olap.codec.RowCodecHelper.getId;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.getIdType;
 import static com.aerospike.firefly.olap.helper.ProgramHelper.getVertexIds;
 import static com.aerospike.firefly.olap.process.ConnectedComponentProgram.CONNECTED_VERTICES;
-import static com.aerospike.firefly.olap.process.ConnectedComponentProgram.property;
 
 public class ConnectedComponentCodec implements Codec {
-    public static final String ELEMENT_ID_COL = "~eid";
-    public static final String ELEMENT_ID_TYPEHINT_COL = "~eid_typehint";
     public static final String CONNECTED_VERTEX_ID_COL = "~connected_vertex_eid";
     public static final String COMPONENT_COL = "~component";
 
+    private final String property;
     private final TraverserGenerator traverserGenerator;
 
-    public ConnectedComponentCodec(final Traversal traversal) {
+    public ConnectedComponentCodec(final Traversal traversal, final String property) {
         this.traverserGenerator = traversal.asAdmin().getTraverserGenerator();
+        this.property = property;
     }
 
     @Override

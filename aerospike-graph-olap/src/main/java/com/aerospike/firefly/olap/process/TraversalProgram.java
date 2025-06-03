@@ -3,6 +3,7 @@ package com.aerospike.firefly.olap.process;
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.codec.TraverserCodec;
 import com.aerospike.firefly.olap.process.traversal.step.SparkOperation;
+import com.aerospike.firefly.olap.structure.AerospikeComputeKey;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ReflectionHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -153,7 +154,7 @@ public class TraversalProgram implements FireflyProgram {
                 if (rangeGlobalStep.getLowRange() != 0) {
                     break;
                 }
-                final String key = String.format("%s-accumulator", rangeGlobalStep.getId());
+                final String key = AerospikeComputeKey.createAccumulator(rangeGlobalStep.getId());
                 this.memoryComputeKeys.add(MemoryComputeKey.of(key, Operator.sumLong, true, true));
                 break;
             }

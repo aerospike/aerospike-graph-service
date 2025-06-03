@@ -96,6 +96,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
             }
             return;
         }
+
         for (final Step step : traversal.getSteps()) {
             if (!(step instanceof CallStep)) {
                 if (step instanceof Mutating) {
@@ -126,7 +127,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
             }
             final String username = (String) params.get("name").get(0);
             final ROLE role = getRole(params.get("role").get(0), graph.getBaseGraph().GRAPH_ID);
-            final Map allRoles = params.get("role").get(0) instanceof Map? (Map) params.get("role").get(0) : null;
+            final Map allRoles = params.get("role").get(0) instanceof Map ? (Map) params.get("role").get(0) : null;
             userClaims.set(new UserClaims(username, role, allRoles));
             adminStep = callStep;
         }

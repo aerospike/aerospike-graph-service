@@ -17,6 +17,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -45,6 +46,7 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
         final Set<Long> usedStorageIds = ConcurrentHashMap.newKeySet();
         final List<Thread> threads = new ArrayList<>();
         final CyclicBarrier barrier = new CyclicBarrier(4);
+        final AtomicReference<String> failure = new AtomicReference<>();
         for (int i = 0; i < 4; i++) {
             final Thread t = new Thread(() -> {
                 try {
@@ -61,14 +63,16 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
                     if (storageId != lastStorageId) {
                         // This is a new set of IDs
                         if (usedStorageIds.contains(storageId)) {
-                            Assert.fail("An Edge pack's ID was shared to a different thread.");
+                            failure.set("An Edge pack's ID was shared to a different thread.");
+                            return;
                         }
                         usedStorageIds.add(storageId);
                         lastIdSeenCount = 1;
                     } else {
                         lastIdSeenCount++;
                         if (lastIdSeenCount > GRAPH.getBaseGraph().PHAT_EDGE_SIZE) {
-                            Assert.fail("The ID manager generated the same storage ID more than the phat edge size.");
+                            failure.set("The ID manager generated the same storage ID more than the phat edge size.");
+                            return;
                         }
                     }
                     lastStorageId = storageId;
@@ -81,6 +85,9 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
         }
         for (final Thread t : threads) {
             t.join();
+        }
+        if (failure.get() != null) {
+            Assert.fail(failure.get());
         }
     }
 

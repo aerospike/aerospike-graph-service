@@ -1207,7 +1207,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public boolean isEmpty() {
         final FireflyGraphSummaryUpdater.FireflyElementMetadata metadata = this.fireflySummaryUpdater.getFireflyStatistics();
-        return metadata.totalEdgeCount() == 0 && metadata.totalVertexCount() == 0;
+        return metadata.totalEdgeCount() == 0 && metadata.totalVertexCount() == 0 && metadata.totalSupernodeCount() == 0;
     }
 
     public void exportQuery(final DefaultTraversalMetrics metrics, final String scopeName, final String traversal) {

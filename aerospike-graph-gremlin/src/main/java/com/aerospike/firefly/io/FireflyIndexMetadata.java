@@ -49,10 +49,10 @@ public class FireflyIndexMetadata implements FireflyMetadata {
             for (final String indexName : indexes) {
                 // If it is the vertex or edge label index, insert it.
                 if (db.V_LABEL_INDEX_NAME.equals(indexName)) {
-                    indexInfos.add(new IndexInfo(db.V_LABEL_INDEX_NAME,db.LABEL_BIN, STRING, db.VERTEX_AERO_SET));
+                    indexInfos.add(new IndexInfo(db.V_LABEL_INDEX_NAME, db.LABEL_BIN, NUMERIC, db.VERTEX_AERO_SET));
                     continue;
                 } else if (db.E_LABEL_INDEX_NAME.equals(indexName)) {
-                    indexInfos.add(new IndexInfo(db.E_LABEL_INDEX_NAME,db.LABEL_BIN, STRING, db.EDGE_AERO_SET));
+                    indexInfos.add(new IndexInfo(db.E_LABEL_INDEX_NAME, db.LABEL_BIN, STRING, db.EDGE_AERO_SET));
                     continue;
                 }
 
@@ -124,12 +124,16 @@ public class FireflyIndexMetadata implements FireflyMetadata {
         for (final IndexInfo indexInfo : indexInfosList) {
             if (FireflyVertex.class.isAssignableFrom(elementClass)) {
                 if (indexInfo.setName.equals(db.V_LABEL_INDEX_NAME) || indexInfo.setName.equals(db.VERTEX_AERO_SET)) {
-                    if (indexInfo.key.equals(key) || (db.LABEL_BIN.equals(indexInfo.key) && "~label".equals(key))) {
+                    if (indexInfo.key.equals(key)) {
                         if (Number.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(NUMERIC)) {
                             // If value is number, index type must also be numeric.
                             return Optional.of(indexInfo);
                         } else if (String.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(STRING)) {
                             // If value is string, index type must also be string.
+                            return Optional.of(indexInfo);
+                        }
+                    } else if (db.LABEL_BIN.equals(indexInfo.key) && "~label".equals(key)) {
+                        if (String.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(NUMERIC)) {
                             return Optional.of(indexInfo);
                         }
                     }

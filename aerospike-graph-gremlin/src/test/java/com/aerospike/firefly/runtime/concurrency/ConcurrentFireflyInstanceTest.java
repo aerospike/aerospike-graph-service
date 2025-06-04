@@ -32,7 +32,10 @@ public class ConcurrentFireflyInstanceTest {
     final static int ADD_REMOVE_COUNT = 250;
 
     @Before
-    public void setup() {
+    public void beforeEach() {
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, true);
+        }
     }
 
     private static byte[] getBytesId(final long value) {

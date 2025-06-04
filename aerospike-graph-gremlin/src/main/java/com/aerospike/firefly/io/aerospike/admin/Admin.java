@@ -1,10 +1,7 @@
 package com.aerospike.firefly.io.aerospike.admin;
 
-import com.aerospike.client.Info;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
-import com.aerospike.client.cluster.Node;
-import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
@@ -106,6 +103,7 @@ public class Admin {
         public I createVertexPropertyIndex(final FireflyGraph firefly, final String key) {
             final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
             final List<String> existingIndexes = getExistingIndexes(firefly);
+            final Long schemaKey = firefly.getBaseGraph().schemaManager.getVertexPropertyWrite(key);
             String formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
             firefly.getBaseGraph().createIndexBackground(existingIndexes,
                     set,
@@ -114,7 +112,7 @@ public class Admin {
                     STRING,
                     IndexCollectionType.DEFAULT,
                     true,
-                    CTX.mapKey(Value.get(key)));
+                    CTX.mapKey(Value.get(schemaKey)));
             formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
             firefly.getBaseGraph().createIndexBackground(existingIndexes,
                     set,
@@ -123,7 +121,7 @@ public class Admin {
                     NUMERIC,
                     IndexCollectionType.DEFAULT,
                     true,
-                    CTX.mapKey(Value.get(key)));
+                    CTX.mapKey(Value.get(schemaKey)));
             return (I) ("Vertex index creation of property key '" + key + "' in progress.");
         }
 
@@ -149,7 +147,7 @@ public class Admin {
                     set,
                     firefly.getBaseGraph().V_LABEL_INDEX_NAME,
                     firefly.getBaseGraph().LABEL_BIN,
-                    IndexType.STRING,
+                    IndexType.NUMERIC,
                     IndexCollectionType.DEFAULT,
                     true);
             return (I) "Vertex label index creation in progress.";

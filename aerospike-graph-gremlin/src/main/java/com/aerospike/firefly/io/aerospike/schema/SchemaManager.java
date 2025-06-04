@@ -434,7 +434,7 @@ public class SchemaManager {
         operations.add(readSchema);
 
         try {
-            final Record record = this.db.suppressedWriteOperate(null, recordKey, operations.toArray(new Operation[0]));
+            final Record record = this.db.writeOperate(null, recordKey, true, operations.toArray(new Operation[0]));
             if (record == null) {
                 // Need to handle re-initialization of the schema sets if someone drops the entire database.
                 this.initializedMap.get(recordKey).set(false);
@@ -491,7 +491,7 @@ public class SchemaManager {
                 final Operation initializeSchemaValue = Operation.put(new Bin(this.db.COUNTER_BIN, initialSchemaValue));
                 final Operation initializeSchemaMap = Operation.put(new Bin(this.db.SCHEMA_BIN, initialMap));
                 LOG.info("Initializing {} schema data.", this.readableNames.get(recordKey));
-                this.db.suppressedWriteOperate(policy, recordKey, initializeSchemaMap, initializeSchemaValue);
+                this.db.writeOperate(policy, recordKey, true, initializeSchemaMap, initializeSchemaValue);
             } catch (final AerospikeGraphException e) {
                 if (e.errorCode == ResultCode.KEY_EXISTS_ERROR) {
                     LOG.info("Existing {} schema data found.", this.readableNames.get(recordKey));

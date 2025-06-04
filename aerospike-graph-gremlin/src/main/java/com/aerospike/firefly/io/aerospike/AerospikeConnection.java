@@ -2139,7 +2139,7 @@ public class AerospikeConnection implements AutoCloseable {
         for (final Map.Entry<String, String> entry : indexes) {
             dropIndex(entry.getValue(), entry.getKey());
         }
-        schemaManager.updateAll();
+        schemaManager.clearAll();
     }
 
     /**

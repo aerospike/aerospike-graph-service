@@ -38,7 +38,7 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingBufferedNumer
         while (true) {
             final Long id = this.packingIdManager.getNextId(graph);
             ids.add(id);
-            if (Math.floorMod(id, packingSize) == 1) {
+            if (Math.floorMod(id, packingSize) == 0) {
                 // This is the last ID before the next Edge pack so set the cutoff here.
                 break;
             }

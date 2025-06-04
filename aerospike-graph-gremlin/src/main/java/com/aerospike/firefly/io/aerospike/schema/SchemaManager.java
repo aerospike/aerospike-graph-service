@@ -363,6 +363,14 @@ public class SchemaManager {
         updateEdgeProperties(null);
     }
 
+    public void clearAll() {
+        this.vertexLabels.clear();
+        this.vertexProperties.clear();
+        this.vpProperties.clear();
+        this.edgeLabels.clear();
+        this.edgeProperties.clear();
+    }
+
     private void updateVertexLabels(final String label) {
         synchronized (this.vertexLabelsKey) {
             if (label == null || !this.vertexLabels.containsKey(label)) {

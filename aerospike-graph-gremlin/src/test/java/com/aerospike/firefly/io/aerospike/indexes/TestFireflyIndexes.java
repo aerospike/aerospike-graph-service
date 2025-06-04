@@ -30,7 +30,7 @@ public abstract class TestFireflyIndexes extends AbstractFireflySuite {
     @Before
     public void clearIndexes() {
         // Delete all indexes.
-        graph.getBaseGraph().clearNamespace();
+        graph.getBaseGraph().dropDatabase(graph, true);
     }
 
     protected abstract void setProperty(final String propertyList);

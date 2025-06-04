@@ -92,79 +92,81 @@ public class SchemaManager {
     }
 
     public Long getVertexLabelWrite(final String label) {
-        if (this.vertexLabels.containsKey(label)) {
-            return this.vertexLabels.get(label);
-        } else {
-            updateVertexLabels(label);
-            if (this.vertexLabels.containsKey(label)) {
-                return this.vertexLabels.get(label);
+        for (int attempts = 0; attempts < 10; attempts++) {
+            final Long schema = this.vertexLabels.get(label);
+            if (schema == null) {
+                updateVertexLabels(label);
             } else {
-                // This should never happen.
-                throw new IllegalStateException("Schema Long value did not exist for Vertex label. Please contact support.");
+                return schema;
             }
         }
+        // This should never happen.
+        throw new IllegalStateException("Schema Long value did not exist for Vertex label. Please contact support.");
     }
 
     public Long getVertexLabelRead(final String label) {
-        if (this.vertexLabels.containsKey(label)) {
-            return this.vertexLabels.get(label);
-        } else {
-            updateVertexLabels(null);
+        // Reads need to be fully synchronized because can't rely on null to indicate concurrency issue
+        synchronized (this.vertexLabelsKey) {
+            if (this.vertexLabels.containsKey(label)) {
+                return this.vertexLabels.get(label);
+            } else {
+                updateVertexLabels(null);
+            }
+            final Long schemaValue = this.vertexLabels.get(label);
+            return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
         }
-        final Long schemaValue = this.vertexLabels.get(label);
-        return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
     }
 
     public String getVertexLabelString(final Long storageLabel) {
-        if (this.vertexLabels.inverse().containsKey(storageLabel)) {
-            return this.vertexLabels.inverse().get(storageLabel);
-        } else {
-            updateVertexLabels(null);
-            if (this.vertexLabels.inverse().containsKey(storageLabel)) {
-                return this.vertexLabels.inverse().get(storageLabel);
+        for (int attempts = 0; attempts < 10; attempts++) {
+            final String label =  this.vertexLabels.inverse().get(storageLabel);
+            if (label == null) {
+                updateVertexLabels(null);
             } else {
-                // This should never happen.
-                throw new IllegalStateException("Schema String value did not exist for Vertex label storage type. Please contact support.");
+                return label;
             }
         }
+        // This should never happen.
+        throw new IllegalStateException("Schema String value did not exist for Vertex label storage type. Please contact support.");
     }
 
     public Long getVertexPropertyWrite(final String propertyKey) {
-        if (this.vertexProperties.containsKey(propertyKey)) {
-            return this.vertexProperties.get(propertyKey);
-        } else {
-            updateVertexProperties(propertyKey);
-            if (this.vertexProperties.containsKey(propertyKey)) {
-                return this.vertexProperties.get(propertyKey);
+        for (int attempts = 0; attempts < 10; attempts++) {
+            final Long schema = this.vertexProperties.get(propertyKey);
+            if (schema == null) {
+                updateVertexProperties(propertyKey);
             } else {
-                // This should never happen.
-                throw new IllegalStateException("Schema Long value did not exist for Vertex property. Please contact support.");
+                return schema;
             }
         }
+        // This should never happen.
+        throw new IllegalStateException("Schema Long value did not exist for Vertex property. Please contact support.");
     }
 
     public Long getVertexPropertyRead(final String propertyKey) {
-        if (this.vertexProperties.containsKey(propertyKey)) {
-            return this.vertexProperties.get(propertyKey);
-        } else {
-            updateVertexProperties(null);
+        // Reads need to be fully synchronized because can't rely on null to indicate concurrency issue
+        synchronized (this.vertexPropertiesKey) {
+            if (this.vertexProperties.containsKey(propertyKey)) {
+                return this.vertexProperties.get(propertyKey);
+            } else {
+                updateVertexProperties(null);
+            }
+            final Long schemaValue = this.vertexProperties.get(propertyKey);
+            return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
         }
-        final Long schemaValue = this.vertexProperties.get(propertyKey);
-        return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
     }
 
     public String getVertexPropertyString(final Long storagePropertyKey) {
-        if (this.vertexProperties.inverse().containsKey(storagePropertyKey)) {
-            return this.vertexProperties.inverse().get(storagePropertyKey);
-        } else {
-            updateVertexProperties(null);
-            if (this.vertexProperties.inverse().containsKey(storagePropertyKey)) {
-                return this.vertexProperties.inverse().get(storagePropertyKey);
+        for (int attempts = 0; attempts < 10; attempts++) {
+            final String propertyKey = this.vertexProperties.inverse().get(storagePropertyKey);
+            if (propertyKey == null) {
+                updateVertexProperties(null);
             } else {
-                // This should never happen.
-                throw new IllegalStateException("Schema String value did not exist for Vertex property storage type. Please contact support.");
+                return propertyKey;
             }
         }
+        // This should never happen.
+        throw new IllegalStateException("Schema String value did not exist for Vertex property storage type. Please contact support.");
     }
 
     public void populateVertexPropertyStringMapToSchemaMap(final Map<String, ?> vpStringMap,
@@ -180,47 +182,51 @@ public class SchemaManager {
         if (vpSchemaMap != null) {
             for (final Map.Entry<Long, ?> entry : vpSchemaMap.entrySet()) {
                 final String key = getVertexPropertyString(entry.getKey());
+                if (entry.getValue() == null || key == null || outMap == null) {
+                    System.out.println(entry.getKey());
+                }
                 outMap.put(key, entry.getValue());
             }
         }
     }
 
     public Long getVpPropertyWrite(final String propertyKey) {
-        if (this.vpProperties.containsKey(propertyKey)) {
-            return this.vpProperties.get(propertyKey);
-        } else {
-            updateVpProperties(propertyKey);
-            if (this.vpProperties.containsKey(propertyKey)) {
-                return this.vpProperties.get(propertyKey);
+        for (int attempts = 0; attempts < 10; attempts++) {
+            final Long schema = this.vpProperties.get(propertyKey);
+            if (schema == null) {
+                updateVpProperties(propertyKey);
             } else {
-                // This should never happen.
-                throw new IllegalStateException("Schema Long value did not exist for VP property. Please contact support.");
+                return schema;
             }
         }
+        // This should never happen.
+        throw new IllegalStateException("Schema Long value did not exist for VP property. Please contact support.");
     }
 
     public Long getVpPropertyRead(final String propertyKey) {
-        if (this.vpProperties.containsKey(propertyKey)) {
-            return this.vpProperties.get(propertyKey);
-        } else {
-            updateVpProperties(null);
+        // Reads need to be fully synchronized because can't rely on null to indicate concurrency issue
+        synchronized (this.vpPropertiesKey) {
+            if (this.vpProperties.containsKey(propertyKey)) {
+                return this.vpProperties.get(propertyKey);
+            } else {
+                updateVpProperties(null);
+            }
+            final Long schemaValue = this.vpProperties.get(propertyKey);
+            return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
         }
-        final Long schemaValue = this.vpProperties.get(propertyKey);
-        return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
     }
 
     public String getVpPropertyString(final Long storagePropertyKey) {
-        if (this.vpProperties.inverse().containsKey(storagePropertyKey)) {
-            return this.vpProperties.inverse().get(storagePropertyKey);
-        } else {
-            updateVpProperties(null);
-            if (this.vpProperties.inverse().containsKey(storagePropertyKey)) {
-                return this.vpProperties.inverse().get(storagePropertyKey);
+        for (int attempts = 0; attempts < 10; attempts++) {
+            final String propertyKey = this.vpProperties.inverse().get(storagePropertyKey);
+            if (propertyKey == null) {
+                updateVpProperties(null);
             } else {
-                // This should never happen.
-                throw new IllegalStateException("Schema String value did not exist for VP property storage type. Please contact support.");
+                return propertyKey;
             }
         }
+        // This should never happen.
+        throw new IllegalStateException("Schema String value did not exist for VP property storage type. Please contact support.");
     }
 
     public void populateVpPropertyStringMapToSchemaMap(final Map<String, ?> vpPropertyStringMap,
@@ -254,79 +260,81 @@ public class SchemaManager {
     }
 
     public Long getEdgeLabelWrite(final String label) {
-        if (this.edgeLabels.containsKey(label)) {
-            return this.edgeLabels.get(label);
-        } else {
-            updateEdgeLabels(label);
-            if (this.edgeLabels.containsKey(label)) {
-                return this.edgeLabels.get(label);
+        for (int attempts = 0; attempts < 10; attempts++) {
+            final Long schema = this.edgeLabels.get(label);
+            if (schema == null) {
+                updateEdgeLabels(label);
             } else {
-                // This should never happen.
-                throw new IllegalStateException("Schema Long value did not exist for Edge label. Please contact support.");
+                return schema;
             }
         }
+        // This should never happen.
+        throw new IllegalStateException("Schema Long value did not exist for Edge label. Please contact support.");
     }
 
     public Long getEdgeLabelRead(final String label) {
-        if (this.edgeLabels.containsKey(label)) {
-            return this.edgeLabels.get(label);
-        } else {
-            updateEdgeLabels(null);
+        // Reads need to be fully synchronized because can't rely on null to indicate concurrency issue
+        synchronized (this.edgeLabelsKey) {
+            if (this.edgeLabels.containsKey(label)) {
+                return this.edgeLabels.get(label);
+            } else {
+                updateEdgeLabels(null);
+            }
+            final Long schemaValue = this.edgeLabels.get(label);
+            return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
         }
-        final Long schemaValue = this.edgeLabels.get(label);
-        return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
     }
 
     public String getEdgeLabelString(final Long storageLabel) {
-        if (this.edgeLabels.inverse().containsKey(storageLabel)) {
-            return this.edgeLabels.inverse().get(storageLabel);
-        } else {
-            updateEdgeLabels(null);
-            if (this.edgeLabels.inverse().containsKey(storageLabel)) {
-                return this.edgeLabels.inverse().get(storageLabel);
+        for (int attempts = 0; attempts < 10; attempts++) {
+            final String label =  this.edgeLabels.inverse().get(storageLabel);
+            if (label == null) {
+                updateEdgeLabels(null);
             } else {
-                // This should never happen.
-                throw new IllegalStateException("Schema String value did not exist for Edge label storage type. Please contact support.");
+                return label;
             }
         }
+        // This should never happen.
+        throw new IllegalStateException("Schema String value did not exist for Edge label storage type. Please contact support.");
     }
 
     public Long getEdgePropertyWrite(final String propertyKey) {
-        if (this.edgeProperties.containsKey(propertyKey)) {
-            return this.edgeProperties.get(propertyKey);
-        } else {
-            updateEdgeProperties(propertyKey);
-            if (this.edgeProperties.containsKey(propertyKey)) {
-                return this.edgeProperties.get(propertyKey);
+        for (int attempts = 0; attempts < 10; attempts++) {
+            final Long schema = this.edgeProperties.get(propertyKey);
+            if (schema == null) {
+                updateEdgeProperties(propertyKey);
             } else {
-                // This should never happen.
-                throw new IllegalStateException("Schema Long value did not exist for Edge property. Please contact support.");
+                return schema;
             }
         }
+        // This should never happen.
+        throw new IllegalStateException("Schema Long value did not exist for Edge property. Please contact support.");
     }
 
     public Long getEdgePropertyRead(final String propertyKey) {
-        if (this.edgeProperties.containsKey(propertyKey)) {
-            return this.edgeProperties.get(propertyKey);
-        } else {
-            updateEdgeProperties(null);
+        // Reads need to be fully synchronized because can't rely on null to indicate concurrency issue
+        synchronized (this.edgePropertiesKey) {
+            if (this.edgeProperties.containsKey(propertyKey)) {
+                return this.edgeProperties.get(propertyKey);
+            } else {
+                updateEdgeProperties(null);
+            }
+            final Long schemaValue = this.edgeProperties.get(propertyKey);
+            return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
         }
-        final Long schemaValue = this.edgeProperties.get(propertyKey);
-        return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
     }
 
     public String getEdgePropertyString(final Long storagePropertyKey) {
-        if (this.edgeProperties.inverse().containsKey(storagePropertyKey)) {
-            return this.edgeProperties.inverse().get(storagePropertyKey);
-        } else {
-            updateEdgeProperties(null);
-            if (this.edgeProperties.inverse().containsKey(storagePropertyKey)) {
-                return this.edgeProperties.inverse().get(storagePropertyKey);
+        for (int attempts = 0; attempts < 10; attempts++) {
+            final String propertyKey =  this.edgeProperties.inverse().get(storagePropertyKey);
+            if (propertyKey == null) {
+                updateEdgeProperties(null);
             } else {
-                // This should never happen.
-                throw new IllegalStateException("Schema String value did not exist for Edge property storage type. Please contact support.");
+                return propertyKey;
             }
         }
+        // This should never happen.
+        throw new IllegalStateException("Schema String value did not exist for Edge property storage type. Please contact support.");
     }
 
     public void populateEdgePropertyStringMapToSchemaMap(final Map<String, ?> edgePropertyStringMap,
@@ -357,31 +365,41 @@ public class SchemaManager {
 
     private void updateVertexLabels(final String label) {
         synchronized (this.vertexLabelsKey) {
-            updateSchemaMap(label, this.vertexLabelsKey, this.vertexLabels);
+            if (label == null || !this.vertexLabels.containsKey(label)) {
+                updateSchemaMap(label, this.vertexLabelsKey, this.vertexLabels);
+            }
         }
     }
 
     private void updateVertexProperties(final String propertyKey) {
         synchronized (this.vertexPropertiesKey) {
-            updateSchemaMap(propertyKey, this.vertexPropertiesKey, this.vertexProperties);
+            if (propertyKey == null || !this.vertexProperties.containsKey(propertyKey)) {
+                updateSchemaMap(propertyKey, this.vertexPropertiesKey, this.vertexProperties);
+            }
         }
     }
 
     private void updateVpProperties(final String propertyKey) {
         synchronized (this.vpPropertiesKey) {
-            updateSchemaMap(propertyKey, this.vpPropertiesKey, this.vpProperties);
+            if (propertyKey == null || !this.vpProperties.containsKey(propertyKey)) {
+                updateSchemaMap(propertyKey, this.vpPropertiesKey, this.vpProperties);
+            }
         }
     }
 
     private void updateEdgeLabels(final String label) {
         synchronized (this.edgeLabelsKey) {
-            updateSchemaMap(label, this.edgeLabelsKey, this.edgeLabels);
+            if (label == null || !this.edgeLabels.containsKey(label)) {
+                updateSchemaMap(label, this.edgeLabelsKey, this.edgeLabels);
+            }
         }
     }
 
     private void updateEdgeProperties(final String propertyKey) {
         synchronized (this.edgePropertiesKey) {
-            updateSchemaMap(propertyKey, this.edgePropertiesKey, this.edgeProperties);
+            if (propertyKey == null || !this.edgeProperties.containsKey(propertyKey)) {
+                updateSchemaMap(propertyKey, this.edgePropertiesKey, this.edgeProperties);
+            }
         }
     }
 

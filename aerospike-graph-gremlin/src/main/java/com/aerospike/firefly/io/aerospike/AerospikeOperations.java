@@ -192,6 +192,7 @@ public class AerospikeOperations {
             // If the property is null, remove any previous of property key if any.
             if (property.getValue() == null) {
                 validProperties.remove(property.getKey());
+                continue;
             }
             // Special bulk loader property for summary updater in the case of an incremental MergeV load.
             if (property.getKey().equals(FireflyGraph.BULK_LOAD_VERTEX_ADD_KEY)) {

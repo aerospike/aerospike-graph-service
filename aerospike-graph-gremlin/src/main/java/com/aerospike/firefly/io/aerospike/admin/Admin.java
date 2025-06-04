@@ -1,10 +1,7 @@
 package com.aerospike.firefly.io.aerospike.admin;
 
-import com.aerospike.client.Info;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
-import com.aerospike.client.cluster.Node;
-import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;

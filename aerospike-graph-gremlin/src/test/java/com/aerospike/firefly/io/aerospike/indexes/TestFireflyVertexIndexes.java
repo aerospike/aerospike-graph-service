@@ -70,24 +70,24 @@ public class TestFireflyVertexIndexes extends TestFireflyIndexes {
             final Optional<FireflyIndexMetadata.IndexInfo> birthplaceIndex = getPropertyIndexInfo(fireflyGraph, "birthplace", "Canada");
             assertFalse(birthplaceIndex.isPresent());
 
-            final Iterator<Vertex> vertexIteratorNameString = graph.graphQuery.queryVertexSIndex(nameIndex.get(), P.eq("Lyndon"), fireflyGraph::vertexFromRecord, evaluationTimeout);
+            final Iterator<Vertex> vertexIteratorNameString = fireflyGraph.graphQuery.queryVertexSIndex(nameIndex.get(), P.eq("Lyndon"), fireflyGraph::vertexFromRecord, evaluationTimeout);
             Assert.assertTrue(vertexIteratorNameString.hasNext());
             Assert.assertEquals("Lyndon", vertexIteratorNameString.next().value("name"));
             Assert.assertFalse(vertexIteratorNameString.hasNext());
 
-            final Iterator<Vertex> vertexIteratorNameInteger = graph.graphQuery.queryVertexSIndex(nameIndex.get(), P.eq(1), fireflyGraph::vertexFromRecord, evaluationTimeout);
-            final Iterator<Vertex> vertexIteratorNameLong = graph.graphQuery.queryVertexSIndex(nameIndex.get(), P.eq(1L), fireflyGraph::vertexFromRecord, evaluationTimeout);
+            final Iterator<Vertex> vertexIteratorNameInteger = fireflyGraph.graphQuery.queryVertexSIndex(nameIndex.get(), P.eq(1), fireflyGraph::vertexFromRecord, evaluationTimeout);
+            final Iterator<Vertex> vertexIteratorNameLong = fireflyGraph.graphQuery.queryVertexSIndex(nameIndex.get(), P.eq(1L), fireflyGraph::vertexFromRecord, evaluationTimeout);
             Assert.assertFalse(vertexIteratorNameInteger.hasNext());
             Assert.assertFalse(vertexIteratorNameLong.hasNext());
 
-            final Iterator<Vertex> vertexIteratorAgeString = graph.graphQuery.queryVertexSIndex(ageIndex.get(), P.eq("29"), fireflyGraph::vertexFromRecord, evaluationTimeout);
+            final Iterator<Vertex> vertexIteratorAgeString = fireflyGraph.graphQuery.queryVertexSIndex(ageIndex.get(), P.eq("29"), fireflyGraph::vertexFromRecord, evaluationTimeout);
             Assert.assertFalse(vertexIteratorAgeString.hasNext());
 
-            final Iterator<Vertex> vertexIteratorAgeLong = graph.graphQuery.queryVertexSIndex(ageIndex.get(), P.eq(29L), fireflyGraph::vertexFromRecord, evaluationTimeout);
+            final Iterator<Vertex> vertexIteratorAgeLong = fireflyGraph.graphQuery.queryVertexSIndex(ageIndex.get(), P.eq(29L), fireflyGraph::vertexFromRecord, evaluationTimeout);
             Assert.assertTrue(vertexIteratorAgeLong.hasNext());
             Assert.assertEquals(Integer.valueOf(29), vertexIteratorAgeLong.next().value("age"));
 
-            final Iterator<Vertex> vertexIteratorAgeInteger = graph.graphQuery.queryVertexSIndex(ageIndex.get(), P.eq(29), fireflyGraph::vertexFromRecord, evaluationTimeout);
+            final Iterator<Vertex> vertexIteratorAgeInteger = fireflyGraph.graphQuery.queryVertexSIndex(ageIndex.get(), P.eq(29), fireflyGraph::vertexFromRecord, evaluationTimeout);
             Assert.assertTrue(vertexIteratorAgeInteger.hasNext());
             Assert.assertEquals(Integer.valueOf(29), vertexIteratorAgeInteger.next().value("age"));
         }
@@ -117,28 +117,28 @@ public class TestFireflyVertexIndexes extends TestFireflyIndexes {
             final String setName = db.VERTEX_AERO_SET;
             final String binName = db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
 
-            final Iterator<Vertex> vertexIteratorNameString = graph.graphQuery.scanSet("name", setName, binName, P.eq("Lyndon"), fireflyGraph::vertexFromRecord, evaluationTimeout);
+            final Iterator<Vertex> vertexIteratorNameString = fireflyGraph.graphQuery.scanSet("name", setName, binName, P.eq("Lyndon"), fireflyGraph::vertexFromRecord, evaluationTimeout);
             Assert.assertTrue(vertexIteratorNameString.hasNext());
             Assert.assertEquals("Lyndon", vertexIteratorNameString.next().value("name"));
             Assert.assertFalse(vertexIteratorNameString.hasNext());
 
-            final Iterator<Vertex> vertexIteratorNameInteger = graph.graphQuery.scanSet("age", setName, binName, P.eq(1), fireflyGraph::vertexFromRecord, evaluationTimeout);
-            final Iterator<Vertex> vertexIteratorNameLong = graph.graphQuery.scanSet("age", setName, binName, P.eq(1L), fireflyGraph::vertexFromRecord, evaluationTimeout);
+            final Iterator<Vertex> vertexIteratorNameInteger = fireflyGraph.graphQuery.scanSet("age", setName, binName, P.eq(1), fireflyGraph::vertexFromRecord, evaluationTimeout);
+            final Iterator<Vertex> vertexIteratorNameLong = fireflyGraph.graphQuery.scanSet("age", setName, binName, P.eq(1L), fireflyGraph::vertexFromRecord, evaluationTimeout);
             Assert.assertFalse(vertexIteratorNameInteger.hasNext());
             Assert.assertFalse(vertexIteratorNameLong.hasNext());
 
-            final Iterator<Vertex> vertexIteratorAgeString = graph.graphQuery.scanSet("age", setName, binName, P.eq("29"), fireflyGraph::vertexFromRecord, evaluationTimeout);
+            final Iterator<Vertex> vertexIteratorAgeString = fireflyGraph.graphQuery.scanSet("age", setName, binName, P.eq("29"), fireflyGraph::vertexFromRecord, evaluationTimeout);
             Assert.assertFalse(vertexIteratorAgeString.hasNext());
 
-            final Iterator<Vertex> vertexIteratorAgeLong = graph.graphQuery.scanSet("age", setName, binName, P.eq(29L), fireflyGraph::vertexFromRecord, evaluationTimeout);
+            final Iterator<Vertex> vertexIteratorAgeLong = fireflyGraph.graphQuery.scanSet("age", setName, binName, P.eq(29L), fireflyGraph::vertexFromRecord, evaluationTimeout);
             Assert.assertTrue(vertexIteratorAgeLong.hasNext());
             Assert.assertEquals(Integer.valueOf(29), vertexIteratorAgeLong.next().value("age"));
 
-            final Iterator<Vertex> vertexIteratorAgeInteger = graph.graphQuery.scanSet("age", setName, binName, P.eq(29), fireflyGraph::vertexFromRecord, evaluationTimeout);
+            final Iterator<Vertex> vertexIteratorAgeInteger = fireflyGraph.graphQuery.scanSet("age", setName, binName, P.eq(29), fireflyGraph::vertexFromRecord, evaluationTimeout);
             Assert.assertTrue(vertexIteratorAgeInteger.hasNext());
             Assert.assertEquals(Integer.valueOf(29), vertexIteratorAgeInteger.next().value("age"));
 
-            final Iterator<Vertex> vertexIteratorBirthplaceString = graph.graphQuery.scanSet("birthplace", setName, binName, P.eq("Canada"), fireflyGraph::vertexFromRecord, evaluationTimeout);
+            final Iterator<Vertex> vertexIteratorBirthplaceString = fireflyGraph.graphQuery.scanSet("birthplace", setName, binName, P.eq("Canada"), fireflyGraph::vertexFromRecord, evaluationTimeout);
             Assert.assertTrue(vertexIteratorBirthplaceString.hasNext());
             Assert.assertEquals("Canada", vertexIteratorBirthplaceString.next().value("birthplace"));
             Assert.assertFalse(vertexIteratorBirthplaceString.hasNext());
@@ -167,7 +167,7 @@ public class TestFireflyVertexIndexes extends TestFireflyIndexes {
             Assert.assertNotNull(vertexLabelIndex);
             Assert.assertEquals(vertexLabelIndex.getValue(), (fireflyGraph.getBaseGraph().VERTEX_AERO_SET));
 
-            final Iterator<FireflyVertex> vertices = graph.graphQuery.scanSet(null, db.VERTEX_AERO_SET, db.LABEL_BIN, P.eq("person"), graph::vertexFromRecord, evaluationTimeout);
+            final Iterator<FireflyVertex> vertices = fireflyGraph.graphQuery.scanSet(null, db.VERTEX_AERO_SET, db.LABEL_BIN, P.eq("person"), graph::vertexFromRecord, evaluationTimeout);
             Assert.assertTrue(vertices.hasNext());
         } finally {
             config.clearProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG.toLowerCase());
@@ -205,12 +205,15 @@ public class TestFireflyVertexIndexes extends TestFireflyIndexes {
     @Test
     public void testVertexLabelIndexUnion() {
         config.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), true);
-        config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), false);
         try (final FireflyGraph fireflyGraph1 = FireflyGraph.open(config)) {
             config.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), false);
             try (final FireflyGraph fireflyGraph2 = FireflyGraph.open(config)) {
-                final Optional<FireflyIndexMetadata.IndexInfo> vertexIndexInfo1 = fireflyGraph1.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "~label", "owns");
-                Assert.assertTrue(vertexIndexInfo1.isPresent());
+                // Check fireflyGraph1 differently due to potential race condition since label index creation is async
+                final Map<String, Long> labelIndexStatus = (Map<String, Long>) fireflyGraph1.traversal().
+                        call("aerospike.graph.admin.index.status").
+                        with("element_type", "vertex").
+                        with("property_key", "~label").next();
+                Assert.assertEquals(100L, (long) labelIndexStatus.get("percent_complete"));
                 final Optional<FireflyIndexMetadata.IndexInfo> vertexIndexInfo2 = fireflyGraph2.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "~label", "owns");
                 Assert.assertTrue(vertexIndexInfo2.isPresent());
                 final Optional<FireflyIndexMetadata.IndexInfo> edgeIndexInfo1 = fireflyGraph1.fireflyIndexMetadata.getPropertyIndexInfo(FireflyEdge.class, "~label", "owns");

@@ -383,7 +383,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             Vertex a = graph.addVertex();
             Vertex b = graph.addVertex();
             Edge e = a.addEdge("edge", b);
-            assertEquals(5, AerospikeConnection.InfoOps.getNonEmptySetList(db).size());
+            assertEquals(6, AerospikeConnection.InfoOps.getNonEmptySetList(db).size());
 
             graph.traversal().V().drop().iterate();
             sleep(2000);

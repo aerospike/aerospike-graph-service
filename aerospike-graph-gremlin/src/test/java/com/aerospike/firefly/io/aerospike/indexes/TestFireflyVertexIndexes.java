@@ -125,6 +125,7 @@ public class TestFireflyVertexIndexes extends TestFireflyIndexes {
             final Iterator<Vertex> vertexIteratorNameInteger = graph.graphQuery.scanSet("age", setName, binName, P.eq(1), fireflyGraph::vertexFromRecord, evaluationTimeout);
             final Iterator<Vertex> vertexIteratorNameLong = graph.graphQuery.scanSet("age", setName, binName, P.eq(1L), fireflyGraph::vertexFromRecord, evaluationTimeout);
             Assert.assertFalse(vertexIteratorNameInteger.hasNext());
+
             Assert.assertFalse(vertexIteratorNameLong.hasNext());
 
             final Iterator<Vertex> vertexIteratorAgeString = graph.graphQuery.scanSet("age", setName, binName, P.eq("29"), fireflyGraph::vertexFromRecord, evaluationTimeout);

@@ -26,17 +26,17 @@ import static com.aerospike.firefly.olap.codec.RowCodecHelper.getIdType;
 import static com.aerospike.firefly.olap.helper.ProgramHelper.getVertexIds;
 
 public class PeerPressureCodec implements Codec {
-    public static final String ELEMENT_ID_COL = "~eid";
-    public static final String ELEMENT_ID_TYPEHINT_COL = "~eid_typehint";
     public static final String OUT_VERTEX_ID_COL = "~out_vertex_eid";
     public static final String IN_VERTEX_ID_COL = "~in_vertex_eid";
     public static final String PEER_PRESSURE_COL = "~peer_pressure";
     public static final String VOTE_STRENGTH_COL = "~vote_strength";
 
+    private final String property;
     private final TraverserGenerator traverserGenerator;
 
-    public PeerPressureCodec(final Traversal traversal) {
+    public PeerPressureCodec(final Traversal traversal, final String property) {
         this.traverserGenerator = traversal.asAdmin().getTraverserGenerator();
+        this.property = property;
     }
 
     @Override
@@ -49,7 +49,7 @@ public class PeerPressureCodec implements Codec {
 
         objects.add(JavaConverters.asScalaBufferConverter(getOutVertexIds(v)).asScala().toSeq());
         objects.add(JavaConverters.asScalaBufferConverter(getInVertexIds(v)).asScala().toSeq());
-        final VertexProperty clusterProperty = v.property(PeerPressureProgram.property);
+        final VertexProperty clusterProperty = v.property(property);
         objects.add(clusterProperty.isPresent() ? clusterProperty.value() : "");
         final VertexProperty voteStrengthProperty = v.property(PeerPressureProgram.VOTE_STRENGTH);
         objects.add(voteStrengthProperty.isPresent() ? voteStrengthProperty.value() : -1.0);
@@ -77,7 +77,7 @@ public class PeerPressureCodec implements Codec {
 
         final DetachedVertexProperty outVertexProperty = new DetachedVertexProperty(null, PeerPressureProgram.OUT_VERTICES, outEdges, null);
         final DetachedVertexProperty inVertexProperty = new DetachedVertexProperty(null, PeerPressureProgram.IN_VERTICES, inEdges, null);
-        final MutableDetachedVertexProperty clusterProperty = new MutableDetachedVertexProperty(null, PeerPressureProgram.property, cluster, null);
+        final MutableDetachedVertexProperty clusterProperty = new MutableDetachedVertexProperty(null, property, cluster, null);
         final MutableDetachedVertexProperty voteStrengthProperty = new MutableDetachedVertexProperty(null, PeerPressureProgram.VOTE_STRENGTH, voteStrength, null);
 
         final DetachedVertex vertex = new DetachedVertex(id, "", List.of(outVertexProperty, inVertexProperty, clusterProperty, voteStrengthProperty));

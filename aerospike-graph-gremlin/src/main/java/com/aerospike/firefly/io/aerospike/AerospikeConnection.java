@@ -2,6 +2,8 @@ package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
+import com.aerospike.client.BatchRecord;
+import com.aerospike.client.BatchResults;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Host;
 import com.aerospike.client.IAerospikeClient;
@@ -1739,6 +1741,16 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
+     * bulk read/operate. Not tested for write and delete.
+     *
+     * @param batchPolicy query policy.
+     * @param batchRecords operations. Also contains results for read
+     */
+    public void batchOperate(final BatchPolicy batchPolicy, final List<BatchRecord> batchRecords) {
+        client.operate(batchPolicy, batchRecords);
+    }
+
+    /**
      * Determine of a key exists
      *
      * @param key Aerospike Key to check
@@ -2108,7 +2120,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public void clearNamespace() {
         client.truncate(null, namespace, null, null);
-
         final List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(this);
         for (final Map.Entry<String, String> entry : indexes) {
             dropIndex(entry.getValue(), entry.getKey());

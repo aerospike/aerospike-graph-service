@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.aerospike.firefly.olap.codec.Codec.ELEMENT_ID_COL;
+import static com.aerospike.firefly.olap.codec.Codec.ELEMENT_ID_TYPEHINT_COL;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.appendNestedLoopSchema;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.appendPathSchema;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.appendSingleLoopSchema;
@@ -116,8 +118,6 @@ public class RowCodec {
     public static final String ID_COL = "~id";
     public static final String ID_TYPEHINT_COL = "~id_typehint";
     public static final String LABEL_COL = "~label";
-    public static final String ELEMENT_ID_COL = "~eid";
-    public static final String ELEMENT_ID_TYPEHINT_COL = "~eid_typehint";
     public static final String HALTED_COL = "~halted";
     public static final String STEP_COL = "~step";
     public static final String BINARY_COL = "~binary";

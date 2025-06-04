@@ -8,6 +8,7 @@ import com.aerospike.firefly.olap.helper.AttachmentHelper;
 import com.aerospike.firefly.olap.process.FireflyProgram;
 import com.aerospike.firefly.olap.process.TraversalProgram;
 import com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection;
+import com.aerospike.firefly.olap.process.AlgorithmProgram;
 import com.aerospike.firefly.olap.process.traversal.strategy.SparkOptimizationStrategy;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
@@ -66,6 +67,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
 import static com.aerospike.firefly.olap.helper.ProgramHelper.createVertexProgram;
+import static org.apache.spark.sql.functions.lit;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 /**
@@ -412,8 +414,8 @@ public class DistributedGraphComputer implements GraphComputer {
 
             // Broadcast spark context.
             memory.broadcastMemory(new JavaSparkContext(spark.sparkContext()));
-
             memory.incrIteration();
+
             final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace) - 4; // Leave some room.
 
             Dataset<Row> df = null;
@@ -424,7 +426,7 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 // Set inExecute to true, execute the vertex program, and set inExecute to false.
                 memory.setInExecute(true);
-                df = magicSwap(DistributedWorkerExecutor.execute(
+                final Dataset<Row> nextDf = DistributedWorkerExecutor.execute(
                         spark,
                         graph,
                         configHelper,
@@ -437,7 +439,11 @@ public class DistributedGraphComputer implements GraphComputer {
                         memory,
                         vertexProgramConfiguration,
                         schema,
-                        Math.max(1, workers - 1)));
+                        Math.max(1, workers - 1));
+                // add iteration column if AlgorithmProgram
+                df = magicSwap(
+                        this.vertexProgram instanceof AlgorithmProgram ? nextDf.withColumn(Codec.ITERATION, lit(memory.getIteration())) : nextDf,
+                        true);
 
                 if (configHelper.isDebugDf()) {
                     df.show();
@@ -487,6 +493,12 @@ public class DistributedGraphComputer implements GraphComputer {
                 }
             } while (df.count() != 0);
 
+            // try to execute some steps natively on spark dataframe
+            final Pair<Boolean, Dataset<Row>> postProcessResult = vertexProgram.postProcessResults(results, memory);
+            if (postProcessResult.getValue0()) {
+                results = magicSwap(postProcessResult.getValue1());
+            }
+
             final TraverserSet traversers = new TraverserSet();
             try {
                 TraverserSet memoryTraversers = memory.get(HALTED_TRAVERSERS);
@@ -509,8 +521,8 @@ public class DistributedGraphComputer implements GraphComputer {
                 System.out.println("Traversers: " + traversers);
             }
             AttachmentHelper.makeDetachedElements(graph, traversers);
-            //  remove temporary compute properties
-            vertexProgram.postProcessResults(traversers);
+            //  remove temporary compute properties and execute native steps if necessary
+            vertexProgram.postProcessResults(traversers, memory);
 
             // Set all traversers as halted and complete memory.
             memory.set(HALTED_TRAVERSERS, traversers);
@@ -545,10 +557,14 @@ public class DistributedGraphComputer implements GraphComputer {
     }
 
     public static Dataset<Row> magicSwap(final Dataset<Row> transform) {
+        return magicSwap(transform, false);
+    }
+
+    public static Dataset<Row> magicSwap(final Dataset<Row> transform, final boolean persist) {
         if (isCancelled.get()) {
             throw new TraversalInterruptedException();
         }
-        final Dataset<Row> output = transform.persist(StorageLevel.MEMORY_AND_DISK());
+        final Dataset<Row> output = persist ? transform.persist(StorageLevel.MEMORY_AND_DISK()) : transform;
         try {
             output.count();
         } catch (Exception e) {

@@ -17,6 +17,7 @@ import java.util.Set;
 public class VertexProgramConfig implements VertexProgram {
 
     public static final String TRAVERSAL_VERTEX_PROGRAM_STEP = "gremlin.traversalVertexProgram";
+    public static final String OPTIONS = "gremlin.options";
 
     private final Configuration configuration = new BaseConfiguration();
 

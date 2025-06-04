@@ -931,7 +931,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
      * @param <V>     Type of value to write.
      * @return FireflyVertexProperty
      */
-    public <V> FireflyVertexProperty<V> writeVertexProperty(final FireflyId idValue,
+    public <V> FireflyVertexProperty<V> writeVertexProperty(final VertexProperty.Cardinality cardinality,
+                                                            final FireflyId idValue,
                                                             final FireflyVertex vertex,
                                                             final String key,
                                                             final V value,

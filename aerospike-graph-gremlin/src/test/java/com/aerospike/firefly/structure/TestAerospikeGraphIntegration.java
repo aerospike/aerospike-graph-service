@@ -103,7 +103,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         final FireflyId vertexId = graph.getIdFactory().generateId(graph, FireflyVertex.class);
         final FireflyId vpid = graph.getIdFactory().generateId(graph, FireflyVertexProperty.class);
         final FireflyVertex vertex = graph.writeVertex(vertexId, "aVertexLabel", new ArrayList<>());
-        final FireflyVertexProperty fireflyVertexProperty = graph.writeVertexProperty(vpid, vertex, "aKey", "aValue");
+        final FireflyVertexProperty fireflyVertexProperty = graph.writeVertexProperty(VertexProperty.Cardinality.single, vpid, vertex, "aKey", "aValue");
 
         // Try read from scratch.
         final FireflyVertex vertexRead = graph.readVertex(vertexId);

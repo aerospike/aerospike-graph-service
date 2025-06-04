@@ -23,12 +23,12 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-import org.apache.tinkerpop.gremlin.structure.util.empty.EmptyProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -538,9 +538,13 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 throw Vertex.Exceptions.multiplePropertiesExistForProvidedKey(key);
             }
         } else {
-            if (super.property(key) instanceof EmptyProperty)
+            final Iterator<? extends Property<V>> iterator = this.properties(key);
+            if (!iterator.hasNext())
                 return VertexProperty.empty();
-            return (VertexProperty<V>) super.property(key);
+            final VertexProperty<V> vp = (VertexProperty<V>) iterator.next();
+            if (iterator.hasNext())
+                throw Vertex.Exceptions.multiplePropertiesExistForProvidedKey(key);
+            return vp;
         }
     }
 
@@ -563,6 +567,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                                           final String key,
                                           final V value,
                                           final Object... keyValues) {
+        if (cardinality.equals(VertexProperty.Cardinality.set)) {
+            // TODO: Check if tinkerpop has a native exception for this.
+            throw new AerospikeGraphException(GraphError.SET_CARDINALITY_NOT_SUPPORTED);
+        }
+
         if (FireflyHelper.inComputerMode(this.graph)) {
             final VertexProperty<V> vertexProperty = (VertexProperty<V>) this.graph.graphComputerView.addProperty(this, key, value);
             ElementHelper.attachProperties(vertexProperty, keyValues);
@@ -593,15 +602,16 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             }
         }
 
+        // Validate key and value.
         final V verifiedValue = (V) FireflyHelper.validatePropertyValue(value);
         ElementHelper.legalPropertyKeyValueArray(keyValues);
         ElementHelper.validateProperty(key, verifiedValue);
 
         // If we do not support null and the value is null, we should return empty.
         if (!allowNullPropertyValues && null == verifiedValue) {
-            final VertexProperty.Cardinality card = null == cardinality ? graph.features().vertex().getCardinality(key) : cardinality;
-            if (VertexProperty.Cardinality.single == card)
+            if (VertexProperty.Cardinality.single == cardinality)
                 properties(key).forEachRemaining(VertexProperty::remove);
+            // If List cardinality, this is no-op b/c we do not support null values.
             return VertexProperty.empty();
         }
 
@@ -623,7 +633,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
         // Write vertex property to graph.
 
-        final VertexProperty<V> vertexProperty = graph.writeVertexProperty(vertexPropertyId, this, key, verifiedValue, keyValues);
+        final VertexProperty<V> vertexProperty = graph.writeVertexProperty(cardinality, vertexPropertyId, this, key, verifiedValue, keyValues);
 
         // Return vertex property.
         return vertexProperty;

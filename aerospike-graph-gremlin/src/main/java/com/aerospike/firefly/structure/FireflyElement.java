@@ -32,6 +32,7 @@ public abstract class FireflyElement implements Element {
     }
 
     protected static IllegalStateException elementAlreadyRemoved(final Class<? extends Element> clazz, final Object id) {
+        // TODO: Proper exception ?
         return new IllegalStateException(String.format("%s with id %s was removed.", clazz.getSimpleName(), id));
     }
 

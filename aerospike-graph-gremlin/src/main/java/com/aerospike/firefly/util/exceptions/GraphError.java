@@ -63,6 +63,7 @@ public enum GraphError {
     CACHE_ADJACENT_ENABLED_COMPOSITE_ID_DISABLED(1114),
     SINDEX_RECENTLY_DROPPED(1115),
     TTL_ILLEGAL_ARGUMENT(1116),
+    SET_CARDINALITY_NOT_SUPPORTED(1117),
 
     ELEMENT_NOT_FOUND(ResultCode.KEY_NOT_FOUND_ERROR),
     RECORD_SIZE_EXCEEDED(ResultCode.RECORD_TOO_BIG),
@@ -114,6 +115,8 @@ public enum GraphError {
         // Client
         ERROR_MESSAGES.put(GRAPH_NO_MORE_CONNECTIONS.code, "There are no more available connections. Consider increasing the maximum allowable amount via the '" +
                 MAX_CONNECTIONS_PER_NODE + "' configuration key or contact support if problem persists.");
+
+        ERROR_MESSAGES.put(SET_CARDINALITY_NOT_SUPPORTED.code, "Set cardinality is not supported in Aerospike Graph. Use List or Single.");
 
         // TODO GRAPH-1307: Add more error messages
     }

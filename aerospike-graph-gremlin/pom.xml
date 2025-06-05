@@ -17,22 +17,22 @@
             <version>${aerospike-client.version}</version>
         </dependency>
         <!-- TINKERPOP -->
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6475534 in gremlin-core@3.7.1 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6475534 in gremlin-core@3.7.3 -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-configuration2</artifactId>
             <version>2.10.1</version>
         </dependency>
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMMONSBEANUTILS-10259368 in gremlin-core@3.7.3 -->
+        <dependency>
+            <groupId>commons-beanutils</groupId>
+            <artifactId>commons-beanutils</artifactId>
+            <version>1.11.0</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.tinkerpop</groupId>
             <artifactId>gremlin-core</artifactId>
             <version>${tinkerpop.version}</version>
-        </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEIVY-5847858 in gremlin-server@3.7.1 -->
-        <dependency>
-            <groupId>org.apache.ivy</groupId>
-            <artifactId>ivy</artifactId>
-            <version>2.5.2</version>
         </dependency>
         <dependency>
             <groupId>org.apache.tinkerpop</groupId>
@@ -199,7 +199,7 @@
             <version>1.19.0</version>
             <scope>test</scope>
         </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMNIMBUSDS-6247633 in gremlin-test@3.7.1 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMNIMBUSDS-6247633 in gremlin-test@3.7.3 -->
         <dependency>
             <groupId>com.nimbusds</groupId>
             <artifactId>nimbus-jose-jwt</artifactId>

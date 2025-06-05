@@ -1,6 +1,5 @@
 package com.aerospike.firefly.io.aerospike;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
@@ -10,8 +9,6 @@ import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.ListReturnType;
 import com.aerospike.client.cdt.MapOrder;
-import com.aerospike.client.listener.RecordListener;
-import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.Filter;
@@ -49,7 +46,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -380,14 +376,14 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             // ID_MGR_SET  id manager set and G_META graph metadata are not removed by removing all vertices
             Set<String> x = AerospikeConnection.InfoOps.getNonEmptySetList(db);
             // todo: double check about USAGE_STATS_SET
-            assertEquals(Set.of(db.GRAPH_METADATA_SET, db.ID_MANAGER_SET, db.SUMMARY_SET), x);
+            assertEquals(Set.of(db.GRAPH_METADATA_SET, db.ID_MANAGER_SET, db.SUMMARY_SET, db.SCHEMA_SET), x);
 
-            assertEquals(3, x.size());
+            assertEquals(4, x.size());
 
             Vertex a = graph.addVertex();
             Vertex b = graph.addVertex();
             Edge e = a.addEdge("edge", b);
-            assertEquals(5, AerospikeConnection.InfoOps.getNonEmptySetList(db).size());
+            assertEquals(6, AerospikeConnection.InfoOps.getNonEmptySetList(db).size());
 
             graph.traversal().V().drop().iterate();
             sleep(2000);

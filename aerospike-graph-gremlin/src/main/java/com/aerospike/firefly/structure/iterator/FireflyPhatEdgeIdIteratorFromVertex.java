@@ -66,7 +66,8 @@ public abstract class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdg
                 final List<FireflyEdgeId> outEdgeIds = getIndividualEdgeIdsAttachedToVertex(edgeRecord, Direction.OUT);
                 for (final FireflyEdgeId edgeId : outEdgeIds) {
                     final List<Object> edgeData = edgeRecord.getEdgeData(edgeId);
-                    if (labels.isEmpty() || labels.contains((String) edgeData.get(LABEL_POSITION))) {
+                    final String label = db.schemaManager.getEdgeLabelString((Long) edgeData.get(LABEL_POSITION));
+                    if (labels.isEmpty() || labels.contains(label)) {
                         if (outputType == OutputType.VERTEX_ID) {
                             final FireflyId vertexId = (FireflyId) edgeData.get(IN_V_POSITION);
                             outputIds.add(vertexId);
@@ -81,7 +82,8 @@ public abstract class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdg
                 final List<FireflyEdgeId> inEdgeIds = getIndividualEdgeIdsAttachedToVertex(edgeRecord, Direction.IN);
                 for (final FireflyEdgeId edgeId : inEdgeIds) {
                     final List<Object> edgeData = edgeRecord.getEdgeData(edgeId);
-                    if (labels.isEmpty() || labels.contains((String) edgeData.get(LABEL_POSITION))) {
+                    final String label = db.schemaManager.getEdgeLabelString((Long) edgeData.get(LABEL_POSITION));
+                    if (labels.isEmpty() || labels.contains(label)) {
                         if (outputType == OutputType.VERTEX_ID) {
                             final FireflyId vertexId = (FireflyId) edgeData.get(OUT_V_POSITION);
                             outputIds.add(vertexId);

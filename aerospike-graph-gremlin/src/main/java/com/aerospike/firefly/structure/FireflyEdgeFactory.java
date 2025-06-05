@@ -1,13 +1,16 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.FireflyEdgeRecord;
+import com.aerospike.firefly.io.aerospike.schema.SchemaManager;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import static com.aerospike.firefly.structure.FireflyEdge.IN_V_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.IS_IN_SUPERNODE_POSITION;
@@ -38,12 +41,19 @@ public class FireflyEdgeFactory {
             return null;
         }
 
-        final String label = (String) edgeData.get(LABEL_POSITION);
+        final SchemaManager schemaManager = graph.getBaseGraph().schemaManager;
+
+        final Long labelDisk = (Long) edgeData.get(LABEL_POSITION);
+        final String label = schemaManager.getEdgeLabelString(labelDisk);
         final FireflyId outVertex = (FireflyId) edgeData.get(OUT_V_POSITION);
         final FireflyId inVertex = (FireflyId) edgeData.get(IN_V_POSITION);
 
-        final Map<String, Object> properties = (Map<String, Object>) edgeData.get(PROPERTIES_POSITION);
-        final Map<String, Object> typeHints = (Map<String, Object>) edgeData.get(TYPE_HINTS_POSITION);
+        final Map<Long, Object> propertiesDisk = (Map<Long, Object>) edgeData.get(PROPERTIES_POSITION);
+        final Map<String, Object> properties = new TreeMap<>();
+        schemaManager.populateEdgePropertySchemaMapToStringMap(propertiesDisk, properties);
+        final Map<Long, Object> typeHintsDisk = (Map<Long, Object>) edgeData.get(TYPE_HINTS_POSITION);
+        final Map<String, Object> typeHints = new HashMap<>();
+        schemaManager.populateEdgePropertySchemaMapToStringMap(typeHintsDisk, typeHints);
 
         final boolean isOutSupernode = (boolean) edgeData.get(IS_OUT_SUPERNODE_POSITION);
         final boolean isInSupernode = (boolean) edgeData.get(IS_IN_SUPERNODE_POSITION);

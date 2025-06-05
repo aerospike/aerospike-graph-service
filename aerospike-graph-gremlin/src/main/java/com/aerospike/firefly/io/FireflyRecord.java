@@ -157,7 +157,10 @@ public class FireflyRecord {
             db.vertexNonPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
             if (!readInfo.requiredProperties.isEmpty()) {
                 // No cache for non-empty required properties.
-                final List<Value> properties = readInfo.requiredProperties.stream().map(Value::get).collect(Collectors.toList());
+                final List<Value> properties = readInfo.requiredProperties.stream().map(propertyKey -> {
+                    final Long schemaPropertyKey = db.schemaManager.getVertexPropertyRead(propertyKey);
+                    return Value.get(schemaPropertyKey);
+                }).collect(Collectors.toList());
                 db.vertexPropertyBins.forEach(bin -> operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP)));
                 records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
             } else {

@@ -2,7 +2,6 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.client.Record;
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.LazyEdgeCacheIdTransform;
@@ -11,6 +10,7 @@ import com.aerospike.firefly.structure.id.LazyVertexPropertyIdTransform;
 
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 public class FireflyVertexFactory {
     public static FireflyVertex create(final FireflyId fid,
@@ -63,7 +63,7 @@ public class FireflyVertexFactory {
 
         // Get id and label for vertex.
         final FireflyId id = graph.getIdFactory().createVertexIdFromRecord(keyRecord);
-        final String label = record.getString(db.LABEL_BIN);
+        final String label = graph.getBaseGraph().schemaManager.getVertexLabelString(record.getLong(db.LABEL_BIN));
 
         // Get cache state.
         final boolean edgeCacheOverflowed = record.getBoolean(db.EDGE_CACHE_DISABLED_BIN);
@@ -75,17 +75,27 @@ public class FireflyVertexFactory {
         graph.getIdFactory().convertMapToLazyIdsInPlace(outEdgeIds, graph, LazyEdgeCacheIdTransform.class);
         final Map<String, List<LazyIdTransform>> fireflyInEdgeIds = (Map) inEdgeIds;
         final Map<String, List<LazyIdTransform>> fireflyOutEdgeIds = (Map) outEdgeIds;
-        final Map<Object, Map<String, Object>> vertexPropertyProperties = (Map) record.getMap(db.PROPERTIES_BIN);
-        final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints = (Map) record.getMap(db.TYPE_HINTS_BIN);
+        final Map<Object, Map<Long, Object>> vertexPropertyPropertiesDisk = (Map) record.getMap(db.PROPERTIES_BIN);
+        final Map<Object, Map<String, Object>> vertexPropertyProperties = new TreeMap<>();
+        db.schemaManager.populateVertexVpPropertySchemaMapToStringMap(vertexPropertyPropertiesDisk, vertexPropertyProperties);
+        final Map<Object, Map<Long, Object>> vertexPropertyPropertiesTypeHintsDisk = (Map) record.getMap(db.TYPE_HINTS_BIN);
+        final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints = new TreeMap<>();
+        db.schemaManager.populateVertexVpPropertySchemaMapToStringMap(vertexPropertyPropertiesTypeHintsDisk, vertexPropertyPropertiesTypeHints);
 
         // Create vertex based on type hint.
         // Get vertex properties and vertex property counter from record.
-        final Map<String, Object> vertexPropertyValues =
-                (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN);
-        final Map<String, Object> vertexPropertyTypeHints =
-                (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
-        final Map<String, Object> vertexPropertyIds =
-                (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
+        final Map<Long, Object> vertexPropertyValuesDisk =
+                (Map<Long, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN);
+        final Map<String, Object> vertexPropertyValues = new TreeMap<>();
+        db.schemaManager.populateVertexPropertySchemaMapToStringMap(vertexPropertyValuesDisk, vertexPropertyValues);
+        final Map<Long, Object> vertexPropertyTypeHintsDisk =
+                (Map<Long, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
+        final Map<String, Object> vertexPropertyTypeHints = new TreeMap<>();
+        db.schemaManager.populateVertexPropertySchemaMapToStringMap(vertexPropertyTypeHintsDisk, vertexPropertyTypeHints);
+        final Map<Long, Object> vertexPropertyIdsDisk =
+                (Map<Long, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
+        final Map<String, Object> vertexPropertyIds = new TreeMap<>();
+        db.schemaManager.populateVertexPropertySchemaMapToStringMap(vertexPropertyIdsDisk, vertexPropertyIds);
         graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, LazyVertexPropertyIdTransform.class);
         final Map<String, LazyIdTransform> fireflyVertexPropertyIds = (Map) vertexPropertyIds;
         return create(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds,

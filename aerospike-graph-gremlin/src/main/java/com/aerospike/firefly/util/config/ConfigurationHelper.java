@@ -126,6 +126,7 @@ public final class ConfigurationHelper {
         public static final String ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = "aerospike.graph.strategy.local.fast.count.embedded.enabled";
         public static final String ENABLE_BATCHED_REPEAT_STEP_STRATEGY = "aerospike.graph.strategy.batched.repeat.step.enabled";
         public static final String GLOBAL_EDGE_CACHE_ENABLED = "aerospike.graph.global.edge.cache.enabled";
+        public static final String CLEAR_ON_VERSION_INCOMPATIBILITY = "aerospike.graph.clear-on-version-incompatibility.enabled";
 
         // Id buffer configs.
         public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
@@ -227,6 +228,7 @@ public final class ConfigurationHelper {
             VERTEX_PROPERTY_NAME_TO_VALUE_BIN(Pair.of((byte) 2, "VP_NAME_VAL")),
             VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN(Pair.of((byte) 3, "VP_HINT")),
             LOCK_BIN(Pair.of((byte) 4, "LOCK")),
+            SCHEMA_BIN(Pair.of((byte) 5, "SCHEMA")),
             EDGE_CACHE_DISABLED_BIN(Pair.of((byte) 6, "ECACHE_OFF")),
             IN_EDGES_BIN(Pair.of((byte) 7, "IN_EDGES")),
             OUT_EDGES_BIN(Pair.of((byte) 8, "OUT_EDGES")),
@@ -296,6 +298,7 @@ public final class ConfigurationHelper {
             VERTEX_AERO_SET(Pair.of((byte) 2, "VERTICES")),
             IN_VP_SET(Pair.of((byte) 3, "IN_VP")),
             OUT_VP_SET(Pair.of((byte) 4, "OUT_VP")),
+            SCHEMA_SET(Pair.of((byte) 8, "SCHEMA")),
             ID_MANAGER_SET(Pair.of((byte) 9, "ID_MANAGER")),
             SUMMARY_SET(Pair.of((byte) 10, "SUMMARY")),
             TEST_SET(Pair.of((byte) 11, "TEST")),
@@ -383,6 +386,7 @@ public final class ConfigurationHelper {
         put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.GLOBAL_EDGE_CACHE_ENABLED, "true");
+        put(Keys.CLEAR_ON_VERSION_INCOMPATIBILITY, "false");
         put(Keys.HTTP_PORT, "9090");
         put(Keys.HTTP_ENABLED, "true");
         put(Keys.PROMETHEUS_PATH, "/metrics");

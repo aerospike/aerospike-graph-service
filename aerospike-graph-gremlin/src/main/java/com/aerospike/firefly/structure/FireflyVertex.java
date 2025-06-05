@@ -3,11 +3,10 @@ package com.aerospike.firefly.structure;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
-import com.aerospike.firefly.structure.id.FireflyIdPoly;
-import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
+import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.structure.id.LazyIdTransform;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
@@ -16,6 +15,7 @@ import com.aerospike.firefly.structure.iterator.FireflyFilteredBatchEdgeIterator
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromIndexedVertex;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
 import com.aerospike.firefly.util.FireflyHelper;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.GraphError;
 import com.aerospike.firefly.util.exceptions.TtlArgumentException;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -253,7 +253,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      */
     @Override
     public void remove() {
-        graph.operations.removeVertex(this);
+        graph.aerospikeOperations.removeVertex(this);
 
         removeVertexProperties();
         // Set flags to indicate vertex has been removed.
@@ -378,7 +378,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final Iterator<FireflyId> adjacentEdgeIds;
         if (isEdgeCacheOverflowed) {
             final Iterator<FireflyId> sindexEdgeIds = new FireflyPhatEdgeIdIteratorFromIndexedVertex(
-                    graph.operations.getEdgeKeyRecordsByIndex(this.id, direction, labels,
+                    graph.aerospikeOperations.getEdgeKeyRecordsByIndex(this.id, direction, labels,
                             FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, aerospikeHasContainers, adjacent),
                     this.db, direction, this.id, labels, FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, adjacent);
             adjacentEdgeIds = FireflyCloseableIteratorUtils.concat(edgeIds.iterator(), sindexEdgeIds);
@@ -573,7 +573,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             throw elementAlreadyRemoved(Vertex.class, this.id);
 
         if (SUPERNODE_PROPERTY_KEY.equals(key)) {
-            graph.operations.setCacheDisabled(this);
+            graph.aerospikeOperations.setCacheDisabled(this);
             return VertexProperty.empty();
         }
 
@@ -586,7 +586,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 return VertexProperty.empty();
             }
             if (Number.class.isAssignableFrom(value.getClass())) {
-                graph.operations.setTtl(this, ((Number) value).longValue());
+                graph.aerospikeOperations.setTtl(this, ((Number) value).longValue());
                 return VertexProperty.empty();
             } else {
                 throw new TtlArgumentException(value);
@@ -657,7 +657,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Write fully qualified edge.
         final List<Map.Entry<String, Object>> properties =
                 graph.convertFullyQualified(graph.features().edge().supportsNullPropertyValues(), keyValues);
-        return graph.getOperations().writeEdge(edgeId, label, properties, (FireflyVertex) vertex, this);
+        return graph.getAerospikeOperations().writeEdge(edgeId, label, properties, (FireflyVertex) vertex, this);
     }
 
     @Override
@@ -713,7 +713,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                                                         final Set<String> labels,
                                                         final FireflyPhatEdgeIdIteratorFromVertex.OutputType outputType,
                                                         final List<HasContainer> hasContainers) {
-        return graph.operations.getEdgeKeyRecordsByIndex(this.id, direction, labels, outputType, hasContainers, null);
+        return graph.aerospikeOperations.getEdgeKeyRecordsByIndex(this.id, direction, labels, outputType, hasContainers, null);
     }
 
     public long getEdgeCount(final Direction direction) {
@@ -726,8 +726,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     public long getEdgeCount(final Direction direction, final String[] edgeLabels, final long limit, final List<HasContainer> hasContainers) {
         if (direction == Direction.BOTH) {
-            LOG.warn("getEdgeCount invoked with direction BOTH - the return value will be correct, but this method " +
-                    "is only supposed to be invoked by FireflyVertexLocalCountStep which should never pass in BOTH.");
             long count = getEdgeCount(Direction.IN, edgeLabels, limit, hasContainers)
                     + getEdgeCount(Direction.OUT, edgeLabels, limit, hasContainers);
             if (limit != -1 && count >= limit)
@@ -736,7 +734,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         }
 
         final long count = this.isEdgeCacheOverflowed
-                ? FireflyCloseableIteratorUtils.count(getSupernodeEdgeIds(direction, Set.of(edgeLabels), hasContainers))
+                ? getCachedEdgeCount(direction, edgeLabels, hasContainers) +
+                FireflyCloseableIteratorUtils.count(getSupernodeEdgeIds(direction, Set.of(edgeLabels), hasContainers))
                 : getCachedEdgeCount(direction, edgeLabels, hasContainers);
         if (limit != -1 && count >= limit)
             return limit;
@@ -861,15 +860,5 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     public void setIsEdgeCacheOverflowed(final boolean isEdgeCacheOverflowed) {
         this.isEdgeCacheOverflowed = isEdgeCacheOverflowed;
-    }
-
-    public static class PropertyValueIdMaps {
-        public final Map<String, Object> valueMap;
-        public final Map<String, FireflyId> idMap;
-
-        public PropertyValueIdMaps(final Map<String, Object> valueMap, final Map<String, FireflyId> idMap) {
-            this.valueMap = valueMap;
-            this.idMap = idMap;
-        }
     }
 }

@@ -4,7 +4,6 @@ import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStat
 import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
 import com.aerospike.firefly.bulkloader.util.ProgressBar;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
-import com.amazonaws.event.request.Progress;
 
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
 

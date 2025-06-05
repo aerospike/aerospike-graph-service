@@ -10,6 +10,8 @@ import org.apache.spark.sql.Column;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.BUCKET_ID_COLUMN;
+import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.STORAGE_ID_COLUMN;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.CLEAR_EXISTING_DATA_EMPTY_DATABASE;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.INCREMENTAL_AND_CLEAR_EXISTING_DATA;
@@ -41,19 +43,32 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.vertexOperations = new VertexOperations(
                 sparkBulkLoaderStateMachine.config,
                 sparkBulkLoaderStateMachine.vertexDirectories);
-        sparkBulkLoaderStateMachine.vertexDataset = DatasetOperations.loadDataset(
-                sparkBulkLoaderStateMachine.spark,
-                sparkBulkLoaderStateMachine.vertexDirectories,
-                VertexOperations.REQUIRED_VERTEX_HEADERS,
-                DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config));
+        if (RecoveryUtil.RecoveryState.DETECT_SUPERNODES.name().equals(info.getState())) {
+            // Edge caches not yet generated.
+            sparkBulkLoaderStateMachine.vertexDataset = DatasetOperations.loadDataset(
+                    sparkBulkLoaderStateMachine.spark,
+                    sparkBulkLoaderStateMachine.vertexDirectories,
+                    VertexOperations.REQUIRED_VERTEX_HEADERS,
+                    DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config));
+        } else {
+            // Edge caches already generated.
+            final String vertexRecoveryDirectory = info.getTempVertexDirectory();
+            sparkBulkLoaderStateMachine.vertexDirectories = sparkBulkLoaderStateMachine.getDirectories(
+                    sparkBulkLoaderStateMachine.spark,
+                    sparkBulkLoaderStateMachine.cmd,
+                    vertexRecoveryDirectory);
+            sparkBulkLoaderStateMachine.vertexDataset = sparkBulkLoaderStateMachine.spark.
+                    read().option("header", "true").option("compression", "snappy").parquet(vertexRecoveryDirectory);
 
-        // Set progress bar info.
-        LOGGER.info("Vertex dataset has {} partitions", sparkBulkLoaderStateMachine.vertexPartitionCount);
-        sparkBulkLoaderStateMachine.progressBar.setVertexPartitionCount(sparkBulkLoaderStateMachine.vertexPartitionCount);
+            // Repartition the vertex dataset and set the partition count.
+            sparkBulkLoaderStateMachine.vertexPartitionCount = info.getVertexPartitionCount();
+            sparkBulkLoaderStateMachine.vertexDataset = sparkBulkLoaderStateMachine.vertexDataset.repartition(
+                    sparkBulkLoaderStateMachine.vertexPartitionCount, new Column("~id"));
 
-        // Repartition the vertex dataset.
-        sparkBulkLoaderStateMachine.vertexDataset = sparkBulkLoaderStateMachine.vertexDataset.repartition(
-                sparkBulkLoaderStateMachine.vertexPartitionCount, new Column("~id"));
+            // Set progress bar info.
+            sparkBulkLoaderStateMachine.progressBar.setVertexPartitionCount(sparkBulkLoaderStateMachine.vertexPartitionCount);
+            LOGGER.info("Vertex dataset has {} partitions", sparkBulkLoaderStateMachine.vertexPartitionCount);
+        }
     }
 
     private void loadEdgeDataset(final RecoveryUtil.RecoveryInfo info) {
@@ -62,20 +77,24 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                 sparkBulkLoaderStateMachine.config,
                 sparkBulkLoaderStateMachine.edgeDirectories);
 
-        final String edgeRecoveryDirectory = info.getTempDirectory();
+        final String edgeRecoveryDirectory = info.getTempEdgeDirectory();
         sparkBulkLoaderStateMachine.edgeDirectories = sparkBulkLoaderStateMachine.getDirectories(
                 sparkBulkLoaderStateMachine.spark,
                 sparkBulkLoaderStateMachine.cmd,
                 edgeRecoveryDirectory);
         sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.spark.
-                read().option("header", "true").csv(edgeRecoveryDirectory);
+                read().option("header", "true").parquet(edgeRecoveryDirectory);
+        sparkBulkLoaderStateMachine.edgeCount = sparkBulkLoaderStateMachine.edgeDataset.count();
+        sparkBulkLoaderStateMachine.progressBar.setEdgeTotalCount(sparkBulkLoaderStateMachine.edgeCount);
 
-        sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartition(
-                info.getEdgePartitionCount(), new Column("~edgeid"));
 
         sparkBulkLoaderStateMachine.edgePartitionCount = info.getEdgePartitionCount();
+        sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartition(
+                sparkBulkLoaderStateMachine.edgePartitionCount, new Column(BUCKET_ID_COLUMN));
+
         LOGGER.info("EdgeId dataset has {} partitions", sparkBulkLoaderStateMachine.edgePartitionCount);
         sparkBulkLoaderStateMachine.progressBar.setEdgePartitionCount(sparkBulkLoaderStateMachine.edgePartitionCount);
+        sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.sortWithinPartitions(new Column(STORAGE_ID_COLUMN));
 
         RecoveryUtil.updateEdgeRecovery(
                 sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
@@ -97,10 +116,6 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         // Update progress bar.
         sparkBulkLoaderStateMachine.progressBar.setPreflightCheckComplete();
         sparkBulkLoaderStateMachine.progressBar.setEdgeIdWriteComplete();
-
-        // Calculate the number of partitions.
-        sparkBulkLoaderStateMachine.vertexPartitionCount = sparkBulkLoaderStateMachine.vertexDataset.rdd().partitions().length;
-        sparkBulkLoaderStateMachine.edgePartitionCount = sparkBulkLoaderStateMachine.edgeDataset.rdd().partitions().length;
     }
 
     @Override
@@ -160,24 +175,36 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
             if (state != null && !state.isEmpty()) {
                 loadCheckpointDatasets(info);
                 sparkBulkLoaderStateMachine.progressBar.setResumeableLoadComplete();
-                switch (state) {
-                    case "DETECT_SUPERNODES":
+                final RecoveryUtil.RecoveryState recoveryState = RecoveryUtil.RecoveryState.valueOf(state);
+                switch (recoveryState) {
+                    case DETECT_SUPERNODES:
                         LOGGER.info("Recovering from detectSupernodes state");
                         // Here we have completed the preflight and persistence of edge ids.
                         // Therefore, we can reload the edge dataset and vertex dataset checkpoints.
                         nextState = new SparkBulkLoaderStateDetectSupernodes(sparkBulkLoaderStateMachine);
                         break;
-                    case "VERTEX_WRITE":
+                    case GENERATE_EDGE_CACHES:
+                        LOGGER.info("Recovering from generateEdgeCaches state");
+                        sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
+                        // Here we have completed the supernode detection and died during edge cache generation.
+                        // Therefore, we can reload the edge dataset and vertex dataset checkpoint.
+                        // We can also load the supernodes and vertex partitions.
+                        nextState = new SparkBulkLoaderStateGenerateEdgeCaches(sparkBulkLoaderStateMachine);
+                        break;
+                    case VERTEX_WRITE:
                         LOGGER.info("Recovering from writeVertices state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
-                        // Here we have completed the supernode detection and died during vertex writing.
+                        sparkBulkLoaderStateMachine.progressBar.setGenerateEdgeCachesComplete();
+                        // Here we have completed the supernode detection and edge cache generation, but
+                        // died during vertex writing.
                         // Therefore, we can reload the edge dataset and vertex dataset checkpoint.
                         // We can also load the supernodes and vertex partitions.
                         nextState = new SparkBulkLoaderStateWriteVertices(sparkBulkLoaderStateMachine);
                         break;
-                    case "VERTEX_VERIFY":
+                    case VERTEX_VERIFY:
                         LOGGER.info("Recovering from verifyVertices state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
+                        sparkBulkLoaderStateMachine.progressBar.setGenerateEdgeCachesComplete();
                         sparkBulkLoaderStateMachine.progressBar.setVertexLoadComplete();
                         // Here we have completed the vertex writing and died during vertex verification.
                         // Therefore, we can reload the edge dataset and vertex dataset checkpoint.
@@ -185,9 +212,10 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                         // Vertex partitions are irrelevant, and we can restart the vertex verification step.
                         nextState = new SparkBulkLoaderStateVerifyVertices(sparkBulkLoaderStateMachine);
                         break;
-                    case "EDGE_WRITE":
+                    case EDGE_WRITE:
                         LOGGER.info("Recovering from writeEdges state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
+                        sparkBulkLoaderStateMachine.progressBar.setGenerateEdgeCachesComplete();
                         sparkBulkLoaderStateMachine.progressBar.setVertexLoadComplete();
                         sparkBulkLoaderStateMachine.progressBar.setVertexValidationComplete();
                         // Here we have completed the vertex verification and died during edge writing.
@@ -196,9 +224,10 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                         // Vertex partitions are irrelevant, and we can restart the edge writing step.
                         nextState = new SparkBulkLoaderStateWriteEdges(sparkBulkLoaderStateMachine);
                         break;
-                    case "EDGE_VERIFY":
+                    case EDGE_VERIFY:
                         LOGGER.info("Recovering from verifyEdges state");
                         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
+                        sparkBulkLoaderStateMachine.progressBar.setGenerateEdgeCachesComplete();
                         sparkBulkLoaderStateMachine.progressBar.setVertexLoadComplete();
                         sparkBulkLoaderStateMachine.progressBar.setVertexValidationComplete();
                         sparkBulkLoaderStateMachine.progressBar.setEdgeLoadComplete();

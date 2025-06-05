@@ -2,6 +2,7 @@ package com.aerospike.firefly.io;
 
 import com.aerospike.client.Record;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -15,9 +16,8 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_DATA_SIZE;
-import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_IN_KEY;
+import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_ADJACENT_ID_KEY;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_LABEL_KEY;
-import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_OUT_KEY;
 import static com.aerospike.firefly.structure.FireflyEdge.IN_V_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.IS_IN_SUPERNODE_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.IS_OUT_SUPERNODE_POSITION;
@@ -31,11 +31,11 @@ public class FireflyEdgeRecord {
     private final AerospikeConnection db;
 
     // Supernode-attached Edge data
-    private final Map<Long, String> labels;
+    private final Map<Long, Long> labels;
     private final Map<Long, FireflyId> inVs;
     private final Map<Long, FireflyId> outVs;
-    private final Map<Long, Map<String, Object>> properties;
-    private final Map<Long, Map<String, Object>> typeHints;
+    private final Map<Long, Map<Long, Object>> properties;
+    private final Map<Long, Map<Long, Object>> typeHints;
     private final Map<Long, Boolean> isOutSupernodes;
     private final Map<Long, Boolean> isInSupernodes;
 
@@ -92,7 +92,7 @@ public class FireflyEdgeRecord {
                 return edgeDataList;
             } else if (edgeDataValue instanceof Map) {
                 // Edge is attached to a supernode,
-                this.typeHints.put(uniqueEdgeId, (Map<String, Object>) edgeDataValue);
+                this.typeHints.put(uniqueEdgeId, (Map<Long, Object>) edgeDataValue);
                 flattenSupernodeEdgeData(edgeId);
                 final List<Object> edgeDataList = new ArrayList<>(EDGE_DATA_SIZE + 2);
                 edgeDataList.add(LABEL_POSITION, this.labels.get(uniqueEdgeId));
@@ -216,10 +216,10 @@ public class FireflyEdgeRecord {
         if (supernodeDataMap == null) {
             return false;
         }
-        final String adjacentVertexKey;
+        final Long schemaLabelKey = this.db.schemaManager.getEdgePropertyRead(EDGE_SUPERNODE_LABEL_KEY);
+        final Long schemaAdjacentIdKey = this.db.schemaManager.getEdgePropertyRead(EDGE_SUPERNODE_ADJACENT_ID_KEY);
         final String adjacentBinName;
         if (direction == Direction.OUT) {
-            adjacentVertexKey = EDGE_SUPERNODE_IN_KEY;
             adjacentBinName = this.db.SUPERNODES_IN_BIN;
             if (scanSupernodeIds && this.scannedOutVHashIds.contains(vertexHashId)) {
                 // We've already looked in this Vertex ID to map out Edge ID <-> IN/OUT supernode Vertex ID
@@ -228,7 +228,6 @@ public class FireflyEdgeRecord {
                 this.scannedOutVHashIds.add(vertexHashId);
             }
         } else {
-            adjacentVertexKey = EDGE_SUPERNODE_OUT_KEY;
             adjacentBinName = this.db.SUPERNODES_OUT_BIN;
             if (scanSupernodeIds && this.scannedInVHashIds.contains(vertexHashId)) {
                 // We've already looked in this Vertex ID to map out Edge ID <-> IN/OUT supernode Vertex ID
@@ -237,11 +236,11 @@ public class FireflyEdgeRecord {
                 this.scannedInVHashIds.add(vertexHashId);
             }
         }
-        final Map<String, Object> propertyKeyToEdgeIdAndValuePairMap = (Map<String, Object>) supernodeDataMap.get(vertexHashId);
+        final Map<Long, Object> propertyKeyToEdgeIdAndValuePairMap = (Map<Long, Object>) supernodeDataMap.get(vertexHashId);
         if (propertyKeyToEdgeIdAndValuePairMap == null) {
             return false;
         }
-        final Map<Long, Object> edgeUniqueIdToLabel = (Map<Long, Object>) propertyKeyToEdgeIdAndValuePairMap.get(EDGE_SUPERNODE_LABEL_KEY);
+        final Map<Long, Long> edgeUniqueIdToLabel = (Map<Long, Long>) propertyKeyToEdgeIdAndValuePairMap.get(schemaLabelKey);
         if (scanSupernodeIds) {
             for (final Long edgeId : edgeUniqueIdToLabel.keySet()) {
                 if (direction == Direction.OUT) {
@@ -254,8 +253,8 @@ public class FireflyEdgeRecord {
         if (!edgeUniqueIdToLabel.containsKey(edgeUniqueId)) {
             return false;
         } else {
-            this.labels.put(edgeUniqueId, (String) edgeUniqueIdToLabel.get(edgeUniqueId));
-            final Map<Long, Object> edgeUniqueIdToAdjacentUserVId = (Map<Long, Object>) propertyKeyToEdgeIdAndValuePairMap.get(adjacentVertexKey);
+            this.labels.put(edgeUniqueId, edgeUniqueIdToLabel.get(edgeUniqueId));
+            final Map<Long, Object> edgeUniqueIdToAdjacentUserVId = (Map<Long, Object>) propertyKeyToEdgeIdAndValuePairMap.get(schemaAdjacentIdKey);
             final FireflyId adjacentVertexId = this.db.getIdFactory().createVertexId(edgeUniqueIdToAdjacentUserVId.get(edgeUniqueId));
             if (direction == Direction.OUT) {
                 this.outVs.put(edgeUniqueId, this.db.getIdFactory().createVertexIdFromHash(vertexHashId));
@@ -276,10 +275,10 @@ public class FireflyEdgeRecord {
                     this.isOutSupernodes.put(edgeUniqueId, getIsVertexSupernode(adjacentVertexId.getKeyHashString(), adjacentBinName));
                 }
             }
-            final Map<String, Object> properties = new HashMap<>();
-            for (final Map.Entry<String, Object> propertyKeyToEdgeIdAndValuePairings : propertyKeyToEdgeIdAndValuePairMap.entrySet()) {
-                final String propertyKey = propertyKeyToEdgeIdAndValuePairings.getKey();
-                if (propertyKey.equals(EDGE_SUPERNODE_LABEL_KEY) || propertyKey.equals(adjacentVertexKey)) {
+            final Map<Long, Object> properties = new HashMap<>();
+            for (final Map.Entry<Long, Object> propertyKeyToEdgeIdAndValuePairings : propertyKeyToEdgeIdAndValuePairMap.entrySet()) {
+                final Long propertyKey = propertyKeyToEdgeIdAndValuePairings.getKey();
+                if (propertyKey.equals(schemaLabelKey) || propertyKey.equals(schemaAdjacentIdKey)) {
                     continue;
                 }
                 final Object propertyValue = ((Map<Long, Object>) propertyKeyToEdgeIdAndValuePairings.getValue()).get(edgeUniqueId);

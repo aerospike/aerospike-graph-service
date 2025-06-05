@@ -53,8 +53,11 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.getIdType;
@@ -121,8 +124,18 @@ public class DistributedWorkerExecutor {
         if (configHelper.isDebugDf()) {
             System.out.println("Ending with " + df.rdd().partitions().length + " partitions.");
         }
+        // grab cache when we are on master
+        final Map<String, Object> memoryCache = memory.getBroadcastValues();
+        final int iteration = Arrays.asList(df.schema().fieldNames()).contains(Codec.ITERATION)
+                ? (int) df.first().getAs(Codec.ITERATION) + 1
+                : memory.getIteration();
+        if (iteration != memory.getIteration() && configHelper.isDebugDf()) {
+            TaskLogger.logDebuggingMessage("Iteration number mismatch, probably spark recovery is in progress. In memory"
+                    + memory.getIteration() + "; in df " + iteration, LOGGER);
+        }
+
         return df.mapPartitions((MapPartitionsFunction<Row, Row>) itty -> {
-            String limitStepId = null;
+            String limitStepKey = null;
             TaskLogger.instance.setDebugging(configHelper.isDebugDf());
             TaskLogger.logDebuggingMessage("Starting with " + (itty.hasNext() ? "non-empty" : "empty") + " partition.", LOGGER);
 
@@ -151,7 +164,7 @@ public class DistributedWorkerExecutor {
                         if (rangeGlobalStep.getLowRange() != 0) {
                             break;
                         }
-                        limitStepId = String.format("%s-accumulator", rangeGlobalStep.getId());
+                        limitStepKey = AerospikeComputeKey.createAccumulator(rangeGlobalStep.getId());
                         break;
                     }
                 }
@@ -251,7 +264,7 @@ public class DistributedWorkerExecutor {
                     iterator = FireflyCloseableIteratorUtils.map(itty, r -> codec.decode(r));
                 }
 
-                final LocalWorkerMemory workerMemory = new LocalWorkerMemory(memory, graph);
+                final LocalWorkerMemory workerMemory = new LocalWorkerMemory(memory, graph, memoryCache, iteration);
 
                 vertexProgram.workerIterationStart(workerMemory.asImmutable());
 
@@ -266,13 +279,13 @@ public class DistributedWorkerExecutor {
 
                 final BulkedRowSet output = new BulkedRowSet(codec);
                 while (iterator.hasNext()) {
-                    TaskLogger.logDebuggingMessage("Input TraverserSet size: " + traverserSet.size() + "/" + runningTotal
-                            + " Total allocated=" + runtime.totalMemory() / (1024 * 1024 * 1024) +
-                            ", Free memory=" + runtime.freeMemory() / (1024 * 1024 * 1024) +
-                            " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024 * 1024), LOGGER);
                     while (traverserSet.size() < maxBatchSize && iterator.hasNext()) {
                         traverserSet.add(iterator.next().asAdmin());
                     }
+                    TaskLogger.logDebuggingMessage("Input TraverserSet size: " + traverserSet.size() + "/" + runningTotal
+                            + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
+                            ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
+                            " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), LOGGER);
                     if (TaskContext.get().isInterrupted()) {
                         throw new InterruptedException();
                     }
@@ -294,8 +307,8 @@ public class DistributedWorkerExecutor {
                     job.clear();
                     TimeLog.complete("Encoding");
 
-                    if (limitStepId != null && (Long) memory.get(limitStepId) <= 0) {
-                        TaskLogger.logDebuggingMessage("Limit reached " + memory.get(limitStepId), LOGGER);
+                    if (limitStepKey != null && (Long) memory.get(limitStepKey) <= 0) {
+                        TaskLogger.logDebuggingMessage("Limit reached " + memory.get(limitStepKey), LOGGER);
                         break;
                     }
                 }
@@ -307,7 +320,10 @@ public class DistributedWorkerExecutor {
                 TimeLog.complete("Worker iteration end");
 
                 // Return results.
-                TaskLogger.logDebuggingMessage("Ending with " + output.rowCount() + " rows.", LOGGER);
+                TaskLogger.logDebuggingMessage("Ending with " + output.rowCount() + " rows."
+                        + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
+                        ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
+                        " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), LOGGER);
                 TimeLog.log(graph);
                 if (iterator instanceof CloseableIterator) {
                     ((CloseableIterator) iterator).close();
@@ -353,8 +369,8 @@ public class DistributedWorkerExecutor {
         rows.stream().forEach(row -> traversers.add(codec.decode(row).asAdmin()));
 
         // set barrier with sorted data
-        memory.set(((Step)op).getId(), traversers);
-        memory.set(MUTATED_MEMORY_KEYS, new HashSet<>(Collections.singleton(((Step)op).getId())));
+        memory.set(((Step) op).getId(), traversers);
+        memory.set(MUTATED_MEMORY_KEYS, new HashSet<>(Collections.singleton(((Step) op).getId())));
         memory.set(VOTE_TO_HALT, true);
 
         // following steps will be local

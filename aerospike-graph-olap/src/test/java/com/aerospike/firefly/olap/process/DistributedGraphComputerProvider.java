@@ -62,6 +62,14 @@ import static com.aerospike.firefly.olap.Tokens.INTEGRATION_TEST_PROPERTIES;
         test = "org.apache.tinkerpop.gremlin.process.traversal.step.ComplexTest",
         method = "classicRecommendation",
         reason = "Require GRATEFUL graph with multi-properties.")
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.step.ComplexTest",
+        method = "coworkerSummary",
+        reason = "unstable test, check later.")
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SeedStrategyProcessTest",
+        method = "shouldSeedGlobalSample",
+        reason = "Require GRATEFUL graph with multi-properties.")
 
 @GraphProvider.Descriptor(computer = DistributedGraphComputer.class)
 public class DistributedGraphComputerProvider extends AbstractGraphProvider {

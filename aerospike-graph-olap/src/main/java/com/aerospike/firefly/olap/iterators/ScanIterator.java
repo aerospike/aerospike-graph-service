@@ -4,6 +4,7 @@ import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
+import com.aerospike.firefly.io.FireflyEdgeRecord;
 import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
 import com.aerospike.firefly.io.aerospike.query.paged.PaginationIterator;
 import com.aerospike.firefly.io.aerospike.query.paged.ScanPageFetcher;
@@ -14,6 +15,7 @@ import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.util.TimeoutHelper;
 import org.apache.spark.sql.Row;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -52,8 +54,8 @@ public class ScanIterator implements CloseableIterator<Traverser> {
     int rowCount = 0;
     PageFetcher<?> pageFetcher = null;
     PageFetcher.Page page = null;
-    Iterator<Map.Entry<ByteBuffer, List>> edgeIterator;
-    KeyRecord kr = null;
+    Iterator<ByteBuffer> edgeIterator;
+    FireflyEdgeRecord edgeRecord;
 
     public ScanIterator(final FireflyGraph graph,
                         final GraphStep graphStep,
@@ -190,29 +192,15 @@ public class ScanIterator implements CloseableIterator<Traverser> {
             if (edgeIterator == null || !edgeIterator.hasNext()) {
                 verifyPageHasNext();
                 final KeyRecord keyRecord = page.keyRecords.next();
-                final Map<ByteBuffer, List> edgeData = (Map<ByteBuffer, List>) keyRecord.record.getMap(graph.getBaseGraph().EDGE_DATA_BIN);
-                edgeIterator = edgeData.entrySet().iterator();
-                kr = keyRecord;
+                final Map<ByteBuffer, Object> edgeData = (Map<ByteBuffer, Object>) keyRecord.record.getMap(graph.getBaseGraph().EDGE_DATA_BIN);
+                edgeIterator = edgeData.keySet().iterator();
+                edgeRecord = new FireflyEdgeRecord(keyRecord.record, this.graph.getBaseGraph());
             }
 
-            final Map.Entry<ByteBuffer, List> entry = edgeIterator.next();
-            final String label = (String) entry.getValue().get(FireflyEdge.LABEL_POSITION);
+            final ByteBuffer edgeIdBytes = edgeIterator.next();
+            final FireflyPhatEdgeId edgeId = graph.getIdFactory().createEdgeId(edgeIdBytes);
 
-            final String outV = (String) entry.getValue().get(FireflyEdge.OUT_V_POSITION);
-            final FireflyId outVertex = graph.getIdFactory().createVertexIdFromHash(outV);
-
-            final String inV = (String) entry.getValue().get(FireflyEdge.IN_V_POSITION);
-            final FireflyId inVertex = graph.getIdFactory().createVertexIdFromHash(inV);
-
-            final Map<String, Object> properties = (Map<String, Object>) entry.getValue().get(FireflyEdge.PROPERTIES_POSITION);
-            final Map<String, Object> typeHints = (Map<String, Object>) entry.getValue().get(FireflyEdge.TYPE_HINTS_POSITION);
-
-            final Map<ByteBuffer, String> outSupernodes = (Map<ByteBuffer, String>) kr.record.getMap(graph.getBaseGraph().SUPERNODES_OUT_BIN);
-            final Map<ByteBuffer, String> inSupernodes = (Map<ByteBuffer, String>) kr.record.getMap(graph.getBaseGraph().SUPERNODES_IN_BIN);
-            final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(entry.getKey());
-            final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(entry.getKey());
-
-            final FireflyEdge edge = FireflyEdgeFactory.create(graph.getIdFactory().createEdgeId(entry.getKey()), label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, kr.record.generation);
+            final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, edgeRecord, graph);
             Traverser t = tg.generate(edge, graphStep, 1L);
             t.asAdmin().setStepId(startStep);
             return t;

@@ -29,9 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_IN_KEY;
+import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_ADJACENT_ID_KEY;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_LABEL_KEY;
-import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_OUT_KEY;
 
 public class GraphQueryHelper {
 
@@ -58,6 +57,10 @@ public class GraphQueryHelper {
         final IndexCollectionType type = db.LABEL_BIN.equals(indexInfo.key) ?
                 IndexCollectionType.DEFAULT : IndexCollectionType.MAPVALUES;
         final Object value = predicate.getValue();
+        if (db.LABEL_BIN.equals(indexInfo.key)) {
+            return Filter.contains(name, type, db.schemaManager.getVertexLabelRead(((String) value)));
+        }
+        final Long schemaKey = db.schemaManager.getVertexPropertyRead(indexInfo.key);
         if (Number.class.isAssignableFrom(value.getClass())) {
             final Long casted;
             if (Integer.class.isAssignableFrom(value.getClass())) {
@@ -69,24 +72,20 @@ public class GraphQueryHelper {
             }
 
             if (predicate.getBiPredicate().equals(Compare.eq)) {
-                return Filter.equal(name, casted, CTX.mapKey(Value.get(indexInfo.key)));
+                return Filter.equal(name, casted, CTX.mapKey(Value.get(schemaKey)));
             } else if (predicate.getBiPredicate().equals(Compare.lt)) {
-                return Filter.range(name, Long.MIN_VALUE, casted - 1, CTX.mapKey(Value.get(indexInfo.key)));
+                return Filter.range(name, Long.MIN_VALUE, casted - 1, CTX.mapKey(Value.get(schemaKey)));
             } else if (predicate.getBiPredicate().equals(Compare.lte)) {
-                return Filter.range(name, Long.MIN_VALUE, casted, CTX.mapKey(Value.get(indexInfo.key)));
+                return Filter.range(name, Long.MIN_VALUE, casted, CTX.mapKey(Value.get(schemaKey)));
             } else if (predicate.getBiPredicate().equals(Compare.gt)) {
-                return Filter.range(name, casted - 1, Long.MAX_VALUE, CTX.mapKey(Value.get(indexInfo.key)));
+                return Filter.range(name, casted - 1, Long.MAX_VALUE, CTX.mapKey(Value.get(schemaKey)));
             } else if (predicate.getBiPredicate().equals(Compare.gte)) {
-                return Filter.range(name, casted, Long.MAX_VALUE, CTX.mapKey(Value.get(indexInfo.key)));
+                return Filter.range(name, casted, Long.MAX_VALUE, CTX.mapKey(Value.get(schemaKey)));
             } else {
                 throw new RuntimeException(String.format("%s not a supported predicate", predicate));
             }
         } else {
-            if (db.LABEL_BIN.equals(indexInfo.key)) {
-                return Filter.contains(name, type, (String) value);
-            } else {
-                return Filter.equal(name, (String) value, CTX.mapKey(Value.get(indexInfo.key)));
-            }
+            return Filter.equal(name, (String) value, CTX.mapKey(Value.get(schemaKey)));
         }
     }
 
@@ -104,11 +103,12 @@ public class GraphQueryHelper {
                                             final P<?> predicate) {
         // If the bin is the label bin, we can make a very simple predicate.
         if (db.LABEL_BIN.equals(binName)) {
-            return Exp.eq(Exp.stringBin(db.LABEL_BIN), Exp.val((String) predicate.getValue()));
+            return Exp.eq(Exp.intBin(db.LABEL_BIN), Exp.val(db.schemaManager.getVertexLabelRead((String) predicate.getValue())));
         }
 
         // Need to build a more complex expression for nested map values.
         final Object value = predicate.getValue();
+        final Long schemaMapKey = db.schemaManager.getVertexPropertyRead(mapKey);
         if (Number.class.isAssignableFrom(value.getClass())) {
             final Long casted;
             if (Integer.class.isAssignableFrom(value.getClass())) {
@@ -120,21 +120,21 @@ public class GraphQueryHelper {
             }
 
             if (predicate.getBiPredicate().equals(Compare.eq)) {
-                return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
+                return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
             } else if (predicate.getBiPredicate().equals(Compare.lt)) {
-                return Exp.lt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
+                return Exp.lt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
             } else if (predicate.getBiPredicate().equals(Compare.lte)) {
-                return Exp.le(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
+                return Exp.le(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
             } else if (predicate.getBiPredicate().equals(Compare.gt)) {
-                return Exp.gt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
+                return Exp.gt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
             } else if (predicate.getBiPredicate().equals(Compare.gte)) {
-                return Exp.ge(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
+                return Exp.ge(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
             } else {
                 throw new RuntimeException(String.format("%s not a supported predicate", predicate));
             }
         } else {
             if (value instanceof String) // TODO: support List of values
-                return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.STRING, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val((String) value));
+                return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.STRING, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val((String) value));
             else {
                 return Exp.nil();
             }
@@ -194,12 +194,12 @@ public class GraphQueryHelper {
     public static Expression phatEdgeHasContainerListToExpression(final AerospikeConnection db,
                                                                   final List<HasContainer> hasContainers,
                                                                   final Set<String> labels,
-                                                                  final String vertexIdKeyHashString,
+                                                                  final FireflyId vertexId,
                                                                   final FireflyId adjacentVertexId,
                                                                   final Direction direction) {
-        final Exp labelExp = getPhatEdgeLabelExp(db, labels, vertexIdKeyHashString);
-        final Exp propertiesExp = getPhatEdgePropertyExp(db, hasContainers, vertexIdKeyHashString);
-        final Exp adjacentVertexExp = getPhatEdgeAdjacentVertexExp(db, adjacentVertexId, direction, vertexIdKeyHashString);
+        final Exp labelExp = getPhatEdgeLabelExp(db, labels, direction, vertexId);
+        final Exp propertiesExp = getPhatEdgePropertyExp(db, hasContainers, direction, vertexId);
+        final Exp adjacentVertexExp = getPhatEdgeAdjacentVertexExp(db, adjacentVertexId, direction, vertexId);
         if (labelExp == null && propertiesExp == null && adjacentVertexExp == null) {
             return null;
         }
@@ -218,15 +218,19 @@ public class GraphQueryHelper {
 
     private static Exp getPhatEdgeLabelExp(final AerospikeConnection db,
                                            final Set<String> labels,
-                                           final String vertexIdKeyHashString) {
+                                           final Direction direction,
+                                           final FireflyId vertexId) {
         if (labels.isEmpty()) {
             return null;
         } else {
+            final String binName = direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN;
             final List<Exp> allLabelExp = new ArrayList<>();
             for (final String label : labels) {
-                final Exp labelExp = MapExp.getByValue(MapReturnType.EXISTS, Exp.val(label),
-                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
-                        CTX.mapKey(Value.get(EDGE_SUPERNODE_LABEL_KEY)));
+                final Long schemaLabelKey = db.schemaManager.getEdgePropertyRead(EDGE_SUPERNODE_LABEL_KEY);
+                final Long schemaLabel = db.schemaManager.getEdgeLabelRead(label);
+                final Exp labelExp = MapExp.getByValue(MapReturnType.EXISTS, Exp.val(schemaLabel),
+                        Exp.mapBin(binName), CTX.mapKey(Value.get(vertexId.getKeyHashString())),
+                        CTX.mapKey(Value.get(schemaLabelKey)));
                 allLabelExp.add(labelExp);
             }
             if (allLabelExp.size() == 1) {
@@ -240,36 +244,41 @@ public class GraphQueryHelper {
     private static Exp getPhatEdgeAdjacentVertexExp(final AerospikeConnection db,
                                                     final FireflyId adjacentVertexId,
                                                     final Direction direction,
-                                                    final String vertexIdKeyHashString) {
+                                                    final FireflyId vertexId) {
         if (adjacentVertexId == null) {
             return null;
         }
-        final String directionMapKey;
+        final Long schemaAdjacentIdKey = db.schemaManager.getEdgePropertyRead(EDGE_SUPERNODE_ADJACENT_ID_KEY);
+        final String binName;
         if (direction == Direction.IN) {
-            directionMapKey = EDGE_SUPERNODE_OUT_KEY;
+            binName = db.SUPERNODES_IN_BIN;
         } else if (direction == Direction.OUT) {
-            directionMapKey = EDGE_SUPERNODE_IN_KEY;
+            binName = db.SUPERNODES_OUT_BIN;
         } else {
             // This should never happen.
             throw new IllegalArgumentException("Adjacency pushdown filter for adjacent Vertex ID can not be invoked with Direction BOTH.");
         }
-         return MapExp.getByValue(MapReturnType.EXISTS, Exp.val(adjacentVertexId.getKeyHashString()),
-                 Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
-                 CTX.mapKey(Value.get(directionMapKey)));
+        final Exp vertexUserIdExp = adjacentVertexId.getUserId() instanceof String ?
+                Exp.val((String) adjacentVertexId.getUserId()) :
+                Exp.val(((Number) adjacentVertexId.getUserId()).longValue());
+        return MapExp.getByValue(MapReturnType.EXISTS, vertexUserIdExp,
+                 Exp.mapBin(binName), CTX.mapKey(Value.get(vertexId.getKeyHashString())),
+                 CTX.mapKey(Value.get(schemaAdjacentIdKey)));
     }
 
     private static Exp getPhatEdgePropertyExp(final AerospikeConnection db,
                                               final List<HasContainer> hasContainers,
-                                              final String vertexIdKeyHashString) {
+                                              final Direction direction,
+                                              final FireflyId vertexId) {
         if (hasContainers.isEmpty()) {
             return null;
         }
         final PhatEdgeHasContainers phatEdgeHasContainers = new PhatEdgeHasContainers(hasContainers);
         final Exp[] exps = phatEdgeHasContainers.filteredHasContainers.stream().map(hasContainer ->
-                        phatEdgePredicateToExp(db, vertexIdKeyHashString, hasContainer.getKey(), hasContainer.getPredicate()))
+                        phatEdgePredicateToExp(db, direction, vertexId, hasContainer.getKey(), hasContainer.getPredicate()))
                 .toArray(Exp[]::new);
         final Exp[] compoundExps = phatEdgeHasContainers.compoundHasContainers.entrySet().stream().map(compoundContainer ->
-                        phatEdgeCompoundPredicateToExp(db, vertexIdKeyHashString, compoundContainer))
+                        phatEdgeCompoundPredicateToExp(db, direction, vertexId, compoundContainer))
                 .toArray(Exp[]::new);
         final Exp[] allExps = ArrayUtils.addAll(exps, compoundExps);
         if (allExps.length == 1) {
@@ -279,13 +288,16 @@ public class GraphQueryHelper {
         }
     }
 
-    private static Exp phatEdgePredicateToExp(final AerospikeConnection db, final String vertexIdKeyHashString,
-                                              final String propertyKey, final P<?> predicate) {
+    private static Exp phatEdgePredicateToExp(final AerospikeConnection db, final Direction direction,
+                                              final FireflyId vertexId, final String propertyKey,
+                                              final P<?> predicate) {
         // Build expression for nested Phat Edge properties.
+        final String binName = direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN;
+        final Long schemaPropertyKey = db.schemaManager.getEdgePropertyRead(propertyKey);
         final Object value = predicate.getValue();
         if (predicate.getBiPredicate().equals(Contains.within)) {
             final Exp[] containsExps = ((Collection<?>) value).stream().map(collectionValue ->
-                    phatEdgePredicateToExp(db, vertexIdKeyHashString, propertyKey, new P<>(Compare.eq, collectionValue)))
+                    phatEdgePredicateToExp(db, direction, vertexId, propertyKey, new P<>(Compare.eq, collectionValue)))
                     .toArray(Exp[]::new);
             return containsExps.length == 1 ? containsExps[0] : Exp.or(containsExps);
         } else if (Number.class.isAssignableFrom(value.getClass())) {
@@ -300,25 +312,25 @@ public class GraphQueryHelper {
 
             if (predicate.getBiPredicate().equals(Compare.eq)) {
                 return MapExp.getByValue(MapReturnType.EXISTS, Exp.val(casted),
-                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
-                        CTX.mapKey(Value.get(propertyKey)));
+                        Exp.mapBin(binName), CTX.mapKey(Value.get(vertexId.getKeyHashString())),
+                        CTX.mapKey(Value.get(schemaPropertyKey)));
             } else if (predicate.getBiPredicate().equals(Compare.lt)) {
                 // getByValueRange valueBegin is inclusive; valueEnd is exclusive.
                 return MapExp.getByValueRange(MapReturnType.EXISTS, Exp.val(Long.MIN_VALUE), Exp.val(casted),
-                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
-                        CTX.mapKey(Value.get(propertyKey)));
+                        Exp.mapBin(binName), CTX.mapKey(Value.get(vertexId.getKeyHashString())),
+                        CTX.mapKey(Value.get(schemaPropertyKey)));
             } else if (predicate.getBiPredicate().equals(Compare.lte)) {
                 return MapExp.getByValueRange(MapReturnType.EXISTS, Exp.val(Long.MIN_VALUE), Exp.val(casted + 1),
-                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
-                        CTX.mapKey(Value.get(propertyKey)));
+                        Exp.mapBin(binName), CTX.mapKey(Value.get(vertexId.getKeyHashString())),
+                        CTX.mapKey(Value.get(schemaPropertyKey)));
             } else if (predicate.getBiPredicate().equals(Compare.gt)) {
                 return MapExp.getByValueRange(MapReturnType.EXISTS, Exp.val(casted + 1), Exp.val(Long.MAX_VALUE),
-                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
-                        CTX.mapKey(Value.get(propertyKey)));
+                        Exp.mapBin(binName), CTX.mapKey(Value.get(vertexId.getKeyHashString())),
+                        CTX.mapKey(Value.get(schemaPropertyKey)));
             } else if (predicate.getBiPredicate().equals(Compare.gte)) {
                 return MapExp.getByValueRange(MapReturnType.EXISTS, Exp.val(casted), Exp.val(Long.MAX_VALUE),
-                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
-                        CTX.mapKey(Value.get(propertyKey)));
+                        Exp.mapBin(binName), CTX.mapKey(Value.get(vertexId.getKeyHashString())),
+                        CTX.mapKey(Value.get(schemaPropertyKey)));
             } else {
                 throw new RuntimeException(String.format("%s not a supported predicate", predicate));
             }
@@ -326,22 +338,26 @@ public class GraphQueryHelper {
             // If the accessor is an ID use a special expression that leverages the label key instead.
             if (T.id.getAccessor().equals(propertyKey)) {
                 final FireflyPhatEdgeId edgeId = db.getIdFactory().createEdgeId(value);
+                final Long schemaLabelKey = db.schemaManager.getEdgePropertyRead(EDGE_SUPERNODE_LABEL_KEY);
                 return MapExp.getByKey(MapReturnType.EXISTS, Exp.Type.BOOL, Exp.val(edgeId.getUniqueId()),
-                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
-                        CTX.mapKey(Value.get(EDGE_SUPERNODE_LABEL_KEY)));
+                        Exp.mapBin(binName), CTX.mapKey(Value.get(vertexId.getKeyHashString())),
+                        CTX.mapKey(Value.get(schemaLabelKey)));
             } else {
                 return MapExp.getByValue(MapReturnType.EXISTS, Exp.val((String) value),
-                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
-                        CTX.mapKey(Value.get(propertyKey)));
+                        Exp.mapBin(binName), CTX.mapKey(Value.get(vertexId.getKeyHashString())),
+                        CTX.mapKey(Value.get(schemaPropertyKey)));
             }
         }
     }
 
-    private static Exp phatEdgeCompoundPredicateToExp(final AerospikeConnection db, final String vertexIdKeyHashString,
+    private static Exp phatEdgeCompoundPredicateToExp(final AerospikeConnection db, final Direction direction,
+                                                      final FireflyId vertexId,
                                                       final Map.Entry<String, List<Long>> compoundHasContainer) {
+        final String binName = direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN;
+        final Long schemaCompoundPropertyKey = db.schemaManager.getEdgePropertyRead(compoundHasContainer.getKey());
         return MapExp.getByValueRange(MapReturnType.EXISTS, Exp.val(compoundHasContainer.getValue().get(0)),
-                Exp.val(compoundHasContainer.getValue().get(1)), Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN),
-                CTX.mapKey(Value.get(vertexIdKeyHashString)), CTX.mapKey(Value.get(compoundHasContainer.getKey())));
+                Exp.val(compoundHasContainer.getValue().get(1)), Exp.mapBin(binName),
+                CTX.mapKey(Value.get(vertexId.getKeyHashString())), CTX.mapKey(Value.get(schemaCompoundPropertyKey)));
     }
 
     private static class PhatEdgeHasContainers {

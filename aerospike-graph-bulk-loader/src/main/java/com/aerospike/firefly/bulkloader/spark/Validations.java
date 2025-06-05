@@ -154,7 +154,7 @@ public class Validations {
     }
 
     public static void dryRunEdgeRows(final Dataset<Row> edgeDataset, final BulkLoaderConfigHelper config) {
-        long badEntryCount = dryRunEdgeCreation(edgeDataset,config);
+        long badEntryCount = dryRunEdgeCreation(edgeDataset, config);
         final long allowedBadEntryCount = config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
         if (badEntryCount > 0) {
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {

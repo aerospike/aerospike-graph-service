@@ -1,6 +1,8 @@
 package com.aerospike.firefly.olap.process.packing;
 
 
+import com.aerospike.client.BatchRecord;
+import com.aerospike.client.BatchWrite;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
@@ -17,6 +19,7 @@ import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.exp.MapExp;
+import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -26,7 +29,9 @@ import org.javatuples.Pair;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DistributedAerospikeConnection {
     private final AerospikeConnection db;
@@ -62,13 +67,11 @@ public class DistributedAerospikeConnection {
     }
 
     // Truncate OLAP set.
-
     public void truncateOlapSet() {
         db.truncate(null, db.OLAP_SET, null);
     }
 
     // Long accumulator functions.
-    // TODO: Do we need set ?
     public void setAccumulator(final String name, final Long amount) {
         final Key key = new Key(namespace, set, name);
         final Bin ctr = new Bin(bin, amount);
@@ -145,12 +148,76 @@ public class DistributedAerospikeConnection {
     }
 
     // Packed accumulator functions.
+    public void setPackedAccumulatorDouble(final String vertexId, final Double value, final int iteration) {
+        final Key key = getPackedKeyFromId(vertexId);
+        final String mapKeyId = vertexId + "_" + iteration;
+        final Operation put = MapOperation.put(MapPolicy.Default, bin, Value.get(mapKeyId), Value.get(value));
+        db.writeOperate(null, key, put);
+    }
 
     public void addPackedAccumulatorDouble(final String vertexId, final Double amount, final int iteration) {
         final Key key = getPackedKeyFromId(vertexId);
         final String mapKeyId = vertexId + "_" + iteration;
         Operation incrememt = MapOperation.increment(MapPolicy.Default, bin, Value.get(mapKeyId), Value.get(amount));
         db.writeOperate(null, key, incrememt);
+    }
+
+    public Double getPackedAccumulatorDoubleSum(final List<String> vertexIds, final int iteration) {
+        if (vertexIds.isEmpty()) {
+            return 0.0;
+        }
+
+        final Key[] keys = vertexIds.stream().map(this::getPackedKeyFromId).toArray(Key[]::new);
+        final Record[] records = db.dynamicBatchRead(keys, null, null);
+
+        double sum = 0.0;
+        for (int i = 0; i < vertexIds.size(); i++) {
+            final String mapKeyId = vertexIds.get(i) + "_" + iteration;
+            sum += (double) records[i].getMap(bin).get(mapKeyId);
+        }
+
+        return sum;
+    }
+
+    public void setPackedAccumulatorDouble(final Map<String, Double> vertexEnergy, final int iteration) {
+        if (vertexEnergy.isEmpty()) {
+            return;
+        }
+
+        final List<BatchRecord> batchRecords = new ArrayList<>();
+        for (Map.Entry<String, Double> entry : vertexEnergy.entrySet()) {
+            final Key key = getPackedKeyFromId(entry.getKey());
+            final String mapKeyId = entry.getKey() + "_" + iteration;
+            final Operation put = MapOperation.put(MapPolicy.Default, bin, Value.get(mapKeyId), Value.get(entry.getValue()));
+            batchRecords.add(new BatchWrite(key, new Operation[]{put}));
+        }
+
+        final BatchPolicy policy = new BatchPolicy();
+        policy.setMaxConcurrentThreads(2);
+        db.batchOperate(policy, batchRecords);
+    }
+
+    public Map<String, Double> getPackedAccumulatorDoubleCache(final List<String> vertexIds, final int iteration) {
+        if (vertexIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        final int chunkSize = db.PAGINATION_PAGE_SIZE;
+        final Map<String, Double> result = new HashMap<>();
+        for (int i = 0; i < vertexIds.size(); i += chunkSize) {
+            final int end = Math.min(vertexIds.size(), i + chunkSize);
+            final List<String> chunk = vertexIds.subList(i, end);
+
+            final Key[] keys = chunk.stream().map(this::getPackedKeyFromId).toArray(Key[]::new);
+            final Record[] records = db.dynamicBatchRead(keys, null, null);
+
+            for (int j = 0; j < chunk.size(); j++) {
+                final String mapKeyId = chunk.get(j) + "_" + iteration;
+                result.put(chunk.get(j), (double) records[j].getMap(bin).get(mapKeyId));
+            }
+        }
+
+        return result;
     }
 
     public Double getPackedAccumulatorDouble(final String vertexId, final int iteration) {
@@ -276,8 +343,8 @@ public class DistributedAerospikeConnection {
             return Collections.emptyList();
         }
 
-        final List names = (List)record.getMap(bin).get(mapKeyId);
-        final List values = (List)record.getMap(secondBin).get(mapKeyId);
+        final List names = (List) record.getMap(bin).get(mapKeyId);
+        final List values = (List) record.getMap(secondBin).get(mapKeyId);
         if (names == null || values == null || names.isEmpty()) {
             return Collections.emptyList();
         }

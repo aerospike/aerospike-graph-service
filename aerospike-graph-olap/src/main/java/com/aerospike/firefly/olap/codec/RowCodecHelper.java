@@ -5,7 +5,6 @@ import com.aerospike.firefly.olap.structure.DistributedReferenceVertexProperty;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
-import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ImmutablePath;
@@ -22,6 +21,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.LP_O_OB_P_S_SE_S
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.LP_O_OB_S_SE_SL_Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.NL_O_OB_S_SE_SL_Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.O_OB_S_SE_SL_Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.ProjectedTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.LabelledCounter;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -31,12 +31,15 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceEdge;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
-import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceProperty;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
-import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertexProperty;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -45,8 +48,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
-import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.olap.codec.Codec.ELEMENT_ID_COL;
+import static com.aerospike.firefly.olap.codec.Codec.ELEMENT_ID_TYPEHINT_COL;
+import static com.aerospike.firefly.olap.codec.RowCodec.BINARY_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.ID_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.ID_TYPEHINT_COL;
@@ -62,8 +67,6 @@ import static com.aerospike.firefly.olap.codec.RowCodec.SL_COUNT_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.SL_NAME_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.STEP_COL;
 import static com.aerospike.firefly.olap.codec.RowCodec.TRAVERSER_TYPE_COL;
-import static com.aerospike.firefly.olap.codec.RowCodec.ELEMENT_ID_COL;
-import static com.aerospike.firefly.olap.codec.RowCodec.ELEMENT_ID_TYPEHINT_COL;
 
 public class RowCodecHelper {
     private static final String ENCODE_TOKEN = "~.~";
@@ -157,7 +160,7 @@ public class RowCodecHelper {
                     final ReferenceEdge edge = (ReferenceEdge) getReferenceElement(
                             RowCodec.TRAVERSER_TYPE.EDGE.ordinal(), getId(idKeyPair[0], info.pathIdTypeHints.get(i)), null);
                     value = new DistributedReferenceEdgeProperty<>(idKeyPair[1], edge);
-                }else if (pathType == RowCodec.TRAVERSER_TYPE.INTEGER.ordinal() || pathType == RowCodec.TRAVERSER_TYPE.STRING.ordinal()) {
+                } else if (pathType == RowCodec.TRAVERSER_TYPE.INTEGER.ordinal() || pathType == RowCodec.TRAVERSER_TYPE.STRING.ordinal()) {
                     value = getId(info.pathIds.get(i), info.pathIdTypeHints.get(i));
                 } else {
                     throw new RuntimeException("Error, path type '" + pathType + "' is not supported.");
@@ -166,9 +169,7 @@ public class RowCodecHelper {
                 path = path.extend(value, labels);
                 pathField.set(t, path);
             }
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        } catch (IllegalAccessException e) {
+        } catch (final NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException(e);
         }
     }
@@ -191,41 +192,41 @@ public class RowCodecHelper {
     }
 
     public static SingleLoopInfo getSingleLoopInfo(final Traverser t) {
-        final Class baseClass = t instanceof B_O_Traverser ? B_O_S_SE_SL_Traverser.class : O_OB_S_SE_SL_Traverser.class;
+        final Traverser traverser = ProjectedTraverser.tryUnwrap(t.asAdmin());
+        final Class baseClass = traverser instanceof B_O_Traverser ? B_O_S_SE_SL_Traverser.class : O_OB_S_SE_SL_Traverser.class;
         try {
             Field loopNameField = baseClass.getDeclaredField("loopName");
             loopNameField.setAccessible(true);
             Field loopsField = baseClass.getDeclaredField("loops");
             loopsField.setAccessible(true);
-            return new SingleLoopInfo(loopsField.getInt(t), (String) loopNameField.get(t));
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        } catch (IllegalAccessException e) {
+            return new SingleLoopInfo(loopsField.getInt(traverser), (String) loopNameField.get(traverser));
+        } catch (final NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException(e);
         }
     }
 
     public static NestedLoopInfo getNestedLoopInfo(final Traverser t) {
+        final Traverser traverser = ProjectedTraverser.tryUnwrap(t.asAdmin());
         final Class baseClass;
-        if (t instanceof NL_O_OB_S_SE_SL_Traverser) {
+        if (traverser instanceof NL_O_OB_S_SE_SL_Traverser) {
             baseClass = NL_O_OB_S_SE_SL_Traverser.class;
-        } else if (t instanceof LP_NL_O_OB_S_SE_SL_Traverser) {
+        } else if (traverser instanceof LP_NL_O_OB_S_SE_SL_Traverser) {
             baseClass = LP_NL_O_OB_S_SE_SL_Traverser.class;
-        } else if (t instanceof LP_NL_O_OB_P_S_SE_SL_Traverser) {
+        } else if (traverser instanceof LP_NL_O_OB_P_S_SE_SL_Traverser) {
             baseClass = LP_NL_O_OB_P_S_SE_SL_Traverser.class;
-        } else if (t instanceof B_NL_O_S_SE_SL_Traverser) {
+        } else if (traverser instanceof B_NL_O_S_SE_SL_Traverser) {
             baseClass = B_NL_O_S_SE_SL_Traverser.class;
-        } else if (t instanceof B_LP_NL_O_S_SE_SL_Traverser) {
+        } else if (traverser instanceof B_LP_NL_O_S_SE_SL_Traverser) {
             baseClass = B_LP_NL_O_S_SE_SL_Traverser.class;
-        } else if (t instanceof B_LP_NL_O_P_S_SE_SL_Traverser) {
+        } else if (traverser instanceof B_LP_NL_O_P_S_SE_SL_Traverser) {
             baseClass = B_LP_NL_O_P_S_SE_SL_Traverser.class;
         } else {
-            throw new RuntimeException("Error, traverser type '" + t.getClass() + "' does not support nested loops.");
+            throw new RuntimeException("Error, traverser type '" + traverser.getClass() + "' does not support nested loops.");
         }
         try {
             final Field nestedLoopsField = baseClass.getDeclaredField("nestedLoops");
             nestedLoopsField.setAccessible(true);
-            final Stack<LabelledCounter> labelledCounters = (Stack<LabelledCounter>) nestedLoopsField.get(t);
+            final Stack<LabelledCounter> labelledCounters = (Stack<LabelledCounter>) nestedLoopsField.get(traverser);
             final List<String> loopNames = new ArrayList<>();
             final List<Integer> loopCounts = new ArrayList<>();
             List<String> loopSteps = new ArrayList<>();
@@ -238,13 +239,13 @@ public class RowCodecHelper {
                 loopNames.add(label);
                 loopCounts.add(lc.count());
             }
-            final org.apache.commons.collections.map.ReferenceMap loopNamesMap = (org.apache.commons.collections.map.ReferenceMap) loopNamesField.get(t);
+            final org.apache.commons.collections.map.ReferenceMap loopNamesMap = (org.apache.commons.collections.map.ReferenceMap) loopNamesField.get(traverser);
             for (final String loopName : loopNames) {
                 final Iterator<Object> it = loopNamesMap.entrySet().iterator();
                 if (it.hasNext()) {
                     while (it.hasNext()) {
                         Map.Entry<String, LabelledCounter> entry = (Map.Entry<String, LabelledCounter>) it.next();
-                        LabelledCounter lc = (LabelledCounter) entry.getValue();
+                        LabelledCounter lc = entry.getValue();
                         final Field loopLabel = LabelledCounter.class.getDeclaredField("label");
                         loopLabel.setAccessible(true);
                         final String subLoopName = (String) loopLabel.get(lc);
@@ -257,9 +258,7 @@ public class RowCodecHelper {
                 }
             }
             return new NestedLoopInfo(loopNames, loopCounts, loopSteps);
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        } catch (IllegalAccessException e) {
+        } catch (final NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException(e);
         }
     }
@@ -300,8 +299,7 @@ public class RowCodecHelper {
                 ids.add(id.toString() + ENCODE_TOKEN + p.key());
                 idTypeHints.add(getIdType(id).ordinal());
                 objTypes.add(RowCodec.TRAVERSER_TYPE.EDGE_PROPERTY.ordinal());
-            }
-            else {
+            } else {
                 throw new RuntimeException("Error, only elements are currently supported '" + o.getClass() + "' is not supported.");
             }
         }
@@ -326,13 +324,16 @@ public class RowCodecHelper {
             row.add(v.id().toString());
             row.add(getIdType(v.id()).ordinal());
         } else {
-            throw new RuntimeException("Error, encoder for " + element.getClass() + " is not implemented");
+            row.add(RowCodec.TRAVERSER_TYPE.OTHER.ordinal()); // Integer traverser type.
+            row.add(null);
+            row.add(null);
         }
         row.add(element.id().toString()); // String id.
         row.add(getIdType(element.id()).ordinal()); // Integer ordinal.
         row.add(element.label()); // String label.
         row.add(tm.getStepById(step) instanceof EmptyStep || tm.getStepById(step) == null); // Boolean halted.
         row.add(step); // String step.
+        row.add(null); // serialized object. for Element just null.
     }
 
     public static void addBaseRow(final List<Object> row, final Traverser traverser) {
@@ -358,6 +359,7 @@ public class RowCodecHelper {
             row.add(element.label()); // String label.
             row.add(traverser.asAdmin().isHalted()); // Boolean halted. TODO: Is this always OK? What about g.V()?
             row.add(traverser.asAdmin().getStepId()); // String step.
+            row.add(null); // serialized object
         } else if (t instanceof Property) {
             final Property property = (Property) t;
             final Element e = property.element();
@@ -377,8 +379,41 @@ public class RowCodecHelper {
             row.add(null); // String label.
             row.add(traverser.asAdmin().isHalted()); // Boolean halted. TODO: Is this always OK? What about g.V()?
             row.add(traverser.asAdmin().getStepId()); // String step.
+            row.add(null); // serialized object
         } else {
-            throw new RuntimeException("Error, encoder for " + t.getClass() + " is not implemented");
+            row.add(RowCodec.TRAVERSER_TYPE.OTHER.ordinal()); // Integer traverser type.
+            row.add(null);
+            row.add(null);
+            row.add(""); // String id.
+            row.add(RowCodec.ID_TYPE.NONE.ordinal());
+            row.add(null); // String label.
+            row.add(traverser.asAdmin().isHalted()); // Boolean halted. TODO: Is this always OK? What about g.V()?
+            row.add(traverser.asAdmin().getStepId()); // String step.
+            row.add(serialize(t)); // serialized object
+        }
+
+        if (traverser instanceof ProjectedTraverser) {
+            for (final Object projection : ((ProjectedTraverser) traverser).getProjections()) {
+                if (projection instanceof Element) {
+                    if (((Element) projection).id() instanceof String)
+                        row.add(((Element) projection).id());
+                    else
+                        row.add(String.format("%17d", ((Element) projection).id()));
+                } else if (projection instanceof Long || projection instanceof Integer || projection instanceof Short || projection instanceof Byte) {
+                    row.add(String.format("%17d", projection));
+                } else if (projection instanceof Double || projection instanceof Float) {
+                    // https://stackoverflow.com/questions/44055173/map-java-double-to-string-preserving-sort-order
+                    final long bits = Double.doubleToLongBits((Double) projection);
+                    final String s = Long.toString(bits);
+                    final String f = (bits < 0 ? "--------------------" : "00000000000000000000").substring(s.length()) + s;
+                    row.add(f);
+                } else if (projection == null || projection instanceof String) {
+                    row.add(projection);
+                } else {
+                    // sort as is. Results might be unexpected for Collections.
+                    row.add(projection.toString());
+                }
+            }
         }
     }
 
@@ -405,7 +440,9 @@ public class RowCodecHelper {
     }
 
     public static RowCodec.ID_TYPE getIdType(final Object id) {
-        if (id instanceof Long) {
+        if (id == null) {
+            return RowCodec.ID_TYPE.NONE;
+        } else if (id instanceof Long) {
             return RowCodec.ID_TYPE.LONG;
         } else if (id instanceof Integer) {
             return RowCodec.ID_TYPE.INTEGER;
@@ -457,7 +494,8 @@ public class RowCodecHelper {
                 .add(ID_TYPEHINT_COL, DataTypes.IntegerType, false)
                 .add(LABEL_COL, DataTypes.StringType, true)
                 .add(HALTED_COL, DataTypes.BooleanType, false)
-                .add(STEP_COL, DataTypes.StringType, false);
+                .add(STEP_COL, DataTypes.StringType, false)
+                .add(BINARY_COL, DataTypes.BinaryType, true);
     }
 
 
@@ -468,9 +506,34 @@ public class RowCodecHelper {
             return Long.parseLong(id);
         } else if (RowCodec.ID_TYPE.INTEGER.ordinal() == idTypeOrdinal) {
             return Integer.parseInt(id);
+        } else if (RowCodec.ID_TYPE.NONE.ordinal() == idTypeOrdinal) {
+            return null;
         } else {
             // TODO.
             throw new IllegalArgumentException("Only string int and long ids are supported in olap");
         }
+    }
+
+    public static byte[] serialize(Object object) {
+        byte[] data;
+        try (final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             final ObjectOutputStream out = new ObjectOutputStream(bos)) {
+            out.writeObject(object);
+            data = bos.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return data;
+    }
+
+    public static Object deserialize(byte[] data) {
+        Object obj;
+        try (final ByteArrayInputStream byteStream = new ByteArrayInputStream(data);
+             final ObjectInputStream objectStream = new ObjectInputStream(byteStream)) {
+            obj = objectStream.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        return obj;
     }
 }

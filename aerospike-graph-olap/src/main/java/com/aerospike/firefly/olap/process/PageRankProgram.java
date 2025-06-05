@@ -1,22 +1,22 @@
 package com.aerospike.firefly.olap.process;
 
-import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.codec.PageRankCodec;
+import com.aerospike.firefly.olap.helper.TaskLogger;
 import com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection;
+import com.aerospike.firefly.olap.structure.AerospikeComputeKey;
 import com.aerospike.firefly.olap.structure.MutableDetachedVertexProperty;
 import com.aerospike.firefly.process.computer.VertexProgramConfig;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.commons.configuration2.BaseConfiguration;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.MemoryComputeKey;
-import org.apache.tinkerpop.gremlin.process.computer.VertexComputeKey;
-import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.ranking.pagerank.PageRankVertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.Operator;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalUtil;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -26,50 +26,54 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static com.aerospike.firefly.olap.codec.PageRankCodec.getOutVertexIds;
-import static com.aerospike.firefly.olap.helper.ProgramHelper.executeVertexProgram;
-import static com.aerospike.firefly.olap.helper.ProgramHelper.removeTemporaryProperties;
+import static com.aerospike.firefly.olap.codec.PageRankCodec.getInVertexIds;
+import static com.aerospike.firefly.olap.codec.PageRankCodec.getOutVertexCount;
 import static com.aerospike.firefly.process.computer.VertexProgramConfig.TRAVERSAL_VERTEX_PROGRAM_STEP;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
-public class PageRankProgram implements FireflyProgram {
+public class PageRankProgram extends AlgorithmProgram {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PageRankProgram.class);
 
-    private static final String ALPHA = "gremlin.pageRankProgram.alpha";
-    private static final String MAX_ITERATIONS = "gremlin.pageRankProgram.maxIterations";
-    private static final String EDGE_TRAVERSAL = "gremlin.pageRankProgram.edgeTraversal";
-    private static final String PROPERTY = "gremlin.pageRankProgram.property";
-    private static final String EPSILON = "gremlin.pageRankProgram.epsilon";
-    private static final String INITIAL_RANK_TRAVERSAL = "gremlin.pageRankProgram.initialRankTraversal";
+    // config constants, same as in TinkerPop
+    private static final String ALPHA = "gremlin.pageRankVertexProgram.alpha";
+    private static final String EPSILON = "gremlin.pageRankVertexProgram.epsilon";
+    private static final String MAX_ITERATIONS = "gremlin.pageRankVertexProgram.maxIterations";
+    private static final String EDGE_TRAVERSAL = "gremlin.pageRankVertexProgram.edgeTraversal";
+    private static final String INITIAL_RANK_TRAVERSAL = "gremlin.pageRankVertexProgram.initialRankTraversal";
+    private static final String PROPERTY = "gremlin.pageRankVertexProgram.property";
 
-    private static final String PAGE_RANK = "gremlin.pageRankProgram.pageRank";
-    public static final String OUT_VERTICES = "~gremlin.pageRankProgram.outVertices";
+    // vertex properties
+    public static final String IN_VERTICES = "~gremlin.pageRankProgram.inVertices";
+    public static final String OUT_VERTEX_COUNT = "~gremlin.pageRankProgram.outVertexCount";
 
-    private static final String VERTEX_COUNT = "vertexCount~L";
-    private static final String TELEPORTATION_ENERGY = "teleportationEnergy~D";
-    private static final String CONVERGENCE_ERROR = "convergenceError~D";
+    // memory keys
+    private static final String VERTEX_COUNT = AerospikeComputeKey.createLong("vertexCount", false);
+    private static final String TELEPORTATION_ENERGY = AerospikeComputeKey.createDouble("teleportationEnergy", true);
+    private static final String CONVERGENCE_ERROR = AerospikeComputeKey.createDouble("convergenceError", true);
 
     // todo: not implemented
     private PureTraversal<Vertex, Edge> edgeTraversal = null;
     private PureTraversal<Vertex, ? extends Number> initialRankTraversal = null;
-    private PureTraversal<Vertex, Vertex> graphTraversal;
-    private PureTraversal<Vertex, ?> vertexProgramTraversal;
 
     private double alpha = 0.85d;
     private double epsilon = 0.00001d;
     private int maxIterations = 20;
-    public static String property = PAGE_RANK;
     private Set<MemoryComputeKey> memoryComputeKeys;
 
-    private Codec codec;
-    private FireflyGraph graph;
-    private DistributedAerospikeConnection db;
+    private OptionsStrategy optionsStrategy;
 
     // for serialization
     private PageRankProgram() {
@@ -79,22 +83,25 @@ public class PageRankProgram implements FireflyProgram {
         final BaseConfiguration configuration = new BaseConfiguration();
         program.storeState(configuration);
         loadState(graph, configuration);
-
-        init(graph);
     }
 
     private void init(final FireflyGraph graph) {
         final Traversal.Admin t = graph.traversal().V().asAdmin();
-        t.setStrategies(TraversalStrategies.GlobalCache.getStrategies(graph.getClass()));
+        t.setStrategies(TraversalStrategies.GlobalCache.getStrategies(graph.getClass()).clone());
+        t.getStrategies().addStrategies(optionsStrategy);
         this.graphTraversal = new PureTraversal(t);
 
-        this.codec = new PageRankCodec(t);
+        this.columnName = PageRankCodec.PAGERANK_COL;
+        this.codec = new PageRankCodec(t, this.property);
         this.graph = graph;
         this.db = new DistributedAerospikeConnection(graph);
     }
 
     @Override
     public void execute(final BatchJob job, final Memory memory) {
+        final String info = String.format("Starting PageRankProgram Iteration %d with %d traversers", memory.getIteration(), job.getStarts().size());
+        TaskLogger.logDebuggingMessage(info, LOGGER);
+
         if (1 == memory.getIteration()) {
             memory.add(VERTEX_COUNT, (long) job.getStarts().size());
 
@@ -104,9 +111,6 @@ public class PageRankProgram implements FireflyProgram {
             });
 
             job.pass();
-
-            // CONVERGENCE_ERROR used to determine if we need to finish
-            memory.set(CONVERGENCE_ERROR, 1.0d);
             return;
         }
 
@@ -116,15 +120,47 @@ public class PageRankProgram implements FireflyProgram {
                 0.0d :
                 TraversalUtil.apply(new ReferenceVertex(-1), this.initialRankTraversal.get()).doubleValue();
 
+        updateDetached(job.getStarts(), memory.getIteration());
+
+        // should never happen
+        final AtomicReference<FireflyVertex> anyFireflyVertex = new AtomicReference<>();
+        job.getStarts().forEach(traverser -> {
+            if (traverser.get() instanceof FireflyVertex) {
+                anyFireflyVertex.set((FireflyVertex) traverser.get());
+                final DetachedVertex vertex = buildDetached((Vertex) traverser.get());
+                traverser.set(vertex);
+            }
+        });
+        if (anyFireflyVertex.get() != null) {
+            TaskLogger.logDebuggingMessage("Possible spark recovery started, found FireflyVertex " + anyFireflyVertex.get() + " at iteration " + memory.getIteration(), LOGGER);
+        }
+
+        // prepare cache
+        final Map<String, Double> cache;
+        if (memory.getIteration() > 2) {
+            final Set<String> ids = new HashSet<>();
+            job.getStarts().forEach(traverser -> {
+                final DetachedVertex vertex = (DetachedVertex) traverser.get();
+                ids.addAll(vertex.<List<String>>value(IN_VERTICES));
+            });
+            cache = db.getPackedAccumulatorDoubleCache(new ArrayList<>(ids), memory.getIteration() - 1);
+        } else {
+            cache = Collections.emptyMap();
+        }
+
         final double teleportationEnergy = memory.get(TELEPORTATION_ENERGY);
+        final Map<String, Double> writeBatch = new HashMap<>();
         job.getStarts().forEach(traverser -> {
             final DetachedVertex vertex = (DetachedVertex) traverser.get();
             final String id = graph.getIdFactory().createVertexId(vertex.id()).toString();
-            final List<String> outVertices = vertex.value(OUT_VERTICES);
+            final List<String> inVertices = vertex.value(IN_VERTICES);
+            final Long outVertexCount = vertex.value(OUT_VERTEX_COUNT);
 
             double pageRank = 2 == memory.getIteration()
                     ? initialRank
-                    : db.getPackedAccumulatorDouble(id, memory.getIteration() - 1);
+                    : inVertices.stream()
+                        .mapToDouble(vertexId -> cache.getOrDefault(vertexId, 0.0))
+                        .sum();
 
             //////////////////////////
             if (teleportationEnergy > 0.0d) {
@@ -132,54 +168,55 @@ public class PageRankProgram implements FireflyProgram {
                 pageRank = pageRank + localTerminalEnergy;
                 memory.add(TELEPORTATION_ENERGY, -localTerminalEnergy);
             }
-            final double previousPageRank = vertex.<Double>property(property).orElse(0.0d);
-            memory.add(CONVERGENCE_ERROR, Math.abs(pageRank - previousPageRank));
 
-            final MutableDetachedVertexProperty p = (MutableDetachedVertexProperty) vertex.properties(property).next();
+            final MutableDetachedVertexProperty p = (MutableDetachedVertexProperty) vertex.property(property);
+            final double previousPageRank = (double) p.value();
+            memory.add(CONVERGENCE_ERROR, Math.abs(pageRank - previousPageRank));
             p.setValue(pageRank);
 
             memory.add(TELEPORTATION_ENERGY, (1.0d - this.alpha) * pageRank);
             pageRank = this.alpha * pageRank;
 
-            if (outVertices.isEmpty())
+            if (outVertexCount == 0)
                 memory.add(TELEPORTATION_ENERGY, pageRank);
             else {
-                final double finalPageRank = pageRank;
-                outVertices.forEach(vertexId ->
-                        db.addPackedAccumulatorDouble(vertexId, finalPageRank / outVertices.size(), memory.getIteration())
-                );
+                writeBatch.put(id, pageRank / outVertexCount);
+                if (writeBatch.size() >= 100) {
+                    db.setPackedAccumulatorDouble(writeBatch, memory.getIteration());
+                    writeBatch.clear();
+                }
             }
             traverser.set(vertex);
         });
 
+        db.setPackedAccumulatorDouble(writeBatch, memory.getIteration());
+        writeBatch.clear();
+        cache.clear();
+
         job.pass();
     }
 
-    private DetachedVertex buildDetached(final Vertex vertex) {
+    @Override
+    protected DetachedVertex buildDetached(final Vertex vertex) {
         if (vertex instanceof DetachedVertex)
             return (DetachedVertex) vertex;
 
-        final List<String> outVertices = getOutVertexIds(vertex);
+        final List<String> inVertices = getInVertexIds(vertex);
+        final Long outVertexCount = getOutVertexCount(vertex);
 
-        final DetachedVertexProperty outVertexProperty = new DetachedVertexProperty(null, OUT_VERTICES, outVertices, null);
+        final DetachedVertexProperty inVertexProperty = new DetachedVertexProperty(null, IN_VERTICES, inVertices, null);
+        final DetachedVertexProperty outVertexCountProperty = new DetachedVertexProperty(null, OUT_VERTEX_COUNT, outVertexCount, null);
         final MutableDetachedVertexProperty pagerankProperty = new MutableDetachedVertexProperty(null, property, 0.0, null);
 
-        return new DetachedVertex(vertex.id(), "", List.of(outVertexProperty, pagerankProperty));
-    }
-
-    @Override
-    public Codec getCodec() {
-        return codec;
-    }
-
-    @Override
-    public PureTraversal<?, ?> getTraversal() {
-        return graphTraversal;
+        return new DetachedVertex(vertex.id(), "", List.of(inVertexProperty, outVertexCountProperty, pagerankProperty));
     }
 
     @Override
     public boolean terminate(final Memory memory) {
-        boolean terminate = memory.<Double>get(CONVERGENCE_ERROR) < this.epsilon || memory.getIteration() >= this.maxIterations;
+        boolean terminate = memory.getIteration() >= this.maxIterations
+                // first iteration is setup, so no CONVERGENCE_ERROR
+                || (memory.getIteration() > 1 && memory.<Double>get(CONVERGENCE_ERROR) < this.epsilon);
+        // set CONVERGENCE_ERROR for next iteration
         memory.set(CONVERGENCE_ERROR, 0.0d);
         return terminate;
     }
@@ -188,7 +225,8 @@ public class PageRankProgram implements FireflyProgram {
     public void setup(final Memory memory) {
         memory.set(TELEPORTATION_ENERGY, null == this.initialRankTraversal ? 1.0d : 0.0d);
         memory.set(VERTEX_COUNT, 0L);
-        memory.set(CONVERGENCE_ERROR, 1.0d);
+        // CONVERGENCE_ERROR used to determine if we need to finish
+        memory.set(CONVERGENCE_ERROR, 1.00d);
     }
 
     @Override
@@ -201,22 +239,24 @@ public class PageRankProgram implements FireflyProgram {
         this.alpha = configuration.getDouble(ALPHA, this.alpha);
         this.epsilon = configuration.getDouble(EPSILON, this.epsilon);
         this.maxIterations = configuration.getInt(MAX_ITERATIONS, 20);
-        property = configuration.getString(PROPERTY, PAGE_RANK);
+        this.property = configuration.getString(PROPERTY, PageRankVertexProgram.PAGE_RANK);
         this.memoryComputeKeys = new HashSet<>(Arrays.asList(
                 MemoryComputeKey.of(TELEPORTATION_ENERGY, Operator.sum, true, true),
                 MemoryComputeKey.of(VERTEX_COUNT, Operator.sumLong, true, false),
                 MemoryComputeKey.of(CONVERGENCE_ERROR, Operator.sum, false, true),
+                MemoryComputeKey.of(START_STEP, Operator.assign, true, false),
                 // todo:
                 MemoryComputeKey.of(HALTED_TRAVERSERS, Operator.addAll, false, false)));
 
         this.vertexProgramTraversal = PureTraversal.loadState(configuration, TRAVERSAL_VERTEX_PROGRAM_STEP, graph);
+        this.optionsStrategy = OptionsStrategy.create(configuration);
 
         init((FireflyGraph) graph);
     }
 
     @Override
     public void storeState(final Configuration configuration) {
-        FireflyProgram.super.storeState(configuration);
+        super.storeState(configuration);
         configuration.setProperty(ALPHA, this.alpha);
         configuration.setProperty(EPSILON, this.epsilon);
         configuration.setProperty(PROPERTY, property);
@@ -230,49 +270,12 @@ public class PageRankProgram implements FireflyProgram {
     }
 
     @Override
-    public Set<VertexComputeKey> getVertexComputeKeys() {
-        return Collections.emptySet();
-    }
-
-    @Override
     public Set<MemoryComputeKey> getMemoryComputeKeys() {
         return this.memoryComputeKeys;
     }
 
     @Override
-    public VertexProgram<TraverserSet<Object>> clone() {
-        return null;
-    }
-
-    @Override
-    public GraphComputer.ResultGraph getPreferredResultGraph() {
-        return GraphComputer.ResultGraph.ORIGINAL;
-    }
-
-    @Override
-    public GraphComputer.Persist getPreferredPersist() {
-        return GraphComputer.Persist.NOTHING;
-    }
-
-    @Override
     public String toString() {
         return StringFactory.vertexProgramString(this, "alpha=" + this.alpha + ", epsilon=" + this.epsilon + ", iterations=" + this.maxIterations);
-    }
-
-    @Override
-    public Features getFeatures() {
-        return new Features() {
-            @Override
-            public boolean requiresVertexPropertyAddition() {
-                return true;
-            }
-        };
-    }
-
-    @Override
-    public void postProcessResults(final TraverserSet traversers) {
-        removeTemporaryProperties(traversers, property);
-
-        executeVertexProgram(traversers, vertexProgramTraversal);
     }
 }

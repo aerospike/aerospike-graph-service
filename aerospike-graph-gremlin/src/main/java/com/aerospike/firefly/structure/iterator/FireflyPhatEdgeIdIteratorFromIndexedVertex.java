@@ -1,25 +1,19 @@
 package com.aerospike.firefly.structure.iterator;
 
-import com.aerospike.client.Record;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.firefly.io.FireflyEdgeRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Edge;
 
-import java.nio.ByteBuffer;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_IN_KEY;
-import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_OUT_KEY;
 
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
@@ -68,64 +62,14 @@ public class FireflyPhatEdgeIdIteratorFromIndexedVertex extends FireflyPhatEdgeI
     }
 
     @Override
-    protected Set<ByteBuffer> getIndividualEdgeIdsAttachedToVertex(final Record record, final Direction direction) {
-        final String directionKey;
-        final String adjacentVertexMapKey;
-        if (direction == Direction.BOTH) {
-            // Direction.BOTH should not be propagated here and should be combined at a higher level.
-            throw new RuntimeException("Cannot get individual Edge IDs attached to a Vertex with Direction.BOTH");
-        } else {
-            if (direction == Direction.OUT) {
-                directionKey = db.SUPERNODES_OUT_BIN;
-                adjacentVertexMapKey = EDGE_SUPERNODE_IN_KEY;
-            } else {
-                directionKey = db.SUPERNODES_IN_BIN;
-                adjacentVertexMapKey = EDGE_SUPERNODE_OUT_KEY;
-            }
-        }
+    protected List<FireflyEdgeId> getIndividualEdgeIdsAttachedToVertex(final FireflyEdgeRecord record, final Direction direction) {
+        final List<FireflyEdgeId> ids = record.getIndividualEdgeIdsAttachedToSupernode(this.vertexId, direction, this.adjacentVertexId);
 
-        final Map<ByteBuffer, String> edgeIdToVertexIdMap = (Map<ByteBuffer, String>) record.getMap(directionKey);
-        if (edgeIdToVertexIdMap == null) {
-            return Collections.emptySet();
-        }
-
-        final Set<Long> uniqueEdgeIdsAttachedToAdjacentVertex = new HashSet<>();
-        if (adjacentVertexId != null) {
-            final Map<String, Object> adjacencyPushdowns = (Map<String, Object>) record.getMap(db.SUPERNODE_EDGE_PROPERTIES_BIN);
-            if (adjacencyPushdowns != null) {
-                final Map<String, Object> propertyKeys = (Map<String, Object>) adjacencyPushdowns.get(vertexId.getKeyHashString());
-                if (propertyKeys != null) {
-                    final Map<Long, String> edgeIdToVertexId = (Map<Long, String>) propertyKeys.get(adjacentVertexMapKey);
-                    if (edgeIdToVertexId != null) {
-                        for (final Map.Entry<Long, String> edgeIdToVertexIdEntry : edgeIdToVertexId.entrySet()) {
-                            if (edgeIdToVertexIdEntry.getValue().equals(adjacentVertexId.getKeyHashString())) {
-                                uniqueEdgeIdsAttachedToAdjacentVertex.add(edgeIdToVertexIdEntry.getKey());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        final Set<ByteBuffer> attachedEdgeIds = new HashSet<>();
-        for (final Map.Entry<ByteBuffer, String> edgeIdToVertexId : edgeIdToVertexIdMap.entrySet()) {
-            if (edgeIdToVertexId.getValue().equals(this.vertexId.getKeyHashString())) {
-                if (adjacentVertexId == null) {
-                    attachedEdgeIds.add(edgeIdToVertexId.getKey());
-                } else {
-                    final FireflyPhatEdgeId edgeId = this.db.getIdFactory().createEdgeId(edgeIdToVertexId.getKey());
-                    if (uniqueEdgeIdsAttachedToAdjacentVertex.contains(edgeId.getUniqueId())) {
-                        attachedEdgeIds.add(edgeIdToVertexId.getKey());
-                    }
-                }
-            }
-        }
         if (edgeCache != null) {
-            for (final ByteBuffer edgeId : attachedEdgeIds) {
-                final FireflyId dbEdgeId = db.getIdFactory().createEdgeId(edgeId);
-                edgeCache.put(dbEdgeId, FireflyEdgeFactory.create(dbEdgeId, record, graph));
+            for (final FireflyEdgeId edgeId : ids) {
+                edgeCache.put(edgeId, FireflyEdgeFactory.create(edgeId, record, graph));
             }
         }
-        return attachedEdgeIds;
+        return ids;
     }
 }

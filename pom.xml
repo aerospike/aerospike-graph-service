@@ -53,7 +53,7 @@
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <aerospike-client.version>9.0.4</aerospike-client.version>
+        <aerospike-client.version>9.0.5</aerospike-client.version>
         <tinkerpop.version>3.7.3</tinkerpop.version>
         <junit.version>4.13.1</junit.version>
         <hamcrest.version>2.2</hamcrest.version>
@@ -192,7 +192,8 @@
                         <exclude>**/TestAerospikeClientProviderConfiguration.java</exclude>
                         <exclude>**/TestRecoveryUtil</exclude>
                         <exclude>**/TestSparkStateMachineRecovery</exclude>
-                        <exclude>**/TestBulkLoaderRecovery</exclude>
+                        <exclude>**/TestBulkLoaderRecovery1</exclude>
+                        <exclude>**/TestBulkLoaderRecovery2</exclude>
                         <exclude>**/TestRecoveryActionFlags</exclude>
                         <exclude>**/QueryServiceAbortTest</exclude>
                         <exclude>**/TestAerospikeClientConfigEventLoop</exclude>

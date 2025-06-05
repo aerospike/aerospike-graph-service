@@ -1,7 +1,6 @@
 package com.aerospike.firefly.structure.id;
 
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
@@ -30,7 +29,7 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyIdFactory {
-    private static final Logger LOG = LoggerFactory.getLogger(FireflyVertex.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyIdFactory.class);
 
     private final AerospikeConnection db;
     private final IdManager<Long> vertexIdManager;
@@ -49,13 +48,13 @@ public class FireflyIdFactory {
 
     public FireflyIdFactory(final AerospikeConnection db) {
         this.db = db;
-        this.vertexIdManager = new BufferedNumericIdManager(VERTEX_ID_COUNTER, db.VERTEX_ID_BUFFER_SIZE);
+        this.vertexIdManager = new DecrementingNumericIdManager(VERTEX_ID_COUNTER, db.VERTEX_ID_BUFFER_SIZE);
         if (db.MRT_ENABLED && !db.getBulkLoaderFlag()) {
             this.edgeIdManager = new MrtRecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, db.EDGE_ID_RECYCLE_BUFFER_SIZE, db.PHAT_EDGE_SIZE);
         } else {
             this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, db.EDGE_ID_RECYCLE_BUFFER_SIZE);
         }
-        this.vertexPropertyIdManager = new BufferedNumericIdManager(VERTEX_PROPERTY_ID_COUNTER, db.PROPERTY_ID_BUFFER_SIZE);
+        this.vertexPropertyIdManager = new DecrementingNumericIdManager(VERTEX_PROPERTY_ID_COUNTER, db.PROPERTY_ID_BUFFER_SIZE);
     }
 
     public FireflyId createVertexId(final Object id) {
@@ -222,18 +221,6 @@ public class FireflyIdFactory {
                 }
             }
         });
-    }
-
-    public Map<String, Object> convertMapToStorage(final Map<String, FireflyId> fireflyObjectIds) {
-        if (fireflyObjectIds == null) {
-            return new TreeMap<>();
-        }
-        final Map<String, Object> labelEdgeIds = new TreeMap<>();
-        for (final String label : fireflyObjectIds.keySet()) {
-            final Object id = fireflyObjectIds.get(label).getStorageId();
-            labelEdgeIds.put(label, id);
-        }
-        return labelEdgeIds;
     }
 
     public long getTypeHint(final Object id) {

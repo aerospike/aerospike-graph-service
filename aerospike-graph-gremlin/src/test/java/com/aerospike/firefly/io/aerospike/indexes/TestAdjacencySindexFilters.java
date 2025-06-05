@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_LABEL_KEY;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.PHAT_EDGE_SIZE;
 
@@ -407,6 +408,9 @@ public class TestAdjacencySindexFilters {
             g.addE("e2").property("fromto", "v1v2").from(v1).to(v2).iterate();
             g.addE("e3").property("fromto", "v3v4").from(v3).to(v4).iterate();
 
+            final Long labelPropertyKey = phatFirefly.getBaseGraph().schemaManager.getEdgePropertyRead(EDGE_SUPERNODE_LABEL_KEY);
+            final Long fromtoPropertyKey = phatFirefly.getBaseGraph().schemaManager.getEdgePropertyRead("fromto");
+
             HasContainer hasv1v2= new HasContainer("fromto", P.eq("v1v2"));
             HasContainer hasv3v4 = new HasContainer("fromto", P.eq("v3v4"));
             Assert.assertEquals(1, Iterators.size(v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasv1v2))));
@@ -418,23 +422,24 @@ public class TestAdjacencySindexFilters {
             Assert.assertEquals(0, Iterators.size(v4.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasv1v2))));
             Assert.assertEquals(1, Iterators.size(v4.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasv3v4))));
             Record record = v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, Collections.emptyList()).next().record;
-            Map<String, Map<String, Map<Long, Object>>> supernodePMap = (Map<String, Map<String, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODE_EDGE_PROPERTIES_BIN);
-            Assert.assertTrue(supernodePMap.containsKey(v1.id.getKeyHashString()));
-            Assert.assertTrue(supernodePMap.containsKey(v2.id.getKeyHashString()));
-            Assert.assertTrue(supernodePMap.containsKey(v3.id.getKeyHashString()));
-            Assert.assertTrue(supernodePMap.containsKey(v4.id.getKeyHashString()));
-            Assert.assertEquals(3, supernodePMap.get(v1.id.getKeyHashString()).size());
-            Assert.assertEquals(3, supernodePMap.get(v2.id.getKeyHashString()).size());
-            Assert.assertEquals(3, supernodePMap.get(v3.id.getKeyHashString()).size());
-            Assert.assertEquals(3, supernodePMap.get(v4.id.getKeyHashString()).size());
-            Assert.assertEquals(2, supernodePMap.get(v1.id.getKeyHashString()).get("fromto").size());
-            Assert.assertEquals(2, supernodePMap.get(v1.id.getKeyHashString()).get("~label").size());
-            Assert.assertEquals(2, supernodePMap.get(v2.id.getKeyHashString()).get("fromto").size());
-            Assert.assertEquals(2, supernodePMap.get(v2.id.getKeyHashString()).get("~label").size());
-            Assert.assertEquals(1, supernodePMap.get(v3.id.getKeyHashString()).get("fromto").size());
-            Assert.assertEquals(1, supernodePMap.get(v3.id.getKeyHashString()).get("~label").size());
-            Assert.assertEquals(1, supernodePMap.get(v4.id.getKeyHashString()).get("fromto").size());
-            Assert.assertEquals(1, supernodePMap.get(v4.id.getKeyHashString()).get("~label").size());
+            Map<Object, Map<Long, Map<Long, Object>>> supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_IN_BIN);
+            Map<Object, Map<Long, Map<Long, Object>>> supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_OUT_BIN);
+            Assert.assertTrue(supernodeOutMap.containsKey(v1.id.getKeyHashString()));
+            Assert.assertTrue(supernodeInMap.containsKey(v2.id.getKeyHashString()));
+            Assert.assertTrue(supernodeOutMap.containsKey(v3.id.getKeyHashString()));
+            Assert.assertTrue(supernodeInMap.containsKey(v4.id.getKeyHashString()));
+            Assert.assertEquals(3, supernodeOutMap.get(v1.id.getKeyHashString()).size());
+            Assert.assertEquals(3, supernodeInMap.get(v2.id.getKeyHashString()).size());
+            Assert.assertEquals(3, supernodeOutMap.get(v3.id.getKeyHashString()).size());
+            Assert.assertEquals(3, supernodeInMap.get(v4.id.getKeyHashString()).size());
+            Assert.assertEquals(2, supernodeOutMap.get(v1.id.getKeyHashString()).get(fromtoPropertyKey).size());
+            Assert.assertEquals(2, supernodeOutMap.get(v1.id.getKeyHashString()).get(labelPropertyKey).size());
+            Assert.assertEquals(2, supernodeInMap.get(v2.id.getKeyHashString()).get(fromtoPropertyKey).size());
+            Assert.assertEquals(2, supernodeInMap.get(v2.id.getKeyHashString()).get(labelPropertyKey).size());
+            Assert.assertEquals(1, supernodeOutMap.get(v3.id.getKeyHashString()).get(fromtoPropertyKey).size());
+            Assert.assertEquals(1, supernodeOutMap.get(v3.id.getKeyHashString()).get(labelPropertyKey).size());
+            Assert.assertEquals(1, supernodeInMap.get(v4.id.getKeyHashString()).get(fromtoPropertyKey).size());
+            Assert.assertEquals(1, supernodeInMap.get(v4.id.getKeyHashString()).get(labelPropertyKey).size());
 
             // Removing an edge from the edge pack still works if there are other edges that match the pushdown
             g.E().hasLabel("e1").drop().iterate();
@@ -447,23 +452,24 @@ public class TestAdjacencySindexFilters {
             Assert.assertEquals(0, Iterators.size(v4.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasv1v2))));
             Assert.assertEquals(1, Iterators.size(v4.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasv3v4))));
             record = v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, Collections.emptyList()).next().record;
-            supernodePMap = (Map<String, Map<String, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODE_EDGE_PROPERTIES_BIN);
-            Assert.assertTrue(supernodePMap.containsKey(v1.id.getKeyHashString()));
-            Assert.assertTrue(supernodePMap.containsKey(v2.id.getKeyHashString()));
-            Assert.assertTrue(supernodePMap.containsKey(v3.id.getKeyHashString()));
-            Assert.assertTrue(supernodePMap.containsKey(v4.id.getKeyHashString()));
-            Assert.assertEquals(3, supernodePMap.get(v1.id.getKeyHashString()).size());
-            Assert.assertEquals(3, supernodePMap.get(v2.id.getKeyHashString()).size());
-            Assert.assertEquals(3, supernodePMap.get(v3.id.getKeyHashString()).size());
-            Assert.assertEquals(3, supernodePMap.get(v4.id.getKeyHashString()).size());
-            Assert.assertEquals(1, supernodePMap.get(v1.id.getKeyHashString()).get("fromto").size());
-            Assert.assertEquals(1, supernodePMap.get(v1.id.getKeyHashString()).get("~label").size());
-            Assert.assertEquals(1, supernodePMap.get(v2.id.getKeyHashString()).get("fromto").size());
-            Assert.assertEquals(1, supernodePMap.get(v2.id.getKeyHashString()).get("~label").size());
-            Assert.assertEquals(1, supernodePMap.get(v3.id.getKeyHashString()).get("fromto").size());
-            Assert.assertEquals(1, supernodePMap.get(v3.id.getKeyHashString()).get("~label").size());
-            Assert.assertEquals(1, supernodePMap.get(v4.id.getKeyHashString()).get("fromto").size());
-            Assert.assertEquals(1, supernodePMap.get(v4.id.getKeyHashString()).get("~label").size());
+            supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_IN_BIN);
+            supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_OUT_BIN);
+            Assert.assertTrue(supernodeOutMap.containsKey(v1.id.getKeyHashString()));
+            Assert.assertTrue(supernodeInMap.containsKey(v2.id.getKeyHashString()));
+            Assert.assertTrue(supernodeOutMap.containsKey(v3.id.getKeyHashString()));
+            Assert.assertTrue(supernodeInMap.containsKey(v4.id.getKeyHashString()));
+            Assert.assertEquals(3, supernodeOutMap.get(v1.id.getKeyHashString()).size());
+            Assert.assertEquals(3, supernodeInMap.get(v2.id.getKeyHashString()).size());
+            Assert.assertEquals(3, supernodeOutMap.get(v3.id.getKeyHashString()).size());
+            Assert.assertEquals(3, supernodeInMap.get(v4.id.getKeyHashString()).size());
+            Assert.assertEquals(1, supernodeOutMap.get(v1.id.getKeyHashString()).get(fromtoPropertyKey).size());
+            Assert.assertEquals(1, supernodeOutMap.get(v1.id.getKeyHashString()).get(labelPropertyKey).size());
+            Assert.assertEquals(1, supernodeInMap.get(v2.id.getKeyHashString()).get(fromtoPropertyKey).size());
+            Assert.assertEquals(1, supernodeInMap.get(v2.id.getKeyHashString()).get(labelPropertyKey).size());
+            Assert.assertEquals(1, supernodeOutMap.get(v3.id.getKeyHashString()).get(fromtoPropertyKey).size());
+            Assert.assertEquals(1, supernodeOutMap.get(v3.id.getKeyHashString()).get(labelPropertyKey).size());
+            Assert.assertEquals(1, supernodeInMap.get(v4.id.getKeyHashString()).get(fromtoPropertyKey).size());
+            Assert.assertEquals(1, supernodeInMap.get(v4.id.getKeyHashString()).get(labelPropertyKey).size());
 
             // Test removing an edge from the edge pack works properly if there are no edges that match the pushdown
             g.E().hasLabel("e3").drop().iterate();
@@ -476,17 +482,18 @@ public class TestAdjacencySindexFilters {
             Assert.assertEquals(0, Iterators.size(v4.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasv1v2))));
             Assert.assertEquals(0, Iterators.size(v4.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasv3v4))));
             record = v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, Collections.emptyList()).next().record;
-            supernodePMap = (Map<String, Map<String, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODE_EDGE_PROPERTIES_BIN);
-            Assert.assertTrue(supernodePMap.containsKey(v1.id.getKeyHashString()));
-            Assert.assertTrue(supernodePMap.containsKey(v2.id.getKeyHashString()));
-            Assert.assertFalse(supernodePMap.containsKey(v3.id.getKeyHashString()));
-            Assert.assertFalse(supernodePMap.containsKey(v4.id.getKeyHashString()));
-            Assert.assertEquals(3, supernodePMap.get(v1.id.getKeyHashString()).size());
-            Assert.assertEquals(3, supernodePMap.get(v2.id.getKeyHashString()).size());
-            Assert.assertEquals(1, supernodePMap.get(v1.id.getKeyHashString()).get("fromto").size());
-            Assert.assertEquals(1, supernodePMap.get(v1.id.getKeyHashString()).get("~label").size());
-            Assert.assertEquals(1, supernodePMap.get(v2.id.getKeyHashString()).get("fromto").size());
-            Assert.assertEquals(1, supernodePMap.get(v2.id.getKeyHashString()).get("~label").size());
+            supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_IN_BIN);
+            supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_OUT_BIN);
+            Assert.assertTrue(supernodeOutMap.containsKey(v1.id.getKeyHashString()));
+            Assert.assertTrue(supernodeInMap.containsKey(v2.id.getKeyHashString()));
+            Assert.assertFalse(supernodeOutMap.containsKey(v3.id.getKeyHashString()));
+            Assert.assertFalse(supernodeInMap.containsKey(v4.id.getKeyHashString()));
+            Assert.assertEquals(3, supernodeOutMap.get(v1.id.getKeyHashString()).size());
+            Assert.assertEquals(3, supernodeInMap.get(v2.id.getKeyHashString()).size());
+            Assert.assertEquals(1, supernodeOutMap.get(v1.id.getKeyHashString()).get(fromtoPropertyKey).size());
+            Assert.assertEquals(1, supernodeOutMap.get(v1.id.getKeyHashString()).get(labelPropertyKey).size());
+            Assert.assertEquals(1, supernodeInMap.get(v2.id.getKeyHashString()).get(fromtoPropertyKey).size());
+            Assert.assertEquals(1, supernodeInMap.get(v2.id.getKeyHashString()).get(labelPropertyKey).size());
         }
     }
 
@@ -507,33 +514,39 @@ public class TestAdjacencySindexFilters {
             Assert.assertEquals(e1.property("culprit"), Property.empty());
             Assert.assertNotEquals(concurrentE1.property("culprit"), Property.empty());
 
+            final Long labelPropertyKey = phatFirefly.getBaseGraph().schemaManager.getEdgePropertyRead(EDGE_SUPERNODE_LABEL_KEY);
+            final Long fooPropertyKey = phatFirefly.getBaseGraph().schemaManager.getEdgePropertyRead("foo");
+            final Long culpritPropertyKey = phatFirefly.getBaseGraph().schemaManager.getEdgePropertyRead("culprit");
+
             Record record = v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, Collections.emptyList()).next().record;
-            Map<String, Map<String, Map<Long, Object>>> supernodePMap = (Map<String, Map<String, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODE_EDGE_PROPERTIES_BIN);
-            Assert.assertTrue(supernodePMap.containsKey(v1.id.getKeyHashString()));
-            Assert.assertTrue(supernodePMap.containsKey(v2.id.getKeyHashString()));
-            Assert.assertEquals(4, supernodePMap.get(v1.id.getKeyHashString()).size());
-            Assert.assertEquals(4, supernodePMap.get(v2.id.getKeyHashString()).size());
-            Assert.assertEquals(2, supernodePMap.get(v1.id.getKeyHashString()).get("foo").size());
-            Assert.assertEquals(2, supernodePMap.get(v1.id.getKeyHashString()).get("~label").size());
-            Assert.assertEquals(1, supernodePMap.get(v1.id.getKeyHashString()).get("culprit").size());
-            Assert.assertEquals(2, supernodePMap.get(v2.id.getKeyHashString()).get("foo").size());
-            Assert.assertEquals(2, supernodePMap.get(v2.id.getKeyHashString()).get("~label").size());
-            Assert.assertEquals(1, supernodePMap.get(v2.id.getKeyHashString()).get("culprit").size());
+            Map<Object, Map<Long, Map<Long, Object>>> supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_OUT_BIN);
+            Map<Object, Map<Long, Map<Long, Object>>> supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_IN_BIN);
+            Assert.assertTrue(supernodeOutMap.containsKey(v1.id.getKeyHashString()));
+            Assert.assertTrue(supernodeInMap.containsKey(v2.id.getKeyHashString()));
+            Assert.assertEquals(4, supernodeOutMap.get(v1.id.getKeyHashString()).size());
+            Assert.assertEquals(4, supernodeInMap.get(v2.id.getKeyHashString()).size());
+            Assert.assertEquals(2, supernodeOutMap.get(v1.id.getKeyHashString()).get(fooPropertyKey).size());
+            Assert.assertEquals(2, supernodeOutMap.get(v1.id.getKeyHashString()).get(labelPropertyKey).size());
+            Assert.assertEquals(1, supernodeOutMap.get(v1.id.getKeyHashString()).get(culpritPropertyKey).size());
+            Assert.assertEquals(2, supernodeInMap.get(v2.id.getKeyHashString()).get(fooPropertyKey).size());
+            Assert.assertEquals(2, supernodeInMap.get(v2.id.getKeyHashString()).get(labelPropertyKey).size());
+            Assert.assertEquals(1, supernodeInMap.get(v2.id.getKeyHashString()).get(culpritPropertyKey).size());
 
             // See that removal on the original e1 handle deletes the "culprit" property
             e1.remove();
             record = v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, Collections.emptyList()).next().record;
-            supernodePMap = (Map<String, Map<String, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODE_EDGE_PROPERTIES_BIN);
-            Assert.assertTrue(supernodePMap.containsKey(v1.id.getKeyHashString()));
-            Assert.assertTrue(supernodePMap.containsKey(v2.id.getKeyHashString()));
-            Assert.assertEquals(3, supernodePMap.get(v1.id.getKeyHashString()).size());
-            Assert.assertEquals(3, supernodePMap.get(v2.id.getKeyHashString()).size());
-            Assert.assertEquals(1, supernodePMap.get(v1.id.getKeyHashString()).get("foo").size());
-            Assert.assertEquals(1, supernodePMap.get(v1.id.getKeyHashString()).get("~label").size());
-            Assert.assertFalse(supernodePMap.get(v1.id.getKeyHashString()).containsKey("culprit"));
-            Assert.assertEquals(1, supernodePMap.get(v2.id.getKeyHashString()).get("foo").size());
-            Assert.assertEquals(1, supernodePMap.get(v2.id.getKeyHashString()).get("~label").size());
-            Assert.assertFalse(supernodePMap.get(v2.id.getKeyHashString()).containsKey("culprit"));
+            supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_OUT_BIN);
+            supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_IN_BIN);
+            Assert.assertTrue(supernodeOutMap.containsKey(v1.id.getKeyHashString()));
+            Assert.assertTrue(supernodeInMap.containsKey(v2.id.getKeyHashString()));
+            Assert.assertEquals(3, supernodeOutMap.get(v1.id.getKeyHashString()).size());
+            Assert.assertEquals(3, supernodeInMap.get(v2.id.getKeyHashString()).size());
+            Assert.assertEquals(1, supernodeOutMap.get(v1.id.getKeyHashString()).get(fooPropertyKey).size());
+            Assert.assertEquals(1, supernodeOutMap.get(v1.id.getKeyHashString()).get(labelPropertyKey).size());
+            Assert.assertFalse(supernodeOutMap.get(v1.id.getKeyHashString()).containsKey(culpritPropertyKey));
+            Assert.assertEquals(1, supernodeInMap.get(v2.id.getKeyHashString()).get(fooPropertyKey).size());
+            Assert.assertEquals(1, supernodeInMap.get(v2.id.getKeyHashString()).get(labelPropertyKey).size());
+            Assert.assertFalse(supernodeInMap.get(v2.id.getKeyHashString()).containsKey(culpritPropertyKey));
         }
     }
 

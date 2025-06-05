@@ -2,6 +2,8 @@ package com.aerospike.firefly.olap.process;
 
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.codec.TraverserCodec;
+import com.aerospike.firefly.olap.process.traversal.step.SparkOperation;
+import com.aerospike.firefly.olap.structure.AerospikeComputeKey;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ReflectionHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -69,13 +71,16 @@ import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalV
 public class TraversalProgram implements FireflyProgram {
 
     private static final String TRAVERSAL = "gremlin.traversalVertexProgram.traversal";
-    protected static final String MUTATED_MEMORY_KEYS = "gremlin.traversalVertexProgram.mutatedMemoryKeys";
-    private static final String VOTE_TO_HALT = "gremlin.traversalVertexProgram.voteToHalt";
+    public static final String MUTATED_MEMORY_KEYS = "gremlin.traversalVertexProgram.mutatedMemoryKeys";
+    public static final String VOTE_TO_HALT = "gremlin.traversalVertexProgram.voteToHalt";
     private static final String COMPLETED_BARRIERS = "gremlin.traversalVertexProgram.completedBarriers";
 
     private Set<MemoryComputeKey> memoryComputeKeys = new HashSet<>();
     private static final Set<VertexComputeKey> VERTEX_COMPUTE_KEYS =
             new HashSet<>(Arrays.asList(VertexComputeKey.of(HALTED_TRAVERSERS, false), VertexComputeKey.of(ACTIVE_TRAVERSERS, true)));
+
+    public static final String SPARK_FLAG = "gremlin.traversalVertexProgram.sparkFlag";
+    private static final MemoryComputeKey SPARK_KEY = MemoryComputeKey.of(SPARK_FLAG, Operator.or, false, true);
 
     private PureTraversal<?, ?> traversal;
     private TraversalMatrix<?, ?> traversalMatrix;
@@ -103,6 +108,14 @@ public class TraversalProgram implements FireflyProgram {
         this.haltedTraversers = (TraverserSet<Object>) ReflectionHelper.getFieldValue(traversalVertexProgram, "haltedTraversers");
         this.returnHaltedTraversers = (boolean) ReflectionHelper.getFieldValue(traversalVertexProgram, "returnHaltedTraversers");
 
+        init();
+
+        // does the traversal need profile information
+        this.profile = !TraversalHelper.getStepsOfAssignableClassRecursively(ProfileStep.class, this.traversal.get()).isEmpty();
+    }
+
+    // register TraversalVertexProgram specific memory compute keys
+    private void init() {
         final Iterator<?> itty = IteratorUtils.filter(this.traversal.get().getStrategies(), strategy -> strategy instanceof HaltedTraverserStrategy).iterator();
         if (itty.hasNext()) {
             throw new IllegalArgumentException("Custom HaltedTraverserStrategy is not supported");
@@ -118,20 +131,16 @@ public class TraversalProgram implements FireflyProgram {
         // register memory computing steps that use memory compute keys
         for (final MemoryComputing<?> memoryComputing : TraversalHelper.getStepsOfAssignableClassRecursively(MemoryComputing.class, this.traversal.get())) {
             this.memoryComputeKeys.add(memoryComputing.getMemoryComputeKey());
+            // additional key to launch native spark operation
+            if (memoryComputing instanceof SparkOperation) {
+                this.memoryComputeKeys.add(SPARK_KEY);
+            }
         }
         // register profile steps (TODO: try to hide this)
         for (final ProfileStep profileStep : TraversalHelper.getStepsOfAssignableClassRecursively(ProfileStep.class, this.traversal.get())) {
             this.traversal.get().getSideEffects().register(profileStep.getId(), new MutableMetricsSupplier(profileStep.getPreviousStep()), ProfileStep.ProfileBiOperator.instance());
         }
 
-        init();
-
-        // does the traversal need profile information
-        this.profile = !TraversalHelper.getStepsOfAssignableClassRecursively(ProfileStep.class, this.traversal.get()).isEmpty();
-    }
-
-    // register TraversalVertexProgram specific memory compute keys
-    private void init() {
         this.memoryComputeKeys.add(MemoryComputeKey.of(VOTE_TO_HALT, Operator.and, false, true));
         this.memoryComputeKeys.add(MemoryComputeKey.of(HALTED_TRAVERSERS, Operator.addAll, false, false));
         this.memoryComputeKeys.add(MemoryComputeKey.of(ACTIVE_TRAVERSERS, Operator.addAll, true, true));
@@ -145,7 +154,7 @@ public class TraversalProgram implements FireflyProgram {
                 if (rangeGlobalStep.getLowRange() != 0) {
                     break;
                 }
-                final String key = String.format("%s-accumulator", rangeGlobalStep.getId());
+                final String key = AerospikeComputeKey.createAccumulator(rangeGlobalStep.getId());
                 this.memoryComputeKeys.add(MemoryComputeKey.of(key, Operator.sumLong, true, true));
                 break;
             }
@@ -216,27 +225,6 @@ public class TraversalProgram implements FireflyProgram {
                         (this.traversal.get().getParent().asStep().getNextStep() instanceof ProfileStep && // same as above, but needed for profiling
                                 this.traversal.get().getParent().asStep().getNextStep().getNextStep() instanceof ComputerResultStep));
 
-        final Iterator<?> itty = IteratorUtils.filter(this.traversal.get().getStrategies(), strategy -> strategy instanceof HaltedTraverserStrategy).iterator();
-        if (itty.hasNext()) {
-            throw new IllegalArgumentException("Custom HaltedTraverserStrategy is not supported");
-        }
-
-        // register traversal side-effects in memory
-        this.memoryComputeKeys.addAll(MemoryTraversalSideEffects.getMemoryComputeKeys(this.traversal.get()));
-        // register MapReducer memory compute keys
-        for (final MapReducer<?, ?, ?, ?, ?> mapReducer : TraversalHelper.getStepsOfAssignableClassRecursively(MapReducer.class, this.traversal.get())) {
-            this.mapReducers.add(mapReducer.getMapReduce());
-            this.memoryComputeKeys.add(MemoryComputeKey.of(mapReducer.getMapReduce().getMemoryKey(), Operator.assign, false, false));
-        }
-        // register memory computing steps that use memory compute keys
-        for (final MemoryComputing<?> memoryComputing : TraversalHelper.getStepsOfAssignableClassRecursively(MemoryComputing.class, this.traversal.get())) {
-            this.memoryComputeKeys.add(memoryComputing.getMemoryComputeKey());
-        }
-        // register profile steps (TODO: try to hide this)
-        for (final ProfileStep profileStep : TraversalHelper.getStepsOfAssignableClassRecursively(ProfileStep.class, this.traversal.get())) {
-            this.traversal.get().getSideEffects().register(profileStep.getId(), new MutableMetricsSupplier(profileStep.getPreviousStep()), ProfileStep.ProfileBiOperator.instance());
-        }
-
         init();
 
         // does the traversal need profile information
@@ -256,6 +244,9 @@ public class TraversalProgram implements FireflyProgram {
         MemoryTraversalSideEffects.setMemorySideEffects(this.traversal.get(), memory, ProgramPhase.SETUP);
         ((MemoryTraversalSideEffects) this.traversal.get().getSideEffects()).storeSideEffectsInMemory();
         memory.set(VOTE_TO_HALT, true);
+        if (memory.exists(SPARK_FLAG)) {
+            memory.set(SPARK_FLAG, false);
+        }
         memory.set(MUTATED_MEMORY_KEYS, new HashSet<>());
         memory.set(COMPLETED_BARRIERS, new HashSet<>());
         // if halted traversers are being sent from a previous VertexProgram in an OLAP chain (non-distributed traversers), get them into the flow

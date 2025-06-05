@@ -11,6 +11,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTo
 
 public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderStateDetectSupernodes.class);
+
     public SparkBulkLoaderStateDetectSupernodes(final SparkBulkLoaderStateMachine sparkBulkLoaderStateMachine) {
         super(sparkBulkLoaderStateMachine);
     }
@@ -24,7 +25,7 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
 
         // This is a testing config, used to force failure in specific spots to allow us to test the recovery modes.
         final String failureOnSupernodes = sparkBulkLoaderStateMachine.config.getOrDefault(BulkLoaderConfigHelper.RECOVERY_FAILURE);
-        if ("DETECT_SUPERNODES".equals(failureOnSupernodes)) {
+        if (RecoveryUtil.RecoveryState.DETECT_SUPERNODES.name().equals(failureOnSupernodes)) {
             throw new RuntimeException("Testing recovery failure, please contact support.");
         }
 
@@ -47,7 +48,7 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
 
     @Override
     public SparkBulkLoaderState transitionState() {
-        return new SparkBulkLoaderStateWriteVertices(sparkBulkLoaderStateMachine);
+        return new SparkBulkLoaderStateGenerateEdgeCaches(sparkBulkLoaderStateMachine);
     }
 
     @Override

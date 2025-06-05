@@ -31,6 +31,11 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.aerospike.firefly.olap.structure.AerospikeComputeKey.isAccumulator;
+import static com.aerospike.firefly.olap.structure.AerospikeComputeKey.isDouble;
+import static com.aerospike.firefly.olap.structure.AerospikeComputeKey.isLong;
+import static com.aerospike.firefly.olap.structure.AerospikeComputeKey.isVersioned;
+
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  * Most of the Distributed* classes are adapted from the Spark* in TinkerPop from by Marko A. Rodriguez (http://markorodriguez.com)
@@ -59,11 +64,11 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         this.broadcast = sparkContext.broadcast(Collections.emptyMap());
         for (final MemoryComputeKey memoryComputeKey : this.memoryComputeKeys.values()) {
             final AccumulatorV2<DistributedMemoryEntry, DistributedMemoryEntry> accumulator = new DistributedAccumulator<>(memoryComputeKey);
-            if (program instanceof TraversalProgram && memoryComputeKey.getKey().endsWith("-accumulator")) {
+            if (program instanceof TraversalProgram && isAccumulator(memoryComputeKey.getKey())) {
                 final TraversalMatrix tm = ((TraversalProgram) program).getTraversalMatrix();
                 final RangeGlobalStep step = (RangeGlobalStep) tm.getStepById(memoryComputeKey.getKey().substring(0, memoryComputeKey.getKey().length() - "-accumulator".length()));
                 this.db = new DistributedAerospikeConnection(((FireflyGraph) program.getTraversal().get().getGraph().get()));
-                this.db.setAccumulator("limit", step.getHighRange());
+                this.db.setAccumulator(memoryComputeKey.getKey(), step.getHighRange());
             }
             JavaSparkContext.toSparkContext(sparkContext).register(accumulator, memoryComputeKey.getKey());
             this.sparkMemory.put(memoryComputeKey.getKey(), accumulator);
@@ -94,10 +99,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
 
         // copy accumulator values for new iteration
         for (final String key : this.memoryComputeKeys.keySet()) {
-            // !this.memoryComputeKeys.get(key).isTransient() &&
-            if (this.memoryComputeKeys.get(key).isBroadcast()) {
-                copyFromPreviousIteration(key);
-            }
+            copyFromPreviousIteration(key);
         }
     }
 
@@ -111,20 +113,19 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         return this.iteration.get();
     }
 
+    // used to copy value from previous iteration
     public String previousKey(final String key) {
-        // used to copy value from previous iteration
-        return key + (this.iteration.get() % 2 == 0 ? 1 : 0);
+        return isVersioned(key) ? key + (this.iteration.get() - 1) : key + (this.iteration.get() % 2 == 0 ? 1 : 0);
     }
 
     public String readKey(final String key) {
         // if in execute then read previous value
-        final int n = this.iteration.get() + (inExecute ? 1 : 0);
-        return key + (n % 2 == 0 ? 0 : 1);
+        final int n = this.iteration.get() - (inExecute ? 1 : 0);
+        return isVersioned(key) ? key + n : key + (n % 2 == 0 ? 0 : 1);
     }
 
     public String writeKey(final String key) {
-        // write always to current record
-        return key + (this.iteration.get() % 2 == 0 ? 0 : 1);
+        return isVersioned(key) ? key + this.iteration.get() : key + (this.iteration.get() % 2 == 0 ? 0 : 1);
     }
 
     @Override
@@ -138,13 +139,25 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     }
 
     private void copyFromPreviousIteration(final String key) {
-        if (key.endsWith("~L")) {
+        if (isLong(key)) {
             final Long value = db.getAccumulatorLong(previousKey(key));
             db.setAccumulator(writeKey(key), value);
-        } else if (key.endsWith("~D")) {
+        } else if (isDouble(key)) {
             final Double value = db.getAccumulatorDouble(previousKey(key));
             db.setAccumulator(writeKey(key), value);
         }
+    }
+
+    public Map<String, Object> getBroadcastValues() {
+        final Map<String, Object> result = new HashMap<>();
+        for (final MemoryComputeKey key : this.memoryComputeKeys.values()) {
+            if (key.isBroadcast()) {
+                final DistributedMemoryEntry entry = this.sparkMemory.get(key.getKey()).value();
+                if (entry != null && !entry.isEmpty())
+                    result.put(key.getKey(), entry.get());
+            }
+        }
+        return result;
     }
 
     @Override
@@ -156,13 +169,13 @@ public class DistributedMemory implements Memory.Admin, Serializable {
         if (!this.sparkMemory.containsKey(key))
             throw Memory.Exceptions.memoryDoesNotExist(key);
 
-        if (key.endsWith("-accumulator")) {
-            return (R) db.getAccumulatorLong("limit");
+        if (isAccumulator(key)) {
+            return (R) db.getAccumulatorLong(key);
         }
-        if (key.endsWith("~L")) {
+        if (isLong(key)) {
             return (R) db.getAccumulatorLong(readKey(key));
         }
-        if (key.endsWith("~D")) {
+        if (isDouble(key)) {
             return (R) db.getAccumulatorDouble(readKey(key));
         }
 
@@ -182,15 +195,15 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     @Override
     public void add(final String key, final Object value) {
         checkKeyValue(key, value);
-        if (key.endsWith("-accumulator")) {
-            db.addAccumulator("limit", (long) value);
+        if (isAccumulator(key)) {
+            db.addAccumulator(key, (long) value);
             return;
         }
-        if (key.endsWith("~L")) {
+        if (isLong(key)) {
             db.addAccumulator(writeKey(key), (Long) value);
             return;
         }
-        if (key.endsWith("~D")) {
+        if (isDouble(key)) {
             db.addAccumulator(writeKey(key), (Double) value);
             return;
         }
@@ -206,15 +219,15 @@ public class DistributedMemory implements Memory.Admin, Serializable {
 
     @Override
     public void set(final String key, Object value) {
-        if (key.endsWith("-accumulator")) {
-            db.setAccumulator("limit", (Long) value);
+        if (isAccumulator(key)) {
+            db.setAccumulator(key, (Long) value);
             return;
         }
-        if (key.endsWith("~L")) {
+        if (isLong(key)) {
             db.setAccumulator(writeKey(key), (Long) value);
             return;
         }
-        if (key.endsWith("~D")) {
+        if (isDouble(key)) {
             db.setAccumulator(writeKey(key), (Double) value);
             return;
         }

@@ -6,6 +6,7 @@ import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
+import com.aerospike.firefly.io.FireflyEdgeRecord;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
@@ -17,6 +18,7 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.spark.sql.Row;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -24,17 +26,14 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -160,7 +159,7 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
                                 queryPolicy,
                                 db.EDGE_AERO_SET,
                                 graph.getBaseGraph().getNamespace(),
-                                Filter.contains(direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN, IndexCollectionType.MAPVALUES, keyHashString),
+                                Filter.contains(direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN, IndexCollectionType.MAPKEYS, keyHashString),
                                 graph.getBaseGraph().PAGINATION_PAGE_SIZE,
                                 graph::vertexFromRecord,
                                 indexName,
@@ -229,30 +228,17 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
     }
 
     protected void getIndividualEdgeIdsAttachedToVertex(final Record record) {
-        final String directionKey;
         if (direction == Direction.BOTH) {
             // Direction.BOTH should not be propagated here and should be combined at a higher level.
             throw new RuntimeException("Cannot get individual Edge IDs attached to a Vertex with Direction.BOTH");
-        } else {
-            if (direction == Direction.OUT) {
-                directionKey = graph.getBaseGraph().SUPERNODES_OUT_BIN;
-            } else {
-                directionKey = graph.getBaseGraph().SUPERNODES_IN_BIN;
-            }
         }
 
-        final Map<ByteBuffer, String> edgeIdToVertexIdMap = (Map<ByteBuffer, String>) record.getMap(directionKey);
-        if (edgeIdToVertexIdMap == null) {
-            return;
-        }
-
-        for (final Map.Entry<ByteBuffer, String> edgeIdToVertexId : edgeIdToVertexIdMap.entrySet()) {
-            if (edgeIdToVertexId.getValue().equals(inputVertexId.getKeyHashString())) {
-                final FireflyId edgeId = graph.getBaseGraph().getIdFactory().createEdgeId(edgeIdToVertexId.getKey());
-                final Edge edge = FireflyEdgeFactory.create(edgeId, record, graph);
-                if (HasContainer.testAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
-                    currentEdges.add(edge);
-                }
+        final FireflyEdgeRecord edgeRecord = new FireflyEdgeRecord(record, graph.getBaseGraph());
+        final List<FireflyEdgeId> edgeIdsInRecord = edgeRecord.getIndividualEdgeIdsAttachedToSupernode(inputVertexId, direction);
+        for (final FireflyEdgeId edgeId : edgeIdsInRecord) {
+            final Edge edge = FireflyEdgeFactory.create(edgeId, edgeRecord, graph);
+            if (HasContainer.testAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
+                currentEdges.add(edge);
             }
         }
     }

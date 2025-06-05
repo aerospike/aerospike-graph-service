@@ -2,6 +2,8 @@ package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
+import com.aerospike.client.BatchRecord;
+import com.aerospike.client.BatchResults;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Host;
 import com.aerospike.client.IAerospikeClient;
@@ -33,7 +35,6 @@ import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.policy.AuthMode;
 import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.ClientPolicy;
-import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
@@ -51,6 +52,7 @@ import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
+import com.aerospike.firefly.io.aerospike.schema.SchemaManager;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -187,6 +189,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final String TEST_SET;
     public final String OLAP_SET;
     public final String OLAP_LIMIT_BIN;
+    public final String SCHEMA_SET;
+    public final String SCHEMA_BIN;
 
     public final Configuration conf;
     public final String USER_SUPPLIED_ID_CACHE_SET;
@@ -194,7 +198,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final long INDEX_METADATA_UPDATE_FREQUENCY;
     public final String SUPERNODES_IN_BIN;
     public final String SUPERNODES_OUT_BIN;
-    public final String SUPERNODE_EDGE_PROPERTIES_BIN;
     public final String BL_ROW_BIN;
     public final String BL_FILE_BIN;
     public final boolean GLOBAL_EDGE_CACHE_ENABLED_FLAG;
@@ -257,6 +260,7 @@ public class AerospikeConnection implements AutoCloseable {
     public static final AtomicLong instanceCounter = new AtomicLong(0);
 
     private final FireflyIdFactory idFactory;
+    public final SchemaManager schemaManager;
     public final boolean ENABLE_COMPOSITE_ID_STRATEGY;
     public final boolean ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY;
     public final boolean ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY;
@@ -287,8 +291,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean IS_AUDIT_LOG_ENABLED;
     public final boolean AUTHENTICATION_ENABLED;
     public final boolean USAGE_STATS_SET_INDEX_ENABLED;
-    public boolean isSupernodePushdownEnabled = true;
-    public boolean isMergeEdgeDataModelEnabled = true;
     public final List<String> vertexNonPropertyBins = new ArrayList<>();
     public final List<String> vertexPropertyBins = new ArrayList<>();
 
@@ -503,6 +505,7 @@ public class AerospikeConnection implements AutoCloseable {
         IN_VP_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.IN_VP_SET.name(), conf);
         OUT_VP_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OUT_VP_SET.name(), conf);
         ID_MANAGER_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.ID_MANAGER_SET.name(), conf);
+        SCHEMA_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.SCHEMA_SET.name(), conf);
         EDGE_AERO_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.EDGE_AERO_SET.name(), conf);
         GRAPH_METADATA_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.GRAPH_METADATA_SET.name(), conf);
         GRAPH_VARIABLES_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.GRAPH_VARIABLES_SET.name(), conf);
@@ -536,9 +539,9 @@ public class AerospikeConnection implements AutoCloseable {
         OUT_EDGES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.OUT_EDGES_BIN.name(), conf);
         EDGE_CACHE_DISABLED_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.EDGE_CACHE_DISABLED_BIN.name(), conf);
         LOCK_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.LOCK_BIN.name(), conf);
+        SCHEMA_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SCHEMA_BIN.name(), conf);
         SUPERNODES_IN_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODES_IN.name(), conf);
         SUPERNODES_OUT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODES_OUT.name(), conf);
-        SUPERNODE_EDGE_PROPERTIES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODE_EDGE_PROPERTIES_BIN.name(), conf);
         LABEL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.LABEL_BIN.name(), conf);
         USER_KEY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.USER_KEY_BIN.name(), conf);
         TTL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.TTL_BIN.name(), conf);
@@ -576,6 +579,8 @@ public class AerospikeConnection implements AutoCloseable {
         olapEnabledFlag = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.OLAP_ENABLED, conf);
 
         initializeIdSet();
+        schemaManager = new SchemaManager(this);
+        schemaManager.updateAll();
         idFactory = new FireflyIdFactory(this);
 
         MRT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MRT_TIMEOUT, conf);
@@ -605,8 +610,11 @@ public class AerospikeConnection implements AutoCloseable {
             if (MRT_ENABLED && onRecordIdLimit > 1023) {
                 LOG.warn("The provided value for '{}' could not be used and has been instead set to the maximum allowed value of 1023 for when '{}' is set as true.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, MRT_ENABLED_FLAG);
             }
-        } catch (final ConfigurationRuntimeException ignored) {
+        } catch (final ConfigurationRuntimeException e) {
             // If it was not manually configured, dynamically adjust it relative to the max-record-size configuration of Aerospike
+            if (conf.containsKey(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT)) {
+                throw e;
+            }
             final long onRecordIdDefaultLimit = getRecordIdLimitFromAerospike(.45);
             onRecordIdLimit = onRecordIdDefaultLimit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) onRecordIdDefaultLimit;
         }
@@ -1376,10 +1384,10 @@ public class AerospikeConnection implements AutoCloseable {
             // Blocking call for supernode indexes since graph doesn't function without.
             createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                     E_IN_INDEX_NAME, SUPERNODES_IN_BIN,
-                    IndexType.STRING, IndexCollectionType.MAPVALUES);
+                    IndexType.STRING, IndexCollectionType.MAPKEYS);
             createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                     E_OUT_INDEX_NAME, SUPERNODES_OUT_BIN,
-                    IndexType.STRING, IndexCollectionType.MAPVALUES);
+                    IndexType.STRING, IndexCollectionType.MAPKEYS);
 
             // Blocking call for ttl indexes since graph doesn't function without.
             if (TTL_ENABLED_FLAG) {
@@ -1426,7 +1434,7 @@ public class AerospikeConnection implements AutoCloseable {
             // Create label index in background.
             if (V_LABEL_INDEX_ENABLED_FLAG) {
                 createIndexBackground(existingIndexes, setFromElementType(FireflyVertex.class),
-                        V_LABEL_INDEX_NAME, LABEL_BIN, IndexType.STRING, IndexCollectionType.DEFAULT, false);
+                        V_LABEL_INDEX_NAME, LABEL_BIN, IndexType.NUMERIC, IndexCollectionType.DEFAULT, false);
             }
         } catch (final AerospikeException e) {
             throw fromAerospikeException(e);
@@ -1744,6 +1752,16 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
+     * bulk read/operate. Not tested for write and delete.
+     *
+     * @param batchPolicy query policy.
+     * @param batchRecords operations. Also contains results for read
+     */
+    public void batchOperate(final BatchPolicy batchPolicy, final List<BatchRecord> batchRecords) {
+        client.operate(batchPolicy, batchRecords);
+    }
+
+    /**
      * Determine of a key exists
      *
      * @param key Aerospike Key to check
@@ -1999,17 +2017,17 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Decrement an Id counter.
+     * Add to an Id counter.
      * <p>
      * This is primarily used to reserve a range of Ids for use and management of reserved Ids must be handled explicitly.
      *
      * @param name   name of Counter to operate on
-     * @param amount amount on Counter to decrement
+     * @param amount amount on Counter to add
      * @return value of counter after operation
      */
-    public long decrementIdCounter(final String name, final long amount) {
+    public long addIdCounter(final String name, final long amount) {
         final Key key = new Key(namespace, ID_MANAGER_SET, name);
-        final Bin ctr = new Bin(COUNTER_BIN, -amount);
+        final Bin ctr = new Bin(COUNTER_BIN, amount);
         final Record record = this.writeOperate(null, key,
                 Operation.add(ctr),
                 Operation.get(COUNTER_BIN));
@@ -2017,7 +2035,7 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     private void initializeIdSet() {
-        WritePolicy policy = new WritePolicy();
+        final WritePolicy policy = new WritePolicy();
         policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
         configureWritePolicy(policy);
         final Map<String, Key> idKeys = new HashMap<>();
@@ -2095,8 +2113,12 @@ public class AerospikeConnection implements AutoCloseable {
             // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the
             // id manager set and if we delete it here, they will likely insert a record with the same id as the one
             // we will eventually reach as we wrap around.
-            if (dropIndices)
+            if (dropIndices) {
+                // Indexes break if Schema table is dropped.
+                client.truncate(null, namespace, SCHEMA_SET, null);
+                schemaManager.updateAll();
                 dropGraphIndices(graph);
+            }
             Thread.sleep(1);
         } catch (final InterruptedException e) {
             // Why would anyone invoke this method in a runner thread that can also have interrupt() called on it? Who
@@ -2113,11 +2135,11 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public void clearNamespace() {
         client.truncate(null, namespace, null, null);
-
         final List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(this);
         for (final Map.Entry<String, String> entry : indexes) {
             dropIndex(entry.getValue(), entry.getKey());
         }
+        schemaManager.clearAll();
     }
 
     /**
@@ -2253,12 +2275,13 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Wrapper for AerospikeConnection.operate() to handle returning Firefly exceptions.
      *
-     * @param writePolicy WritePolicy for operate.
-     * @param key         Key for operate.
-     * @param operations  Operations for operate.
+     * @param writePolicy       WritePolicy for operate.
+     * @param key               Key for operate.
+     * @param suppressLogging   Flag to disable logging on failure
+     * @param operations        Operations for operate.
      * @return Record resulting from operate.
      */
-    private Record operate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
+    private Record operate(final WritePolicy writePolicy, final Key key, boolean suppressLogging, final Operation... operations) {
         if (writePolicy == null) {
             // This should never happen.
             throw new IllegalArgumentException("Operate policy must be set.");
@@ -2268,7 +2291,7 @@ public class AerospikeConnection implements AutoCloseable {
         } catch (final AerospikeException ae) {
             final AerospikeGraphException age = fromAerospikeException(ae);
             final boolean bulkLoading = conf.getBoolean(ConfigurationHelper.Keys.BULK_LOADER_FLAG, false);
-            if (!bulkLoading) {
+            if (!suppressLogging && !bulkLoading) {
                 LOG.error(age.getMessage());
             }
             throw age;
@@ -2289,6 +2312,11 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public Record writeOperate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
+        return writeOperate(writePolicy, key, false, operations);
+    }
+
+    public Record writeOperate(final WritePolicy writePolicy, final Key key, final boolean suppressLogging,
+                               final Operation... operations) {
         final WritePolicy policy;
         if (writePolicy == null) {
             policy = new WritePolicy();
@@ -2306,7 +2334,7 @@ public class AerospikeConnection implements AutoCloseable {
             noPropsCache.invalidate(key);
         }
 
-        return operate(policy, key, operations);
+        return operate(policy, key, suppressLogging, operations);
     }
 
     public Record readOperate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
@@ -2318,7 +2346,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
         configureReadPolicy(policy);
 
-        return operate(policy, key, operations);
+        return operate(policy, key, false, operations);
     }
 
     public void truncate(final InfoPolicy policy, final String set, final Calendar beforeLastUpdate) {

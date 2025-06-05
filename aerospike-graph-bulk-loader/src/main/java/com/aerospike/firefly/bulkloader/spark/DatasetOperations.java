@@ -40,7 +40,9 @@ public class DatasetOperations implements Serializable {
     public static int RETRY_LIMIT = 20; // Not provided through config
     public static final String FILENAME_COLUMN = "~fileName";
     public static final String EDGE_ID_COLUMN = "~edgeid";
-    public static final Set<String> COLUMNS_TO_REMOVE = Set.of(FILENAME_COLUMN, EDGE_ID_COLUMN);
+    public static final String STORAGE_ID_COLUMN = "~storageid";
+    public static final String BUCKET_ID_COLUMN = "~bucketid";
+    public static final Set<String> COLUMNS_TO_REMOVE = Set.of(FILENAME_COLUMN, EDGE_ID_COLUMN, STORAGE_ID_COLUMN, BUCKET_ID_COLUMN);
     private static final Logger LOGGER = LoggerFactory.getLogger(DatasetOperations.class);
 
     public DatasetOperations() {}

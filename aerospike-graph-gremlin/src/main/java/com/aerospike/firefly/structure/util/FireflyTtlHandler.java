@@ -5,12 +5,13 @@ import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.firefly.io.FireflyEdgeRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,13 +139,14 @@ public class FireflyTtlHandler implements Closeable {
                     INDEX_POLICY);
             long currentEdgeDeleteTime = System.currentTimeMillis();
             while (edgesToDelete.hasNext()) {
-                final Record edgeRecord = edgesToDelete.next().record;
-                final Map<?, Long> edgeTtls = (Map<?, Long>) edgeRecord.getMap(db.TTL_BIN);
+                final Record record = edgesToDelete.next().record;
+                final FireflyEdgeRecord edgeRecord = new FireflyEdgeRecord(record, graph.getBaseGraph());
+                final Map<?, Long> edgeTtls = (Map<?, Long>) record.getMap(db.TTL_BIN);
                 for (final Map.Entry<?, Long> edgeTtl : edgeTtls.entrySet()) {
                     final long expiryTime = edgeTtl.getValue();
                     // Need this check since phat edge TTL bin map can contain entries outside of index range
                     if (expiryTime <= currentEdgeDeleteTime) {
-                        final FireflyId edgeId = db.getIdFactory().createEdgeId(edgeTtl.getKey());
+                        final FireflyEdgeId edgeId = db.getIdFactory().createEdgeId(edgeTtl.getKey());
                         final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, edgeRecord, graph);
                         if (edge != null) {
                             try {

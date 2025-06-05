@@ -2,17 +2,16 @@ package com.aerospike.firefly.structure.iterator;
 
 import com.aerospike.client.Record;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.firefly.io.FireflyEdgeRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static com.aerospike.firefly.structure.FireflyEdge.IN_V_POSITION;
@@ -22,7 +21,7 @@ import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_POSITION;
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
-public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterator {
+public abstract class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterator {
     protected final Direction direction;
     protected final FireflyId vertexId;
     protected final Set<String> labels;
@@ -61,14 +60,16 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
 
         while (outputIds.isEmpty() && this.keyRecords.hasNext()) {
             final Record record = this.keyRecords.next().record;
-            final Map<ByteBuffer, List<?>> edgeIdToData = (Map<ByteBuffer, List<?>>) record.getMap(db.EDGE_DATA_BIN);
+            final FireflyEdgeRecord edgeRecord = new FireflyEdgeRecord(record, db);
 
             if (this.direction == Direction.OUT || this.direction == Direction.BOTH) {
-                final Set<ByteBuffer> outEdgeIds = getIndividualEdgeIdsAttachedToVertex(record, Direction.OUT);
-                for (final ByteBuffer edgeId : outEdgeIds) {
-                    if (labels.isEmpty() || labels.contains((String) edgeIdToData.get(edgeId).get(LABEL_POSITION))) {
+                final List<FireflyEdgeId> outEdgeIds = getIndividualEdgeIdsAttachedToVertex(edgeRecord, Direction.OUT);
+                for (final FireflyEdgeId edgeId : outEdgeIds) {
+                    final List<Object> edgeData = edgeRecord.getEdgeData(edgeId);
+                    final String label = db.schemaManager.getEdgeLabelString((Long) edgeData.get(LABEL_POSITION));
+                    if (labels.isEmpty() || labels.contains(label)) {
                         if (outputType == OutputType.VERTEX_ID) {
-                            final String vertexId = (String) edgeIdToData.get(edgeId).get(IN_V_POSITION);
+                            final FireflyId vertexId = (FireflyId) edgeData.get(IN_V_POSITION);
                             outputIds.add(vertexId);
                         } else {
                             outputIds.add(edgeId);
@@ -78,11 +79,13 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
             }
 
             if (this.direction == Direction.IN || this.direction == Direction.BOTH) {
-                final Set<ByteBuffer> inEdgeIds = getIndividualEdgeIdsAttachedToVertex(record, Direction.IN);
-                for (final ByteBuffer edgeId : inEdgeIds) {
-                    if (labels.isEmpty() || labels.contains((String) edgeIdToData.get(edgeId).get(LABEL_POSITION))) {
+                final List<FireflyEdgeId> inEdgeIds = getIndividualEdgeIdsAttachedToVertex(edgeRecord, Direction.IN);
+                for (final FireflyEdgeId edgeId : inEdgeIds) {
+                    final List<Object> edgeData = edgeRecord.getEdgeData(edgeId);
+                    final String label = db.schemaManager.getEdgeLabelString((Long) edgeData.get(LABEL_POSITION));
+                    if (labels.isEmpty() || labels.contains(label)) {
                         if (outputType == OutputType.VERTEX_ID) {
-                            final String vertexId = (String) edgeIdToData.get(edgeId).get(OUT_V_POSITION);
+                            final FireflyId vertexId = (FireflyId) edgeData.get(OUT_V_POSITION);
                             outputIds.add(vertexId);
                         } else {
                             outputIds.add(edgeId);
@@ -95,26 +98,8 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
         this.currentRecordIds = outputIds.iterator();
     }
 
-    protected Set<ByteBuffer> getIndividualEdgeIdsAttachedToVertex(final Record record, final Direction direction) {
-        final int directionIndex;
-        if (direction == Direction.BOTH) {
-            // Direction.BOTH should not be propagated here and should be combined at a higher level.
-            throw new RuntimeException("Cannot get individual Edge IDs attached to a Vertex with Direction.BOTH");
-        } else {
-            directionIndex = direction == Direction.OUT ? OUT_V_POSITION : IN_V_POSITION;
-        }
-
-        final Set<ByteBuffer> attachedEdgeIds = new HashSet<>();
-        final Map<ByteBuffer, List<?>> edgeDataMap = (Map<ByteBuffer, List<?>>) record.getMap(db.EDGE_DATA_BIN);
-        for (final Map.Entry<ByteBuffer, List<?>> edgeDataEntry : edgeDataMap.entrySet()) {
-            final List<?> edgeData = edgeDataEntry.getValue();
-            final String vertexId = (String) edgeData.get(directionIndex);
-            if (vertexId.equals(this.vertexId.getKeyHashString())) {
-                attachedEdgeIds.add(edgeDataEntry.getKey());
-            }
-        }
-        return attachedEdgeIds;
-    }
+    // Make this not abstract if we ever need to use this class in the future
+    protected abstract List<FireflyEdgeId> getIndividualEdgeIdsAttachedToVertex(final FireflyEdgeRecord record, final Direction direction);
 
     @Override
     public FireflyId next() {
@@ -123,11 +108,7 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
             if (element == null) {
                 throw FastNoSuchElementException.instance();
             }
-            if (outputType.equals(OutputType.VERTEX_ID)) {
-                return this.db.getIdFactory().createVertexIdFromHash((String) element);
-            } else {
-                return this.db.getIdFactory().createEdgeId(element);
-            }
+            return (FireflyId) element;
         } else {
             throw FastNoSuchElementException.instance();
         }

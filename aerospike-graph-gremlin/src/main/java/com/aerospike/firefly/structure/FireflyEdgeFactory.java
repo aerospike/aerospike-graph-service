@@ -1,15 +1,24 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.Record;
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.FireflyEdgeRecord;
+import com.aerospike.firefly.io.aerospike.schema.SchemaManager;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 
-import java.nio.ByteBuffer;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
+
+import static com.aerospike.firefly.structure.FireflyEdge.IN_V_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.IS_IN_SUPERNODE_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.IS_OUT_SUPERNODE_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.LABEL_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_POSITION;
 
 public class FireflyEdgeFactory {
     public static FireflyEdge create(final FireflyId fid, final String label, final FireflyGraph graph,
@@ -25,34 +34,32 @@ public class FireflyEdgeFactory {
         return new FireflyEdge(edgeId, label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, generation);
     }
 
-    public static FireflyEdge create(final FireflyId edgeId, final Record record, final FireflyGraph graph) {
-        if (record == null) {
+    public static FireflyEdge create(final FireflyEdgeId edgeId, final FireflyEdgeRecord edgeRecord, final FireflyGraph graph) {
+        final List<Object> edgeData = edgeRecord.getEdgeData(edgeId);
+        if (edgeData == null) {
+            // This means the Edge no longer exists in this record.
             return null;
         }
-        final AerospikeConnection db = graph.getBaseGraph();
-        final ByteBuffer edgeIdMapKey = ((FireflyEdgeId) edgeId).getEdgeIdBytes();
-        final Map<ByteBuffer, List> edgeData = (Map<ByteBuffer, List>) record.getMap(db.EDGE_DATA_BIN);
-        // Implicitly assume that if the key is found for label, which is required, then the key exists for the
-        // other phat edge maps, since they are all written in the same operate.
-        if (!edgeData.containsKey(edgeIdMapKey)) {
-            return null;
-        }
-        final String label = (String) edgeData.get(edgeIdMapKey).get(FireflyEdge.LABEL_POSITION);
 
-        final String outV = (String) edgeData.get(edgeIdMapKey).get(FireflyEdge.OUT_V_POSITION);
-        final FireflyId outVertex = db.getIdFactory().createVertexIdFromHash(outV);
+        final SchemaManager schemaManager = graph.getBaseGraph().schemaManager;
 
-        final String inV = (String) edgeData.get(edgeIdMapKey).get(FireflyEdge.IN_V_POSITION);
-        final FireflyId inVertex = db.getIdFactory().createVertexIdFromHash(inV);
+        final Long labelDisk = (Long) edgeData.get(LABEL_POSITION);
+        final String label = schemaManager.getEdgeLabelString(labelDisk);
+        final FireflyId outVertex = (FireflyId) edgeData.get(OUT_V_POSITION);
+        final FireflyId inVertex = (FireflyId) edgeData.get(IN_V_POSITION);
 
-        final Map<String, Object> properties = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(FireflyEdge.PROPERTIES_POSITION);
-        final Map<String, Object> typeHints = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(FireflyEdge.TYPE_HINTS_POSITION);
+        final Map<Long, Object> propertiesDisk = (Map<Long, Object>) edgeData.get(PROPERTIES_POSITION);
+        final Map<String, Object> properties = new TreeMap<>();
+        schemaManager.populateEdgePropertySchemaMapToStringMap(propertiesDisk, properties);
+        final Map<Long, Object> typeHintsDisk = (Map<Long, Object>) edgeData.get(TYPE_HINTS_POSITION);
+        final Map<String, Object> typeHints = new HashMap<>();
+        schemaManager.populateEdgePropertySchemaMapToStringMap(typeHintsDisk, typeHints);
 
-        final Map<ByteBuffer, String> outSupernodes = (Map<ByteBuffer, String>) record.getMap(graph.getBaseGraph().SUPERNODES_OUT_BIN);
-        final Map<ByteBuffer, String> inSupernodes = (Map<ByteBuffer, String>) record.getMap(graph.getBaseGraph().SUPERNODES_IN_BIN);
-        final boolean isOutSupernode = outSupernodes != null && outSupernodes.containsKey(edgeIdMapKey);
-        final boolean isInSupernode = inSupernodes != null && inSupernodes.containsKey(edgeIdMapKey);
+        final boolean isOutSupernode = (boolean) edgeData.get(IS_OUT_SUPERNODE_POSITION);
+        final boolean isInSupernode = (boolean) edgeData.get(IS_IN_SUPERNODE_POSITION);
 
-        return create(edgeId, label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, record.generation);
+        final int generation = edgeRecord.getGeneration();
+
+        return create(edgeId, label, graph, outVertex, inVertex, properties, typeHints, isOutSupernode, isInSupernode, generation);
     }
 }

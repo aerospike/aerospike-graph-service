@@ -84,7 +84,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
                 vertex = graph.readVertex(vertexId);
             }
             if (vertex != null) {
-                graph.operations.removeVertexProperty(vertex, label, id);
+                graph.aerospikeOperations.removeVertexProperty(vertex, label, id);
             }
         } catch (final AerospikeGraphException ae) {
             // Removing a property that is already removed SHOULD NOT yield an error.
@@ -131,7 +131,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         }
 
         final U validatedValue = (U) FireflyHelper.validatePropertyValue(value);
-        return graph.operations.writeVertexProperty(this, key, validatedValue);
+        return graph.aerospikeOperations.writeVpProperty(this, key, validatedValue);
     }
 
     @Override

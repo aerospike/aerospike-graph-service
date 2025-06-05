@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -42,23 +43,19 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
     }
 
     @Override
-    public void updateMetadata() throws Exception {
+    public void updateMetadata() {
         // Get current list of numeric and string indexes.
         final List<FireflyIndexMetadata.IndexInfo> indexes = indexMetadata.getPropertyIndexInfos();
         final List<FireflyIndexMetadata.IndexInfo> vertexLabelIndexes = indexes.stream().
-                filter(index -> index.indexType == IndexType.STRING && db.LABEL_BIN.equals(index.key) && index.indexName.equals(db.V_LABEL_INDEX_NAME))
+                filter(index -> index.indexType == IndexType.NUMERIC && db.LABEL_BIN.equals(index.key) && index.indexName.equals(db.V_LABEL_INDEX_NAME))
                 .collect(Collectors.toList());
-        final List<FireflyIndexMetadata.IndexInfo> edgeLabelIndexes = indexes.stream().
-                filter(index -> index.indexType == IndexType.STRING && db.LABEL_BIN.equals(index.key) && index.indexName.equals(db.E_LABEL_INDEX_NAME))
-                .collect(Collectors.toList());
+        final List<FireflyIndexMetadata.IndexInfo> edgeLabelIndexes = Collections.emptyList();
         final List<FireflyIndexMetadata.IndexInfo> vertexStringIndexes = indexes.stream().
                 filter(index -> index.setName.equals(db.VERTEX_AERO_SET) && index.indexType == IndexType.STRING && !db.LABEL_BIN.equals(index.key)).collect(Collectors.toList());
         final List<FireflyIndexMetadata.IndexInfo> vertexNumericIndexes = indexes.stream().
                 filter(index -> index.setName.equals(db.VERTEX_AERO_SET) && index.indexType == IndexType.NUMERIC && !db.LABEL_BIN.equals(index.key)).collect(Collectors.toList());
-        final List<FireflyIndexMetadata.IndexInfo> edgeStringIndexes = indexes.stream().
-                filter(index -> index.setName.equals(db.EDGE_AERO_SET) && index.indexType == IndexType.STRING && !db.LABEL_BIN.equals(index.key)).collect(Collectors.toList());
-        final List<FireflyIndexMetadata.IndexInfo> edgeNumericIndexes = indexes.stream().
-                filter(index -> index.setName.equals(db.EDGE_AERO_SET) && index.indexType == IndexType.NUMERIC && !db.LABEL_BIN.equals(index.key)).collect(Collectors.toList());
+        final List<FireflyIndexMetadata.IndexInfo> edgeStringIndexes = Collections.emptyList();
+        final List<FireflyIndexMetadata.IndexInfo> edgeNumericIndexes = Collections.emptyList();
 
         // Lock while we are changing a list that we iterate over in a different thread.
         synchronized (FireflyCardinalityMetadata.class) {

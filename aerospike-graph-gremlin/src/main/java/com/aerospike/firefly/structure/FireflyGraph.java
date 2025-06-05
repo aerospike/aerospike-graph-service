@@ -791,18 +791,22 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 }
             }
         });
+        final HashMap<Long, Object> typeHintsDisk = new HashMap<>();
+        db.schemaManager.populateEdgePropertyStringMapToSchemaMap(typeHints, typeHintsDisk);
 
         if (!isAttachedToSupernode) {
             final List<Value> edgeData = new ArrayList<>(EDGE_DATA_SIZE);
             // Add label to Edge data.
-            edgeData.add(LABEL_POSITION, Value.get(label));
+            edgeData.add(LABEL_POSITION, Value.get(db.schemaManager.getEdgeLabelWrite(label)));
             // Add IN and OUT to Edge data.
             edgeData.add(IN_V_POSITION, Value.get(inId.getUserId()));
             edgeData.add(OUT_V_POSITION, Value.get(outId.getUserId()));
 
             // Add properties and type hints to Edge data.
-            edgeData.add(PROPERTIES_POSITION, Value.get(propertyMap));
-            edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHints));
+            final TreeMap<Long, Object> propertyMapDisk = new TreeMap<>();
+            db.schemaManager.populateEdgePropertyStringMapToSchemaMap(propertyMap, propertyMapDisk);
+            edgeData.add(PROPERTIES_POSITION, Value.get(propertyMapDisk));
+            edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHintsDisk));
 
             // Create Operation for writing Edge data.
             final Operation createIndividualEdgeMap = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN,
@@ -811,7 +815,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } else {
             // If the Edge is attached to a supernode, rest of the data has to exist elsewhere so store only type hint
             final Operation createEdgeToTypeHint = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN, Value.get(edgeId),
-                    Value.get(typeHints));
+                    Value.get(typeHintsDisk));
             operations.add(createEdgeToTypeHint);
         }
 
@@ -934,18 +938,18 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                                                             final Object... keyValues) {
         final Map<String, Object> properties = new TreeMap<>();
         final Map<String, Object> typeHints = new TreeMap<>();
-        final boolean allowNullProperties = features().vertex().properties().supportsNullPropertyValues();
 
         for (int i = 0; i < keyValues.length; i = i + 2) {
             if (!keyValues[i].equals(T.id) && !keyValues[i].equals(T.label))
                 if (keyValues[i + 1] != null) {
-                    properties.put((String) keyValues[i], keyValues[i + 1]);
+                    properties.put((String) keyValues[i], FireflyHelper.validatePropertyValue(keyValues[i + 1]));
                     final Object typeHint = getTypeHintOf(keyValues[i + 1]);
                     if (typeHint != null) {
                         typeHints.put((String) keyValues[i], typeHint);
                     }
-                } else if (allowNullProperties) {
-                    properties.put((String) keyValues[i], keyValues[i + 1]);
+                } else {
+                    properties.remove((String) keyValues[i]);
+                    typeHints.remove((String) keyValues[i]);
                 }
             // Since this the first insertion, a null value with allowNullProperties is irrelevant, because there is no
             // properties to remove, so just ignore.
@@ -1193,12 +1197,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         for (final String index : vertexPropertyIndexes) {
             // Create both string and numeric indexes for vertex properties.
             final String formattedIndex = String.format("%s_%s", prefix, index);
+            final Long indexSchema = db.schemaManager.getVertexPropertyWrite(index);
             db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
                     formattedIndex + "_" + STRING, binName, STRING, IndexCollectionType.DEFAULT, false,
-                    CTX.mapKey(Value.get(index)));
+                    CTX.mapKey(Value.get(indexSchema)));
             db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
                     formattedIndex + "_" + NUMERIC, binName, NUMERIC, IndexCollectionType.DEFAULT, false,
-                    CTX.mapKey(Value.get(index)));
+                    CTX.mapKey(Value.get(indexSchema)));
         }
 
         // Manually force metadata to update.

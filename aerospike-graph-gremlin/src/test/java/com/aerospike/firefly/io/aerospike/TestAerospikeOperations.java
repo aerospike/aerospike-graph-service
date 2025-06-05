@@ -5,6 +5,7 @@ import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
 import com.aerospike.client.Txn;
 import com.aerospike.client.policy.WritePolicy;
+import com.aerospike.firefly.io.aerospike.schema.SchemaManager;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -37,6 +38,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -122,10 +124,15 @@ public class TestAerospikeOperations {
         final FireflyIdComposite compositeIdIn = mock(FireflyIdComposite.class);
         final FireflyIdComposite compositeIdOut = mock(FireflyIdComposite.class);
 
+        final SchemaManager schemaManager = mock(SchemaManager.class);
+        doNothing().when(schemaManager).populateEdgePropertyStringMapToSchemaMap(any(), any());
+        when(schemaManager.getEdgeLabelWrite(any())).thenReturn(0L);
+
         final AerospikeConnection connection = mock(AerospikeConnection.class);
         setFieldValue(AerospikeConnection.class, connection, "EDGE_CACHE_DISABLED_BIN", "EDGE_CACHE_DISABLED_BIN");
         setFieldValue(AerospikeConnection.class, connection, "MRT_ENABLED", true);
         setFieldValue(AerospikeConnection.class, connection, "MRT_TIMEOUT", 1234);
+        setFieldValue(AerospikeConnection.class, connection, "schemaManager", schemaManager);
         final FireflyIdFactory fireflyIdFactory = mock(FireflyIdFactory.class);
         when(fireflyIdFactory.createCompositeEdgeId(edgeId, inVertexId)).thenReturn(compositeIdIn);
         when(fireflyIdFactory.createCompositeEdgeId(edgeId, outVertexId)).thenReturn(compositeIdOut);

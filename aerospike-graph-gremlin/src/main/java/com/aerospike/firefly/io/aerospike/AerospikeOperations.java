@@ -1284,7 +1284,7 @@ public class AerospikeOperations {
         }
 
         try {
-            final Record record = db.writeOperate(policy, key, operations.toArray(new Operation[0]));
+            final Record record = db.writeOperate(policy, key, true, operations.toArray(new Operation[0]));
 
             // Result returned is always [List<?>, null] since we have operations [removeEdgeData, removeEdgeDataBin]
             final Command.OpResults results = (Command.OpResults) record.getValue(db.EDGE_DATA_BIN);
@@ -1314,6 +1314,7 @@ public class AerospikeOperations {
                 // rollback only own txn
                 if (outerTxn == null)
                     db.rollback(txn);
+                LOG.error(e.getMessage());
                 throw e;
             }
             LOG.debug("Regenerating supernode Edge with id {} to clean up supernode property bin.", edge.id.getUserId());

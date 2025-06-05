@@ -2275,16 +2275,12 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Wrapper for AerospikeConnection.operate() to handle returning Firefly exceptions.
      *
-     * @param writePolicy WritePolicy for operate.
-     * @param key         Key for operate.
-     * @param operations  Operations for operate.
+     * @param writePolicy       WritePolicy for operate.
+     * @param key               Key for operate.
+     * @param suppressLogging   Flag to disable logging on failure
+     * @param operations        Operations for operate.
      * @return Record resulting from operate.
      */
-    private Record operate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
-        final boolean bulkLoading = conf.getBoolean(ConfigurationHelper.Keys.BULK_LOADER_FLAG, false);
-        return operate(writePolicy, key, bulkLoading, operations);
-    }
-
     private Record operate(final WritePolicy writePolicy, final Key key, boolean suppressLogging, final Operation... operations) {
         if (writePolicy == null) {
             // This should never happen.
@@ -2294,7 +2290,8 @@ public class AerospikeConnection implements AutoCloseable {
             return this.client.operate(writePolicy, key, operations);
         } catch (final AerospikeException ae) {
             final AerospikeGraphException age = fromAerospikeException(ae);
-            if (!suppressLogging) {
+            final boolean bulkLoading = conf.getBoolean(ConfigurationHelper.Keys.BULK_LOADER_FLAG, false);
+            if (!suppressLogging && !bulkLoading) {
                 LOG.error(age.getMessage());
             }
             throw age;
@@ -2315,27 +2312,11 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public Record writeOperate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
-        final WritePolicy policy;
-        if (writePolicy == null) {
-            policy = new WritePolicy();
-        } else {
-            policy = writePolicy;
-        }
-        configureWritePolicy(policy);
-
-        final FireflyCache cache = transactionCache.get();
-        final FireflyCache noPropsCache = emptyPropsTransactionCache.get();
-        if (cache != null) {
-            cache.invalidate(key);
-        }
-        if (noPropsCache != null) {
-            noPropsCache.invalidate(key);
-        }
-
-        return operate(policy, key, operations);
+        return writeOperate(writePolicy, key, false, operations);
     }
 
-    public Record suppressedWriteOperate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
+    public Record writeOperate(final WritePolicy writePolicy, final Key key, final boolean suppressLogging,
+                               final Operation... operations) {
         final WritePolicy policy;
         if (writePolicy == null) {
             policy = new WritePolicy();
@@ -2353,7 +2334,7 @@ public class AerospikeConnection implements AutoCloseable {
             noPropsCache.invalidate(key);
         }
 
-        return operate(policy, key, true, operations);
+        return operate(policy, key, suppressLogging, operations);
     }
 
     public Record readOperate(final WritePolicy writePolicy, final Key key, final Operation... operations) {
@@ -2365,7 +2346,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
         configureReadPolicy(policy);
 
-        return operate(policy, key, operations);
+        return operate(policy, key, false, operations);
     }
 
     public void truncate(final InfoPolicy policy, final String set, final Calendar beforeLastUpdate) {

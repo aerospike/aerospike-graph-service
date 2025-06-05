@@ -20,6 +20,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.After;
 import org.junit.Test;
 
 import javax.lang.model.type.ExecutableType;
@@ -40,7 +41,7 @@ import java.util.stream.IntStream;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
 /**
- * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Connor Hengstler
  */
 public class TestExceedThreadLimit extends AbstractFireflySuite {
 
@@ -53,6 +54,7 @@ public class TestExceedThreadLimit extends AbstractFireflySuite {
     private AerospikeConnection db;
     static AerospikeClient client;
     private FireflyGraph graph = null;
+    private int originalThreadLimit;
 
     @Before
     public void setup() {
@@ -69,19 +71,35 @@ public class TestExceedThreadLimit extends AbstractFireflySuite {
         Node node   = client.getNodes()[0];
         InfoPolicy    infoPolicy = new InfoPolicy();
 
+        String getResponse = Info.request(
+                infoPolicy,
+                node,
+                "get-config:context=service;query-threads-limit"
+        );
+        int parsedLimit = -1;
+        for (String opt : getResponse.split(";")) {
+            if (opt.startsWith("query-threads-limit=")) {
+                String[] parts = opt.split("=", 2);
+                parsedLimit = Integer.parseInt(parts[1].trim());
+                originalThreadLimit = parsedLimit;
+                break;
+            }
+        }
+
+        if (parsedLimit < 0) {
+            throw new IllegalStateException("Could not find query-threads-limit in response: " + getResponse);
+        }
+
         String response = Info.request(
                 infoPolicy,
                 node,
                 "set-config:context=service;query-threads-limit=1"
         );
-        System.out.println("asinfo response: " + response);
-
         response = Info.request(
                 infoPolicy,
                 node,
                 "get-config:context=service;query-threads-limit"
         );
-        System.out.println("asinfo response: " + response);
     }
 
     @Test
@@ -117,6 +135,23 @@ public class TestExceedThreadLimit extends AbstractFireflySuite {
         }
 
         exec.shutdown();
+        db.close();
+    }
+
+    @After
+    public void teardown() {
+        Node node = client.getNodes()[0];
+        InfoPolicy infoPolicy = new InfoPolicy();
+
+        String restoreCmd =
+                "set-config:context=service;query-threads-limit=" + originalThreadLimit;
+        String restoreResponse = Info.request(infoPolicy, node, restoreCmd);
+        String verify = Info.request(
+                infoPolicy,
+                node,
+                "get-config:context=service;query-threads-limit"
+        );
+
         db.close();
     }
 }

@@ -39,8 +39,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
     public static final int TYPE_HINTS_POSITION = 4;
     public static final int EDGE_DATA_SIZE = 5;
     public static final String EDGE_SUPERNODE_LABEL_KEY = T.label.getAccessor();
-    public static final String EDGE_SUPERNODE_OUT_KEY = "~OUT";
-    public static final String EDGE_SUPERNODE_IN_KEY = "~IN";
+    public static final String EDGE_SUPERNODE_ADJACENT_ID_KEY = "~ADJACENT_ID";
 
     // These are used for FireflyEdgeRecord when unpacking a phat Edge records' data.
     public static final int IS_IN_SUPERNODE_POSITION = 5;

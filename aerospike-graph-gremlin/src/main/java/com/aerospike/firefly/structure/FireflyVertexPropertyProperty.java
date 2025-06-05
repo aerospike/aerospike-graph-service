@@ -46,9 +46,9 @@ public class FireflyVertexPropertyProperty<V> extends FireflyProperty<V> {
         final AerospikeConnection db = this.graph.getBaseGraph();
         final Key opKey = getKey(db, db.VERTEX_AERO_SET, ((FireflyVertex) vertexProperty.element()).id);
 
-        final Operation removeProperty = MapOperation.removeByKey(db.PROPERTIES_BIN, Value.get(key()), MapReturnType.NONE,
+        final Operation removeProperty = MapOperation.removeByKey(db.PROPERTIES_BIN, Value.get(db.schemaManager.getVpPropertyWrite(key())), MapReturnType.NONE,
                 CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
-        final Operation removeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(key()), MapReturnType.NONE,
+        final Operation removeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(db.schemaManager.getVpPropertyWrite(key())), MapReturnType.NONE,
                 CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
 
         try {

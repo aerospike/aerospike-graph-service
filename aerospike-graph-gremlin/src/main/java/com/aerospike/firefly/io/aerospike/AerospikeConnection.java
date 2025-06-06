@@ -178,6 +178,9 @@ public class AerospikeConnection implements AutoCloseable {
     public final String VERTEX_PROPERTY_NAME_TO_ID_BIN;
     public final String VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
     public final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN;
+    public final String VERTEX_PROPERTY_DATA_BIN;
+    public final String VERTEX_PROPERTY_TH_BIN;
+    public final String VP_PROPERTY_BIN;
     public final String USAGE_STATS_SET;
     public final String USAGE_STATS_BIN;
     public final long ON_RECORD_ID_LIMIT;
@@ -530,6 +533,9 @@ public class AerospikeConnection implements AutoCloseable {
         VERTEX_PROPERTY_NAME_TO_ID_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_ID_BIN.name(), conf);
         VERTEX_PROPERTY_NAME_TO_VALUE_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_BIN.name(), conf);
         VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN.name(), conf);
+        VERTEX_PROPERTY_DATA_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_DATA_BIN.name(), conf);
+        VERTEX_PROPERTY_TH_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_TH_BIN.name(), conf);
+        VP_PROPERTY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VP_PROPERTY_BIN.name(), conf);
         PROPERTIES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.PROPERTIES_BIN.name(), conf);
         TYPE_HINTS_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.TYPE_HINTS_BIN.name(), conf);
         COUNTER_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.COUNTER_BIN.name(), conf);

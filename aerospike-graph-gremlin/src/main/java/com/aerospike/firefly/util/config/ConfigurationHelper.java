@@ -248,6 +248,10 @@ public final class ConfigurationHelper {
             BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE")),
             BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA")),
             OLAP_LIMIT_BIN(Pair.of((byte) 25, "OLAP_LIMIT"));
+            OLAP_LIMIT_BIN(Pair.of((byte) 25, "OLAP_LIMIT")),
+            VERTEX_PROPERTY_DATA_BIN(Pair.of((byte) 26, "VP_DATA")),
+            VERTEX_PROPERTY_TH_BIN(Pair.of((byte) 27, "VP_HINTS")),
+            VP_PROPERTY_BIN(Pair.of((byte) 28, "VP_PROPERTIES"));
 
             private final Pair value;
 

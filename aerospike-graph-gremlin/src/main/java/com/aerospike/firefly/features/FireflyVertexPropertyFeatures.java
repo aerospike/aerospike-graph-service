@@ -6,6 +6,60 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import java.util.UUID;
 
 class FireflyVertexPropertyFeatures extends FireflyPropertyFeatures implements Graph.Features.VertexPropertyFeatures {
+
+    /**
+     * Supports setting of an array of boolean values.
+     */
+    @Override
+    public boolean supportsBooleanArrayValues() {
+        return false;
+    }
+
+    /**
+     * Supports setting of an array of double values.
+     */
+    @Override
+    public boolean supportsDoubleArrayValues() {
+        return false;
+    }
+
+    /**
+     * Supports setting of an array of integer values.
+     */
+    @Override
+    public boolean supportsIntegerArrayValues() {
+        return false;
+    }
+
+    /**
+     * Supports setting of an array of string values.
+     */
+    @Override
+    public boolean supportsStringArrayValues() {
+        return false;
+    }
+
+    /**
+     * Supports setting of an array of long values.
+     */
+    @Override
+    public boolean supportsLongArrayValues() {
+        return false;
+    }
+
+    /**
+     * Supports setting of a {@code List} value.  The assumption is that the {@code List} can contain
+     * arbitrary serializable values that may or may not be defined as a feature itself.  As this
+     * {@code List} is "uniform" it must contain objects of the same type.
+     *
+     * @see #supportsMixedListValues()
+     */
+
+    @Override
+    public boolean supportsUniformListValues() {
+        return false;
+    }
+
     /**
      * Determines if meta-properties allow for {@code null} property values.
      */

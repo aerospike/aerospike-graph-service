@@ -297,6 +297,19 @@ public class AerospikeOperations {
         operations.add(writeVpPropertiesTypeHints);
         operations.add(writeIdTypeHint);
 
+        final Map<Long, Map<Long, Object>> newVertexProperties = new TreeMap<>();
+        for (final Map.Entry<String, Object> vertexProperty : validProperties.entrySet()) {
+            final String propertyKey = vertexProperty.getKey();
+            final Long schemaPropertyKey = db.schemaManager.getVertexPropertyWrite(propertyKey);
+            final Long vpId = (Long) vertexPropertyIdsWritable.get(schemaPropertyKey);
+            final Map<Long, Object> idToValueMap = new TreeMap<>();
+            idToValueMap.put(vpId, vertexProperty.getValue());
+            newVertexProperties.put(schemaPropertyKey, idToValueMap);
+        }
+        final Bin newVpBin = new Bin(db.VERTEX_PROPERTY_DATA_BIN, Value.get(newVertexProperties));
+        final Operation writeNewVp = Operation.put(newVpBin);
+        operations.add(writeNewVp);
+
         db.writeOperate(policy, key, operations.toArray(new Operation[0]));
         if (partition == null) {
             graph.fireflySummaryUpdater.addVertexWriteToQueue(label, validProperties.entrySet().stream().map(Map.Entry::getKey).collect(Collectors.toSet()));

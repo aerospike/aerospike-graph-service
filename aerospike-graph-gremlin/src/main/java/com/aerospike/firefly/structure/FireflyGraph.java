@@ -130,6 +130,7 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 @Graph.OptIn(Graph.OptIn.SUITE_STRUCTURE_STANDARD)
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_STANDARD)
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_COMPUTER)
+@Graph.OptIn("com.aerospike.firefly.process.CustomGraphSuite")
 
 // GraphComputer OptOuts
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.computer.GraphComputerTest", method = "*", reason = "Firefly does not support persisting edges to new graph", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer", "com.aerospike.firefly.olap.structure.DistributedGraphComputer"})
@@ -998,11 +999,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         // Validate key value pairs are valid for TinkerPop.
         ElementHelper.legalPropertyKeyValueArray(keyValues);
 
-        // If a user-supplied id is provided and it is not supported, throw exception.
-        if (ElementHelper.getIdValue(keyValues).isPresent() && !features.vertex().supportsUserSuppliedIds())
-            throw Vertex.Exceptions.userSuppliedIdsNotSupported();
-
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
+        // TODO: Deal with this fn
         final List<Map.Entry<String, Object>> properties = convertFullyQualified(
                 this.features().vertex().supportsNullPropertyValues(), keyValues);
 

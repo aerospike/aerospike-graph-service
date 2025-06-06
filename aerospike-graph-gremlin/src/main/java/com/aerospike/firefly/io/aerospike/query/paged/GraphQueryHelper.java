@@ -15,9 +15,11 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.function.TriFunction;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.Contains;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.PBiPredicate;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -28,11 +30,40 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_ADJACENT_ID_KEY;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_LABEL_KEY;
 
 public class GraphQueryHelper {
+
+    private static final Map<PBiPredicate, BiFunction<Exp, Exp, Exp>> COMPARE_TO_EXP = Map.of(
+            Compare.eq, Exp::eq,
+            Compare.neq, Exp::ne,
+            Compare.lt, Exp::lt,
+            Compare.lte, Exp::le,
+            Compare.gt, Exp::gt,
+            Compare.gte, Exp::ge//,
+            //Contains.within, (exp1, exp2) -> Exp.or(Exp.in(exp1, exp2), Exp.in(exp2, exp1))
+    );
+
+    private static Long castLong(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        } else {
+            throw new RuntimeException(String.format("%s not a supported numeric type", value.getClass()));
+        }
+    }
+
+    private static final Map<PBiPredicate, TriFunction<String, Object, CTX[], Filter>> COMPARE_TO_FILTER = Map.of(
+            Compare.eq, (name, value, ctx) -> (value instanceof String) ?
+                    Filter.contains(name, IndexCollectionType.MAPVALUES, (String) value, ctx) :
+                    Filter.contains(name, IndexCollectionType.MAPVALUES, castLong(value), ctx),
+            Compare.lt, (name, value, ctx) -> Filter.range(name, IndexCollectionType.MAPVALUES, Long.MIN_VALUE, castLong(value) - 1, ctx),
+            Compare.lte, (name, value, ctx) -> Filter.range(name, IndexCollectionType.MAPVALUES, Long.MIN_VALUE, castLong(value), ctx),
+            Compare.gt, (name, value, ctx) -> Filter.range(name, IndexCollectionType.MAPVALUES, castLong(value) - 1, Long.MAX_VALUE, ctx),
+            Compare.gte, (name, value, ctx) -> Filter.range(name, IndexCollectionType.MAPVALUES, castLong(value), Long.MAX_VALUE, ctx)
+    );
 
     /**
      * Create an Aerospike index Filter using the predicate and index info.
@@ -61,32 +92,34 @@ public class GraphQueryHelper {
             return Filter.contains(name, type, db.schemaManager.getVertexLabelRead(((String) value)));
         }
         final Long schemaKey = db.schemaManager.getVertexPropertyRead(indexInfo.key);
-        if (Number.class.isAssignableFrom(value.getClass())) {
-            final Long casted;
-            if (Integer.class.isAssignableFrom(value.getClass())) {
-                casted = Long.valueOf((Integer) value);
-            } else if (Long.class.isAssignableFrom(value.getClass())) {
-                casted = (Long) value;
-            } else {
-                throw new RuntimeException(String.format("%s not a supported numeric type", predicate.getValue().getClass()));
-            }
+        return COMPARE_TO_FILTER.get(predicate.getBiPredicate())
+                .apply(name, value, new CTX[]{CTX.mapKey(Value.get(schemaKey))});
+    }
 
-            if (predicate.getBiPredicate().equals(Compare.eq)) {
-                return Filter.equal(name, casted, CTX.mapKey(Value.get(schemaKey)));
-            } else if (predicate.getBiPredicate().equals(Compare.lt)) {
-                return Filter.range(name, Long.MIN_VALUE, casted - 1, CTX.mapKey(Value.get(schemaKey)));
-            } else if (predicate.getBiPredicate().equals(Compare.lte)) {
-                return Filter.range(name, Long.MIN_VALUE, casted, CTX.mapKey(Value.get(schemaKey)));
-            } else if (predicate.getBiPredicate().equals(Compare.gt)) {
-                return Filter.range(name, casted - 1, Long.MAX_VALUE, CTX.mapKey(Value.get(schemaKey)));
-            } else if (predicate.getBiPredicate().equals(Compare.gte)) {
-                return Filter.range(name, casted, Long.MAX_VALUE, CTX.mapKey(Value.get(schemaKey)));
-            } else {
-                throw new RuntimeException(String.format("%s not a supported predicate", predicate));
-            }
-        } else {
-            return Filter.equal(name, (String) value, CTX.mapKey(Value.get(schemaKey)));
+    private static Exp getValue(final Object value) {
+        if (value == null) {
+            return Exp.nil();
         }
+        if (Number.class.isAssignableFrom(value.getClass())) {
+            return Exp.val(((Number) value).longValue());
+        }
+        if (String.class.isAssignableFrom(value.getClass())) {
+            return Exp.val((String) value);
+        }
+        throw new RuntimeException(String.format("%s not a supported type for value in predicate", value.getClass()));
+    }
+
+    private static Exp.Type getExpType(final Object value) {
+        if (value == null) {
+            return Exp.Type.NIL;
+        }
+        if (Number.class.isAssignableFrom(value.getClass())) {
+            return Exp.Type.INT;
+        }
+        if (String.class.isAssignableFrom(value.getClass())) {
+            return Exp.Type.STRING;
+        }
+        throw new RuntimeException(String.format("%s not a supported type for value in predicate", value.getClass()));
     }
 
     /**
@@ -105,40 +138,12 @@ public class GraphQueryHelper {
         if (db.LABEL_BIN.equals(binName)) {
             return Exp.eq(Exp.intBin(db.LABEL_BIN), Exp.val(db.schemaManager.getVertexLabelRead((String) predicate.getValue())));
         }
-
-        // Need to build a more complex expression for nested map values.
-        final Object value = predicate.getValue();
-        final Long schemaMapKey = db.schemaManager.getVertexPropertyRead(mapKey);
-        if (Number.class.isAssignableFrom(value.getClass())) {
-            final Long casted;
-            if (Integer.class.isAssignableFrom(value.getClass())) {
-                casted = Long.valueOf((Integer) value);
-            } else if (Long.class.isAssignableFrom(value.getClass())) {
-                casted = (Long) value;
-            } else {
-                throw new RuntimeException(String.format("%s not a supported numeric type", predicate.getValue().getClass()));
-            }
-
-            if (predicate.getBiPredicate().equals(Compare.eq)) {
-                return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else if (predicate.getBiPredicate().equals(Compare.lt)) {
-                return Exp.lt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else if (predicate.getBiPredicate().equals(Compare.lte)) {
-                return Exp.le(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else if (predicate.getBiPredicate().equals(Compare.gt)) {
-                return Exp.gt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else if (predicate.getBiPredicate().equals(Compare.gte)) {
-                return Exp.ge(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else {
-                throw new RuntimeException(String.format("%s not a supported predicate", predicate));
-            }
-        } else {
-            if (value instanceof String) // TODO: support List of values
-                return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.STRING, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val((String) value));
-            else {
-                return Exp.nil();
-            }
-        }
+        return COMPARE_TO_EXP.get(predicate.getBiPredicate())
+                .apply(MapExp.getByKey(MapReturnType.VALUE,
+                                getExpType(predicate.getValue()),
+                                Exp.val(db.schemaManager.getVertexPropertyRead(mapKey)),
+                                Exp.mapBin(binName)),
+                        getValue(predicate.getValue()));
     }
 
     public static Expression hasContainerListToExpression(final AerospikeConnection db, final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
@@ -184,11 +189,11 @@ public class GraphQueryHelper {
 
     private static Exp getVertexTtlExp(final AerospikeConnection db) {
         return Exp.or(
-                    Exp.gt(Exp.intBin(db.TTL_BIN), Exp.val(System.currentTimeMillis())),
-                    Exp.not(
-                            Exp.binExists(db.TTL_BIN)
-                    )
-            );
+                Exp.gt(Exp.intBin(db.TTL_BIN), Exp.val(System.currentTimeMillis())),
+                Exp.not(
+                        Exp.binExists(db.TTL_BIN)
+                )
+        );
     }
 
     public static Expression phatEdgeHasContainerListToExpression(final AerospikeConnection db,
@@ -262,8 +267,8 @@ public class GraphQueryHelper {
                 Exp.val((String) adjacentVertexId.getUserId()) :
                 Exp.val(((Number) adjacentVertexId.getUserId()).longValue());
         return MapExp.getByValue(MapReturnType.EXISTS, vertexUserIdExp,
-                 Exp.mapBin(binName), CTX.mapKey(Value.get(vertexId.getKeyHashString())),
-                 CTX.mapKey(Value.get(schemaAdjacentIdKey)));
+                Exp.mapBin(binName), CTX.mapKey(Value.get(vertexId.getKeyHashString())),
+                CTX.mapKey(Value.get(schemaAdjacentIdKey)));
     }
 
     private static Exp getPhatEdgePropertyExp(final AerospikeConnection db,
@@ -297,7 +302,7 @@ public class GraphQueryHelper {
         final Object value = predicate.getValue();
         if (predicate.getBiPredicate().equals(Contains.within)) {
             final Exp[] containsExps = ((Collection<?>) value).stream().map(collectionValue ->
-                    phatEdgePredicateToExp(db, direction, vertexId, propertyKey, new P<>(Compare.eq, collectionValue)))
+                            phatEdgePredicateToExp(db, direction, vertexId, propertyKey, new P<>(Compare.eq, collectionValue)))
                     .toArray(Exp[]::new);
             return containsExps.length == 1 ? containsExps[0] : Exp.or(containsExps);
         } else if (Number.class.isAssignableFrom(value.getClass())) {

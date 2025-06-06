@@ -1200,10 +1200,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             final String formattedIndex = String.format("%s_%s", prefix, index);
             final Long indexSchema = db.schemaManager.getVertexPropertyWrite(index);
             db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + STRING, binName, STRING, IndexCollectionType.DEFAULT, false,
+                    formattedIndex + "_" + STRING, binName, STRING, IndexCollectionType.MAPVALUES, false,
                     CTX.mapKey(Value.get(indexSchema)));
             db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + NUMERIC, binName, NUMERIC, IndexCollectionType.DEFAULT, false,
+                    formattedIndex + "_" + NUMERIC, binName, NUMERIC, IndexCollectionType.MAPVALUES, false,
                     CTX.mapKey(Value.get(indexSchema)));
         }
 

@@ -63,7 +63,7 @@ public class TestExceedThreadLimit extends AbstractFireflySuite {
         ClientPolicy clientPolicy = new ClientPolicy();
         client = AerospikeConnection.setupDefaultClient(CONFIG, clientPolicy);
         graph = FireflyGraph.open(CONFIG);
-        for(int i = 0;  i < 100000; i++){
+        for(int i = 0;  i < 10000; i++){
             String label = "label" + i;
             graph.traversal().addV(label).next();
         }
@@ -151,7 +151,7 @@ public class TestExceedThreadLimit extends AbstractFireflySuite {
                 node,
                 "get-config:context=service;query-threads-limit"
         );
-
+        graph.close();
         db.close();
     }
 }

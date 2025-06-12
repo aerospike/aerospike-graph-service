@@ -154,7 +154,6 @@ public class EdgeOperations implements Serializable {
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
                 final long allowedDetachedEdges = this.config.getOrDefaultInt(ALLOWED_BAD_EDGES_COUNT);
                 graph.fireflySummaryUpdater.startEdgePartition(partitionId);
-                graph.fireflySummaryUpdater.startSupernodePartition(partitionId);
                 LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
@@ -259,7 +258,6 @@ public class EdgeOperations implements Serializable {
                     RecoveryUtil.writeEdgePartitionComplete(graph.getBaseGraph(), partitionId);
                 }
                 graph.fireflySummaryUpdater.completeEdgePartition(partitionId);
-                graph.fireflySummaryUpdater.completeSupernodePartition(partitionId);
                 LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
             }
         });
@@ -434,6 +432,7 @@ public class EdgeOperations implements Serializable {
             final List<Tuple2<Object, Long>> results = new ArrayList<>();
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
                 final int bufferSize = graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE;
+                graph.fireflySummaryUpdater.startSupernodePartition(TaskContext.getPartitionId());
                 final Map<Object, Long> idToEdgeCount = new ConcurrentHashMap<>();
                 while (iterator.hasNext()) {
                     final Tuple2<Object, Long> row = iterator.next();
@@ -447,6 +446,7 @@ public class EdgeOperations implements Serializable {
                     batchReadToTuple(direction, results, graph, idToEdgeCount, onRecordIdLimit);
                     idToEdgeCount.clear();
                 }
+                graph.fireflySummaryUpdater.completeSupernodePartition(TaskContext.getPartitionId());
             }
             return results.iterator();
         });
@@ -494,7 +494,7 @@ public class EdgeOperations implements Serializable {
                 if (newEdgeCount + existingEdgeCount >= onRecordIdLimit) {
                     // This is going to become a supernode, mark it now.
                     graph.getAerospikeOperations().setCacheDisabled(vertex);
-                    // Increase supernode counter for incremental bulk loader.
+                    // Increase the supernode counter for incremental bulk loader (for already existing vertices).
                     graph.fireflySummaryUpdater.stageSupernodeWriteToQueue(vertex.label(), TaskContext.getPartitionId());
                 }
             }

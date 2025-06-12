@@ -540,7 +540,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return aerospikeOperations.writeVertex(idValue, label, properties, true, isEdgeCacheOverflowed);
     }
 
-    public void bulkWriteMergeVertex(final Object id, final String label, final List<Map.Entry<String, Object>> properties, final int partitionId) {
+    public void bulkWriteMergeVertex(final Object id,
+                                     final String label,
+                                     final List<Map.Entry<String, Object>> properties,
+                                     final int partitionId,
+                                     final boolean isEdgeCacheOverflowed) {
         int tryCount = 0;
         while (true) {
             try {
@@ -556,6 +560,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 traversal().mergeV(CollectionUtil.asMap(T.id, id))
                         .option(Merge.onMatch, propertiesMatch)
                         .option(Merge.onCreate, propertiesCreate).iterate();
+                // Increase the supernode counter for incremental bulk loader (for none-existing vertices).
+                if (isEdgeCacheOverflowed) {
+                    this.fireflySummaryUpdater.stageSupernodeWriteToQueue(label, partitionId);
+                }
                 break;
             } catch (final IllegalArgumentException e) {
                 if (!e.getMessage().contains("Vertex with id already exists")) {

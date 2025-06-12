@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io.aerospike.query.paged;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
@@ -254,9 +255,13 @@ public abstract class PageFetcher<E> {
                 if (!NO_ERROR.equals(errorMessage)) {
                     if (error instanceof AerospikeGraphException) {
                         throw (AerospikeGraphException) error;
-                    } else {
-                        throw new ThreadLimitExceededException();
-                        //throw new RuntimeException(, error);
+                    } else if (error instanceof AerospikeException) {
+                        AerospikeException ae = (AerospikeException) error;
+                        if(ae.getResultCode() == 22){
+                            throw new ThreadLimitExceededException();
+                        }else{
+                            throw ae;
+                        }
                     }
                 }
                 return transformKeyRecord.transform(currentIterator.next());

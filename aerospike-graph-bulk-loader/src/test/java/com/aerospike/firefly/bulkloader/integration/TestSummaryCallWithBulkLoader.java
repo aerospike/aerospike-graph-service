@@ -31,7 +31,7 @@ public class TestSummaryCallWithBulkLoader {
     public void beforeEach() {
         Configuration config = getTestConfig();
         graph = FireflyGraph.open(config);
-        // TODO: why is this necessary? otherwise it fails on default config internally (graph-graph)
+        // Set config for the bulk loader
         graph.setConfigFilePath(DEFAULT_CONFIG);
         graph.traversal().V().drop().iterate();
         RecoveryUtil.truncate(graph);

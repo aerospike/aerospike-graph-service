@@ -195,6 +195,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     // Doesn't use hidden key token ~ due to internal Tinkerpop MergeStep validation
     public static final String BULK_LOAD_VERTEX_ADD_KEY = "___bulkLoadMergeVIdentifier";
+    public static final String BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE = "___bulkLoadMergeVIdentifierIsSuperNode";
 
     public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
@@ -555,15 +556,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 propertiesCreate.put(T.id, id);
                 propertiesCreate.put(T.label, label);
                 propertiesCreate.put(BULK_LOAD_VERTEX_ADD_KEY, partitionId);
+                propertiesCreate.put(BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE, isEdgeCacheOverflowed);
                 propertiesMatch.remove(T.id);
                 propertiesMatch.remove(T.label);
                 traversal().mergeV(CollectionUtil.asMap(T.id, id))
                         .option(Merge.onMatch, propertiesMatch)
                         .option(Merge.onCreate, propertiesCreate).iterate();
-                // Increase the supernode counter for incremental bulk loader (for none-existing vertices).
-                if (isEdgeCacheOverflowed) {
-                    this.fireflySummaryUpdater.stageSupernodeWriteToQueue(label, partitionId);
-                }
                 break;
             } catch (final IllegalArgumentException e) {
                 if (!e.getMessage().contains("Vertex with id already exists")) {

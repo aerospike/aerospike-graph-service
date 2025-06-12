@@ -180,6 +180,7 @@ public class AerospikeOperations {
         Integer partition = partitionId;
         LOG.debug("Writing Vertex {} {}.", vertexId, properties);
 
+        boolean isSuperNodeViaIncremental = false;
         final Map<String, FireflyId> vertexPropertyIds;
         final Map<Long, Object> vertexPropertyIdsWritable;
         final Map<Long, Object> vertexPropertyValueMapWritable;
@@ -197,6 +198,11 @@ public class AerospikeOperations {
             // Special bulk loader property for summary updater in the case of an incremental MergeV load.
             if (property.getKey().equals(FireflyGraph.BULK_LOAD_VERTEX_ADD_KEY)) {
                 partition = (Integer) property.getValue();
+                continue;
+            }
+            // Special bulk loader property for summary updater in the case of an incremental MergeV load (is super node)
+            if (property.getKey().equals(FireflyGraph.BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE)) {
+                isSuperNodeViaIncremental = (boolean) property.getValue();
                 continue;
             }
             // Handle special TTL property if flag is enabled.
@@ -302,8 +308,8 @@ public class AerospikeOperations {
             graph.fireflySummaryUpdater.addVertexWriteToQueue(label, validProperties.entrySet().stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
         } else {
             graph.fireflySummaryUpdater.stageVertexWriteToQueue(label, validProperties.entrySet().stream().map(Map.Entry::getKey).collect(Collectors.toSet()), partition);
-            // Increase the supernode counter for fresh bulk loader.
-            if (isEdgeCacheOverflowed) {
+            // Increase the supernode counter for fresh/incremental bulk loader (newly added vertices).
+            if (isEdgeCacheOverflowed || isSuperNodeViaIncremental) {
                 graph.fireflySummaryUpdater.stageSupernodeWriteToQueue(label, partition);
             }
         }

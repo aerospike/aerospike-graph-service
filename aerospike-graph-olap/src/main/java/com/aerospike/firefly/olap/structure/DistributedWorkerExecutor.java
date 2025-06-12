@@ -153,6 +153,9 @@ public class DistributedWorkerExecutor {
 
                 // Create VertexProgram for worker and preset iteration start.
                 final FireflyProgram vertexProgram = createVertexProgram(vertexProgramConfig, graph);
+                if (!vertexProgram.validPostProcessSteps()) {
+                    throw new IllegalStateException("Attempting to run an algorithm that does does filter the results down after execution, how to filter results please consult documentation. If you have a small dataset, you may try rerunning the query with \"g.with('allow.unfiltered.algorithm', true)\"");
+                }
 
                 final Codec codec = vertexProgram.getCodec();
                 final TraverserGenerator traverserGenerator = codec.getTraverserGenerator();

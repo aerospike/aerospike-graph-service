@@ -10,8 +10,10 @@ import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.Traversa
 import org.apache.tinkerpop.gremlin.process.computer.util.ComputerGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.step.Parameterizing;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.Parameters;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.slf4j.Logger;
@@ -52,11 +54,13 @@ public class FireflyBatchVertexReadStepLocal extends VertexStep<Vertex> implemen
                                            final String[] edgeLabels,
                                            final Set<String> labels,
                                            final List<HasContainer> hasContainers,
-                                           final List<String> requiredProperties) {
+                                           final List<String> requiredProperties,
+                                           final Parameters parameters) {
         super(traversal, Vertex.class, direction, edgeLabels);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
         this.labels = new HashSet<>(labels);
+        this.parameters = parameters;
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
                     FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) traversal.getGraph().get(), Vertex.class, hasContainers);

@@ -45,7 +45,7 @@ public class DistributedConfigHelper implements Serializable {
         if (this.olapConfig != null) {
             final Set<String> keys = new HashSet<>(olapConfig.keySet());
             for (final String key : keys) {
-                if (key.startsWith("aerospike") && !key.startsWith(OLAP_PREFIX)) {
+                if (key.startsWith("aerospike") && !key.startsWith(OLAP_PREFIX) && !key.startsWith(QueryParameters.OLAP_PREFIX)) {
                     this.fileConfig.put(key, olapConfig.get(key));
                     this.olapConfig.remove(key);
                 }

@@ -83,8 +83,11 @@ public class TestSummaryCallWithBulkLoader {
         Assert.assertEquals(vertexLabels, summaryCallGrateful.get("Vertex count by label"));
         Assert.assertEquals(edgeLabels, summaryCallGrateful.get("Edge count by label"));
         Assert.assertEquals(supernodeLabels, summaryCallGrateful.get("Supernode count by label"));
+        Assert.assertEquals(6L, vertexCount);
         Assert.assertEquals(vertexCount, summaryCallGrateful.get("Total vertex count"));
+        Assert.assertEquals(20000L, edgeCount);
         Assert.assertEquals(edgeCount, summaryCallGrateful.get("Total edge count"));
+        Assert.assertEquals(3L, supernodeCount);
         Assert.assertEquals(supernodeCount, summaryCallGrateful.get("Total supernode count"));
 
         // Incremental Load
@@ -104,6 +107,8 @@ public class TestSummaryCallWithBulkLoader {
         Assert.assertEquals(3L, ((Map<Object, Object>) summaryCallGrateful.get("Supernode count by label")).get("person"));
         Assert.assertEquals(8L, summaryCallGrateful.get("Total vertex count"));
         Assert.assertEquals(49000L, summaryCallGrateful.get("Total edge count"));
+        // Supernode increased by 3:
+        // 2 new vertices which are supernodes and 1 existing vertex promoted to be a supernode.
         Assert.assertEquals(6L, summaryCallGrateful.get("Total supernode count"));
     }
 }

@@ -367,8 +367,11 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         Assert.assertEquals(vertexLabels, summaryCallGrateful.get("Vertex count by label"));
         Assert.assertEquals(edgeLabels, summaryCallGrateful.get("Edge count by label"));
         Assert.assertEquals(supernodeLabels, summaryCallGrateful.get("Supernode count by label"));
+        Assert.assertEquals(3L, vertexCount);
         Assert.assertEquals(vertexCount, summaryCallGrateful.get("Total vertex count"));
+        Assert.assertEquals(10001L, edgeCount);
         Assert.assertEquals(edgeCount, summaryCallGrateful.get("Total edge count"));
+        Assert.assertEquals(2, supernodeCount);
         Assert.assertEquals(supernodeCount, summaryCallGrateful.get("Total supernode count"));
 
         // Delete vertex to test if supernode count decreases
@@ -380,12 +383,12 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         Assert.assertEquals(2L, ((Map<Object, Object>) summaryCallGrateful.get("Vertex count by label")).get("movie"));
         Assert.assertEquals(0L, ((Map<Object, Object>) summaryCallGrateful.get("Vertex count by label")).get("person"));
         Assert.assertEquals(1L, ((Map<Object, Object>) summaryCallGrateful.get("Edge count by label")).get("knows"));
-        // It's still 1 (and not 0) because we are not "demoting" supernodes.
+        // It's still 1 (and not 0) because we are not "demoting" supernodes (1 was removed due to vertex deletion).
         Assert.assertEquals(1L, ((Map<Object, Object>) summaryCallGrateful.get("Supernode count by label")).get("movie"));
         Assert.assertEquals(0L, ((Map<Object, Object>) summaryCallGrateful.get("Supernode count by label")).get("person"));
         Assert.assertEquals(2L, summaryCallGrateful.get("Total vertex count"));
         Assert.assertEquals(1L, summaryCallGrateful.get("Total edge count"));
-        // It's still 1 (and not 0) because we are not "demoting" supernodes.
+        // It's still 1 (and not 0) because we are not "demoting" supernodes (1 was removed due to vertex deletion).
         Assert.assertEquals(1L, summaryCallGrateful.get("Total supernode count"));
     }
 }

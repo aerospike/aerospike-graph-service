@@ -36,14 +36,14 @@ public class TestDockerConfigs {
     @Test
     public void testMinConnPerNodeGreaterThanMaxConnPerNode() throws InterruptedException {
         testDockerImageSettings(new String[]{
-                "aerospike.client.host=localhost:3000",
+                "aerospike.client.host=172.17.0.1:3000",
                 "aerospike.client.clientPolicy.maxConnsPerNode=1",
                 "aerospike.client.clientPolicy.minConnsPerNode=2"});
     }
 
     @Test
     public void testMultiTenantSettingsEmpty() throws InterruptedException {
-        final String[] environmentVariables = new String[]{"aerospike.client.host=localhost:3000"};
+        final String[] environmentVariables = new String[]{"aerospike.client.host=172.17.0.1:3000"};
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundMsg0 = false;

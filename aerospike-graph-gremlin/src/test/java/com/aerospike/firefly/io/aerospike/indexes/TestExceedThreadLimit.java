@@ -23,8 +23,8 @@ import org.junit.Before;
 import org.junit.After;
 import org.junit.Test;
 
-import javax.lang.model.type.ExecutableType;
-import java.io.IOException;
+
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -131,6 +131,8 @@ public class TestExceedThreadLimit extends AbstractFireflySuite {
                 int code = ((ThreadLimitExceededException) cause).errorCode;
                 int real = GraphError.THREAD_LIMIT_EXCEEDED.code;
                 Assert.assertEquals(real, code);
+            }else{
+                Assert.fail(cause.getMessage());
             }
         }
 

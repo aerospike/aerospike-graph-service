@@ -107,6 +107,13 @@ public final class FireflyHelper {
         return value;
     }
 
+    public static Object validateVertexPropertyValue(final Object v) {
+        if (v instanceof List) {
+            throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(v);
+        }
+        return validatePropertyValue(v);
+    }
+
     public static void legalPropertyKeyValueArray(Object... keyValues) {
         ElementHelper.legalPropertyKeyValueArray(keyValues);
         Iterator i = FireflyCloseableIteratorUtils.asIterator(keyValues);

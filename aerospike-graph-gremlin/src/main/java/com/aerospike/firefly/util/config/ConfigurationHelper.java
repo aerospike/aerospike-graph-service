@@ -226,7 +226,6 @@ public final class ConfigurationHelper {
         public enum Bins {
             GRAPH_VARIABLES_BIN(Pair.of((byte) 1, "GRAPH_VARS")),
             VERTEX_PROPERTY_NAME_TO_VALUE_BIN(Pair.of((byte) 2, "VP_NAME_VAL")),
-            VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN(Pair.of((byte) 3, "VP_HINT")),
             LOCK_BIN(Pair.of((byte) 4, "LOCK")),
             SCHEMA_BIN(Pair.of((byte) 5, "SCHEMA")),
             EDGE_CACHE_DISABLED_BIN(Pair.of((byte) 6, "ECACHE_OFF")),
@@ -240,7 +239,7 @@ public final class ConfigurationHelper {
             LABEL_BIN(Pair.of((byte) 14, "LABEL")),
             SUPERNODES_IN(Pair.of((byte) 15, "SUPERNODE_IN")),
             SUPERNODES_OUT(Pair.of((byte) 16, "SUPERNODE_OUT")),
-            VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
+            VP_PROPERTY_BIN(Pair.of((byte) 17, "VP_PROPERTIES")),
             TTL_BIN(Pair.of((byte) 18, "TTL")),
             USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS")),
             EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
@@ -248,9 +247,8 @@ public final class ConfigurationHelper {
             BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE")),
             BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA")),
             OLAP_LIMIT_BIN(Pair.of((byte) 25, "OLAP_LIMIT")),
-            VERTEX_PROPERTY_DATA_BIN(Pair.of((byte) 26, "VP_DATA")),
-            VERTEX_PROPERTY_TH_BIN(Pair.of((byte) 27, "VP_HINTS")),
-            VP_PROPERTY_BIN(Pair.of((byte) 28, "VP_PROPERTIES"));
+            VERTEX_PROPERTY_DATA_BIN(Pair.of((byte) 2, "VP_DATA")),
+            VERTEX_PROPERTY_TH_BIN(Pair.of((byte) 3, "VP_HINTS"));
 
             private final Pair value;
 

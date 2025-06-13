@@ -14,7 +14,6 @@ public abstract class FireflyElement implements Element {
     public final FireflyId id;
     protected String label;
     protected boolean removed = false;
-    protected final boolean allowNullPropertyValues = false;
 
     protected FireflyElement(final FireflyId id, final String label) {
         this.id = id;

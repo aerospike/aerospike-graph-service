@@ -71,7 +71,6 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.service.ServiceRegistry;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -922,52 +921,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 db.TYPE_HINTS_BIN);
     }
 
-    /**
-     * Write vertex property to Aerospike.
-     *
-     * @param idValue FireflyId of vertex property to write.
-     * @param vertex  Vertex to write property to.
-     * @param key     Key of property to write.
-     * @param value   Value of property to write.
-     * @param <V>     Type of value to write.
-     * @return FireflyVertexProperty
-     */
-    public <V> FireflyVertexProperty<V> writeVertexProperty(final VertexProperty.Cardinality cardinality,
-                                                            final FireflyId idValue,
-                                                            final FireflyVertex vertex,
-                                                            final String key,
-                                                            final V value,
-                                                            final Object... keyValues) {
-        final Map<String, Object> properties = new TreeMap<>();
-        final Map<String, Object> typeHints = new TreeMap<>();
-
-        for (int i = 0; i < keyValues.length; i = i + 2) {
-            if (!keyValues[i].equals(T.id) && !keyValues[i].equals(T.label))
-                if (keyValues[i + 1] != null) {
-                    properties.put((String) keyValues[i], FireflyHelper.validatePropertyValue(keyValues[i + 1]));
-                    final Object typeHint = getTypeHintOf(keyValues[i + 1]);
-                    if (typeHint != null) {
-                        typeHints.put((String) keyValues[i], typeHint);
-                    }
-                } else {
-                    properties.remove((String) keyValues[i]);
-                    typeHints.remove((String) keyValues[i]);
-                }
-            // Since this the first insertion, a null value with allowNullProperties is irrelevant, because there is no
-            // properties to remove, so just ignore.
-        }
-
-        // Write vertex property to Aerospike.
-        final FireflyVertexProperty<V> fireflyVertexProperty = new FireflyVertexProperty<>(
-                this, idValue, vertex, key, value, properties, typeHints);
-
-        // Append vertex property to vertex.
-        aerospikeOperations.writeVpProperty(vertex, fireflyVertexProperty);
-
-        // Return FireflyVertexProperty.
-        return fireflyVertexProperty;
-    }
-
     public long getVertexCount(final List<HasContainer> hasContainers, final Long evaluationTimeout) {
         return FireflyCloseableIteratorUtils.count(this.graphQuery.scanVertexIds(hasContainers, evaluationTimeout));
     }
@@ -1000,9 +953,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         ElementHelper.legalPropertyKeyValueArray(keyValues);
 
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
-        // TODO: Deal with this fn
         final List<Map.Entry<String, Object>> properties = convertFullyQualified(
-                this.features().vertex().supportsNullPropertyValues(), keyValues);
+                this.features().vertex().supportsNullPropertyValues(),
+                keyValues);
 
         // Create a new id or use the provided user-supplied id (if present and supported).
         FireflyId idValue = null;
@@ -1062,10 +1015,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             // Key cannot be empty, must be non-empty String.
             if (key.isEmpty()) {
                 throw Element.Exceptions.providedKeyValuesMustHaveALegalKeyOnEvenIndices();
-            }
-            // If cardinality is single we must only retain the final item.
-            if (this.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single)) {
-                properties = properties.stream().filter(p -> !key.equals(p.getKey())).collect(Collectors.toList());
             }
             properties.add(new AbstractMap.SimpleEntry<>(key, value));
         }

@@ -175,9 +175,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final String IN_VP_SET;
     public final String OUT_VP_SET;
     public final String SUMMARY_SET;
-    public final String VERTEX_PROPERTY_NAME_TO_ID_BIN;
-    public final String VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
-    public final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN;
+    public final String VERTEX_PROPERTY_NAME_TO_VALUE_BIN; // TODO REMOVE THIS
     public final String VERTEX_PROPERTY_DATA_BIN;
     public final String VERTEX_PROPERTY_TH_BIN;
     public final String VP_PROPERTY_BIN;
@@ -530,9 +528,7 @@ public class AerospikeConnection implements AutoCloseable {
         E_LABEL_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.E_LABEL_INDEX_NAME.name(), conf));
         TTL_VERTEX_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.TTL_VERTEX_INDEX_NAME.name(), conf));
         TTL_EDGE_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.TTL_EDGE_INDEX_NAME.name(), conf));
-        VERTEX_PROPERTY_NAME_TO_ID_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_ID_BIN.name(), conf);
         VERTEX_PROPERTY_NAME_TO_VALUE_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_BIN.name(), conf);
-        VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN.name(), conf);
         VERTEX_PROPERTY_DATA_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_DATA_BIN.name(), conf);
         VERTEX_PROPERTY_TH_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_TH_BIN.name(), conf);
         VP_PROPERTY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VP_PROPERTY_BIN.name(), conf);
@@ -595,17 +591,24 @@ public class AerospikeConnection implements AutoCloseable {
             validateMrtSupport();
         }
 
-        vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_BIN); // 2
-        vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN); // 3
+//        vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_BIN); // 2
+//        vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN); // 3
+//        vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_ID_BIN);// 17
+//        vertexNonPropertyBins.add(PROPERTIES_BIN); // 9 --> These are not included in vertex property bins since they are not property key mapped.
+        // Above bins are old/not relevant anymore
         vertexNonPropertyBins.add(EDGE_CACHE_DISABLED_BIN); // 6
         vertexNonPropertyBins.add(IN_EDGES_BIN); // 7
-        vertexNonPropertyBins.add(OUT_EDGES_BIN); // 8
-        vertexNonPropertyBins.add(PROPERTIES_BIN); // 9 --> These are not included in vertex property bins since they are not property key mapped.
-        vertexNonPropertyBins.add(TYPE_HINTS_BIN); // 10 --> These are not included in vertex property bins since they are not property key mapped.
+        vertexNonPropertyBins.add(OUT_EDGES_BIN); // 8\
         vertexNonPropertyBins.add(ID_TYPE_BIN); // 12
         vertexNonPropertyBins.add(USER_KEY_BIN); // 13
         vertexNonPropertyBins.add(LABEL_BIN); // 14
-        vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_ID_BIN);// 17
+        // New bin are below
+//        vertexPropertyBins.add(VERTEX_PROPERTY_DATA_BIN);
+//        vertexPropertyBins.add(VERTEX_PROPERTY_TH_BIN);
+//        vertexPropertyBins.add(VP_PROPERTY_BIN);
+        vertexNonPropertyBins.add(VERTEX_PROPERTY_DATA_BIN);
+        vertexNonPropertyBins.add(VERTEX_PROPERTY_TH_BIN);
+        vertexNonPropertyBins.add(VP_PROPERTY_BIN);
 
         // Set Edge cache size
         final long onRecordIdMaxLimit = getRecordIdLimitFromAerospike(.9);

@@ -281,7 +281,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             if (db.shouldCreateIndexes()) {
                 // Grab user defined vertex property indexes from the configuration and create them.
                 final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
-                createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
+                createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_DATA_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
 
                 // Grab user defined edge property indexes from the configuration and create them.
                 final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
@@ -1198,10 +1198,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             final String formattedIndex = String.format("%s_%s", prefix, index);
             final Long indexSchema = db.schemaManager.getVertexPropertyWrite(index);
             db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + STRING, binName, STRING, IndexCollectionType.MAPVALUES, false,
+                    formattedIndex + "_" + STRING, binName, STRING, IndexCollectionType.MAPKEYS, false,
                     CTX.mapKey(Value.get(indexSchema)));
             db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + NUMERIC, binName, NUMERIC, IndexCollectionType.MAPVALUES, false,
+                    formattedIndex + "_" + NUMERIC, binName, NUMERIC, IndexCollectionType.MAPKEYS, false,
                     CTX.mapKey(Value.get(indexSchema)));
         }
 

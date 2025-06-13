@@ -4,7 +4,7 @@ import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.io.aerospike.query.paged.VertexQueryHelper;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -141,7 +141,7 @@ public final class FireflyHelper {
 
             // Create query policy with expressions.
             final QueryPolicy queryPolicy = new QueryPolicy();
-            queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, FireflyVertex.class);
+            queryPolicy.filterExp = VertexQueryHelper.hasContainerListToExpression(db, hasContainers);
             queryPolicy.includeBinData = false;
             queryPolicy.setTimeout(evaluationTimeout.intValue());
 
@@ -149,7 +149,7 @@ public final class FireflyHelper {
             final Iterator<KeyRecord> keyRecordIterator = graph.graphQuery.querySIndex(
                     info.get().setName,
                     info.get().indexName,
-                    GraphQueryHelper.predicateToFilter(db, topHasContainer.getPredicate(), info.get()),
+                    VertexQueryHelper.predicateToFilter(db, topHasContainer.getPredicate(), info.get()),
                     queryPolicy);
 
             // Transform record to correct element.

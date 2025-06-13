@@ -7,10 +7,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
-import com.aerospike.firefly.util.exceptions.DataModelVersionMismatchException;
-import com.aerospike.firefly.util.exceptions.GraphError;
 import com.aerospike.firefly.util.exceptions.SindexRecentlyDroppedException;
-import com.aerospike.firefly.util.exceptions.ThreadLimitExceededException;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
@@ -254,9 +251,6 @@ public abstract class PageFetcher<E> {
                 if (!NO_ERROR.equals(errorMessage)) {
                     if (error instanceof AerospikeGraphException) {
                         throw (AerospikeGraphException) error;
-                    } else {
-                        throw new ThreadLimitExceededException();
-                        //throw new RuntimeException(, error);
                     }
                 }
                 return transformKeyRecord.transform(currentIterator.next());

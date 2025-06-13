@@ -5,39 +5,29 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Info;
 import com.aerospike.client.Key;
 import com.aerospike.client.Value;
-import com.aerospike.client.cdt.CTX;
-import com.aerospike.client.cluster.Node;
-import com.aerospike.client.query.Filter;
-import com.aerospike.client.query.IndexCollectionType;
-import com.aerospike.client.query.IndexType;
-import com.aerospike.client.query.RecordSet;
-import com.aerospike.client.query.Statement;
-import com.aerospike.client.task.IndexTask;
-import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.util.Metrics;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
 import static com.aerospike.client.query.IndexType.STRING;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
 
 public class TestVertexPropertyCardinalitySindexes {
     private static FireflyGraph graph = null;
@@ -47,6 +37,7 @@ public class TestVertexPropertyCardinalitySindexes {
     public static void setUp() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.index.vertex.properties", "name,age");
+        config.setProperty("aerospike.graph.debug.mode.enabled", "true");
         graph = FireflyGraph.open(config);
         g = graph.traversal();
     }
@@ -61,7 +52,7 @@ public class TestVertexPropertyCardinalitySindexes {
 
     @Before
     public void before() {
-        //g.V().drop().iterate();
+        g.V().drop().iterate();
     }
 
     // Wait until the index is fully registered across the cluster
@@ -140,11 +131,19 @@ public class TestVertexPropertyCardinalitySindexes {
     @Test
     public void testVPSindex_MultipleWrittenWithVertex_StringType() {
         final Vertex actualVertex = g.addV("testVPSindex_MultipleWrittenWithVertex_StringType").
-                property(VertexProperty.Cardinality.list, "name", "Simon").
-                property(VertexProperty.Cardinality.list, "name", "Lyndon").next();
+                property("name", "Lyndon").next();
+        //actualVertex.property(VertexProperty.Cardinality.list, "name", "Simon");
+        //actualVertex.property(VertexProperty.Cardinality.list, "name", "Lyndon");
 
-        final Vertex simonVertex = g.V().has("name", "Simon").next();
+        final FireflyVertex v = (FireflyVertex) g.V().next();
+        final FireflyId vId = v.id;
+        final AerospikeClient client = (AerospikeClient) graph.db.client;
+        final com.aerospike.client.Record r = client.get(null, new Key(graph.db.getNamespace(), graph.db.VERTEX_AERO_SET, Value.get(vId.getStorageId())));
+        System.out.println("Record: " + r.bins);
+        //property(VertexProperty.Cardinality.list, "name", "Lyndon");
+
         final Vertex lyndonVertex = g.V().has("name", "Lyndon").next();
+        final Vertex simonVertex = g.V().has("name", "Simon").next();
         final Vertex simonLyndonVertex1 = g.V().has("name", P.within("Simon", "Lyndon")).next();
         final Vertex simonLyndonVertex2 = g.V().has("name", P.within("Lyndon", "Simon")).next();
         final Vertex simonLyndonVertex3 = g.V().has("name", "Simon").has("name", "Lyndon").next();
@@ -170,5 +169,36 @@ public class TestVertexPropertyCardinalitySindexes {
         Assert.assertEquals(actualVertex, simonLyndonVertex1);
         Assert.assertEquals(actualVertex, simonLyndonVertex2);
         Assert.assertEquals(actualVertex, simonLyndonVertex3);
+    }
+
+    @Test
+    public void testVPSindex_MultipleWrittenWithVertex_DuplicateSingleReturn() {
+        final Vertex actualVertex = g.addV("testVPSindex_MultipleWrittenWithVertex_StringType").
+                property("name", "Lyndon").
+                //property("age", 31).
+                // add list list of
+                next();
+        final List<Vertex> vertices = g.V().has("name", "Lyndon").toList();
+        Key key = getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, ((FireflyVertex) actualVertex).id);
+        com.aerospike.client.Record r = graph.getBaseGraph().client.get(null, key);
+        Assert.assertEquals(1, vertices.size());
+        Assert.assertEquals(actualVertex, vertices.get(0));
+        final List<? extends Property<Object>> properties = g.V(actualVertex.id()).properties("name").toList();
+        Assert.assertEquals(2, properties.size());
+        Assert.assertTrue(properties.stream().allMatch(p -> p.value().equals("Lyndon")));
+    }
+
+    @Test
+    public void testVPSindex_MultipleAppendedToVertex_DuplicateSingleReturn() {
+        final Vertex actualVertex = g.addV("testVPSindex_MultipleWrittenWithVertex_StringType").
+                property(VertexProperty.Cardinality.list, "name", "Lyndon").
+                property(VertexProperty.Cardinality.list, "name", "Lyndon").
+                next();
+        final List<Vertex> vertices = g.V().has("name", "Lyndon").toList();
+        Assert.assertEquals(1, vertices.size());
+        Assert.assertEquals(actualVertex, vertices.get(0));
+        final List<? extends Property<Object>> properties = g.V(actualVertex.id()).properties("name").toList();
+        Assert.assertEquals(2, properties.size());
+        Assert.assertTrue(properties.stream().allMatch(p -> p.value().equals("Lyndon")));
     }
 }

@@ -14,7 +14,7 @@ import org.junit.runner.RunWith;
 @CucumberOptions(
         tags = "not @RemoteOnly and not @GraphComputerOnly and "+
                 "not @AllowNullPropertyValues and not @GraphComputerVerificationElementSupported and "+
-                "not @TinkerServiceRegistry and not @StepRead and not @MultiProperties and " +
+                "not @TinkerServiceRegistry and not @StepRead and " +
                 "not @UserSuppliedVertexPropertyIds and not @InsertionOrderingRequired and " +
                 "not @UserSuppliedEdgeIds and " +
                 // might need fix, but not easy with scans/index reads

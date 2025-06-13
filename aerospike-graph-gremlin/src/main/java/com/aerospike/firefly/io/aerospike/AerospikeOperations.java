@@ -37,7 +37,7 @@ import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyEdgeRecord;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
-import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.io.aerospike.query.paged.EdgeQueryHelper;
 import com.aerospike.firefly.io.aerospike.schema.SchemaManager;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyEdgeFactory;
@@ -426,7 +426,7 @@ public class AerospikeOperations {
         }
         final QueryPolicy queryPolicy = new QueryPolicy();
         queryPolicy.includeBinData = true;
-        queryPolicy.filterExp = GraphQueryHelper.phatEdgeHasContainerListToExpression(db, hasContainers, labels,
+        queryPolicy.filterExp = EdgeQueryHelper.phatEdgeHasContainerListToExpression(db, hasContainers, labels,
                 vertexId, adjacentVertexId, direction);
         if (direction == Direction.OUT) {
             return new CachedIterator(graph, graph.graphQuery.querySIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME,

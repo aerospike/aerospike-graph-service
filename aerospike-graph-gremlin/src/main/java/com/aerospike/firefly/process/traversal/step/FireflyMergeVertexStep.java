@@ -44,6 +44,7 @@ import java.util.stream.Stream;
  * Implementation for the {@code mergeV()} step covering both the start step version and the one used mid-traversal.
  * {@link PartitionStrategy} is not supported.
  */
+// TODO: Delete this garbage if possible.
 public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mutating<Event> {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyMergeVertexStep.class);
 
@@ -224,7 +225,8 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                             VertexProperty.Cardinality effectiveCard;
                             if (FireflyCloseableIteratorUtils.count(v.properties(key)) <= 1)
                                 effectiveCard = VertexProperty.Cardinality.single;
-                            else effectiveCard = VertexProperty.Cardinality.list;
+                            else
+                                effectiveCard = VertexProperty.Cardinality.list;
                             v.property(effectiveCard, key, value);
                         });
                     }

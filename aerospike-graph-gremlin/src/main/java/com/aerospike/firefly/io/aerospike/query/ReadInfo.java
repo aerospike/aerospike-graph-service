@@ -2,8 +2,9 @@ package com.aerospike.firefly.io.aerospike.query;
 
 import com.aerospike.client.exp.Expression;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.io.aerospike.query.paged.VertexQueryHelper;
 import com.aerospike.firefly.structure.FireflyElement;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 
@@ -49,7 +50,11 @@ public class ReadInfo {
         }
 
         public Builder exp(final List<HasContainer> hasContainers, final AerospikeConnection db, final Class<? extends FireflyElement> clazz) {
-            this.expression = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, clazz);
+            if (clazz.isAssignableFrom(FireflyVertex.class)) {
+                this.expression = VertexQueryHelper.hasContainerListToExpression(db, hasContainers);
+            } else {
+                throw new IllegalArgumentException("ReadInfo.Builder.exp() only supports Vertex. Please contact support.");
+            }
             return this;
         }
 

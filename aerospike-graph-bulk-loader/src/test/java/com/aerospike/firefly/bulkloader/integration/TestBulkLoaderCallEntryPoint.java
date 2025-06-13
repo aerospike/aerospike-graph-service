@@ -3,16 +3,22 @@ package com.aerospike.firefly.bulkloader.integration;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
+import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Property;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -554,8 +560,10 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(23L, g.E().count().next().longValue());
             List<Map<Object, Object>> lyndon1 = g.V().has("name", "Lyndon").elementMap().toList();
             Assert.assertEquals(1, lyndon1.size());
+            List<? extends Property> lyndonCompanies = g.V().has("name", "Lyndon").properties("companies").toList();
+            Assert.assertEquals(2, lyndonCompanies.size());
             Assert.assertEquals(Set.of("Apache TinkerPop", "Aerospike"),
-                    ((List) lyndon1.get(0).get("companies")).stream().collect(Collectors.toSet()));
+                    lyndonCompanies.stream().map(Property::value).collect(Collectors.toSet()));
             List<Object> simonDrives1 = g.V("simon").out("drives").id().toList();
             Assert.assertEquals(1, simonDrives1.size());
             Assert.assertEquals("GR86", simonDrives1.get(0));
@@ -587,7 +595,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(Set.of("GR86", "f150"), ((List) simonDrives3).stream().collect(Collectors.toSet()));
             List<Map<Object, Object>> lyndon2 = g.V().has("name", "Lyndon1").elementMap().toList();
             Assert.assertEquals(1, lyndon2.size());
-            Assert.assertEquals(Set.of("Apache TinkerPop1", "Aerospike"),
+            Assert.assertEquals(Set.of("Apache TinkerPop", "Apache TinkerPop1", "Aerospike"),
                     ((List) lyndon2.get(0).get("companies")).stream().collect(Collectors.toSet()));
             Assert.assertTrue(g.V().has("name", "Lyndon").toList().isEmpty());
             g.V("simon").properties("isDope").toList().forEach(p -> Assert.assertEquals("true", p.value()));
@@ -651,6 +659,84 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(1, edgeCache.get("edge").size());
             Assert.assertTrue(g.V("supernode").out().count().next() > fireflyGraph.getBaseGraph().ON_RECORD_ID_LIMIT);
         }
+    }
+
+    @Test
+    public void testMultiProperties() {
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            Assert.assertEquals(0, g.V().count().next().longValue());
+            Assert.assertEquals(0, g.E().count().next().longValue());
+            //~id,~label,test_multi_before_not_after:string(list),test_multi_before_and_after:string(list),test_multi_not_before_but_after:string,test_multi_not_before_not_after:string
+            //1  ,person,before;not;after                        ,before;and;after                        ,not;before;but;after                  ,not;before;not;after
+
+            //~label,~from,~to,test(list)
+            //knows,1,1,foo;bar
+            g.call("aerospike.graphloader.admin.bulk-load.load")
+                .with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-multi-1.properties")
+                .iterate();
+            waitForBulkLoad(g);
+            Assert.assertEquals(1, g.V().count().next().longValue());
+            Assert.assertEquals(1, g.E().count().next().longValue());
+            final FireflyVertex vertex = (FireflyVertex) g.V().next();
+            testProperty(vertex, "test_multi_before_not_after", List.of("before", "not", "after"));
+            testProperty(vertex, "test_multi_before_and_after", List.of("before", "and", "after"));
+            testProperty(vertex, "test_multi_not_before_but_after", List.of("not;before;but;after"));
+            testProperty(vertex, "test_multi_not_before_not_after", List.of("not;before;not;after"));
+            testProperty(fireflyGraph, vertex.id(), "test_multi_before_not_after", List.of("before", "not", "after"));
+            testProperty(fireflyGraph, vertex.id(), "test_multi_before_and_after", List.of("before", "and", "after"));
+            testProperty(fireflyGraph, vertex.id(), "test_multi_not_before_but_after", List.of("not;before;but;after"));
+            testProperty(fireflyGraph, vertex.id(), "test_multi_not_before_not_after", List.of("not;before;not;after"));
+            final FireflyEdge edge = (FireflyEdge) g.V().outE("knows").next();
+            testProperty(edge, "test", List.of("foo", "bar"));
+
+            // Incremental load next dataset.
+            // ~id,~label,test_multi_before_not_after:string,test_multi_before_and_after:string(list),test_multi_not_before_but_after:string(list),test_multi_not_before_not_after:string
+            // 1  ,person,present                           ,before;baz                              ,not;before;but;after                        ,still;not
+            //
+            // ~label,~from,~to,test(list)
+            // knows,1,1,foo;bar
+            g.call("aerospike.graphloader.admin.bulk-load.load")
+                .with(INCREMENTAL_LOAD, true)
+                .with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-multi-2.properties")
+                .iterate();
+            waitForBulkLoad(g);
+            Assert.assertEquals(1, g.V().count().next().longValue());
+            Assert.assertEquals(2, g.E().count().next().longValue());
+            final FireflyVertex vertex2 = (FireflyVertex) g.V().next();
+            testProperty(vertex2, "test_multi_before_not_after", List.of("present"));
+            testProperty(vertex2, "test_multi_before_and_after", List.of("before", "and", "after", "before", "baz"));
+            testProperty(vertex2, "test_multi_not_before_but_after", List.of("not;before;but;after", "not", "before", "but", "after"));
+            testProperty(vertex2, "test_multi_not_before_not_after", List.of("still;not"));
+            testProperty(fireflyGraph, vertex2.id(), "test_multi_before_not_after", List.of("present"));
+            testProperty(fireflyGraph, vertex2.id(), "test_multi_before_and_after", List.of("before", "and", "after", "before", "baz"));
+            testProperty(fireflyGraph, vertex2.id(), "test_multi_not_before_but_after", List.of("not;before;but;after", "not", "before", "but", "after"));
+            testProperty(fireflyGraph, vertex2.id(), "test_multi_not_before_not_after", List.of("still;not"));
+        }
+    }
+
+    void testProperty(final FireflyEdge edge, final String property, final List<String> expectedValues) {
+        final Iterator<Property<Object>> propertyIterator = edge.properties(property);
+        final List<String> propertyList = new ArrayList<>();
+        propertyIterator.forEachRemaining(ep -> propertyList.add((String) ep.value()));
+        Assert.assertEquals(expectedValues.size(), propertyList.size());
+        Assert.assertEquals(new HashSet<>(expectedValues), new HashSet<>(propertyList));
+    }
+
+    void testProperty(final FireflyVertex vertex, final String property, final List<String> expectedValues) {
+        final Iterator<VertexProperty<Object>> propertyIterator = vertex.properties(property);
+        final List<String> propertyList = new ArrayList<>();
+        propertyIterator.forEachRemaining(vp -> propertyList.add((String) vp.value()));
+        Assert.assertEquals(expectedValues.size(), propertyList.size());
+        Assert.assertEquals(new HashSet<>(expectedValues), new HashSet<>(propertyList));
+    }
+
+    void testProperty(final FireflyGraph graph, final Object id, final String property, final List<String> expectedValues) {
+        final List<? extends Property<Object>> propertyList = graph.traversal().V(id).properties(property).toList();
+        final List<String> propertyValues = propertyList.stream().map(Property::value).map(Object::toString).collect(Collectors.toList());
+        Assert.assertEquals(expectedValues.size(), propertyValues.size());
+        Assert.assertEquals(new HashSet<>(expectedValues), new HashSet<>(propertyValues));
     }
 
     @Test

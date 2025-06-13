@@ -58,8 +58,7 @@ public class GraphQuery {
         return scanElementIds(FireflyVertex.class, List.of(), evaluationTimeout);
     }
 
-    public Iterator<FireflyId> scanVertexIds(final List<HasContainer> hasContainers, final
-    Long evaluationTimeout) {
+    public Iterator<FireflyId> scanVertexIds(final List<HasContainer> hasContainers, final Long evaluationTimeout) {
         return scanElementIds(FireflyVertex.class, hasContainers, evaluationTimeout);
     }
 
@@ -135,11 +134,14 @@ public class GraphQuery {
         policy.setTimeout(evaluationTimeout.intValue());
         // Build expression using predicate.
         if (predicate != null) {
-            final Exp exp = GraphQueryHelper.predicateToExpression(db, binName, mapKey, predicate);
+            if (!setName.equals(db.VERTEX_AERO_SET)) {
+                throw new UnsupportedOperationException("Cannot push predicates down to edges, please contact support.");
+            }
+            final Exp exp = VertexQueryHelper.predicateToExpression(db, binName, mapKey, predicate);
             if (hasContainers.isEmpty() && !db.TTL_ENABLED_FLAG) {
                 policy.filterExp = Exp.build(exp);
             } else {
-                final Exp[] exps = GraphQueryHelper.hasContainerListToExpArray(db, hasContainers, clazz);
+                final Exp[] exps = VertexQueryHelper.hasContainerListToExpArray(db, hasContainers, clazz);
                 final Exp[] allExps = new Exp[exps.length + 1];
                 allExps[0] = exp;
                 System.arraycopy(exps, 0, allExps, 1, exps.length);
@@ -184,7 +186,7 @@ public class GraphQuery {
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
         graph.getBaseGraph().configureIndexPolicy(queryPolicy);
-        queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(graph.getBaseGraph(), hasContainers, FireflyVertex.class);
+        queryPolicy.filterExp = VertexQueryHelper.hasContainerListToExpression(graph.getBaseGraph(), hasContainers);
 
         // Override with evaluationTimeout if < default.
         if (evaluationTimeout != null) {
@@ -198,7 +200,7 @@ public class GraphQuery {
 
         // Query index.
         return querySIndex(indexInfo.setName, indexInfo.indexName,
-                GraphQueryHelper.predicateToFilter(graph.getBaseGraph(), predicate, indexInfo), queryPolicy, transform);
+                VertexQueryHelper.predicateToFilter(graph.getBaseGraph(), predicate, indexInfo), queryPolicy, transform);
     }
 
     public <E> Iterator<E> querySIndex(final String setName,
@@ -296,7 +298,7 @@ public class GraphQuery {
             if (!ids.isEmpty()) {
                 final List<FireflyGraphStep.HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, nonIdContainers);
                 final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
-                final Expression expression = GraphQueryHelper.hasContainerListToExpression(db, aerospikeSideHasContainers, FireflyVertex.class);
+                final Expression expression = VertexQueryHelper.hasContainerListToExpression(db, aerospikeSideHasContainers);
                 final BatchPolicy policy = new BatchPolicy();
                 policy.setTimeout(evaluationTimeout.intValue());
                 return batchReadVertexPagesBlocking(expression, graph::vertexFromRecord, ids, evaluationTimeout);
@@ -316,7 +318,7 @@ public class GraphQuery {
                     // Need to wrap with has container check
                     // If we have a property index, we can use it and read sindex pages.
                     return indexSetPagesBlocking(db.VERTEX_AERO_SET, propertyIndexInfo.get().indexName,
-                            GraphQueryHelper.predicateToFilter(db, topContainer.getPredicate(), propertyIndexInfo.get()),
+                            VertexQueryHelper.predicateToFilter(db, topContainer.getPredicate(), propertyIndexInfo.get()),
                             policy, graph::vertexIdFromRecord);
                 }
 
@@ -345,9 +347,12 @@ public class GraphQuery {
 
         // Build expression using predicate.
         if (predicate != null) {
-            final Exp exp = GraphQueryHelper.predicateToExpression(db, binName, mapKey, predicate);
+            if (!setName.equals(db.VERTEX_AERO_SET)) {
+                throw new UnsupportedOperationException("Cannot push predicates down to edges for blocking scan, please contact support.");
+            }
+            final Exp exp = VertexQueryHelper.predicateToExpression(db, binName, mapKey, predicate);
             if (!hasContainers.isEmpty()) {
-                final Exp[] exps = GraphQueryHelper.hasContainerListToExpArray(db, hasContainers, clazz);
+                final Exp[] exps = VertexQueryHelper.hasContainerListToExpArray(db, hasContainers, clazz);
                 final Exp[] allExps = new Exp[exps.length + 1];
                 allExps[0] = exp;
                 System.arraycopy(exps, 0, allExps, 1, exps.length);

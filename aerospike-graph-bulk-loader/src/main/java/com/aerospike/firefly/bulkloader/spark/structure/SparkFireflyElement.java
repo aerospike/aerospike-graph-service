@@ -52,10 +52,24 @@ public abstract class SparkFireflyElement implements Serializable {
             String propertyName = header.substring(0, typeSpecifierIndex);
             String type = header.substring(typeSpecifierIndex + 1);
             boolean isList = false;
-            if (type.endsWith("[]")) {
-                isList = true;
-                type = type.substring(0, type.length() - 2);
+            if (type.contains("(") || type.contains(")")) {
+                if (!type.endsWith("(list)")) {
+                    throw new IllegalArgumentException(
+                            String.format("Invalid type '%s' for property '%s'. " +
+                                    "Type should not contain parentheses unless it ends with '(list)'.", type, header));
+                }
             }
+            // Denote the list type and trim it off.
+            if (type.endsWith("(list)")) {
+                isList = true;
+                type = type.substring(0, type.length() - "(list)".length());
+            }
+            if (type.endsWith("[]") && !type.startsWith("byte")) {
+                throw new IllegalArgumentException(
+                        String.format("Invalid type '%s' for property '%s'. " +
+                                "Type should not end with '[]' unless it is a byte array 'byte[]'.", type, header));
+            }
+            // TODO: Need byte[]?
             final Object propertyValue;
             switch (type.toLowerCase()) {
                 case "long":
@@ -99,6 +113,11 @@ public abstract class SparkFireflyElement implements Serializable {
                     } else {
                         propertyValue = parser.parseString(value);
                     }
+                    break;
+                case "byte":
+                case "byte[]":
+                    final String[] values = value.split(";");
+                    propertyValue = Arrays.stream(values).map(parser::parseByte).collect(Collectors.toList());
                     break;
                 default:
                     propertyName = header;

@@ -788,8 +788,17 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         if (this.removed) {
             throw elementAlreadyRemoved(Vertex.class, this.id);
         }
-        if (propertyKeys == null || propertyKeys.length == 0) {
+        if (propertyKeys == null) {
             return Collections.emptyIterator();
+        }
+        if (propertyKeys.length == 0) {
+            final Set<String> propertyKeySet = readVertexPropertyKeys();
+            Iterator<VertexProperty<V>> itty = Collections.emptyIterator();
+            for (final String propertyKey : propertyKeySet) {
+                final Iterator<VertexProperty<V>> vpItty = readVertexProperty(propertyKey);
+                itty = FireflyCloseableIteratorUtils.concat(itty, vpItty);
+            }
+            return itty;
         }
         final List<VertexProperty<V>> vertexProperties = new ArrayList<>();
         for (final String propertyKey : propertyKeys) {

@@ -1,8 +1,6 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.ResultCode;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.Property;
@@ -115,13 +113,21 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         if (this.removed) {
             throw elementAlreadyRemoved(VertexProperty.class, id);
         }
-        if (propertyKeys == null || propertyKeys.length == 0) {
+        if (propertyKeys == null) {
             return Collections.emptyIterator();
+        }
+        final String[] propertyKeysToRead;
+        if (propertyKeys.length == 0) {
+            propertyKeysToRead = properties.keySet().stream().
+                    map(graph.getBaseGraph().schemaManager::getVpPropertyString).
+                    toArray(String[]::new);
+        } else {
+            propertyKeysToRead = propertyKeys;
         }
 
         final AerospikeConnection db = this.graph.getBaseGraph();
         final List<Property<V>> propertyList = new ArrayList<>();
-        for (final String key : propertyKeys) {
+        for (final String key : propertyKeysToRead) {
             final Long schemaKey = db.schemaManager.getVpPropertyRead(key);
             if (this.properties.containsKey(schemaKey)) {
                 final List<Object> valueAndTypeHint = this.properties.get(schemaKey);

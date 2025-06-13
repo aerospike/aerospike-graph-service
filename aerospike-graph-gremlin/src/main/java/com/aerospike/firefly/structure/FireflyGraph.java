@@ -1136,7 +1136,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
      *
      * @param vertexPropertyIndexes List of vertex property indexes to create.
      */
-    private void createIndexes(final Class<? extends FireflyElement> elementClass, final String binName, final String prefix, final List<String> vertexPropertyIndexes) {
+    public void createIndexes(final Class<? extends FireflyElement> elementClass, final String binName, final String prefix, final List<String> vertexPropertyIndexes) {
         final List<String> existingIndexes =
                 AerospikeConnection.InfoOps.listExistingIndexes(db).stream()
                         .map(Map.Entry::getKey).collect(Collectors.toList());

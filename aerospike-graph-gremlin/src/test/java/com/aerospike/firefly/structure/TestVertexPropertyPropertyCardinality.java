@@ -1,9 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.util.config.ConfigurationHelper;
-import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -16,7 +14,6 @@ import org.junit.Test;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -133,15 +130,19 @@ public class TestVertexPropertyPropertyCardinality {
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(2L, propertyCount);
-        final Iterator<Property<Object>> vpps = v.property("name").properties();
-        Assert.assertTrue(vpps.hasNext());
-        final Property<Object> vp = vpps.next();
-        Assert.assertEquals("age", vp.key());
-        Assert.assertEquals(30, vp.value());
-        Assert.assertTrue(vpps.hasNext());
-        final Property<Object> vp2 = vpps.next();
-        Assert.assertEquals("city", vp2.key());
-        Assert.assertEquals("London", vp2.value());
+        final List<? extends Property<Object>> vpps = g.V(v.id()).properties("name").properties().toList();
+        Assert.assertEquals(2, vpps.size());
+        for (final Property<Object> vp : vpps) {
+            if (vp.key().equals("age")) {
+                Assert.assertEquals("age", vp.key());
+                Assert.assertEquals(30, vp.value());
+            } else if (vp.key().equals("city")) {
+                Assert.assertEquals("city", vp.key());
+                Assert.assertEquals("London", vp.value());
+            } else {
+                Assert.fail("Unexpected property key: " + vp.key());
+            }
+        }
 
         final List<Map<Object, Object>> vpps2 = g.V().hasLabel("testVPP_DoubleStartingValue_DoubleMetaProperty").
                 has("name", "simon").properties("name").valueMap().toList();

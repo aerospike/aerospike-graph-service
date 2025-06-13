@@ -124,12 +124,17 @@ public class VertexQueryHelper {
         if (db.LABEL_BIN.equals(binName)) {
             return Exp.eq(Exp.intBin(db.LABEL_BIN), Exp.val(db.schemaManager.getVertexLabelRead((String) predicate.getValue())));
         }
-        return COMPARE_TO_EXP.get(predicate.getBiPredicate())
-                .apply(MapExp.getByKey(MapReturnType.VALUE,
-                                getExpType(predicate.getValue()),
-                                Exp.val(db.schemaManager.getVertexPropertyRead(mapKey)),
-                                Exp.mapBin(binName)),
-                        getValue(predicate.getValue()));
+        return MapExp.getByKey(MapReturnType.EXISTS,
+                        Exp.Type.BOOL,
+                        getValue(predicate.getValue()),
+                        Exp.mapBin(binName),
+                        CTX.mapKey(Value.get(db.schemaManager.getVertexPropertyRead(mapKey))));
+        //return COMPARE_TO_EXP.get(predicate.getBiPredicate())
+        //        .apply(MapExp.getByKey(MapReturnType.VALUE,
+        //                        getExpType(predicate.getValue()),
+        //                        Exp.val(db.schemaManager.getVertexPropertyRead(mapKey)),
+        //                        Exp.mapBin(binName)),
+        //                getValue(predicate.getValue()));
     }
 
     public static Expression hasContainerListToExpression(final AerospikeConnection db, final List<HasContainer> hasContainers) {
@@ -144,7 +149,7 @@ public class VertexQueryHelper {
 
         for (final HasContainer h : hasContainers) {
             final Exp expFromPredicate = predicateToExpression(db,
-                    h.getKey().equals("~label") ? db.LABEL_BIN : db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
+                    h.getKey().equals("~label") ? db.LABEL_BIN : db.VERTEX_PROPERTY_DATA_BIN,
                     h.getKey(), h.getPredicate());
             exps.add(expFromPredicate);
         }
@@ -163,7 +168,7 @@ public class VertexQueryHelper {
         }
         for (final HasContainer h : hasContainers) {
             final Exp expFromPredicate = predicateToExpression(db,
-                    h.getKey().equals("~label") ? db.LABEL_BIN : db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
+                    h.getKey().equals("~label") ? db.LABEL_BIN : db.VERTEX_PROPERTY_DATA_BIN,
                     h.getKey(), h.getPredicate());
             exps.add(expFromPredicate);
         }

@@ -13,6 +13,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Iterator;
 import java.util.List;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -38,8 +39,6 @@ public class TestVertexPropertyCardinality {
     public void before() {
         g.V().drop().iterate();
     }
-
-    // TODO: Test VPPS!!!!
 
     @Test
     public void testVP_SingleStartingValue_PropertyList() {
@@ -275,8 +274,9 @@ public class TestVertexPropertyCardinality {
         Assert.assertEquals(2L, propertyCount);
 
         VertexProperty dropLyndon = null;
-        while (v.properties("name").hasNext()) {
-            final VertexProperty vp = v.properties("name").next();
+        final Iterator<VertexProperty<Object>> it = v.properties("name");
+        while (it.hasNext()) {
+            final VertexProperty vp = it.next();
             if (vp.value().equals("Lyndon")) {
                 dropLyndon = vp;
                 break;

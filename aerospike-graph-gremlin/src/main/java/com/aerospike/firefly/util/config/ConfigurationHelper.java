@@ -225,7 +225,6 @@ public final class ConfigurationHelper {
 
         public enum Bins {
             GRAPH_VARIABLES_BIN(Pair.of((byte) 1, "GRAPH_VARS")),
-            VERTEX_PROPERTY_NAME_TO_VALUE_BIN(Pair.of((byte) 2, "VP_NAME_VAL")),
             LOCK_BIN(Pair.of((byte) 4, "LOCK")),
             SCHEMA_BIN(Pair.of((byte) 5, "SCHEMA")),
             EDGE_CACHE_DISABLED_BIN(Pair.of((byte) 6, "ECACHE_OFF")),

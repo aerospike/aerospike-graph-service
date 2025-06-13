@@ -101,27 +101,7 @@ public class Admin {
         }
 
         public I createVertexPropertyIndex(final FireflyGraph firefly, final String key) {
-            final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
-            final List<String> existingIndexes = getExistingIndexes(firefly);
-            final Long schemaKey = firefly.getBaseGraph().schemaManager.getVertexPropertyWrite(key);
-            String formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
-            firefly.getBaseGraph().createIndexBackground(existingIndexes,
-                    set,
-                    formattedIndex + "_" + STRING,
-                    firefly.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
-                    STRING,
-                    IndexCollectionType.DEFAULT,
-                    true,
-                    CTX.mapKey(Value.get(schemaKey)));
-            formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
-            firefly.getBaseGraph().createIndexBackground(existingIndexes,
-                    set,
-                    formattedIndex + "_" + NUMERIC,
-                    firefly.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
-                    NUMERIC,
-                    IndexCollectionType.DEFAULT,
-                    true,
-                    CTX.mapKey(Value.get(schemaKey)));
+            firefly.createIndexes(FireflyVertex.class, firefly.getBaseGraph().VERTEX_PROPERTY_DATA_BIN, firefly.getBaseGraph().getVpIndexPrefix(), List.of());
             return (I) ("Vertex index creation of property key '" + key + "' in progress.");
         }
 

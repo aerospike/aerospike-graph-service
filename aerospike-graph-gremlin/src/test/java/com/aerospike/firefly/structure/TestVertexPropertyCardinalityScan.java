@@ -22,9 +22,9 @@ public class TestVertexPropertyCardinalityScan {
     @BeforeClass
     public static void setUp() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty("aerospike.graph.debug.mode.enabled", "true");
         graph = FireflyGraph.open(config);
         g = graph.traversal();
+        graph.db.dropDatabase(graph, true);
     }
 
     @AfterClass
@@ -52,21 +52,21 @@ public class TestVertexPropertyCardinalityScan {
         final Vertex simonLyndonVertex2 = g.V().has("name", P.within("Lyndon", "Simon")).next();
         final Vertex simonLyndonVertex3 = g.V().has("name", "Simon").has("name", "Lyndon").next();
         final TraversalMetrics simonVertexMetrics = g.V().has("name", "Simon").profile().next();
+        final Metrics simonVertexMetricsFireflyMetric = (Metrics) simonVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertFalse(simonVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().isEmpty());
         final TraversalMetrics lyndonVertexMetrics = g.V().has("name", "Lyndon").profile().next();
         final TraversalMetrics simonLyndonVertex1Metrics = g.V().has("name", P.within("Simon", "Lyndon")).profile().next();
         final TraversalMetrics simonLyndonVertex2Metrics = g.V().has("name", P.within("Lyndon", "Simon")).profile().next();
         final TraversalMetrics simonLyndonVertex3Metrics = g.V().has("name", "Simon").has("name", "Lyndon").profile().next();
 
-        final Metrics simonVertexMetricsFireflyMetric = (Metrics) simonVertexMetrics.getMetrics().toArray()[3];
-        Assert.assertEquals(0, simonVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
-        final Metrics lyndonVertexMetricsFireflyMetric = (Metrics) lyndonVertexMetrics.getMetrics().toArray()[3];
-        Assert.assertEquals(0, lyndonVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
-        final Metrics simonLyndonVertex1MetricsFireflyMetric = (Metrics) simonLyndonVertex1Metrics.getMetrics().toArray()[3];
-        Assert.assertEquals(0, simonLyndonVertex1MetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
-        final Metrics simonLyndonVertex2MetricsFireflyMetric = (Metrics) simonLyndonVertex2Metrics.getMetrics().toArray()[3];
-        Assert.assertEquals(0, simonLyndonVertex2MetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
-        final Metrics simonLyndonVertex3MetricsFireflyMetric = (Metrics) simonLyndonVertex3Metrics.getMetrics().toArray()[3];
-        Assert.assertEquals(0, simonLyndonVertex3MetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
+        final Metrics lyndonVertexMetricsFireflyMetric = (Metrics) lyndonVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertFalse(lyndonVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().isEmpty());
+        final Metrics simonLyndonVertex1MetricsFireflyMetric = (Metrics) simonLyndonVertex1Metrics.getMetrics().toArray()[1];
+        Assert.assertFalse(simonLyndonVertex1MetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().isEmpty());
+        final Metrics simonLyndonVertex2MetricsFireflyMetric = (Metrics) simonLyndonVertex2Metrics.getMetrics().toArray()[1];
+        Assert.assertFalse(simonLyndonVertex2MetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().isEmpty());
+        final Metrics simonLyndonVertex3MetricsFireflyMetric = (Metrics) simonLyndonVertex3Metrics.getMetrics().toArray()[1];
+        Assert.assertFalse(simonLyndonVertex3MetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().isEmpty());
 
         Assert.assertEquals(actualVertex, simonVertex);
         Assert.assertEquals(actualVertex, lyndonVertex);
@@ -97,8 +97,8 @@ public class TestVertexPropertyCardinalityScan {
 
         final TraversalMetrics vertexMetrics = g.V().has("name", "Lyndon").profile().next();
         final TraversalMetrics vertexMetrics2 = g.V().has("name", P.within("Lyndon", "Simon")).profile().next();
-        final Metrics vertexMetricsFireflyMetric = (Metrics) vertexMetrics.getMetrics().toArray()[3];
-        final Metrics vertexMetrics2FireflyMetric = (Metrics) vertexMetrics2.getMetrics().toArray()[3];
+        final Metrics vertexMetricsFireflyMetric = (Metrics) vertexMetrics.getMetrics().toArray()[1];
+        final Metrics vertexMetrics2FireflyMetric = (Metrics) vertexMetrics2.getMetrics().toArray()[1];
         Assert.assertNotEquals(0, vertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
         Assert.assertNotEquals(0, vertexMetrics2FireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
     }

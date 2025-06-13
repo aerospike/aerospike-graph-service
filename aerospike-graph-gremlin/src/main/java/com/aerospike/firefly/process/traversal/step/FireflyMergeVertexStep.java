@@ -151,7 +151,7 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                         } else {
                             LOG.debug("No index found for key {} and value {}, running scan", key, value);
                             iterator = graph.graphQuery.scanSet(key.toString(), graph.getBaseGraph().VERTEX_AERO_SET,
-                                    graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN, P.eq(value),
+                                    graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN, P.eq(value),
                                     graph::vertexFromRecord, evaluationTimeout);
                         }
                         results.add(iterator);

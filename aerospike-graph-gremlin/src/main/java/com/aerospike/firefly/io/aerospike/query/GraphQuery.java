@@ -84,7 +84,7 @@ public class GraphQuery {
                 binName = graph.getBaseGraph().LABEL_BIN;
                 mapKey = null;
             } else {
-                binName = graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
+                binName = graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN;
                 mapKey = container.getKey();
             }
         } else {
@@ -147,10 +147,6 @@ public class GraphQuery {
                 System.arraycopy(exps, 0, allExps, 1, exps.length);
                 policy.filterExp = Exp.build(Exp.and(allExps));
             }
-        }
-
-        if (mapKey != null) {
-            db.getScanHitCounter().increment(mapKey);
         }
 
         final PageFetcher<E> pageFetcher = new ScanPageFetcher(graph, policy, setName, db.PAGINATION_PAGE_SIZE, mapKey, transform);
@@ -256,7 +252,7 @@ public class GraphQuery {
                 binName = graph.getBaseGraph().LABEL_BIN;
                 mapKey = null;
             } else {
-                binName = graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
+                binName = graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN;
                 mapKey = container.getKey();
             }
         } else {
@@ -326,7 +322,7 @@ public class GraphQuery {
                 if ("~label".equals(topContainer.getKey())) {
                     binName = graph.getBaseGraph().LABEL_BIN;
                 } else {
-                    binName = graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
+                    binName = graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN;
                     mapKey = topContainer.getKey();
                 }
             }

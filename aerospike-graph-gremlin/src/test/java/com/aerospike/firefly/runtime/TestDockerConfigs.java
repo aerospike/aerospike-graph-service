@@ -1,5 +1,6 @@
 package com.aerospike.firefly.runtime;
 
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.DockerUtil;
 import org.junit.After;
 import org.junit.Assert;
@@ -35,14 +36,14 @@ public class TestDockerConfigs {
     @Test
     public void testMinConnPerNodeGreaterThanMaxConnPerNode() throws InterruptedException {
         testDockerImageSettings(new String[]{
-                "aerospike.client.host=172.17.0.1:3000",
+                "aerospike.client.host=localhost:3000",
                 "aerospike.client.clientPolicy.maxConnsPerNode=1",
                 "aerospike.client.clientPolicy.minConnsPerNode=2"});
     }
 
     @Test
     public void testMultiTenantSettingsEmpty() throws InterruptedException {
-        final String[] environmentVariables = new String[]{"aerospike.client.host=172.17.0.1:3000"};
+        final String[] environmentVariables = new String[]{"aerospike.client.host=localhost:3000"};
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundMsg0 = false;
@@ -177,6 +178,27 @@ public class TestDockerConfigs {
             }
         }
         Assert.assertTrue(foundErrorMsg);
+    }
+
+    @Test
+    public void testGitCommitHashLog() throws InterruptedException {
+        final String[] environmentVariables = new String[]{
+                "aerospike.client.host=172.17.0.2:3000",
+                "aerospike.graph-service.graphs=graph,modern"};
+        final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
+        final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
+        boolean foundMsg = false;
+        for (final String line : log) {
+            LOG.warn(line);
+            if (line.contains("Built from git commit")) {
+                foundMsg = true;
+            }
+
+            if (foundMsg) {
+                break;
+            }
+        }
+        Assert.assertTrue(foundMsg);
     }
 
     @Before

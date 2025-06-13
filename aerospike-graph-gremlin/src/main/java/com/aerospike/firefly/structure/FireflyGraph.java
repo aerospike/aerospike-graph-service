@@ -380,7 +380,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         if (fireflyVersion != null && fireflyVersion.endsWith("SNAPSHOT") && !isTesting) {
             String commitHash = getGitCommitHash();
-            LOG.info("Build from git commit " + commitHash);
+            LOG.info("Built from git commit " + commitHash);
         }
 
         if (System.getenv("FIREFLY_TESTING") != null &&

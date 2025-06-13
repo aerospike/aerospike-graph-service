@@ -64,8 +64,6 @@ public class PeerPressureProgram extends AlgorithmProgram {
             MemoryComputeKey.of(HALTED_TRAVERSERS, Operator.addAll, false, false),
             MemoryComputeKey.of(START_STEP, Operator.assign, true, false)));
 
-    private OptionsStrategy optionsStrategy;
-
     // for serialization
     private PeerPressureProgram() {
     }

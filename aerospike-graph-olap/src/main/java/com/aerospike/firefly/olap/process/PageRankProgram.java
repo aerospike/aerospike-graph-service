@@ -73,8 +73,6 @@ public class PageRankProgram extends AlgorithmProgram {
     private int maxIterations = 20;
     private Set<MemoryComputeKey> memoryComputeKeys;
 
-    private OptionsStrategy optionsStrategy;
-
     // for serialization
     private PageRankProgram() {
     }

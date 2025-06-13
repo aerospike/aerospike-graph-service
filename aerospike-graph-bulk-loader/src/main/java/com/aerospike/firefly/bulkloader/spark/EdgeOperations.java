@@ -288,11 +288,11 @@ public class EdgeOperations implements Serializable {
                 edgesToRemove.add(edgeToFrom._1().getUserId());
             }
         }
+        edgeToFromIdList.clear();
         if (edgesToRemove.isEmpty()) {
             return;
         }
         GraphOperations.dropDetachedEdges(graph, edgesToRemove, allowedDetachedEdges);
-        edgeToFromIdList.clear();
     }
 
 

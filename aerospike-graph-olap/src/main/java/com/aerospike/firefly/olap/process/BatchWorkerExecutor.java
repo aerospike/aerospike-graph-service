@@ -1,5 +1,6 @@
 package com.aerospike.firefly.olap.process;
 
+import com.aerospike.firefly.olap.config.QueryParameters;
 import com.aerospike.firefly.olap.helper.AttachmentHelper;
 import com.aerospike.firefly.olap.helper.TaskLogger;
 import com.aerospike.firefly.olap.process.traversal.step.SparkOperation;
@@ -13,12 +14,12 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.Barrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Bypassing;
 import org.apache.tinkerpop.gremlin.process.traversal.step.GraphComputing;
 import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
+import org.apache.tinkerpop.gremlin.process.traversal.step.Parameterizing;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.EmptyStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.Parameters;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMatrix;
-import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +28,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.olap.process.TraversalProgram.MUTATED_MEMORY_KEYS;
@@ -175,6 +177,16 @@ public class BatchWorkerExecutor {
         // need to wait for results of all barriers, including LocalBarrier like AggregateGlobalStep
         if (step instanceof Barrier) {
             return false;
+        }
+
+        // override in concrete step
+        if (step instanceof Parameterizing) {
+            final Parameters parameters = ((Parameterizing) step).getParameters();
+            if (parameters.contains(QueryParameters.REPARTITION)) {
+                final List asList = parameters.get(QueryParameters.REPARTITION, null);
+                if (!asList.isEmpty())
+                    return (Boolean) asList.get(asList.size() - 1);
+            }
         }
 
         if (step.getTraversal().isRoot() && step instanceof VertexStep

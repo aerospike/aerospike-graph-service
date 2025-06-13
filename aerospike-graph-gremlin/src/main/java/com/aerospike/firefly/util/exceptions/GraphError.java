@@ -104,6 +104,7 @@ public enum GraphError {
         ERROR_MESSAGES.put(DATA_MODEL_VERSION_MISMATCH.code, "The on-disk data model version '%s' is not compatible with the AGS version '%s' being used. To fix this, either use Aerospike Graph '%s', use a new namespace, or start with flag `" + CLEAR_ON_VERSION_INCOMPATIBILITY + "` which will delete the old data and allow using the new model.");
         ERROR_MESSAGES.put(SINDEX_RECENTLY_DROPPED.code, "This query is temporarily unavailable due to the index it utilizes%s being recently dropped. Please wait %s seconds and try again.");
         ERROR_MESSAGES.put(TTL_ILLEGAL_ARGUMENT.code, "Invalid value for TTL provided. Provided input [%s] of type %s must be numeric instead.");
+        ERROR_MESSAGES.put(SET_CARDINALITY_NOT_SUPPORTED.code, "Cardinality.set is not supported in Aerospike Graph. Use Cardinality.list or Cardinality.single.");
 
         // Server
         ERROR_MESSAGES.put(ELEMENT_NOT_FOUND.code, "Element was dropped and no longer exists.");
@@ -115,8 +116,6 @@ public enum GraphError {
         // Client
         ERROR_MESSAGES.put(GRAPH_NO_MORE_CONNECTIONS.code, "There are no more available connections. Consider increasing the maximum allowable amount via the '" +
                 MAX_CONNECTIONS_PER_NODE + "' configuration key or contact support if problem persists.");
-
-        ERROR_MESSAGES.put(SET_CARDINALITY_NOT_SUPPORTED.code, "Set cardinality is not supported in Aerospike Graph. Use List or Single.");
 
         // TODO GRAPH-1307: Add more error messages
     }

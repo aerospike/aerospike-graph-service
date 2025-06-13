@@ -25,14 +25,15 @@ public class FireflyVertexPropertyProperty<V> extends FireflyProperty<V> {
     private final FireflyVertexProperty<?> vertexProperty;
 
     /**
-     * Constructor for RelationalProperty.
+     * Constructor for FireflyVertexPropertyProperty.
      *
-     * @param graph   Graph that property exists in.
-     * @param vertexProperty Vertex Property that property exists on.
-     * @param key     Key of property.
-     * @param value   Value of property.
+     * @param graph             Graph that property exists in.
+     * @param vertexProperty    Vertex Property that property exists on.
+     * @param key               Key of property.
+     * @param value             Value of property.
      */
-    public FireflyVertexPropertyProperty(final FireflyGraph graph, final FireflyVertexProperty<?> vertexProperty, final String key, final V value) {
+    public FireflyVertexPropertyProperty(final FireflyGraph graph, final FireflyVertexProperty<?> vertexProperty,
+                                         final String key, final V value) {
         super(vertexProperty, key, value);
         this.graph = graph;
         this.vertexProperty = vertexProperty;
@@ -45,22 +46,24 @@ public class FireflyVertexPropertyProperty<V> extends FireflyProperty<V> {
     public void remove() {
         final AerospikeConnection db = this.graph.getBaseGraph();
         final Key opKey = getKey(db, db.VERTEX_AERO_SET, ((FireflyVertex) vertexProperty.element()).id);
+        final Long schemaVertexPropertyKey = db.schemaManager.getVertexPropertyRead(vertexProperty.key);
+        final Long vertexPropertyId = (Long) vertexProperty.id.getStorageId();
+        final Long schemaPropertyKey = db.schemaManager.getVpPropertyRead(this.key());
 
-        final Operation removeProperty = MapOperation.removeByKey(db.PROPERTIES_BIN, Value.get(db.schemaManager.getVpPropertyWrite(key())), MapReturnType.NONE,
-                CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
-        final Operation removeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(db.schemaManager.getVpPropertyWrite(key())), MapReturnType.NONE,
-                CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
+        final Operation removeProperty = MapOperation.removeByKey(db.VP_PROPERTY_BIN, Value.get(schemaPropertyKey),
+                MapReturnType.NONE,
+                CTX.mapKey(Value.get(schemaVertexPropertyKey)), CTX.mapKey(Value.get(vertexPropertyId)));
 
         try {
-            vertexProperty.removePropertyFromCache(key());
-            db.writeOperate(null, opKey, removeProperty, removeTypeHint);
-        } catch (final AerospikeGraphException ae) {
-            if (ae.errorCode == ResultCode.OP_NOT_APPLICABLE) {
+            db.writeOperate(null, opKey, removeProperty);
+            vertexProperty.removePropertyFromCache(this.key());
+        } catch (final AerospikeGraphException e) {
+            if (e.errorCode == ResultCode.OP_NOT_APPLICABLE || e.errorCode == ResultCode.KEY_NOT_FOUND_ERROR) {
                 // Special logic to handle when Vertex Property Property has been removed from the Vertex since in this case
                 // the key is the Vertex key due to Vertex Properties being packed and thus the key still exists.
-                LOG.debug("Ignored exception removing an already-removed vertex property property {}", this, ae);
+                LOG.debug("Ignored exception removing an already-removed vertex property property {}", this, e);
             } else {
-                throw ae;
+                throw e;
             }
         }
     }

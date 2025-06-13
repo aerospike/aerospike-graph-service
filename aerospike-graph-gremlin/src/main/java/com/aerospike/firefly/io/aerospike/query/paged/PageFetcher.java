@@ -257,7 +257,7 @@ public abstract class PageFetcher<E> {
                         throw (AerospikeGraphException) error;
                     } else if (error instanceof AerospikeException) {
                         AerospikeException ae = (AerospikeException) error;
-                        if(ae.getResultCode() == 22){
+                        if(ae.getResultCode() == ResultCode.FAIL_FORBIDDEN){
                             throw new ThreadLimitExceededException();
                         }else{
                             throw ae;

@@ -63,7 +63,8 @@ public class ConnectedComponentProgram extends AlgorithmProgram {
     private void init(final FireflyGraph graph) {
         final Traversal.Admin t = graph.traversal().V().asAdmin();
         t.setStrategies(TraversalStrategies.GlobalCache.getStrategies(graph.getClass()).clone());
-        t.getStrategies().addStrategies(OptionsStrategy.create(configuration));
+        this.optionsStrategy = OptionsStrategy.create(configuration);
+        t.getStrategies().addStrategies(optionsStrategy);
         this.graphTraversal = new PureTraversal(t);
 
         this.columnName = ConnectedComponentCodec.COMPONENT_COL;

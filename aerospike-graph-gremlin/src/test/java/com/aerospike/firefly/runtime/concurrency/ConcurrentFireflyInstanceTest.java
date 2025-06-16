@@ -359,4 +359,6 @@ public class ConcurrentFireflyInstanceTest {
             throw new RuntimeException(e);
         }
     }
+
+    // TODO: Add tests for multi properties in here.
 }

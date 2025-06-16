@@ -2,6 +2,7 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.util.Metrics;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
@@ -15,6 +16,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -94,5 +96,22 @@ public class TestVertexPropertyCardinalitySindexes {
         final List<? extends Property<Object>> properties = g.V(actualVertex.id()).properties("name").toList();
         Assert.assertEquals(2, properties.size());
         Assert.assertTrue(properties.stream().allMatch(p -> p.value().equals("Lyndon")));
+    }
+
+    @Test
+    public void testVPSindex_MultipleWrittenWithVertex_IntegerType() {
+        final Vertex actualVertex = g.addV("testVPSindex_MultipleWrittenWithVertex_StringType").next();
+        actualVertex.property(VertexProperty.Cardinality.list, "age", 10);
+        actualVertex.property(VertexProperty.Cardinality.list, "age", 31);
+
+        final Vertex lyndonVertex = g.V().has("age", P.lte(50)).next();
+        final Vertex simonVertex = g.V().has("age", P.lt(11)).next();
+        final Vertex simonVertex1 = g.V().has("age", P.lte(10)).next();
+        final Vertex simonVertex2 = g.V().has("age", P.gt(9)).next();
+        final Vertex simonVertex3 = g.V().has("age", P.gte(10)).next();
+        Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.gt(31)).next());
+        Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.gte(32)).next());
+        Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.lt(10)).next());
+        Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.lte(9)).next());
     }
 }

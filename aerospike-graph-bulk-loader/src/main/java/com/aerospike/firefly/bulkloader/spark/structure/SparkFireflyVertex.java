@@ -11,6 +11,7 @@ import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -86,7 +87,12 @@ public class SparkFireflyVertex extends SparkFireflyElement {
             try {
                 final String value = row.getAs(header);
                 final Map.Entry<String, Object> property = generateProperty(header, value, nullValue);
-                properties.add(property);
+                if (property.getValue() instanceof List) {
+                    final List values = (List) property.getValue();
+                    for (final Object val : values) {
+                        properties.add(new AbstractMap.SimpleEntry<>(property.getKey(), val));
+                    }
+                }
             } catch (final RuntimeException e) {
                 LOG.error("Failed to generate Vertex property for header '" + header + "' from value: " + row.getAs(header));
                 throw new BadCsvEntryException(e);

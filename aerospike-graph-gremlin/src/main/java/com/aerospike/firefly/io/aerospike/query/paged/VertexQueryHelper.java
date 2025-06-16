@@ -124,17 +124,50 @@ public class VertexQueryHelper {
         if (db.LABEL_BIN.equals(binName)) {
             return Exp.eq(Exp.intBin(db.LABEL_BIN), Exp.val(db.schemaManager.getVertexLabelRead((String) predicate.getValue())));
         }
-        return MapExp.getByKey(MapReturnType.EXISTS,
-                        Exp.Type.BOOL,
-                        getValue(predicate.getValue()),
-                        Exp.mapBin(binName),
-                        CTX.mapKey(Value.get(db.schemaManager.getVertexPropertyRead(mapKey))));
-        //return COMPARE_TO_EXP.get(predicate.getBiPredicate())
-        //        .apply(MapExp.getByKey(MapReturnType.VALUE,
-        //                        getExpType(predicate.getValue()),
-        //                        Exp.val(db.schemaManager.getVertexPropertyRead(mapKey)),
-        //                        Exp.mapBin(binName)),
-        //                getValue(predicate.getValue()));
+
+        // TODO: Clean this up.
+        if (predicate.getBiPredicate().equals(Compare.eq)) {
+            return MapExp.getByKey(MapReturnType.EXISTS,
+                    Exp.Type.BOOL,
+                    getValue(predicate.getValue()),
+                    Exp.mapBin(binName),
+                    CTX.mapKey(Value.get(db.schemaManager.getVertexPropertyRead(mapKey))));
+        } else if (predicate.getBiPredicate().equals(Compare.neq)) {
+            return Exp.not(MapExp.getByKey(MapReturnType.EXISTS,
+                    Exp.Type.BOOL,
+                    getValue(predicate.getValue()),
+                    Exp.mapBin(binName),
+                    CTX.mapKey(Value.get(db.schemaManager.getVertexPropertyRead(mapKey)))));
+        } else if (predicate.getBiPredicate().equals(Compare.lt)) {
+            final Long value = castLong(predicate.getValue()) - 1;
+            return MapExp.getByKeyRange(MapReturnType.EXISTS,
+                    getValue(Long.MIN_VALUE),
+                    getValue(value),
+                    Exp.mapBin(binName),
+                    CTX.mapKey(Value.get(db.schemaManager.getVertexPropertyRead(mapKey))));
+        } else if (predicate.getBiPredicate().equals(Compare.lte)) {
+            return MapExp.getByKeyRange(MapReturnType.EXISTS,
+                    getValue(Long.MIN_VALUE),
+                    getValue(predicate.getValue()),
+                    Exp.mapBin(binName),
+                    CTX.mapKey(Value.get(db.schemaManager.getVertexPropertyRead(mapKey))));
+        } else if (predicate.getBiPredicate().equals(Compare.gt)) {
+            final Long value = castLong(predicate.getValue()) - 1;
+            return MapExp.getByKeyRange(MapReturnType.EXISTS,
+                    getValue(value),
+                    getValue(Long.MAX_VALUE),
+                    Exp.mapBin(binName),
+                    CTX.mapKey(Value.get(db.schemaManager.getVertexPropertyRead(mapKey))));
+        } else if (predicate.getBiPredicate().equals(Compare.gte)) {
+            return MapExp.getByKeyRange(MapReturnType.EXISTS,
+                    getValue(predicate.getValue()),
+                    getValue(Long.MAX_VALUE),
+                    Exp.mapBin(binName),
+                    CTX.mapKey(Value.get(db.schemaManager.getVertexPropertyRead(mapKey))));
+        } else {
+            // TODO: Proper exception.
+            throw new IllegalArgumentException("Unsupported predicate: " + predicate.getBiPredicate());
+        }
     }
 
     public static Expression hasContainerListToExpression(final AerospikeConnection db, final List<HasContainer> hasContainers) {

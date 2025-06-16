@@ -189,7 +189,8 @@ public class BatchWorkerExecutor {
             }
         }
 
-        if (step.getTraversal().isRoot() && step instanceof VertexStep
+        // parent is VertexProgramStep
+        if (((Step)step.getTraversal().getParent()).getTraversal().isRoot() && step instanceof VertexStep
                 && !(step.getNextStep() instanceof Barrier) && !(step.getNextStep() instanceof EmptyStep)) {
             return false;
         }

@@ -336,7 +336,7 @@ public class RowCodecHelper {
         row.add(null); // serialized object. for Element just null.
     }
 
-    public static void addBaseRow(final List<Object> row, final Traverser traverser) {
+    public static void addBaseRow(final List<Object> row, final Traverser traverser, final int nativeSparkOperationColumns) {
         final Object t = traverser.get();
         if (t instanceof Element) {
             final Element element = (Element) t;
@@ -413,6 +413,10 @@ public class RowCodecHelper {
                     // sort as is. Results might be unexpected for Collections.
                     row.add(projection.toString());
                 }
+            }
+        } else if (nativeSparkOperationColumns != 0) { // possible to have native spark sorting on other iterations
+            for (int i = 0; i < nativeSparkOperationColumns; i++) {
+                row.add(null);
             }
         }
     }

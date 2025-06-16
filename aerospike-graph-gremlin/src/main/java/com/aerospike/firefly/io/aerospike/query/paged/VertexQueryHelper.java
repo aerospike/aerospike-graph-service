@@ -139,16 +139,16 @@ public class VertexQueryHelper {
                     Exp.mapBin(binName),
                     CTX.mapKey(Value.get(db.schemaManager.getVertexPropertyRead(mapKey)))));
         } else if (predicate.getBiPredicate().equals(Compare.lt)) {
-            final Long value = castLong(predicate.getValue()) - 1;
             return MapExp.getByKeyRange(MapReturnType.EXISTS,
                     getValue(Long.MIN_VALUE),
-                    getValue(value),
+                    getValue(castLong(predicate.getValue())),
                     Exp.mapBin(binName),
                     CTX.mapKey(Value.get(db.schemaManager.getVertexPropertyRead(mapKey))));
         } else if (predicate.getBiPredicate().equals(Compare.lte)) {
+            final Long value = castLong(predicate.getValue()) + 1;
             return MapExp.getByKeyRange(MapReturnType.EXISTS,
                     getValue(Long.MIN_VALUE),
-                    getValue(predicate.getValue()),
+                    getValue(value),
                     Exp.mapBin(binName),
                     CTX.mapKey(Value.get(db.schemaManager.getVertexPropertyRead(mapKey))));
         } else if (predicate.getBiPredicate().equals(Compare.gt)) {

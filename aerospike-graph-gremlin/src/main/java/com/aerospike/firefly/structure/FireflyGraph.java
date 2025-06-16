@@ -1147,15 +1147,22 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             final String formattedIndex = String.format("%s_%s", prefix, index);
             final Long indexSchema = db.schemaManager.getVertexPropertyWrite(index);
             db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + STRING, binName, STRING, IndexCollectionType.MAPKEYS, false,
+                    formattedIndex + "_" + STRING, binName, STRING, IndexCollectionType.MAPKEYS, errorOnDuplicate,
                     CTX.mapKey(Value.get(indexSchema)));
             db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + NUMERIC, binName, NUMERIC, IndexCollectionType.MAPKEYS, false,
+                    formattedIndex + "_" + NUMERIC, binName, NUMERIC, IndexCollectionType.MAPKEYS, errorOnDuplicate,
                     CTX.mapKey(Value.get(indexSchema)));
         }
 
         // Manually force metadata to update.
         fireflyIndexMetadata.updateMetadata();
+    }
+
+    public void createIndexes(final Class<? extends FireflyElement> elementClass,
+                              final String binName,
+                              final String prefix,
+                              final List<String> vertexPropertyIndexes) {
+        createIndexes(elementClass, binName, prefix, vertexPropertyIndexes, false);
     }
 
     public boolean isEmpty() {

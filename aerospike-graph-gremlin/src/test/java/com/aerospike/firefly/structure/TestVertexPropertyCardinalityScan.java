@@ -12,6 +12,7 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.*;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -101,5 +102,22 @@ public class TestVertexPropertyCardinalityScan {
         final Metrics vertexMetrics2FireflyMetric = (Metrics) vertexMetrics2.getMetrics().toArray()[1];
         Assert.assertNotEquals(0, vertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
         Assert.assertNotEquals(0, vertexMetrics2FireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
+    }
+
+    @Test
+    public void testVPSindex_MultipleWrittenWithVertex_IntegerType() {
+        final Vertex actualVertex = g.addV("testVPSindex_MultipleWrittenWithVertex_StringType").next();
+        actualVertex.property(VertexProperty.Cardinality.list, "age", 10);
+        actualVertex.property(VertexProperty.Cardinality.list, "age", 31);
+
+        final Vertex lyndonVertex = g.V().has("age", P.lte(50)).next();
+        final Vertex simonVertex = g.V().has("age", P.lt(11)).next();
+        final Vertex simonVertex1 = g.V().has("age", P.lte(10)).next();
+        final Vertex simonVertex2 = g.V().has("age", P.gt(9)).next();
+        final Vertex simonVertex3 = g.V().has("age", P.gte(10)).next();
+        Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.gt(31)).next());
+        Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.gte(32)).next());
+        Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.lt(10)).next());
+        Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.lte(9)).next());
     }
 }

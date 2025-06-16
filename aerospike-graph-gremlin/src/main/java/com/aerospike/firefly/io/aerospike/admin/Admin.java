@@ -101,7 +101,11 @@ public class Admin {
         }
 
         public I createVertexPropertyIndex(final FireflyGraph firefly, final String key) {
-            firefly.createIndexes(FireflyVertex.class, firefly.getBaseGraph().VERTEX_PROPERTY_DATA_BIN, firefly.getBaseGraph().getVpIndexPrefix(), List.of());
+            firefly.createIndexes(FireflyVertex.class,
+                    firefly.getBaseGraph().VERTEX_PROPERTY_DATA_BIN,
+                    firefly.getBaseGraph().getVpIndexPrefix(),
+                    List.of(key),
+                    true);
             return (I) ("Vertex index creation of property key '" + key + "' in progress.");
         }
 

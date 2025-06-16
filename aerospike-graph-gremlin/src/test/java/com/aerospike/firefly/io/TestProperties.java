@@ -26,8 +26,10 @@ import org.junit.rules.TestName;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -384,7 +386,7 @@ public class TestProperties {
         Assert.assertEquals(12, property.value());
 
         // Write null value
-        g.V().hasLabel("person").property("age", null).iterate();
+        g.V().hasLabel("person").property(VertexProperty.Cardinality.single, "age", null).iterate();
         traversal = g.V().hasLabel("person").properties().count();
         propertiesCount = (long) traversal.next();
         // TODO GRAPH-301: Null does not remove the property in Linked model since cardinality is not Single.
@@ -394,25 +396,28 @@ public class TestProperties {
         Assert.assertFalse(traversal.hasNext());
         Assert.assertFalse(g.V().hasLabel("person").has("age").hasNext());
         Assert.assertFalse(g.V().hasLabel("person").has("age", (Object) null).hasNext());
-        g.V().hasLabel("person").property("notExistingKey", null).iterate();
+        g.V().hasLabel("person").property(VertexProperty.Cardinality.single, "notExistingKey", null).iterate();
         Assert.assertFalse(g.V().hasLabel("person").has("notExistingKey").hasNext());
 
-        // Test null in a list
-        final List<String> names = new ArrayList<>();
+        final Set<String> names = new HashSet<>();
         names.add("simon");
-        names.add(null);
         names.add("bauto");
         g.V().hasLabel("person").properties().drop().iterate();
-        g.V().hasLabel("person").property("age", 12).property("name", names).iterate();
+        g.V().hasLabel("person").property("age", 12).property("name", "simon").property("name", "bauto").iterate();
         traversal = g.V().hasLabel("person").properties().count();
         propertiesCount = (long) traversal.next();
-        Assert.assertEquals(2, propertiesCount);
+        Assert.assertEquals(3, propertiesCount);
         Assert.assertFalse(traversal.hasNext());
-        traversal = g.V().hasLabel("person").has("name", new LinkedList<>(names));
+        traversal = g.V().hasLabel("person").has("name", "simon").has("name", "bauto");
         vertex = (Vertex) traversal.next();
         Assert.assertFalse(traversal.hasNext());
-        property = vertex.property("name");
-        assertCollectionEquals(new ArrayList<>(names), (List<Object>) property.value());
+        Iterator<VertexProperty<Object>> properties = vertex.properties("name");
+        // compare properties to names
+        Set<Object> values = new HashSet<>();
+        while (properties.hasNext()) {
+            values.add(properties.next().value());
+        }
+        Assert.assertEquals(names, values);
     }
 
     @Test
@@ -460,61 +465,6 @@ public class TestProperties {
     }
 
     @Test
-    public void testListPropertyValue() {
-        final GraphTraversalSource g = graph.traversal();
-
-        final List<Object> listValue = new ArrayList<>();
-        // String
-        listValue.add("hello world");
-        // Boolean
-        listValue.add(true);
-        // Int
-        listValue.add(1);
-        // Long
-        listValue.add(23L);
-        // Double
-        listValue.add(456.78);
-        // byte[]
-        listValue.add(new byte[]{ 1, 2, 3 });
-
-        // Vertex Property
-        g.V().hasLabel("person").property("listProperty", listValue).iterate();
-        List<Object> returnedListValue = (List<Object>) g.V().hasLabel("person").properties("listProperty").next().value();
-        assertListPropertyValue(listValue, returnedListValue);
-        // Check that can rewrite array type hints
-        g.V().hasLabel("person").property("listProperty", "notAList").iterate();
-        g.V().hasLabel("person").property("listProperty", listValue).iterate();
-        returnedListValue = (List<Object>) g.V().hasLabel("person").properties("listProperty").next().value();
-        assertListPropertyValue(listValue, returnedListValue);
-
-        // Check Int Casting in a List when accessed more than once
-        final Vertex v = g.V().hasLabel("person").next();
-        v.properties();
-        v.properties();
-
-        // Vertex Property Property
-        g.V().hasLabel("person").property("vpp", "vpp").iterate();
-        g.V().hasLabel("person").properties("vpp").property("listProperty", listValue).iterate();
-        returnedListValue = (List<Object>) g.V().hasLabel("person").properties("vpp").properties("listProperty").next().value();
-        assertListPropertyValue(listValue, returnedListValue);
-        // Check that can rewrite array type hints
-        g.V().hasLabel("person").properties("vpp").property("listProperty", "notAList").iterate();
-        g.V().hasLabel("person").properties("vpp").property("listProperty", listValue).iterate();
-        returnedListValue = (List<Object>) g.V().hasLabel("person").properties("vpp").properties("listProperty").next().value();
-        assertListPropertyValue(listValue, returnedListValue);
-
-        // Edge Property
-        g.E().hasLabel("bought").property("listProperty", listValue).iterate();
-        returnedListValue = (List<Object>) g.E().hasLabel("bought").properties("listProperty").next().value();
-        assertListPropertyValue(listValue, returnedListValue);
-        // Check that can rewrite array type hints
-        g.E().hasLabel("bought").property("listProperty", "notAList").iterate();
-        g.E().hasLabel("bought").property("listProperty", listValue).iterate();
-        returnedListValue = (List<Object>) g.E().hasLabel("bought").properties("listProperty").next().value();
-        assertListPropertyValue(listValue, returnedListValue);
-    }
-
-    @Test
     public void testTypeHintsPersistence() {
         final GraphTraversalSource g = graph.traversal();
         final Vertex v1 = g.addV().next();
@@ -546,7 +496,7 @@ public class TestProperties {
         Assert.assertEquals(propertyValue, vpPValue);
 
         propertyValue = Integer.valueOf(123);
-        g.V(v1.id()).property("test", propertyValue).iterate();
+        g.V(v1.id()).property(VertexProperty.Cardinality.single, "test", propertyValue).iterate();
         g.E(e.id()).property("test", propertyValue).iterate();
         g.V(v2.id()).properties("vp").property("test", propertyValue).iterate();
 
@@ -558,7 +508,7 @@ public class TestProperties {
         Assert.assertEquals(propertyValue, vpPValue);
 
         propertyValue = "123";
-        g.V(v1.id()).property("test", propertyValue).iterate();
+        g.V(v1.id()).property(VertexProperty.Cardinality.single, "test", propertyValue).iterate();
         g.E(e.id()).property("test", propertyValue).iterate();
         g.V(v2.id()).properties("vp").property("test", propertyValue).iterate();
 

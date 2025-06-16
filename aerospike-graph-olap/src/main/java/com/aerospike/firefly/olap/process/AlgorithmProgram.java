@@ -1,10 +1,12 @@
 package com.aerospike.firefly.olap.process;
 
 import com.aerospike.firefly.olap.codec.Codec;
+import com.aerospike.firefly.olap.config.QueryParameters;
 import com.aerospike.firefly.olap.helper.TaskLogger;
 import com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -20,6 +22,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalSte
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.OrderGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -63,6 +66,7 @@ public abstract class AlgorithmProgram implements FireflyProgram {
     protected String property;
     protected String columnName;
 
+    protected OptionsStrategy optionsStrategy;
     protected Codec codec;
     protected FireflyGraph graph;
     protected DistributedAerospikeConnection db;
@@ -72,6 +76,60 @@ public abstract class AlgorithmProgram implements FireflyProgram {
         removeTemporaryProperties(traversers, property);
 
         executeVertexProgram(traversers, vertexProgramTraversal, getStartStep(memory, START_STEP, vertexProgramTraversal.get()));
+    }
+
+    @Override
+    public boolean validPostProcessSteps() {
+        if ((Boolean) optionsStrategy.getOptions().getOrDefault(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, false))
+            return true;
+
+        final Traversal.Admin traversal = vertexProgramTraversal.get();
+        final List<Step> steps = traversal.getSteps();
+
+        if (steps.isEmpty() || !(steps.get(0) instanceof GraphStep)) {
+            return false;
+        }
+
+        final GraphStep graphStep = (GraphStep) steps.get(0);
+        if (graphStep.getIds().length != 0) {
+            return true;
+        }
+
+        if (steps.size() == 1) {
+            return false;
+        }
+
+        if (steps.get(1) instanceof OrderGlobalStep) {
+            final OrderGlobalStep orderStep = (OrderGlobalStep) steps.get(1);
+            final List<Pair<Traversal.Admin, Comparator>> comparators = orderStep.getComparators();
+            if (comparators.size() == 1
+                    && !comparators.get(0).getValue1().equals(Order.shuffle)
+                    && comparators.get(0).getValue0() instanceof ValueTraversal
+                    && ((ValueTraversal) comparators.get(0).getValue0()).getPropertyKey().equals(property)
+                    // only order followed by limit supported
+                    && steps.size() > 2 && steps.get(2) instanceof RangeGlobalStep
+                    && ((RangeGlobalStep) steps.get(2)).getLowRange() == 0) {
+                return true;
+            }
+        }
+
+        if (steps.get(1) instanceof HasStep) {
+            final HasStep hasStep = (HasStep) steps.get(1);
+            final List<HasContainer> hasContainers = hasStep.getHasContainers();
+            if (hasContainers.size() == 1 && hasContainers.get(0).getKey().equals(property)) {
+                final String predicateName = hasContainers.get(0).getPredicate().getBiPredicate().getPredicateName();
+                return predicateToSpark.containsKey(predicateName);
+            }
+        }
+
+        return false;
+    }
+
+
+    @Override
+    public void storeState(final Configuration configuration) {
+        optionsStrategy.getOptions().forEach(configuration::addProperty);
+        FireflyProgram.super.storeState(configuration);
     }
 
     @Override

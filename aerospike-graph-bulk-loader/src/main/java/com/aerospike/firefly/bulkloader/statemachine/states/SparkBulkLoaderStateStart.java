@@ -50,6 +50,8 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                     sparkBulkLoaderStateMachine.vertexDirectories,
                     VertexOperations.REQUIRED_VERTEX_HEADERS,
                     DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config));
+            sparkBulkLoaderStateMachine.vertexCount = sparkBulkLoaderStateMachine.vertexDataset.count();
+            sparkBulkLoaderStateMachine.progressBar.setVertexTotalCount(sparkBulkLoaderStateMachine.vertexCount);
         } else {
             // Edge caches already generated.
             final String vertexRecoveryDirectory = info.getTempVertexDirectory();
@@ -59,6 +61,8 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                     vertexRecoveryDirectory);
             sparkBulkLoaderStateMachine.vertexDataset = sparkBulkLoaderStateMachine.spark.
                     read().option("header", "true").option("compression", "snappy").parquet(vertexRecoveryDirectory);
+            sparkBulkLoaderStateMachine.vertexCount = sparkBulkLoaderStateMachine.vertexDataset.count();
+            sparkBulkLoaderStateMachine.progressBar.setVertexTotalCount(sparkBulkLoaderStateMachine.vertexCount);
 
             // Repartition the vertex dataset and set the partition count.
             sparkBulkLoaderStateMachine.vertexPartitionCount = info.getVertexPartitionCount();

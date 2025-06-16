@@ -1,5 +1,6 @@
 package com.aerospike.firefly.olap;
 
+import com.aerospike.firefly.olap.config.QueryParameters;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -22,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class AlgorithmTest {
     private Configuration config;
@@ -41,7 +44,7 @@ public class AlgorithmTest {
             waitForSummaryUpdate(graph);
 
             List<Vertex> output = graph.traversal()
-                    .withComputer()
+                    .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
                     .V().pageRank()
                     .toList();
 
@@ -49,6 +52,88 @@ public class AlgorithmTest {
             final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
             //precision is PageRankProgram.epsilon
             assertEquals(0.113755d, v1.value(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+        }
+    }
+
+    @Test
+    public void testPageRankUnfiltered() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            try {
+                graph.traversal()
+                        .withComputer()
+                        .V().pageRank().with(PageRank.times, 3)
+                        .toList();
+                fail("Should have thrown an exception");
+            } catch (final IllegalStateException e) {
+                assertTrue(e.getMessage().contains("Attempting to run an algorithm that does does filter the results down after execution"));
+            }
+        }
+    }
+
+    @Test
+    public void testPageRankWithUnsupportedFilter() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            try {
+                graph.traversal()
+                        .withComputer()
+                        .V().pageRank()
+                        .has("some_random_property", P.lt(0.12))
+                        .toList();
+                fail("Should have thrown an exception");
+            } catch (final IllegalStateException e) {
+                assertTrue(e.getMessage().contains("Attempting to run an algorithm that does does filter the results down after execution"));
+            }
+        }
+    }
+
+    @Test
+    public void testPageRankWithUnsupportedSorting() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            try {
+                graph.traversal()
+                        .withComputer()
+                        .V().pageRank()
+                        .order().by("some_random_property")
+                        .toList();
+                fail("Should have thrown an exception");
+            } catch (final IllegalStateException e) {
+                assertTrue(e.getMessage().contains("Attempting to run an algorithm that does does filter the results down after execution"));
+            }
+        }
+    }
+
+    @Test
+    public void testPageRankWithOrderWithoutLimit() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            try {
+                graph.traversal()
+                        .withComputer()
+                        .V().pageRank().order().by(PageRankVertexProgram.PAGE_RANK, Order.desc)
+                        .toList();
+                fail("Should have thrown an exception");
+            } catch (final IllegalStateException e) {
+                assertTrue(e.getMessage().contains("Attempting to run an algorithm that does does filter the results down after execution"));
+            }
         }
     }
 
@@ -104,7 +189,7 @@ public class AlgorithmTest {
             waitForSummaryUpdate(graph);
 
             List<Map<Object, Object>> output = graph.traversal()
-                    .withComputer()
+                    .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
                     .V().pageRank(0.86)
                     .elementMap()
                     .toList();
@@ -141,7 +226,6 @@ public class AlgorithmTest {
         }
     }
 
-
     @Test
     public void testPageRankWithOrder() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
@@ -174,7 +258,7 @@ public class AlgorithmTest {
             waitForSummaryUpdate(graph);
 
             List<Vertex> output = graph.traversal()
-                    .withComputer()
+                    .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
                     .V().connectedComponent()
                     .toList();
 

@@ -1316,11 +1316,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 .getContextClassLoader()
                 .getResourceAsStream("git.properties")) {
             if (in == null) {
-                System.err.println("git.properties not found on classpath");
+                throw new IllegalStateException("git.properties not found on classpath");
             }
             gitProperties.load(in);
         } catch (IOException e) {
-            System.err.println(e.getMessage());
+            throw new IllegalStateException("Failed to load git.properties", e);
         }
         return gitProperties.getProperty("git.commit.id");
     }

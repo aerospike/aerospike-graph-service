@@ -580,7 +580,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
             if (properties.containsKey(schemaPropertyKey) && propertyValue == null) {
                 properties.remove(schemaPropertyKey);
-            } else {
+            } else if (propertyValue != null){
                 final List<Object> valueAndTypeHint = new ArrayList<>(2);
                 valueAndTypeHint.add(propertyValue);
                 valueAndTypeHint.add(getTypeHintOf(propertyValue));

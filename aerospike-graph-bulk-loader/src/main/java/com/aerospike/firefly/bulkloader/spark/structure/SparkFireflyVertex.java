@@ -92,6 +92,8 @@ public class SparkFireflyVertex extends SparkFireflyElement {
                     for (final Object val : values) {
                         properties.add(new AbstractMap.SimpleEntry<>(property.getKey(), val));
                     }
+                } else {
+                    properties.add(property);
                 }
             } catch (final RuntimeException e) {
                 LOG.error("Failed to generate Vertex property for header '" + header + "' from value: " + row.getAs(header));

@@ -11,6 +11,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +54,7 @@ public class TestVertexPropertyPropertyCardinality {
         Assert.assertEquals(30, vp.value());
 
         final List<? extends Property<Object>> vpps2 = g.V().hasLabel("testVPP_SingleStartingValue_SingleMetaProperty").
-                has("name", "simon").properties("name").properties("age").toList();
+                has("name", "Simon").properties("name").properties("age").toList();
         Assert.assertEquals(1, vpps2.size());
         Assert.assertEquals("age", vpps2.get(0).key());
         Assert.assertEquals(30, vpps2.get(0).value());
@@ -77,10 +78,8 @@ public class TestVertexPropertyPropertyCardinality {
         Assert.assertEquals("London", vp2.value());
 
         final List<Map<Object, Object>> vpps2 = g.V().hasLabel("testVPP_SingleStartingValue_DoubleMetaProperty").
-                has("name", "simon").properties("name").valueMap().toList();
+                has("name", "Simon").properties("name").valueMap().toList();
         Assert.assertEquals(1, vpps2.size());
-        Assert.assertTrue(vpps2.get(0).containsKey("name"));
-        Assert.assertEquals("Simon", vpps2.get(0).get("name"));
         Assert.assertTrue(vpps2.get(0).containsKey("age"));
         Assert.assertEquals(30, vpps2.get(0).get("age"));
         Assert.assertTrue(vpps2.get(0).containsKey("city"));
@@ -95,7 +94,15 @@ public class TestVertexPropertyPropertyCardinality {
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(2L, propertyCount);
-        final Iterator<Property<Object>> vpps = v.property("name").properties();
+        final Iterator<VertexProperty<Object>> vps = v.properties("name");
+        final List<VertexProperty<Object>> vppsList = new ArrayList<>();
+        while (vps.hasNext()) {
+            vppsList.add(vps.next());
+        }
+        Assert.assertEquals(2, vppsList.size());
+        final Iterator<Property<Object>> vpProperties = vppsList.get(0).properties();
+        final Iterator<Property<Object>> vpProperties2 = vppsList.get(1).properties();
+        final Iterator<Property<Object>> vpps = IteratorUtils.concat(vpProperties, vpProperties2);
         Assert.assertTrue(vpps.hasNext());
         final Property<Object> vp = vpps.next();
         if (vp.key().equals("age")) {
@@ -116,7 +123,7 @@ public class TestVertexPropertyPropertyCardinality {
         }
 
         final List<? extends Property<Object>> vpps2 = g.V().hasLabel("testVPP_DuplicateStartingValue_DoubleMetaProperty").
-                has("name", "simon").properties("name").properties().toList();
+                has("name", "Simon").properties("name").properties().toList();
         Assert.assertEquals(2, vpps2.size());
         Assert.assertTrue(vpps2.stream().anyMatch(p -> p.key().equals("age") && p.value().equals(30)));
         Assert.assertTrue(vpps2.stream().anyMatch(p -> p.key().equals("city") && p.value().equals("London")));
@@ -145,14 +152,13 @@ public class TestVertexPropertyPropertyCardinality {
         }
 
         final List<Map<Object, Object>> vpps2 = g.V().hasLabel("testVPP_DoubleStartingValue_DoubleMetaProperty").
-                has("name", "simon").properties("name").valueMap().toList();
-        Assert.assertEquals(1, vpps2.size());
-        Assert.assertTrue(vpps2.get(0).containsKey("name"));
-        Assert.assertEquals("Simon", vpps2.get(0).get("name"));
-        Assert.assertTrue(vpps2.get(0).containsKey("age"));
-        Assert.assertEquals(30, vpps2.get(0).get("age"));
-        Assert.assertTrue(vpps2.get(0).containsKey("city"));
-        Assert.assertEquals("London", vpps2.get(0).get("city"));
+                has("name", "Simon").properties("name").valueMap().toList();
+        Assert.assertEquals(2, vpps2.size());
+        final Map<Object, Object> map = vpps2.get(0).isEmpty() ? vpps2.get(1) : vpps2.get(0);
+        Assert.assertTrue(map.containsKey("age"));
+        Assert.assertEquals(30, map.get("age"));
+        Assert.assertTrue(map.containsKey("city"));
+        Assert.assertEquals("London", map.get("city"));
     }
 
     @Test

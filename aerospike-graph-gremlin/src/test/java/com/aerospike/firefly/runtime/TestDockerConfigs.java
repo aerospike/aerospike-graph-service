@@ -1,6 +1,5 @@
 package com.aerospike.firefly.runtime;
 
-import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.DockerUtil;
 import org.junit.After;
 import org.junit.Assert;
@@ -183,16 +182,15 @@ public class TestDockerConfigs {
     @Test
     public void testGitCommitHashLog() throws InterruptedException {
         final String[] environmentVariables = new String[]{
-                "aerospike.client.host=172.17.0.1:3000",
-                "aerospike.graph-service.graphs=graph,modern"};
+                "aerospike.client.host=172.17.0.1:3000"};
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
         final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
         boolean foundMsg = false;
         for (final String line : log) {
-            LOG.warn(line);
             if (line.contains("Built from git commit")) {
                 foundMsg = true;
                 break;
+
             }
         }
         Assert.assertTrue(foundMsg);

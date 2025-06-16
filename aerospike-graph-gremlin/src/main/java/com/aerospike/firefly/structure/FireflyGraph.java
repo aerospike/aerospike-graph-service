@@ -375,9 +375,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         ConfigurationHelper.validateConfig(fireflyConf);
         String logLevel;
 
-        boolean isTesting   = Boolean.parseBoolean(System.getenv("FIREFLY_TESTING"));
+        final boolean isTesting   = Boolean.parseBoolean(System.getenv("FIREFLY_TESTING"));
         if (FIREFLY_VERSION != null && FIREFLY_VERSION.endsWith("SNAPSHOT") && !isTesting) {
-            String commitHash = getGitCommitHash();
+            final String commitHash = getGitCommitHash();
             LOG.info("Built from git commit " + commitHash);
         }
 
@@ -1311,17 +1311,17 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public static String getGitCommitHash(){
-        final Properties GIT = new Properties();
+        final Properties gitProperties = new Properties();
         try (InputStream in = Thread.currentThread()
                 .getContextClassLoader()
                 .getResourceAsStream("git.properties")) {
             if (in == null) {
-                throw new IllegalStateException("git.properties not found on classpath");
+                System.err.println("git.properties not found on classpath");
             }
-            GIT.load(in);
+            gitProperties.load(in);
         } catch (IOException e) {
             System.err.println(e.getMessage());
         }
-        return GIT.getProperty("git.commit.id");
+        return gitProperties.getProperty("git.commit.id");
     }
 }

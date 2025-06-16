@@ -719,11 +719,11 @@ public class AerospikeOperations {
             final Record result = this.db.writeOperate(null, opKey, operations.toArray(new Operation[]{}));
 
             vertexProperties =
-                    (Map<Long, HashMap<Object, List<Long>>>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_DATA_BIN, 1);
+                    (Map<Long, HashMap<Object, List<Long>>>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_DATA_BIN, 3);
             vpTypeHints =
-                    (Map<Long, Map<Long, Object>>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_TH_BIN, 1);
+                    (Map<Long, Map<Long, Object>>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_TH_BIN, 2);
             vpProperties =
-                    (Map<Long, Map<Long, Map<Long, List<Object>>>>) getValueAtIndex(result, this.db.VP_PROPERTY_BIN, 1);
+                    (Map<Long, Map<Long, Map<Long, List<Object>>>>) getValueAtIndex(result, this.db.VP_PROPERTY_BIN, 2);
             // Update this FireflyVertex in JVM cache
             vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties);
         } catch (final AerospikeGraphException ae) {
@@ -743,6 +743,8 @@ public class AerospikeOperations {
         final Exp valueExp;
         if (Long.class.isAssignableFrom(valueClass)) {
             valueExp = Exp.val((Long) value);
+        } else if (Integer.class.isAssignableFrom(valueClass)) {
+            valueExp = Exp.val(((Integer) value).longValue());
         } else if (Double.class.isAssignableFrom(valueClass)) {
             valueExp = Exp.val((Double) value);
         } else if (String.class.isAssignableFrom(valueClass)) {

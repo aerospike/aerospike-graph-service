@@ -81,6 +81,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -92,6 +94,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.Timer;
@@ -99,6 +102,7 @@ import java.util.TimerTask;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
@@ -370,6 +374,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final FireflyConfiguration fireflyConf = FireflyConfiguration.fromConfiguration(conf);
         ConfigurationHelper.validateConfig(fireflyConf);
         String logLevel;
+
+        final boolean isTesting   = Boolean.parseBoolean(System.getenv("FIREFLY_TESTING"));
+        if (FIREFLY_VERSION != null && FIREFLY_VERSION.endsWith("SNAPSHOT") && !isTesting) {
+            final String commitHash = getGitCommitHash();
+            LOG.info("Built from git commit " + commitHash);
+        }
+
         if (System.getenv("FIREFLY_TESTING") != null &&
                 System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
             logLevel = "WARN";
@@ -1297,5 +1308,20 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     @Override
     public ServiceRegistry getServiceRegistry() {
         return this.serviceRegistry;
+    }
+
+    public static String getGitCommitHash(){
+        final Properties gitProperties = new Properties();
+        try (InputStream in = Thread.currentThread()
+                .getContextClassLoader()
+                .getResourceAsStream("git.properties")) {
+            if (in == null) {
+                throw new IllegalStateException("git.properties not found on classpath");
+            }
+            gitProperties.load(in);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to load git.properties", e);
+        }
+        return gitProperties.getProperty("git.commit.id");
     }
 }

@@ -70,8 +70,10 @@ class ClusterManager:
         temp_dir = tempfile.mkdtemp("aerospike_config")
         mounts = get_mounts(config, temp_dir)
 
-        # todo: exclude 8.0.0.0
-        legacy_memory_setting = "memory-size 3G" if not "ee-7." in config.aerospike_version else ""
+        if not (config.aerospike_version.startswith("ee-7.") or config.aerospike_version.startswith("ee-8.")):
+            legacy_memory_setting = "memory-size 3G"
+        else:
+            legacy_memory_setting = ""
         template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(os.path.realpath(__file__)))
         template_env = jinja2.Environment(loader=template_loader)
         template = template_env.get_template(config.config_template)

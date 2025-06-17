@@ -24,6 +24,8 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -620,7 +622,11 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertEquals("Simon", person.value("name"));
         Assert.assertEquals(28, (int)person.value("age"));
         Assert.assertFalse(person.value("glasses"));
-        final List<String> companies = person.value("companies");
+        final Iterator<? extends Property<Object>> properties = person.properties("companies");
+        final List<String> companies = new ArrayList<>();
+        while (properties.hasNext()) {
+            companies.add((String)properties.next().value());
+        }
         Assert.assertEquals("Apache TinkerPop", companies.get(0));
         Assert.assertEquals("Aerospike", companies.get(1));
         final Vertex model = g.V().has("model", "GR86").next();
@@ -644,11 +650,9 @@ public abstract class TestSparkBulkLoaderBase {
         // Check null properties dont exist
         Assert.assertFalse(g.V().hasLabel("vertex").has("nullValue").hasNext());
         Assert.assertFalse(g.V().hasLabel("vertex").has("nullInt").hasNext());
-        // Check null properties in a list do exist
-        final List<String> nullInList = v.value("nullInList");
-        Assert.assertEquals(2, nullInList.size());
-        Assert.assertNull(nullInList.get(0));
-        Assert.assertEquals("secondElement", nullInList.get(1));
+        // Check null properties in a list do not exist
+        final String nullInList = v.value("nullInList");
+        Assert.assertEquals("secondElement", nullInList);
         // Check that null properties are not somehow saved as a valid property
         Assert.assertEquals(5, (long) g.V().hasLabel("vertex").properties().count().next());
     }

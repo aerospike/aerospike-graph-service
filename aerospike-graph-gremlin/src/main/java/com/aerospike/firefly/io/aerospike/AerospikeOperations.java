@@ -227,7 +227,7 @@ public class AerospikeOperations {
                 vpTypeHints.put(schemaPropertyKey, new HashMap<>());
             }
             final Map<Long, Object> propertyIdToTypeHint = vpTypeHints.get(schemaPropertyKey);
-            propertyIdToTypeHint.put((Long) vertexPropertyId.getStorageId(), getTypeHintOf(validatedValue));
+            propertyIdToTypeHint.put((Long) vertexPropertyId.getStorageId(), getTypeHintOf(property.getValue(), true));
         }
 
         if (ttlValueLong != null) {
@@ -545,7 +545,8 @@ public class AerospikeOperations {
         final FireflyId vertexPropertyId = this.db.getIdFactory().generateId(this.graph, FireflyVertexProperty.class);
         final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
         final Long schemaVpKey = this.db.schemaManager.getVertexPropertyWrite(key);
-        final Object typeHint = getTypeHintOf(value);
+        final Object typeHint = getTypeHintOf(value, true);
+        final Object verifiedValue = validateVertexPropertyValue(value);
 
         final List<Operation> operations = new ArrayList<>();
         final Operation writeVpData;
@@ -559,7 +560,7 @@ public class AerospikeOperations {
             final List<Long> idInList = new ArrayList<>(1);
             idInList.add(vpIdKey);
             final Map<Object, List<Long>> valueToIdList = new HashMap<>();
-            valueToIdList.put(value, idInList);
+            valueToIdList.put(verifiedValue, idInList);
             writeVpData = MapOperation.put(treeMapPolicy, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(schemaVpKey), Value.get(valueToIdList));
             final Map<Long, Object> idToTypeHint = new HashMap<>();
             idToTypeHint.put(vpIdKey, typeHint);
@@ -654,17 +655,18 @@ public class AerospikeOperations {
         final Key opKey = getKey(this.db, this.db.VERTEX_AERO_SET, vertex.id);
         final Long schemaKey = db.schemaManager.getVertexPropertyRead(key);
         final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
-        final Exp vpValueExp = getExpVal(value);
+        final Object validatedValue = validateVertexPropertyValue(value);
+        final Exp vpValueExp = getExpVal(validatedValue);
         final List<Operation> operations = new ArrayList<>();
 
         // Remove Vertex Property.
         final Operation removeVertexProperty = ListOperation.removeByValue(this.db.VERTEX_PROPERTY_DATA_BIN,
-                Value.get(vpIdKey), ListReturnType.NONE, CTX.mapKey(Value.get(schemaKey)), CTX.mapKey(Value.get(value)));
+                Value.get(vpIdKey), ListReturnType.NONE, CTX.mapKey(Value.get(schemaKey)), CTX.mapKey(Value.get(validatedValue)));
         operations.add(removeVertexProperty);
         // Logic for deleting Vertex Property value key if there are no VPs left with the value.
         final Expression removeVpValueKeyExp = Exp.build(
                 Exp.cond(
-                        Exp.eq(ListExp.size(Exp.mapBin(this.db.VERTEX_PROPERTY_DATA_BIN), CTX.mapKey(Value.get(schemaKey)), CTX.mapKey(Value.get(value))), Exp.val(0)),
+                        Exp.eq(ListExp.size(Exp.mapBin(this.db.VERTEX_PROPERTY_DATA_BIN), CTX.mapKey(Value.get(schemaKey)), CTX.mapKey(Value.get(validatedValue))), Exp.val(0)),
                         MapExp.removeByKey(vpValueExp, Exp.mapBin(this.db.VERTEX_PROPERTY_DATA_BIN), CTX.mapKey(Value.get(schemaKey))),
                         Exp.unknown()
                 )

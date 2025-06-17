@@ -556,12 +556,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             }
         }
 
-        // Validate key and value.
-        final V verifiedValue = (V) FireflyHelper.validateVertexPropertyValue(value);
-        ElementHelper.validateProperty(key, verifiedValue);
+        // Validate key.
+        ElementHelper.validateProperty(key, value);
 
         // If the value is null, return empty when cardinality is set or list. If single, handle later by removing key.
-        if (null == verifiedValue && VertexProperty.Cardinality.single != cardinality) {
+        if (null == value && VertexProperty.Cardinality.single != cardinality) {
             return VertexProperty.empty();
         }
 
@@ -590,7 +589,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
         // Write vertex property to graph.
         final VertexProperty<V> vertexProperty = graph.aerospikeOperations.writeVertexProperty(cardinality, this,
-                key, verifiedValue, properties);
+                key, value, properties);
 
         // Return vertex property.
         return vertexProperty;

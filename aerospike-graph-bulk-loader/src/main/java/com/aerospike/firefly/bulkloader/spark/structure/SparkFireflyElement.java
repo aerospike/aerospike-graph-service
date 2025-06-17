@@ -7,6 +7,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import java.io.Serializable;
 import java.util.AbstractMap;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -47,6 +48,16 @@ public abstract class SparkFireflyElement implements Serializable {
         final PropertyValueParser parser = new PropertyValueParser(nullValue);
         final int typeSpecifierIndex = header.lastIndexOf(":");
         if (typeSpecifierIndex == -1) {
+            if (header.endsWith("(list)")) {
+                final String propertyName = header.substring(0, header.length() - "(list)".length());
+                if (value.isEmpty()) {
+                    return new AbstractMap.SimpleEntry<>(propertyName, Collections.emptyList());
+                } else {
+                    final String[] values = value.split(";");
+                    return new AbstractMap.SimpleEntry<>(propertyName,
+                            Arrays.stream(values).map(parser::parseString).collect(Collectors.toList()));
+                }
+            }
             return new AbstractMap.SimpleEntry<>(header, parser.parseString(value));
         } else {
             String propertyName = header.substring(0, typeSpecifierIndex);

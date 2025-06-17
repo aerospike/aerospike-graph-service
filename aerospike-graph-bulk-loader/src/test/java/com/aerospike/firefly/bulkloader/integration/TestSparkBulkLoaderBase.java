@@ -586,7 +586,7 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertEquals("17", e.value("defaultNumber"));
         Assert.assertEquals("true", e.value("defaultBoolean"));
         // Check invalid type specifiers default to text and include the invalid specifier in the fallback property name
-        Assert.assertEquals("42", e.value("invalidType:invalid[]"));
+        Assert.assertEquals("42", e.value("invalidType:invalid"));
         // Check null properties dont exist
         Assert.assertFalse(g.E().hasLabel("edge").has("nullValue").hasNext());
         Assert.assertFalse(g.E().hasLabel("edge").has("nullInt").hasNext());
@@ -640,7 +640,7 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertEquals("17", v.value("defaultNumber"));
         Assert.assertEquals("true", v.value("defaultBoolean"));
         // Check invalid type specifiers default to text and include the invalid specifier in the fallback property name
-        Assert.assertEquals("42", v.value("invalidType:invalid[]"));
+        Assert.assertEquals("42", v.value("invalidType:invalid"));
         // Check null properties dont exist
         Assert.assertFalse(g.V().hasLabel("vertex").has("nullValue").hasNext());
         Assert.assertFalse(g.V().hasLabel("vertex").has("nullInt").hasNext());

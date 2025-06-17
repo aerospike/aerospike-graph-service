@@ -93,6 +93,9 @@ public final class ConfigurationHelper {
         public static final String MRT_ENABLED_FLAG = "aerospike.graph.mrt.enabled";
         public static final String MRT_TIMEOUT = "aerospike.graph.mrt.timeout";
 
+        // Mainly for testing since tinkerpop doesnt force cardinality.
+        public static final String VERTEX_PROPERTY_CARDINALITY = "aerospike.graph.vertex.property.cardinality";
+
         public static final String WRITE_SOCKET_TIMEOUT = "aerospike.client.policy.write.socketTimeout";
         public static final String READ_SOCKET_TIMEOUT = "aerospike.client.policy.read.socketTimeout";
         public static final String READ_SOCKET_TIMEOUT_BULK_LOAD = "aerospike.client.bulk-load.policy.read.socketTimeout";
@@ -382,6 +385,7 @@ public final class ConfigurationHelper {
         put(Keys.EDGE_ID_RECYCLE_BUFFER_SIZE, "10");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
         put(Keys.BULK_LOAD_ID_BUFFER_SIZE, "2000000");
+        put(Keys.VERTEX_PROPERTY_CARDINALITY, "single"); // Default to single cardinality
         put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.GLOBAL_EDGE_CACHE_ENABLED, "true");

@@ -70,6 +70,10 @@ public class VertexQueryHelper {
         if (value == null) {
             return Exp.nil();
         }
+        if (Boolean.class.isAssignableFrom(value.getClass())) {
+            // Booleans are stored as a byte array of [1] or [0].
+            return Exp.val((Boolean) value ? new byte[]{1} : new byte[]{0});
+        }
         if (Number.class.isAssignableFrom(value.getClass())) {
             return Exp.val(((Number) value).longValue());
         }

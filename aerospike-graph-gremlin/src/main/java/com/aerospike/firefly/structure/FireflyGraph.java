@@ -71,6 +71,7 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.service.ServiceRegistry;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -273,7 +274,17 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             this.bulkLoadIdBufferSize = ConfigurationHelper.getOrDefaultInt(BULK_LOAD_ID_BUFFER_SIZE, conf);
 
             this.variables = new FireflyGraphVariables(this);
-            this.features = new FireflyFeatures();
+            final String vpCardinalityString = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.VERTEX_PROPERTY_CARDINALITY, conf);
+            final VertexProperty.Cardinality vpCardinality;
+            if ("list".equals(vpCardinalityString)) {
+                vpCardinality = VertexProperty.Cardinality.list;
+            } else if ("set".equals(vpCardinalityString)) {
+                vpCardinality = VertexProperty.Cardinality.set;
+            } else {
+                // Default to single.
+                vpCardinality = VertexProperty.Cardinality.single;
+            }
+            this.features = new FireflyFeatures(vpCardinality);
 
             // Create index metadata background task that will populate indexes for the named graph on the fly.
             fireflyIndexMetadata = new FireflyIndexMetadata(db);
@@ -375,7 +386,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         ConfigurationHelper.validateConfig(fireflyConf);
         String logLevel;
 
-        final boolean isTesting   = Boolean.parseBoolean(System.getenv("FIREFLY_TESTING"));
+        final boolean isTesting = Boolean.parseBoolean(System.getenv("FIREFLY_TESTING"));
         if (FIREFLY_VERSION != null && FIREFLY_VERSION.endsWith("SNAPSHOT") && !isTesting) {
             final String commitHash = getGitCommitHash();
             LOG.info("Built from git commit " + commitHash);

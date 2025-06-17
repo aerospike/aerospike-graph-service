@@ -5,6 +5,13 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 
 class FireflyVertexFeatures extends FireflyElementFeatures implements Graph.Features.VertexFeatures {
+
+    private final VertexProperty.Cardinality defaultCardinality;
+
+    public FireflyVertexFeatures(final VertexProperty.Cardinality defaultCardinality) {
+        this.defaultCardinality = defaultCardinality;
+    }
+
     @Override
     public boolean supportsUserSuppliedIds() {
         return true;
@@ -28,7 +35,7 @@ class FireflyVertexFeatures extends FireflyElementFeatures implements Graph.Feat
      */
     @Override
     public VertexProperty.Cardinality getCardinality(final String key) {
-        return VertexProperty.Cardinality.list;
+        return this.defaultCardinality;
     }
 
     /**

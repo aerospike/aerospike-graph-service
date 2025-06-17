@@ -225,6 +225,8 @@ public final class ConfigurationHelper {
 
         public enum Bins {
             GRAPH_VARIABLES_BIN(Pair.of((byte) 1, "GRAPH_VARS")),
+            VERTEX_PROPERTY_DATA_BIN(Pair.of((byte) 2, "VP_DATA")),
+            VERTEX_PROPERTY_TH_BIN(Pair.of((byte) 3, "VP_HINTS")),
             LOCK_BIN(Pair.of((byte) 4, "LOCK")),
             SCHEMA_BIN(Pair.of((byte) 5, "SCHEMA")),
             EDGE_CACHE_DISABLED_BIN(Pair.of((byte) 6, "ECACHE_OFF")),
@@ -244,10 +246,7 @@ public final class ConfigurationHelper {
             EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
             BL_ROW_BIN(Pair.of((byte) 21, "BL_ROW")),
             BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE")),
-            BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA")),
-            OLAP_LIMIT_BIN(Pair.of((byte) 25, "OLAP_LIMIT")),
-            VERTEX_PROPERTY_DATA_BIN(Pair.of((byte) 2, "VP_DATA")),
-            VERTEX_PROPERTY_TH_BIN(Pair.of((byte) 3, "VP_HINTS"));
+            BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA"));
 
             private final Pair value;
 

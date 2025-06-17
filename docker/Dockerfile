@@ -20,6 +20,7 @@ COPY ${BULKLOADER} /opt/bulk-loader.jar
 COPY conf/logback.xml ${CONF_DIR}/logback.xml
 COPY conf/docker-default/flattened-default-gremlin-server.yaml ${CONF_DIR}/flattened-default-gremlin-server.yaml
 COPY docker-runtime-scripts /opt/scripts
+COPY .git .git
 
 RUN apk del xz tar
 

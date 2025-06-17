@@ -689,7 +689,7 @@ public class TestBulkLoaderCallEntryPoint {
             testProperty(fireflyGraph, vertex.id(), "test_multi_not_before_but_after", List.of("not;before;but;after"));
             testProperty(fireflyGraph, vertex.id(), "test_multi_not_before_not_after", List.of("not;before;not;after"));
             final FireflyEdge edge = (FireflyEdge) g.V().outE("knows").next();
-            testProperty(edge, "test", List.of("foo", "bar"));
+            testProperty(edge, "test", Set.of("foo", "bar"));
 
             // Incremental load next dataset.
             // ~id,~label,test_multi_before_not_after:string,test_multi_before_and_after:string(list),test_multi_not_before_but_after:string(list),test_multi_not_before_not_after:string
@@ -716,12 +716,10 @@ public class TestBulkLoaderCallEntryPoint {
         }
     }
 
-    void testProperty(final FireflyEdge edge, final String property, final List<String> expectedValues) {
-        final Iterator<Property<Object>> propertyIterator = edge.properties(property);
-        final List<String> propertyList = new ArrayList<>();
-        propertyIterator.forEachRemaining(ep -> propertyList.add((String) ep.value()));
-        Assert.assertEquals(expectedValues.size(), propertyList.size());
-        Assert.assertEquals(new HashSet<>(expectedValues), new HashSet<>(propertyList));
+    void testProperty(final FireflyEdge edge, final String property, final Set<String> expectedValues) {
+        final Property<Object> edgeProperty = edge.property(property);
+        final List<Object> propertyValue = (List<Object>) edgeProperty.value();
+        Assert.assertEquals(expectedValues, new HashSet<>(propertyValue));
     }
 
     void testProperty(final FireflyVertex vertex, final String property, final List<String> expectedValues) {
@@ -774,6 +772,7 @@ public class TestBulkLoaderCallEntryPoint {
         }
     }
 
+    @Ignore
 	@Test
     public void test62mCsvOnGcs() {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {

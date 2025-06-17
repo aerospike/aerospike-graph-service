@@ -531,7 +531,9 @@ public class AerospikeOperations {
      * @return Newly written Vertex Property.
      */
     public <V> VertexProperty<V> writeVertexProperty(final VertexProperty.Cardinality cardinality,
-                                                     final FireflyVertex vertex, final String key, final V value,
+                                                     final FireflyVertex vertex,
+                                                     final String key,
+                                                     final V value,
                                                      final Map<Long, List<Object>> properties) {
         if (value == null) {
             if (cardinality != VertexProperty.Cardinality.single) {
@@ -570,7 +572,7 @@ public class AerospikeOperations {
             writeVpProperties = MapOperation.put(hashMapPolicy, this.db.VP_PROPERTY_BIN, Value.get(schemaVpKey), Value.get(idToProperties));
         } else if (cardinality.equals(VertexProperty.Cardinality.list)) {
             writeVpData = ListOperation.append(listPolicy, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(vpIdKey),
-                    CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(value), MapOrder.UNORDERED));
+                    CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(verifiedValue), MapOrder.UNORDERED));
             writeVpTypeHint = MapOperation.put(hashMapPolicy, this.db.VERTEX_PROPERTY_TH_BIN, Value.get(vpIdKey),
                     Value.get(typeHint), CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.UNORDERED));
             writeVpProperties = MapOperation.put(hashMapPolicy, this.db.VP_PROPERTY_BIN, Value.get(vpIdKey),

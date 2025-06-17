@@ -213,8 +213,8 @@ public class TestVertexPropertyCardinality {
     @Test
     public void testDoubleStartingValue_BooleanRemoveFalse() {
         final FireflyVertex v = (FireflyVertex) g.addV("testDoubleStartingValue_BooleanRemoveFalse")
-                .property(VertexProperty.Cardinality.list, "foo", false)
-                .property(VertexProperty.Cardinality.list, "foo", false)
+                .property(VertexProperty.Cardinality.list, "isBoolean", false)
+                .property(VertexProperty.Cardinality.list, "isBoolean", false)
                 .next();
         final long propertyCount = IteratorUtils.count(v.properties());
         Assert.assertEquals(2L, propertyCount);

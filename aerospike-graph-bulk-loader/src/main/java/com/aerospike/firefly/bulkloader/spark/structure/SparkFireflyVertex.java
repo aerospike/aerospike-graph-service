@@ -8,6 +8,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.google.cloud.hadoop.repackaged.gcs.com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,15 +28,22 @@ public class SparkFireflyVertex extends SparkFireflyElement {
     private static final String DEFAULT_LABEL = "vertex";
     private final Map<String, List<List<Object>>> toEdgeCache;
     private final Map<String, List<List<Object>>> fromEdgeCache;
+    private final Map<String, VertexProperty.Cardinality> cardinalityMap;
 
     private SparkFireflyVertex(final Object id,
                                final String label,
                                final List<Map.Entry<String, Object>> properties,
                                final Map<String, List<List<Object>>> toEdgeCache,
-                               final Map<String, List<List<Object>>> fromEdgeCache) {
+                               final Map<String, List<List<Object>>> fromEdgeCache,
+                               final Map<String, VertexProperty.Cardinality> cardinalityMap) {
         super(id, label, properties);
         this.toEdgeCache = toEdgeCache;
         this.fromEdgeCache = fromEdgeCache;
+        this.cardinalityMap = cardinalityMap;
+    }
+
+    public Map<String, VertexProperty.Cardinality> getCardinalities() {
+        return this.cardinalityMap;
     }
 
     public static SparkFireflyVertex createVertex(final GenericRowWithSchema row,
@@ -106,7 +114,30 @@ public class SparkFireflyVertex extends SparkFireflyElement {
         if (label == null) {
             label = DEFAULT_LABEL;
         }
-        return new SparkFireflyVertex(PropertyValueParser.parseId(id), label, properties, toEdgeCache, fromEdgeCache);
+        final Map<String, VertexProperty.Cardinality> cardinalityMap = generateCardinalityMap(headers);
+        return new SparkFireflyVertex(PropertyValueParser.parseId(id), label, properties, toEdgeCache, fromEdgeCache, cardinalityMap);
+    }
+
+    private static Map<String, VertexProperty.Cardinality> generateCardinalityMap(final String[] headers) {
+        final Map<String, VertexProperty.Cardinality> cardinalityMap = new HashMap<>();
+        for (final String header : headers) {
+            if (header.endsWith("(list)")) {
+                String propertyName = header.substring(0, header.length() - "(list)".length());
+                final int typeSpecifierIndex = propertyName.lastIndexOf(":");
+                if (typeSpecifierIndex != -1) {
+                    propertyName = propertyName.substring(0, typeSpecifierIndex);
+                }
+                cardinalityMap.put(propertyName, VertexProperty.Cardinality.list);
+            } else {
+                String propertyName = header;
+                final int typeSpecifierIndex = header.lastIndexOf(":");
+                if (typeSpecifierIndex != -1) {
+                    propertyName = header.substring(0, typeSpecifierIndex);
+                }
+                cardinalityMap.put(propertyName, VertexProperty.Cardinality.single);
+            }
+        }
+        return cardinalityMap;
     }
 
     @Override

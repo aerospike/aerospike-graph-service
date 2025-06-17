@@ -6,6 +6,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 
 import java.io.Serializable;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -126,9 +127,33 @@ public abstract class SparkFireflyElement implements Serializable {
                     }
                     break;
                 case "byte":
+                    if (isList) {
+                        final String[] values = value.split(";");
+                        propertyValue = Arrays.stream(values).map(parser::parseByte).collect(Collectors.toList());
+                    } else {
+                        propertyValue = parser.parseByte(value);
+                    }
+                    break;
                 case "byte[]":
-                    final String[] values = value.split(";");
-                    propertyValue = Arrays.stream(values).map(parser::parseByte).collect(Collectors.toList());
+                    if (isList) {
+                        propertyValue = new ArrayList<byte[]>();
+                        final String[] values = value.split(";");
+                        for (final String val : values) {
+                            final String[] parts = val.split(",");
+                            final byte[] bytes = new byte[parts.length];
+                            for (int i = 0; i < parts.length; i++) {
+                                bytes[i] = (byte) parser.parseByte(parts[i]);
+                            }
+                            ((List<byte[]>) propertyValue).add(bytes);
+                        }
+                    } else {
+                        final String[] values = value.split(",");
+                        final byte[] bytes = new byte[values.length];
+                        for (int i = 0; i < values.length; i++) {
+                            bytes[i] = (byte) parser.parseByte(values[i]);
+                        }
+                        propertyValue = bytes;
+                    }
                     break;
                 default:
                     propertyName = header;

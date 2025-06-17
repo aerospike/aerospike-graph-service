@@ -58,6 +58,7 @@ import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.CountStrategy;
@@ -102,7 +103,6 @@ import java.util.TimerTask;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
@@ -562,22 +562,24 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return aerospikeOperations.writeVertex(idValue, label, properties, true, isEdgeCacheOverflowed);
     }
 
-    public void bulkWriteMergeVertex(final Object id, final String label, final List<Map.Entry<String, Object>> properties, final int partitionId) {
+    public void bulkWriteMergeVertex(final Object id,
+                                     final String label,
+                                     final List<Map.Entry<String, Object>> properties,
+                                     final int partitionId,
+                                     final Map<String, VertexProperty.Cardinality> vpCardinalities) {
         int tryCount = 0;
         while (true) {
             try {
-                final Map<Object, Object> propertiesMatch = new HashMap<>();
-                properties.forEach(entry -> propertiesMatch.put(entry.getKey(), entry.getValue()));
-                final Map<Object, Object> propertiesCreate = new HashMap<>();
-                properties.forEach(entry -> propertiesCreate.put(entry.getKey(), entry.getValue()));
-                propertiesCreate.put(T.id, id);
-                propertiesCreate.put(T.label, label);
-                propertiesCreate.put(BULK_LOAD_VERTEX_ADD_KEY, partitionId);
-                propertiesMatch.remove(T.id);
-                propertiesMatch.remove(T.label);
-                traversal().mergeV(CollectionUtil.asMap(T.id, id))
-                        .option(Merge.onMatch, propertiesMatch)
-                        .option(Merge.onCreate, propertiesCreate).iterate();
+                GraphTraversal t = traversal().mergeV(CollectionUtil.asMap(T.id, id))
+                        .option(Merge.onCreate, Map.of(BULK_LOAD_VERTEX_ADD_KEY, partitionId, T.label, label));
+                for (final Map.Entry<String, Object> entry : properties) {
+                    if (VertexProperty.Cardinality.list.equals(vpCardinalities.get(entry.getKey()))) {
+                        t = t.property(VertexProperty.Cardinality.list, entry.getKey(), entry.getValue());
+                    } else {
+                        t = t.property(entry.getKey(), entry.getValue());
+                    }
+                }
+                t.iterate();
                 break;
             } catch (final IllegalArgumentException e) {
                 if (!e.getMessage().contains("Vertex with id already exists")) {

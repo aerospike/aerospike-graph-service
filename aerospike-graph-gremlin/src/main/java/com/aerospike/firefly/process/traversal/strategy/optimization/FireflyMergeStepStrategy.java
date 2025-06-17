@@ -23,11 +23,11 @@ public class FireflyMergeStepStrategy extends FireflyStrategyBase {
         if (ComputerHelper.onGraphComputer(traversal))
             return;
 
-        for (final MergeVertexStep originalMergeVertexStep : TraversalHelper.getStepsOfClass(MergeVertexStep.class, traversal)) {
-            final FireflyMergeVertexStep fireflyMergeVertexStep = new FireflyMergeVertexStep(originalMergeVertexStep);
-            TraversalHelper.replaceStep(originalMergeVertexStep, fireflyMergeVertexStep, traversal);
-        }
-
+        //for (final MergeVertexStep originalMergeVertexStep : TraversalHelper.getStepsOfClass(MergeVertexStep.class, traversal)) {
+        //    final FireflyMergeVertexStep fireflyMergeVertexStep = new FireflyMergeVertexStep(originalMergeVertexStep);
+        //    TraversalHelper.replaceStep(originalMergeVertexStep, fireflyMergeVertexStep, traversal);
+        //}
+//
         for (final MergeEdgeStep originalMergeEdgeStep : TraversalHelper.getStepsOfClass(MergeEdgeStep.class, traversal)) {
             final FireflyMergeEdgeStep fireflyMergeEdgeStep = new FireflyMergeEdgeStep(originalMergeEdgeStep);
             TraversalHelper.replaceStep(originalMergeEdgeStep, fireflyMergeEdgeStep, traversal);

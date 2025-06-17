@@ -1332,6 +1332,18 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Type hint value or null
      */
     public static Object getTypeHintOf(final Object value) {
+        return getTypeHintOf(value, false);
+    }
+
+    /**
+     * If the value parameter is scalar, return the numeric id of the on disk type if value is an Integer - else null.
+     * If the value parameter is an ArrayList, return an ArrayList containing the indices at which the values within the
+     * parameter ArrayList is an Integer. Returns null if the ArrayList contained no Integer values.
+     *
+     * @param value Object to get type hint ID of
+     * @return Type hint value or null
+     */
+    public static Object getTypeHintOf(final Object value, final boolean isVertexProperty) {
         final Class clazz = value.getClass();
         if (!SUPPORTED_VALUE_TYPES.containsKey(clazz)) {
             throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(value);
@@ -1357,7 +1369,13 @@ public class AerospikeConnection implements AutoCloseable {
             }
             return integerIndices.isEmpty() ? null : integerIndices;
         }
-        return Objects.equals(SUPPORTED_VALUE_TYPES.get(clazz), SUPPORTED_VALUE_TYPES.get(Integer.class)) ? SUPPORTED_VALUE_TYPES.get(Integer.class) : null;
+        if (Objects.equals(SUPPORTED_VALUE_TYPES.get(clazz), SUPPORTED_VALUE_TYPES.get(Integer.class))) {
+            return SUPPORTED_VALUE_TYPES.get(Integer.class);
+        } else if (isVertexProperty && Objects.equals(SUPPORTED_VALUE_TYPES.get(clazz), SUPPORTED_VALUE_TYPES.get(Boolean.class))) {
+            return  SUPPORTED_VALUE_TYPES.get(Boolean.class);
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -1911,7 +1929,19 @@ public class AerospikeConnection implements AutoCloseable {
             return valueList;
         }
         final Class clazz = SUPPORTED_TYPE_VALUES.get(typeHint);
-        return (clazz == null) ? value : typeCast(clazz, value);
+        if (clazz == null) {
+            return value;
+        } else if (clazz.equals(Boolean.class) && value instanceof byte[]) {
+            final byte[] blobBool = (byte[]) value;
+            if (blobBool.length != 1) {
+                // This should never happen.
+                throw new IllegalStateException("Value blob of boolean was not of length 1. Please contact support.");
+            } else {
+                return blobBool[0] == (byte) 1;
+            }
+        } else {
+            return typeCast(clazz, value);
+        }
     }
 
     /**

@@ -111,7 +111,11 @@ public final class FireflyHelper {
         if (v instanceof List) {
             throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(v);
         }
-        return validatePropertyValue(v);
+        Object validatedValue = validatePropertyValue(v);
+        if (validatedValue instanceof Boolean) {
+            validatedValue = new byte[]{(byte) ((Boolean) validatedValue ? 1 : 0)};
+        }
+        return validatedValue;
     }
 
     public static void legalPropertyKeyValueArray(Object... keyValues) {

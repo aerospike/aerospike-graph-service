@@ -10,6 +10,10 @@ import com.aerospike.firefly.olap.process.TraversalProgram;
 import com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection;
 import com.aerospike.firefly.olap.process.AlgorithmProgram;
 import com.aerospike.firefly.olap.process.traversal.strategy.SparkOptimizationStrategy;
+import com.aerospike.firefly.olap.service.JobCancellationService;
+import com.aerospike.firefly.olap.service.JobClearService;
+import com.aerospike.firefly.olap.service.JobListService;
+import com.aerospike.firefly.olap.structure.job.Job;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.strategy.verification.FireflyComputerVerificationStrategy;
@@ -34,6 +38,7 @@ import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.CallStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
@@ -56,6 +61,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -104,6 +110,10 @@ public class DistributedGraphComputer implements GraphComputer {
     public DistributedGraphComputer(final FireflyGraph graph, final Object sparkSession) {
         isCancelled.set(false);
         this.graph = graph;
+        this.graph.getServiceRegistry().registerService(new JobCancellationService());
+        this.graph.getServiceRegistry().registerService(new JobListService());
+        this.graph.getServiceRegistry().registerService(new JobClearService());
+
         if (sparkSession != null) {
             this.spark = (SparkSession) sparkSession;
             workers = spark.sparkContext().getExecutorMemoryStatus().size();
@@ -369,12 +379,11 @@ public class DistributedGraphComputer implements GraphComputer {
     ////
     private ComputerResult submitJob() {
         final DistributedAerospikeConnection db = new DistributedAerospikeConnection(graph.getBaseGraph(), 0, 0);
+        final String jobId = UUID.randomUUID().toString();
 
         try {
             final DistributedConfigHelper configHelper = generateConfigHelper();
             System.out.println("Configuration: " + Arrays.toString(spark.sparkContext().getConf().getAll()));
-
-            db.truncateOlapSet();
 
             final PureTraversal<?, ?> traversal = vertexProgram.getTraversal().clone();
 
@@ -390,6 +399,10 @@ public class DistributedGraphComputer implements GraphComputer {
             pureTraversal.asAdmin().applyStrategies();
 
             final Step<?, ?> firstStep = pureTraversal.asAdmin().getStartStep();
+            if (firstStep instanceof CallStep) {
+                return DistributedMasterExecutor.execute(this.vertexProgram, this.graph, this.spark, db, jobId);
+            }
+
             if (!(firstStep instanceof FireflyGraphStep)) {
                 throw new RuntimeException("OLAP only supports starting on GraphStep, please contact support.");
             }
@@ -398,6 +411,9 @@ public class DistributedGraphComputer implements GraphComputer {
                 LOGGER.warn("Edges do not support secondary indexes, you may experience poor performance.");
             }
             System.out.println("===== " + graphStep + " " + graphStep.returnsVertex() + " ===== " + pureTraversal.asAdmin().getSteps());
+
+            // truncate only if valid query
+            db.truncateOlapSet();
 
             final Codec codec = vertexProgram.getCodec();
 
@@ -412,6 +428,8 @@ public class DistributedGraphComputer implements GraphComputer {
             this.vertexProgram.storeState(vertexProgramConfiguration);
             this.vertexProgram.setup(memory);
 
+            db.writeJob(new Job(jobId, traversal.toString()));
+
             // Broadcast spark context.
             memory.broadcastMemory(new JavaSparkContext(spark.sparkContext()));
             memory.incrIteration();
@@ -423,6 +441,10 @@ public class DistributedGraphComputer implements GraphComputer {
             int iterationCount = 0;
             do {
                 iterationCount++;
+                final Job job = db.setJobIteration(jobId, memory.getIteration());
+                if (job == null || job.getState() == Job.State.CANCELLED) {
+                   throw new TraversalInterruptedException();
+                }
 
                 // Set inExecute to true, execute the vertex program, and set inExecute to false.
                 memory.setInExecute(true);
@@ -528,6 +550,8 @@ public class DistributedGraphComputer implements GraphComputer {
             memory.set(HALTED_TRAVERSERS, traversers);
             memory.complete();
 
+            db.finishJob(jobId, traversers.size());
+
             // Generate view and process result graph.
             final LocalGraphComputerView view = FireflyHelper.createGraphComputerView(this.graph,
                     this.graphFilter,
@@ -537,9 +561,11 @@ public class DistributedGraphComputer implements GraphComputer {
             // Send result and memory to computer result.
             return new DefaultComputerResult(resultGraph, memory);
         } catch (final Exception e) {
+            db.setJobError(jobId, e.getMessage());
+
             if (e instanceof TraversalInterruptedException || e instanceof InterruptedException) {
                 spark.sparkContext().cancelAllJobs();
-                LOGGER.error("Query timeout. Consider raising the evaluation timeout.", e);
+                LOGGER.error("Query timeout or cancellation is called. Consider raising the evaluation timeout.", e);
                 throw e;
             }
             // Maybe remove this for L2.

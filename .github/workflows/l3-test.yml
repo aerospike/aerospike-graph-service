@@ -60,6 +60,8 @@ jobs:
     needs: start-runner-l3-bulk-loader-pe
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Install Packages
@@ -169,6 +171,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Install Packages
         run: |
           sudo apt -y update

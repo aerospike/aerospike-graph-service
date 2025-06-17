@@ -101,7 +101,8 @@ public class FireflyBatchVertexReadLocalStrategy extends FireflyStrategyBase {
                     vertexStep.getEdgeLabels(),
                     labels,
                     hasContainers,
-                    null));
+                    null,
+                    vertexStep.getParameters()));
 
         }
     }

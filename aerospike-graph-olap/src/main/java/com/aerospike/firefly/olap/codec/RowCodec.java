@@ -42,6 +42,7 @@ public class RowCodec {
 
     final List<CodecRequirements> codecRequirements;
     final Set<CodecRequirements> codecRequirementsSet = new HashSet<>();
+    private final int nativeSparkOperationColumns;
 
     interface TraverserEncoder {
         void encode(final List<Object> o, final Traverser t);
@@ -58,6 +59,7 @@ public class RowCodec {
     RowCodec(final List<CodecRequirements> codecRequirements, final Set<TraverserRequirement> traverserRequirements,
              final int nativeSparkOperationColumns) {
         this.codecRequirements = codecRequirements;
+        this.nativeSparkOperationColumns = nativeSparkOperationColumns;
         int i = 0;
         for (CodecRequirements requirement : codecRequirements) {
             switch (requirement) {
@@ -151,7 +153,7 @@ public class RowCodec {
     class BaseTraverserEncoder implements TraverserEncoder {
         @Override
         public void encode(final List<Object> o, final Traverser t) {
-            RowCodecHelper.addBaseRow(o, t);
+            RowCodecHelper.addBaseRow(o, t, nativeSparkOperationColumns);
         }
     }
 

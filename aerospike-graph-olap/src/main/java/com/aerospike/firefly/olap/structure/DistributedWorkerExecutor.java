@@ -39,7 +39,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
@@ -56,8 +55,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.getIdType;
@@ -153,6 +150,9 @@ public class DistributedWorkerExecutor {
 
                 // Create VertexProgram for worker and preset iteration start.
                 final FireflyProgram vertexProgram = createVertexProgram(vertexProgramConfig, graph);
+                if (!vertexProgram.validPostProcessSteps()) {
+                    throw new IllegalStateException("Attempting to run an algorithm that does does filter the results down after execution, how to filter results please consult documentation. If you have a small dataset, you may try rerunning the query with \"g.with('allow.unfiltered.algorithm', true)\"");
+                }
 
                 final Codec codec = vertexProgram.getCodec();
                 final TraverserGenerator traverserGenerator = codec.getTraverserGenerator();

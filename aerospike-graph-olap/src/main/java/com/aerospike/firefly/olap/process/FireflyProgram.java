@@ -32,4 +32,8 @@ public interface FireflyProgram extends VertexProgram<TraverserSet<Object>> {
     default Set<MessageScope> getMessageScopes(final Memory memory) {
         return Set.of();
     }
+
+    default boolean validPostProcessSteps() {
+        return true;
+    }
 }

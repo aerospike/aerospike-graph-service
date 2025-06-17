@@ -246,8 +246,7 @@ public final class ConfigurationHelper {
             EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
             BL_ROW_BIN(Pair.of((byte) 21, "BL_ROW")),
             BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE")),
-            BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA")),
-            OLAP_LIMIT_BIN(Pair.of((byte) 25, "OLAP_LIMIT"));
+            BL_RECOVERY_BIN(Pair.of((byte) 24, "RECOVERY_DATA"));
 
             private final Pair value;
 

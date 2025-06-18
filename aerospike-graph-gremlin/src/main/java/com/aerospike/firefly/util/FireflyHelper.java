@@ -20,6 +20,7 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -114,6 +115,8 @@ public final class FireflyHelper {
         Object validatedValue = validatePropertyValue(v);
         if (validatedValue instanceof Boolean) {
             validatedValue = new byte[]{(byte) ((Boolean) validatedValue ? 1 : 0)};
+        } else if (validatedValue instanceof Double) {
+            validatedValue = ByteBuffer.allocate(Double.BYTES).putDouble((Double) validatedValue).array();
         }
         return validatedValue;
     }

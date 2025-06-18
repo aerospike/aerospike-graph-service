@@ -78,6 +78,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1372,7 +1373,9 @@ public class AerospikeConnection implements AutoCloseable {
         if (Objects.equals(SUPPORTED_VALUE_TYPES.get(clazz), SUPPORTED_VALUE_TYPES.get(Integer.class))) {
             return SUPPORTED_VALUE_TYPES.get(Integer.class);
         } else if (isVertexProperty && Objects.equals(SUPPORTED_VALUE_TYPES.get(clazz), SUPPORTED_VALUE_TYPES.get(Boolean.class))) {
-            return  SUPPORTED_VALUE_TYPES.get(Boolean.class);
+            return SUPPORTED_VALUE_TYPES.get(Boolean.class);
+        } else if (isVertexProperty && Objects.equals(SUPPORTED_VALUE_TYPES.get(clazz), SUPPORTED_VALUE_TYPES.get(Double.class))) {
+            return SUPPORTED_VALUE_TYPES.get(Double.class);
         } else {
             return null;
         }
@@ -1939,6 +1942,8 @@ public class AerospikeConnection implements AutoCloseable {
             } else {
                 return blobBool[0] == (byte) 1;
             }
+        } else if (clazz.equals(Double.class) && value instanceof byte[]) {
+            return ByteBuffer.wrap((byte[]) value).getDouble();
         } else {
             return typeCast(clazz, value);
         }

@@ -988,65 +988,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     }
 
     @Test
-    public void shouldRemoveMultiPropertiesWhenVerticesAreRemoved() {
-        if (graph.features().vertex().supportsMultiProperties()) {
-            final Vertex marko = graph.addVertex("name", "marko", "name", "okram");
-            final Vertex stephen = graph.addVertex("name", "stephen", "name", "spmallette");
-            this.tryCommit(graph, (graph) -> {
-                assertVertexEdgeCounts(graph, 2, 0);
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties("name")));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(stephen.properties("name")));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties()));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(stephen.properties()));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(marko.properties("blah")));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(stephen.properties("blah")));
-            });
-            stephen.remove();
-            this.tryCommit(graph, (graph) -> {
-                assertVertexEdgeCounts(graph, 1, 0);
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties("name")));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties()));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(marko.properties("blah")));
-            });
-
-            for (int i = 0; i < 100; ++i) {
-                marko.property(VertexProperty.Cardinality.list, "name", "Remove-" + i);
-            }
-
-            this.tryCommit(graph, (graph) -> {
-                assertVertexEdgeCounts(graph, 1, 0);
-                Assert.assertEquals(102L, FireflyCloseableIteratorUtils.count(marko.properties("name")));
-                Assert.assertEquals(102L, FireflyCloseableIteratorUtils.count(marko.properties()));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(marko.properties("blah")));
-            });
-            graph.traversal().V(new Object[0]).properties(new String[]{"name"}).has(T.value, P.test((a, b) -> {
-                return ((String) a).startsWith((String) b);
-            }, "Remove-")).forEachRemaining(Property::remove);
-
-            final Vertex alsoMarko;
-            if (graph.getDataModel().equals("linked")) {
-                // If using linked model, vertex properties are cached so must get a new instance of the vertex since
-                // the updating traversal did not utilize the existing cached vertex used for test assertions
-                alsoMarko = graph.traversal().V().has("name", "marko").next();
-            } else {
-                alsoMarko = marko;
-            }
-
-            this.tryCommit(graph, (graph) -> {
-                assertVertexEdgeCounts(graph, 1, 0);
-                List<VertexProperty<Object>> l = FireflyCloseableIteratorUtils.list(alsoMarko.properties("name"));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(alsoMarko.properties("name")));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(alsoMarko.properties()));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(alsoMarko.properties("blah")));
-            });
-            marko.remove();
-            this.tryCommit(graph, getAssertVertexEdgeCounts(0, 0));
-        } else {
-            LOG.info("skipping shouldRemoveMultiPropertiesWhenVerticesAreRemoved because {} does not support multi-properties", graph);
-        }
-    }
-
-    @Test
     public void shouldNotAllowIdAssignment() {
         Vertex v = graph.addVertex();
         Object id = Long.valueOf(123131231L);

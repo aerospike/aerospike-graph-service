@@ -32,12 +32,10 @@ try:
         rows = []
         edge_id = 0
 
-        # v1 → v2 (10k edges)
         for i in range(10000):
             rows.append([f"e{edge_id}", "v1", "v2", "knows", i])
             edge_id += 1
 
-        # v2 → v3 (10k edges)
         for i in range(10000):
             rows.append([f"e{edge_id}", "v2", "v3", "knows", i])
             edge_id += 1
@@ -51,8 +49,6 @@ try:
         rows = [
             ["v7", "person", "v7"],
             ["v8", "movie", "v8"]
-            # Uncomment below if promoting v4:
-            # ["v4", "person", "v4-promoted"]
         ]
         write_csv(path, header, rows)
 
@@ -63,24 +59,21 @@ try:
         rows = []
         edge_id = 20000
 
-        # v7 → v8 (10k)
         for i in range(10000):
             rows.append([f"e{edge_id}", "v7", "v8", "knows", i])
             edge_id += 1
 
-        # v8 → v7 (10k)
         for i in range(10000):
             rows.append([f"e{edge_id}", "v8", "v7", "knows", i])
             edge_id += 1
 
-        # v4 → v8 (9k promotion)
+        # Promoting v4
         for i in range(9000):
             rows.append([f"e{edge_id}", "v4", "v8", "knows", i])
             edge_id += 1
 
         write_csv(path, header, rows)
 
-    # Execute all generators
     generate_initial_vertices_csv()
     generate_initial_edges_csv()
     generate_incremental_vertices_csv()

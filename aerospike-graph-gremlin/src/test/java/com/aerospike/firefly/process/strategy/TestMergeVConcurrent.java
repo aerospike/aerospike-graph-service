@@ -25,7 +25,6 @@ public class TestMergeVConcurrent {
 
     static FireflyGraph SETUP_GRAPH;
 
-
     @BeforeClass
     static public void beforeClass() {
         SETUP_GRAPH = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES));

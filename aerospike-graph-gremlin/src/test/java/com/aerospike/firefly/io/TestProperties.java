@@ -403,7 +403,7 @@ public class TestProperties {
         names.add("simon");
         names.add("bauto");
         g.V().hasLabel("person").properties().drop().iterate();
-        g.V().hasLabel("person").property("age", 12).property("name", "simon").property("name", "bauto").iterate();
+        g.V().hasLabel("person").property("age", 12).property(VertexProperty.Cardinality.list, "name", "simon").property(VertexProperty.Cardinality.list,"name", "bauto").iterate();
         traversal = g.V().hasLabel("person").properties().count();
         propertiesCount = (long) traversal.next();
         Assert.assertEquals(3, propertiesCount);

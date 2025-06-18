@@ -1,0 +1,94 @@
+import csv, sys, os
+
+try:
+    base_path = "src/test/resources/sampledata-incremental-supernode-count"
+
+    # Utility function to write CSV files
+    def write_csv(file_path, header, rows):
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(header)
+            writer.writerows(rows)
+
+    # Generate initial vertex CSV
+    def generate_initial_vertices_csv():
+        path = os.path.join(base_path, "vertices-init", "vertices.csv")
+        header = ["~id", "~label", "name"]
+        rows = [
+            ["v1", "person", "v1"],
+            ["v2", "movie", "v2"],
+            ["v3", "movie", "v3"],
+            ["v4", "person", "v4"],
+            ["v5", "movie", "v5"],
+            ["v6", "movie", "v6"]
+        ]
+        write_csv(path, header, rows)
+
+    # Generate initial edge CSV
+    def generate_initial_edges_csv():
+        path = os.path.join(base_path, "edges-init", "edges.csv")
+        header = ["~id", "~from", "~to", "~label", "edgeId"]
+        rows = []
+        edge_id = 0
+
+        # v1 → v2 (10k edges)
+        for i in range(10000):
+            rows.append([f"e{edge_id}", "v1", "v2", "knows", i])
+            edge_id += 1
+
+        # v2 → v3 (10k edges)
+        for i in range(10000):
+            rows.append([f"e{edge_id}", "v2", "v3", "knows", i])
+            edge_id += 1
+
+        write_csv(path, header, rows)
+
+    # Generate incremental vertex CSV
+    def generate_incremental_vertices_csv():
+        path = os.path.join(base_path, "vertices-incremental", "vertices_incremental.csv")
+        header = ["~id", "~label", "name"]
+        rows = [
+            ["v7", "person", "v7"],
+            ["v8", "movie", "v8"]
+            # Uncomment below if promoting v4:
+            # ["v4", "person", "v4-promoted"]
+        ]
+        write_csv(path, header, rows)
+
+    # Generate incremental edge CSV
+    def generate_incremental_edges_csv():
+        path = os.path.join(base_path, "edges-incremental", "edges_incremental.csv")
+        header = ["~id", "~from", "~to", "~label", "edgeId"]
+        rows = []
+        edge_id = 20000
+
+        # v7 → v8 (10k)
+        for i in range(10000):
+            rows.append([f"e{edge_id}", "v7", "v8", "knows", i])
+            edge_id += 1
+
+        # v8 → v7 (10k)
+        for i in range(10000):
+            rows.append([f"e{edge_id}", "v8", "v7", "knows", i])
+            edge_id += 1
+
+        # v4 → v8 (9k promotion)
+        for i in range(9000):
+            rows.append([f"e{edge_id}", "v4", "v8", "knows", i])
+            edge_id += 1
+
+        write_csv(path, header, rows)
+
+    # Execute all generators
+    generate_initial_vertices_csv()
+    generate_initial_edges_csv()
+    generate_incremental_vertices_csv()
+    generate_incremental_edges_csv()
+
+    print("CSV generation completed successfully.")
+    sys.exit(0)
+
+except Exception as e:
+    print(f"Error: {e}")
+    sys.exit(1)

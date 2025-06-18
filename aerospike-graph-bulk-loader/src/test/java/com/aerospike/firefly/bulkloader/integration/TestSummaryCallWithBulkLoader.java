@@ -8,10 +8,13 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoad;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
@@ -26,6 +29,15 @@ public class TestSummaryCallWithBulkLoader {
     }
 
     protected FireflyGraph graph = null;
+
+    @BeforeClass
+    public static void generateData() throws IOException, InterruptedException, ExecutionException {
+        final Process python = Runtime.getRuntime().exec(
+                "python3 src/test/resources/csv-generate-summary-count.py");
+        if (python.onExit().get().exitValue() != 0) {
+            throw new RuntimeException("Failed to generate csv data to run tests.");
+        }
+    }
 
     @Before
     public void beforeEach() {

@@ -5,6 +5,7 @@ import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.AbstractGraphProvider;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeVertexTest;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.slf4j.Logger;
@@ -34,7 +35,6 @@ public class FireflyGraphProviderUncached extends AbstractGraphProvider {
 
         // Adjust here to test transition from caches to scans
         config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase(), "10000");
-        config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_CARDINALITY, "list");
     }
 
     @Override
@@ -54,6 +54,15 @@ public class FireflyGraphProviderUncached extends AbstractGraphProvider {
         // Disable FireflyGraphDropStrategy for this test since it truncates the DB so event for vertex removal doesn't fire
         if (test.equals(EventStrategyProcessTest.class) && testMethodName.equals("shouldTriggerRemoveVertex")) {
             configMap.put(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "false");
+        }
+
+        if ((test.equals(MergeVertexTest.class) || test.equals(MergeVertexTest.Traversals.class)) &&
+                testMethodName.equals("g_mergeVXlabel_person_name_markoX_optionXonMatch_age_19X_option") ||
+                testMethodName.equals("g_withSideEffectXc_label_person_name_markoX_withSideEffectXm_age_19X_mergeVXselectXcXX_optionXonMatch_selectXmXX_option")) {
+            configMap.put(ConfigurationHelper.Keys.VERTEX_PROPERTY_CARDINALITY, "single");
+        } else {
+            // Most tests require list, the other 2 require single.
+            configMap.put(ConfigurationHelper.Keys.VERTEX_PROPERTY_CARDINALITY, "list");
         }
 
         return configMap;

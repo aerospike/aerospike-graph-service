@@ -724,7 +724,7 @@ public final class ConfigurationHelper {
     }
 
     public static String getPrefix(final Configuration config) {
-        return config.containsKey(Keys.GRAPH_ID.toLowerCase()) ? config.get(String.class, Keys.GRAPH_ID.toLowerCase()) + "_" : DEFAULT_VALUES.get(Keys.GRAPH_ID) + "_";
+        return getOrDefaultString(Keys.GRAPH_ID, config) + "_";
     }
 
     public static String aerospikeNamespace(final Configuration c) {

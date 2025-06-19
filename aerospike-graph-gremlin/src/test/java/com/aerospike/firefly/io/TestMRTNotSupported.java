@@ -52,5 +52,4 @@ public class TestMRTNotSupported extends AbstractFireflySuite {
             assertTrue(errorMessageFound);
         }
     }
-
 }

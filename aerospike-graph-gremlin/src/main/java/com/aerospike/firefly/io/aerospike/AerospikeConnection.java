@@ -1155,7 +1155,7 @@ public class AerospikeConnection implements AutoCloseable {
                     for (final Map<String, String> abortResponse : queryAbortResponses) {
                         if (abortResponse.containsKey(QUERY_ABORT_RESULT)) {
                             final String abortResult = abortResponse.get(QUERY_ABORT_RESULT);
-                            if (QUERY_ABORT_SUCCESS.equals(abortResult) || QUERY_ABORT_TRID_INACTIVE.equals(abortResult)) {
+                            if (QUERY_ABORT_SUCCESS.equalsIgnoreCase(abortResult) || QUERY_ABORT_TRID_INACTIVE.equalsIgnoreCase(abortResult)) {
                                 success = true;
                             } else {
                                 if (!abortResult.equals(lastAbortResult)) {

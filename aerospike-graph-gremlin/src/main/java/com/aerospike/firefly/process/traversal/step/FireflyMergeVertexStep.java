@@ -12,6 +12,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.lambda.CardinalityValueTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.ConstantTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.IdentityTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Mutating;
@@ -22,7 +23,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.Event;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.ListCallbackRegistry;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
-import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -44,7 +44,6 @@ import java.util.stream.Stream;
  * Implementation for the {@code mergeV()} step covering both the start step version and the one used mid-traversal.
  * {@link PartitionStrategy} is not supported.
  */
-// TODO: Delete this garbage if possible.
 public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mutating<Event> {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyMergeVertexStep.class);
 
@@ -211,23 +210,29 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
 
                     if (onMatchMap != null) {
                         onMatchMap.forEach((key, value) -> {
+                            Object val = value;
+                            VertexProperty.Cardinality card = getGraph().features().vertex().getCardinality(key);
+
+                            // a value can be a traversal in the case where the user specifies the cardinality for the value.
+                            if (value instanceof CardinalityValueTraversal) {
+                                final CardinalityValueTraversal cardinalityValueTraversal =  (CardinalityValueTraversal) value;
+                                card = cardinalityValueTraversal.getCardinality();
+                                val = cardinalityValueTraversal.getValue();
+                            }
+
+
+
                             // Trigger callbacks for eventing - in this case, it's a VertexPropertyChangedEvent. if there's no
                             // registry/callbacks then just set the property
                             if (this.callbackRegistry != null && !callbackRegistry.getCallbacks().isEmpty()) {
                                 final EventStrategy eventStrategy = getTraversal().getStrategies().getStrategy(EventStrategy.class).get();
                                 final Property<?> p = v.property(key);
                                 final Property<Object> oldValue = p.isPresent() ? eventStrategy.detach(v.property(key)) : null;
-                                final Event.VertexPropertyChangedEvent vpce = new Event.VertexPropertyChangedEvent(eventStrategy.detach(v), oldValue, value);
+                                final Event.VertexPropertyChangedEvent vpce = new Event.VertexPropertyChangedEvent(eventStrategy.detach(v), oldValue, val);
                                 this.callbackRegistry.getCallbacks().forEach(c -> c.accept(vpce));
                             }
 
-                            // Try to detect proper cardinality for the key according to the graph
-                            VertexProperty.Cardinality effectiveCard;
-                            if (FireflyCloseableIteratorUtils.count(v.properties(key)) <= 1)
-                                effectiveCard = VertexProperty.Cardinality.single;
-                            else
-                                effectiveCard = VertexProperty.Cardinality.list;
-                            v.property(effectiveCard, key, value);
+                            v.property(card, key, val);
                         });
                     }
 
@@ -243,11 +248,23 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                     final Map<?, ?> onCreateMap = onCreateMap(traverser, mergeMap);
                     final List<Object> keyValues = new ArrayList<>();
                     for (Map.Entry<?, ?> entry : onCreateMap.entrySet()) {
-                        keyValues.add(entry.getKey());
-                        keyValues.add(entry.getValue());
+                        // Do not insert card values up front.
+                        if (!(entry.getValue() instanceof CardinalityValueTraversal)) {
+                            keyValues.add(entry.getKey());
+                            keyValues.add(entry.getValue());
+                        }
                     }
 
                     final Vertex vertex = this.getTraversal().getGraph().get().addVertex(keyValues.toArray(new Object[keyValues.size()]));
+
+                    // Now insert card values.
+                    for (Map.Entry<?, ?> entry : onCreateMap.entrySet()) {
+                        // Card values are only for String keys.
+                        if (entry.getValue() instanceof CardinalityValueTraversal && entry.getKey() instanceof String) {
+                            final CardinalityValueTraversal cardinalityValueTraversal = (CardinalityValueTraversal) entry.getValue();
+                            vertex.property(cardinalityValueTraversal.getCardinality(), (String) entry.getKey(), cardinalityValueTraversal.getValue());
+                        }
+                    }
 
                     // Trigger callbacks for eventing - in this case, it's a VertexAddedEvent
                     if (this.callbackRegistry != null && !callbackRegistry.getCallbacks().isEmpty()) {

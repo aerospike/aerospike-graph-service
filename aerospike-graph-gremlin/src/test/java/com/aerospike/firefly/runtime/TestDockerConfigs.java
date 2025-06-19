@@ -179,6 +179,23 @@ public class TestDockerConfigs {
         Assert.assertTrue(foundErrorMsg);
     }
 
+    @Test
+    public void testGitCommitHashLog() throws InterruptedException {
+        final String[] environmentVariables = new String[]{
+                "aerospike.client.host=172.17.0.1:3000"};
+        final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
+        final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
+        boolean foundMsg = false;
+        for (final String line : log) {
+            if (line.contains("Built from git commit")) {
+                foundMsg = true;
+                break;
+
+            }
+        }
+        Assert.assertTrue(foundMsg);
+    }
+
     @Before
     public void beforeEach() {
         LOG.warn("===> Running {} <===", testName.getMethodName());

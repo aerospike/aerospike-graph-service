@@ -21,7 +21,14 @@ import com.aerospike.client.exp.Expression;
 import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.WritePolicy;
+import com.aerospike.client.query.Filter;
+import com.aerospike.client.query.IndexCollectionType;
+import com.aerospike.client.query.IndexType;
+import com.aerospike.client.query.KeyRecord;
+import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection.FireflyRecordSet;
+import com.aerospike.firefly.olap.structure.job.Job;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
@@ -32,11 +39,16 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 
 public class DistributedAerospikeConnection {
     private final AerospikeConnection db;
     private final String namespace;
-    private final String set;
+    // used for temporary run-time data for olap
+    private final String tempSet;
+    private final String jobSet = "jobs";
     private final long packedElementCount;
     private final long packSize;
     private final HashFunction hashingFunction = Hashing.murmur3_128();
@@ -51,9 +63,11 @@ public class DistributedAerospikeConnection {
                                           final long packSize) {
         this.db = db;
         this.namespace = namespace;
-        this.set = set;
+        this.tempSet = set;
         this.packedElementCount = packedElementCount;
         this.packSize = packSize;
+
+        createJobIndex();
     }
 
     public DistributedAerospikeConnection(final AerospikeConnection db,
@@ -66,26 +80,34 @@ public class DistributedAerospikeConnection {
         this(graph.getBaseGraph(), graph.fireflySummaryUpdater.getFireflyStatistics().totalVertexCount(), 10);
     }
 
+    private void createJobIndex() {
+        final List<String> existingIndexes =
+                AerospikeConnection.InfoOps.listExistingIndexes(db).stream()
+                        .map(Map.Entry::getKey).collect(Collectors.toList());
+
+        db.createIndex(existingIndexes, jobSet, "job_state", "state", IndexType.STRING, IndexCollectionType.DEFAULT);
+    }
+
     // Truncate OLAP set.
     public void truncateOlapSet() {
-        db.truncate(null, db.OLAP_SET, null);
+        db.truncate(null, tempSet, null);
     }
 
     // Long accumulator functions.
     public void setAccumulator(final String name, final Long amount) {
-        final Key key = new Key(namespace, set, name);
+        final Key key = new Key(namespace, tempSet, name);
         final Bin ctr = new Bin(bin, amount);
         db.writeOperate(null, key, Operation.put(ctr));
     }
 
     public Long getAccumulatorLong(final String name) {
-        final Key key = new Key(namespace, set, name);
+        final Key key = new Key(namespace, tempSet, name);
         final Record record = db.writeOperate(null, key, Operation.get(bin));
         return record.getLong(bin);
     }
 
     public void addAccumulator(final String name, final Long amount) {
-        final Key key = new Key(namespace, set, name);
+        final Key key = new Key(namespace, tempSet, name);
         final Bin ctr = new Bin(bin, amount);
         db.writeOperate(null, key, Operation.add(ctr));
     }
@@ -93,19 +115,19 @@ public class DistributedAerospikeConnection {
     // Double accumulator functions.
 
     public void setAccumulator(final String name, final Double amount) {
-        final Key key = new Key(namespace, set, name);
+        final Key key = new Key(namespace, tempSet, name);
         final Bin ctr = new Bin(bin, amount);
         db.writeOperate(null, key, Operation.put(ctr));
     }
 
     public Double getAccumulatorDouble(final String name) {
-        final Key key = new Key(namespace, set, name);
+        final Key key = new Key(namespace, tempSet, name);
         final Record record = db.writeOperate(null, key, Operation.get(bin));
         return record.getDouble(bin);
     }
 
     public void addAccumulator(final String name, final Double amount) {
-        final Key key = new Key(namespace, set, name);
+        final Key key = new Key(namespace, tempSet, name);
         final Bin ctr = new Bin(bin, amount);
         db.writeOperate(null, key, Operation.add(ctr));
     }
@@ -116,7 +138,7 @@ public class DistributedAerospikeConnection {
         final long hashValue = hashingFunction.hashUnencodedChars(id.toString()).asLong() & Long.MAX_VALUE;
         final long numberOfPacks = (packedElementCount + packSize - 1) / packSize;
         final long packingId = hashValue % numberOfPacks;
-        return new Key(namespace, set, packingId);
+        return new Key(namespace, tempSet, packingId);
     }
 
     // Minimum value functions.
@@ -158,8 +180,8 @@ public class DistributedAerospikeConnection {
     public void addPackedAccumulatorDouble(final String vertexId, final Double amount, final int iteration) {
         final Key key = getPackedKeyFromId(vertexId);
         final String mapKeyId = vertexId + "_" + iteration;
-        Operation incrememt = MapOperation.increment(MapPolicy.Default, bin, Value.get(mapKeyId), Value.get(amount));
-        db.writeOperate(null, key, incrememt);
+        Operation increment = MapOperation.increment(MapPolicy.Default, bin, Value.get(mapKeyId), Value.get(amount));
+        db.writeOperate(null, key, increment);
     }
 
     public Double getPackedAccumulatorDoubleSum(final List<String> vertexIds, final int iteration) {
@@ -237,7 +259,7 @@ public class DistributedAerospikeConnection {
     // pair operations
 
     public void addPair(final String vertexId, final String value1, final Double value2, final int iteration) {
-        final Key key = new Key(namespace, set, vertexId + "_" + iteration);
+        final Key key = new Key(namespace, tempSet, vertexId + "_" + iteration);
 
         final ListPolicy policy = new ListPolicy();
 
@@ -251,7 +273,7 @@ public class DistributedAerospikeConnection {
     }
 
     public List<Pair<String, Double>> getPairs(final String vertexId, final int iteration) {
-        final Key key = new Key(namespace, set, vertexId + "_" + iteration);
+        final Key key = new Key(namespace, tempSet, vertexId + "_" + iteration);
         final Record record = db.readOperate(null, key, Operation.get(bin), Operation.get(secondBin));
         if (record == null) {
             return Collections.emptyList();
@@ -357,7 +379,75 @@ public class DistributedAerospikeConnection {
         return pairs;
     }
 
+    // jobs methods
+    public void writeJob(final Job job) {
+        final Key key = new Key(namespace, jobSet, job.getId());
+        // todo: GRAPH-1562, add TTL, probably configurable
+        db.checkedPut(null, key, job.asBins());
+    }
+
+    public Job readJob(final String jobId) {
+        final Key key = new Key(namespace, jobSet, jobId);
+        final Record record = db.read(key, null);
+        if (record == null) {
+            return null;
+        }
+
+        return new Job(record);
+    }
+
+    public void finishJob(final String jobId, final int resultsCount) {
+        final Job job = readJob(jobId);
+        if (job != null) {
+            job.finish(resultsCount);
+            writeJob(job);
+        }
+    }
+
+    public void cancelAllJobs() {
+        final Statement statement = new Statement();
+        statement.setNamespace(db.getNamespace());
+        statement.setSetName(jobSet);
+        statement.setFilter(Filter.equal("state", "STARTED"));
+
+        // active jobs count should be 0-1, so it's ok to write it one by one
+        final FireflyRecordSet recordSet = db.query(null, statement);
+        for (final KeyRecord keyRecord : recordSet) {
+            final Job job = new Job(keyRecord.record);
+            job.cancel();
+            writeJob(job);
+        }
+    }
+
+    public void setJobError(final String jobId, final String error) {
+        final Job job = readJob(jobId);
+        // job will get error after cancellation
+        if (job != null && job.getState() != Job.State.CANCELLED) {
+            job.error(error);
+            writeJob(job);
+        }
+    }
+
+    public Job setJobIteration(final String jobId, final int iteration) {
+        final Job job = readJob(jobId);
+        if (job != null) {
+            job.setIteration(iteration);
+            writeJob(job);
+        }
+        return job;
+    }
+
+    public List<Job> getJobs() {
+        final Queue<Record> records = new ConcurrentLinkedQueue<>();
+        db.scanAll(null, jobSet, (key, record) -> records.add(record));
+        return records.stream().map(Job::new).collect(Collectors.toList());
+    }
+
     // For testing only.
+    public void removeAllJobs() {
+        db.truncate(null, jobSet, null);
+    }
+
     public Record getPackedRecord(final String vertexId, final int iteration) {
         final Key key = getPackedKeyFromId(vertexId);
         return db.read(key, null);

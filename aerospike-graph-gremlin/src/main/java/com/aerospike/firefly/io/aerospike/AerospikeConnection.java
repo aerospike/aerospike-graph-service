@@ -191,7 +191,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final String ID_TYPE_BIN;
     public final String TEST_SET;
     public final String OLAP_SET;
-    public final String OLAP_LIMIT_BIN;
     public final String SCHEMA_SET;
     public final String SCHEMA_BIN;
 
@@ -501,7 +500,6 @@ public class AerospikeConnection implements AutoCloseable {
 
         TEST_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.TEST_SET.name(), conf);
         OLAP_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OLAP_SET.name(), conf);
-        OLAP_LIMIT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.OLAP_LIMIT_BIN.name(), conf);
         SUMMARY_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.SUMMARY_SET.name(), conf);
         GRAPH_ID = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.GRAPH_ID, conf);
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET.name(), conf);

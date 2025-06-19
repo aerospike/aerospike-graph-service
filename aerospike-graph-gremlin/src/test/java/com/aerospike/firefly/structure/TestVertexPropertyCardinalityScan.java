@@ -9,6 +9,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.*;
 
 import java.util.List;
@@ -39,6 +40,48 @@ public class TestVertexPropertyCardinalityScan {
     @Before
     public void before() {
         g.V().drop().iterate();
+    }
+
+    @Test
+    public void testVP_MultiStartingValue_Double() {
+        final FireflyVertex v = (FireflyVertex) g.addV("testVP_MultiStartingValue_Double")
+                .property(VertexProperty.Cardinality.list, "value", 1.0)
+                .property(VertexProperty.Cardinality.list, "value", 2.0)
+                .next();
+
+        final List<Vertex> vertices1 = g.V().has("value", P.within(1.0, 2.0)).toList();
+        final List<Vertex> vertices2 = g.V().has("value", 1.0).toList();
+        final List<Vertex> vertices3 = g.V().has("value", 2.0).toList();
+        final List<Vertex> vertices4 = g.V().has("value", P.gt(0.9)).toList();
+        final List<Vertex> vertices5 = g.V().has("value", P.lt(2.1)).toList();
+        final List<Vertex> vertices6 = g.V().has("value", P.gte(1.0)).toList();
+        final List<Vertex> vertices7 = g.V().has("value", P.lte(2.0)).toList();
+        final List<Vertex> vertices8 = g.V().has("value", P.gt(1.5)).toList();
+        final List<Vertex> vertices9 = g.V().has("value", P.lt(1.5)).toList();
+        final List<Vertex> vertices10 = g.V().has("value", P.lt(1.0)).toList();
+        final List<Vertex> vertices11 = g.V().has("value", P.gt(2.0)).toList();
+
+        Assert.assertEquals(1, vertices1.size());
+        Assert.assertEquals(1, vertices2.size());
+        Assert.assertEquals(1, vertices3.size());
+        Assert.assertEquals(1, vertices4.size());
+        Assert.assertEquals(1, vertices5.size());
+        Assert.assertEquals(1, vertices6.size());
+        Assert.assertEquals(1, vertices7.size());
+        Assert.assertEquals(1, vertices8.size());
+        Assert.assertEquals(1, vertices9.size());
+        Assert.assertEquals(0, vertices10.size());
+        Assert.assertEquals(0, vertices11.size());
+
+        Assert.assertEquals(v, vertices1.get(0));
+        Assert.assertEquals(v, vertices2.get(0));
+        Assert.assertEquals(v, vertices3.get(0));
+        Assert.assertEquals(v, vertices4.get(0));
+        Assert.assertEquals(v, vertices5.get(0));
+        Assert.assertEquals(v, vertices6.get(0));
+        Assert.assertEquals(v, vertices7.get(0));
+        Assert.assertEquals(v, vertices8.get(0));
+        Assert.assertEquals(v, vertices9.get(0));
     }
 
     @Test

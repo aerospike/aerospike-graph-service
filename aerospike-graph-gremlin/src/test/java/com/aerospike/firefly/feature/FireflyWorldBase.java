@@ -50,7 +50,7 @@ public abstract class FireflyWorldBase implements World {
         config.setProperty(ConfigurationHelper.Keys.GRAPH_ID, graphName);
         config.setProperty(ConfigurationHelper.Keys.TRAVERSAL_NAME, "g" + graphName);
         config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
-        config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_CARDINALITY, "list"); //23 failures.
+        config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_CARDINALITY, "list");
 
         return config;
     }

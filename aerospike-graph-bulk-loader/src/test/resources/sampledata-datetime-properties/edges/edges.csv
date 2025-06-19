@@ -1,0 +1,4 @@
+~id,~label,~from,~to,localDate:localdate,localDateTime:localdatetime,offsetDateTime:offsetdatetime,localdates:localdate[],intProperty:int,longProperty:long
+1,relatedTo,1,2,2021-06-05,2003-03-06T14:30,2009-01-02T09:25:10Z,1999-09-09;2000-01-01,47,1989
+2,relatedTo,2,1,2021-06-03,2022-03-12T17:02,2012-08-01T11:43:01Z,1997-07-07;1998-08-08,33,1991
+3,relatedTo,2,3,2021-02-11,2025-02-11T12:31,2011-11-28T23:12:28Z,1995-05-05;1996-06-06,9,2004

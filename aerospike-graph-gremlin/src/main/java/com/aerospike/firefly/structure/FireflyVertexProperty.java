@@ -145,7 +145,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
             final Property<V> property = new FireflyVertexPropertyProperty<>(
                     graph, this,
                     propertyKeys[0],
-                    (V) this.graph.getBaseGraph().convertValuetoTypeUsingHint(properties.get(propertyKeys[0]), typeHints.get(propertyKeys[0])));
+                    (V) this.graph.getBaseGraph().convertValueToTypeUsingHint(properties.get(propertyKeys[0]), typeHints.get(propertyKeys[0])));
             return FireflyCloseableIteratorUtils.of(property);
         } else {
             final Map<String, Object> outputProperties = new HashMap<>(properties);
@@ -157,7 +157,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
             }
             return FireflyCloseableIteratorUtils.map(outputProperties.entrySet().iterator(),
                     p -> new FireflyVertexPropertyProperty<>(graph, this, p.getKey(),
-                            (V) this.graph.getBaseGraph().convertValuetoTypeUsingHint(p.getValue(), typeHints.get(p.getKey()))));
+                            (V) this.graph.getBaseGraph().convertValueToTypeUsingHint(p.getValue(), typeHints.get(p.getKey()))));
         }
     }
 

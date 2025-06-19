@@ -20,6 +20,9 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -54,11 +57,11 @@ public final class FireflyHelper {
     }
 
     public static void dropGraphComputerView(final FireflyGraph graph) {
-        graph.graphComputerView= null;
+        graph.graphComputerView = null;
     }
 
     public static LocalGraphComputerView getGraphComputerView(final FireflyGraph graph) {
-        return  graph.graphComputerView;
+        return graph.graphComputerView;
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,6 +91,21 @@ public final class FireflyHelper {
                 }
             } else if (v instanceof long[]) {
                 final long[] vArray = (long[]) v;
+                for (int i = 0; i < vArray.length; i++) {
+                    vList.add(vArray[i]);
+                }
+            } else if (v instanceof LocalDate[]) {
+                final LocalDate[] vArray = (LocalDate[]) v;
+                for (int i = 0; i < vArray.length; i++) {
+                    vList.add(vArray[i]);
+                }
+            } else if (v instanceof LocalDateTime[]) {
+                final LocalDateTime[] vArray = (LocalDateTime[]) v;
+                for (int i = 0; i < vArray.length; i++) {
+                    vList.add(vArray[i]);
+                }
+            } else if (v instanceof OffsetDateTime[]) {
+                final OffsetDateTime[] vArray = (OffsetDateTime[]) v;
                 for (int i = 0; i < vArray.length; i++) {
                     vList.add(vArray[i]);
                 }

@@ -108,7 +108,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
         for (final Map.Entry<String, Object> vertexProperty : vertexPropertyValues.entrySet()) {
             final String vpKey = vertexProperty.getKey();
-            final Object vpValue = this.db.convertValuetoTypeUsingHint(vertexPropertyValues.get(vpKey),
+            final Object vpValue = this.db.convertValueToTypeUsingHint(vertexPropertyValues.get(vpKey),
                     vertexPropertyValuesTypeHints.get(vpKey));
             final FireflyId vpId = graph.getIdFactory().createVertexPropertyId(vertexPropertyIds.get(vertexProperty.getKey()));
             final Map<String, Object> vpProperties = vertexPropertyIdToProperties.containsKey(vpId.getStorageId()) ?
@@ -147,7 +147,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         }
 
         // Vertex property ids are cached - loop through entries and get the properties for the entry.
-        final Object vertexProperty = this.db.convertValuetoTypeUsingHint(vertexPropertyValues.get(key),
+        final Object vertexProperty = this.db.convertValueToTypeUsingHint(vertexPropertyValues.get(key),
                 vertexPropertyValuesTypeHints.get(key));
         final FireflyId vertexPropertyId = vertexPropertyIds.get(key).transform();
         final Map<String, Object> vpProperties = vertexPropertyIdToProperties.containsKey(vertexPropertyId.getStorageId()) ?

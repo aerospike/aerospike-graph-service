@@ -227,6 +227,7 @@ public class AerospikeOperations {
         vertexPropertyIdsWritable = idMapContainer.vertexPropertyIdMapDisk;
         vertexPropertyValueMapWritable = new TreeMap<>();
         db.schemaManager.populateVertexPropertyStringMapToSchemaMap(validProperties, vertexPropertyValueMapWritable);
+        db.convertValuesToAerospikeWriteable(vertexPropertyValueMapWritable);
 
         // Create vertex bins for cache state, vertex label, and property ids.
         final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED_BIN, Value.get(isEdgeCacheOverflowed));
@@ -530,8 +531,11 @@ public class AerospikeOperations {
         } else {
             schemaPropertyKey = db.schemaManager.getVpPropertyWrite(propertyKey);
             final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-            writeValue = MapOperation.put(policy, db.PROPERTIES_BIN, Value.get(schemaPropertyKey), Value.get(propertyValue),
-                    CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
+
+            Object propertyValueToWrite = db.convertValueToAerospikeWriteable(propertyValue);
+
+            writeValue = MapOperation.put(policy, db.PROPERTIES_BIN, Value.get(schemaPropertyKey),
+                    Value.get(propertyValueToWrite), CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
             operations.add(writeValue);
             final Object typeHint = getTypeHintOf(propertyValue);
             final Operation writeTypeHint;
@@ -580,15 +584,18 @@ public class AerospikeOperations {
      *
      * @param vertexProperty Vertex property to write to vertex.
      */
-    public void writeVpProperty(final FireflyVertex vertex, final FireflyVertexProperty vertexProperty) {
+    public void writeVpProperty(final FireflyVertex vertex, final FireflyVertexProperty<?> vertexProperty) {
         final Key key = getKey(this.db, this.db.VERTEX_AERO_SET, vertex.id);
         final List<Operation> operations = new ArrayList<>();
         boolean wroteTypeHint = false;
         final Long schemaVpKey = this.db.schemaManager.getVertexPropertyWrite(vertexProperty.key());
 
         final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
+
+        Object propertyValueToWrite = db.convertValueToAerospikeWriteable(vertexProperty.value());
+
         final Operation putValue = MapOperation.put(policy, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
-                Value.get(schemaVpKey), Value.get(vertexProperty.value()));
+                Value.get(schemaVpKey), Value.get(propertyValueToWrite));
         operations.add(putValue);
         final Object typeHint = getTypeHintOf(vertexProperty.value());
         if (typeHint != null) {
@@ -810,6 +817,8 @@ public class AerospikeOperations {
             // Add properties and type hints to Edge data.
             final TreeMap<Long, Object> propertyMapDisk = new TreeMap<>();
             db.schemaManager.populateEdgePropertyStringMapToSchemaMap(propertyMap, propertyMapDisk);
+            db.convertValuesToAerospikeWriteable(propertyMapDisk);
+
             edgeData.add(PROPERTIES_POSITION, Value.get(propertyMapDisk));
             edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHintsDisk));
 
@@ -1471,8 +1480,10 @@ public class AerospikeOperations {
 
         if (!isAttachedToSupernode) {
             final MapPolicy propertyPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-            final Operation valueOp = MapOperation.put(propertyPolicy, db.EDGE_DATA_BIN, Value.get(schemaPropertyKey), Value.get(value),
-                    CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
+            Object propertyValueToWrite = db.convertValueToAerospikeWriteable(value);
+
+            final Operation valueOp = MapOperation.put(propertyPolicy, db.EDGE_DATA_BIN, Value.get(schemaPropertyKey),
+                    Value.get(propertyValueToWrite), CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
             operations.add(valueOp);
             final Operation typeHintOp;
             if (typeHint != null) {

@@ -273,6 +273,7 @@ public class TestAdminCallHttp {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
             g.addV("person").property("nameA", "Alice").property("nameB", "Bob").next();
             final List<String> initialSindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             for (final String s : initialSindexes) {
@@ -299,7 +300,67 @@ public class TestAdminCallHttp {
                     with("element_type", "vertex").next();
             while (nameAStatus.get("percent_complete") < 100 || nameBStatus.get("percent_complete") < 100) {
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                        with("property_key", "nameA").
+                        with("element_type", "vertex").next();
+                nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                        with("property_key", "nameB").
+                        with("element_type", "vertex").next();
+            }
+
+            // Give time for index cardinality to be updated.
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            final String cardinality = adminIndexCardinality();
+            final String[] cardinalityArray = cardinality.substring(1, cardinality.length() - 1).split(",");
+            final Set<String> cardinalitySet = new HashSet<>();
+            for (final String s : cardinalityArray) {
+                cardinalitySet.add(s.trim());
+            }
+            Assert.assertEquals(Set.of("\"nameA\" : 1", "\"nameB\" : 1"), cardinalitySet);
+        }
+    }
+
+    @Test
+    public void testCardinalityInteger() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            g.addV("person").property("nameA", 1).property("nameB", 2).next();
+            final List<String> initialSindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
+            for (final String s : initialSindexes) {
+                if (s.equals("vertex.~label")) {
+                    g.call("aerospike.graph.admin.index.drop").
+                            with("property_key", "~label").
+                            with("element_type", "vertex").next();
+                }
+                g.call("aerospike.graph.admin.index.drop").
+                        with("property_key", s).
+                        with("element_type", "vertex").next();
+            }
+            g.call("aerospike.graph.admin.index.create").
+                    with("property_key", "nameA").
+                    with("element_type", "vertex").next();
+            g.call("aerospike.graph.admin.index.create").
+                    with("property_key", "nameB").
+                    with("element_type", "vertex").next();
+            Map<String, Long> nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                    with("property_key", "nameA").
+                    with("element_type", "vertex").next();
+            Map<String, Long> nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                    with("property_key", "nameB").
+                    with("element_type", "vertex").next();
+            while (nameAStatus.get("percent_complete") < 100 || nameBStatus.get("percent_complete") < 100) {
+                try {
+                    Thread.sleep(1);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }

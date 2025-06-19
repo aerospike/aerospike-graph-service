@@ -91,9 +91,7 @@ public class Admin {
                 firefly.fireflyCardinalityMetadata.getVertexPropertyCardinality(index, NUMERIC).ifPresent(cardinality -> {
                     final Long cardinalityValue = cardinality.getCardinality();
                     if (cardinalityValue != null) {
-                        if (cardinalityMap.get(index) != null) {
-                            cardinalityMap.put(index, cardinalityMap.get(index) + cardinalityValue);
-                        }
+                        cardinalityMap.merge(index, cardinalityValue, Long::sum);
                     }
                 });
             }

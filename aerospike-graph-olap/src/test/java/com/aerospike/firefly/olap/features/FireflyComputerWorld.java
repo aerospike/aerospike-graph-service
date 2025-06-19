@@ -111,6 +111,7 @@ public class FireflyComputerWorld implements World {
         config.setProperty(ConfigurationHelper.Keys.TRAVERSAL_NAME, "g" + graphName);
         config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
         config.setProperty(ConfigurationHelper.Keys.AUTO_PRE_HEAT.toLowerCase(), "false");
+        config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_CARDINALITY, "list");
 
         return config;
     }

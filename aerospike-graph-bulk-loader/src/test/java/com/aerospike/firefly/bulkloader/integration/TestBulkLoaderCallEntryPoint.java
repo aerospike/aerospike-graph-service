@@ -593,10 +593,23 @@ public class TestBulkLoaderCallEntryPoint {
             List<Object> simonDrives3 = g.V("simon").out("drives").id().toList();
             Assert.assertEquals(4, simonDrives3.size());
             Assert.assertEquals(Set.of("GR86", "f150"), ((List) simonDrives3).stream().collect(Collectors.toSet()));
-            List<Map<Object, Object>> lyndon2 = g.V().has("name", "Lyndon1").elementMap().toList();
-            Assert.assertEquals(1, lyndon2.size());
-            Assert.assertEquals(Set.of("Apache TinkerPop", "Apache TinkerPop1", "Aerospike"),
-                    ((List) lyndon2.get(0).get("companies")).stream().collect(Collectors.toSet()));
+            final List<? extends Property> lyndon2 = g.V().has("name", "Lyndon1").properties("companies").toList();
+            Assert.assertEquals(6, lyndon2.size());
+            int apacheTinkerPopCount = 0;
+            int apacheTinkerPop1Count = 0;
+            int aerospikeCount = 0;
+            for (final Property p : lyndon2) {
+                if ("Apache TinkerPop".equals(p.value())) {
+                    apacheTinkerPopCount++;
+                } else if ("Apache TinkerPop1".equals(p.value())) {
+                    apacheTinkerPop1Count++;
+                } else if ("Aerospike".equals(p.value())) {
+                    aerospikeCount++;
+                }
+            }
+            Assert.assertEquals(2, apacheTinkerPopCount);
+            Assert.assertEquals(1, apacheTinkerPop1Count);
+            Assert.assertEquals(3, aerospikeCount);
             Assert.assertTrue(g.V().has("name", "Lyndon").toList().isEmpty());
             g.V("simon").properties("isDope").toList().forEach(p -> Assert.assertEquals("true", p.value()));
             Assert.assertFalse(g.V().has(BULK_LOAD_VERTEX_ADD_KEY).hasNext());

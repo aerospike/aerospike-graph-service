@@ -668,11 +668,11 @@ public class TestBulkLoaderCallEntryPoint {
             g.V().drop().iterate();
             Assert.assertEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
-            //~id,~label,test_multi_before_not_after:string(list),test_multi_before_and_after:string(list),test_multi_not_before_but_after:string,test_multi_not_before_not_after:string
-            //1  ,person,before;not;after                        ,before;and;after                        ,not;before;but;after                  ,not;before;not;after
+            // ~id,~label,test_multi_before_not_after:string(list),test_multi_before_and_after:string(list),test_multi_not_before_but_after:string,test_multi_not_before_not_after:string
+            // 1  ,person,before;not;after                        ,before;and;after                        ,not;before;but;after                  ,not;before;not;after
 
-            //~label,~from,~to,test(list)
-            //knows,1,1,foo;bar
+            // ~label,~from,~to,test(list)
+            // knows,1,1,foo;bar
             g.call("aerospike.graphloader.admin.bulk-load.load")
                 .with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-incremental-multi-1.properties")
                 .iterate();
@@ -772,8 +772,7 @@ public class TestBulkLoaderCallEntryPoint {
         }
     }
 
-    @Ignore
-	@Test
+    @Test
     public void test62mCsvOnGcs() {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();

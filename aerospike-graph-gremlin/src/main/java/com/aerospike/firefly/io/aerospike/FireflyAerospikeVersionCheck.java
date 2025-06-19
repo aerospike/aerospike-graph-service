@@ -7,7 +7,6 @@ import com.aerospike.firefly.util.exceptions.AerospikeMrtNotSupportedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */

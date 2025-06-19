@@ -824,7 +824,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value() {
         if (graph.features().vertex().supportsMultiProperties()) {
-            GraphHelper.cloneElements(TinkerFactory.createTheCrew(), graph);
+            generateTheCrew(graph);
             GraphTraversalSource g = graph.traversal();
             Traversal<Vertex, String> traversal = g.V().local(properties("location").order().by(T.value, Order.asc).range(0, 2)).value();
             checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), traversal);
@@ -1329,6 +1329,44 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals((long) initialCount + 1, (long) finalCount);
     }
 
-
+    static public void generateTheCrew(final Graph g) {
+        Vertex marko = g.addVertex(new Object[]{T.id, 1, T.label, "person", "name", "marko"});
+        Vertex stephen = g.addVertex(new Object[]{T.id, 7, T.label, "person", "name", "stephen"});
+        Vertex matthias = g.addVertex(new Object[]{T.id, 8, T.label, "person", "name", "matthias"});
+        Vertex daniel = g.addVertex(new Object[]{T.id, 9, T.label, "person", "name", "daniel"});
+        Vertex gremlin = g.addVertex(new Object[]{T.id, 10, T.label, "software", "name", "gremlin"});
+        Vertex tinkergraph = g.addVertex(new Object[]{T.id, 11, T.label, "software", "name", "tinkergraph"});
+        marko.property(VertexProperty.Cardinality.list, "location", "san diego", new Object[]{"startTime", 1997, "endTime", 2001});
+        marko.property(VertexProperty.Cardinality.list, "location", "santa cruz", new Object[]{"startTime", 2001, "endTime", 2004});
+        marko.property(VertexProperty.Cardinality.list, "location", "brussels", new Object[]{"startTime", 2004, "endTime", 2005});
+        marko.property(VertexProperty.Cardinality.list, "location", "santa fe", new Object[]{"startTime", 2005});
+        stephen.property(VertexProperty.Cardinality.list, "location", "centreville", new Object[]{"startTime", 1990, "endTime", 2000});
+        stephen.property(VertexProperty.Cardinality.list, "location", "dulles", new Object[]{"startTime", 2000, "endTime", 2006});
+        stephen.property(VertexProperty.Cardinality.list, "location", "purcellville", new Object[]{"startTime", 2006});
+        matthias.property(VertexProperty.Cardinality.list, "location", "bremen", new Object[]{"startTime", 2004, "endTime", 2007});
+        matthias.property(VertexProperty.Cardinality.list, "location", "baltimore", new Object[]{"startTime", 2007, "endTime", 2011});
+        matthias.property(VertexProperty.Cardinality.list, "location", "oakland", new Object[]{"startTime", 2011, "endTime", 2014});
+        matthias.property(VertexProperty.Cardinality.list, "location", "seattle", new Object[]{"startTime", 2014});
+        daniel.property(VertexProperty.Cardinality.list, "location", "spremberg", new Object[]{"startTime", 1982, "endTime", 2005});
+        daniel.property(VertexProperty.Cardinality.list, "location", "kaiserslautern", new Object[]{"startTime", 2005, "endTime", 2009});
+        daniel.property(VertexProperty.Cardinality.list, "location", "aachen", new Object[]{"startTime", 2009});
+        marko.addEdge("develops", gremlin, "since", 2009);
+        marko.addEdge("develops", tinkergraph, "since", 2010);
+        marko.addEdge("uses", gremlin, "skill", 4);
+        marko.addEdge("uses", tinkergraph, "skill", 5);
+        stephen.addEdge("develops", gremlin, "since", 2010);
+        stephen.addEdge("develops", tinkergraph, "since", 2011);
+        stephen.addEdge("uses", gremlin, "skill", 5);
+        stephen.addEdge("uses", tinkergraph, "skill", 4);
+        matthias.addEdge("develops", gremlin, "since", 2012);
+        matthias.addEdge("uses", gremlin, "skill", 3);
+        matthias.addEdge("uses", tinkergraph, "skill", 3);
+        daniel.addEdge("uses", gremlin, "skill", 5);
+        daniel.addEdge("uses", tinkergraph, "skill", 3);
+        gremlin.addEdge("traverses", tinkergraph);
+        g.variables().set("creator", "marko");
+        g.variables().set("lastModified", 2014);
+        g.variables().set("comment", "this graph was created to provide examples and test coverage for tinkerpop3 api advances");
+    }
 }
 

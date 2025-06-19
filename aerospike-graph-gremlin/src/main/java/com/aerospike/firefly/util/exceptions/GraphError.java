@@ -65,6 +65,7 @@ public enum GraphError {
     TTL_ILLEGAL_ARGUMENT(1116),
     THREAD_LIMIT_EXCEEDED(1117),
     SET_CARDINALITY_NOT_SUPPORTED(1118),
+    MRT_NOT_SUPPORTED(1119),
 	
     ELEMENT_NOT_FOUND(ResultCode.KEY_NOT_FOUND_ERROR),
     RECORD_SIZE_EXCEEDED(ResultCode.RECORD_TOO_BIG),
@@ -106,7 +107,8 @@ public enum GraphError {
         ERROR_MESSAGES.put(SINDEX_RECENTLY_DROPPED.code, "This query is temporarily unavailable due to the index it utilizes%s being recently dropped. Please wait %s seconds and try again.");
         ERROR_MESSAGES.put(TTL_ILLEGAL_ARGUMENT.code, "Invalid value for TTL provided. Provided input [%s] of type %s must be numeric instead.");
         ERROR_MESSAGES.put(THREAD_LIMIT_EXCEEDED.code, "Graph exceeded Aerospike query limits, consider increasing the limit.");
-		ERROR_MESSAGES.put(SET_CARDINALITY_NOT_SUPPORTED.code, "Cardinality.set is not supported in Aerospike Graph. Use Cardinality.list or Cardinality.single.");
+        ERROR_MESSAGES.put(SET_CARDINALITY_NOT_SUPPORTED.code, "Cardinality.set is not supported in Aerospike Graph. Use Cardinality.list or Cardinality.single.");
+        ERROR_MESSAGES.put(MRT_NOT_SUPPORTED.code, "Transactions require Aerospike database version 8 or newer with strong consistency mode enabled. Please verify that all nodes in the cluster are running a compatible version of Aerospike.");
 
         // Server
         ERROR_MESSAGES.put(ELEMENT_NOT_FOUND.code, "Element was dropped and no longer exists.");
@@ -145,7 +147,7 @@ public enum GraphError {
         return errorMessage.toString();
     }
 
-    static String getMessage(final GraphError error) {
+    public static String getMessage(final GraphError error) {
         final String errorMessage = ERROR_MESSAGES.get(error.code);
         if (errorMessage == null) {
             // This should never happen.

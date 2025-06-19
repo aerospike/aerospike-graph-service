@@ -64,6 +64,7 @@ import com.aerospike.firefly.util.DiagnosticUtil;
 import com.aerospike.firefly.util.WarmupUtil;
 import com.aerospike.firefly.util.config.FireflyConfiguration;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.AerospikeMrtNotSupportedException;
 import com.aerospike.firefly.util.exceptions.GraphError;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -2569,7 +2570,7 @@ public class AerospikeConnection implements AutoCloseable {
 
             rollback(txn);
         } catch (final AerospikeGraphException e) {
-            throw new RuntimeException("Transactions are not supported by Aerospike. Aerospike database must be version 8 or newer with strong consistency mode enabled.");
+            throw new AerospikeMrtNotSupportedException();
         }
     }
 

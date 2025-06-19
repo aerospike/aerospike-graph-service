@@ -124,7 +124,7 @@ import static com.aerospike.firefly.util.exceptions.AerospikeGraphException.from
  */
 public class AerospikeConnection implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
-    public final IAerospikeClient client;
+    private final IAerospikeClient client;
     private final EventLoops eventLoops;
     private final ExecutorService threadedReadExecutor;
 

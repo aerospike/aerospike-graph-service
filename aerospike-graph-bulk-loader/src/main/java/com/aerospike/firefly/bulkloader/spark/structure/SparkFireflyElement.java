@@ -81,7 +81,6 @@ public abstract class SparkFireflyElement implements Serializable {
                         String.format("Invalid type '%s' for property '%s'. " +
                                 "Type should not end with '[]' unless it is a byte array 'byte[]'.", type, header));
             }
-            // TODO: Need byte[]?
             final Object propertyValue;
             switch (type.toLowerCase()) {
                 case "long":

@@ -184,6 +184,89 @@ public class TestVertexPropertyCardinality {
         Assert.assertEquals(0L, propertyCountAfter);
     }
 
+    // Double data type tests
+
+    @Test
+    public void testVP_SingleStartingValue_Double_PropertySingle() {
+        final FireflyVertex v = (FireflyVertex) g.addV("testVP_SingleStartingValue_Double_PropertySingle")
+                .property(VertexProperty.Cardinality.single, "value", 1.0)
+                .next();
+        final long propertyCount = IteratorUtils.count(v.properties());
+        Assert.assertEquals(1L, propertyCount);
+
+        g.V(v.id()).property(VertexProperty.Cardinality.single, "value", 2.0).iterate();
+
+        final FireflyVertex vAfter = (FireflyVertex) g.V(v.id()).next();
+        final long propertyCountAfter = IteratorUtils.count(vAfter.properties());
+        Assert.assertEquals(1L, propertyCountAfter);
+        final VertexProperty vp = vAfter.property("value");
+        Assert.assertEquals(2.0, vp.value());
+    }
+
+    @Test
+    public void testVP_SingleStartingValue_Double_PropertyList() {
+        final FireflyVertex v = (FireflyVertex) g.addV("testVP_SingleStartingValue_Double_PropertyList")
+                .property(VertexProperty.Cardinality.list, "value", 1.0)
+                .next();
+        final long propertyCount = IteratorUtils.count(v.properties());
+        Assert.assertEquals(1L, propertyCount);
+
+        g.V(v.id()).property(VertexProperty.Cardinality.list, "value", 2.0).iterate();
+
+        final FireflyVertex vAfter = (FireflyVertex) g.V(v.id()).next();
+        final long propertyCountAfter = IteratorUtils.count(vAfter.properties());
+        Assert.assertEquals(2L, propertyCountAfter);
+        final List<? extends Property> properties = g.V(v.id()).properties("value").toList();
+        Assert.assertEquals(2, properties.size());
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals(1.0)));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals(2.0)));
+    }
+
+    @Test
+    public void testVP_NoStartingValue_Double_PropertyList() {
+        final FireflyVertex v = (FireflyVertex) g.addV("testVP_NoStartingValue_Double_PropertyList").next();
+        final long propertyCount = IteratorUtils.count(v.properties());
+        Assert.assertEquals(0L, propertyCount);
+
+        g.V(v.id()).property(VertexProperty.Cardinality.list, "value", 1.0).iterate();
+
+        final FireflyVertex vAfter = (FireflyVertex) g.V(v.id()).next();
+        final long propertyCountAfter = IteratorUtils.count(vAfter.properties());
+        Assert.assertEquals(1L, propertyCountAfter);
+        final VertexProperty vp = vAfter.property("value");
+        Assert.assertEquals(1.0, vp.value());
+    }
+
+    @Test
+    public void testVP_NoStartingValue_Double_PropertySingle() {
+        final FireflyVertex v = (FireflyVertex) g.addV("testVP_NoStartingValue_Double_PropertySingle").next();
+        final long propertyCount = IteratorUtils.count(v.properties());
+        Assert.assertEquals(0L, propertyCount);
+
+        g.V(v.id()).property(VertexProperty.Cardinality.single, "value", 1.0).iterate();
+
+        final FireflyVertex vAfter = (FireflyVertex) g.V(v.id()).next();
+        final long propertyCountAfter = IteratorUtils.count(vAfter.properties());
+        Assert.assertEquals(1L, propertyCountAfter);
+        final VertexProperty vp = vAfter.property("value");
+        Assert.assertEquals(1.0, vp.value());
+    }
+
+    @Test
+    public void testVP_MultiStartingValue_Double() {
+        final FireflyVertex v = (FireflyVertex) g.addV("testVP_MultiStartingValue_Double")
+                .property(VertexProperty.Cardinality.list, "value", 1.0)
+                .property(VertexProperty.Cardinality.list, "value", 2.0)
+                .next();
+
+        final long propertyCount = IteratorUtils.count(v.properties());
+        Assert.assertEquals(2L, propertyCount);
+        final List<? extends Property> properties = g.V(v.id()).properties("value").toList();
+        Assert.assertEquals(2, properties.size());
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals(1.0)));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals(2.0)));
+    }
+
 
     @Test
     public void testVP_MultiStartingValue_Mixed() {

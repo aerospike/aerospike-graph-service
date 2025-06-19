@@ -79,14 +79,13 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.Serializable;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -1285,9 +1284,8 @@ public class AerospikeConnection implements AutoCloseable {
         put(String.class, 5L);
         put(Boolean.class, 6L);
         put(ArrayList.class, 7L);
-        put(LocalDate.class, 8L);
-        put(LocalDateTime.class, 9L);
-        put(OffsetDateTime.class, 10L);
+        put(Date.class, 8L);
+        put(OffsetDateTime.class, 9L);
     }};
     public static final Map<Long, Class<? extends Serializable>> SUPPORTED_TYPE_VALUES = new HashMap<>() {{
         put(1L, Long.class);
@@ -1297,9 +1295,8 @@ public class AerospikeConnection implements AutoCloseable {
         put(5L, String.class);
         put(6L, Boolean.class);
         put(7L, ArrayList.class);
-        put(8L, LocalDate.class);
-        put(9L, LocalDateTime.class);
-        put(10L, OffsetDateTime.class);
+        put(8L, Date.class);
+        put(9L, OffsetDateTime.class);
     }};
     public static final Set<Class<? extends Serializable>> SUPPORTED_ARR_TYPES = new HashSet<>() {{
         add(boolean[].class);
@@ -1311,14 +1308,12 @@ public class AerospikeConnection implements AutoCloseable {
         add(String[].class);
         add(long[].class);
         add(Long[].class);
-        add(LocalDate[].class);
-        add(LocalDateTime[].class);
+        add(Date[].class);
         add(OffsetDateTime[].class);
     }};
     public static final Set<Class<?>> AEROSPIKE_TRANSFORMABLE_TYPES = new HashSet<>() {{
         add(Integer.class);
-        add(LocalDate.class);
-        add(LocalDateTime.class);
+        add(Date.class);
         add(OffsetDateTime.class);
     }};
 
@@ -1379,10 +1374,8 @@ public class AerospikeConnection implements AutoCloseable {
             return indicesAndTypeHints.isEmpty() ? null : indicesAndTypeHints;
         } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(Integer.class))) {
             return SUPPORTED_VALUE_TYPES.get(Integer.class);
-        } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(LocalDate.class))) {
-            return SUPPORTED_VALUE_TYPES.get(LocalDate.class);
-        } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(LocalDateTime.class))) {
-            return SUPPORTED_VALUE_TYPES.get(LocalDateTime.class);
+        } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(Date.class))) {
+            return SUPPORTED_VALUE_TYPES.get(Date.class);
         } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(OffsetDateTime.class))) {
             return SUPPORTED_VALUE_TYPES.get(OffsetDateTime.class);
         }
@@ -2065,10 +2058,8 @@ public class AerospikeConnection implements AutoCloseable {
     public Object typeCast(final Class<?> clazz, final Object val) {
         if (clazz.equals(Integer.class))
             return Integer.class.isAssignableFrom(val.getClass()) ? (Integer) val : Math.toIntExact((Long) val);
-        if (clazz.equals(LocalDate.class))
-            return LocalDate.ofEpochDay((Long) val);
-        if (clazz.equals(LocalDateTime.class))
-            return LocalDateTime.ofInstant(Instant.ofEpochMilli((Long) val), ZoneOffset.UTC);
+        if (clazz.equals(Date.class))
+            return new Date((Long) val);
         if (clazz.equals(OffsetDateTime.class))
             return Instant.ofEpochMilli((Long) val).atOffset(ZoneOffset.UTC);
         return clazz.cast(val);
@@ -2078,11 +2069,8 @@ public class AerospikeConnection implements AutoCloseable {
         if (val instanceof Integer) {
             return ((Integer) val).longValue();
         }
-        if (val instanceof LocalDate) {
-            return ((LocalDate) val).toEpochDay();
-        }
-        if (val instanceof LocalDateTime) {
-            return ((LocalDateTime) val).toInstant(ZoneOffset.UTC).toEpochMilli();
+        if (val instanceof Date) {
+            return ((Date) val).getTime();
         }
         if (val instanceof OffsetDateTime) {
             return ((OffsetDateTime) val).toInstant().toEpochMilli();

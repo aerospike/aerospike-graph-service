@@ -100,20 +100,12 @@ public abstract class SparkFireflyElement implements Serializable {
                         propertyValue = parser.parseString(value);
                     }
                     break;
-                case "localdate":
+                case "date":
                     if (isList) {
                         final String[] values = value.split(";");
-                        propertyValue = Arrays.stream(values).map(parser::parseLocalDate).collect(Collectors.toList());
+                        propertyValue = Arrays.stream(values).map(parser::parseDate).collect(Collectors.toList());
                     } else {
-                        propertyValue = parser.parseLocalDate(value);
-                    }
-                    break;
-                case "localdatetime":
-                    if (isList) {
-                        final String[] values = value.split(";");
-                        propertyValue = Arrays.stream(values).map(parser::parseLocalDateTime).collect(Collectors.toList());
-                    } else {
-                        propertyValue = parser.parseLocalDateTime(value);
+                        propertyValue = parser.parseDate(value);
                     }
                     break;
                 case "offsetdatetime":

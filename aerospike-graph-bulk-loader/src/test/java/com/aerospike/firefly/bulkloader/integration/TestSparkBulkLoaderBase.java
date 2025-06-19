@@ -23,12 +23,13 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoad;
@@ -312,18 +313,37 @@ public abstract class TestSparkBulkLoaderBase {
         final GraphTraversalSource g = graph.traversal();
         waitForBulkLoad(g);
 
-        Vertex vertex = g.V().has("localDate", LocalDate.of(2023, 2, 11)).next();
+        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        cal.set(Calendar.YEAR, 2023);
+        cal.set(Calendar.MONTH, Calendar.FEBRUARY);
+        cal.set(Calendar.DAY_OF_MONTH, 11);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        final Date date = cal.getTime();
+
+        Vertex vertex = g.V().has("dateOnly", date).next();
         Assert.assertEquals(2007, (long) vertex.value("longProperty"));
 
-        List<Vertex> vertices = g.V().has("localDateTime",
-                LocalDateTime.of(2025, 1, 1, 17, 2)).toList();
+        Calendar calDT = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        calDT.set(Calendar.YEAR, 2025);
+        calDT.set(Calendar.MONTH, Calendar.JANUARY);
+        calDT.set(Calendar.DAY_OF_MONTH, 1);
+        calDT.set(Calendar.HOUR_OF_DAY, 17);
+        calDT.set(Calendar.MINUTE, 2);
+        calDT.set(Calendar.SECOND, 0);
+        calDT.set(Calendar.MILLISECOND, 0);
+        final Date dateTime = calDT.getTime();
+
+        List<Vertex> vertices = g.V().has("dateTime", dateTime).toList();
         Assert.assertEquals(2, vertices.size());
 
         // TODO: should this be supported? has() with list matching
-        //List<LocalDate> localDates = new ArrayList<>();
-        //localDates.add(LocalDate.of(2023, 3, 3));
-        //localDates.add(LocalDate.of(2022, 2, 3));
-        //vertex = g.V().has("localDates", localDates).next();
+        //List<Date> dates = new ArrayList<>();
+        //dates.add(date);
+        //dates.add(date2);
+        //vertex = g.V().has("dates", dates).next();
         //Assert.assertEquals(1992, (long) vertex.value("longProperty"));
 
         Edge edge = g.E().has("offsetDateTime", OffsetDateTime.of(2009, 1, 2, 9, 25,

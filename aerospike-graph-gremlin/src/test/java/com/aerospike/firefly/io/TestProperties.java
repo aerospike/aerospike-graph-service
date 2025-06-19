@@ -24,16 +24,17 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.TimeZone;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -581,93 +582,97 @@ public class TestProperties {
         final GraphTraversalSource g = graph.traversal();
         final Vertex v1 = g.addV("added").next();
 
-        LocalDate initLD = LocalDate.of(2024, 2, 3);
-        LocalDateTime initLDT = LocalDateTime.of(2025, 3, 14, 4, 5);
+        final Date initD = getDate(2024, Calendar.FEBRUARY, 3);
+        final Date initDT = getDate(2025, Calendar.MARCH, 14, 4, 5, 0, 0);
+
         OffsetDateTime initODT = OffsetDateTime.of(2023, 1, 7, 4, 5,
                 6, 7, ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
         final List<Object> initList = new ArrayList<>();
-        initList.add(initLD);
-        initList.add(initLDT);
+        initList.add(initD);
+        initList.add(initDT);
         initList.add(initODT);
 
         // Create a vertex with datetime properties.
         final Vertex v2 = g.addV("init")
-                .property("initLD", initLD)
-                .property("initLDT", initLDT)
+                .property("initD", initD)
+                .property("initDT", initDT)
                 .property("initODT", initODT)
                 .property("initList", initList)
                 .next();
         // Create an edge with datetime properties.
         final Edge e = g.addE("edge")
-                .property("initLD", initLD)
-                .property("initLDT", initLDT)
+                .property("initD", initD)
+                .property("initDT", initDT)
                 .property("initODT", initODT)
                 .property("initList", initList)
                 .from(v1)
                 .to(v2)
                 .next();
 
-        LocalDate addedLD = LocalDate.of(2025, 9, 22);
-        LocalDateTime addedLDT = LocalDateTime.of(2024, 2, 8, 9, 10);
+        final Date addedD = getDate(2025, Calendar.SEPTEMBER, 22);
+        final Date addedDT = getDate(2024, Calendar.FEBRUARY, 8, 9, 10, 0, 0);
+
         OffsetDateTime addedODT = OffsetDateTime.of(2023, 9, 8, 9, 10,
                 11, 12, ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
         final List<Object> addedList = new ArrayList<>();
-        addedList.add(addedLD);
-        addedList.add(addedLDT);
+        addedList.add(addedD);
+        addedList.add(addedDT);
         addedList.add(addedODT);
 
-        // Add LocalDateTime property to an existing vertex.
+        // Add DateTime properties to an existing vertex.
         g.V(v1.id())
-                .property("addedLD", addedLD)
-                .property("addedLDT", addedLDT)
+                .property("addedD", addedD)
+                .property("addedDT", addedDT)
                 .property("addedODT", addedODT)
                 .property("addedList", addedList)
                 .iterate();
-        // Add LocalDateTime property to an existing edge.
+        // Add DateTime properties to an existing edge.
         g.E(e.id())
-                .property("addedLD", addedLD)
-                .property("addedLDT", addedLDT)
+                .property("addedD", addedD)
+                .property("addedDT", addedDT)
                 .property("addedODT", addedODT)
                 .property("addedList", addedList)
                 .iterate();
 
         // Test vertex datetime.
         // Newly created vertex with datetime properties.
-        Assert.assertEquals(initLD, g.V(v2.id()).values("initLD").next());
-        Assert.assertEquals(initLDT, g.V(v2.id()).values("initLDT").next());
+        Assert.assertEquals(initD, g.V(v2.id()).values("initD").next());
+        Assert.assertEquals(initDT, g.V(v2.id()).values("initDT").next());
         Assert.assertEquals(initODT, g.V(v2.id()).values("initODT").next());
         // List property with datetime values.
         Assert.assertEquals(initList, g.V(v2.id()).values("initList").next());
         // Added datetime properties to an existing vertex.
-        Assert.assertEquals(addedLD, g.V(v1.id()).values("addedLD").next());
-        Assert.assertEquals(addedLDT, g.V(v1.id()).values("addedLDT").next());
+        Assert.assertEquals(addedD, g.V(v1.id()).values("addedD").next());
+        Assert.assertEquals(addedDT, g.V(v1.id()).values("addedDT").next());
         Assert.assertEquals(addedODT, g.V(v1.id()).values("addedODT").next());
         // List property with datetime values.
         Assert.assertEquals(addedList, g.V(v1.id()).values("addedList").next());
 
         // Test edge datetime.
         // Newly created edge with datetime properties.
-        Assert.assertEquals(initLD, g.E(e.id()).values("initLD").next());
-        Assert.assertEquals(initLDT, g.E(e.id()).values("initLDT").next());
+        Assert.assertEquals(initD, g.E(e.id()).values("initD").next());
+        Assert.assertEquals(initDT, g.E(e.id()).values("initDT").next());
         Assert.assertEquals(initODT, g.E(e.id()).values("initODT").next());
         // List property with datetime values.
         Assert.assertEquals(initList, g.E(e.id()).values("initList").next());
         // Added datetime properties to an existing edge.
-        Assert.assertEquals(addedLD, g.E(e.id()).values("addedLD").next());
-        Assert.assertEquals(addedLDT, g.E(e.id()).values("addedLDT").next());
+        Assert.assertEquals(addedD, g.E(e.id()).values("addedD").next());
+        Assert.assertEquals(addedDT, g.E(e.id()).values("addedDT").next());
         Assert.assertEquals(addedODT, g.E(e.id()).values("addedODT").next());
         // List property with datetime values.
         Assert.assertEquals(addedList, g.E(e.id()).values("addedList").next());
 
         // Vertices datetime queries.
-        List<Vertex> vResults = g.V().has("initLD", initLD).toList();
+        List<Vertex> vResults = g.V().has("initD", initD).toList();
         Assert.assertEquals(1, vResults.size());
-        vResults = g.V().has("addedLDT", addedLDT).toList();
+        vResults = g.V().has("addedDT", addedDT).toList();
         Assert.assertEquals(1, vResults.size());
         vResults = g.V().has("addedODT", addedODT).toList();
         Assert.assertEquals(1, vResults.size());
-        vResults = g.V().has("addedLDT",
-                LocalDateTime.of(2019, 8, 15, 10, 30)).toList();
+
+        final Date noneExistingAddedDT = getDate(2019, Calendar.AUGUST, 15, 10, 30, 0, 0);
+
+        vResults = g.V().has("addedDT", noneExistingAddedDT).toList();
         Assert.assertTrue(vResults.isEmpty());
         vResults = g.V().has("initList", P.eq(initList)).toList();
         Assert.assertEquals(1, vResults.size());
@@ -675,42 +680,48 @@ public class TestProperties {
         Assert.assertTrue(vResults.isEmpty());
 
         // Edges datetime queries.
-        List<Edge> eResults = g.E().has("addedLDT", addedLDT).toList();
+        List<Edge> eResults = g.E().has("addedDT", addedDT).toList();
         Assert.assertEquals(1, eResults.size());
-        eResults = g.E().has("initLDT", P.gt(LocalDateTime.parse("2020-01-01T00:00"))).toList();
+
+        final Date queryDT1 = getDate(2020, Calendar.JANUARY, 1);
+        eResults = g.E().has("initDT", P.gt(queryDT1)).toList();
         Assert.assertEquals(1, eResults.size());
-        eResults = g.E().has("initLDT", P.gt(LocalDateTime.parse("2031-01-01T00:00"))).toList();
+
+        final Date queryDT2 = getDate(2031, Calendar.JANUARY, 1);
+        eResults = g.E().has("initDT", P.gt(queryDT2)).toList();
         Assert.assertEquals(0, eResults.size());
-        eResults = g.E().has("addedLD", P.eq(LocalDate.of(2025, 9, 22))).toList();
+
+        final Date queryD = getDate(2025, Calendar.SEPTEMBER, 22);
+        eResults = g.E().has("addedD", P.eq(queryD)).toList();
         Assert.assertEquals(1, eResults.size());
 
         // Vertex datetime property properties
         g.V().hasLabel("person").property("name", "simon").property("age", "trente").iterate();
         g.V().hasLabel("person").properties("name")
-                .property("localDate", initLD)
-                .property("localDateTime", initLDT)
+                .property("date", initD)
+                .property("dateTime", initDT)
                 .property("offsetDateTime", initODT)
                 // TODO: should be supported? deeper nesting level
                 //.property("dateTimeList", initList)
                 .iterate();
         g.V().hasLabel("person").properties("age")
-                .property("localDate", addedLD)
-                .property("localDateTime", addedLDT)
+                .property("date", addedD)
+                .property("dateTime", addedDT)
                 .property("offsetDateTime", addedODT)
                 // TODO: should be supported? deeper nesting level
                 //.property("dateTimeList", addedList)
                 .iterate();
-        var initLDVps = g.V().properties().has("localDate", initLD);
+        var initLDVps = g.V().properties().has("date", initD);
         var name = initLDVps.next();
         Assert.assertEquals("name", name.key());
         Assert.assertEquals("simon", name.value());
         Assert.assertFalse(initLDVps.hasNext());
-        var addedLDTVps = g.V().properties().has("localDateTime", initLDT);
+        var addedLDTVps = g.V().properties().has("dateTime", initDT);
         name = addedLDTVps.next();
         Assert.assertEquals("name", name.key());
         Assert.assertEquals("simon", name.value());
         Assert.assertFalse(addedLDTVps.hasNext());
-        var vertexProperties = g.V().properties().has("localDate");
+        var vertexProperties = g.V().properties().has("date");
         var vertexProperty = vertexProperties.next();
         Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("simon")) ||
                 (vertexProperty.key().equals("age") && vertexProperty.value().equals("trente")));
@@ -756,5 +767,22 @@ public class TestProperties {
         for (int i = 0; i < expectedByte.length; i++) {
             Assert.assertEquals(expectedByte[i], actualByte[i]);
         }
+    }
+
+    private Date getDate(int year, int month, int day) {
+        return getDate(year, month, day, 0, 0, 0, 0);
+    }
+
+    private Date getDate(int year, int month, int day, int hour, int minute, int second, int millisecond) {
+        final Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        cal.set(Calendar.YEAR, year);
+        // Starting at 0
+        cal.set(Calendar.MONTH, month);
+        cal.set(Calendar.DAY_OF_MONTH, day);
+        cal.set(Calendar.HOUR_OF_DAY, hour);
+        cal.set(Calendar.MINUTE, minute);
+        cal.set(Calendar.SECOND, second);
+        cal.set(Calendar.MILLISECOND, millisecond);
+        return cal.getTime();
     }
 }

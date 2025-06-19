@@ -1,8 +1,13 @@
 package com.aerospike.firefly.bulkloader.util;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
 
 public class PropertyValueParser {
     private final String nullValue;
@@ -51,21 +56,33 @@ public class PropertyValueParser {
         return value;
     }
 
-    public LocalDate parseLocalDate(final String value) {
+    public Date parseDate(final String value) {
         if (value.equals(this.nullValue)) {
             return null;
         }
 
-        return LocalDate.parse(value);
-    }
-
-    public LocalDateTime parseLocalDateTime(final String value) {
-        if (value.equals(this.nullValue)) {
-            return null;
+        for (String pattern : DATE_PATTERNS) {
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat(pattern, Locale.US);
+                sdf.setLenient(false);
+                sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+                Date parsed = sdf.parse(value);
+                if (sdf.format(parsed).equals(value)) {
+                    return parsed;
+                }
+            } catch (ParseException ignored) {
+                // try the next pattern
+            }
         }
-
-        return LocalDateTime.parse(value);
+        throw new IllegalArgumentException("Unsupported date format: " + value);
     }
+
+    private static final List<String> DATE_PATTERNS = Arrays.asList(
+            "yyyy-MM-dd",
+            "yyyy-MM-dd'T'HH:mm",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ssX"  // Handles 'Z' as UTC
+    );
 
     public OffsetDateTime parseOffsetDateTime(final String value) {
         if (value.equals(this.nullValue)) {

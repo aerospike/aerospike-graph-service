@@ -20,12 +20,11 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -94,13 +93,8 @@ public final class FireflyHelper {
                 for (int i = 0; i < vArray.length; i++) {
                     vList.add(vArray[i]);
                 }
-            } else if (v instanceof LocalDate[]) {
-                final LocalDate[] vArray = (LocalDate[]) v;
-                for (int i = 0; i < vArray.length; i++) {
-                    vList.add(vArray[i]);
-                }
-            } else if (v instanceof LocalDateTime[]) {
-                final LocalDateTime[] vArray = (LocalDateTime[]) v;
+            } else if (v instanceof Date[]) {
+                final Date[] vArray = (Date[]) v;
                 for (int i = 0; i < vArray.length; i++) {
                     vList.add(vArray[i]);
                 }

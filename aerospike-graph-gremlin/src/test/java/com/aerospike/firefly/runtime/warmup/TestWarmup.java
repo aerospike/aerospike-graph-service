@@ -117,19 +117,26 @@ public class TestWarmup extends AbstractFireflySuite {
         FireflyServer server = null;
 
         try (final OutputCapturer outputCapturer = new OutputCapturer()) {
-            server = FireflyServer.start(new String[]{"../conf/firefly-gremlin-server-local.yaml"});
-
+            config.addProperty(ConfigurationHelper.Keys.LOG_WARMUP_SETS, "true");
+            config.setProperty(ConfigurationHelper.Keys.AUTO_PRE_HEAT, "true");
+            WarmupUtil.create(config).preheat(WarmupUtil.passes);
             Thread.sleep(10);
             final String[] logList = outputCapturer.getLines();
 
-            boolean foundMessage = false;
+            boolean foundVertex = false;
+            boolean foundEdge = false;
             for (final String line : logList) {
                 if (line.startsWith("Warmup Vertex Set: FIREFLYWARMUP_2")) {
-                    foundMessage = true;
-                    break;
+                    foundVertex = true;
                 }
+                if (line.startsWith("Warmup Edge Set: FIREFLYWARMUP_1")) {
+                    foundEdge = true;
+                }
+
+                if(foundEdge && foundVertex) break;
             }
-            Assert.assertTrue(foundMessage);
+            Assert.assertTrue(foundVertex);
+            Assert.assertTrue(foundEdge);
 
         } finally {
             if (server != null) {

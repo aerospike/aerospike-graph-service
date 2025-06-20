@@ -82,7 +82,11 @@ public class WarmupUtil {
         final GraphTraversalSource g = graph.traversal();
         final List<Object> createdIds = cloneElements(TinkerFactory.createModern(), graph);
         final Object[] createdIdAry = createdIds.toArray(new Object[0]);
-        System.out.println("Warmup Vertex Set: " + graph.getBaseGraph().VERTEX_AERO_SET);
+        if(ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.LOG_WARMUP_SETS, conf)) {
+            System.out.println("Warmup Vertex Set: " + graph.getBaseGraph().VERTEX_AERO_SET);
+            System.out.println("Warmup Edge Set: " + graph.getBaseGraph().EDGE_AERO_SET);
+        }
+
         g.V(createdIdAry).has("name", "CANT COME DOWN").outE().inV().count().iterate();
 
         g.V(createdIdAry).match(

@@ -161,6 +161,7 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
         try {
             // Use previous failure flag to make sure we don't spam the log. If it fails, print it once, then if it starts working and failing again, print it again.
             final CardinalityInfo cardinalityInfo = new CardinalityInfo(getValue(info, ENTRIES) * nodeCount, getValue(info, ENTRIES_PER_BVAL) * nodeCount, indexName);
+            System.out.println("New CardinalityInfo: " + cardinalityInfo);
             previousFailure = "";
             return cardinalityInfo;
         } catch (final Exception e) {

@@ -1,7 +1,5 @@
 package com.aerospike.firefly.io.aerospike.admin;
 
-import com.aerospike.client.Value;
-import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
@@ -20,7 +18,6 @@ import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
 
 public class Admin {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Admin.class);
     public static final Index index = new Index();
 
     public static class Index<I> {
@@ -94,7 +91,7 @@ public class Admin {
                     final Long cardinalityValue = cardinality.getCardinality();
                     if (cardinalityValue != null) {
                         cardinalityMap.merge(index, cardinalityValue, Long::sum);
-                    }else {
+                    } else {
                         System.out.println("Cardinality for index (integer) was null");
                     }
                 });

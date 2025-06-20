@@ -78,6 +78,7 @@ public class TestAdminCallHttp {
 
     public String adminIndexCardinality() {
         try {
+            System.out.println("Starting the endpoint call to cardinality");
             final URL url = new URL("http://localhost:9090/0/admin/index/cardinality");
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("GET");
@@ -85,6 +86,7 @@ public class TestAdminCallHttp {
             // Read input stream into String.
             final byte[] bytes = con.getInputStream().readAllBytes();
             final String response = new String(bytes);
+            System.out.println("Endpoint call to cardinality returned: " + response);
             return response;
         } catch (final Exception e) {
             throw new RuntimeException(e);
@@ -301,23 +303,18 @@ public class TestAdminCallHttp {
                     with("element_type", "vertex").next();
             while (nameAStatus.get("percent_complete") < 100 || nameBStatus.get("percent_complete") < 100) {
                 try {
-                    Thread.sleep(1);
+                    Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
                 nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                         with("property_key", "nameA").
                         with("element_type", "vertex").next();
+                System.out.println("name A status: " + nameAStatus.get("percent_complete"));
                 nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                         with("property_key", "nameB").
                         with("element_type", "vertex").next();
-            }
-
-            // Give time for index cardinality to be updated.
-            try {
-                Thread.sleep(30000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                System.out.println("name B status: " + nameBStatus.get("percent_complete"));
             }
             final String cardinality = adminIndexCardinality();
             final String[] cardinalityArray = cardinality.substring(1, cardinality.length() - 1).split(",");
@@ -362,21 +359,18 @@ public class TestAdminCallHttp {
                     with("element_type", "vertex").next();
             while (nameAStatus.get("percent_complete") < 100 || nameBStatus.get("percent_complete") < 100) {
                 try {
-                    Thread.sleep(1);
+                    Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
                 nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                         with("property_key", "nameA").
                         with("element_type", "vertex").next();
+                System.out.println("name A status: " + nameAStatus.get("percent_complete"));
                 nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                         with("property_key", "nameB").
                         with("element_type", "vertex").next();
-            }
-            try {
-                Thread.sleep(30000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                System.out.println("name B status: " + nameBStatus.get("percent_complete"));
             }
             final String cardinality = adminIndexCardinality();
             final String[] cardinalityArray = cardinality.substring(1, cardinality.length() - 1).split(",");

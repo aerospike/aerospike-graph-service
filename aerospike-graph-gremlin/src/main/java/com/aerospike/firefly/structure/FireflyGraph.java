@@ -177,8 +177,44 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingDoubleRepresentation", reason = "Firefly does not support Double ids", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingDoubleRepresentations", reason = "Firefly does not support Double ids", computers = {"ALL"})
 
-// Firefly does not support user-defined Edge ids
+// Firefly does not support user-defined Edge IDs
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldHaveExceptionConsistencyWhenFindEdgeByIdThatIsNonExistentViaIterator", reason = "Firefly does not expect Edge id lookups of random types", computers = {"ALL"})
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.util.star.StarGraphTest",
+        method = "shouldCopyFromGraphAToGraphB",
+        reason = "Test asserts ID equality.",
+        computers = {"ALL"}
+)
+
+// Firefly does not support user-defined Vertex Property IDs
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.util.detached.DetachedGraphTest",
+        method = "testAttachableCreateMethod",
+        reason = "Test asserts ID equality.",
+        computers = {"ALL"}
+)
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.util.star.StarGraphTest",
+        method = "shouldAttachWithCreateMethod",
+        reason = "Test asserts ID equality.",
+        computers = {"ALL"}
+)
+
+// Firefly does not support eventing
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest",
+        method = "shouldTriggerAddVertexPropertyChangedViaMergeV",
+        reason = "Custom Firefly MergeV step removed eventing due to incompatibility with multi-properties.",
+        computers = {"ALL"}
+)
+
+// TODO: GRAPH-1565
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.VertexPropertyTest$VertexPropertyAddition",
+        method = "shouldHandleSetVertexProperties",
+        reason = "Set cardinality is not supported.",
+        computers = {"ALL"}
+)
 
 // TODO: Should fix these tests in OLAP.
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupCountTest", method = "g_V_both_groupCountXaX_byXlabelX_asXbX_barrier_whereXselectXaX_selectXsoftwareX_isXgtX2XXX_selectXbX_name", reason = "Temporary, will fix.", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})

@@ -520,8 +520,8 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(0, g.E().count().next().longValue());
             g.call("aerospike.graphloader.admin.bulk-load.load")
                     .with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties")
-                    .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices/")
-                    .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges/")
+                    .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices_ags3/")
+                    .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges_ags3/")
                     .with("aerospike.graphloader.remote-user", System.getenv("GCS_PRIVATE_KEY_ID"))
                     .with("aerospike.graphloader.remote-passkey", System.getenv("GCS_PRIVATE_KEY"))
                     .with("aerospike.graphloader.gcs-email", System.getenv("GCS_CLIENT_EMAIL"))

@@ -272,6 +272,7 @@ public class TestAdminCallHttp {
     public void testCardinality() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            System.out.println("Starting testCardinality");
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
             g.addV("person").property("nameA", "Alice").property("nameB", "Bob").next();
@@ -314,7 +315,7 @@ public class TestAdminCallHttp {
 
             // Give time for index cardinality to be updated.
             try {
-                Thread.sleep(3000);
+                Thread.sleep(30000);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -332,6 +333,7 @@ public class TestAdminCallHttp {
     public void testCardinalityInteger() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            System.out.println("Starting testCardinalityInteger");
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.V().drop().iterate();
             g.addV("person").property("nameA", 1).property("nameB", 2).next();
@@ -370,6 +372,11 @@ public class TestAdminCallHttp {
                 nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                         with("property_key", "nameB").
                         with("element_type", "vertex").next();
+            }
+            try {
+                Thread.sleep(30000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
             final String cardinality = adminIndexCardinality();
             final String[] cardinalityArray = cardinality.substring(1, cardinality.length() - 1).split(",");

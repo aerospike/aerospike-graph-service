@@ -77,6 +77,8 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
                     getCardinalityInfo(String.format(infoQueryFormat, db.getNamespace(), idx.indexName), idx.key)).collect(Collectors.toList());
             edgeNumericPropertyCardinalityInfo = edgeNumericIndexes.stream().map(idx ->
                     getCardinalityInfo(String.format(infoQueryFormat, db.getNamespace(), idx.indexName), idx.key)).collect(Collectors.toList());
+
+            System.out.println("Vertex property cardinality info: " + vertexStringPropertyCardinalityInfo);
         }
     }
 

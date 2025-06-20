@@ -86,12 +86,16 @@ public class Admin {
                     final Long cardinalityValue = cardinality.getCardinality();
                     if (cardinalityValue != null) {
                         cardinalityMap.put(index, cardinalityValue);
+                    } else {
+                        System.out.println("Cardinality for index (string) was null");
                     }
                 });
                 firefly.fireflyCardinalityMetadata.getVertexPropertyCardinality(index, NUMERIC).ifPresent(cardinality -> {
                     final Long cardinalityValue = cardinality.getCardinality();
                     if (cardinalityValue != null) {
                         cardinalityMap.merge(index, cardinalityValue, Long::sum);
+                    }else {
+                        System.out.println("Cardinality for index (integer) was null");
                     }
                 });
             }

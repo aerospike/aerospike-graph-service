@@ -174,8 +174,14 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                 if (kv.getKey() == T.label) {
                     return v.label().equals(kv.getValue());
                 } else {
-                    final VertexProperty<Object> vp = v.property(kv.getKey().toString());
-                    return vp.isPresent() && kv.getValue().equals(vp.value());
+                    final String propertyKey = kv.getKey().toString();
+                    boolean isMatch = false;
+                    final Iterator<VertexProperty<Object>> vpItty = v.properties(propertyKey);
+                    while (vpItty.hasNext() && !isMatch) {
+                        final VertexProperty<Object> vp = vpItty.next();
+                        isMatch = vp.isPresent() && kv.getValue().equals(vp.value());
+                    }
+                    return isMatch;
                 }
             });
         });
@@ -220,16 +226,10 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                                 val = cardinalityValueTraversal.getValue();
                             }
 
-
-
-                            // Trigger callbacks for eventing - in this case, it's a VertexPropertyChangedEvent. if there's no
-                            // registry/callbacks then just set the property
+                            // Trigger callbacks for eventing - in this case, it's a VertexPropertyChangedEvent, which
+                            // doesn't really make sense given existing Tinkerpop API when multi-properties are supported.
                             if (this.callbackRegistry != null && !callbackRegistry.getCallbacks().isEmpty()) {
-                                final EventStrategy eventStrategy = getTraversal().getStrategies().getStrategy(EventStrategy.class).get();
-                                final Property<?> p = v.property(key);
-                                final Property<Object> oldValue = p.isPresent() ? eventStrategy.detach(v.property(key)) : null;
-                                final Event.VertexPropertyChangedEvent vpce = new Event.VertexPropertyChangedEvent(eventStrategy.detach(v), oldValue, val);
-                                this.callbackRegistry.getCallbacks().forEach(c -> c.accept(vpce));
+                                LOG.warn("Aerospike Graph does not support event callbacks for MergeV.");
                             }
 
                             v.property(card, key, val);

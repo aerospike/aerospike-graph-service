@@ -84,7 +84,7 @@ public class Admin {
                     if (cardinalityValue != null) {
                         cardinalityMap.put(index, cardinalityValue);
                     } else {
-                        System.out.println("Cardinality for index (string) was null");
+                        System.out.println("Cardinality for index (string) was null: " + cardinality);
                     }
                 });
                 firefly.fireflyCardinalityMetadata.getVertexPropertyCardinality(index, NUMERIC).ifPresent(cardinality -> {
@@ -92,7 +92,7 @@ public class Admin {
                     if (cardinalityValue != null) {
                         cardinalityMap.merge(index, cardinalityValue, Long::sum);
                     } else {
-                        System.out.println("Cardinality for index (integer) was null");
+                        System.out.println("Cardinality for index (integer) was null: " + cardinality);
                     }
                 });
             }

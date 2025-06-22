@@ -80,7 +80,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
                 "Total supernode count", 0L);
         Assert.assertEquals(expectedEmpty, summaryCallEmpty);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-        Thread.sleep(7500);
+        waitForSummaryUpdate(graph);
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
         final long supernodeCount = g.V()
@@ -149,7 +149,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         summary.stageSupernodeWriteToQueue("lyndon", 2);
         summary.stageSupernodeWriteToQueue("lyndon", 2);
         summary.stageSupernodeWriteToQueue("lyndon", 2);
-        Thread.sleep(7500);
+        waitForSummaryUpdate(graph);
 
         // Verify bulk load sees staged data
         FireflyGraphSummaryUpdater.FireflyElementMetadata elementData = summary.getFireflyStatistics(true);
@@ -181,7 +181,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         summary.completeSupernodePartition(2);
 
         // Check that results were moved to non-bulk load data.
-        Thread.sleep(7500);
+        waitForSummaryUpdate(graph);
         summary.getFireflyStatistics(false);
         elementData = summary.getFireflyStatistics(true);
         Assert.assertTrue(elementData.vertexInfo.containsKey("lyndon"));
@@ -211,7 +211,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
                 "Total supernode count", 0L);
         Assert.assertEquals(expectedEmpty, summaryCallEmpty);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-        Thread.sleep(7500);
+        waitForSummaryUpdate(graph);
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
         final long supernodeCount = g.V()
@@ -262,7 +262,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
             Vertex v = graph.traversal().addV(String.format("%d", i)).property(String.format("%d", i), String.format("%d", i)).next();
             graph.traversal().addE(String.format("%d", i)).from(v).to(v).property(String.format("%d", i), String.format("%d", i)).iterate();
         }
-        Thread.sleep(7500);
+        waitForSummaryUpdate(graph);
 
         Assert.assertTrue(graph.fireflySummaryUpdater.vertexCounts.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
         Assert.assertTrue(graph.fireflySummaryUpdater.vertexProperties.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
@@ -284,7 +284,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         final String expectedOutputEmpty = String.format(PRETTY_PRINT_FORMAT_SYSTEM, 0L, "{}", "{}", 0L, "{}", "{}", 0L, "{}");
         Assert.assertEquals(expectedOutputEmpty, summaryCall);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-        Thread.sleep(7500);
+        waitForSummaryUpdate(graph);
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
         final long supernodeCount = g.V()
@@ -345,7 +345,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         // Add a single edge from v3 to v2
         v3.addEdge("knows", v2, "edgeId", "solo");
 
-        Thread.sleep(7500);
+        waitForSummaryUpdate(graph);
 
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
@@ -377,7 +377,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         // Delete vertex to test if supernode count decreases
         v1.remove();
 
-        Thread.sleep(7500);
+        waitForSummaryUpdate(graph);
 
         summaryCallGrateful = (Map<Object, Object>) g.call("aerospike.graph.admin.metadata.summary").next();
         Assert.assertEquals(2L, ((Map<Object, Object>) summaryCallGrateful.get("Vertex count by label")).get("movie"));
@@ -390,5 +390,15 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         Assert.assertEquals(1L, summaryCallGrateful.get("Total edge count"));
         // It's still 1 (and not 0) because we are not "demoting" supernodes (1 was removed due to vertex deletion).
         Assert.assertEquals(1L, summaryCallGrateful.get("Total supernode count"));
+    }
+
+    private void waitForSummaryUpdate(final FireflyGraph graph) {
+        graph.fireflySummaryUpdater.forceWrite();
+        // Wait an extra second after forcing write
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

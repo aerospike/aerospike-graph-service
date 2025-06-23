@@ -23,8 +23,6 @@ import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
-@Ignore
-// This test needs a single node cluster or it fails.
 public class TestAdminCallHttp {
 
     public String adminIndexList() {

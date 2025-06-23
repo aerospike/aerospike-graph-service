@@ -33,6 +33,7 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
         // Get the supernode threshold from Firefly config.
         final long onRecordIdLimit = sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph().ON_RECORD_ID_LIMIT;
         LOGGER.info("Supernode threshold: " + onRecordIdLimit);
+        sparkBulkLoaderStateMachine.initializerGraph.fireflySummaryUpdater.clearSupernodePartitionData();
         sparkBulkLoaderStateMachine.supernodes = sparkBulkLoaderStateMachine.edgeOperations.extractSupernodes(
                 sparkBulkLoaderStateMachine.edgeDataset,
                 onRecordIdLimit,
@@ -44,6 +45,7 @@ public class SparkBulkLoaderStateDetectSupernodes extends SparkBulkLoaderState {
                     sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), sparkBulkLoaderStateMachine.supernodes);
         }
         sparkBulkLoaderStateMachine.progressBar.setSuperNodeExtractionComplete();
+        sparkBulkLoaderStateMachine.initializerGraph.fireflySummaryUpdater.clearSupernodePartitionData();
     }
 
     @Override

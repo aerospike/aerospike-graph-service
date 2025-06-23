@@ -57,8 +57,10 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     private static final int LATCH_BREAK_TIME_MILLISECONDS = 1000;
     private static final String V_SUMMARY_RECORD = "~V_SUMMARY";
     private static final String E_SUMMARY_RECORD = "~E_SUMMARY";
+    private static final String S_SUMMARY_RECORD = "~S_SUMMARY";
     private static final String VP_PROPERTY_PREFIX = "~VP_";
     private static final String EP_PROPERTY_PREFIX = "~EP_";
+    private static final String SP_PROPERTY_PREFIX = "~SP_";
     private static final String SUMMARY_LABEL_BIN = "L_SUM_BIN";
     private static final String SUMMARY_PROPERTY_BIN = "P_SUM_BIN";
     private final AerospikeConnection db;
@@ -91,11 +93,14 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     public Map<String, Set<String>> vertexProperties = new ConcurrentHashMap<>();
     public Map<String, AtomicLong> edgeCounts = new ConcurrentHashMap<>();
     public Map<String, AtomicLong> vertexCounts = new ConcurrentHashMap<>();
+    public Map<String, AtomicLong> supernodeCounts = new ConcurrentHashMap<>();
     public Map<Integer, Map<String, AtomicLong>> vertexPartitionCounts = new ConcurrentHashMap<>();
     public Map<Integer, Map<String, AtomicLong>> edgePartitionCounts = new ConcurrentHashMap<>();
+    public Map<Integer, Map<String, AtomicLong>> supernodePartitionCounts = new ConcurrentHashMap<>();
 
     private final Key V_SUMMARY_KEY;
     private final Key E_SUMMARY_KEY;
+    private final Key S_SUMMARY_KEY;
     private final Key VP_SUMMARY_KEY;
     private final Key EP_SUMMARY_KEY;
     private final AtomicBoolean TRUNCATION = new AtomicBoolean(false);
@@ -131,6 +136,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         this.EP_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, EP_PROPERTY_PREFIX + SUMMARY_PROPERTY_BIN);
         this.V_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, V_SUMMARY_RECORD);
         this.E_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, E_SUMMARY_RECORD);
+        this.S_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, S_SUMMARY_RECORD);
         if (db.SUMMARY_ENABLED_FLAG) {
             synchronized (EXECUTOR_SERVICE) {
                 if (RUNNING_COUNT.addAndGet(1) == 1) {
@@ -158,8 +164,10 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             edgeProperties.clear();
             vertexCounts.clear();
             edgeCounts.clear();
+            supernodeCounts.clear();
             vertexPartitionCounts.clear();
             edgePartitionCounts.clear();
+            supernodePartitionCounts.clear();
             TRUNCATION.set(false);
         }
     }
@@ -253,6 +261,52 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         COUNTDOWN_LATCH.countDown();
     }
 
+    /**
+     * Update the number of supernodes that exist under the provided label in the summary record.
+     *
+     * @param label The label of the supernode to update.
+     */
+    public void addSupernodeWriteToQueue(final String label) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
+            return;
+        }
+
+        supernodeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+        supernodeCounts.get(label).addAndGet(1);
+        COUNTDOWN_LATCH.countDown();
+    }
+
+    /**
+     * Stage an update to the number of supernodes that exist under the provided label in the summary record.
+     *
+     * @param label The label of the supernode to update.
+     */
+    public void stageSupernodeWriteToQueue(final String label, final int partitionId) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
+            return;
+        }
+
+        supernodePartitionCounts.computeIfAbsent(partitionId, k -> new ConcurrentHashMap<>());
+        supernodePartitionCounts.get(partitionId).computeIfAbsent(label, k -> new AtomicLong(0));
+        supernodePartitionCounts.get(partitionId).get(label).addAndGet(1);
+        COUNTDOWN_LATCH.countDown();
+    }
+
+    /**
+     * Update the number of supernodes that exist under the provided label in the summary record.
+     *
+     * @param label The label of the supernode to remove.
+     */
+    public void addSupernodeRemoveToQueue(final String label) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
+            return;
+        }
+
+        supernodeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+        supernodeCounts.get(label).addAndGet(-1);
+        COUNTDOWN_LATCH.countDown();
+    }
+
     public void startVertexPartition(final int partitionId) {
         if (!db.SUMMARY_ENABLED_FLAG) {
             return;
@@ -316,12 +370,48 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         forceWrite();
     }
 
+    public void startSupernodePartition(final int partitionId) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
+            return;
+        }
+
+        // Need to kill what is in Aerospike because this is from a failed partition if it exists.
+        final Key supernodePartitionKey = getSupernodePartitionKey(partitionId);
+        db.delete(supernodePartitionKey, null);
+    }
+
+    public void completeSupernodePartition(final int partitionId) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
+            return;
+        }
+
+        // Need to get what is in Aerospike for this partition and move it to the main dataset.
+        final Key supernodePartitionKey = getSupernodePartitionKey(partitionId);
+        final Map<String, Long> labelToCount = getPartitionCounts(supernodePartitionKey);
+        if (supernodePartitionCounts.containsKey(partitionId)) {
+            for (final String label : supernodePartitionCounts.get(partitionId).keySet()) {
+                supernodeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+                supernodeCounts.get(label).addAndGet(supernodePartitionCounts.get(partitionId).get(label).get());
+            }
+        }
+        for (final String label : labelToCount.keySet()) {
+            supernodeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+            supernodeCounts.get(label).addAndGet(labelToCount.get(label));
+        }
+        db.delete(supernodePartitionKey, null);
+        forceWrite();
+    }
+
     private Key getEdgePartitionKey(final int partitionId) {
         return new Key(db.getNamespace(), db.SUMMARY_SET, EP_PROPERTY_PREFIX + "PART_" + partitionId);
     }
 
     private Key getVertexPartitionKey(final int partitionId) {
         return new Key(db.getNamespace(), db.SUMMARY_SET, VP_PROPERTY_PREFIX + "PART_" + partitionId);
+    }
+
+    private Key getSupernodePartitionKey(final int partitionId) {
+        return new Key(db.getNamespace(), db.SUMMARY_SET, SP_PROPERTY_PREFIX + "PART_" + partitionId);
     }
 
     private Map<String, Long> getPartitionCounts(final Key key) {
@@ -337,7 +427,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     /**
      * Update the number of vertices or edges that exist under the provided label in the summary record.
      *
-     * @param label      The label of the vertex or edge to update.
+     * @param label The label of the vertex or edge to update.
      */
     public void addEdgeRemoveToQueue(final String label) {
         if (!db.SUMMARY_ENABLED_FLAG) {
@@ -413,7 +503,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             LOG.warn("Interrupted while waiting for summary updater to exit.");
         }
 
-        if (!vertexCounts.isEmpty() || !edgeCounts.isEmpty())
+        if (!vertexCounts.isEmpty() || !edgeCounts.isEmpty() || !supernodeCounts.isEmpty())
             doWrite();
     }
 
@@ -428,6 +518,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                 // Take the data from update info into a map.
                 final Map<String, LabelCountInfo> vertexUpdates = new HashMap<>();
                 final Map<String, LabelCountInfo> edgeUpdates = new HashMap<>();
+                final Map<String, LabelCountInfo> supernodeUpdates = new HashMap<>();
 
                 // At this point we are about to take all the data out of the maps and put them into a new map.
                 // We did not synchronize this, but we don't care about exacts, only roughly how much is coming in,
@@ -436,8 +527,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
                 final Map<String, AtomicLong> vertexCountsToUse = vertexCounts;
                 final Map<String, Set<String>> vertexPropertiesToUse = vertexProperties;
-                if (vertexCounts.keySet().size() > MAP_RECYCLE_SIZE ||
-                        vertexProperties.keySet().size() > MAP_RECYCLE_SIZE) {
+                if (vertexCounts.size() > MAP_RECYCLE_SIZE || vertexProperties.size() > MAP_RECYCLE_SIZE) {
                     // Ideally we don't want to have to do this, but we don't want the map to grow infinitely in the case
                     // that firefly never gets shut down and the customer for some odd reason keeps using new labels.
                     vertexCounts = new ConcurrentHashMap<>();
@@ -455,8 +545,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
                 final Map<String, AtomicLong> edgeCountsToUse = edgeCounts;
                 final Map<String, Set<String>> edgePropertiesToUse = edgeProperties;
-                if (edgeCounts.keySet().size() > MAP_RECYCLE_SIZE ||
-                        edgeProperties.keySet().size() > MAP_RECYCLE_SIZE) {
+                if (edgeCounts.size() > MAP_RECYCLE_SIZE || edgeProperties.size() > MAP_RECYCLE_SIZE) {
                     // Ideally we don't want to have to do this, but we don't want the map to grow infinitely in the case
                     // that firefly never gets shut down and the customer for some odd reason keeps using new labels.
                     edgeCounts = new ConcurrentHashMap<>();
@@ -470,6 +559,20 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                     final long count = edgeCountsToUse.get(key).getAndSet(0);
                     final Set<String> properties = edgePropertiesToUse.getOrDefault(key, Collections.emptySet());
                     edgeUpdates.put(key, new LabelCountInfo(key, count, properties));
+                }
+
+                final Map<String, AtomicLong> supernodeCountsToUse = supernodeCounts;
+                if (supernodeCounts.size() > MAP_RECYCLE_SIZE) {
+                    // Ideally we don't want to have to do this, but we don't want the map to grow infinitely in the case
+                    // that firefly never gets shut down and the customer for some odd reason keeps using new labels.
+                    supernodeCounts = new ConcurrentHashMap<>();
+                }
+
+                final Set<String> supernodeKeys = new HashSet<>(supernodeCountsToUse.keySet());
+                for (final String key : supernodeKeys) {
+                    supernodeCountsToUse.computeIfAbsent(key, k -> new AtomicLong(0));
+                    final long count = supernodeCountsToUse.get(key).getAndSet(0);
+                    supernodeUpdates.put(key, new LabelCountInfo(key, count, new HashSet<>()));
                 }
 
                 // Perform the write operations. If these fail put their data back into the map.
@@ -493,6 +596,14 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                     for (final LabelCountInfo labelCountInfo : edgeUpdates.values()) {
                         edgeCounts.putIfAbsent(labelCountInfo.label, new AtomicLong(0));
                         edgeCounts.get(labelCountInfo.label).addAndGet(labelCountInfo.count);
+                    }
+                }
+
+                if (didFunctionFail(() -> writeLabelCountOperations(new HashSet<>(supernodeUpdates.values()), S_SUMMARY_KEY))) {
+                    failed = true;
+                    for (final LabelCountInfo labelCountInfo : supernodeUpdates.values()) {
+                        supernodeCounts.putIfAbsent(labelCountInfo.label, new AtomicLong(0));
+                        supernodeCounts.get(labelCountInfo.label).addAndGet(labelCountInfo.count);
                     }
                 }
 
@@ -542,6 +653,24 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                     }
                 }
 
+                for (final Integer partition : supernodePartitionCounts.keySet()) {
+                    final Map<String, LabelCountInfo> partitionSupernodeUpdates = new HashMap<>();
+                    final Map<String, AtomicLong> partitionSupernodeCounts = supernodePartitionCounts.getOrDefault(partition, new ConcurrentHashMap<>());
+                    for (final String key : partitionSupernodeCounts.keySet()) {
+                        final long count = partitionSupernodeCounts.get(key).getAndSet(0);
+                        partitionSupernodeUpdates.put(key, new LabelCountInfo(key, count, new HashSet<>()));
+                    }
+
+                    if (didFunctionFail(() -> writeLabelCountOperations(new HashSet<>(partitionSupernodeUpdates.values()), getSupernodePartitionKey(partition)))) {
+                        failed = true;
+                        for (final LabelCountInfo labelCountInfo : partitionSupernodeUpdates.values()) {
+                            supernodePartitionCounts.putIfAbsent(partition, new ConcurrentHashMap<>());
+                            supernodePartitionCounts.get(partition).putIfAbsent(labelCountInfo.label, new AtomicLong(0));
+                            supernodePartitionCounts.get(partition).get(labelCountInfo.label).addAndGet(labelCountInfo.count);
+                        }
+                    }
+                }
+
                 // If shutdown signal have been asserted, exit the loop.
                 //
                 // We also check that the countdown has not been moved. Now this isn't a perfect system since we
@@ -571,11 +700,14 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     public static class FireflyElementMetadata {
         public final Map<String, FireflyPropertiesAndCount> vertexInfo;
         public final Map<String, FireflyPropertiesAndCount> edgeInfo;
+        public final Map<String, FireflyPropertiesAndCount> supernodeInfo;
 
         public FireflyElementMetadata(final Map<String, FireflyPropertiesAndCount> vertexInfo,
-                                      final Map<String, FireflyPropertiesAndCount> edgeInfo) {
+                                      final Map<String, FireflyPropertiesAndCount> edgeInfo,
+                                      final Map<String, FireflyPropertiesAndCount> supernodeInfo) {
             this.vertexInfo = vertexInfo;
             this.edgeInfo = edgeInfo;
+            this.supernodeInfo = supernodeInfo;
         }
 
         /**
@@ -602,6 +734,19 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                 vertexCountByLabel.put(entry.getKey(), entry.getValue().count);
             }
             return vertexCountByLabel;
+        }
+
+        /**
+         * Get the number of supernodes with the provided label.
+         *
+         * @return The number of supernodes with the provided label.
+         */
+        public Map<String, Long> supernodesCountByLabel() {
+            final Map<String, Long> supernodesCountByLabel = new HashMap<>();
+            for (final Map.Entry<String, FireflyPropertiesAndCount> entry : supernodeInfo.entrySet()) {
+                supernodesCountByLabel.put(entry.getKey(), entry.getValue().count);
+            }
+            return supernodesCountByLabel;
         }
 
         /**
@@ -655,6 +800,19 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             }
             return totalEdgeCount;
         }
+
+        /**
+         * Get total supernode count.
+         *
+         * @return The total supernode count.
+         */
+        public long totalSupernodeCount() {
+            long totalSupernodeCount = 0;
+            for (final Map.Entry<String, FireflyPropertiesAndCount> entry : supernodeInfo.entrySet()) {
+                totalSupernodeCount += entry.getValue().count;
+            }
+            return totalSupernodeCount;
+        }
     }
 
     public static class FireflyPropertiesAndCount {
@@ -683,7 +841,8 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
             // If not a partition piece, skip.
             if (!key.userKey.toString().startsWith(VP_PROPERTY_PREFIX + "PART_") &&
-                    !key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_")) {
+                    !key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_") &&
+                    !key.userKey.toString().startsWith(SP_PROPERTY_PREFIX + "PART_")) {
                 return;
             }
             keyRecords.add(new KeyRecord(key, record));
@@ -695,7 +854,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         final Map<String, Long> edgePartitionCounts = new HashMap<>();
         for (final KeyRecord keyRecord : recordList) {
             if (keyRecord.key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_")) {
-                if (keyRecord.record.bins.keySet().contains(SUMMARY_LABEL_BIN)) {
+                if (keyRecord.record.bins.containsKey(SUMMARY_LABEL_BIN)) {
                     final Map<String, Long> edgeLabelCountMapkeyRecord = (Map) keyRecord.record.getMap(SUMMARY_LABEL_BIN);
                     for (final String label : edgeLabelCountMapkeyRecord.keySet()) {
                         edgePartitionCounts.putIfAbsent(label, 0L);
@@ -711,7 +870,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         final Map<String, Long> vertexPartitionCounts = new HashMap<>();
         for (final KeyRecord keyRecord : recordList) {
             if (keyRecord.key.userKey.toString().startsWith(VP_PROPERTY_PREFIX + "PART_")) {
-                if (keyRecord.record.bins.keySet().contains(SUMMARY_LABEL_BIN)) {
+                if (keyRecord.record.bins.containsKey(SUMMARY_LABEL_BIN)) {
                     final Map<String, Long> vertexLabelCountMap = (Map) keyRecord.record.getMap(SUMMARY_LABEL_BIN);
                     for (final String label : vertexLabelCountMap.keySet()) {
                         vertexPartitionCounts.putIfAbsent(label, 0L);
@@ -721,6 +880,22 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             }
         }
         return vertexPartitionCounts;
+    }
+
+    private Map<String, Long> getSupernodePartitionCounts(final Queue<KeyRecord> recordList) {
+        final Map<String, Long> supernodePartitionCounts = new HashMap<>();
+        for (final KeyRecord keyRecord : recordList) {
+            if (keyRecord.key.userKey.toString().startsWith(SP_PROPERTY_PREFIX + "PART_")) {
+                if (keyRecord.record.bins.containsKey(SUMMARY_LABEL_BIN)) {
+                    final Map<String, Long> supernodeLabelCountMap = (Map) keyRecord.record.getMap(SUMMARY_LABEL_BIN);
+                    for (final String label : supernodeLabelCountMap.keySet()) {
+                        supernodePartitionCounts.putIfAbsent(label, 0L);
+                        supernodePartitionCounts.put(label, supernodePartitionCounts.get(label) + supernodeLabelCountMap.get(label));
+                    }
+                }
+            }
+        }
+        return supernodePartitionCounts;
     }
 
     public FireflyElementMetadata getFireflyStatistics() {
@@ -778,11 +953,24 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             }
         }
 
+        // Grab supernode metadata.
+        final Record supernodeLabelSummaryRecord = db.read(S_SUMMARY_KEY, null);
+        final Map<String, FireflyPropertiesAndCount> supernodeMetadata = new HashMap<>();
+        if (supernodeLabelSummaryRecord != null && supernodeLabelSummaryRecord.bins.containsKey(SUMMARY_LABEL_BIN)) {
+            final Map<String, Long> supernodeCountByLabel = (Map) supernodeLabelSummaryRecord.bins.get(SUMMARY_LABEL_BIN);
+            final Set<String> supernodeLabels = new HashSet<>(supernodeCountByLabel.keySet());
+            for (final String supernodeLabel : supernodeLabels) {
+                final long count = supernodeCountByLabel.getOrDefault(supernodeLabel, 0L);
+                supernodeMetadata.put(supernodeLabel, new FireflyPropertiesAndCount(Set.of(), count));
+            }
+        }
+
         // If bulk loader is running, get staged partition counts and insert.
         if (isBulkLoaderRunning) {
             final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
             final Map<String, Long> vertexPartitionCounts = getVertexPartitionCounts(partitionRecords);
             final Map<String, Long> edgePartitionCounts = getEdgePartitionCounts(partitionRecords);
+            final Map<String, Long> supernodePartitionCounts = getSupernodePartitionCounts(partitionRecords);
             for (final String label : vertexPartitionCounts.keySet()) {
                 vertexMetadata.computeIfAbsent(label, k -> new FireflyPropertiesAndCount(Set.of(), 0));
                 vertexMetadata.get(label).increment(vertexPartitionCounts.get(label));
@@ -791,9 +979,13 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                 edgeMetadata.computeIfAbsent(label, k -> new FireflyPropertiesAndCount(Set.of(), 0));
                 edgeMetadata.get(label).increment(edgePartitionCounts.get(label));
             }
+            for (final String label : supernodePartitionCounts.keySet()) {
+                supernodeMetadata.computeIfAbsent(label, k -> new FireflyPropertiesAndCount(Set.of(), 0));
+                supernodeMetadata.get(label).increment(supernodePartitionCounts.get(label));
+            }
         }
 
-        return new FireflyElementMetadata(vertexMetadata, edgeMetadata);
+        return new FireflyElementMetadata(vertexMetadata, edgeMetadata, supernodeMetadata);
     }
 
     /**
@@ -832,7 +1024,9 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                 fireflyElementMetadata.vertexPropertiesByLabel(),
                 fireflyElementMetadata.totalEdgeCount(),
                 fireflyElementMetadata.edgeCountByLabel(),
-                fireflyElementMetadata.edgePropertiesByLabel());
+                fireflyElementMetadata.edgePropertiesByLabel(),
+                fireflyElementMetadata.totalSupernodeCount(),
+                fireflyElementMetadata.supernodesCountByLabel());
         lastTickerOutputTime.set(System.currentTimeMillis());
     }
 
@@ -862,7 +1056,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                 }
 
                 try {
-                    // If shutdown is initiated, go through the map and then exit (i.e skip CountDownLatch).
+                    // If shutdown is initiated, go through the map and then exit (i.e. skip CountDownLatch).
                     if (!SHUTDOWN.get()) {
                         // Wait for the countdown latch to complete.
                         // We don't really care whether it completed because of a timeout or because the watermark
@@ -989,6 +1183,14 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
         for (final KeyRecord keyRecord : partitionRecords) {
             if (keyRecord.key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_"))
+                db.delete(keyRecord.key, null);
+        }
+    }
+
+    public void clearSupernodePartitionData() {
+        final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+        for (final KeyRecord keyRecord : partitionRecords) {
+            if (keyRecord.key.userKey.toString().startsWith(SP_PROPERTY_PREFIX + "PART_"))
                 db.delete(keyRecord.key, null);
         }
     }

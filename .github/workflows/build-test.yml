@@ -1538,7 +1538,7 @@ jobs:
         env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
-          bash -x scripts/start_aerospike.sh
+          bash -x scripts/start_aerospike.sh --node_count 1
 
           echo "Running docker image with custom yaml file"
           docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs-usage-stats/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
@@ -1649,6 +1649,10 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepRemoteTest -DfailIfNoTests=false --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
+      - name: Test Calls Steps
+        run: |
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAdminCallHttp -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflySindexCallSteps -DfailIfNoTests=false --no-transfer-progress
       - name: Test Firefly Docker Image
         run: |
           echo "Running performance mode tests"
@@ -1657,6 +1661,7 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerConfigs -DfailIfNoTests=false --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestSlimVsFat -DfailIfNoTests=false --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerShutdown -DfailIfNoTests=false --no-transfer-progress
+
   test-tls-docker:
     name: Test TLS Docker
     timeout-minutes: 15

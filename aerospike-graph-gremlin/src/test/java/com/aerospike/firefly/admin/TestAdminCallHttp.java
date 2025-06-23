@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.net.HttpURLConnection;
@@ -22,6 +23,8 @@ import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
+@Ignore
+// This test needs a single node cluster or it fails.
 public class TestAdminCallHttp {
 
     public String adminIndexList() {
@@ -78,7 +81,6 @@ public class TestAdminCallHttp {
 
     public String adminIndexCardinality() {
         try {
-            System.out.println("Starting the endpoint call to cardinality");
             final URL url = new URL("http://localhost:9090/0/admin/index/cardinality");
             final HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("GET");
@@ -86,7 +88,6 @@ public class TestAdminCallHttp {
             // Read input stream into String.
             final byte[] bytes = con.getInputStream().readAllBytes();
             final String response = new String(bytes);
-            System.out.println("Endpoint call to cardinality returned: " + response);
             return response;
         } catch (final Exception e) {
             throw new RuntimeException(e);
@@ -274,9 +275,7 @@ public class TestAdminCallHttp {
     public void testCardinality() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
-            System.out.println("Starting testCardinality");
             final GraphTraversalSource g = fireflyGraph.traversal();
-            g.V().drop().iterate();
             g.addV("person").property("nameA", "Alice").property("nameB", "Bob").next();
             final List<String> initialSindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             for (final String s : initialSindexes) {
@@ -310,11 +309,9 @@ public class TestAdminCallHttp {
                 nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                         with("property_key", "nameA").
                         with("element_type", "vertex").next();
-                System.out.println("name A status: " + nameAStatus.get("percent_complete"));
                 nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                         with("property_key", "nameB").
                         with("element_type", "vertex").next();
-                System.out.println("name B status: " + nameBStatus.get("percent_complete"));
             }
             final String cardinality = adminIndexCardinality();
             final String[] cardinalityArray = cardinality.substring(1, cardinality.length() - 1).split(",");
@@ -330,9 +327,7 @@ public class TestAdminCallHttp {
     public void testCardinalityInteger() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
-            System.out.println("Starting testCardinalityInteger");
             final GraphTraversalSource g = fireflyGraph.traversal();
-            g.V().drop().iterate();
             g.addV("person").property("nameA", 1).property("nameB", 2).next();
             final List<String> initialSindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             for (final String s : initialSindexes) {
@@ -366,11 +361,9 @@ public class TestAdminCallHttp {
                 nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                         with("property_key", "nameA").
                         with("element_type", "vertex").next();
-                System.out.println("name A status: " + nameAStatus.get("percent_complete"));
                 nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
                         with("property_key", "nameB").
                         with("element_type", "vertex").next();
-                System.out.println("name B status: " + nameBStatus.get("percent_complete"));
             }
             final String cardinality = adminIndexCardinality();
             final String[] cardinalityArray = cardinality.substring(1, cardinality.length() - 1).split(",");

@@ -164,6 +164,8 @@
                     </argLine>
                     <trimStackTrace>false</trimStackTrace>
                     <excludes>
+                        <exclude>**/TestAdminCallHttp*</exclude>
+                        <exclude>**/TestFireflySindexCallSteps*</exclude>
                         <exclude>**/Firefly*StandardTest*</exclude>
                         <exclude>**/BenchmarkTest*</exclude>
                         <exclude>**/TestPhantomEdges</exclude>

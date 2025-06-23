@@ -77,8 +77,6 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
                     getCardinalityInfo(String.format(infoQueryFormat, db.getNamespace(), idx.indexName), idx.key)).collect(Collectors.toList());
             edgeNumericPropertyCardinalityInfo = edgeNumericIndexes.stream().map(idx ->
                     getCardinalityInfo(String.format(infoQueryFormat, db.getNamespace(), idx.indexName), idx.key)).collect(Collectors.toList());
-
-            System.out.println("Vertex property cardinality info: " + vertexStringPropertyCardinalityInfo);
         }
     }
 
@@ -158,16 +156,13 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
     private CardinalityInfo getCardinalityInfo(final String infoVar, final String indexName) {
         final int nodeCount = this.db.getNodeCount();
         final String info = AerospikeConnection.InfoOps.singleNodeInfoRequest(this.db, infoVar);
-        System.out.println("The full info frin singleNodeReq: " + info);
         try {
             // Use previous failure flag to make sure we don't spam the log. If it fails, print it once, then if it starts working and failing again, print it again.
             final CardinalityInfo cardinalityInfo = new CardinalityInfo(getValue(info, ENTRIES) * nodeCount, getValue(info, ENTRIES_PER_BVAL) * nodeCount, indexName);
-            System.out.println("New CardinalityInfo: " + cardinalityInfo);
             previousFailure = "";
             return cardinalityInfo;
         } catch (final Exception e) {
             // Invalid.
-            System.out.println("Didn't get new cardinalityInfo " + e.getMessage());
             if (!e.getMessage().equals(previousFailure)) {
                 // This happens a lot while the system gets going, it isn't really a problem, so don't spam the log.
                 LOG.debug("Failed to get cardinality info from {}.", info, e);

@@ -167,7 +167,7 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
             return cardinalityInfo;
         } catch (final Exception e) {
             // Invalid.
-            System.out.println("Didn't get new cardinalityInfo + " e.getMessage());
+            System.out.println("Didn't get new cardinalityInfo " + e.getMessage());
             if (!e.getMessage().equals(previousFailure)) {
                 // This happens a lot while the system gets going, it isn't really a problem, so don't spam the log.
                 LOG.debug("Failed to get cardinality info from {}.", info, e);

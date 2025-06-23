@@ -25,6 +25,7 @@ public class SparkBulkLoaderStateWriteVertices extends SparkBulkLoaderState {
         // Write vertices to Aerospike.
         // Clear incomplete partition data from summary updater in case we're resuming from a previously failed load.
         sparkBulkLoaderStateMachine.initializerGraph.fireflySummaryUpdater.clearVertexPartitionData();
+        sparkBulkLoaderStateMachine.initializerGraph.fireflySummaryUpdater.clearSupernodePartitionData();
         sparkBulkLoaderStateMachine.vertexOperations.writeVerticesToDB(
                 sparkBulkLoaderStateMachine.vertexDataset,
                 sparkBulkLoaderStateMachine.supernodes,
@@ -32,6 +33,7 @@ public class SparkBulkLoaderStateWriteVertices extends SparkBulkLoaderState {
                 sparkBulkLoaderStateMachine.readOnly);
         sparkBulkLoaderStateMachine.progressBar.setVertexLoadComplete();
         sparkBulkLoaderStateMachine.initializerGraph.fireflySummaryUpdater.clearVertexPartitionData();
+        sparkBulkLoaderStateMachine.initializerGraph.fireflySummaryUpdater.clearSupernodePartitionData();
     }
 
     @Override

@@ -140,8 +140,7 @@ public class AerospikeOperations {
                                      final List<Map.Entry<String, Object>> properties,
                                      final boolean createOnly,
                                      final boolean isEdgeCacheOverflowed) {
-        return writeVertex(vertexId, label, properties, createOnly, isEdgeCacheOverflowed, null,
-                Optional.empty(), Optional.empty());
+        return writeVertex(vertexId, label, properties, createOnly, isEdgeCacheOverflowed, null, Optional.empty(), Optional.empty());
     }
 
     public List<Boolean> verticesExist(final Object[] ids) {
@@ -181,6 +180,7 @@ public class AerospikeOperations {
         Integer partition = partitionId;
         LOG.debug("Writing Vertex {} {}.", vertexId, properties);
 
+        boolean isSuperNodeViaIncremental = false;
         final Map<Long, HashMap<Object, List<Long>>> vertexProperties = new TreeMap<>();
         final Map<Long, Map<Long, Object>> vpTypeHints = new HashMap<>();
         final List<Operation> operations = new ArrayList<>();
@@ -194,6 +194,11 @@ public class AerospikeOperations {
             // Special bulk loader property for summary updater in the case of an incremental MergeV load.
             if (property.getKey().equals(FireflyGraph.BULK_LOAD_VERTEX_ADD_KEY)) {
                 partition = (Integer) property.getValue();
+                continue;
+            }
+            // Special bulk loader property for summary updater in the case of an incremental MergeV load (is super node)
+            if (property.getKey().equals(FireflyGraph.BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE)) {
+                isSuperNodeViaIncremental = (boolean) property.getValue();
                 continue;
             }
             // Handle special TTL property if flag is enabled.
@@ -297,6 +302,10 @@ public class AerospikeOperations {
         } else {
             graph.fireflySummaryUpdater.stageVertexWriteToQueue(label, vertexProperties.keySet().stream().
                     map(db.schemaManager::getVertexPropertyString).collect(Collectors.toSet()), partition);
+            // Increase the supernode counter for fresh/incremental bulk loader (newly added vertices).
+            if (isEdgeCacheOverflowed || isSuperNodeViaIncremental) {
+                graph.fireflySummaryUpdater.stageSupernodeWriteToQueue(label, partition);
+            }
         }
         final FireflyVertex vertex = FireflyVertexFactory.create(vertexId, label, graph, new TreeMap<>(),
                 new TreeMap<>(), vertexProperties, vpTypeHints, vpProperties, isEdgeCacheOverflowed);
@@ -450,12 +459,16 @@ public class AerospikeOperations {
                 outEdges.forEachRemaining(e -> removeEdge(e, false, true, fireflyTxn));
             }
 
-
             // Remove vertex.
             LOG.debug("Removing vertex {}.", vertex.id);
             final Txn txn = fireflyTxn == null ? null : fireflyTxn.aerospikeTxn;
             if (db.delete(FireflyRecord.getKey(db, db.VERTEX_AERO_SET, vertex.id), txn)) {
                 graph.fireflySummaryUpdater.addVertexRemoveToQueue(vertex.label());
+
+                // If removed vertex was a supernode, decrease counter
+                if (vertex.isEdgeCacheOverflowed()) {
+                    graph.fireflySummaryUpdater.addSupernodeRemoveToQueue(vertex.label());
+                }
             }
 
             commit(fireflyTxn);
@@ -973,8 +986,13 @@ public class AerospikeOperations {
         try {
             final Record results = this.db.writeOperate(writePolicy, key, appendToEdgeCache, updateCacheState, getCacheDisabled);
 
-            vertex.setIsEdgeCacheOverflowed(
-                    (boolean) OperationReturnHandler.getValueAtIndex(results, this.db.EDGE_CACHE_DISABLED_BIN, 1));
+            final boolean updatedEdgeCacheOverflowedState =
+                    (boolean) OperationReturnHandler.getValueAtIndex(results, this.db.EDGE_CACHE_DISABLED_BIN, 1);
+            // Vertex is promoted to a supernode
+            if (updatedEdgeCacheOverflowedState && !vertex.isEdgeCacheOverflowed()) {
+                graph.fireflySummaryUpdater.addSupernodeWriteToQueue(vertex.label());
+            }
+            vertex.setIsEdgeCacheOverflowed(updatedEdgeCacheOverflowedState);
             return true;
         } catch (final AerospikeGraphRecordSizeExceededException e) {
             final VertexRecordSizeExceededException sizeExceededException =
@@ -1307,7 +1325,7 @@ public class AerospikeOperations {
         }
 
         try {
-            final Record record = db.writeOperate(policy, key, operations.toArray(new Operation[0]));
+            final Record record = db.writeOperate(policy, key, true, operations.toArray(new Operation[0]));
 
             // Result returned is always [List<?>, null] since we have operations [removeEdgeData, removeEdgeDataBin]
             final Command.OpResults results = (Command.OpResults) record.getValue(db.EDGE_DATA_BIN);
@@ -1337,6 +1355,7 @@ public class AerospikeOperations {
                 // rollback only own txn
                 if (outerTxn == null)
                     db.rollback(txn);
+                LOG.error(e.getMessage());
                 throw e;
             }
             LOG.debug("Regenerating supernode Edge with id {} to clean up supernode property bin.", edge.id.getUserId());

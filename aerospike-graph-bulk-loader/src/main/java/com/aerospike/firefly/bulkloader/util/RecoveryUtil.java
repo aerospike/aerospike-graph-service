@@ -5,7 +5,6 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
-import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.ListOrder;
@@ -16,7 +15,6 @@ import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -54,6 +52,7 @@ public class RecoveryUtil {
             db.truncate(null, db.BULK_LOAD_RECOVERY_STATE_SET, null);
             graph.fireflySummaryUpdater.clearVertexPartitionData();
             graph.fireflySummaryUpdater.clearEdgePartitionData();
+            graph.fireflySummaryUpdater.clearSupernodePartitionData();
             Thread.sleep(1);
         } catch (final InterruptedException ignored) {
         }

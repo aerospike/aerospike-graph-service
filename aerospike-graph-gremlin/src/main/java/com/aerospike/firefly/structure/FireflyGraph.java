@@ -234,6 +234,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     // Doesn't use hidden key token ~ due to internal Tinkerpop MergeStep validation
     public static final String BULK_LOAD_VERTEX_ADD_KEY = "___bulkLoadMergeVIdentifier";
+    public static final String BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE = "___bulkLoadMergeVIdentifierIsSuperNode";
 
     public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
@@ -600,12 +601,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                                      final String label,
                                      final List<Map.Entry<String, Object>> properties,
                                      final int partitionId,
-                                     final Map<String, VertexProperty.Cardinality> vpCardinalities) {
+                                     final Map<String, VertexProperty.Cardinality> vpCardinalities,
+                                     final boolean isEdgeCacheOverflowed) {
         int tryCount = 0;
         while (true) {
             try {
                 GraphTraversal t = traversal().mergeV(CollectionUtil.asMap(T.id, id))
-                        .option(Merge.onCreate, Map.of(BULK_LOAD_VERTEX_ADD_KEY, partitionId, T.label, label));
+                        .option(Merge.onCreate, Map.of(BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE, isEdgeCacheOverflowed, BULK_LOAD_VERTEX_ADD_KEY, partitionId, T.label, label));
                 for (final Map.Entry<String, Object> entry : properties) {
                     if (VertexProperty.Cardinality.list.equals(vpCardinalities.get(entry.getKey()))) {
                         t = t.property(VertexProperty.Cardinality.list, entry.getKey(), entry.getValue());
@@ -1223,7 +1225,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public boolean isEmpty() {
         final FireflyGraphSummaryUpdater.FireflyElementMetadata metadata = this.fireflySummaryUpdater.getFireflyStatistics();
-        return metadata.totalEdgeCount() == 0 && metadata.totalVertexCount() == 0;
+        return metadata.totalEdgeCount() == 0 && metadata.totalVertexCount() == 0 && metadata.totalSupernodeCount() == 0;
     }
 
     public void exportQuery(final DefaultTraversalMetrics metrics, final String scopeName, final String traversal) {

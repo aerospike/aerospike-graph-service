@@ -60,7 +60,8 @@ public class VertexWriteTask {
                     sparkVertex.getLabel(),
                     sparkVertex.getProperties(),
                     partitionId,
-                    sparkVertex.getCardinalities());
+                    sparkVertex.getCardinalities(),
+                    isSupernode());
             return null;
         }, service);
         return retry.withRetries(supplier, service).exceptionally(e -> {

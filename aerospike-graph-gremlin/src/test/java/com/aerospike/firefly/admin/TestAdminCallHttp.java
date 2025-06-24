@@ -402,6 +402,7 @@ public class TestAdminCallHttp {
         config.setProperty("aerospike.graph.http.port", 9093);
 
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
             final String configString = adminMetadataConfig();
             Assert.assertTrue(configString.startsWith("{"));
             Assert.assertTrue(configString.endsWith("}"));
@@ -429,6 +430,7 @@ public class TestAdminCallHttp {
         config.setProperty("aerospike.graph.http.port", 9094);
 
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
             final String version = adminMetadataVersion();
             Assert.assertTrue(version.startsWith("{"));
             Assert.assertTrue(version.endsWith("}"));

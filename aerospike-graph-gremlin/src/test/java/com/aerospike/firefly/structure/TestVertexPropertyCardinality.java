@@ -481,14 +481,26 @@ public class TestVertexPropertyCardinality {
     @Test
     public void testVPC_MultipleStartingValues_SingleValueCheckSingle() {
         g.addV("testVPC_MultipleStartingValues_SingleValueCheckSingle")
-                .property(VertexProperty.Cardinality.single, "name", "Lyndon")
+                .property(VertexProperty.Cardinality.single,"name", "Simon")
+                .property(VertexProperty.Cardinality.list, "name", "Lyndon")
+                .property(VertexProperty.Cardinality.list, "name", "Connor")
                 .next();
-        final long propertyCount = IteratorUtils.count(g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheckSingle").properties());
+        long propertyCount = IteratorUtils.count(g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheckSingle").properties());
+        Assert.assertEquals(3L, propertyCount);
+
+        List<? extends Property> properties = g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheckSingle").properties("name").toList();
+        Assert.assertEquals(3, properties.size());
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Simon")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Lyndon")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Connor")));
+
+        g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheckSingle").property(VertexProperty.Cardinality.single, "name", "Valentyn").iterate();
+        propertyCount = IteratorUtils.count(g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheckSingle").properties());
         Assert.assertEquals(1L, propertyCount);
 
-        final List<? extends Property> properties = g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheckSingle").properties("name").toList();
+        properties = g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheckSingle").properties("name").toList();
         Assert.assertEquals(1, properties.size());
-        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Lyndon")));
+        Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Valentyn")));
     }
 
     @Test

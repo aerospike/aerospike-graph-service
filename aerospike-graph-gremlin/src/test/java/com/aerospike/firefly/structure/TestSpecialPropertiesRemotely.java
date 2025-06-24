@@ -17,7 +17,7 @@ import static com.aerospike.firefly.util.DateTimeUtil.testDateTimePropertiesCase
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 import static org.junit.Assert.assertEquals;
 
-public class TestSpecialPropertiesWithServer {
+public class TestSpecialPropertiesRemotely {
 
     private static FireflyServer server;
 

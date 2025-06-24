@@ -5,14 +5,10 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.spark.api.java.function.MapPartitionsFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
-import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.catalyst.encoders.RowEncoder;
-import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.GraphHelper;
@@ -879,19 +875,6 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
-    public void testExperiment() {
-        createIndex("name");
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            graph.traversal().V().drop().iterate();
-            final Graph tg = TinkerFactory.createModern();
-            GraphHelper.cloneElements(tg, graph);
-            List<Vertex> output = graph.traversal().withComputer().V().has("name", "marko").out().toList();
-            Assert.assertEquals(3, output.size());
-            System.out.println(output);
-        }
-    }
-
-    @Test
     public void testPropertyIndex() {
         createIndex("name");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
@@ -914,69 +897,5 @@ public class TestDistributedGraphComputer {
             List<Vertex> output2 = graph.traversal().V().has("name", "marko").both().both().both().both().both().both().both().both().toList();
             Assert.assertEquals(output1.size(), output2.size());
         }
-    }
-
-    @Test
-    public void testGenerate() {
-
-        SparkSession spark = SparkSession.builder()
-                .appName("Java Map Schema Example")
-                .master("local[*]")
-                .getOrCreate();
-        final int vertexPartitions = 16;
-        final long maxVertexId = 100_000_000;
-        final StructType vertexSchema = new StructType().add("start", DataTypes.LongType, false).add("end", DataTypes.LongType, false);
-
-        final long verticesPerPartition = maxVertexId / vertexPartitions;
-        final List<Row> vertexGenRows = new ArrayList<>();
-        for (int i = 0; i < vertexPartitions; i++) {
-            // Fix fencing.
-            final Long[] data = new Long[2];
-            data[0] = verticesPerPartition * i;
-            data[1] = verticesPerPartition * (i+1);
-            vertexGenRows.add(new GenericRowWithSchema(data, vertexSchema));
-        }
-        Dataset vertexData = spark.createDataFrame(vertexGenRows, vertexSchema);
-
-        final StructType vertexSchemaAfter = new StructType().
-                add("~id", DataTypes.LongType, false)
-                .add("~label", DataTypes.StringType, false)
-                .add("test_property_1", DataTypes.StringType, false)
-                .add("test_property_2", DataTypes.StringType, false)
-                .add("test_property_3", DataTypes.StringType, false)
-                .add("test_property_4", DataTypes.StringType, false)
-                .add("test_property_5", DataTypes.StringType, false);
-        final Dataset csvGenerated = vertexData.mapPartitions((MapPartitionsFunction<Row, Row>) itty -> {
-            final List<Row> output = new ArrayList<>();
-            while (itty.hasNext()) {
-                final Row r = itty.next();
-                final long start = r.getLong(r.fieldIndex("start"));
-                final long end = r.getLong(r.fieldIndex("end"));
-
-                for (long i = start; i < end; i++) {
-                    final Object[] data = new Object[7];
-                    data[0] = i;
-                    data[1] = "account";
-                    data[2] = "somegarbagestringasdf";
-                    data[3] = "somegarbagestringasdf";
-                    data[4] = "somegarbagestringasdf";
-                    data[5] = "somegarbagestringasdf";
-                    data[6] = "somegarbagestringasdf";
-                    output.add(new GenericRowWithSchema(data, vertexSchemaAfter));
-                }
-
-            }
-            return output.iterator();
-
-        },RowEncoder.apply(vertexSchemaAfter));
-        csvGenerated.
-                write().
-                option("header", true).
-                mode(SaveMode.Overwrite).
-                option("compression", "snappy").
-                csv("/home/lyndon/testcsvoutput/vertices");
-
-
-
     }
 }

@@ -81,6 +81,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -92,6 +94,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.Timer;
@@ -99,6 +102,7 @@ import java.util.TimerTask;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
@@ -195,6 +199,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     // Doesn't use hidden key token ~ due to internal Tinkerpop MergeStep validation
     public static final String BULK_LOAD_VERTEX_ADD_KEY = "___bulkLoadMergeVIdentifier";
+    public static final String BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE = "___bulkLoadMergeVIdentifierIsSuperNode";
 
     public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
@@ -370,6 +375,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final FireflyConfiguration fireflyConf = FireflyConfiguration.fromConfiguration(conf);
         ConfigurationHelper.validateConfig(fireflyConf);
         String logLevel;
+
+        final boolean isTesting   = Boolean.parseBoolean(System.getenv("FIREFLY_TESTING"));
+        if (FIREFLY_VERSION != null && FIREFLY_VERSION.endsWith("SNAPSHOT") && !isTesting) {
+            final String commitHash = getGitCommitHash();
+            LOG.info("Built from git commit " + commitHash);
+        }
+
         if (System.getenv("FIREFLY_TESTING") != null &&
                 System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
             logLevel = "WARN";
@@ -540,7 +552,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return aerospikeOperations.writeVertex(idValue, label, properties, true, isEdgeCacheOverflowed);
     }
 
-    public void bulkWriteMergeVertex(final Object id, final String label, final List<Map.Entry<String, Object>> properties, final int partitionId) {
+    public void bulkWriteMergeVertex(final Object id,
+                                     final String label,
+                                     final List<Map.Entry<String, Object>> properties,
+                                     final int partitionId,
+                                     final boolean isEdgeCacheOverflowed) {
         int tryCount = 0;
         while (true) {
             try {
@@ -551,6 +567,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 propertiesCreate.put(T.id, id);
                 propertiesCreate.put(T.label, label);
                 propertiesCreate.put(BULK_LOAD_VERTEX_ADD_KEY, partitionId);
+                propertiesCreate.put(BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE, isEdgeCacheOverflowed);
                 propertiesMatch.remove(T.id);
                 propertiesMatch.remove(T.label);
                 traversal().mergeV(CollectionUtil.asMap(T.id, id))
@@ -1212,7 +1229,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public boolean isEmpty() {
         final FireflyGraphSummaryUpdater.FireflyElementMetadata metadata = this.fireflySummaryUpdater.getFireflyStatistics();
-        return metadata.totalEdgeCount() == 0 && metadata.totalVertexCount() == 0;
+        return metadata.totalEdgeCount() == 0 && metadata.totalVertexCount() == 0 && metadata.totalSupernodeCount() == 0;
     }
 
     public void exportQuery(final DefaultTraversalMetrics metrics, final String scopeName, final String traversal) {
@@ -1297,5 +1314,20 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     @Override
     public ServiceRegistry getServiceRegistry() {
         return this.serviceRegistry;
+    }
+
+    public static String getGitCommitHash(){
+        final Properties gitProperties = new Properties();
+        try (InputStream in = Thread.currentThread()
+                .getContextClassLoader()
+                .getResourceAsStream("git.properties")) {
+            if (in == null) {
+                throw new IllegalStateException("git.properties not found on classpath");
+            }
+            gitProperties.load(in);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to load git.properties", e);
+        }
+        return gitProperties.getProperty("git.commit.id");
     }
 }

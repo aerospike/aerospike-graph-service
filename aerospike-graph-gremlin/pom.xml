@@ -284,6 +284,13 @@
                 <directory>${basedir}/src/main/resources
                 </directory>
             </resource>
+            <resource>
+                <directory>${project.basedir}</directory>
+                <includes>
+                    <include>git.properties</include>
+                </includes>
+                <filtering>false</filtering>
+            </resource>
         </resources>
         <testResources>
             <testResource>

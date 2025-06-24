@@ -184,8 +184,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
             throw Property.Exceptions.propertyKeyCanNotBeAHiddenKey(key);
 
         // Remove the property.
-        // todo: txn for multiproperty
-        if (!allowNullPropertyValues && null == value) {
+        if (null == value) {
             properties(key).forEachRemaining(Property::remove);
             properties.remove(key);
             typeHints.remove(key);

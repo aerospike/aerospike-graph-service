@@ -4,7 +4,7 @@ import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.io.aerospike.query.paged.VertexQueryHelper;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -17,9 +17,8 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -36,7 +35,8 @@ import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SUPPORTED_V
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public final class FireflyHelper {
-    static private final Logger LOG = LoggerFactory.getLogger(FireflyHelper.class);
+    static private final byte[] TRUE_BOOL_BYTES = new byte[]{1};
+    static private final byte[] FALSE_BOOL_BYTES = new byte[]{0};
 
     private FireflyHelper() {
     }
@@ -107,6 +107,19 @@ public final class FireflyHelper {
         return value;
     }
 
+    public static Object validateVertexPropertyValue(final Object v) {
+        if (v instanceof List) {
+            throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(v);
+        }
+        Object validatedValue = validatePropertyValue(v);
+        if (validatedValue instanceof Boolean) {
+            validatedValue = (Boolean) validatedValue ? TRUE_BOOL_BYTES : FALSE_BOOL_BYTES;
+        } else if (validatedValue instanceof Double) {
+            validatedValue = ByteBuffer.allocate(Double.BYTES).putDouble((Double) validatedValue).array();
+        }
+        return validatedValue;
+    }
+
     public static void legalPropertyKeyValueArray(Object... keyValues) {
         ElementHelper.legalPropertyKeyValueArray(keyValues);
         Iterator i = FireflyCloseableIteratorUtils.asIterator(keyValues);
@@ -141,7 +154,7 @@ public final class FireflyHelper {
 
             // Create query policy with expressions.
             final QueryPolicy queryPolicy = new QueryPolicy();
-            queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, FireflyVertex.class);
+            queryPolicy.filterExp = VertexQueryHelper.hasContainerListToExpression(db, hasContainers);
             queryPolicy.includeBinData = false;
             queryPolicy.setTimeout(evaluationTimeout.intValue());
 
@@ -149,7 +162,7 @@ public final class FireflyHelper {
             final Iterator<KeyRecord> keyRecordIterator = graph.graphQuery.querySIndex(
                     info.get().setName,
                     info.get().indexName,
-                    GraphQueryHelper.predicateToFilter(db, topHasContainer.getPredicate(), info.get()),
+                    VertexQueryHelper.predicateToFilter(db, topHasContainer.getPredicate(), info.get()),
                     queryPolicy);
 
             // Transform record to correct element.

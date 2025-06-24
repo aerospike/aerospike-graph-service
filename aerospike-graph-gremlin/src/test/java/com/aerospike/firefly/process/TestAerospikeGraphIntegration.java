@@ -13,7 +13,6 @@ import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.TestHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.IO;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
-import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.TextP;
@@ -1342,19 +1341,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             assertEquals("", val.get());
         } else {
             LOG.info("skipping TestMergeEvent {} does not support multi properties", graph);
-        }
-    }
-
-    @Test
-    public void g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value() {
-        if (graph.features().vertex().supportsMultiProperties()) {
-            Graph tg = TinkerFactory.createTheCrew();
-            GraphHelper.cloneElements(tg, graph);
-            Traversal<Vertex, String> traversal = g.V().local(properties("location").order().by(T.value, Order.asc).range(0, 2)).value();
-            this.printTraversalForm(traversal);
-            checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), traversal);
-        } else {
-            LOG.info("skipping g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value because {} does not support multi-properties", graph);
         }
     }
 

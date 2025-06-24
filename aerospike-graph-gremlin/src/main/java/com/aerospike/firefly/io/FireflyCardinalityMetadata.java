@@ -222,5 +222,15 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
             }
             return totalEntries / entriesPerBval;
         }
+
+        @Override
+        public String toString() {
+            return "CardinalityInfo{" +
+                    "valid=" + valid +
+                    ", totalEntries=" + totalEntries +
+                    ", entriesPerBval=" + entriesPerBval +
+                    ", property='" + property + '\'' +
+                    '}';
+        }
     }
 }

@@ -5,6 +5,7 @@ import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.AbstractGraphProvider;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeVertexTest;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.IncidentToAdjacentStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -65,6 +66,8 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             configMap.put(ENABLE_COMPOSITE_ID_STRATEGY, "false");
         }
 
+        setConfigCardinalityForTest(test, testMethodName, configMap);
+
         return configMap;
     }
 
@@ -101,5 +104,17 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             add(FireflyVertex.class);
             add(FireflyVertexProperty.class);
         }};
+    }
+
+    static public void setConfigCardinalityForTest(final Class<?> test, final String testMethodName,
+                                                   final Map<String, Object> config) {
+        if ((test.equals(MergeVertexTest.class) || test.equals(MergeVertexTest.Traversals.class)) &&
+                testMethodName.equals("g_mergeVXlabel_person_name_markoX_optionXonMatch_age_19X_option") ||
+                testMethodName.equals("g_withSideEffectXc_label_person_name_markoX_withSideEffectXm_age_19X_mergeVXselectXcXX_optionXonMatch_selectXmXX_option")) {
+            config.put(ConfigurationHelper.Keys.VERTEX_PROPERTY_CARDINALITY, "single");
+        } else {
+            // Most tests require list, the other 2 require single.
+            config.put(ConfigurationHelper.Keys.VERTEX_PROPERTY_CARDINALITY, "list");
+        }
     }
 }

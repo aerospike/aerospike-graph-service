@@ -58,6 +58,7 @@ import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.CountStrategy;
@@ -102,7 +103,6 @@ import java.util.TimerTask;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
@@ -165,7 +165,6 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.io.IoGraphTest", method = "*", reason = "THESE TESTS READ AND WRITE FROM 2 GRAPHS, BUT WHEN BACKED BY THE SAME AEROSPIKE INSTANCE, PRODUCE INVALID RESULTS", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.SubgraphTest", method = "*", reason = "CURRENTLY DO NOT WORK, NEED TO FIX AND ENABLE", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldEvaluateConnectivityPatterns", reason = "This test fails due to caching.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.VertexPropertyTest$VertexPropertyRemoval", method = "shouldRemoveMultiPropertiesWhenVerticesAreRemoved", reason = "Replaced in TestAerospikeGraphIntegration with cache-friendly implementation.", computers = {"ALL"})
 
 // Structure tests that only function on embedded Graphs - Arrays come through as primitives instead of expected ArrayLists from serialization
 // Have to ignore the entire test suite for now due to a current issue in Tinkerpop where opting out of this parameterized test doesn't work
@@ -178,8 +177,44 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingDoubleRepresentation", reason = "Firefly does not support Double ids", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingDoubleRepresentations", reason = "Firefly does not support Double ids", computers = {"ALL"})
 
-// Firefly does not support user-defined Edge ids
+// Firefly does not support user-defined Edge IDs
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldHaveExceptionConsistencyWhenFindEdgeByIdThatIsNonExistentViaIterator", reason = "Firefly does not expect Edge id lookups of random types", computers = {"ALL"})
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.util.star.StarGraphTest",
+        method = "shouldCopyFromGraphAToGraphB",
+        reason = "Test asserts ID equality.",
+        computers = {"ALL"}
+)
+
+// Firefly does not support user-defined Vertex Property IDs
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.util.detached.DetachedGraphTest",
+        method = "testAttachableCreateMethod",
+        reason = "Test asserts ID equality.",
+        computers = {"ALL"}
+)
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.util.star.StarGraphTest",
+        method = "shouldAttachWithCreateMethod",
+        reason = "Test asserts ID equality.",
+        computers = {"ALL"}
+)
+
+// Firefly does not support eventing
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest",
+        method = "shouldTriggerAddVertexPropertyChangedViaMergeV",
+        reason = "Custom Firefly MergeV step removed eventing due to incompatibility with multi-properties.",
+        computers = {"ALL"}
+)
+
+// TODO: GRAPH-1565
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.VertexPropertyTest$VertexPropertyAddition",
+        method = "shouldHandleSetVertexProperties",
+        reason = "Set cardinality is not supported.",
+        computers = {"ALL"}
+)
 
 // TODO: Should fix these tests in OLAP.
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupCountTest", method = "g_V_both_groupCountXaX_byXlabelX_asXbX_barrier_whereXselectXaX_selectXsoftwareX_isXgtX2XXX_selectXbX_name", reason = "Temporary, will fix.", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})
@@ -274,7 +309,17 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             this.bulkLoadIdBufferSize = ConfigurationHelper.getOrDefaultInt(BULK_LOAD_ID_BUFFER_SIZE, conf);
 
             this.variables = new FireflyGraphVariables(this);
-            this.features = new FireflyFeatures();
+            final String vpCardinalityString = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.VERTEX_PROPERTY_CARDINALITY, conf);
+            final VertexProperty.Cardinality vpCardinality;
+            if ("list".equals(vpCardinalityString)) {
+                vpCardinality = VertexProperty.Cardinality.list;
+            } else if ("set".equals(vpCardinalityString)) {
+                vpCardinality = VertexProperty.Cardinality.set;
+            } else {
+                // Default to single.
+                vpCardinality = VertexProperty.Cardinality.single;
+            }
+            this.features = new FireflyFeatures(vpCardinality);
 
             // Create index metadata background task that will populate indexes for the named graph on the fly.
             fireflyIndexMetadata = new FireflyIndexMetadata(db);
@@ -285,7 +330,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             if (db.shouldCreateIndexes()) {
                 // Grab user defined vertex property indexes from the configuration and create them.
                 final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
-                createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
+                createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_DATA_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
 
                 // Grab user defined edge property indexes from the configuration and create them.
                 final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
@@ -376,7 +421,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         ConfigurationHelper.validateConfig(fireflyConf);
         String logLevel;
 
-        final boolean isTesting   = Boolean.parseBoolean(System.getenv("FIREFLY_TESTING"));
+        final boolean isTesting = Boolean.parseBoolean(System.getenv("FIREFLY_TESTING"));
         if (FIREFLY_VERSION != null && FIREFLY_VERSION.endsWith("SNAPSHOT") && !isTesting) {
             final String commitHash = getGitCommitHash();
             LOG.info("Built from git commit " + commitHash);
@@ -556,23 +601,21 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                                      final String label,
                                      final List<Map.Entry<String, Object>> properties,
                                      final int partitionId,
+                                     final Map<String, VertexProperty.Cardinality> vpCardinalities,
                                      final boolean isEdgeCacheOverflowed) {
         int tryCount = 0;
         while (true) {
             try {
-                final Map<Object, Object> propertiesMatch = new HashMap<>();
-                properties.forEach(entry -> propertiesMatch.put(entry.getKey(), entry.getValue()));
-                final Map<Object, Object> propertiesCreate = new HashMap<>();
-                properties.forEach(entry -> propertiesCreate.put(entry.getKey(), entry.getValue()));
-                propertiesCreate.put(T.id, id);
-                propertiesCreate.put(T.label, label);
-                propertiesCreate.put(BULK_LOAD_VERTEX_ADD_KEY, partitionId);
-                propertiesCreate.put(BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE, isEdgeCacheOverflowed);
-                propertiesMatch.remove(T.id);
-                propertiesMatch.remove(T.label);
-                traversal().mergeV(CollectionUtil.asMap(T.id, id))
-                        .option(Merge.onMatch, propertiesMatch)
-                        .option(Merge.onCreate, propertiesCreate).iterate();
+                GraphTraversal t = traversal().mergeV(CollectionUtil.asMap(T.id, id))
+                        .option(Merge.onCreate, Map.of(BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE, isEdgeCacheOverflowed, BULK_LOAD_VERTEX_ADD_KEY, partitionId, T.label, label));
+                for (final Map.Entry<String, Object> entry : properties) {
+                    if (VertexProperty.Cardinality.list.equals(vpCardinalities.get(entry.getKey()))) {
+                        t = t.property(VertexProperty.Cardinality.list, entry.getKey(), entry.getValue());
+                    } else {
+                        t = t.property(entry.getKey(), entry.getValue());
+                    }
+                }
+                t.iterate();
                 break;
             } catch (final IllegalArgumentException e) {
                 if (!e.getMessage().contains("Vertex with id already exists")) {
@@ -938,51 +981,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 db.TYPE_HINTS_BIN);
     }
 
-    /**
-     * Write vertex property to Aerospike.
-     *
-     * @param idValue FireflyId of vertex property to write.
-     * @param vertex  Vertex to write property to.
-     * @param key     Key of property to write.
-     * @param value   Value of property to write.
-     * @param <V>     Type of value to write.
-     * @return FireflyVertexProperty
-     */
-    public <V> FireflyVertexProperty<V> writeVertexProperty(final FireflyId idValue,
-                                                            final FireflyVertex vertex,
-                                                            final String key,
-                                                            final V value,
-                                                            final Object... keyValues) {
-        final Map<String, Object> properties = new TreeMap<>();
-        final Map<String, Object> typeHints = new TreeMap<>();
-
-        for (int i = 0; i < keyValues.length; i = i + 2) {
-            if (!keyValues[i].equals(T.id) && !keyValues[i].equals(T.label))
-                if (keyValues[i + 1] != null) {
-                    properties.put((String) keyValues[i], FireflyHelper.validatePropertyValue(keyValues[i + 1]));
-                    final Object typeHint = getTypeHintOf(keyValues[i + 1]);
-                    if (typeHint != null) {
-                        typeHints.put((String) keyValues[i], typeHint);
-                    }
-                } else {
-                    properties.remove((String) keyValues[i]);
-                    typeHints.remove((String) keyValues[i]);
-                }
-            // Since this the first insertion, a null value with allowNullProperties is irrelevant, because there is no
-            // properties to remove, so just ignore.
-        }
-
-        // Write vertex property to Aerospike.
-        final FireflyVertexProperty<V> fireflyVertexProperty = new FireflyVertexProperty<>(
-                this, idValue, vertex, key, value, properties, typeHints);
-
-        // Append vertex property to vertex.
-        aerospikeOperations.writeVpProperty(vertex, fireflyVertexProperty);
-
-        // Return FireflyVertexProperty.
-        return fireflyVertexProperty;
-    }
-
     public long getVertexCount(final List<HasContainer> hasContainers, final Long evaluationTimeout) {
         return FireflyCloseableIteratorUtils.count(this.graphQuery.scanVertexIds(hasContainers, evaluationTimeout));
     }
@@ -1014,13 +1012,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         // Validate key value pairs are valid for TinkerPop.
         ElementHelper.legalPropertyKeyValueArray(keyValues);
 
-        // If a user-supplied id is provided and it is not supported, throw exception.
-        if (ElementHelper.getIdValue(keyValues).isPresent() && !features.vertex().supportsUserSuppliedIds())
-            throw Vertex.Exceptions.userSuppliedIdsNotSupported();
-
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
         final List<Map.Entry<String, Object>> properties = convertFullyQualified(
-                this.features().vertex().supportsNullPropertyValues(), keyValues);
+                this.features().vertex().supportsNullPropertyValues(),
+                keyValues);
 
         // Create a new id or use the provided user-supplied id (if present and supported).
         FireflyId idValue = null;
@@ -1080,10 +1075,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             // Key cannot be empty, must be non-empty String.
             if (key.isEmpty()) {
                 throw Element.Exceptions.providedKeyValuesMustHaveALegalKeyOnEvenIndices();
-            }
-            // If cardinality is single we must only retain the final item.
-            if (this.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single)) {
-                properties = properties.stream().filter(p -> !key.equals(p.getKey())).collect(Collectors.toList());
             }
             properties.add(new AbstractMap.SimpleEntry<>(key, value));
         }
@@ -1199,13 +1190,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         Iterator<E> getUnfiltered(final Object... ids);
     }
-
-    /**
-     * Function to create vertex property indexes using a list of property keys.
-     *
-     * @param vertexPropertyIndexes List of vertex property indexes to create.
-     */
-    private void createIndexes(final Class<? extends FireflyElement> elementClass, final String binName, final String prefix, final List<String> vertexPropertyIndexes) {
+    public void createIndexes(final Class<? extends FireflyElement> elementClass,
+                              final String binName,
+                              final String prefix,
+                              final List<String> vertexPropertyIndexes,
+                              final boolean errorOnDuplicate) {
         final List<String> existingIndexes =
                 AerospikeConnection.InfoOps.listExistingIndexes(db).stream()
                         .map(Map.Entry::getKey).collect(Collectors.toList());
@@ -1216,15 +1205,22 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             final String formattedIndex = String.format("%s_%s", prefix, index);
             final Long indexSchema = db.schemaManager.getVertexPropertyWrite(index);
             db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + STRING, binName, STRING, IndexCollectionType.DEFAULT, false,
+                    formattedIndex + "_" + STRING, binName, STRING, IndexCollectionType.MAPKEYS, errorOnDuplicate,
                     CTX.mapKey(Value.get(indexSchema)));
             db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + NUMERIC, binName, NUMERIC, IndexCollectionType.DEFAULT, false,
+                    formattedIndex + "_" + NUMERIC, binName, NUMERIC, IndexCollectionType.MAPKEYS, errorOnDuplicate,
                     CTX.mapKey(Value.get(indexSchema)));
         }
 
         // Manually force metadata to update.
         fireflyIndexMetadata.updateMetadata();
+    }
+
+    public void createIndexes(final Class<? extends FireflyElement> elementClass,
+                              final String binName,
+                              final String prefix,
+                              final List<String> vertexPropertyIndexes) {
+        createIndexes(elementClass, binName, prefix, vertexPropertyIndexes, false);
     }
 
     public boolean isEmpty() {

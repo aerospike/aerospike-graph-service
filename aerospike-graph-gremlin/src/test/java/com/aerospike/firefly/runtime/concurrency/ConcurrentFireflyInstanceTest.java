@@ -5,7 +5,9 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -14,12 +16,14 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -179,7 +183,7 @@ public class ConcurrentFireflyInstanceTest {
             final FireflyVertex d = (FireflyVertex) g.V().next();
             final FireflyVertex e = (FireflyVertex) g.V().next();
             for (int i = 0; i < INITIAL_COUNT; i++) {
-                fireflyGraph.writeVertexProperty(fireflyGraph.getIdFactory().createVertexPropertyId(i), a, String.format("%d", i), i);
+                a.property(VertexProperty.Cardinality.single, String.format("%d", i), i);
             }
             final CyclicBarrier gate = new CyclicBarrier(THREAD_COUNT + 1);
             final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT);
@@ -198,7 +202,7 @@ public class ConcurrentFireflyInstanceTest {
             gate.await();
             for (int i = 0; i < ADD_REMOVE_COUNT; i++) {
                 final int actualIdx = INITIAL_COUNT + i + THREAD_COUNT * ADD_REMOVE_COUNT;
-                fireflyGraph.writeVertexProperty(fireflyGraph.getIdFactory().createVertexPropertyId(actualIdx), e, String.format("%d", actualIdx), actualIdx);
+                a.property(VertexProperty.Cardinality.single, String.format("%d", actualIdx), actualIdx);
             }
             executorService.shutdown();
             executorService.awaitTermination(30, TimeUnit.SECONDS);
@@ -224,7 +228,7 @@ public class ConcurrentFireflyInstanceTest {
             final GraphTraversalSource g = fireflyGraph.traversal();
             final FireflyVertex a = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createVertexId(1), "foo", new ArrayList<>());
             for (int i = 0; i < INITIAL_COUNT; i++) {
-                fireflyGraph.writeVertexProperty(fireflyGraph.getIdFactory().createVertexPropertyId(i), a, String.format("%d", i), i);
+                a.property(VertexProperty.Cardinality.single, String.format("%d", i), i);
             }
             final CyclicBarrier gate = new CyclicBarrier(THREAD_COUNT + 1);
             final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT);
@@ -262,7 +266,7 @@ public class ConcurrentFireflyInstanceTest {
             final FireflyVertex d = (FireflyVertex) g.V().next();
             final FireflyVertex e = (FireflyVertex) g.V().next();
             for (int i = 0; i < INITIAL_COUNT; i++) {
-                fireflyGraph.writeVertexProperty(fireflyGraph.getIdFactory().createVertexPropertyId(i), a, String.format("%d", i), i);
+                a.property(VertexProperty.Cardinality.single, String.format("%d", i), i);
             }
             final CyclicBarrier gate = new CyclicBarrier((2 * THREAD_COUNT) + 1);
             final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT * 2);
@@ -306,6 +310,77 @@ public class ConcurrentFireflyInstanceTest {
         }
     }
 
+    @Test
+    public void concurrentFireflyInstanceMultiPropertyTest() {
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            final Object id = g.addV("foo").next().id();
+            final AtomicBoolean isRunning = new AtomicBoolean(true);
+            final AtomicBoolean firstPropertyAdded = new AtomicBoolean(false);
+            final Random rng = new Random();
+            final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT * 2);
+            for (int i = 0; i < THREAD_COUNT * 2; i++) {
+                executorService.submit(() -> {
+                    while (isRunning.get()) {
+                        final long randomNumber = rng.nextInt(100);
+                        if (randomNumber < 5) {
+                            g.V(id).property(VertexProperty.Cardinality.single, "test", -1L).iterate();
+                            firstPropertyAdded.set(true);
+                        } else {
+                            g.V(id).property(VertexProperty.Cardinality.list, "test", randomNumber).iterate();
+                            firstPropertyAdded.set(true);
+                        }
+                    }
+                });
+            }
+            int successes = 0;
+            boolean seenSingle = false;
+            boolean seenMulti = false;
+            boolean wereVpsRemovedBySingle = false;
+            int lastVpCount = 0;
+            while (successes < 1000) {
+                while (!firstPropertyAdded.get()) {
+                    // Wait until this happens
+                }
+                final GraphTraversal properties = g.V(id).properties("test");
+                boolean isMulti = false;
+                long singleVpId = Long.MAX_VALUE;
+                int currentVpCount = 0;
+                while (properties.hasNext()) {
+                    final VertexProperty<Long> test = (VertexProperty<Long>) properties.next();
+                    if (test.value() == -1L) {
+                        Assert.assertEquals(Long.MAX_VALUE, singleVpId);
+                        singleVpId = (long) test.id();
+                    } else {
+                        Assert.assertTrue(test.value() >= 5 && test.value() < 100);
+                        if (isMulti) {
+                            seenMulti = true;
+                        }
+                        isMulti = true;
+                    }
+
+                    if (!properties.hasNext()) {
+                        if (singleVpId != Long.MIN_VALUE) {
+                            seenSingle = true;
+                        }
+                    }
+                    currentVpCount++;
+                }
+                if (currentVpCount < lastVpCount) {
+                    wereVpsRemovedBySingle = true;
+                }
+                lastVpCount = currentVpCount;
+                successes++;
+            }
+            isRunning.set(false);
+            executorService.shutdown();
+            Assert.assertTrue(seenSingle);
+            Assert.assertTrue(seenMulti);
+            Assert.assertTrue(wereVpsRemovedBySingle);
+        }
+    }
+
     private void concurrentFireflyEdgeRemoval(final FireflyGraph fireflyGraph, int threadIdx, final CyclicBarrier gate) {
         try {
             gate.await();
@@ -338,7 +413,7 @@ public class ConcurrentFireflyInstanceTest {
             for (; i < ADD_REMOVE_COUNT; i++) {
                 final int actualIdx = INITIAL_COUNT + i + threadId * ADD_REMOVE_COUNT;
                 final FireflyId id = graph.getIdFactory().createVertexPropertyId(actualIdx);
-                graph.writeVertexProperty(id, vertex, String.format("%d", actualIdx), actualIdx);
+                vertex.property(VertexProperty.Cardinality.single, String.format("%d", actualIdx), actualIdx);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

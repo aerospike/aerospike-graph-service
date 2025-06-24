@@ -4,7 +4,6 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
-
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -14,7 +13,6 @@ public abstract class FireflyElement implements Element {
     public final FireflyId id;
     protected String label;
     protected boolean removed = false;
-    protected final boolean allowNullPropertyValues = false;
 
     protected FireflyElement(final FireflyId id, final String label) {
         this.id = id;

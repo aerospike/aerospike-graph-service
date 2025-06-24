@@ -2,7 +2,7 @@ package com.aerospike.firefly.olap.iterators;
 
 import com.aerospike.client.exp.Expression;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
-import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.io.aerospike.query.paged.VertexQueryHelper;
 import com.aerospike.firefly.olap.config.DistributedConfigHelper;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
@@ -146,7 +146,7 @@ public class QueryInfo implements Serializable {
                 return new QueryInfo(propertyIndexInfo.get(), topContainer, initialHasContainers);
             } else {
                 // Scan.
-                final Expression expression = GraphQueryHelper.hasContainerListToExpression(graph.getBaseGraph(), aerospikeSideHasContainers, FireflyVertex.class);
+                final Expression expression = VertexQueryHelper.hasContainerListToExpression(graph.getBaseGraph(), aerospikeSideHasContainers);
                 return new QueryInfo(expression, initialHasContainers);
             }
         } else {

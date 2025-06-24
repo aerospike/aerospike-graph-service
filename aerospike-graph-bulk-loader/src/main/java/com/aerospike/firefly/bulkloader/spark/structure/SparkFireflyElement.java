@@ -6,7 +6,9 @@ import com.aerospike.firefly.structure.id.FireflyId;
 
 import java.io.Serializable;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -47,14 +49,37 @@ public abstract class SparkFireflyElement implements Serializable {
         final PropertyValueParser parser = new PropertyValueParser(nullValue);
         final int typeSpecifierIndex = header.lastIndexOf(":");
         if (typeSpecifierIndex == -1) {
+            if (header.endsWith("(list)")) {
+                final String propertyName = header.substring(0, header.length() - "(list)".length());
+                if (value.isEmpty()) {
+                    return new AbstractMap.SimpleEntry<>(propertyName, Collections.emptyList());
+                } else {
+                    final String[] values = value.split(";");
+                    return new AbstractMap.SimpleEntry<>(propertyName,
+                            Arrays.stream(values).map(parser::parseString).collect(Collectors.toList()));
+                }
+            }
             return new AbstractMap.SimpleEntry<>(header, parser.parseString(value));
         } else {
             String propertyName = header.substring(0, typeSpecifierIndex);
             String type = header.substring(typeSpecifierIndex + 1);
             boolean isList = false;
-            if (type.endsWith("[]")) {
+            if (type.contains("(") || type.contains(")")) {
+                if (!type.endsWith("(list)")) {
+                    throw new IllegalArgumentException(
+                            String.format("Invalid type '%s' for property '%s'. " +
+                                    "Type should not contain parentheses unless it ends with '(list)'.", type, header));
+                }
+            }
+            // Denote the list type and trim it off.
+            if (type.endsWith("(list)")) {
                 isList = true;
-                type = type.substring(0, type.length() - 2);
+                type = type.substring(0, type.length() - "(list)".length());
+            }
+            if (type.endsWith("[]") && !type.startsWith("byte")) {
+                throw new IllegalArgumentException(
+                        String.format("Invalid type '%s' for property '%s'. " +
+                                "Type should not end with '[]' unless it is a byte array 'byte[]'.", type, header));
             }
             final Object propertyValue;
             switch (type.toLowerCase()) {
@@ -98,6 +123,35 @@ public abstract class SparkFireflyElement implements Serializable {
                         propertyValue = Arrays.stream(values).map(parser::parseString).collect(Collectors.toList());
                     } else {
                         propertyValue = parser.parseString(value);
+                    }
+                    break;
+                case "byte":
+                    if (isList) {
+                        final String[] values = value.split(";");
+                        propertyValue = Arrays.stream(values).map(parser::parseByte).collect(Collectors.toList());
+                    } else {
+                        propertyValue = parser.parseByte(value);
+                    }
+                    break;
+                case "byte[]":
+                    if (isList) {
+                        propertyValue = new ArrayList<byte[]>();
+                        final String[] values = value.split(";");
+                        for (final String val : values) {
+                            final String[] parts = val.split(",");
+                            final byte[] bytes = new byte[parts.length];
+                            for (int i = 0; i < parts.length; i++) {
+                                bytes[i] = (byte) parser.parseByte(parts[i]);
+                            }
+                            ((List<byte[]>) propertyValue).add(bytes);
+                        }
+                    } else {
+                        final String[] values = value.split(",");
+                        final byte[] bytes = new byte[values.length];
+                        for (int i = 0; i < values.length; i++) {
+                            bytes[i] = (byte) parser.parseByte(values[i]);
+                        }
+                        propertyValue = bytes;
                     }
                     break;
                 default:

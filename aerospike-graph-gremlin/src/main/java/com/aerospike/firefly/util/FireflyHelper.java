@@ -17,8 +17,6 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -37,7 +35,8 @@ import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SUPPORTED_V
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public final class FireflyHelper {
-    static private final Logger LOG = LoggerFactory.getLogger(FireflyHelper.class);
+    static private final byte[] TRUE_BOOL_BYTES = new byte[]{1};
+    static private final byte[] FALSE_BOOL_BYTES = new byte[]{0};
 
     private FireflyHelper() {
     }
@@ -114,7 +113,7 @@ public final class FireflyHelper {
         }
         Object validatedValue = validatePropertyValue(v);
         if (validatedValue instanceof Boolean) {
-            validatedValue = new byte[]{(byte) ((Boolean) validatedValue ? 1 : 0)};
+            validatedValue = (Boolean) validatedValue ? TRUE_BOOL_BYTES : FALSE_BOOL_BYTES;
         } else if (validatedValue instanceof Double) {
             validatedValue = ByteBuffer.allocate(Double.BYTES).putDouble((Double) validatedValue).array();
         }

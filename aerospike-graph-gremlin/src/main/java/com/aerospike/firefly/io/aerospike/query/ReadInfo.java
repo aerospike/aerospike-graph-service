@@ -15,8 +15,10 @@ public class ReadInfo {
     public final List<FireflyId> ids;
     public final Expression expression;
     public final List<String> requiredProperties;
+    public final boolean areEdgesRequired;
 
-    private ReadInfo(final Expression expression, final String set, final List<FireflyId> ids, final List<String> requiredProperties) {
+    private ReadInfo(final Expression expression, final String set, final List<FireflyId> ids, final List<String> requiredProperties,
+                     final boolean areEdgesRequired) {
         if (set == null) {
             // Should never happen.
             throw new IllegalArgumentException("Cannot construct ReadInfo with null set.");
@@ -29,6 +31,7 @@ public class ReadInfo {
         this.set = set;
         this.ids = ids;
         this.requiredProperties = requiredProperties;
+        this.areEdgesRequired = areEdgesRequired;
     }
 
     public static Builder create() {
@@ -40,6 +43,7 @@ public class ReadInfo {
         private String set = null;
         private List<FireflyId> ids = null;
         private List<String> requiredProperties = null;
+        private boolean areEdgesRequired = true;
 
         private Builder() {
         }
@@ -73,8 +77,13 @@ public class ReadInfo {
             return this;
         }
 
+        public Builder areEdgesRequired(final boolean areEdgesRequired) {
+            this.areEdgesRequired = areEdgesRequired;
+            return this;
+        }
+
         public ReadInfo build() {
-            return new ReadInfo(expression, set, ids, requiredProperties);
+            return new ReadInfo(expression, set, ids, requiredProperties, areEdgesRequired);
         }
     }
 }

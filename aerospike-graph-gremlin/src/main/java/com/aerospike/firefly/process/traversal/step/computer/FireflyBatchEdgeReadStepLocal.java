@@ -43,6 +43,7 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> {
     private transient final Map<FireflyId, FireflyEdge> cache = new HashMap<>();
     private transient final List<Traverser.Admin<Vertex>> inputCache = new ArrayList<>();
     private boolean first = true;
+    private final boolean requiresEdges = true;
 
     public FireflyBatchEdgeReadStepLocal(final Traversal.Admin traversal,
                                          final Direction direction,
@@ -113,12 +114,12 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> {
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 // Drain data to output. No need to pass in aerospikeHasContainers since they were used to filter Edge IDs already.
                 FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
-                        fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, cache, graph::readEdges, null);
+                        fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, cache, graph::readEdges, null, requiresEdges);
             }
         }
 
         FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
-                fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, cache, graph::readEdges, null);
+                fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, cache, graph::readEdges, null, requiresEdges);
     }
 
     @Override

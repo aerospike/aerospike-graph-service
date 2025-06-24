@@ -222,6 +222,7 @@ public class AerospikeConnection implements AutoCloseable {
     public long lastQueryMissCount = 0; // For testing
     public long lastQueryHitCount = 0; // For testing
 
+    private final boolean COMPRESS;
     private final int AEROSPIKE_MAX_RETRIES;
     private final int WRITE_SLEEP_BETWEEN_RETRY;
     private final int READ_SLEEP_BETWEEN_RETRY;
@@ -291,7 +292,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean IS_AUDIT_LOG_ENABLED;
     public final boolean AUTHENTICATION_ENABLED;
     public final boolean USAGE_STATS_SET_INDEX_ENABLED;
-    public final List<String> vertexNonPropertyBins = new ArrayList<>();
+    public final List<String> vertexMiscBins = new ArrayList<>();
+    public final List<String> vertexEdgeBins = new ArrayList<>();
     public final List<String> vertexPropertyBins = new ArrayList<>();
 
     public final String QUERY_IMPL;
@@ -348,8 +350,10 @@ public class AerospikeConnection implements AutoCloseable {
         final Host[] hosts = Host.parseHosts(hostsString, defaultPort);
 
         final AerospikeClient aerospikeClient;
+
         try {
             aerospikeClient = new AerospikeClient(policy, hosts);
+
         } catch (final AerospikeException e) {
             LOG.error("Error connecting to Aerospike", e);
             throw fromAerospikeException(e);
@@ -468,6 +472,7 @@ public class AerospikeConnection implements AutoCloseable {
         BL_BAD_EDGES_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_BAD_EDGES_COUNT_KEY.name(), conf);
         BL_BAD_ENTRY_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_BAD_ENTRY_COUNT_KEY.name(), conf);
 
+        COMPRESS = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AEROSPIKE_COMPRESS, conf);
         AEROSPIKE_MAX_RETRIES = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_MAX_RETRIES, conf);
         WRITE_SLEEP_BETWEEN_RETRY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.WRITE_SLEEP_BETWEEN_RETRY, conf);
         READ_SLEEP_BETWEEN_RETRY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_SLEEP_BETWEEN_RETRY, conf);
@@ -588,12 +593,12 @@ public class AerospikeConnection implements AutoCloseable {
             validateMrtSupport();
         }
 
-        vertexNonPropertyBins.add(EDGE_CACHE_DISABLED_BIN); // 6
-        vertexNonPropertyBins.add(IN_EDGES_BIN); // 7
-        vertexNonPropertyBins.add(OUT_EDGES_BIN); // 8
-        vertexNonPropertyBins.add(ID_TYPE_BIN); // 12
-        vertexNonPropertyBins.add(USER_KEY_BIN); // 13
-        vertexNonPropertyBins.add(LABEL_BIN); // 14
+        vertexMiscBins.add(EDGE_CACHE_DISABLED_BIN); // 6
+        vertexEdgeBins.add(IN_EDGES_BIN); // 7
+        vertexEdgeBins.add(OUT_EDGES_BIN); // 8
+        vertexMiscBins.add(ID_TYPE_BIN); // 12
+        vertexMiscBins.add(USER_KEY_BIN); // 13
+        vertexMiscBins.add(LABEL_BIN); // 14
 
         vertexPropertyBins.add(VERTEX_PROPERTY_DATA_BIN);
         vertexPropertyBins.add(VERTEX_PROPERTY_TH_BIN);
@@ -2433,6 +2438,7 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public void configureWritePolicy(final Policy policy) {
+        policy.compress = COMPRESS;
         policy.maxRetries = AEROSPIKE_MAX_RETRIES;
         policy.sleepBetweenRetries = WRITE_SLEEP_BETWEEN_RETRY;
         policy.totalTimeout = WRITE_TOTAL_TIMEOUT;
@@ -2446,6 +2452,7 @@ public class AerospikeConnection implements AutoCloseable {
         policy.maxRetries = AEROSPIKE_MAX_RETRIES;
         policy.connectTimeout = CONNECT_TIMEOUT;
         policy.timeoutDelay = TIMEOUT_DELAY;
+        policy.compress = COMPRESS;
         policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
         if (bulkLoading) {
             policy.totalTimeout = READ_TOTAL_TIMEOUT_BULK_LOAD;
@@ -2466,6 +2473,7 @@ public class AerospikeConnection implements AutoCloseable {
         policy.socketTimeout = SCAN_SOCKET_TIMEOUT;
         policy.connectTimeout = SCAN_CONNECT_TIMEOUT;
         policy.timeoutDelay = SCAN_TIMEOUT_DELAY;
+        policy.compress = COMPRESS;
     }
 
     public void configureIndexPolicy(final Policy policy) {
@@ -2475,6 +2483,7 @@ public class AerospikeConnection implements AutoCloseable {
         policy.socketTimeout = INDEX_SOCKET_TIMEOUT;
         policy.connectTimeout = INDEX_CONNECT_TIMEOUT;
         policy.timeoutDelay = INDEX_TIMEOUT_DELAY;
+        policy.compress = COMPRESS;
     }
 
     /**

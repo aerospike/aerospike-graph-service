@@ -770,14 +770,22 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public List<FireflyVertex> readVertices(final List<HasContainer> hasContainers,
                                             final List<FireflyId> idValues,
-                                            final List<String> requiredProperties) {
+                                            final List<String> requiredProperties,
+                                            final boolean areEdgesRequired) {
         final ReadInfo readInfo = ReadInfo.create().
                 set(db.VERTEX_AERO_SET).
                 ids(idValues).
                 reqProps(requiredProperties).
                 exp(hasContainers, db, FireflyVertex.class).
+                areEdgesRequired(areEdgesRequired).
                 build();
         return aerospikeOperations.readVertices(readInfo);
+    }
+
+    public List<FireflyVertex> readVertices(final List<HasContainer> hasContainers,
+                                            final List<FireflyId> idValues,
+                                            final List<String> requiredProperties) {
+        return readVertices(hasContainers, idValues, requiredProperties, true);
     }
 
     /**
@@ -907,7 +915,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
      * @param edgeIds Edge ids.
      * @return Edge.
      */
-    public List<FireflyEdge> readEdges(final List<HasContainer> hasContainers, final List<FireflyId> edgeIds, final List<String> requiredProperties) {
+    public List<FireflyEdge> readEdges(final List<HasContainer> hasContainers, final List<FireflyId> edgeIds, final List<String> requiredProperties, final boolean requiresEdges) {
         if (!hasContainers.isEmpty()) {
             throw new RuntimeException("Pushdown is not currently supported for Edges.");
         }
@@ -916,6 +924,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             throw new RuntimeException("Required properties are not currently supported for Edges.");
         }
         return aerospikeOperations.readEdges(edgeIds);
+    }
+
+    public List<FireflyEdge> readEdges(final List<HasContainer> hasContainers, final List<FireflyId> edgeIds, final List<String> requiredProperties) {
+        return readEdges(hasContainers, edgeIds, requiredProperties, true);
     }
 
     /**

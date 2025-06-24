@@ -18,8 +18,9 @@ public class FireflyOtherVBatchReadStep extends VertexBatchReadStep {
     public FireflyOtherVBatchReadStep(final Traversal.Admin traversal,
                                       final List<HasContainer> hasContainers,
                                       final Set<String> labels,
-                                      final int barrierSize) {
-        super(traversal, hasContainers, labels, barrierSize);
+                                      final int barrierSize,
+                                      final boolean requiresEdges) {
+        super(traversal, hasContainers, labels, barrierSize, requiresEdges);
     }
 
     @Override

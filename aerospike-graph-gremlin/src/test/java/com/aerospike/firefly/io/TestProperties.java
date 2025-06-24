@@ -574,7 +574,7 @@ public class TestProperties {
     @Test
     public void testDateTimeProperties() {
         final GraphTraversalSource g = graph.traversal();
-        testDateTimePropertiesCases(g, false);
+        testDateTimePropertiesCases(g);
     }
 
     @Ignore

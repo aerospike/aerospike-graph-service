@@ -19,7 +19,7 @@ import java.util.TimeZone;
 
 public class DateTimeUtil {
 
-    public static void testDateTimePropertiesCases(GraphTraversalSource g, boolean isRemote) {
+    public static void testDateTimePropertiesCases(GraphTraversalSource g) {
         final Vertex v1 = g.addV("added").next();
 
         final Date initD = getDate(2024, Calendar.FEBRUARY, 3);
@@ -139,40 +139,38 @@ public class DateTimeUtil {
         Assert.assertEquals(0, eResults.size());
 
         // Test vertex datetime property properties only for in-memory run, not a remote graph
-        if (!isRemote) {
-            g.V().hasLabel("person").property("name", "simon").property("age", "trente").iterate();
-            g.V().hasLabel("person").properties("name")
-                    .property("date", initD)
-                    .property("dateTime", initDT)
-                    .property("offsetDateTime", initODT)
-                    .iterate();
-            g.V().hasLabel("person").properties("age")
-                    .property("date", addedD)
-                    .property("dateTime", addedDT)
-                    .property("offsetDateTime", addedODT)
-                    .iterate();
-            GraphTraversal<Vertex, ? extends Property<Object>> initDVps =
-                    g.V().properties().has("date", initD);
-            Property<Object> name = initDVps.next();
-            Assert.assertEquals("name", name.key());
-            Assert.assertEquals("simon", name.value());
-            Assert.assertFalse(initDVps.hasNext());
-            GraphTraversal<Vertex, ? extends Property<Object>> addedDTVps =
-                    g.V().properties().has("dateTime", initDT);
-            name = addedDTVps.next();
-            Assert.assertEquals("name", name.key());
-            Assert.assertEquals("simon", name.value());
-            Assert.assertFalse(addedDTVps.hasNext());
-            GraphTraversal<Vertex, ? extends Property<Object>> vertexProperties =
-                    g.V().properties().has("date");
-            Property<Object> vertexProperty = vertexProperties.next();
-            Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("simon")) ||
-                    (vertexProperty.key().equals("age") && vertexProperty.value().equals("trente")));
-            vertexProperty = vertexProperties.next();
-            Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("simon")) ||
-                    (vertexProperty.key().equals("age") && vertexProperty.value().equals("trente")));
-            Assert.assertFalse(vertexProperties.hasNext());
-        }
+        g.V().hasLabel("person").property("name", "simon").property("age", "trente").iterate();
+        g.V().hasLabel("person").properties("name")
+                .property("date", initD)
+                .property("dateTime", initDT)
+                .property("offsetDateTime", initODT)
+                .iterate();
+        g.V().hasLabel("person").properties("age")
+                .property("date", addedD)
+                .property("dateTime", addedDT)
+                .property("offsetDateTime", addedODT)
+                .iterate();
+        GraphTraversal<Vertex, ? extends Property<Object>> initDVps =
+                g.V().properties().has("date", initD);
+        Property<Object> name = initDVps.next();
+        Assert.assertEquals("name", name.key());
+        Assert.assertEquals("simon", name.value());
+        Assert.assertFalse(initDVps.hasNext());
+        GraphTraversal<Vertex, ? extends Property<Object>> addedDTVps =
+                g.V().properties().has("dateTime", initDT);
+        name = addedDTVps.next();
+        Assert.assertEquals("name", name.key());
+        Assert.assertEquals("simon", name.value());
+        Assert.assertFalse(addedDTVps.hasNext());
+        GraphTraversal<Vertex, ? extends Property<Object>> vertexProperties =
+                g.V().properties().has("date");
+        Property<Object> vertexProperty = vertexProperties.next();
+        Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("simon")) ||
+                (vertexProperty.key().equals("age") && vertexProperty.value().equals("trente")));
+        vertexProperty = vertexProperties.next();
+        Assert.assertTrue((vertexProperty.key().equals("name") && vertexProperty.value().equals("simon")) ||
+                (vertexProperty.key().equals("age") && vertexProperty.value().equals("trente")));
+        Assert.assertFalse(vertexProperties.hasNext());
     }
 
     public static Date getDate(int year, int month, int day) {

@@ -6,7 +6,10 @@ import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.Result;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -20,10 +23,14 @@ import static org.junit.Assert.assertEquals;
 public class TestSpecialPropertiesRemotely {
 
     private static FireflyServer server;
+    private static Cluster cluster;
+    private static GraphTraversalSource g;
 
     @BeforeClass
     static public void setup() throws NoSuchFieldException, IllegalAccessException {
         server = FireflyServer.start(new String[]{"../conf/firefly-gremlin-server-local.yaml"});
+        cluster = Cluster.build().addContactPoint("localhost").port(8182).create();
+        g = traversal().withRemote(DriverRemoteConnection.using(cluster, "g"));
     }
 
     @AfterClass
@@ -31,25 +38,33 @@ public class TestSpecialPropertiesRemotely {
         server.stop().join();
     }
 
+    @Before
+    public void beforeEach() {
+        Vertex person = g.addV("person").next();
+        Vertex car = g.addV("vehicle").next();
+        g.addE("bought")
+                .property("year", "2022")
+                .property("month", "dec")
+                .from(person).to(car).iterate();
+        g.addE("owns")
+                .property("year", "2023")
+                .property("month", "jan")
+                .from(person).to(car).iterate();
+    }
+
+    @After
+    public void afterEach() throws Exception {
+        g.V().drop().iterate();
+    }
+
     @Test
     public void testDateTimePropertiesOnFireflyServer() {
-        final Cluster cluster = Cluster.build().addContactPoint("localhost").port(8182).create();
-        final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster, "g"));
-
-        g.V().drop().iterate();
-        assertEquals(0L, g.V().count().next().longValue());
-
-        testDateTimePropertiesCases(g, true);
+        testDateTimePropertiesCases(g);
     }
 
     @Test
     public void testDateTimePropertiesWithGremlinLang() throws ExecutionException, InterruptedException {
-        final Cluster cluster = Cluster.build().addContactPoint("localhost").port(8182).create();
-        final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster, "g"));
         final Client client = cluster.connect();
-
-        g.V().drop().iterate();
-        assertEquals(0L, g.V().count().next().longValue());
 
         List<Result> results = client.submit("g.addV().property('date', datetime('2022-10-02'))").all().get();
         assertEquals(1, results.size());

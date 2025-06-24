@@ -59,21 +59,14 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             configMap.put(ENABLE_FIREFLY_DROP_STRATEGY, "false");
         }
 
-        if ((test.equals(MergeVertexTest.class) || test.equals(MergeVertexTest.Traversals.class)) &&
-                testMethodName.equals("g_mergeVXlabel_person_name_markoX_optionXonMatch_age_19X_option") ||
-                testMethodName.equals("g_withSideEffectXc_label_person_name_markoX_withSideEffectXm_age_19X_mergeVXselectXcXX_optionXonMatch_selectXmXX_option")) {
-            configMap.put(ConfigurationHelper.Keys.VERTEX_PROPERTY_CARDINALITY, "single");
-        } else {
-            // Most tests require list, the other 2 require single.
-            configMap.put(ConfigurationHelper.Keys.VERTEX_PROPERTY_CARDINALITY, "list");
-        }
-
         // Disable FireflyBatchOtherVReadStrategy for this test due to bug in Tinkerpop that applies this in OLAP
         if (test.equals(IncidentToAdjacentStrategyProcessTest.class) && testMethodName.equals("shouldGenerateCorrectTraversers")) {
             configMap.put(ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY, "false");
             configMap.put(ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY, "false");
             configMap.put(ENABLE_COMPOSITE_ID_STRATEGY, "false");
         }
+
+        setConfigCardinalityForTest(test, testMethodName, configMap);
 
         return configMap;
     }
@@ -111,5 +104,17 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             add(FireflyVertex.class);
             add(FireflyVertexProperty.class);
         }};
+    }
+
+    static public void setConfigCardinalityForTest(final Class<?> test, final String testMethodName,
+                                                   final Map<String, Object> config) {
+        if ((test.equals(MergeVertexTest.class) || test.equals(MergeVertexTest.Traversals.class)) &&
+                testMethodName.equals("g_mergeVXlabel_person_name_markoX_optionXonMatch_age_19X_option") ||
+                testMethodName.equals("g_withSideEffectXc_label_person_name_markoX_withSideEffectXm_age_19X_mergeVXselectXcXX_optionXonMatch_selectXmXX_option")) {
+            config.put(ConfigurationHelper.Keys.VERTEX_PROPERTY_CARDINALITY, "single");
+        } else {
+            // Most tests require list, the other 2 require single.
+            config.put(ConfigurationHelper.Keys.VERTEX_PROPERTY_CARDINALITY, "list");
+        }
     }
 }

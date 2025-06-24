@@ -480,27 +480,27 @@ public class TestVertexPropertyCardinality {
 
     @Test
     public void testVPC_MultipleStartingValues_SingleValueCheckSingle() {
-        g.addV("testVPC_MultipleStartingValues_SingleValueCheck")
+        g.addV("testVPC_MultipleStartingValues_SingleValueCheckSingle")
                 .property(VertexProperty.Cardinality.single, "name", "Lyndon")
                 .next();
-        final long propertyCount = IteratorUtils.count(g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheck").properties());
+        final long propertyCount = IteratorUtils.count(g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheckSingle").properties());
         Assert.assertEquals(1L, propertyCount);
 
-        final List<? extends Property> properties = g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheck").properties("name").toList();
+        final List<? extends Property> properties = g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheckSingle").properties("name").toList();
         Assert.assertEquals(1, properties.size());
         Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Lyndon")));
     }
 
     @Test
     public void testVPC_MultipleStartingValues_DoubleValueSingleList() {
-        g.addV("testVPC_MultipleStartingValues_SingleValueCheck")
+        g.addV("testVPC_MultipleStartingValues_DoubleValueSingleList")
                 .property(VertexProperty.Cardinality.single, "name", "Simon")
                 .property(VertexProperty.Cardinality.list, "name", "Lyndon")
                 .next();
-        final long propertyCount = IteratorUtils.count(g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheck").properties());
+        final long propertyCount = IteratorUtils.count(g.V().hasLabel("testVPC_MultipleStartingValues_DoubleValueSingleList").properties());
         Assert.assertEquals(2L, propertyCount);
 
-        final List<? extends Property> properties = g.V().hasLabel("testVPC_MultipleStartingValues_SingleValueCheck").properties("name").toList();
+        final List<? extends Property> properties = g.V().hasLabel("testVPC_MultipleStartingValues_DoubleValueSingleList").properties("name").toList();
         Assert.assertEquals(2, properties.size());
         Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Lyndon")));
         Assert.assertTrue(properties.stream().anyMatch(p -> p.value().equals("Simon")));

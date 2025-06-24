@@ -1926,9 +1926,9 @@ public class AerospikeConnection implements AutoCloseable {
                 if (valueListValue instanceof Long) {
                     final Class<?> clazz = SUPPORTED_TYPE_VALUES.get(entry.getValue());
                     valueList.set(entry.getKey().intValue(), (clazz == null) ? valueListValue : typeCast(clazz, valueListValue));
-                } else if (!(AEROSPIKE_TRANSFORMABLE_TYPES.contains(valueListValue))) {
+                } else if (!(AEROSPIKE_TRANSFORMABLE_TYPES.contains(valueListValue.getClass()))) {
                     // This should never happen.
-                    throw new IllegalStateException("A type hint for a list contains items that aren't int or long.");
+                    throw new IllegalStateException("A type hint for a list contains items that aren't transformable.");
                 }
             }
             return valueList;
@@ -2056,12 +2056,21 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Casted value
      */
     public Object typeCast(final Class<?> clazz, final Object val) {
-        if (clazz.equals(Integer.class))
+        if (clazz.equals(Integer.class)) {
             return Integer.class.isAssignableFrom(val.getClass()) ? (Integer) val : Math.toIntExact((Long) val);
-        if (clazz.equals(Date.class))
+        }
+        if (clazz.equals(Date.class)) {
+            if (val instanceof Date) {
+                return val;
+            }
             return new Date((Long) val);
-        if (clazz.equals(OffsetDateTime.class))
+        }
+        if (clazz.equals(OffsetDateTime.class)) {
+            if (val instanceof OffsetDateTime) {
+                return val;
+            }
             return Instant.ofEpochMilli((Long) val).atOffset(ZoneOffset.UTC);
+        }
         return clazz.cast(val);
     }
 

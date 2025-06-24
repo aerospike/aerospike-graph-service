@@ -69,7 +69,6 @@ class FireflyVertexFeatures extends FireflyElementFeatures implements Graph.Feat
      */
     @Override
     public boolean supportsDuplicateMultiProperties() {
-        // TODO: I think yes.
         return supportsMultiProperties();
     }
 

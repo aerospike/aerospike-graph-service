@@ -21,19 +21,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
 
 public class VertexQueryHelper {
-
-    protected static final Map<PBiPredicate, BiFunction<Exp, Exp, Exp>> COMPARE_TO_EXP = Map.of(
-            Compare.eq, Exp::eq,
-            Compare.neq, Exp::ne,
-            Compare.lt, Exp::lt,
-            Compare.lte, Exp::le,
-            Compare.gt, Exp::gt,
-            Compare.gte, Exp::ge//,
-            //Contains.within, (exp1, exp2) -> Exp.or(Exp.in(exp1, exp2), Exp.in(exp2, exp1))
-    );
 
     protected static Long castLong(Object value) {
         if (value instanceof Number) {
@@ -52,19 +41,6 @@ public class VertexQueryHelper {
             Compare.gt, (name, value, ctx) -> Filter.range(name, IndexCollectionType.MAPKEYS, castLong(value) - 1, Long.MAX_VALUE, ctx),
             Compare.gte, (name, value, ctx) -> Filter.range(name, IndexCollectionType.MAPKEYS, castLong(value), Long.MAX_VALUE, ctx)
     );
-
-    protected static Exp.Type getExpType(final Object value) {
-        if (value == null) {
-            return Exp.Type.NIL;
-        }
-        if (Number.class.isAssignableFrom(value.getClass())) {
-            return Exp.Type.INT;
-        }
-        if (String.class.isAssignableFrom(value.getClass())) {
-            return Exp.Type.STRING;
-        }
-        throw new RuntimeException(String.format("%s not a supported type for value in predicate", value.getClass()));
-    }
 
     protected static Exp getValue(final Object value) {
         if (value == null) {
@@ -129,7 +105,6 @@ public class VertexQueryHelper {
             return Exp.eq(Exp.intBin(db.LABEL_BIN), Exp.val(db.schemaManager.getVertexLabelRead((String) predicate.getValue())));
         }
 
-        // TODO: Clean this up.
         if (predicate.getBiPredicate().equals(Compare.eq)) {
             return MapExp.getByKey(MapReturnType.EXISTS,
                     Exp.Type.BOOL,
@@ -169,8 +144,8 @@ public class VertexQueryHelper {
                     Exp.mapBin(binName),
                     CTX.mapKey(Value.get(db.schemaManager.getVertexPropertyRead(mapKey))));
         } else {
-            // TODO: Proper exception.
-            throw new IllegalArgumentException("Unsupported predicate: " + predicate.getBiPredicate());
+            // This should never happen.
+            throw new IllegalArgumentException("Unsupported predicate provided for Vertex query. Please contact support. Predicate: " + predicate.getBiPredicate());
         }
     }
 

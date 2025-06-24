@@ -4,7 +4,6 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
-
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -31,7 +30,6 @@ public abstract class FireflyElement implements Element {
     }
 
     protected static IllegalStateException elementAlreadyRemoved(final Class<? extends Element> clazz, final Object id) {
-        // TODO: Proper exception ?
         return new IllegalStateException(String.format("%s with id %s was removed.", clazz.getSimpleName(), id));
     }
 

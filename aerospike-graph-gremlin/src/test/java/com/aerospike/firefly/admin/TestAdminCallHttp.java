@@ -274,6 +274,7 @@ public class TestAdminCallHttp {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
             g.addV("person").property("nameA", "Alice").property("nameB", "Bob").next();
             final List<String> initialSindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             for (final String s : initialSindexes) {
@@ -326,6 +327,7 @@ public class TestAdminCallHttp {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
             g.addV("person").property("nameA", 1).property("nameB", 2).next();
             final List<String> initialSindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             for (final String s : initialSindexes) {

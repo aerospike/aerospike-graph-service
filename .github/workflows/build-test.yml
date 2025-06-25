@@ -36,10 +36,6 @@ jobs:
           maven-version: 3.9.5
       - name: Build Maven Project
         run: |
-          # Run simple check to see if code is formatted properly before building.
-          # If code is incorrectly formatted, it can be fixed automatically with:
-          # mvn editorconfig:format
-          mvn editorconfig:check
           mvn clean package -DskipTests --no-transfer-progress
   start-chainable-maven-runner:
     name: Start Chainable Maven Runner
@@ -696,7 +692,7 @@ jobs:
         env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
-          bash -x scripts/start_aerospike.sh
+          bash -x scripts/start_aerospike.sh --node_count 1
           mvn install -DskipTests
       - name: Test Summary Updater TTL Exclusion
         run: |
@@ -722,6 +718,11 @@ jobs:
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=QueryServiceAbortTest -DfailIfNoTests=false --no-transfer-progress
+      - name: Test Call Steps Maven
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAdminCallHttp -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflySindexCallSteps -DfailIfNoTests=false --no-transfer-progress
   test-firefly:
     name: Test Firefly
     timeout-minutes: 120
@@ -1642,7 +1643,6 @@ jobs:
           GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
-          
           docker run -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             firefly &

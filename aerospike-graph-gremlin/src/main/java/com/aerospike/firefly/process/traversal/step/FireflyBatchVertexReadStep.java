@@ -46,6 +46,7 @@ import static com.aerospike.firefly.util.exceptions.GraphError.sneakyThrow;
 public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> implements LocalBarrier<Vertex> {
     private final Direction direction;
     private final Set<String> edgeLabels;
+    private final boolean requiresEdges;
 
     // HasContainers to apply to the read of the composite id step to filter results.
     public final List<HasContainer> fireflyHasContainers;
@@ -60,10 +61,12 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                                       final Set<String> labels,
                                       final List<HasContainer> hasContainers,
                                       final int barrierSize,
-                                      final List<String> requiredProperties) {
+                                      final List<String> requiredProperties,
+                                      final boolean requiresEdges) {
         super(traversal, barrierSize);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
+        this.requiresEdges = requiresEdges;
         this.labels = new HashSet<>(labels);
         this.barrierSize = barrierSize;
         if (hasContainers != null) {
@@ -134,7 +137,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
             if (uniqueIds.size() > graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
                 batchReadFutures.add(executorService.submit(() -> {
-                            final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties);
+                            final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, requiresEdges);
                             for (final FireflyVertex vertex : vertices) {
                                 fireflyVertexMap.put(vertex.id, vertex);
                             }
@@ -146,7 +149,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
         if (!uniqueIds.isEmpty()) {
             final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
             batchReadFutures.add(executorService.submit(() -> {
-                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties);
+                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, requiresEdges);
                         for (final FireflyVertex vertex : vertices) {
                             fireflyVertexMap.put(vertex.id, vertex);
                         }
@@ -172,7 +175,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                         if (uniqueIds.size() > graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                             final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
                             batchReadFutures.add(executorService.submit(() -> {
-                                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties);
+                                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, requiresEdges);
                                         for (final FireflyVertex vertex : vertices) {
                                             fireflyVertexMap.putIfAbsent(vertex.id, vertex);
                                         }
@@ -192,7 +195,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
         if (!uniqueIds.isEmpty()) {
             final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
             batchReadFutures.add(executorService.submit(() -> {
-                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties);
+                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, requiresEdges);
                         for (final FireflyVertex vertex : vertices) {
                             fireflyVertexMap.put(vertex.id, vertex);
                         }
@@ -284,13 +287,13 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 // Drain data to output.
                 FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
-                        fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties);
+                        fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties, requiresEdges);
             }
         }
 
         // Drain data to output.
         FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
-                fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties);
+                fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties, requiresEdges);
 
         if (output.isEmpty()) {
             set.add(EmptyTraverser.instance());

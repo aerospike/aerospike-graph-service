@@ -64,6 +64,7 @@ import com.aerospike.firefly.util.WarmupUtil;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.config.FireflyConfiguration;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.AerospikeMrtNotSupportedException;
 import com.aerospike.firefly.util.exceptions.GraphError;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -81,6 +82,7 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.nio.ByteBuffer;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -92,6 +94,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -177,9 +180,9 @@ public class AerospikeConnection implements AutoCloseable {
     public final String IN_VP_SET;
     public final String OUT_VP_SET;
     public final String SUMMARY_SET;
-    public final String VERTEX_PROPERTY_NAME_TO_ID_BIN;
-    public final String VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
-    public final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN;
+    public final String VERTEX_PROPERTY_DATA_BIN;
+    public final String VERTEX_PROPERTY_TH_BIN;
+    public final String VP_PROPERTY_BIN;
     public final String USAGE_STATS_SET;
     public final String USAGE_STATS_BIN;
     public final long ON_RECORD_ID_LIMIT;
@@ -223,6 +226,7 @@ public class AerospikeConnection implements AutoCloseable {
     public long lastQueryMissCount = 0; // For testing
     public long lastQueryHitCount = 0; // For testing
 
+    private final boolean COMPRESS;
     private final int AEROSPIKE_MAX_RETRIES;
     private final int WRITE_SLEEP_BETWEEN_RETRY;
     private final int READ_SLEEP_BETWEEN_RETRY;
@@ -292,7 +296,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean IS_AUDIT_LOG_ENABLED;
     public final boolean AUTHENTICATION_ENABLED;
     public final boolean USAGE_STATS_SET_INDEX_ENABLED;
-    public final List<String> vertexNonPropertyBins = new ArrayList<>();
+    public final List<String> vertexMiscBins = new ArrayList<>();
+    public final List<String> vertexEdgeBins = new ArrayList<>();
     public final List<String> vertexPropertyBins = new ArrayList<>();
 
     public final String QUERY_IMPL;
@@ -349,8 +354,10 @@ public class AerospikeConnection implements AutoCloseable {
         final Host[] hosts = Host.parseHosts(hostsString, defaultPort);
 
         final AerospikeClient aerospikeClient;
+
         try {
             aerospikeClient = new AerospikeClient(policy, hosts);
+
         } catch (final AerospikeException e) {
             LOG.error("Error connecting to Aerospike", e);
             throw fromAerospikeException(e);
@@ -469,6 +476,7 @@ public class AerospikeConnection implements AutoCloseable {
         BL_BAD_EDGES_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_BAD_EDGES_COUNT_KEY.name(), conf);
         BL_BAD_ENTRY_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_BAD_ENTRY_COUNT_KEY.name(), conf);
 
+        COMPRESS = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AEROSPIKE_COMPRESS, conf);
         AEROSPIKE_MAX_RETRIES = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_MAX_RETRIES, conf);
         WRITE_SLEEP_BETWEEN_RETRY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.WRITE_SLEEP_BETWEEN_RETRY, conf);
         READ_SLEEP_BETWEEN_RETRY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_SLEEP_BETWEEN_RETRY, conf);
@@ -527,9 +535,9 @@ public class AerospikeConnection implements AutoCloseable {
         E_LABEL_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.E_LABEL_INDEX_NAME.name(), conf));
         TTL_VERTEX_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.TTL_VERTEX_INDEX_NAME.name(), conf));
         TTL_EDGE_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.TTL_EDGE_INDEX_NAME.name(), conf));
-        VERTEX_PROPERTY_NAME_TO_ID_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_ID_BIN.name(), conf);
-        VERTEX_PROPERTY_NAME_TO_VALUE_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_BIN.name(), conf);
-        VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN.name(), conf);
+        VERTEX_PROPERTY_DATA_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_DATA_BIN.name(), conf);
+        VERTEX_PROPERTY_TH_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_TH_BIN.name(), conf);
+        VP_PROPERTY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VP_PROPERTY_BIN.name(), conf);
         PROPERTIES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.PROPERTIES_BIN.name(), conf);
         TYPE_HINTS_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.TYPE_HINTS_BIN.name(), conf);
         COUNTER_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.COUNTER_BIN.name(), conf);
@@ -589,17 +597,16 @@ public class AerospikeConnection implements AutoCloseable {
             validateMrtSupport();
         }
 
-        vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_BIN); // 2
-        vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN); // 3
-        vertexNonPropertyBins.add(EDGE_CACHE_DISABLED_BIN); // 6
-        vertexNonPropertyBins.add(IN_EDGES_BIN); // 7
-        vertexNonPropertyBins.add(OUT_EDGES_BIN); // 8
-        vertexNonPropertyBins.add(PROPERTIES_BIN); // 9 --> These are not included in vertex property bins since they are not property key mapped.
-        vertexNonPropertyBins.add(TYPE_HINTS_BIN); // 10 --> These are not included in vertex property bins since they are not property key mapped.
-        vertexNonPropertyBins.add(ID_TYPE_BIN); // 12
-        vertexNonPropertyBins.add(USER_KEY_BIN); // 13
-        vertexNonPropertyBins.add(LABEL_BIN); // 14
-        vertexPropertyBins.add(VERTEX_PROPERTY_NAME_TO_ID_BIN);// 17
+        vertexMiscBins.add(EDGE_CACHE_DISABLED_BIN); // 6
+        vertexEdgeBins.add(IN_EDGES_BIN); // 7
+        vertexEdgeBins.add(OUT_EDGES_BIN); // 8
+        vertexMiscBins.add(ID_TYPE_BIN); // 12
+        vertexMiscBins.add(USER_KEY_BIN); // 13
+        vertexMiscBins.add(LABEL_BIN); // 14
+
+        vertexPropertyBins.add(VERTEX_PROPERTY_DATA_BIN);
+        vertexPropertyBins.add(VERTEX_PROPERTY_TH_BIN);
+        vertexPropertyBins.add(VP_PROPERTY_BIN);
 
         // Set Edge cache size
         final long onRecordIdMaxLimit = getRecordIdLimitFromAerospike(.9);
@@ -1156,7 +1163,7 @@ public class AerospikeConnection implements AutoCloseable {
                     for (final Map<String, String> abortResponse : queryAbortResponses) {
                         if (abortResponse.containsKey(QUERY_ABORT_RESULT)) {
                             final String abortResult = abortResponse.get(QUERY_ABORT_RESULT);
-                            if (QUERY_ABORT_SUCCESS.equals(abortResult) || QUERY_ABORT_TRID_INACTIVE.equals(abortResult)) {
+                            if (QUERY_ABORT_SUCCESS.equalsIgnoreCase(abortResult) || QUERY_ABORT_TRID_INACTIVE.equalsIgnoreCase(abortResult)) {
                                 success = true;
                             } else {
                                 if (!abortResult.equals(lastAbortResult)) {
@@ -1346,6 +1353,18 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Type hint value or null
      */
     public static Object getTypeHintOf(final Object value) {
+        return getTypeHintOf(value, false);
+    }
+
+    /**
+     * If the value parameter is scalar, return the numeric id of the on disk type if value is an Integer - else null.
+     * If the value parameter is an ArrayList, return an ArrayList containing the indices at which the values within the
+     * parameter ArrayList is an Integer. Returns null if the ArrayList contained no Integer values.
+     *
+     * @param value Object to get type hint ID of
+     * @return Type hint value or null
+     */
+    public static Object getTypeHintOf(final Object value, final boolean isVertexProperty) {
         final Class<?> clazz = value.getClass();
         if (!SUPPORTED_VALUE_TYPES.containsKey(clazz)) {
             throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(value);
@@ -1374,6 +1393,10 @@ public class AerospikeConnection implements AutoCloseable {
             return indicesAndTypeHints.isEmpty() ? null : indicesAndTypeHints;
         } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(Integer.class))) {
             return SUPPORTED_VALUE_TYPES.get(Integer.class);
+        } else if (isVertexProperty && Objects.equals(SUPPORTED_VALUE_TYPES.get(clazz), SUPPORTED_VALUE_TYPES.get(Boolean.class))) {
+            return SUPPORTED_VALUE_TYPES.get(Boolean.class);
+        } else if (isVertexProperty && Objects.equals(SUPPORTED_VALUE_TYPES.get(clazz), SUPPORTED_VALUE_TYPES.get(Double.class))) {
+            return SUPPORTED_VALUE_TYPES.get(Double.class);
         } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(Date.class))) {
             return SUPPORTED_VALUE_TYPES.get(Date.class);
         } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(OffsetDateTime.class))) {
@@ -1934,7 +1957,21 @@ public class AerospikeConnection implements AutoCloseable {
             return valueList;
         }
         final Class<?> clazz = SUPPORTED_TYPE_VALUES.get(typeHint);
-        return (clazz == null) ? value : typeCast(clazz, value);
+        if (clazz == null) {
+            return value;
+        } else if (clazz.equals(Boolean.class) && value instanceof byte[]) {
+            final byte[] blobBool = (byte[]) value;
+            if (blobBool.length != 1) {
+                // This should never happen.
+                throw new IllegalStateException("Value blob of boolean was not of length 1. Please contact support.");
+            } else {
+                return blobBool[0] == (byte) 1;
+            }
+        } else if (clazz.equals(Double.class) && value instanceof byte[]) {
+            return ByteBuffer.wrap((byte[]) value).getDouble();
+        } else {
+            return typeCast(clazz, value);
+        }
     }
 
     /**
@@ -2472,6 +2509,7 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public void configureWritePolicy(final Policy policy) {
+        policy.compress = COMPRESS;
         policy.maxRetries = AEROSPIKE_MAX_RETRIES;
         policy.sleepBetweenRetries = WRITE_SLEEP_BETWEEN_RETRY;
         policy.totalTimeout = WRITE_TOTAL_TIMEOUT;
@@ -2485,6 +2523,7 @@ public class AerospikeConnection implements AutoCloseable {
         policy.maxRetries = AEROSPIKE_MAX_RETRIES;
         policy.connectTimeout = CONNECT_TIMEOUT;
         policy.timeoutDelay = TIMEOUT_DELAY;
+        policy.compress = COMPRESS;
         policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
         if (bulkLoading) {
             policy.totalTimeout = READ_TOTAL_TIMEOUT_BULK_LOAD;
@@ -2505,6 +2544,7 @@ public class AerospikeConnection implements AutoCloseable {
         policy.socketTimeout = SCAN_SOCKET_TIMEOUT;
         policy.connectTimeout = SCAN_CONNECT_TIMEOUT;
         policy.timeoutDelay = SCAN_TIMEOUT_DELAY;
+        policy.compress = COMPRESS;
     }
 
     public void configureIndexPolicy(final Policy policy) {
@@ -2514,6 +2554,7 @@ public class AerospikeConnection implements AutoCloseable {
         policy.socketTimeout = INDEX_SOCKET_TIMEOUT;
         policy.connectTimeout = INDEX_CONNECT_TIMEOUT;
         policy.timeoutDelay = INDEX_TIMEOUT_DELAY;
+        policy.compress = COMPRESS;
     }
 
     /**
@@ -2609,7 +2650,7 @@ public class AerospikeConnection implements AutoCloseable {
 
             rollback(txn);
         } catch (final AerospikeGraphException e) {
-            throw new RuntimeException("Transactions are not supported by Aerospike. Aerospike database must be version 8 or newer with strong consistency mode enabled.");
+            throw new AerospikeMrtNotSupportedException();
         }
     }
 

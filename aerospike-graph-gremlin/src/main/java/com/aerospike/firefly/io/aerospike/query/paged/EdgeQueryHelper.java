@@ -6,12 +6,7 @@ import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.exp.MapExp;
-import com.aerospike.client.query.Filter;
-import com.aerospike.client.query.IndexCollectionType;
-import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.structure.FireflyElement;
-import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.commons.lang3.ArrayUtils;
@@ -32,164 +27,7 @@ import java.util.Set;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_ADJACENT_ID_KEY;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_LABEL_KEY;
 
-public class GraphQueryHelper {
-
-    /**
-     * Create an Aerospike index Filter using the predicate and index info.
-     *
-     * @param predicate Predicate to use.
-     * @param indexInfo Index info to use.
-     * @return
-     */
-    public static Filter predicateToFilter(final AerospikeConnection db, final P<?> predicate, final FireflyIndexMetadata.IndexInfo indexInfo) {
-        final String name;
-        if (db.LABEL_BIN.equals(indexInfo.key)) {
-            name = db.LABEL_BIN;
-        } else if (indexInfo.setName.equals(db.VERTEX_AERO_SET)) {
-            name = db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
-        } else if (indexInfo.setName.equals(db.EDGE_AERO_SET)) {
-            throw new IllegalArgumentException("Cannot create filter for index for Edges.");
-        } else {
-            throw new IllegalArgumentException(
-                    "Cannot create filter for index with unknown set name: " + indexInfo.setName + " and key " + indexInfo.key);
-        }
-
-        final IndexCollectionType type = db.LABEL_BIN.equals(indexInfo.key) ?
-                IndexCollectionType.DEFAULT : IndexCollectionType.MAPVALUES;
-        final Object value = predicate.getValue();
-        if (db.LABEL_BIN.equals(indexInfo.key)) {
-            return Filter.contains(name, type, db.schemaManager.getVertexLabelRead(((String) value)));
-        }
-        final Long schemaKey = db.schemaManager.getVertexPropertyRead(indexInfo.key);
-        if (Number.class.isAssignableFrom(value.getClass())) {
-            final Long casted;
-            if (Integer.class.isAssignableFrom(value.getClass())) {
-                casted = Long.valueOf((Integer) value);
-            } else if (Long.class.isAssignableFrom(value.getClass())) {
-                casted = (Long) value;
-            } else {
-                throw new RuntimeException(String.format("%s not a supported numeric type", predicate.getValue().getClass()));
-            }
-
-            if (predicate.getBiPredicate().equals(Compare.eq)) {
-                return Filter.equal(name, casted, CTX.mapKey(Value.get(schemaKey)));
-            } else if (predicate.getBiPredicate().equals(Compare.lt)) {
-                return Filter.range(name, Long.MIN_VALUE, casted - 1, CTX.mapKey(Value.get(schemaKey)));
-            } else if (predicate.getBiPredicate().equals(Compare.lte)) {
-                return Filter.range(name, Long.MIN_VALUE, casted, CTX.mapKey(Value.get(schemaKey)));
-            } else if (predicate.getBiPredicate().equals(Compare.gt)) {
-                return Filter.range(name, casted - 1, Long.MAX_VALUE, CTX.mapKey(Value.get(schemaKey)));
-            } else if (predicate.getBiPredicate().equals(Compare.gte)) {
-                return Filter.range(name, casted, Long.MAX_VALUE, CTX.mapKey(Value.get(schemaKey)));
-            } else {
-                throw new RuntimeException(String.format("%s not a supported predicate", predicate));
-            }
-        } else {
-            return Filter.equal(name, (String) value, CTX.mapKey(Value.get(schemaKey)));
-        }
-    }
-
-    /**
-     * Create an Aerospike Expression from the predicate, map key, and bin name.
-     *
-     * @param binName   Bin name to use.
-     * @param mapKey    Map key to use.
-     * @param predicate Predicate to use.
-     * @return Expression.
-     */
-    public static Exp predicateToExpression(final AerospikeConnection db,
-                                            final String binName,
-                                            final String mapKey,
-                                            final P<?> predicate) {
-        // If the bin is the label bin, we can make a very simple predicate.
-        if (db.LABEL_BIN.equals(binName)) {
-            return Exp.eq(Exp.intBin(db.LABEL_BIN), Exp.val(db.schemaManager.getVertexLabelRead((String) predicate.getValue())));
-        }
-
-        // Need to build a more complex expression for nested map values.
-        final Object value = predicate.getValue();
-        final Long schemaMapKey = db.schemaManager.getVertexPropertyRead(mapKey);
-        if (Number.class.isAssignableFrom(value.getClass())) {
-            final Long casted;
-            if (Integer.class.isAssignableFrom(value.getClass())) {
-                casted = Long.valueOf((Integer) value);
-            } else if (Long.class.isAssignableFrom(value.getClass())) {
-                casted = (Long) value;
-            } else {
-                throw new RuntimeException(String.format("%s not a supported numeric type", predicate.getValue().getClass()));
-            }
-
-            if (predicate.getBiPredicate().equals(Compare.eq)) {
-                return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else if (predicate.getBiPredicate().equals(Compare.lt)) {
-                return Exp.lt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else if (predicate.getBiPredicate().equals(Compare.lte)) {
-                return Exp.le(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else if (predicate.getBiPredicate().equals(Compare.gt)) {
-                return Exp.gt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else if (predicate.getBiPredicate().equals(Compare.gte)) {
-                return Exp.ge(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else {
-                throw new RuntimeException(String.format("%s not a supported predicate", predicate));
-            }
-        } else {
-            if (value instanceof String) // TODO: support List of values
-                return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.STRING, Exp.val(schemaMapKey), Exp.mapBin(binName)), Exp.val((String) value));
-            else {
-                return Exp.nil();
-            }
-        }
-    }
-
-    public static Expression hasContainerListToExpression(final AerospikeConnection db, final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
-        // If the key is ~label, then bin name is label, else it depends on whether this is vertex or edge.
-        if (!FireflyVertex.class.isAssignableFrom(clazz)) {
-            throw new IllegalArgumentException("Cannot push predicates down to: " + clazz);
-        }
-        if (hasContainers.isEmpty() && !db.TTL_ENABLED_FLAG) {
-            return null;
-        }
-        final List<Exp> exps = new ArrayList<>();
-        if (db.TTL_ENABLED_FLAG) {
-            final Exp ttlExp = getVertexTtlExp(db);
-            exps.add(ttlExp);
-        }
-        for (final HasContainer h : hasContainers) {
-            final Exp expFromPredicate = predicateToExpression(db,
-                    h.getKey().equals("~label") ? db.LABEL_BIN : db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
-                    h.getKey(), h.getPredicate());
-            exps.add(expFromPredicate);
-        }
-        return exps.size() == 1 ? Exp.build(exps.get(0)) : Exp.build(Exp.and(exps.toArray(new Exp[0])));
-    }
-
-    public static Exp[] hasContainerListToExpArray(final AerospikeConnection db, final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
-        // If the key is ~label, then bin name is label, else it depends on whether this is vertex or edge.
-        if (!FireflyVertex.class.isAssignableFrom(clazz)) {
-            throw new IllegalArgumentException("Cannot push predicates down to: " + clazz);
-        }
-        final List<Exp> exps = new ArrayList<>();
-        if (db.TTL_ENABLED_FLAG) {
-            final Exp ttlExp = getVertexTtlExp(db);
-            exps.add(ttlExp);
-        }
-        for (final HasContainer h : hasContainers) {
-            final Exp expFromPredicate = predicateToExpression(db,
-                    h.getKey().equals("~label") ? db.LABEL_BIN : db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
-                    h.getKey(), h.getPredicate());
-            exps.add(expFromPredicate);
-        }
-        return exps.toArray(new Exp[0]);
-    }
-
-    private static Exp getVertexTtlExp(final AerospikeConnection db) {
-        return Exp.or(
-                    Exp.gt(Exp.intBin(db.TTL_BIN), Exp.val(System.currentTimeMillis())),
-                    Exp.not(
-                            Exp.binExists(db.TTL_BIN)
-                    )
-            );
-    }
+public class EdgeQueryHelper {
 
     public static Expression phatEdgeHasContainerListToExpression(final AerospikeConnection db,
                                                                   final List<HasContainer> hasContainers,
@@ -262,8 +100,8 @@ public class GraphQueryHelper {
                 Exp.val((String) adjacentVertexId.getUserId()) :
                 Exp.val(((Number) adjacentVertexId.getUserId()).longValue());
         return MapExp.getByValue(MapReturnType.EXISTS, vertexUserIdExp,
-                 Exp.mapBin(binName), CTX.mapKey(Value.get(vertexId.getKeyHashString())),
-                 CTX.mapKey(Value.get(schemaAdjacentIdKey)));
+                Exp.mapBin(binName), CTX.mapKey(Value.get(vertexId.getKeyHashString())),
+                CTX.mapKey(Value.get(schemaAdjacentIdKey)));
     }
 
     private static Exp getPhatEdgePropertyExp(final AerospikeConnection db,
@@ -297,7 +135,7 @@ public class GraphQueryHelper {
         final Object value = predicate.getValue();
         if (predicate.getBiPredicate().equals(Contains.within)) {
             final Exp[] containsExps = ((Collection<?>) value).stream().map(collectionValue ->
-                    phatEdgePredicateToExp(db, direction, vertexId, propertyKey, new P<>(Compare.eq, collectionValue)))
+                            phatEdgePredicateToExp(db, direction, vertexId, propertyKey, new P<>(Compare.eq, collectionValue)))
                     .toArray(Exp[]::new);
             return containsExps.length == 1 ? containsExps[0] : Exp.or(containsExps);
         } else if (Number.class.isAssignableFrom(value.getClass())) {

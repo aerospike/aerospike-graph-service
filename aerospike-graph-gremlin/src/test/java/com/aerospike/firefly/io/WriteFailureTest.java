@@ -4,7 +4,6 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
-import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -18,7 +17,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.TreeMap;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -103,29 +101,6 @@ public class WriteFailureTest {
     }
 
     @Test
-    public void writeVertexPropertyFailure() {
-        // Test that if we partially write a vertex property, it does not show up half way.
-        try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            Assume.assumeTrue(fireflyGraph.getDataModel().equals(FireflyGraph.getDataModelName()));
-            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
-            GraphTraversalSource g = fireflyGraph.traversal();
-
-            FireflyVertex a = (FireflyVertex) g.addV().next();
-            FireflyId id = fireflyGraph.getIdFactory().createVertexPropertyId(1);
-
-            final FireflyVertexProperty fireflyVertexProperty = new FireflyVertexProperty(fireflyGraph, id, (FireflyVertex) a, "key", "value", new TreeMap<>(), new TreeMap<>());
-            List<Object> properties = g.V().values("key").toList();
-            Assert.assertTrue(properties.isEmpty());
-
-            fireflyGraph.getAerospikeOperations().writeVpProperty(a, fireflyVertexProperty);
-
-            properties = g.V().values("key").toList();
-            Assert.assertFalse(properties.isEmpty());
-            Assert.assertEquals("value", properties.get(0));
-        }
-    }
-
-    @Test
     public void removeVertexPropertyFailure() {
         // Test that if we partially remove a vertex property, it does not show up half way.
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
@@ -141,7 +116,7 @@ public class WriteFailureTest {
             Assert.assertEquals("value", properties.get(0));
 
             final FireflyVertexProperty vp = (FireflyVertexProperty) a.property("key");
-            fireflyGraph.getAerospikeOperations().removeVertexProperty(a, "key", vp.id);
+            fireflyGraph.getAerospikeOperations().removeVertexProperty(a, "key", "value", vp.id);
 
             properties = g.V().values("key").toList();
             Assert.assertTrue(properties.isEmpty());

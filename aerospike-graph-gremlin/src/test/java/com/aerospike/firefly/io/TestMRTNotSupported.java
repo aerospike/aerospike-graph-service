@@ -3,6 +3,7 @@ package com.aerospike.firefly.io;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.OutputCapturer;
+import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
 import org.junit.Test;
@@ -10,6 +11,7 @@ import org.junit.Test;
 import java.io.IOException;
 
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.MRT_ENABLED_FLAG;
+import static com.aerospike.firefly.util.exceptions.GraphError.getMessage;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -42,7 +44,7 @@ public class TestMRTNotSupported extends AbstractFireflySuite {
             final String[] logList = outputCapturer.getLines();
             boolean errorMessageFound = false;
             for (String line : logList) {
-                if (line.contains("Minimum version 8 required for MRT. Please verify that all nodes in the cluster are running a compatible version of Aerospike.")) {
+                if (line.contains(getMessage(GraphError.MRT_NOT_SUPPORTED))) {
                     errorMessageFound = true;
                     break;
                 }
@@ -50,5 +52,4 @@ public class TestMRTNotSupported extends AbstractFireflySuite {
             assertTrue(errorMessageFound);
         }
     }
-
 }

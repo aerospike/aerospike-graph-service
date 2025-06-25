@@ -1,9 +1,7 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.ResultCode;
-import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -13,11 +11,11 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -26,40 +24,25 @@ import java.util.TreeMap;
 public class FireflyVertexProperty<V> extends FireflyElement implements VertexProperty<V> {
 
     private static final Logger LOG = LoggerFactory.getLogger(FireflyVertexProperty.class);
-    protected final boolean allowNullPropertyValues = false;
     public final FireflyId vertexId;
     protected final String key;
     protected final V value;
     protected final FireflyGraph graph;
     protected FireflyVertex vertex;
-    public Map<String, Object> properties;
-    public Map<String, Object> typeHints;
+    public Map<Long, List<Object>> properties;
 
     public FireflyVertexProperty(final FireflyGraph graph,
                                  final FireflyId id,
                                  final FireflyVertex vertex,
                                  final String key,
                                  final V value,
-                                 final Map<String, Object> properties,
-                                 final Map<String, Object> typeHints) {
+                                 final Map<Long, List<Object>> properties) {
         super(id, key);
-        if (!allowNullPropertyValues && null == value)
-            throw new IllegalArgumentException("value cannot be null as feature supportsNullPropertyValues is false");
         this.graph = graph;
         this.vertexId = vertex.id;
         this.key = key;
         this.value = value;
-        this.properties = properties == null ? new TreeMap<>() : properties;
-        this.typeHints = typeHints == null ? new TreeMap<>() : typeHints;
-        this.vertex = vertex;
-    }
-
-    public FireflyVertexProperty(final FireflyGraph graph, final FireflyId fid, final FireflyId vertexId, final String key, final V value, final FireflyVertex vertex) {
-        super(fid, key);
-        this.graph = graph;
-        this.vertexId = vertexId;
-        this.key = key;
-        this.value = value;
+        this.properties = properties;
         this.vertex = vertex;
     }
 
@@ -69,8 +52,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
      * @param key Key to remove.
      */
     public void removePropertyFromCache(final String key) {
-        properties.remove(key);
-        typeHints.remove(key);
+        properties.remove(graph.getBaseGraph().schemaManager.getVpPropertyRead(key));
     }
 
     /**
@@ -78,21 +60,13 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
      */
     @Override
     public void remove() {
-        try {
-            LOG.debug("Removing vertex property {}", id);
-            if (vertex == null) {
-                vertex = graph.readVertex(vertexId);
-            }
-            if (vertex != null) {
-                graph.aerospikeOperations.removeVertexProperty(vertex, label, id);
-            }
-        } catch (final AerospikeGraphException ae) {
-            // Removing a property that is already removed SHOULD NOT yield an error.
-            if (ae.errorCode == ResultCode.KEY_NOT_FOUND_ERROR) {
-                LOG.debug("Ignored exception removing an already-removed vertex property {}.", this, ae);
-            } else {
-                throw ae;
-            }
+        LOG.debug("Removing vertex property {}", id);
+        if (vertex == null) {
+            vertex = graph.readVertex(vertexId);
+        }
+        if (vertex != null) {
+            graph.aerospikeOperations.removeVertexProperty(vertex, key, value, id);
+            this.removed = true;
         }
     }
 
@@ -125,7 +99,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
             throw elementAlreadyRemoved(VertexProperty.class, id);
         }
 
-        if ((!allowNullPropertyValues && null == value)) {
+        if (null == value) {
             properties(key).forEachRemaining(Property::remove);
             return Property.empty();
         }
@@ -136,29 +110,34 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
 
     @Override
     public <V> Iterator<Property<V>> properties(final String... propertyKeys) {
-        if (propertyKeys.length == 1) {
-            if (!properties.containsKey(propertyKeys[0]) ||
-                    (properties.get(propertyKeys[0]) == null &&
-                            !graph.features().vertex().supportsNullPropertyValues())) {
-                return Collections.emptyIterator();
-            }
-            final Property<V> property = new FireflyVertexPropertyProperty<>(
-                    graph, this,
-                    propertyKeys[0],
-                    (V) this.graph.getBaseGraph().convertValueToTypeUsingHint(properties.get(propertyKeys[0]), typeHints.get(propertyKeys[0])));
-            return FireflyCloseableIteratorUtils.of(property);
-        } else {
-            final Map<String, Object> outputProperties = new HashMap<>(properties);
-            if (!graph.features().vertex().supportsNullPropertyValues()) {
-                outputProperties.entrySet().removeIf(entry -> entry.getValue() == null);
-            }
-            if (propertyKeys.length > 0) {
-                outputProperties.entrySet().removeIf(entry -> !ElementHelper.keyExists(entry.getKey(), propertyKeys));
-            }
-            return FireflyCloseableIteratorUtils.map(outputProperties.entrySet().iterator(),
-                    p -> new FireflyVertexPropertyProperty<>(graph, this, p.getKey(),
-                            (V) this.graph.getBaseGraph().convertValueToTypeUsingHint(p.getValue(), typeHints.get(p.getKey()))));
+        if (this.removed) {
+            throw elementAlreadyRemoved(VertexProperty.class, id);
         }
+        if (propertyKeys == null) {
+            return Collections.emptyIterator();
+        }
+        final String[] propertyKeysToRead;
+        if (propertyKeys.length == 0) {
+            propertyKeysToRead = properties.keySet().stream().
+                    map(graph.getBaseGraph().schemaManager::getVpPropertyString).
+                    toArray(String[]::new);
+        } else {
+            propertyKeysToRead = propertyKeys;
+        }
+
+        final AerospikeConnection db = this.graph.getBaseGraph();
+        final List<Property<V>> propertyList = new ArrayList<>();
+        for (final String key : propertyKeysToRead) {
+            final Long schemaKey = db.schemaManager.getVpPropertyRead(key);
+            if (this.properties.containsKey(schemaKey)) {
+                final List<Object> valueAndTypeHint = this.properties.get(schemaKey);
+                final Object convertedValue = db.convertValueToTypeUsingHint(valueAndTypeHint.get(0),
+                        valueAndTypeHint.get(1));
+                final Property<V> property = new FireflyVertexPropertyProperty<>(graph, this, key, (V) convertedValue);
+                propertyList.add(property);
+            }
+        }
+        return propertyList.iterator();
     }
 
     @Override
@@ -171,4 +150,3 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         return ElementHelper.areEqual(this, object);
     }
 }
-

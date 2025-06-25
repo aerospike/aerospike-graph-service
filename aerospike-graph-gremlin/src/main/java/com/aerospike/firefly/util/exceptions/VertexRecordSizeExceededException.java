@@ -4,7 +4,6 @@ import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
-import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 
@@ -71,8 +70,8 @@ public class VertexRecordSizeExceededException extends AerospikeGraphRecordSizeE
     public static Record getRelevantVertexBins(final AerospikeConnection db, final Key key) {
         final Operation getInEdges = Operation.get(db.IN_EDGES_BIN);
         final Operation getOutEdges = Operation.get(db.OUT_EDGES_BIN);
-        final Operation getVpCount = MapOperation.size(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
-        final Operation getVpProperties = Operation.get(db.PROPERTIES_BIN);
+        final Operation getVpCount = Operation.get(db.VERTEX_PROPERTY_TH_BIN);
+        final Operation getVpProperties = Operation.get(db.VP_PROPERTY_BIN);
         return db.readOperate(null, key, getInEdges, getOutEdges, getVpCount, getVpProperties);
     }
 
@@ -94,11 +93,12 @@ public class VertexRecordSizeExceededException extends AerospikeGraphRecordSizeE
         private final long outEdgeCount;
         private final long vertexPropertyCount;
         private final long vpPropertyCount;
+
         private VertexRecordMetrics(final Record record, final AerospikeConnection db) {
-            this.inEdgeCount = getCountFromNestedList((Map<?, List<?>>) record.getMap(db.IN_EDGES_BIN));
-            this.outEdgeCount = getCountFromNestedList((Map<?, List<?>>) record.getMap(db.OUT_EDGES_BIN));
-            this.vertexPropertyCount = record.getLong(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
-            this.vpPropertyCount = getCountFromNestedMap((Map<?, Map<?, ?>>) record.getMap(db.PROPERTIES_BIN));
+            this.inEdgeCount = getCountFromNestedList((Map) record.getMap(db.IN_EDGES_BIN));
+            this.outEdgeCount = getCountFromNestedList((Map) record.getMap(db.OUT_EDGES_BIN));
+            this.vertexPropertyCount = getCountFromNestedMap((Map) record.getMap(db.VERTEX_PROPERTY_TH_BIN));
+            this.vpPropertyCount = getCountFromNestedNestedMap((Map) record.getMap(db.VP_PROPERTY_BIN));
         }
 
         private long getCountFromNestedList(final Map<?, List<?>> nestedList) {
@@ -113,6 +113,16 @@ public class VertexRecordSizeExceededException extends AerospikeGraphRecordSizeE
             long count = 0;
             for (final Map<?, ?> map : nestedMap.values()) {
                 count += map.size();
+            }
+            return count;
+        }
+
+        private long getCountFromNestedNestedMap(final Map<?, Map<?, Map<?, ?>>> nestedNestedMap) {
+            long count = 0;
+            for (final Map<?, Map<?, ?>> map : nestedNestedMap.values()) {
+                for (final Map<?, ?> innerMap : map.values()) {
+                    count += innerMap.size();
+                }
             }
             return count;
         }

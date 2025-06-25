@@ -1,9 +1,16 @@
 package com.aerospike.firefly.features;
 
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 public class FireflyFeatures implements Graph.Features {
+
+    private final VertexProperty.Cardinality defaultCardinality;
+    public FireflyFeatures(final VertexProperty.Cardinality defaultCardinality) {
+        this.defaultCardinality = defaultCardinality;
+    }
+
     @Override
     public GraphFeatures graph() {
         return new FireflyGraphFeatures();
@@ -14,7 +21,7 @@ public class FireflyFeatures implements Graph.Features {
      */
     @Override
     public VertexFeatures vertex() {
-        return new FireflyVertexFeatures();
+        return new FireflyVertexFeatures(defaultCardinality);
     }
 
     /**

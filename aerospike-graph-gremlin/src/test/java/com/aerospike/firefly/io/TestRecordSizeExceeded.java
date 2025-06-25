@@ -9,6 +9,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -68,7 +69,7 @@ public class TestRecordSizeExceeded {
             g.addE("base" + i).from(v1).to(v2).iterate();
         }
         for (int i = 0; i < baseVertexPropertyCount; i++) {
-            g.V().hasLabel("v1").property("base" + i, "base" + i).iterate();
+            g.V().hasLabel("v1").property(VertexProperty.Cardinality.single, "base" + i, "base" + i).iterate();
         }
         for (int i = 0; i < baseVpPropertyCount; i++) {
             g.V().hasLabel("v1").properties("base0").property("base" + i, "base" + i).iterate();
@@ -116,7 +117,7 @@ public class TestRecordSizeExceeded {
         int addedVertexProperties = 0;
         while (true) {
             try {
-                g.V(v1.id()).property("added" + addedVertexProperties, "added" + addedVertexProperties).iterate();
+                g.V(v1.id()).property(VertexProperty.Cardinality.single, "added" + addedVertexProperties, "added" + addedVertexProperties).iterate();
                 addedVertexProperties++;
             } catch (final VertexRecordSizeExceededException e) {
                 Assert.assertEquals(baseInEdgeCount, e.inEdgeCount);

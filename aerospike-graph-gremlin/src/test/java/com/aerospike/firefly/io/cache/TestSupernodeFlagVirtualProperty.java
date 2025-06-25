@@ -88,8 +88,8 @@ public class TestSupernodeFlagVirtualProperty {
         Assert.assertEquals(1, IteratorUtils.count(supernode.properties("~supernode")));
         Assert.assertEquals(1, IteratorUtils.count(supernode.properties("v11")));
         Assert.assertEquals(2, IteratorUtils.count(supernode.properties("v11", "v12")));
-        Assert.assertEquals(1, IteratorUtils.count(supernode.properties("v11", "~supernode")));
-        Assert.assertEquals(2, IteratorUtils.count(supernode.properties("v11", "~supernode", "v12")));
+        Assert.assertEquals(2, IteratorUtils.count(supernode.properties("v11", "~supernode")));
+        Assert.assertEquals(3, IteratorUtils.count(supernode.properties("v11", "~supernode", "v12")));
     }
 
     @Test

@@ -159,7 +159,7 @@ public class FireflyBatchEdgeReadSampleLimitStep extends CollectingBarrierStep<E
 
         // Read the sampled edges.
         final Map<FireflyId, FireflyEdge> edgeMap = new HashMap<>();
-        FireflyBatchReadHelper.populateElementMap(new HashSet<>(sampledVertexIds), edgeMap, aerospikeHasContainers, graph::readEdges, null);
+        FireflyBatchReadHelper.populateElementMap(new HashSet<>(sampledVertexIds), edgeMap, aerospikeHasContainers, graph::readEdges, null, true);
 
         // Create list of random indices to sample and order them in ascending order so we can iterate through them.
         final List<Long> randomIndicesList = new ArrayList<>(randomIndices);

@@ -149,13 +149,20 @@ public class FireflyRecord {
         final List<Key> keyList = idsToRead.stream().map(id -> getKey(db, readInfo.set, id)).collect(Collectors.toList());
 
         final Record[] records;
-        if (readInfo.requiredProperties == null) {
-            // All property reads uses transaction cache.
+        if (readInfo.areEdgesRequired && readInfo.requiredProperties == null) {
+            // All property and edges reads uses transaction cache.
             records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), db.transactionCache.get());
         } else {
             final List<Operation> operations = new ArrayList<>();
-            db.vertexNonPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
-            if (!readInfo.requiredProperties.isEmpty()) {
+            db.vertexMiscBins.forEach(bin -> operations.add(Operation.get(bin)));
+            if (readInfo.areEdgesRequired) {
+                db.vertexEdgeBins.forEach(bin -> operations.add(Operation.get(bin)));
+            }
+            if (readInfo.requiredProperties == null) {
+                db.vertexPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
+                // read without cache because no edges (see line 152)
+                records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
+            } else if (!readInfo.requiredProperties.isEmpty()) {
                 // No cache for non-empty required properties.
                 final List<Value> properties = readInfo.requiredProperties.stream().map(propertyKey -> {
                     final Long schemaPropertyKey = db.schemaManager.getVertexPropertyRead(propertyKey);
@@ -164,10 +171,14 @@ public class FireflyRecord {
                 db.vertexPropertyBins.forEach(bin -> operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP)));
                 records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
             } else {
-                // No property read uses empty property transaction cache.
-                records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), db.emptyPropsTransactionCache.get(), operations.toArray(Operation[]::new));
+                records = readInfo.areEdgesRequired
+                        // No property read uses empty property transaction cache when edges are present
+                        ? db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), db.emptyPropsTransactionCache.get(), operations.toArray(Operation[]::new))
+                        // otherwise no cache
+                        : db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
             }
         }
+
         for (int i = 0; i < records.length; i++) {
             if (records[i] != null) {
                 // Add id/record pair to the map.
@@ -181,9 +192,10 @@ public class FireflyRecord {
     /**
      * Batch read edges given a list of their IDs. Returns a list of FireflyRecord of phat edges which contain the
      * individual edges' data.
-     * @param db    AerospikeConnection instance
-     * @param ids   IDs of edges requested
-     * @return  Map of Edge FireflyIds to the FireflyEdgeRecord of a phat edge containing that Edge's data
+     *
+     * @param db  AerospikeConnection instance
+     * @param ids IDs of edges requested
+     * @return Map of Edge FireflyIds to the FireflyEdgeRecord of a phat edge containing that Edge's data
      */
     public static Map<FireflyId, FireflyEdgeRecord> batchReadPhatEdges(final AerospikeConnection db,
                                                                        final List<FireflyId> ids) {
@@ -243,8 +255,8 @@ public class FireflyRecord {
     /**
      * Construct a FireflyRecord from an Aerospike KeyRecord
      *
-     * @param db            AerospikeConnection instance
-     * @param keyRecord     Aerospike KeyRecord
+     * @param db        AerospikeConnection instance
+     * @param keyRecord Aerospike KeyRecord
      * @return FireflyRecord
      */
     public static FireflyRecord fromRecord(final AerospikeConnection db, final KeyRecord keyRecord) {

@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.structure.FireflyGraphProvider.setConfigCardinalityForTest;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 
@@ -54,6 +55,8 @@ public class FireflyGraphProviderUncached extends AbstractGraphProvider {
         if (test.equals(EventStrategyProcessTest.class) && testMethodName.equals("shouldTriggerRemoveVertex")) {
             configMap.put(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "false");
         }
+
+        setConfigCardinalityForTest(test, testMethodName, configMap);
 
         return configMap;
     }

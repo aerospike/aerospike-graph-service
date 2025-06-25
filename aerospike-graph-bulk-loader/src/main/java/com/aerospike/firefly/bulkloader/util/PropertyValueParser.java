@@ -99,4 +99,15 @@ public class PropertyValueParser {
         }
         return id;
     }
+
+    public Object parseByte(final String value) {
+        if (value == null || value.isEmpty()) {
+            return null;
+        }
+        try {
+            return Byte.parseByte(value);
+        } catch (final NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid byte value: " + value, e);
+        }
+    }
 }

@@ -27,6 +27,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TimeZone;
@@ -339,13 +341,6 @@ public abstract class TestSparkBulkLoaderBase {
         List<Vertex> vertices = g.V().has("dateTime", dateTime).toList();
         Assert.assertEquals(2, vertices.size());
 
-        // TODO: should this be supported? has() with list matching
-        //List<Date> dates = new ArrayList<>();
-        //dates.add(date);
-        //dates.add(date2);
-        //vertex = g.V().has("dates", dates).next();
-        //Assert.assertEquals(1992, (long) vertex.value("longProperty"));
-
         Edge edge = g.E().has("offsetDateTime", OffsetDateTime.of(2009, 1, 2, 9, 25,
                 10, 0, ZoneOffset.UTC)).next();
         Assert.assertEquals(47, (int) edge.value("intProperty"));
@@ -641,7 +636,7 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertEquals("17", e.value("defaultNumber"));
         Assert.assertEquals("true", e.value("defaultBoolean"));
         // Check invalid type specifiers default to text and include the invalid specifier in the fallback property name
-        Assert.assertEquals("42", e.value("invalidType:invalid[]"));
+        Assert.assertEquals("42", e.value("invalidType:invalid"));
         // Check null properties dont exist
         Assert.assertFalse(g.E().hasLabel("edge").has("nullValue").hasNext());
         Assert.assertFalse(g.E().hasLabel("edge").has("nullInt").hasNext());
@@ -675,7 +670,11 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertEquals("Simon", person.value("name"));
         Assert.assertEquals(28, (int) person.value("age"));
         Assert.assertFalse(person.value("glasses"));
-        final List<String> companies = person.value("companies");
+        final Iterator<? extends Property<Object>> properties = person.properties("companies");
+        final List<String> companies = new ArrayList<>();
+        while (properties.hasNext()) {
+            companies.add((String)properties.next().value());
+        }
         Assert.assertEquals("Apache TinkerPop", companies.get(0));
         Assert.assertEquals("Aerospike", companies.get(1));
         final Vertex model = g.V().has("model", "GR86").next();
@@ -695,15 +694,13 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertEquals("17", v.value("defaultNumber"));
         Assert.assertEquals("true", v.value("defaultBoolean"));
         // Check invalid type specifiers default to text and include the invalid specifier in the fallback property name
-        Assert.assertEquals("42", v.value("invalidType:invalid[]"));
+        Assert.assertEquals("42", v.value("invalidType:invalid"));
         // Check null properties dont exist
         Assert.assertFalse(g.V().hasLabel("vertex").has("nullValue").hasNext());
         Assert.assertFalse(g.V().hasLabel("vertex").has("nullInt").hasNext());
-        // Check null properties in a list do exist
-        final List<String> nullInList = v.value("nullInList");
-        Assert.assertEquals(2, nullInList.size());
-        Assert.assertNull(nullInList.get(0));
-        Assert.assertEquals("secondElement", nullInList.get(1));
+        // Check null properties in a list do not exist
+        final String nullInList = v.value("nullInList");
+        Assert.assertEquals("secondElement", nullInList);
         // Check that null properties are not somehow saved as a valid property
         Assert.assertEquals(5, (long) g.V().hasLabel("vertex").properties().count().next());
     }

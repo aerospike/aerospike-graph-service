@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.requiresEdges;
+
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
@@ -81,16 +83,21 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
             int sampleSize = -1;
             long limitSize = -1;
             List<String> propertyKeys = null;
+
+            // if any following steps (or there child) need vertex or edge then no optimization
+            final boolean requiresEdges = requiresEdges(traversal, steps, index);
+
             while (labels.isEmpty()) {
                 if (index >= steps.size()) {
                     break;
                 }
+
                 if (steps.get(index) instanceof NoOpBarrierStep) {
                     // Grab any labels and remove the barrier.
                     final NoOpBarrierStep<?> noOpBarrierStep = (NoOpBarrierStep<?>) steps.get(index);
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
-                } else if (steps.get(index) instanceof PropertiesStep){
+                } else if (steps.get(index) instanceof PropertiesStep) {
                     if (traversal.isRoot() && propertyRemovalValid) {
                         // Grab any labels and remove the properties step.
                         final PropertiesStep<?> propertiesStep = (PropertiesStep<?>) steps.get(index);
@@ -174,7 +181,7 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
 
                         // Labels should be propagated after the limit step.
                         if (!labels.isEmpty()) {
-                            for (final String label: labels) {
+                            for (final String label : labels) {
                                 step.addLabel(label);
                             }
                             labels.clear();
@@ -219,7 +226,8 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                         sampleSize,
                         limitSize,
                         graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
-                        propertyKeys));
+                        propertyKeys,
+                        requiresEdges));
             } else {
                 traversal.addStep(index, new FireflyBatchVertexReadStep(
                         traversal,
@@ -228,7 +236,8 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                         labels,
                         hasContainers,
                         graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
-                        propertyKeys));
+                        propertyKeys,
+                        requiresEdges));
             }
         }
     }

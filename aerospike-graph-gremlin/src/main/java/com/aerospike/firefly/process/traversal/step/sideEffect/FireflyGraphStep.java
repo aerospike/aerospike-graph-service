@@ -129,7 +129,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         final Iterator<? extends Vertex> iterator = vertices(
                 graph,
                 graph.getBaseGraph().VERTEX_AERO_SET,
-                graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
+                graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN,
                 FireflyVertex.class,
                 new FireflyGraph.GetElements<Vertex>() {
                     @Override

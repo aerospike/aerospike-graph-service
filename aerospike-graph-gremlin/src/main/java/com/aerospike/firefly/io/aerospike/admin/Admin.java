@@ -1,7 +1,5 @@
 package com.aerospike.firefly.io.aerospike.admin;
 
-import com.aerospike.client.Value;
-import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
@@ -20,7 +18,6 @@ import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
 
 public class Admin {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Admin.class);
     public static final Index index = new Index();
 
     public static class Index<I> {
@@ -91,9 +88,7 @@ public class Admin {
                 firefly.fireflyCardinalityMetadata.getVertexPropertyCardinality(index, NUMERIC).ifPresent(cardinality -> {
                     final Long cardinalityValue = cardinality.getCardinality();
                     if (cardinalityValue != null) {
-                        if (cardinalityMap.get(index) != null) {
-                            cardinalityMap.put(index, cardinalityMap.get(index) + cardinalityValue);
-                        }
+                        cardinalityMap.merge(index, cardinalityValue, Long::sum);
                     }
                 });
             }
@@ -101,27 +96,11 @@ public class Admin {
         }
 
         public I createVertexPropertyIndex(final FireflyGraph firefly, final String key) {
-            final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
-            final List<String> existingIndexes = getExistingIndexes(firefly);
-            final Long schemaKey = firefly.getBaseGraph().schemaManager.getVertexPropertyWrite(key);
-            String formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
-            firefly.getBaseGraph().createIndexBackground(existingIndexes,
-                    set,
-                    formattedIndex + "_" + STRING,
-                    firefly.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
-                    STRING,
-                    IndexCollectionType.DEFAULT,
-                    true,
-                    CTX.mapKey(Value.get(schemaKey)));
-            formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
-            firefly.getBaseGraph().createIndexBackground(existingIndexes,
-                    set,
-                    formattedIndex + "_" + NUMERIC,
-                    firefly.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
-                    NUMERIC,
-                    IndexCollectionType.DEFAULT,
-                    true,
-                    CTX.mapKey(Value.get(schemaKey)));
+            firefly.createIndexes(FireflyVertex.class,
+                    firefly.getBaseGraph().VERTEX_PROPERTY_DATA_BIN,
+                    firefly.getBaseGraph().getVpIndexPrefix(),
+                    List.of(key),
+                    true);
             return (I) ("Vertex index creation of property key '" + key + "' in progress.");
         }
 

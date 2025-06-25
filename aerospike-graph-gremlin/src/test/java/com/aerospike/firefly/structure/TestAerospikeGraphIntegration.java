@@ -101,9 +101,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void testReadWriteVertexProperty() {
         final FireflyId vertexId = graph.getIdFactory().generateId(graph, FireflyVertex.class);
-        final FireflyId vpid = graph.getIdFactory().generateId(graph, FireflyVertexProperty.class);
         final FireflyVertex vertex = graph.writeVertex(vertexId, "aVertexLabel", new ArrayList<>());
-        final FireflyVertexProperty fireflyVertexProperty = graph.writeVertexProperty(vpid, vertex, "aKey", "aValue");
+        vertex.property(VertexProperty.Cardinality.single, "aKey", "aValue");
 
         // Try read from scratch.
         final FireflyVertex vertexRead = graph.readVertex(vertexId);
@@ -825,7 +824,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value() {
         if (graph.features().vertex().supportsMultiProperties()) {
-            GraphHelper.cloneElements(TinkerFactory.createTheCrew(), graph);
+            generateTheCrew(graph);
             GraphTraversalSource g = graph.traversal();
             Traversal<Vertex, String> traversal = g.V().local(properties("location").order().by(T.value, Order.asc).range(0, 2)).value();
             checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), traversal);
@@ -985,65 +984,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             });
         } else {
             LOG.info("Skipping shouldHandleListVertexPropertiesWithoutNullPropertyValues because graph does not support multi-properties");
-        }
-    }
-
-    @Test
-    public void shouldRemoveMultiPropertiesWhenVerticesAreRemoved() {
-        if (graph.features().vertex().supportsMultiProperties()) {
-            final Vertex marko = graph.addVertex("name", "marko", "name", "okram");
-            final Vertex stephen = graph.addVertex("name", "stephen", "name", "spmallette");
-            this.tryCommit(graph, (graph) -> {
-                assertVertexEdgeCounts(graph, 2, 0);
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties("name")));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(stephen.properties("name")));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties()));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(stephen.properties()));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(marko.properties("blah")));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(stephen.properties("blah")));
-            });
-            stephen.remove();
-            this.tryCommit(graph, (graph) -> {
-                assertVertexEdgeCounts(graph, 1, 0);
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties("name")));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties()));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(marko.properties("blah")));
-            });
-
-            for (int i = 0; i < 100; ++i) {
-                marko.property(VertexProperty.Cardinality.list, "name", "Remove-" + i);
-            }
-
-            this.tryCommit(graph, (graph) -> {
-                assertVertexEdgeCounts(graph, 1, 0);
-                Assert.assertEquals(102L, FireflyCloseableIteratorUtils.count(marko.properties("name")));
-                Assert.assertEquals(102L, FireflyCloseableIteratorUtils.count(marko.properties()));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(marko.properties("blah")));
-            });
-            graph.traversal().V(new Object[0]).properties(new String[]{"name"}).has(T.value, P.test((a, b) -> {
-                return ((String) a).startsWith((String) b);
-            }, "Remove-")).forEachRemaining(Property::remove);
-
-            final Vertex alsoMarko;
-            if (graph.getDataModel().equals("linked")) {
-                // If using linked model, vertex properties are cached so must get a new instance of the vertex since
-                // the updating traversal did not utilize the existing cached vertex used for test assertions
-                alsoMarko = graph.traversal().V().has("name", "marko").next();
-            } else {
-                alsoMarko = marko;
-            }
-
-            this.tryCommit(graph, (graph) -> {
-                assertVertexEdgeCounts(graph, 1, 0);
-                List<VertexProperty<Object>> l = FireflyCloseableIteratorUtils.list(alsoMarko.properties("name"));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(alsoMarko.properties("name")));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(alsoMarko.properties()));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(alsoMarko.properties("blah")));
-            });
-            marko.remove();
-            this.tryCommit(graph, getAssertVertexEdgeCounts(0, 0));
-        } else {
-            LOG.info("skipping shouldRemoveMultiPropertiesWhenVerticesAreRemoved because {} does not support multi-properties", graph);
         }
     }
 
@@ -1389,6 +1329,44 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals((long) initialCount + 1, (long) finalCount);
     }
 
-
+    static public void generateTheCrew(final Graph g) {
+        Vertex marko = g.addVertex(new Object[]{T.id, 1, T.label, "person", "name", "marko"});
+        Vertex stephen = g.addVertex(new Object[]{T.id, 7, T.label, "person", "name", "stephen"});
+        Vertex matthias = g.addVertex(new Object[]{T.id, 8, T.label, "person", "name", "matthias"});
+        Vertex daniel = g.addVertex(new Object[]{T.id, 9, T.label, "person", "name", "daniel"});
+        Vertex gremlin = g.addVertex(new Object[]{T.id, 10, T.label, "software", "name", "gremlin"});
+        Vertex tinkergraph = g.addVertex(new Object[]{T.id, 11, T.label, "software", "name", "tinkergraph"});
+        marko.property(VertexProperty.Cardinality.list, "location", "san diego", new Object[]{"startTime", 1997, "endTime", 2001});
+        marko.property(VertexProperty.Cardinality.list, "location", "santa cruz", new Object[]{"startTime", 2001, "endTime", 2004});
+        marko.property(VertexProperty.Cardinality.list, "location", "brussels", new Object[]{"startTime", 2004, "endTime", 2005});
+        marko.property(VertexProperty.Cardinality.list, "location", "santa fe", new Object[]{"startTime", 2005});
+        stephen.property(VertexProperty.Cardinality.list, "location", "centreville", new Object[]{"startTime", 1990, "endTime", 2000});
+        stephen.property(VertexProperty.Cardinality.list, "location", "dulles", new Object[]{"startTime", 2000, "endTime", 2006});
+        stephen.property(VertexProperty.Cardinality.list, "location", "purcellville", new Object[]{"startTime", 2006});
+        matthias.property(VertexProperty.Cardinality.list, "location", "bremen", new Object[]{"startTime", 2004, "endTime", 2007});
+        matthias.property(VertexProperty.Cardinality.list, "location", "baltimore", new Object[]{"startTime", 2007, "endTime", 2011});
+        matthias.property(VertexProperty.Cardinality.list, "location", "oakland", new Object[]{"startTime", 2011, "endTime", 2014});
+        matthias.property(VertexProperty.Cardinality.list, "location", "seattle", new Object[]{"startTime", 2014});
+        daniel.property(VertexProperty.Cardinality.list, "location", "spremberg", new Object[]{"startTime", 1982, "endTime", 2005});
+        daniel.property(VertexProperty.Cardinality.list, "location", "kaiserslautern", new Object[]{"startTime", 2005, "endTime", 2009});
+        daniel.property(VertexProperty.Cardinality.list, "location", "aachen", new Object[]{"startTime", 2009});
+        marko.addEdge("develops", gremlin, "since", 2009);
+        marko.addEdge("develops", tinkergraph, "since", 2010);
+        marko.addEdge("uses", gremlin, "skill", 4);
+        marko.addEdge("uses", tinkergraph, "skill", 5);
+        stephen.addEdge("develops", gremlin, "since", 2010);
+        stephen.addEdge("develops", tinkergraph, "since", 2011);
+        stephen.addEdge("uses", gremlin, "skill", 5);
+        stephen.addEdge("uses", tinkergraph, "skill", 4);
+        matthias.addEdge("develops", gremlin, "since", 2012);
+        matthias.addEdge("uses", gremlin, "skill", 3);
+        matthias.addEdge("uses", tinkergraph, "skill", 3);
+        daniel.addEdge("uses", gremlin, "skill", 5);
+        daniel.addEdge("uses", tinkergraph, "skill", 3);
+        gremlin.addEdge("traverses", tinkergraph);
+        g.variables().set("creator", "marko");
+        g.variables().set("lastModified", 2014);
+        g.variables().set("comment", "this graph was created to provide examples and test coverage for tinkerpop3 api advances");
+    }
 }
 

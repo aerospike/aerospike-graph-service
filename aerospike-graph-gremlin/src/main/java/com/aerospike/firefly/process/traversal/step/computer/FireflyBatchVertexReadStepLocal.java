@@ -48,6 +48,7 @@ public class FireflyBatchVertexReadStepLocal extends VertexStep<Vertex> implemen
     private transient final Map<FireflyId, FireflyVertex> cache = new HashMap<>();
     private transient final List<Traverser.Admin<Vertex>> inputCache = new ArrayList<>();
     private boolean first = true;
+    private final boolean requiresEdges = true;
 
     public FireflyBatchVertexReadStepLocal(final Traversal.Admin traversal,
                                            final Direction direction,
@@ -116,13 +117,13 @@ public class FireflyBatchVertexReadStepLocal extends VertexStep<Vertex> implemen
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 // Drain data to output.
                 FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
-                        fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache, graph::readVertices, requiredProperties);
+                        fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache, graph::readVertices, requiredProperties, requiresEdges);
             }
         }
 
         // Drain data to output.
         FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
-                fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache, graph::readVertices, requiredProperties);
+                fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache, graph::readVertices, requiredProperties, requiresEdges);
         inputCache.clear();
     }
 

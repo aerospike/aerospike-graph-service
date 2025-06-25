@@ -113,12 +113,12 @@ public class TestAerospikeOperations {
         final FireflyId inVertexId = mock(FireflyId.class);
         when(inVertexId.getKeyHashString()).thenReturn("inId");
         final FireflyVertex inVertex = new FireflyVertex(inVertexId, "label", graph, new HashMap<>(), new HashMap<>(),
-                Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), false, null);
+                Map.of(), Map.of(), Map.of(), false);
 
         final FireflyId outVertexId = mock(FireflyId.class);
         when(outVertexId.getKeyHashString()).thenReturn("outId");
         final FireflyVertex outVertex = new FireflyVertex(outVertexId, "label", graph, new HashMap<>(), new HashMap<>(),
-                Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), false, null);
+                Map.of(), Map.of(), Map.of(), false);
 
         final FireflyPhatEdgeId edgeId = mock(FireflyPhatEdgeId.class);
         final FireflyIdComposite compositeIdIn = mock(FireflyIdComposite.class);

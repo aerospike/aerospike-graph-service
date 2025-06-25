@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.net.HttpURLConnection;
@@ -273,7 +274,61 @@ public class TestAdminCallHttp {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
             g.addV("person").property("nameA", "Alice").property("nameB", "Bob").next();
+            final List<String> initialSindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
+            for (final String s : initialSindexes) {
+                if (s.equals("vertex.~label")) {
+                    g.call("aerospike.graph.admin.index.drop").
+                            with("property_key", "~label").
+                            with("element_type", "vertex").next();
+                }
+                g.call("aerospike.graph.admin.index.drop").
+                        with("property_key", s).
+                        with("element_type", "vertex").next();
+            }
+            g.call("aerospike.graph.admin.index.create").
+                    with("property_key", "nameA").
+                    with("element_type", "vertex").next();
+            g.call("aerospike.graph.admin.index.create").
+                    with("property_key", "nameB").
+                    with("element_type", "vertex").next();
+            Map<String, Long> nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                    with("property_key", "nameA").
+                    with("element_type", "vertex").next();
+            Map<String, Long> nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                    with("property_key", "nameB").
+                    with("element_type", "vertex").next();
+            while (nameAStatus.get("percent_complete") < 100 || nameBStatus.get("percent_complete") < 100) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                        with("property_key", "nameA").
+                        with("element_type", "vertex").next();
+                nameBStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                        with("property_key", "nameB").
+                        with("element_type", "vertex").next();
+            }
+            final String cardinality = adminIndexCardinality();
+            final String[] cardinalityArray = cardinality.substring(1, cardinality.length() - 1).split(",");
+            final Set<String> cardinalitySet = new HashSet<>();
+            for (final String s : cardinalityArray) {
+                cardinalitySet.add(s.trim());
+            }
+            Assert.assertEquals(Set.of("\"nameA\" : 1", "\"nameB\" : 1"), cardinalitySet);
+        }
+    }
+
+    @Test
+    public void testCardinalityInteger() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            g.addV("person").property("nameA", 1).property("nameB", 2).next();
             final List<String> initialSindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             for (final String s : initialSindexes) {
                 if (s.equals("vertex.~label")) {
@@ -347,6 +402,7 @@ public class TestAdminCallHttp {
         config.setProperty("aerospike.graph.http.port", 9093);
 
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
             final String configString = adminMetadataConfig();
             Assert.assertTrue(configString.startsWith("{"));
             Assert.assertTrue(configString.endsWith("}"));
@@ -374,6 +430,7 @@ public class TestAdminCallHttp {
         config.setProperty("aerospike.graph.http.port", 9094);
 
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
             final String version = adminMetadataVersion();
             Assert.assertTrue(version.startsWith("{"));
             Assert.assertTrue(version.endsWith("}"));

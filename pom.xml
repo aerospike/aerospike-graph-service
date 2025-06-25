@@ -67,7 +67,7 @@
         <prometheus.version>0.16.0</prometheus.version>
         <awssdk.version>1.12.641</awssdk.version>
         <netty.version>4.1.118.Final</netty.version>
-        <caffeine.version>3.2.0</caffeine.version>
+        <caffeine.version>3.2.1</caffeine.version>
         <!-- MAVEN PLUGIN VERSIONS -->
         <mvn-shade-plugin.version>3.6.0</mvn-shade-plugin.version>
         <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>

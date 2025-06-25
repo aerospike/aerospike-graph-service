@@ -6,6 +6,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.Assert;
 
 import java.time.OffsetDateTime;
@@ -16,6 +17,10 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 
 public class DateTimeUtil {
 
@@ -37,14 +42,15 @@ public class DateTimeUtil {
                 .property("initD", initD)
                 .property("initDT", initDT)
                 .property("initODT", initODT)
-                .property("initList", initList)
+                .property(VertexProperty.Cardinality.list, "initList", initD)
+                .property(VertexProperty.Cardinality.list, "initList", initDT)
+                .property(VertexProperty.Cardinality.list, "initList", initODT)
                 .next();
         // Create an edge with datetime properties.
         final Edge e = g.addE("edge")
                 .property("initD", initD)
                 .property("initDT", initDT)
                 .property("initODT", initODT)
-                .property("initList", initList)
                 .from(v1)
                 .to(v2)
                 .next();
@@ -64,14 +70,15 @@ public class DateTimeUtil {
                 .property("addedD", addedD)
                 .property("addedDT", addedDT)
                 .property("addedODT", addedODT)
-                .property("addedList", addedList)
+                .property(VertexProperty.Cardinality.list, "addedList", addedD)
+                .property(VertexProperty.Cardinality.list, "addedList", addedDT)
+                .property(VertexProperty.Cardinality.list, "addedList", addedODT)
                 .iterate();
         // Add DateTime properties to an existing edge.
         g.E(e.id())
                 .property("addedD", addedD)
                 .property("addedDT", addedDT)
                 .property("addedODT", addedODT)
-                .property("addedList", addedList)
                 .iterate();
 
         // Test vertex datetime.
@@ -80,27 +87,27 @@ public class DateTimeUtil {
         Assert.assertEquals(initDT, g.V(v2.id()).values("initDT").next());
         Assert.assertEquals(initODT, g.V(v2.id()).values("initODT").next());
         // List property with datetime values.
-        Assert.assertEquals(initList, g.V(v2.id()).values("initList").next());
+        List<Object> actual = g.V(v2.id()).values("initList").toList();
+        List<String> actualNormalized = actual.stream().map(Object::toString).collect(Collectors.toList());
+        assertThat(actualNormalized, containsInAnyOrder(initList.stream().map(Object::toString).toArray()));
         // Added datetime properties to an existing vertex.
         Assert.assertEquals(addedD, g.V(v1.id()).values("addedD").next());
         Assert.assertEquals(addedDT, g.V(v1.id()).values("addedDT").next());
         Assert.assertEquals(addedODT, g.V(v1.id()).values("addedODT").next());
         // List property with datetime values.
-        Assert.assertEquals(addedList, g.V(v1.id()).values("addedList").next());
+        actual = g.V(v1.id()).values("addedList").toList();
+        actualNormalized = actual.stream().map(Object::toString).collect(Collectors.toList());
+        assertThat(actualNormalized, containsInAnyOrder(addedList.stream().map(Object::toString).toArray()));
 
         // Test edge datetime.
         // Newly created edge with datetime properties.
         Assert.assertEquals(initD, g.E(e.id()).values("initD").next());
         Assert.assertEquals(initDT, g.E(e.id()).values("initDT").next());
         Assert.assertEquals(initODT, g.E(e.id()).values("initODT").next());
-        // List property with datetime values.
-        Assert.assertEquals(initList, g.E(e.id()).values("initList").next());
         // Added datetime properties to an existing edge.
         Assert.assertEquals(addedD, g.E(e.id()).values("addedD").next());
         Assert.assertEquals(addedDT, g.E(e.id()).values("addedDT").next());
         Assert.assertEquals(addedODT, g.E(e.id()).values("addedODT").next());
-        // List property with datetime values.
-        Assert.assertEquals(addedList, g.E(e.id()).values("addedList").next());
 
         // Vertices datetime queries.
         List<Vertex> vResults = g.V().has("initD", initD).toList();

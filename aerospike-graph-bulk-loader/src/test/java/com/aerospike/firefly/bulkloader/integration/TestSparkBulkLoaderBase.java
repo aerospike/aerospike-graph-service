@@ -25,9 +25,9 @@ import java.io.File;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -41,6 +41,8 @@ import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.BAD_ENTRY_
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DUPLICATE_VERTEX_ID_COUNT_EXCEEDED;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 
 public abstract class TestSparkBulkLoaderBase {
     // Directories are relative to firefly/firefly-spark-bulk-loader
@@ -315,7 +317,7 @@ public abstract class TestSparkBulkLoaderBase {
         final GraphTraversalSource g = graph.traversal();
         waitForBulkLoad(g);
 
-        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        final Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         cal.set(Calendar.YEAR, 2023);
         cal.set(Calendar.MONTH, Calendar.FEBRUARY);
         cal.set(Calendar.DAY_OF_MONTH, 11);
@@ -328,7 +330,7 @@ public abstract class TestSparkBulkLoaderBase {
         Vertex vertex = g.V().has("dateOnly", date).next();
         Assert.assertEquals(2007, (long) vertex.value("longProperty"));
 
-        Calendar calDT = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        final Calendar calDT = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         calDT.set(Calendar.YEAR, 2025);
         calDT.set(Calendar.MONTH, Calendar.JANUARY);
         calDT.set(Calendar.DAY_OF_MONTH, 1);
@@ -340,6 +342,33 @@ public abstract class TestSparkBulkLoaderBase {
 
         List<Vertex> vertices = g.V().has("dateTime", dateTime).toList();
         Assert.assertEquals(2, vertices.size());
+
+        Calendar calD1 = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        calD1.set(Calendar.YEAR, 2021);
+        calD1.set(Calendar.MONTH, Calendar.JANUARY);
+        calD1.set(Calendar.DAY_OF_MONTH, 1);
+        calD1.set(Calendar.HOUR_OF_DAY, 0);
+        calD1.set(Calendar.MINUTE, 0);
+        calD1.set(Calendar.SECOND, 0);
+        calD1.set(Calendar.MILLISECOND, 0);
+        final Date date1 = calD1.getTime();
+
+        final Calendar calD2 = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        calD2.set(Calendar.YEAR, 2022);
+        calD2.set(Calendar.MONTH, Calendar.FEBRUARY);
+        calD2.set(Calendar.DAY_OF_MONTH, 2);
+        calD2.set(Calendar.HOUR_OF_DAY, 0);
+        calD2.set(Calendar.MINUTE, 0);
+        calD2.set(Calendar.SECOND, 0);
+        calD2.set(Calendar.MILLISECOND, 0);
+        final Date date2 = calD2.getTime();
+
+        List<Date> expectedDates = new ArrayList<>();
+        expectedDates.add(date1);
+        expectedDates.add(date2);
+        List<Object> actual = g.V("1").values("dates").toList();
+        List<String> actualNormalized = actual.stream().map(Object::toString).collect(Collectors.toList());
+        assertThat(actualNormalized, containsInAnyOrder(expectedDates.stream().map(Object::toString).toArray()));
 
         Edge edge = g.E().has("offsetDateTime", OffsetDateTime.of(2009, 1, 2, 9, 25,
                 10, 0, ZoneOffset.UTC)).next();
@@ -673,7 +702,7 @@ public abstract class TestSparkBulkLoaderBase {
         final Iterator<? extends Property<Object>> properties = person.properties("companies");
         final List<String> companies = new ArrayList<>();
         while (properties.hasNext()) {
-            companies.add((String)properties.next().value());
+            companies.add((String) properties.next().value());
         }
         Assert.assertEquals("Apache TinkerPop", companies.get(0));
         Assert.assertEquals("Aerospike", companies.get(1));

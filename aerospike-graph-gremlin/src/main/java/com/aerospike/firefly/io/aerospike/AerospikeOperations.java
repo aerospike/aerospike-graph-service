@@ -38,7 +38,6 @@ import com.aerospike.firefly.io.FireflyEdgeRecord;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.io.aerospike.query.paged.EdgeQueryHelper;
-import com.aerospike.firefly.io.aerospike.schema.SchemaManager;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyEdgeProperty;
@@ -134,7 +133,7 @@ public class AerospikeOperations {
         }
     }
 
-    //////////////// VERTEX OPERATIONS ///////////////
+    /// ///////////// VERTEX OPERATIONS ///////////////
     public FireflyVertex writeVertex(final FireflyId vertexId,
                                      final String label,
                                      final List<Map.Entry<String, Object>> properties,
@@ -242,13 +241,6 @@ public class AerospikeOperations {
             operations.add(writeTtlBin);
         }
 
-        final VertexPropertyIdMapContainer idMapContainer = getPropertyValueIdMaps(validProperties);
-        vertexPropertyIds = idMapContainer.vertexPropertyIdMap;
-        vertexPropertyIdsWritable = idMapContainer.vertexPropertyIdMapDisk;
-        vertexPropertyValueMapWritable = new TreeMap<>();
-        db.schemaManager.populateVertexPropertyStringMapToSchemaMap(validProperties, vertexPropertyValueMapWritable);
-        db.convertValuesToAerospikeWriteable(vertexPropertyValueMapWritable);
-
         // Create vertex bins for cache state, vertex label, and property ids.
         final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED_BIN, Value.get(isEdgeCacheOverflowed));
         final Operation writeCacheDisabled = Operation.put(cacheDisabledBin);
@@ -258,6 +250,7 @@ public class AerospikeOperations {
         final Operation writeEdgeCacheOut = getEdgeCache(fromEdgeCache, db.OUT_EDGES_BIN);
         final Operation writeEdgeCacheIn = getEdgeCache(toEdgeCache, db.IN_EDGES_BIN);
 
+        db.convertVertexPropertiesToAerospikeWriteable(vertexProperties);
         final Bin vertexPropertiesBin = new Bin(db.VERTEX_PROPERTY_DATA_BIN, Value.get(vertexProperties));
         final Operation writeVertexProperties = Operation.put(vertexPropertiesBin);
         final Bin vpTypeHintsBin = new Bin(db.VERTEX_PROPERTY_TH_BIN, Value.get(vpTypeHints));
@@ -543,12 +536,12 @@ public class AerospikeOperations {
     /**
      * Write Vertex Property to Vertex.
      *
-     * @param cardinality   Cardinality of Vertex Property.
-     * @param vertex        Parent Vertex of the Vertex Property.
-     * @param key           Vertex Property key.
-     * @param value         Vertex Property value.
-     * @param properties    Vertex Property Properties.
-     * @param <V>           Vertex Property value type.
+     * @param cardinality Cardinality of Vertex Property.
+     * @param vertex      Parent Vertex of the Vertex Property.
+     * @param key         Vertex Property key.
+     * @param value       Vertex Property value.
+     * @param properties  Vertex Property Properties.
+     * @param <V>         Vertex Property value type.
      * @return Newly written Vertex Property.
      */
     public <V> VertexProperty<V> writeVertexProperty(final VertexProperty.Cardinality cardinality,
@@ -570,6 +563,7 @@ public class AerospikeOperations {
         final Long schemaVpKey = this.db.schemaManager.getVertexPropertyWrite(key);
         final Object typeHint = getTypeHintOf(value, true);
         final Object verifiedValue = validateVertexPropertyValue(value);
+        Object verifiedValueToWrite = db.convertValueToAerospikeWriteable(verifiedValue);
 
         final List<Operation> operations = new ArrayList<>();
         final Operation writeVpData;
@@ -583,7 +577,7 @@ public class AerospikeOperations {
             final List<Long> idInList = new ArrayList<>(1);
             idInList.add(vpIdKey);
             final Map<Object, List<Long>> valueToIdList = new HashMap<>();
-            valueToIdList.put(verifiedValue, idInList);
+            valueToIdList.put(verifiedValueToWrite, idInList);
             writeVpData = MapOperation.put(treeMapPolicy, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(schemaVpKey), Value.get(valueToIdList));
             final Map<Long, Object> idToTypeHint = new HashMap<>();
             idToTypeHint.put(vpIdKey, typeHint);
@@ -593,7 +587,7 @@ public class AerospikeOperations {
             writeVpProperties = MapOperation.put(hashMapPolicy, this.db.VP_PROPERTY_BIN, Value.get(schemaVpKey), Value.get(idToProperties));
         } else if (cardinality.equals(VertexProperty.Cardinality.list)) {
             writeVpData = ListOperation.append(listPolicy, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(vpIdKey),
-                    CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(verifiedValue), MapOrder.UNORDERED));
+                    CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(verifiedValueToWrite), MapOrder.UNORDERED));
             writeVpTypeHint = MapOperation.put(hashMapPolicy, this.db.VERTEX_PROPERTY_TH_BIN, Value.get(vpIdKey),
                     Value.get(typeHint), CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.UNORDERED));
             writeVpProperties = MapOperation.put(hashMapPolicy, this.db.VP_PROPERTY_BIN, Value.get(vpIdKey),
@@ -668,10 +662,10 @@ public class AerospikeOperations {
     /**
      * Remove the Vertex Property from the Vertex.
      *
-     * @param vertex            Parent Vertex of the Vertex Property.
-     * @param key               Vertex Property key.
-     * @param value             Vertex Property value.
-     * @param vertexPropertyId  FireflyId of the Vertex Property to remove.
+     * @param vertex           Parent Vertex of the Vertex Property.
+     * @param key              Vertex Property key.
+     * @param value            Vertex Property value.
+     * @param vertexPropertyId FireflyId of the Vertex Property to remove.
      */
     public void removeVertexProperty(final FireflyVertex vertex, final String key, final Object value,
                                      final FireflyId vertexPropertyId) {
@@ -1521,7 +1515,7 @@ public class AerospikeOperations {
         return edges;
     }
 
-    //////////////// EDGE PROPERTIES ///////////////
+    /// ///////////// EDGE PROPERTIES ///////////////
 
     public <V> Property<V> writeProperty(final FireflyEdge edge, final String propertyKey, final V value) {
         final Key key = getKey(db, db.EDGE_AERO_SET, edge.id);

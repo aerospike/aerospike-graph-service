@@ -79,10 +79,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.nio.ByteBuffer;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -2078,7 +2078,23 @@ public class AerospikeConnection implements AutoCloseable {
                 : value;
     }
 
-    // Cast value map types to Aerospike supported types if necessary (matching type hint will be added later).
+    // Cast vertex properties types to Aerospike supported types if necessary (matching type hint will be added later).
+    public void convertVertexPropertiesToAerospikeWriteable(Map<Long, HashMap<Object, List<Long>>> vertexProperties) {
+        for (Map.Entry<Long, HashMap<Object, List<Long>>> outerEntry : vertexProperties.entrySet()) {
+            HashMap<Object, List<Long>> originalInnerMap = outerEntry.getValue();
+            HashMap<Object, List<Long>> transformedInnerMap = new HashMap<>();
+
+            for (Map.Entry<Object, List<Long>> innerEntry : originalInnerMap.entrySet()) {
+                Object originalKey = innerEntry.getKey();
+                Object transformedKey = convertValueToAerospikeWriteable(originalKey);
+                transformedInnerMap.put(transformedKey, innerEntry.getValue());
+            }
+
+            outerEntry.setValue(transformedInnerMap);
+        }
+    }
+
+    // Cast vertex property value map types to Aerospike supported types if necessary (matching type hint will be added later).
     public void convertValuesToAerospikeWriteable(Map<Long, Object> vertexPropertyValueMapWritable) {
         for (Map.Entry<Long, Object> entry : vertexPropertyValueMapWritable.entrySet()) {
             entry.setValue(convertValueToAerospikeWriteable(entry.getValue()));

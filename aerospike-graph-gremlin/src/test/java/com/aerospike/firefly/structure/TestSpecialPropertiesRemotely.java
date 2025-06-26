@@ -28,7 +28,7 @@ public class TestSpecialPropertiesRemotely {
 
     @BeforeClass
     static public void setup() throws NoSuchFieldException, IllegalAccessException {
-        server = FireflyServer.start(new String[]{"../conf/firefly-gremlin-server-local.yaml"});
+        server = FireflyServer.start(new String[]{"../conf/firefly-gremlin-server-github-actions.yaml"});
         cluster = Cluster.build().addContactPoint("localhost").port(8182).create();
         g = traversal().withRemote(DriverRemoteConnection.using(cluster, "g"));
     }

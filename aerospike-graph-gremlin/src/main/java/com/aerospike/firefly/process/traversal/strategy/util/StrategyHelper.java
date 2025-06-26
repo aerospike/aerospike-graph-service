@@ -15,19 +15,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class StrategyHelper {
-    public static boolean requiresEdges(final Traversal.Admin<?, ?> traversal, final List<Step> steps, final int startIndex) {
+    public static boolean areEdgesRequired(final Traversal.Admin<?, ?> traversal, final List<Step> steps, final int startIndex) {
         if (traversal.isRoot()) {
-            return requiresEdges(steps, startIndex);
+            return areEdgesRequired(steps, startIndex);
         } else {
             // steps after parent can use in/out edges
             final Step parentStep = traversal.getParent().asStep();
             final Traversal.Admin parentTraversal = parentStep.getTraversal().asAdmin();
             final List<Step> parentSteps = parentTraversal.getSteps();
-            return requiresEdges(steps, startIndex) || requiresEdges(parentTraversal, parentSteps, parentSteps.indexOf(parentStep));
+            return areEdgesRequired(steps, startIndex) || areEdgesRequired(parentTraversal, parentSteps, parentSteps.indexOf(parentStep));
         }
     }
 
-    private static boolean requiresEdges(final List<Step> steps, final int startIndex) {
+    private static boolean areEdgesRequired(final List<Step> steps, final int startIndex) {
         for (int i = startIndex; i < steps.size(); i++) {
             if (steps.get(i) instanceof VertexStep || steps.get(i) instanceof EdgeVertexStep
                     || steps.get(i) instanceof FireflyCountGlobalLocalStep

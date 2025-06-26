@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.requiresEdges;
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.areEdgesRequired;
 
 public class FireflyEdgeToVertexBatchReadStrategy extends FireflyStrategyBase {
 
@@ -48,7 +48,7 @@ public class FireflyEdgeToVertexBatchReadStrategy extends FireflyStrategyBase {
             List<HasContainer> hasContainers = null;
             Set<String> labels = original.getLabels();
 
-            final boolean requiresEdges = requiresEdges(traversal, steps, index);
+            final boolean areEdgesRequired = areEdgesRequired(traversal, steps, index);
 
             // there is one more following step, may be filter?
             while (labels.isEmpty()) {
@@ -89,7 +89,7 @@ public class FireflyEdgeToVertexBatchReadStrategy extends FireflyStrategyBase {
                     hasContainers,
                     labels,
                     graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
-                    requiresEdges);
+                    areEdgesRequired);
 
             TraversalHelper.replaceStep(original, optimizedStep, traversal);
         }

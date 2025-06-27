@@ -58,7 +58,7 @@ public class FireflyBatchReadHelper {
      * @param <E> Type of element to return.
      */
     public interface ReadElements<E extends Element> {
-        List<E> read(final List<HasContainer> hasContainers, final List<FireflyId> unorderedIds, final List<String> requiredProperties, final boolean requiresEdges);
+        List<E> read(final List<HasContainer> hasContainers, final List<FireflyId> unorderedIds, final List<String> requiredProperties, final boolean areEdgesRequired);
     }
 
     public static <E extends FireflyElement, T extends Element> void populateElementMap(final Set<FireflyId> uniqueIdSet,
@@ -66,10 +66,10 @@ public class FireflyBatchReadHelper {
                                                                                         final List<HasContainer> aerospikeHasContainers,
                                                                                         final ReadElements<E> readElements,
                                                                                         final List<String> requiredProperties,
-                                                                                        final boolean requiresEdges) {
+                                                                                        final boolean areEdgesRequired) {
         // Read all IDs in a batch.
         final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
-        final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds, requiredProperties, requiresEdges);
+        final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds, requiredProperties, areEdgesRequired);
 
         // If there is a mismatch we might have had concurrent removals or expression filtering. To fix this rematch the lists.
         if (unorderedIds.size() != unorderedElements.size()) {
@@ -94,10 +94,10 @@ public class FireflyBatchReadHelper {
                                                                                        final TraverserSet<T> output,
                                                                                        final ReadElements<E> readElements,
                                                                                        final List<String> requiredProperties,
-                                                                                       final boolean requiresEdges) {
+                                                                                       final boolean areEdgesRequired) {
         // Read all IDs in a batch.
         final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
-        final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds, requiredProperties, requiresEdges);
+        final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds, requiredProperties, areEdgesRequired);
 
         // If there is a mismatch we might have had concurrent removals or expression filtering. To fix this rematch the lists.
         if (unorderedIds.size() != unorderedElements.size()) {
@@ -149,10 +149,10 @@ public class FireflyBatchReadHelper {
             final Map<FireflyId, E> output,
             final ReadElements<E> readElements,
             final List<String> requiredProperties,
-            final boolean requiresEdges) {
+            final boolean areEdgesRequired) {
         // Read all IDs in a batch.
         final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
-        final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds, requiredProperties, requiresEdges);
+        final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds, requiredProperties, areEdgesRequired);
 
         // If there is a mismatch we might have had concurrent removals or expression filtering. To fix this rematch the lists.
         if (unorderedIds.size() != unorderedElements.size()) {

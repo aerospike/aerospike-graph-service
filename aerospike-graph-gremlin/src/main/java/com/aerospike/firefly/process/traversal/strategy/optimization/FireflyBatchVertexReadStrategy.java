@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.requiresEdges;
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.areEdgesRequired;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -85,7 +85,7 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
             List<String> propertyKeys = null;
 
             // if any following steps (or there child) need vertex or edge then no optimization
-            final boolean requiresEdges = requiresEdges(traversal, steps, index);
+            final boolean areEdgesRequired = areEdgesRequired(traversal, steps, index);
 
             while (labels.isEmpty()) {
                 if (index >= steps.size()) {
@@ -227,7 +227,7 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                         limitSize,
                         graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
                         propertyKeys,
-                        requiresEdges));
+                        areEdgesRequired));
             } else {
                 traversal.addStep(index, new FireflyBatchVertexReadStep(
                         traversal,
@@ -237,7 +237,7 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                         hasContainers,
                         graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
                         propertyKeys,
-                        requiresEdges));
+                        areEdgesRequired));
             }
         }
     }

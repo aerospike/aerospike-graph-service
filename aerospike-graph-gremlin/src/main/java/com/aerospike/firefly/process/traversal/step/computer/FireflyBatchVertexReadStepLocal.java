@@ -48,7 +48,7 @@ public class FireflyBatchVertexReadStepLocal extends VertexStep<Vertex> implemen
     private transient final Map<FireflyId, FireflyVertex> cache = new HashMap<>();
     private transient final List<Traverser.Admin<Vertex>> inputCache = new ArrayList<>();
     private boolean first = true;
-    private final boolean requiresEdges = true;
+    private final boolean areEdgesRequired;
 
     public FireflyBatchVertexReadStepLocal(final Traversal.Admin traversal,
                                            final Direction direction,
@@ -56,12 +56,14 @@ public class FireflyBatchVertexReadStepLocal extends VertexStep<Vertex> implemen
                                            final Set<String> labels,
                                            final List<HasContainer> hasContainers,
                                            final List<String> requiredProperties,
-                                           final Parameters parameters) {
+                                           final Parameters parameters,
+                                           final boolean areEdgesRequired) {
         super(traversal, Vertex.class, direction, edgeLabels);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
         this.labels = new HashSet<>(labels);
         this.parameters = parameters;
+        this.areEdgesRequired = areEdgesRequired;
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
                     FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) traversal.getGraph().get(), Vertex.class, hasContainers);
@@ -117,13 +119,13 @@ public class FireflyBatchVertexReadStepLocal extends VertexStep<Vertex> implemen
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 // Drain data to output.
                 FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
-                        fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache, graph::readVertices, requiredProperties, requiresEdges);
+                        fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache, graph::readVertices, requiredProperties, areEdgesRequired);
             }
         }
 
         // Drain data to output.
         FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
-                fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache, graph::readVertices, requiredProperties, requiresEdges);
+                fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, cache, graph::readVertices, requiredProperties, areEdgesRequired);
         inputCache.clear();
     }
 

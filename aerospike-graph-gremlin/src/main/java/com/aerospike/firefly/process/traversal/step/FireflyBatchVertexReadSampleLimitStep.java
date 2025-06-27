@@ -46,7 +46,7 @@ public class FireflyBatchVertexReadSampleLimitStep extends CollectingBarrierStep
     private final long limitSize;
     private final int barrierSize;
     private final List<String> requiredProperties;
-    private final boolean requiresEdges;
+    private final boolean areEdgesRequired;
 
     public FireflyBatchVertexReadSampleLimitStep(final Traversal.Admin traversal,
                                                  final Direction direction,
@@ -57,7 +57,7 @@ public class FireflyBatchVertexReadSampleLimitStep extends CollectingBarrierStep
                                                  final long limitSize,
                                                  final int barrierSize,
                                                  final List<String> requiredProperties,
-                                                 final boolean requiresEdges) {
+                                                 final boolean areEdgesRequired) {
         super(traversal, barrierSize);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
@@ -65,7 +65,7 @@ public class FireflyBatchVertexReadSampleLimitStep extends CollectingBarrierStep
         this.sampleSize = sampleSize;
         this.limitSize = limitSize;
         this.barrierSize = barrierSize;
-        this.requiresEdges = requiresEdges;
+        this.areEdgesRequired = areEdgesRequired;
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
                     FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);
@@ -166,7 +166,7 @@ public class FireflyBatchVertexReadSampleLimitStep extends CollectingBarrierStep
         // Read the sampled vertices.
         final Map<FireflyId, FireflyVertex> vertexMap = new HashMap<>();
         FireflyBatchReadHelper.populateElementMap(
-                new HashSet<>(sampledVertexIds), vertexMap, aerospikeHasContainers, graph::readVertices, requiredProperties, requiresEdges);
+                new HashSet<>(sampledVertexIds), vertexMap, aerospikeHasContainers, graph::readVertices, requiredProperties, areEdgesRequired);
 
         // Create list of random indices to sample and order them in ascending order so we can iterate through them.
         final List<Long> randomIndicesList = new ArrayList<>(randomIndices);

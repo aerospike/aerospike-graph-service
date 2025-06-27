@@ -915,7 +915,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
      * @param edgeIds Edge ids.
      * @return Edge.
      */
-    public List<FireflyEdge> readEdges(final List<HasContainer> hasContainers, final List<FireflyId> edgeIds, final List<String> requiredProperties, final boolean requiresEdges) {
+    public List<FireflyEdge> readEdges(final List<HasContainer> hasContainers, final List<FireflyId> edgeIds, final List<String> requiredProperties, final boolean areEdgesRequired) {
         if (!hasContainers.isEmpty()) {
             throw new RuntimeException("Pushdown is not currently supported for Edges.");
         }

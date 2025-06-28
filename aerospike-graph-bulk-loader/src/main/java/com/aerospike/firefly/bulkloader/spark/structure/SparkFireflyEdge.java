@@ -4,6 +4,7 @@ import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.BadCsvEntryException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.InvalidCsvHeaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
@@ -69,6 +70,9 @@ public class SparkFireflyEdge extends SparkFireflyElement {
             try {
                 final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header), nullValue);
                 properties.add(property);
+            } catch (final InvalidCsvHeaderException iche) {
+                LOG.error("Failed to generate Edge property for header '" + header + "' from value: " + row.getAs(header));
+                throw iche;
             } catch (final RuntimeException e) {
                 LOG.error("Failed to generate Edge property for header '" + header + "' from value: " + row.getAs(header));
                 throw new BadCsvEntryException(e);

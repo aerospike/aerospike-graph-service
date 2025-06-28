@@ -52,8 +52,8 @@ public class TestBulkLoaderRecovery1 extends TestBulkLoaderRecovery {
         waitForBulkLoadFail(graph.traversal());
 
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
-        final Exception e = waitForBulkLoadFail(graph.traversal());
-        Assert.assertTrue(e.getMessage().contains("Cannot resume load without '" + RESUME + "' flag"));
+        final String e = waitForBulkLoadFail(graph.traversal());
+        Assert.assertTrue(e.contains("Cannot resume load without '" + RESUME + "' flag"));
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig(), "-" + FORCE, "-" + INCREMENTAL_LOAD}, DEFAULT_PARAMS));
         waitForBulkLoad(graph.traversal());
     }

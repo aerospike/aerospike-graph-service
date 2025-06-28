@@ -118,6 +118,9 @@ public class DateTimeUtil {
         Assert.assertEquals(1, vResults.size());
         vResults = g.V().has("addedODT", P.within(addedDT, addedODT)).toList();
         Assert.assertEquals(1, vResults.size());
+        Date queryDate = getDate(1995, Calendar.JANUARY, 1);
+        vResults = g.V().has("addedD", P.gt(queryDate)).toList();
+        Assert.assertEquals(1, vResults.size());
 
         final Date noneExistingAddedDT = getDate(2019, Calendar.AUGUST, 15, 10, 30, 0, 0);
 
@@ -128,16 +131,16 @@ public class DateTimeUtil {
         List<Edge> eResults = g.E().has("addedDT", addedDT).toList();
         Assert.assertEquals(1, eResults.size());
 
-        final Date queryDT1 = getDate(2020, Calendar.JANUARY, 1);
-        eResults = g.E().has("initDT", P.gt(queryDT1)).toList();
+        queryDate = getDate(2020, Calendar.JANUARY, 1);
+        eResults = g.E().has("initDT", P.gt(queryDate)).toList();
         Assert.assertEquals(1, eResults.size());
 
-        final Date queryDT2 = getDate(2031, Calendar.JANUARY, 1);
-        eResults = g.E().has("initDT", P.gt(queryDT2)).toList();
+        queryDate = getDate(2031, Calendar.JANUARY, 1);
+        eResults = g.E().has("initDT", P.gt(queryDate)).toList();
         Assert.assertEquals(0, eResults.size());
 
-        final Date queryD = getDate(2025, Calendar.SEPTEMBER, 22);
-        eResults = g.E().has("addedD", P.eq(queryD)).toList();
+        queryDate = getDate(2025, Calendar.SEPTEMBER, 22);
+        eResults = g.E().has("addedD", P.eq(queryDate)).toList();
         Assert.assertEquals(1, eResults.size());
 
         eResults = g.E().has("addedD", P.within(addedD, addedDT)).toList();

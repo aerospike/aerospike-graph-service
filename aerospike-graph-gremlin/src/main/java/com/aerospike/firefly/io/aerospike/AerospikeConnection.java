@@ -1369,9 +1369,9 @@ public class AerospikeConnection implements AutoCloseable {
         if (!SUPPORTED_VALUE_TYPES.containsKey(clazz)) {
             throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(value);
         } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(ArrayList.class))) {
-            // Values within a list for our supported types are stored on disk as expected except for Integers which get
-            // stored as a Long. We need to keep track of which indexes within the list were inputted as Integers to
-            // properly cast them back upon a read.
+            // Values within a list for our supported types are stored on disk as expected except for Integers and Dats
+            // which get stored as a Long. We need to keep track of which indexes within the list were inputted as
+            // Integers to properly cast them back upon a read.
             final Map<Long, Long> indicesAndTypeHints = new HashMap<>();
             final ArrayList<?> valueList = (ArrayList<?>) value;
             for (int i = 0; i < valueList.size(); i++) {
@@ -1384,9 +1384,8 @@ public class AerospikeConnection implements AutoCloseable {
                                 + " within a List is not a supported value type");
                     }
                     // Transformable types
-                    Class<?> innerValueClass = valueList.get(i).getClass();
-                    if (AEROSPIKE_TRANSFORMABLE_TYPES.contains(innerValueClass)) {
-                        indicesAndTypeHints.put((long) i, SUPPORTED_VALUE_TYPES.get(innerValueClass));
+                    if (AEROSPIKE_TRANSFORMABLE_TYPES.contains(valueClass)) {
+                        indicesAndTypeHints.put((long) i, SUPPORTED_VALUE_TYPES.get(valueClass));
                     }
                 }
             }
@@ -1951,7 +1950,8 @@ public class AerospikeConnection implements AutoCloseable {
                     valueList.set(entry.getKey().intValue(), (clazz == null) ? valueListValue : typeCast(clazz, valueListValue));
                 } else if (!(AEROSPIKE_TRANSFORMABLE_TYPES.contains(valueListValue.getClass()))) {
                     // This should never happen.
-                    throw new IllegalStateException("A type hint for a list contains items that aren't transformable.");
+                    throw new IllegalStateException("A type hint for a list contains items that aren't transformable." +
+                            " Please contact support.");
                 }
             }
             return valueList;
@@ -2060,11 +2060,11 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     // Cast value type to Aerospike supported type if necessary (matching type hint will be added later).
-    public Object convertValueToAerospikeWriteable(Object value) {
+    public Object convertValueToAerospikeWriteable(final Object value) {
         if (value instanceof List) {
             List<?> originalList = (List<?>) value;
             List<Object> transformedList = new ArrayList<>(originalList.size());
-            for (Object element : originalList) {
+            for (final Object element : originalList) {
                 if (element != null && AEROSPIKE_TRANSFORMABLE_TYPES.contains(element.getClass())) {
                     transformedList.add(typeCastToAerospike(element));
                 } else {

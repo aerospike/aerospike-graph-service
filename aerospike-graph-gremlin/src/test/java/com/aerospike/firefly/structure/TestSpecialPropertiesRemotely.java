@@ -13,9 +13,12 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+import static com.aerospike.firefly.util.DateTimeUtil.getDate;
 import static com.aerospike.firefly.util.DateTimeUtil.testDateTimePropertiesCases;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 import static org.junit.Assert.assertEquals;
@@ -68,5 +71,8 @@ public class TestSpecialPropertiesRemotely {
 
         List<Result> results = client.submit("g.addV().property('date', datetime('2022-10-02'))").all().get();
         assertEquals(1, results.size());
+        Date date = (Date) results.get(0).getVertex().property("date").value();
+        final Date expected = getDate(2022, Calendar.OCTOBER, 2);
+        assertEquals(expected, date);
     }
 }

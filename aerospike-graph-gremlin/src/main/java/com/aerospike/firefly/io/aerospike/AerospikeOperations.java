@@ -1529,7 +1529,7 @@ public class AerospikeOperations {
 
         if (!isAttachedToSupernode) {
             final MapPolicy propertyPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-            Object propertyValueToWrite = db.convertValueToAerospikeWriteable(value);
+            final Object propertyValueToWrite = db.convertValueToAerospikeWriteable(value);
 
             final Operation valueOp = MapOperation.put(propertyPolicy, db.EDGE_DATA_BIN, Value.get(schemaPropertyKey),
                     Value.get(propertyValueToWrite), CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));

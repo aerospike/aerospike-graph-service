@@ -11,6 +11,12 @@ import java.util.TimeZone;
 
 public class PropertyValueParser {
     private final String nullValue;
+    private static final List<String> DATE_PATTERNS = Arrays.asList(
+            "yyyy-MM-dd",
+            "yyyy-MM-dd'T'HH:mm",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ssX"  // Handles 'Z' as UTC
+    );
 
     public PropertyValueParser(final String nullValue) {
         this.nullValue = nullValue;
@@ -61,28 +67,21 @@ public class PropertyValueParser {
             return null;
         }
 
-        for (String pattern : DATE_PATTERNS) {
+        for (final String pattern : DATE_PATTERNS) {
             try {
-                SimpleDateFormat sdf = new SimpleDateFormat(pattern, Locale.US);
+                final SimpleDateFormat sdf = new SimpleDateFormat(pattern, Locale.US);
                 sdf.setLenient(false);
                 sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-                Date parsed = sdf.parse(value);
+                final Date parsed = sdf.parse(value);
                 if (sdf.format(parsed).equals(value)) {
                     return parsed;
                 }
-            } catch (ParseException ignored) {
+            } catch (final ParseException ignored) {
                 // try the next pattern
             }
         }
         throw new IllegalArgumentException("Unsupported date format: " + value);
     }
-
-    private static final List<String> DATE_PATTERNS = Arrays.asList(
-            "yyyy-MM-dd",
-            "yyyy-MM-dd'T'HH:mm",
-            "yyyy-MM-dd'T'HH:mm:ss",
-            "yyyy-MM-dd'T'HH:mm:ssX"  // Handles 'Z' as UTC
-    );
 
     public OffsetDateTime parseOffsetDateTime(final String value) {
         if (value.equals(this.nullValue)) {

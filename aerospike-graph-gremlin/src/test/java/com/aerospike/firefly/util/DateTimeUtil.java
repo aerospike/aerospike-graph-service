@@ -148,7 +148,7 @@ public class DateTimeUtil {
         eResults = g.E().has("addedD", P.within(initD, initDT)).toList();
         Assert.assertEquals(0, eResults.size());
 
-        // Test vertex datetime property properties only for in-memory run, not a remote graph
+        // Test vertex datetime property properties.
         g.V().hasLabel("person").property("name", "simon").property("age", "trente").iterate();
         g.V().hasLabel("person").properties("name")
                 .property("date", initD)

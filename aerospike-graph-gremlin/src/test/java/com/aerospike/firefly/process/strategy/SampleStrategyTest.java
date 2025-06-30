@@ -53,8 +53,7 @@ public class SampleStrategyTest {
         // Load data.
         final Vertex v1 = g.addV("entity").property("indexed", "value1").property("notindexed", "value2").next();
         for (int i = 0; i < SUPERNODE_LOAD_SIZE; i++) {
-            final
-            Vertex v2 = g.addV("entity-hop").
+            final Vertex v2 = g.addV("entity-hop").
                     property("property1", "value1").
                     property("property2", "value2").
                     next();
@@ -254,7 +253,7 @@ public class SampleStrategyTest {
     }
 
     @Test
-    public void testStrategyApplicationSample(){
+    public void testStrategyApplicationSample() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
         config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), RECORD_LIMIT);
@@ -270,7 +269,7 @@ public class SampleStrategyTest {
             final GraphTraversal<Vertex, Vertex> traversalOutHasSample = g.V().out().has("foo", "bar").sample(1);
             traversalOutHasSample.asAdmin().applyStrategies();
             List<Step> stepsOutHasSample = traversalOutHasSample.asAdmin().getSteps();
-            assertStepsSample(stepsOutHasSample, false, true, true);
+            assertStepsSample(stepsOutHasSample, true, false, true);
 
             final GraphTraversal<Vertex, Vertex> traversalHasOutSample = g.V().out().sample(1).has("foo", "bar");
             traversalHasOutSample.asAdmin().applyStrategies();
@@ -285,7 +284,7 @@ public class SampleStrategyTest {
             final GraphTraversal<Vertex, Vertex> traversalInHasSample = g.V().in().has("foo", "bar").sample(1);
             traversalInHasSample.asAdmin().applyStrategies();
             List<Step> stepsInHasSample = traversalInHasSample.asAdmin().getSteps();
-            assertStepsSample(stepsInHasSample, false, true, true);
+            assertStepsSample(stepsInHasSample, true, false, true);
 
             final GraphTraversal<Vertex, Vertex> traversalHasInSample = g.V().in().sample(1).has("foo", "bar");
             traversalHasInSample.asAdmin().applyStrategies();
@@ -325,7 +324,7 @@ public class SampleStrategyTest {
     }
 
     @Test
-    public void testStrategyApplicationLimit(){
+    public void testStrategyApplicationLimit() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
         config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), RECORD_LIMIT);
@@ -341,7 +340,7 @@ public class SampleStrategyTest {
             final GraphTraversal<Vertex, Vertex> traversalOutHasLimit = g.V().out().has("foo", "bar").limit(1);
             traversalOutHasLimit.asAdmin().applyStrategies();
             List<Step> stepsOutHasLimit = traversalOutHasLimit.asAdmin().getSteps();
-            assertStepsLimit(stepsOutHasLimit, false, true, true);
+            assertStepsLimit(stepsOutHasLimit, true, false, true);
 
             final GraphTraversal<Vertex, Vertex> traversalHasOutLimit = g.V().out().limit(1).has("foo", "bar");
             traversalHasOutLimit.asAdmin().applyStrategies();
@@ -356,7 +355,7 @@ public class SampleStrategyTest {
             final GraphTraversal<Vertex, Vertex> traversalInHasLimit = g.V().in().has("foo", "bar").limit(1);
             traversalInHasLimit.asAdmin().applyStrategies();
             List<Step> stepsInHasLimit = traversalInHasLimit.asAdmin().getSteps();
-            assertStepsLimit(stepsInHasLimit, false, true, true);
+            assertStepsLimit(stepsInHasLimit, true, false, true);
 
             final GraphTraversal<Vertex, Vertex> traversalHasInLimit = g.V().in().limit(1).has("foo", "bar");
             traversalHasInLimit.asAdmin().applyStrategies();
@@ -415,7 +414,7 @@ public class SampleStrategyTest {
         }
     }
 
-    public void assertStepsSample(List<Step> steps, final boolean sampleFirst, final boolean hasHas, final boolean isVertex) {
+    private void assertStepsSample(List<Step> steps, final boolean sampleFirst, final boolean hasHas, final boolean isVertex) {
         if (!hasHas) {
             // Graph step, composite id step, limit step
             Assert.assertEquals(3, steps.size());
@@ -452,7 +451,7 @@ public class SampleStrategyTest {
         }
     }
 
-    public void assertStepsLimit(List<Step> steps, final boolean limitFirst, final boolean hasHas, final boolean isVertex) {
+    private void assertStepsLimit(List<Step> steps, final boolean limitFirst, final boolean hasHas, final boolean isVertex) {
         if (!hasHas) {
             // Graph step, composite id step, limit step
             Assert.assertEquals(3, steps.size());

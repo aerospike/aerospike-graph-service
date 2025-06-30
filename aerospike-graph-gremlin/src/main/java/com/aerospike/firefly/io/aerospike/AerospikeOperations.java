@@ -37,7 +37,7 @@ import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyEdgeRecord;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
-import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
+import com.aerospike.firefly.io.aerospike.query.paged.EdgeQueryHelper;
 import com.aerospike.firefly.io.aerospike.schema.SchemaManager;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyEdgeFactory;
@@ -50,8 +50,6 @@ import com.aerospike.firefly.structure.FireflyVertexPropertyProperty;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
-import com.aerospike.firefly.structure.id.LazyIdTransform;
-import com.aerospike.firefly.structure.id.LazyVertexPropertyIdTransform;
 import com.aerospike.firefly.structure.iterator.FireflyBatchEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
 import com.aerospike.firefly.util.FireflyHelper;
@@ -62,9 +60,11 @@ import com.aerospike.firefly.util.exceptions.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.util.exceptions.GraphError;
 import com.aerospike.firefly.util.exceptions.TtlArgumentException;
 import com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Property;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,7 +94,7 @@ import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_POSITION;
 import static com.aerospike.firefly.structure.FireflyElement.TTL_PROPERTY_KEY;
-import static com.aerospike.firefly.util.FireflyHelper.validatePropertyValue;
+import static com.aerospike.firefly.util.FireflyHelper.validateVertexPropertyValue;
 import static com.aerospike.firefly.util.exceptions.EdgeRecordSizeExceededException.fromAddingEdge;
 import static com.aerospike.firefly.util.exceptions.EdgeRecordSizeExceededException.fromAddingProperty;
 import static com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException.fromAddingToEdgeCache;
@@ -181,18 +181,14 @@ public class AerospikeOperations {
         LOG.debug("Writing Vertex {} {}.", vertexId, properties);
 
         boolean isSuperNodeViaIncremental = false;
-        final Map<String, FireflyId> vertexPropertyIds;
-        final Map<Long, Object> vertexPropertyIdsWritable;
-        final Map<Long, Object> vertexPropertyValueMapWritable;
-
-        final Map<String, Object> validProperties = new TreeMap<>();
+        final Map<Long, HashMap<Object, List<Long>>> vertexProperties = new TreeMap<>();
+        final Map<Long, Map<Long, Object>> vpTypeHints = new HashMap<>();
         final List<Operation> operations = new ArrayList<>();
         Long ttlValueLong = null;
 
         for (final Map.Entry<String, Object> property : properties) {
-            // If the property is null, remove any previous of property key if any.
+            // If the property is null, skip it.
             if (property.getValue() == null) {
-                validProperties.remove(property.getKey());
                 continue;
             }
             // Special bulk loader property for summary updater in the case of an incremental MergeV load.
@@ -218,7 +214,25 @@ public class AerospikeOperations {
                 }
                 continue;
             }
-            validProperties.put(property.getKey(), validatePropertyValue(property.getValue()));
+            // Generate disk version of property.
+            final Object validatedValue = validateVertexPropertyValue(property.getValue());
+            final Long schemaPropertyKey = db.schemaManager.getVertexPropertyWrite(property.getKey());
+            if (!vertexProperties.containsKey(schemaPropertyKey)) {
+                vertexProperties.put(schemaPropertyKey, new HashMap<>());
+            }
+            final Map<Object, List<Long>> propertyValueToIdList = vertexProperties.get(schemaPropertyKey);
+            if (!propertyValueToIdList.containsKey(validatedValue)) {
+                propertyValueToIdList.put(validatedValue, new ArrayList<>());
+            }
+            final FireflyId vertexPropertyId = graph.getIdFactory().generateId(graph, FireflyVertexProperty.class);
+            final List<Long> idListForValue = propertyValueToIdList.get(validatedValue);
+            idListForValue.add((Long) vertexPropertyId.getStorageId());
+            // Generate disk version of property type hint.
+            if (!vpTypeHints.containsKey(schemaPropertyKey)) {
+                vpTypeHints.put(schemaPropertyKey, new HashMap<>());
+            }
+            final Map<Long, Object> propertyIdToTypeHint = vpTypeHints.get(schemaPropertyKey);
+            propertyIdToTypeHint.put((Long) vertexPropertyId.getStorageId(), getTypeHintOf(property.getValue(), true));
         }
 
         if (ttlValueLong != null) {
@@ -227,12 +241,6 @@ public class AerospikeOperations {
             final Operation writeTtlBin = Operation.put(ttlBin);
             operations.add(writeTtlBin);
         }
-
-        final VertexPropertyIdMapContainer idMapContainer = getPropertyValueIdMaps(validProperties);
-        vertexPropertyIds = idMapContainer.vertexPropertyIdMap;
-        vertexPropertyIdsWritable = idMapContainer.vertexPropertyIdMapDisk;
-        vertexPropertyValueMapWritable = new TreeMap<>();
-        db.schemaManager.populateVertexPropertyStringMapToSchemaMap(validProperties, vertexPropertyValueMapWritable);
 
         // Create vertex bins for cache state, vertex label, and property ids.
         final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED_BIN, Value.get(isEdgeCacheOverflowed));
@@ -243,42 +251,28 @@ public class AerospikeOperations {
         final Operation writeEdgeCacheOut = getEdgeCache(fromEdgeCache, db.OUT_EDGES_BIN);
         final Operation writeEdgeCacheIn = getEdgeCache(toEdgeCache, db.IN_EDGES_BIN);
 
-        final Bin vertexPropertyIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID_BIN,
-                Value.get(vertexPropertyIdsWritable, MapOrder.KEY_ORDERED));
-        final Operation writeVertexPropertyIds = Operation.put(vertexPropertyIdsBin);
-        final Bin vertexPropertyValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
-                Value.get(vertexPropertyValueMapWritable, MapOrder.KEY_ORDERED));
-        final Operation writeVertexPropertyValues = Operation.put(vertexPropertyValuesBin);
-        final Map<String, Object> vertexPropertyTypeHintMap = new TreeMap<>();
-        for (Map.Entry<String, ?> entry : validProperties.entrySet()) {
-            final Object typeHint = getTypeHintOf(entry.getValue());
-            if (typeHint != null) {
-                vertexPropertyTypeHintMap.put(entry.getKey(), typeHint);
-            }
-        }
-        final Map<Long, Object> vertexPropertyTypeHintMapWritable = new TreeMap<>();
-        db.schemaManager.populateVertexPropertyStringMapToSchemaMap(vertexPropertyTypeHintMap, vertexPropertyTypeHintMapWritable);
-        final Bin vertexPropertyValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN,
-                Value.get(vertexPropertyTypeHintMapWritable, MapOrder.KEY_ORDERED));
-        final Operation writeVertexPropertyTypeHints = Operation.put(vertexPropertyValuesTypeHintsBin);
+        final Bin vertexPropertiesBin = new Bin(db.VERTEX_PROPERTY_DATA_BIN, Value.get(vertexProperties));
+        final Operation writeVertexProperties = Operation.put(vertexPropertiesBin);
+        final Bin vpTypeHintsBin = new Bin(db.VERTEX_PROPERTY_TH_BIN, Value.get(vpTypeHints));
+        final Operation writeVpTypeHints = Operation.put(vpTypeHintsBin);
 
         // Create Vertex Property Properties maps.
-        // In the Packed model, a Vertex Property's details are stored in the same record as the Vertex itself.
-        // Thus, the Vertex Property's Properties are also saved on the Vertex's record in Bins which map the
-        // Vertex Property ID to a map of Key-Value pairs that represents the Vertex Property's Properties.
         // The existence of the Vertex Property ID as a key in this map is what is used to determine whether the
         // Vertex Property currently exists, and thus instantiating it here is necessary.
-        final Map<Object, Map<String, Object>> vpProperties = new TreeMap<>();
-        final Map<Object, Map<String, Object>> vpPropertiesTypeHints = new TreeMap<>();
-        for (final FireflyId id : vertexPropertyIds.values()) {
-            vpProperties.put(id.getStorageId(), new TreeMap<>());
-            vpPropertiesTypeHints.put(id.getStorageId(), new TreeMap<>());
+        final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties = new HashMap<>();
+        for (final Map.Entry<Long, HashMap<Object, List<Long>>> vertexProperty : vertexProperties.entrySet()) {
+            final Map<Object, List<Long>> vpValueToIdList = vertexProperty.getValue();
+            final Map<Long, Map<Long, List<Object>>> vpPropertiesForKey = new HashMap<>();
+            for (final List<Long> vpIds : vpValueToIdList.values()) {
+                for (final Long vpId : vpIds) {
+                    vpPropertiesForKey.put(vpId, new HashMap<>());
+                }
+            }
+            vpProperties.put(vertexProperty.getKey(), vpPropertiesForKey);
         }
-        final Bin vpPropertiesBin = new Bin(db.PROPERTIES_BIN, Value.get(vpProperties, MapOrder.KEY_ORDERED));
+
+        final Bin vpPropertiesBin = new Bin(db.VP_PROPERTY_BIN, Value.get(vpProperties));
         final Operation writeVpProperties = Operation.put(vpPropertiesBin);
-        final Bin vpPropertiesTypeHintsBin = new Bin(db.TYPE_HINTS_BIN,
-                Value.get(vpPropertiesTypeHints, MapOrder.KEY_ORDERED));
-        final Operation writeVpPropertiesTypeHints = Operation.put(vpPropertiesTypeHintsBin);
         final Bin idTypeBin = new Bin(db.ID_TYPE_BIN, Value.get(vertexId.getStorageTypeHint()));
         final Operation writeIdTypeHint = Operation.put(idTypeBin);
 
@@ -296,29 +290,26 @@ public class AerospikeOperations {
         operations.add(writeLabel);
         operations.add(writeEdgeCacheIn);
         operations.add(writeEdgeCacheOut);
-        operations.add(writeVertexPropertyIds);
-        operations.add(writeVertexPropertyValues);
-        operations.add(writeVertexPropertyTypeHints);
+        operations.add(writeVertexProperties);
+        operations.add(writeVpTypeHints);
         operations.add(writeVpProperties);
-        operations.add(writeVpPropertiesTypeHints);
         operations.add(writeIdTypeHint);
 
         db.writeOperate(policy, key, operations.toArray(new Operation[0]));
         if (partition == null) {
-            graph.fireflySummaryUpdater.addVertexWriteToQueue(label, validProperties.entrySet().stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
+            graph.fireflySummaryUpdater.addVertexWriteToQueue(label, vertexProperties.keySet().stream().
+                    map(db.schemaManager::getVertexPropertyString).collect(Collectors.toSet()));
         } else {
-            graph.fireflySummaryUpdater.stageVertexWriteToQueue(label, validProperties.entrySet().stream().map(Map.Entry::getKey).collect(Collectors.toSet()), partition);
+            graph.fireflySummaryUpdater.stageVertexWriteToQueue(label, vertexProperties.keySet().stream().
+                    map(db.schemaManager::getVertexPropertyString).collect(Collectors.toSet()), partition);
             // Increase the supernode counter for fresh/incremental bulk loader (newly added vertices).
             if (isEdgeCacheOverflowed || isSuperNodeViaIncremental) {
                 graph.fireflySummaryUpdater.stageSupernodeWriteToQueue(label, partition);
             }
         }
-        graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, LazyVertexPropertyIdTransform.class);
-        final Map<String, LazyIdTransform> lazyIdTransformMap = (Map) vertexPropertyIds;
-        return FireflyVertexFactory.create(vertexId, label, graph, new TreeMap<>(),
-                new TreeMap<>(), lazyIdTransformMap, validProperties,
-                vertexPropertyTypeHintMap, vpProperties, vpPropertiesTypeHints,
-                isEdgeCacheOverflowed, db);
+        final FireflyVertex vertex = FireflyVertexFactory.create(vertexId, label, graph, new TreeMap<>(),
+                new TreeMap<>(), vertexProperties, vpTypeHints, vpProperties, isEdgeCacheOverflowed);
+        return vertex;
     }
 
     private Operation getEdgeCache(final Optional<Map<String, List<FireflyId>>> optionalEdgeCache, final String bin) {
@@ -334,31 +325,6 @@ public class AerospikeOperations {
         }
         final Bin edgeCacheBin = new Bin(bin, Value.get(vertexEdgeMap));
         return Operation.put(edgeCacheBin);
-    }
-
-    /**
-     * Generate Maps of Vertex Property key to Vertex Property ID.
-     *
-     * @param properties Vertex properties
-     * @return VertexPropertyIdMapContainer
-     */
-    private VertexPropertyIdMapContainer getPropertyValueIdMaps(final Map<String, Object> properties) {
-        return new VertexPropertyIdMapContainer(graph, properties);
-    }
-
-    private static class VertexPropertyIdMapContainer {
-        public final Map<String, FireflyId> vertexPropertyIdMap = new TreeMap<>();
-        public final Map<Long, Object> vertexPropertyIdMapDisk = new TreeMap<>();
-
-        private VertexPropertyIdMapContainer(final FireflyGraph graph, final Map<String, Object> vertexProperties) {
-            final SchemaManager schemaManager = graph.getBaseGraph().schemaManager;
-            for (final Map.Entry<String, Object> property : vertexProperties.entrySet()) {
-                // Get id for vertex property.
-                final FireflyId vertexPropertyId = graph.getIdFactory().generateId(graph, FireflyVertexProperty.class);
-                vertexPropertyIdMap.put(property.getKey(), vertexPropertyId);
-                vertexPropertyIdMapDisk.put(schemaManager.getVertexPropertyWrite(property.getKey()), vertexPropertyId.getStorageId());
-            }
-        }
     }
 
     /**
@@ -422,7 +388,7 @@ public class AerospikeOperations {
         }
         final QueryPolicy queryPolicy = new QueryPolicy();
         queryPolicy.includeBinData = true;
-        queryPolicy.filterExp = GraphQueryHelper.phatEdgeHasContainerListToExpression(db, hasContainers, labels,
+        queryPolicy.filterExp = EdgeQueryHelper.phatEdgeHasContainerListToExpression(db, hasContainers, labels,
                 vertexId, adjacentVertexId, direction);
         if (direction == Direction.OUT) {
             return new CachedIterator(graph, graph.graphQuery.querySIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME,
@@ -519,45 +485,28 @@ public class AerospikeOperations {
     //////////////// VERTEX PROPERTIES ///////////////
 
     /**
-     * Write properties to Vertex Property.
+     * Write property to Vertex Property.
      *
      * @param propertyKey   Key of property to write.
      * @param propertyValue Value of property to write.
      * @param <F>           Type of property value.
-     * @return Map of label to properties.
+     * @return Property written to Vertex Property.
      */
-    public <F> Property<F> writeVpProperty(final FireflyVertexProperty vertexProperty, final String propertyKey, final F propertyValue) {
+    public <F> Property<F> writeVpProperty(final FireflyVertexProperty vertexProperty, final String propertyKey,
+                                           final F propertyValue) {
         final Key opKey = getKey(db, db.VERTEX_AERO_SET, vertexProperty.vertexId);
+        final Long schemaVpKey = db.schemaManager.getVertexPropertyWrite(vertexProperty.key());
+        final Long vpId = (Long) vertexProperty.id.getStorageId();
+        final Long schemaPropertyKey = db.schemaManager.getVpPropertyWrite(propertyKey);
         final List<Operation> operations = new ArrayList<>();
-        final Long schemaPropertyKey;
 
-        final Operation writeValue;
-        if (propertyValue == null) {
-            schemaPropertyKey = db.schemaManager.getVpPropertyRead(propertyKey);
-            writeValue = MapOperation.removeByKey(db.PROPERTIES_BIN, Value.get(schemaPropertyKey), MapReturnType.NONE,
-                    CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
-            operations.add(writeValue);
-            final Operation writeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(schemaPropertyKey), MapReturnType.NONE,
-                    CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
-            operations.add(writeTypeHint);
-        } else {
-            schemaPropertyKey = db.schemaManager.getVpPropertyWrite(propertyKey);
-            final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-            writeValue = MapOperation.put(policy, db.PROPERTIES_BIN, Value.get(schemaPropertyKey), Value.get(propertyValue),
-                    CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
-            operations.add(writeValue);
-            final Object typeHint = getTypeHintOf(propertyValue);
-            final Operation writeTypeHint;
-            if (typeHint != null) {
-                writeTypeHint = MapOperation.put(policy, db.TYPE_HINTS_BIN, Value.get(schemaPropertyKey),
-                        Value.get(typeHint),
-                        CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
-            } else {
-                writeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(schemaPropertyKey), MapReturnType.NONE,
-                        CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
-            }
-            operations.add(writeTypeHint);
-        }
+        final List<Object> valueAndTypeHint = new ArrayList<>(2);
+        valueAndTypeHint.add(propertyValue);
+        valueAndTypeHint.add(getTypeHintOf(propertyValue));
+        final MapPolicy policy = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.DEFAULT);
+        final Operation writeValue = MapOperation.put(policy, db.VP_PROPERTY_BIN, Value.get(schemaPropertyKey),
+                Value.get(valueAndTypeHint), CTX.mapKey(Value.get(schemaVpKey)), CTX.mapKey(Value.get(vpId)));
+        operations.add(writeValue);
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
@@ -579,167 +528,253 @@ public class AerospikeOperations {
                 throw ae;
             }
         }
-        vertexProperty.properties.put(propertyKey, propertyValue);
-        if (propertyValue == null || getTypeHintOf(propertyValue) == null) {
-            vertexProperty.typeHints.remove(propertyKey);
-        } else {
-            vertexProperty.typeHints.put(propertyKey, getTypeHintOf(propertyValue));
-        }
+        vertexProperty.properties.put(schemaPropertyKey, valueAndTypeHint);
         return new FireflyVertexPropertyProperty<>(graph, vertexProperty, propertyKey, propertyValue);
     }
 
     /**
-     * Write vertex property to vertex.
+     * Write Vertex Property to Vertex.
      *
-     * @param vertexProperty Vertex property to write to vertex.
+     * @param cardinality   Cardinality of Vertex Property.
+     * @param vertex        Parent Vertex of the Vertex Property.
+     * @param key           Vertex Property key.
+     * @param value         Vertex Property value.
+     * @param properties    Vertex Property Properties.
+     * @param <V>           Vertex Property value type.
+     * @return Newly written Vertex Property.
      */
-    public void writeVpProperty(final FireflyVertex vertex, final FireflyVertexProperty vertexProperty) {
-        final Key key = getKey(this.db, this.db.VERTEX_AERO_SET, vertex.id);
-        final List<Operation> operations = new ArrayList<>();
-        boolean wroteTypeHint = false;
-        final Long schemaVpKey = this.db.schemaManager.getVertexPropertyWrite(vertexProperty.key());
-
-        final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-        final Operation putValue = MapOperation.put(policy, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
-                Value.get(schemaVpKey), Value.get(vertexProperty.value()));
-        operations.add(putValue);
-        final Object typeHint = getTypeHintOf(vertexProperty.value());
-        if (typeHint != null) {
-            final Operation putTypeHint = MapOperation.put(policy, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN,
-                    Value.get(schemaVpKey), Value.get(typeHint));
-            operations.add(putTypeHint);
-            wroteTypeHint = true;
+    public <V> VertexProperty<V> writeVertexProperty(final VertexProperty.Cardinality cardinality,
+                                                     final FireflyVertex vertex,
+                                                     final String key,
+                                                     final V value,
+                                                     final Map<Long, List<Object>> properties) {
+        if (value == null) {
+            if (cardinality != VertexProperty.Cardinality.single) {
+                // This should never happen.
+                throw new IllegalArgumentException("Null Vertex Property values are invalid when Cardinality is single. Please contact support.");
+            }
+            writeCardinalitySingleNullProperty(vertex, key);
+            return VertexProperty.empty();
         }
-        final Operation putId = MapOperation.put(policy, this.db.VERTEX_PROPERTY_NAME_TO_ID_BIN,
-                Value.get(schemaVpKey), Value.get(vertexProperty.id.getStorageId()));
-        operations.add(putId);
-        final Operation getValues = Operation.get(this.db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN);
-        operations.add(getValues);
-        final Operation getTypeHints = Operation.get(this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
-        operations.add(getTypeHints);
-        final Operation getIds = Operation.get(this.db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
-        operations.add(getIds);
+        final Key recordKey = getKey(this.db, this.db.VERTEX_AERO_SET, vertex.id);
+        final FireflyId vertexPropertyId = this.db.getIdFactory().generateId(this.graph, FireflyVertexProperty.class);
+        final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
+        final Long schemaVpKey = this.db.schemaManager.getVertexPropertyWrite(key);
+        final Object typeHint = getTypeHintOf(value, true);
+        final Object verifiedValue = validateVertexPropertyValue(value);
 
-        // Write key for the vertex property's properties
-        final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-        final Map<Long, Object> vpProperties = new TreeMap<>();
-        db.schemaManager.populateVpPropertyStringMapToSchemaMap(vertexProperty.properties, vpProperties);
-        final Operation addKeyProperties = MapOperation.put(mapPolicy, this.db.PROPERTIES_BIN,
-                Value.get(vertexProperty.id.getStorageId()),
-                Value.get(vpProperties));
-        operations.add(addKeyProperties);
-        final Map<Long, Object> vpTypeHints = new TreeMap<>();
-        db.schemaManager.populateVpPropertyStringMapToSchemaMap(vertexProperty.typeHints, vpTypeHints);
-        final Operation addKeyPropertiesTypeHints = MapOperation.put(mapPolicy, this.db.TYPE_HINTS_BIN,
-                Value.get(vertexProperty.id.getStorageId()),
-                Value.get(vpTypeHints));
-        operations.add(addKeyPropertiesTypeHints);
-        final Operation getKeyProperties = Operation.get(this.db.PROPERTIES_BIN);
-        operations.add(getKeyProperties);
-        final Operation getKeyPropertiesTypeHints = Operation.get(this.db.TYPE_HINTS_BIN);
-        operations.add(getKeyPropertiesTypeHints);
+        final List<Operation> operations = new ArrayList<>();
+        final Operation writeVpData;
+        final Operation writeVpTypeHint;
+        final Operation writeVpProperties;
+
+        final MapPolicy treeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
+        final MapPolicy hashMapPolicy = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.DEFAULT);
+        final ListPolicy listPolicy = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.DEFAULT);
+        if (cardinality.equals(VertexProperty.Cardinality.single)) {
+            final List<Long> idInList = new ArrayList<>(1);
+            idInList.add(vpIdKey);
+            final Map<Object, List<Long>> valueToIdList = new HashMap<>();
+            valueToIdList.put(verifiedValue, idInList);
+            writeVpData = MapOperation.put(treeMapPolicy, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(schemaVpKey), Value.get(valueToIdList));
+            final Map<Long, Object> idToTypeHint = new HashMap<>();
+            idToTypeHint.put(vpIdKey, typeHint);
+            writeVpTypeHint = MapOperation.put(hashMapPolicy, this.db.VERTEX_PROPERTY_TH_BIN, Value.get(schemaVpKey), Value.get(idToTypeHint));
+            final Map<Long, Map<Long, List<Object>>> idToProperties = new HashMap<>();
+            idToProperties.put(vpIdKey, properties);
+            writeVpProperties = MapOperation.put(hashMapPolicy, this.db.VP_PROPERTY_BIN, Value.get(schemaVpKey), Value.get(idToProperties));
+        } else if (cardinality.equals(VertexProperty.Cardinality.list)) {
+            writeVpData = ListOperation.append(listPolicy, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(vpIdKey),
+                    CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(verifiedValue), MapOrder.UNORDERED));
+            writeVpTypeHint = MapOperation.put(hashMapPolicy, this.db.VERTEX_PROPERTY_TH_BIN, Value.get(vpIdKey),
+                    Value.get(typeHint), CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.UNORDERED));
+            writeVpProperties = MapOperation.put(hashMapPolicy, this.db.VP_PROPERTY_BIN, Value.get(vpIdKey),
+                    Value.get(properties), CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.UNORDERED));
+        } else if (cardinality.equals(VertexProperty.Cardinality.set)) {
+            // TODO: Implement this when we support set cardinality. Right now, this should never happen.
+            throw new NotImplementedException("Cardinality.set is not yet supported.");
+        } else {
+            // This should never happen.
+            throw new IllegalArgumentException("Cardinality of Vertex Property was not single, list, or set. Please contact support.");
+        }
+
+        operations.add(writeVpData);
+        operations.add(writeVpTypeHint);
+        operations.add(writeVpProperties);
+        appendGetVertexPropertyBinOps(operations);
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            final Record result = this.db.writeOperate(writePolicy, key, operations.toArray(new Operation[0]));
-
-            final Map<Long, Object> vertexPropertyValuesDisk = (Map<Long, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, 1)).orElse(new TreeMap<>());
-            final Map<Long, Object> vertexPropertyTypeHintsDisk = wroteTypeHint ?
-                    (Map<Long, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN, 1)).orElse(new TreeMap<>()) :
-                    (Map<Long, Object>) result.getMap(this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
-            final Map<Long, Object> vertexPropertyIdsDisk = (Map<Long, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_ID_BIN, 1)).orElse(new TreeMap<>());
-            final Map<Object, Map<Long, Object>> vertexPropertyIdToPropertiesDisk = (Map<Object, Map<Long, Object>>) Optional.ofNullable(getValueAtIndex(result, this.db.PROPERTIES_BIN, 1)).orElse(new TreeMap<>());
-            final Map<Object, Map<String, Object>> vertexPropertyIdToProperties = new TreeMap<>();
-            db.schemaManager.populateVertexVpPropertySchemaMapToStringMap(vertexPropertyIdToPropertiesDisk, vertexPropertyIdToProperties);
-            final Map<Object, Map<Long, Object>> vertexPropertyIdToTypeHintsDisk = (Map<Object, Map<Long, Object>>) Optional.ofNullable(getValueAtIndex(result, this.db.TYPE_HINTS_BIN, 1)).orElse(new TreeMap<>());
-            final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints = new TreeMap<>();
-            db.schemaManager.populateVertexVpPropertySchemaMapToStringMap(vertexPropertyIdToTypeHintsDisk, vertexPropertyIdToTypeHints);
-
-            final Map<String, Object> vertexPropertyValues = new TreeMap<>();
-            db.schemaManager.populateVertexPropertySchemaMapToStringMap(vertexPropertyValuesDisk, vertexPropertyValues);
-            final Map<String, Object> vertexPropertyTypeHints = new TreeMap<>();
-            db.schemaManager.populateVertexPropertySchemaMapToStringMap(vertexPropertyTypeHintsDisk, vertexPropertyTypeHints);
-            final Map<String, Object> vertexPropertyIds = new TreeMap<>();
-            db.schemaManager.populateVertexPropertySchemaMapToStringMap(vertexPropertyIdsDisk, vertexPropertyIds);
-            this.graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, LazyVertexPropertyIdTransform.class);
-            final Map<String, LazyIdTransform> vertexPropertyFireflyIds = (Map) vertexPropertyIds;
+            final Record result = this.db.writeOperate(writePolicy, recordKey, operations.toArray(new Operation[0]));
+            final Map<Long, HashMap<Object, List<Long>>> vertexProperties =
+                    (Map<Long, HashMap<Object, List<Long>>>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_DATA_BIN, 1);
+            final Map<Long, Map<Long, Object>> vpTypeHints =
+                    (Map<Long, Map<Long, Object>>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_TH_BIN, 1);
+            final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties =
+                    (Map<Long, Map<Long, Map<Long, List<Object>>>>) getValueAtIndex(result, this.db.VP_PROPERTY_BIN, 1);
 
             // Update this FireflyVertex in JVM cache
-            vertex.updateVertexPropertyJVMCache(vertexPropertyFireflyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyIdToProperties, vertexPropertyIdToTypeHints);
-            graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(vertex.label(), Set.of(vertexProperty.key()));
+            vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties);
+            graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(vertex.label(), Set.of(key));
+            return new FireflyVertexProperty<>(graph, vertexPropertyId, vertex, key, value, properties);
         } catch (final AerospikeGraphRecordSizeExceededException e) {
             final VertexRecordSizeExceededException sizeExceededException =
                     fromAddingVertexProperty((AerospikeException) e.getCause(), this.db,
-                            getRelevantVertexBins(this.db, key), vertex.id, vertexProperty.key());
+                            getRelevantVertexBins(this.db, recordKey), vertex.id, key);
             LOG.error(sizeExceededException.getMessage());
             throw sizeExceededException;
         }
     }
 
-    /**
-     * Remove the vertex property from the vertex.
-     *
-     * @param key              vertex property label.
-     * @param vertexPropertyId id of the vertex property to remove.
-     */
-    public void removeVertexProperty(final FireflyVertex vertex, final String key, final FireflyId vertexPropertyId) {
-        final Key opKey = getKey(this.db, this.db.VERTEX_AERO_SET, vertex.id);
-        final Long schemaKey = db.schemaManager.getVertexPropertyWrite(key);
+    private void writeCardinalitySingleNullProperty(final FireflyVertex vertex, final String key) {
+        final Key recordKey = getKey(this.db, this.db.VERTEX_AERO_SET, vertex.id);
+        final Long schemaKey = db.schemaManager.getVertexPropertyRead(key);
+        final List<Operation> operations = new ArrayList<>();
 
-        // Remove Vertex Property's Properties.
-        final Operation removeProperty =
-                MapOperation.removeByKey(this.db.PROPERTIES_BIN, Value.get(vertexPropertyId.getStorageId()), MapReturnType.NONE);
-        final Operation removePropertyTypeHint =
-                MapOperation.removeByKey(this.db.TYPE_HINTS_BIN, Value.get(vertexPropertyId.getStorageId()), MapReturnType.NONE);
+        final Operation removeVpKey = MapOperation.removeByKey(this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(schemaKey), MapReturnType.NONE);
+        operations.add(removeVpKey);
+        final Operation removeTypeHintKey = MapOperation.removeByKey(this.db.VERTEX_PROPERTY_TH_BIN, Value.get(schemaKey), MapReturnType.NONE);
+        operations.add(removeTypeHintKey);
+        final Operation removeVpPropertiesKey = MapOperation.removeByKey(this.db.VP_PROPERTY_BIN, Value.get(schemaKey), MapReturnType.NONE);
+        operations.add(removeVpPropertiesKey);
+
+        appendGetVertexPropertyBinOps(operations);
+
+        final Record result = this.db.writeOperate(null, recordKey, operations.toArray(new Operation[]{}));
+        final Map<Long, HashMap<Object, List<Long>>> vertexProperties = (Map<Long, HashMap<Object, List<Long>>>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_DATA_BIN, 1);
+        final Map<Long, Map<Long, Object>> vpTypeHints = (Map<Long, Map<Long, Object>>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_TH_BIN, 1);
+        final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties = (Map<Long, Map<Long, Map<Long, List<Object>>>>) getValueAtIndex(result, this.db.VP_PROPERTY_BIN, 1);
+        vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties);
+    }
+
+    private void appendGetVertexPropertyBinOps(final List<Operation> operations) {
+        final Operation getVertexPropertyValues = Operation.get(this.db.VERTEX_PROPERTY_DATA_BIN);
+        operations.add(getVertexPropertyValues);
+        final Operation getVertexPropertyTypeHints = Operation.get(this.db.VERTEX_PROPERTY_TH_BIN);
+        operations.add(getVertexPropertyTypeHints);
+        final Operation getVertexPropertyProperties = Operation.get(this.db.VP_PROPERTY_BIN);
+        operations.add(getVertexPropertyProperties);
+    }
+
+    /**
+     * Remove the Vertex Property from the Vertex.
+     *
+     * @param vertex            Parent Vertex of the Vertex Property.
+     * @param key               Vertex Property key.
+     * @param value             Vertex Property value.
+     * @param vertexPropertyId  FireflyId of the Vertex Property to remove.
+     */
+    public void removeVertexProperty(final FireflyVertex vertex, final String key, final Object value,
+                                     final FireflyId vertexPropertyId) {
+        final Key opKey = getKey(this.db, this.db.VERTEX_AERO_SET, vertex.id);
+        final Long schemaKey = db.schemaManager.getVertexPropertyRead(key);
+        final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
+        final Object validatedValue = validateVertexPropertyValue(value);
+        final Exp vpValueExp = getExpVal(validatedValue);
+        final List<Operation> operations = new ArrayList<>();
 
         // Remove Vertex Property.
-        final Operation removeVertexPropertyValue =
-                MapOperation.removeByKey(this.db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, Value.get(schemaKey), MapReturnType.NONE);
-        final Operation removeVertexPropertyTypeHint =
-                MapOperation.removeByKey(this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN, Value.get(schemaKey), MapReturnType.NONE);
-        final Operation removeVertexPropertyId =
-                MapOperation.removeByKey(this.db.VERTEX_PROPERTY_NAME_TO_ID_BIN, Value.get(schemaKey), MapReturnType.NONE);
+        final Operation removeVertexProperty = ListOperation.removeByValue(this.db.VERTEX_PROPERTY_DATA_BIN,
+                Value.get(vpIdKey), ListReturnType.NONE, CTX.mapKey(Value.get(schemaKey)), CTX.mapKey(Value.get(validatedValue)));
+        operations.add(removeVertexProperty);
+        // Logic for deleting Vertex Property value key if there are no VPs left with the value.
+        final Expression removeVpValueKeyExp = Exp.build(
+                Exp.cond(
+                        Exp.eq(ListExp.size(Exp.mapBin(this.db.VERTEX_PROPERTY_DATA_BIN), CTX.mapKey(Value.get(schemaKey)), CTX.mapKey(Value.get(validatedValue))), Exp.val(0)),
+                        MapExp.removeByKey(vpValueExp, Exp.mapBin(this.db.VERTEX_PROPERTY_DATA_BIN), CTX.mapKey(Value.get(schemaKey))),
+                        Exp.unknown()
+                )
+        );
+        final Operation removeVpValueKey = ExpOperation.write(db.VERTEX_PROPERTY_DATA_BIN, removeVpValueKeyExp, ExpWriteFlags.EVAL_NO_FAIL);
+        operations.add(removeVpValueKey);
+        // Logic for deleting Vertex Property key if there are no VPs left for the key.
+        final Expression removeVpKeyExp = Exp.build(
+                Exp.cond(
+                        Exp.eq(MapExp.size(Exp.mapBin(this.db.VERTEX_PROPERTY_DATA_BIN), CTX.mapKey(Value.get(schemaKey))), Exp.val(0)),
+                        MapExp.removeByKey(Exp.val(schemaKey), Exp.mapBin(this.db.VERTEX_PROPERTY_DATA_BIN)),
+                        Exp.unknown()
+                )
+        );
+        final Operation removeVpKey = ExpOperation.write(db.VERTEX_PROPERTY_DATA_BIN, removeVpKeyExp, ExpWriteFlags.EVAL_NO_FAIL);
+        operations.add(removeVpKey);
+        // Remove Type Hint.
+        final Operation removeVertexPropertyTypeHint = MapOperation.removeByKey(this.db.VERTEX_PROPERTY_TH_BIN,
+                Value.get(vpIdKey), MapReturnType.NONE, CTX.mapKey(Value.get(schemaKey)));
+        operations.add(removeVertexPropertyTypeHint);
+        // Logic for deleting Vertex Property key if there are no type hints left for the key.
+        final Expression removeVpKeyTypeHintExp = Exp.build(
+                Exp.cond(
+                        Exp.eq(MapExp.size(Exp.mapBin(this.db.VERTEX_PROPERTY_TH_BIN), CTX.mapKey(Value.get(schemaKey))), Exp.val(0)),
+                        MapExp.removeByKey(Exp.val(schemaKey), Exp.mapBin(this.db.VERTEX_PROPERTY_TH_BIN)),
+                        Exp.unknown()
+                )
+        );
+        final Operation removeVpKeyTypeHint = ExpOperation.write(db.VERTEX_PROPERTY_TH_BIN, removeVpKeyTypeHintExp, ExpWriteFlags.EVAL_NO_FAIL);
+        operations.add(removeVpKeyTypeHint);
+        // Remove Vertex Property's Properties.
+        final Operation removeProperty = MapOperation.removeByKey(this.db.VP_PROPERTY_BIN, Value.get(vpIdKey),
+                MapReturnType.NONE, CTX.mapKey(Value.get(schemaKey)));
+        operations.add(removeProperty);
+        // Logic for deleting Vertex Property key if there are no VP Properties left for the key.
+        final Expression removeVpKeyPropertyExp = Exp.build(
+                Exp.cond(
+                        Exp.eq(MapExp.size(Exp.mapBin(this.db.VP_PROPERTY_BIN), CTX.mapKey(Value.get(schemaKey))), Exp.val(0)),
+                        MapExp.removeByKey(Exp.val(schemaKey), Exp.mapBin(this.db.VP_PROPERTY_BIN)),
+                        Exp.unknown()
+                )
+        );
+        final Operation removeVpKeyProperty = ExpOperation.write(db.VP_PROPERTY_BIN, removeVpKeyPropertyExp, ExpWriteFlags.EVAL_NO_FAIL);
+        operations.add(removeVpKeyProperty);
 
-        final Operation getVertexPropertyValues = Operation.get(this.db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN);
-        final Operation getVertexPropertyValuesTypeHints =
-                Operation.get(this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
-        final Operation getVertexPropertyIds = Operation.get(this.db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
-        final Operation getVertexPropertyProperties = Operation.get(this.db.PROPERTIES_BIN);
-        final Operation getVertexPropertyTypeHints = Operation.get(this.db.TYPE_HINTS_BIN);
+        appendGetVertexPropertyBinOps(operations);
 
-        final Record result = this.db.writeOperate(null, opKey, removeProperty, removePropertyTypeHint,
-                removeVertexPropertyValue, removeVertexPropertyId, removeVertexPropertyTypeHint,
-                getVertexPropertyValues, getVertexPropertyValuesTypeHints, getVertexPropertyIds,
-                getVertexPropertyProperties, getVertexPropertyTypeHints);
+        Map<Long, HashMap<Object, List<Long>>> vertexProperties = Collections.emptyMap();
+        Map<Long, Map<Long, Object>> vpTypeHints = Collections.emptyMap();
+        Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties = Collections.emptyMap();
+        try {
+            final Record result = this.db.writeOperate(null, opKey, operations.toArray(new Operation[]{}));
 
-        final Map<Long, Object> vertexPropertyValuesDisk =
-                (Map<Long, Object>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, 1);
-        final Map<String, Object> vertexPropertyValues = new TreeMap<>();
-        db.schemaManager.populateVertexPropertySchemaMapToStringMap(vertexPropertyValuesDisk, vertexPropertyValues);
-        final Map<Long, Object> vertexPropertyValuesTypeHintsDisk =
-                (Map<Long, Object>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN, 1);
-        final Map<String, Object> vertexPropertyValuesTypeHints = new TreeMap<>();
-        db.schemaManager.populateVertexPropertySchemaMapToStringMap(vertexPropertyValuesTypeHintsDisk, vertexPropertyValuesTypeHints);
-        final Map<Long, Object> vertexPropertyIdsDisk =
-                (Map<Long, Object>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_ID_BIN, 1);
-        final Map<String, Object> vertexPropertyIds = new TreeMap<>();
-        db.schemaManager.populateVertexPropertySchemaMapToStringMap(vertexPropertyIdsDisk, vertexPropertyIds);
-        final Map<Object, Map<Long, Object>> vertexPropertyIdToPropertiesDisk =
-                (Map<Object, Map<Long, Object>>) getValueAtIndex(result, this.db.PROPERTIES_BIN, 1);
-        final Map<Object, Map<String, Object>> vertexPropertyIdToProperties = new TreeMap<>();
-        this.db.schemaManager.populateVertexVpPropertySchemaMapToStringMap(vertexPropertyIdToPropertiesDisk, vertexPropertyIdToProperties);
-        final Map<Object, Map<Long, Object>> vertexPropertyIdToTypeHintsDisk =
-                (Map<Object, Map<Long, Object>>) getValueAtIndex(result, this.db.TYPE_HINTS_BIN, 1);
-        final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints = new TreeMap<>();
-        this.db.schemaManager.populateVertexVpPropertySchemaMapToStringMap(vertexPropertyIdToTypeHintsDisk, vertexPropertyIdToTypeHints);
-        this.graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, LazyVertexPropertyIdTransform.class);
-        final Map<String, LazyIdTransform> vertexPropertyFireflyIds = (Map) vertexPropertyIds;
+            vertexProperties =
+                    (Map<Long, HashMap<Object, List<Long>>>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_DATA_BIN, 3);
+            vpTypeHints =
+                    (Map<Long, Map<Long, Object>>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_TH_BIN, 2);
+            vpProperties =
+                    (Map<Long, Map<Long, Map<Long, List<Object>>>>) getValueAtIndex(result, this.db.VP_PROPERTY_BIN, 2);
+            // Update this FireflyVertex in JVM cache
+            vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties);
+        } catch (final AerospikeGraphException ae) {
+            // Removing a property that is already removed SHOULD NOT yield an error.
+            if (ae.errorCode == ResultCode.OP_NOT_APPLICABLE || ae.errorCode == ResultCode.KEY_NOT_FOUND_ERROR) {
+                LOG.debug("Ignored exception removing an already-removed vertex property {}.", this, ae);
+                // Update this FireflyVertex in JVM cache
+                vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties);
+            } else {
+                throw ae;
+            }
+        }
+    }
 
-
-        // Update this FireflyVertex in JVM cache
-        vertex.updateVertexPropertyJVMCache(vertexPropertyFireflyIds, vertexPropertyValues,
-                vertexPropertyValuesTypeHints, vertexPropertyIdToProperties, vertexPropertyIdToTypeHints);
+    private Exp getExpVal(final Object value) {
+        final Class<?> valueClass = value.getClass();
+        final Exp valueExp;
+        if (Long.class.isAssignableFrom(valueClass)) {
+            valueExp = Exp.val((Long) value);
+        } else if (Integer.class.isAssignableFrom(valueClass)) {
+            valueExp = Exp.val(((Integer) value).longValue());
+        } else if (Double.class.isAssignableFrom(valueClass)) {
+            valueExp = Exp.val((Double) value);
+        } else if (String.class.isAssignableFrom(valueClass)) {
+            valueExp = Exp.val((String) value);
+        } else if (Boolean.class.isAssignableFrom(valueClass)) {
+            valueExp = Exp.val((Boolean) value);
+        } else if (byte[].class.isAssignableFrom(valueClass)) {
+            valueExp = Exp.val((byte[]) value);
+        } else {
+            // This should never happen.
+            throw new IllegalArgumentException("Attempted to get Exp value of unsupported type '" + valueClass.getSimpleName() + "'. Please contact support.");
+        }
+        return valueExp;
     }
 
     //////////////// EDGE OPERATIONS ///////////////

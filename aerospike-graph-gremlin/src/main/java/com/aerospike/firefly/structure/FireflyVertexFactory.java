@@ -6,11 +6,10 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.LazyEdgeCacheIdTransform;
 import com.aerospike.firefly.structure.id.LazyIdTransform;
-import com.aerospike.firefly.structure.id.LazyVertexPropertyIdTransform;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 public class FireflyVertexFactory {
     public static FireflyVertex create(final FireflyId fid,
@@ -18,13 +17,10 @@ public class FireflyVertexFactory {
                                        final FireflyGraph graph,
                                        final Map<String, List<LazyIdTransform>> inEdgeIds,
                                        final Map<String, List<LazyIdTransform>> outEdgeIds,
-                                       final Map<String, LazyIdTransform> vertexPropertyIds,
-                                       final Map<String, Object> vertexPropertyValues,
-                                       final Map<String, Object> vertexPropertyValuesTypeHints,
-                                       final Map<Object, Map<String, Object>> vertexPropertyProperties,
-                                       final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints,
-                                       final boolean isEdgeCacheOverflowed,
-                                       final AerospikeConnection db) {
+                                       final Map<Long, HashMap<Object, List<Long>>> vertexProperties,
+                                       final Map<Long, Map<Long, Object>> vpTypeHints,
+                                       final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties,
+                                       final boolean isEdgeCacheOverflowed) {
 
         return new FireflyVertex(
                 fid,
@@ -32,13 +28,10 @@ public class FireflyVertexFactory {
                 graph,
                 inEdgeIds,
                 outEdgeIds,
-                vertexPropertyIds,
-                vertexPropertyValues,
-                vertexPropertyValuesTypeHints,
-                vertexPropertyProperties,
-                vertexPropertyPropertiesTypeHints,
-                isEdgeCacheOverflowed,
-                db);
+                vertexProperties,
+                vpTypeHints,
+                vpProperties,
+                isEdgeCacheOverflowed);
     }
 
     /**
@@ -56,12 +49,12 @@ public class FireflyVertexFactory {
         final Record record = keyRecord.record;
         final AerospikeConnection db = graph.getBaseGraph();
 
-        // Read the vertex's firefly record from the database
+        // Read the Vertex's record from the database.
         if (record == null) {
             return null;
         }
 
-        // Get id and label for vertex.
+        // Get ID and Label for Vertex.
         final FireflyId id = graph.getIdFactory().createVertexIdFromRecord(keyRecord);
         final String label = graph.getBaseGraph().schemaManager.getVertexLabelString(record.getLong(db.LABEL_BIN));
 
@@ -75,32 +68,15 @@ public class FireflyVertexFactory {
         graph.getIdFactory().convertMapToLazyIdsInPlace(outEdgeIds, graph, LazyEdgeCacheIdTransform.class);
         final Map<String, List<LazyIdTransform>> fireflyInEdgeIds = (Map) inEdgeIds;
         final Map<String, List<LazyIdTransform>> fireflyOutEdgeIds = (Map) outEdgeIds;
-        final Map<Object, Map<Long, Object>> vertexPropertyPropertiesDisk = (Map) record.getMap(db.PROPERTIES_BIN);
-        final Map<Object, Map<String, Object>> vertexPropertyProperties = new TreeMap<>();
-        db.schemaManager.populateVertexVpPropertySchemaMapToStringMap(vertexPropertyPropertiesDisk, vertexPropertyProperties);
-        final Map<Object, Map<Long, Object>> vertexPropertyPropertiesTypeHintsDisk = (Map) record.getMap(db.TYPE_HINTS_BIN);
-        final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints = new TreeMap<>();
-        db.schemaManager.populateVertexVpPropertySchemaMapToStringMap(vertexPropertyPropertiesTypeHintsDisk, vertexPropertyPropertiesTypeHints);
 
-        // Create vertex based on type hint.
-        // Get vertex properties and vertex property counter from record.
-        final Map<Long, Object> vertexPropertyValuesDisk =
-                (Map<Long, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN);
-        final Map<String, Object> vertexPropertyValues = new TreeMap<>();
-        db.schemaManager.populateVertexPropertySchemaMapToStringMap(vertexPropertyValuesDisk, vertexPropertyValues);
-        final Map<Long, Object> vertexPropertyTypeHintsDisk =
-                (Map<Long, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
-        final Map<String, Object> vertexPropertyTypeHints = new TreeMap<>();
-        db.schemaManager.populateVertexPropertySchemaMapToStringMap(vertexPropertyTypeHintsDisk, vertexPropertyTypeHints);
-        final Map<Long, Object> vertexPropertyIdsDisk =
-                (Map<Long, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
-        final Map<String, Object> vertexPropertyIds = new TreeMap<>();
-        db.schemaManager.populateVertexPropertySchemaMapToStringMap(vertexPropertyIdsDisk, vertexPropertyIds);
-        graph.getIdFactory().convertMapToLazyIdsInPlace(vertexPropertyIds, graph, LazyVertexPropertyIdTransform.class);
-        final Map<String, LazyIdTransform> fireflyVertexPropertyIds = (Map) vertexPropertyIds;
+        // Get Vertex Properties and VP Properties
+        final Map<Long, HashMap<Object, List<Long>>> vertexProperties =
+                (Map<Long, HashMap<Object, List<Long>>>) record.getMap(db.VERTEX_PROPERTY_DATA_BIN);
+        final Map<Long, Map<Long, Object>> vpTypeHints =
+                (Map<Long, Map<Long, Object>>) record.getMap(db.VERTEX_PROPERTY_TH_BIN);
+        final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties = (Map) record.getMap(db.VP_PROPERTY_BIN);
+
         return create(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds,
-                fireflyVertexPropertyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyProperties,
-                vertexPropertyPropertiesTypeHints,
-                edgeCacheOverflowed, db);
+                vertexProperties, vpTypeHints, vpProperties, edgeCacheOverflowed);
     }
 }

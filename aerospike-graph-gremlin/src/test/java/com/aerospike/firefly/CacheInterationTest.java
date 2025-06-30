@@ -9,6 +9,7 @@ import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
@@ -76,10 +77,11 @@ public class CacheInterationTest extends AbstractFireflySuite {
         // out to lop/josh/vadas (3 missses).
         // in to marko x3, josh, peter (miss on peter/marko (x3 will be optimized to read once), hit on josh).
         // Total: 5 misses, 1 hit.
-        graph.traversal().V().has("name", "marko").out().in().toList();
+        // out().count() to force reading vertices with in/out edges
+        graph.traversal().V().has("name", "marko").out().in().local(__.out().count()).toList();
         Assert.assertEquals(1L, graph.getBaseGraph().transactionCache.get().getHitCount());
         Assert.assertEquals(5L, graph.getBaseGraph().transactionCache.get().getMissCount());
-        graph.traversal().V().has("name", "marko").out().in().out().toList();
+        graph.traversal().V().has("name", "marko").out().in().out().local(__.out().count()).toList();
         // out to vadas, lop, josh, ripple, (3 hits, 1 miss on ripple).
         // Total 6 misses, 4 hits.
         Assert.assertEquals(4L, graph.getBaseGraph().transactionCache.get().getHitCount());

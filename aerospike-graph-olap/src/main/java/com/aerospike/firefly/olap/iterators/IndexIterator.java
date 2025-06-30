@@ -5,10 +5,10 @@ import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
-import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
 import com.aerospike.firefly.io.aerospike.query.paged.PageFetcher;
 import com.aerospike.firefly.io.aerospike.query.paged.PaginationIterator;
 import com.aerospike.firefly.io.aerospike.query.paged.PartitionedSindexPageFetcher;
+import com.aerospike.firefly.io.aerospike.query.paged.VertexQueryHelper;
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.helper.TaskLogger;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -64,7 +64,7 @@ public class IndexIterator implements CloseableIterator<Traverser> {
         this.tg = tg;
         this.indexInfo = indexInfo;
         this.graph = graph;
-        this.filter = GraphQueryHelper.predicateToFilter(graph.getBaseGraph(), hasContainer.getPredicate(), indexInfo);
+        this.filter = VertexQueryHelper.predicateToFilter(graph.getBaseGraph(), hasContainer.getPredicate(), indexInfo);
         while (iterator.hasNext()) {
             rows.add(iterator.next());
         }

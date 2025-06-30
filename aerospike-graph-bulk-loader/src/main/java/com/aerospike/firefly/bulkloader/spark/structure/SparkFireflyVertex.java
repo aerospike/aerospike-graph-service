@@ -4,13 +4,16 @@ import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.BadCsvEntryException;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.InvalidCsvHeaderException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.google.cloud.hadoop.repackaged.gcs.com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,15 +29,22 @@ public class SparkFireflyVertex extends SparkFireflyElement {
     private static final String DEFAULT_LABEL = "vertex";
     private final Map<String, List<List<Object>>> toEdgeCache;
     private final Map<String, List<List<Object>>> fromEdgeCache;
+    private final Map<String, VertexProperty.Cardinality> cardinalityMap;
 
     private SparkFireflyVertex(final Object id,
                                final String label,
                                final List<Map.Entry<String, Object>> properties,
                                final Map<String, List<List<Object>>> toEdgeCache,
-                               final Map<String, List<List<Object>>> fromEdgeCache) {
+                               final Map<String, List<List<Object>>> fromEdgeCache,
+                               final Map<String, VertexProperty.Cardinality> cardinalityMap) {
         super(id, label, properties);
         this.toEdgeCache = toEdgeCache;
         this.fromEdgeCache = fromEdgeCache;
+        this.cardinalityMap = cardinalityMap;
+    }
+
+    public Map<String, VertexProperty.Cardinality> getCardinalities() {
+        return this.cardinalityMap;
     }
 
     public static SparkFireflyVertex createVertex(final GenericRowWithSchema row,
@@ -62,7 +72,8 @@ public class SparkFireflyVertex extends SparkFireflyElement {
                 try {
                     final String mapString = row.getAs(header);
                     if (mapString != null && !mapString.isEmpty()) {
-                        toEdgeCache = gson.fromJson(mapString, new TypeToken<Map<String, List<List<Object>>>>(){}.getType());
+                        toEdgeCache = gson.fromJson(mapString, new TypeToken<Map<String, List<List<Object>>>>() {
+                        }.getType());
                     }
                 } catch (final Exception e) {
                     LOG.error("Failed to generate Vertex property for header '" + header + "' from value: " + row.getAs(header));
@@ -74,7 +85,8 @@ public class SparkFireflyVertex extends SparkFireflyElement {
                 try {
                     final String mapString = row.getAs(header);
                     if (mapString != null && !mapString.isEmpty()) {
-                        fromEdgeCache = gson.fromJson(mapString, new TypeToken<Map<String, List<List<Object>>>>(){}.getType());
+                        fromEdgeCache = gson.fromJson(mapString, new TypeToken<Map<String, List<List<Object>>>>() {
+                        }.getType());
                     }
                 } catch (final Exception e) {
                     LOG.error("Failed to generate Vertex property for header '" + header + "' from value: " + row.getAs(header));
@@ -86,7 +98,17 @@ public class SparkFireflyVertex extends SparkFireflyElement {
             try {
                 final String value = row.getAs(header);
                 final Map.Entry<String, Object> property = generateProperty(header, value, nullValue);
-                properties.add(property);
+                if (property.getValue() instanceof List) {
+                    final List values = (List) property.getValue();
+                    for (final Object val : values) {
+                        properties.add(new AbstractMap.SimpleEntry<>(property.getKey(), val));
+                    }
+                } else {
+                    properties.add(property);
+                }
+            } catch (final InvalidCsvHeaderException iche) {
+                LOG.error("Failed to generate Vertex property for header '" + header + "' from value: " + row.getAs(header));
+                throw iche;
             } catch (final RuntimeException e) {
                 LOG.error("Failed to generate Vertex property for header '" + header + "' from value: " + row.getAs(header));
                 throw new BadCsvEntryException(e);
@@ -98,7 +120,30 @@ public class SparkFireflyVertex extends SparkFireflyElement {
         if (label == null) {
             label = DEFAULT_LABEL;
         }
-        return new SparkFireflyVertex(PropertyValueParser.parseId(id), label, properties, toEdgeCache, fromEdgeCache);
+        final Map<String, VertexProperty.Cardinality> cardinalityMap = generateCardinalityMap(headers);
+        return new SparkFireflyVertex(PropertyValueParser.parseId(id), label, properties, toEdgeCache, fromEdgeCache, cardinalityMap);
+    }
+
+    private static Map<String, VertexProperty.Cardinality> generateCardinalityMap(final String[] headers) {
+        final Map<String, VertexProperty.Cardinality> cardinalityMap = new HashMap<>();
+        for (final String header : headers) {
+            if (header.endsWith("(list)")) {
+                String propertyName = header.substring(0, header.length() - "(list)".length());
+                final int typeSpecifierIndex = propertyName.lastIndexOf(":");
+                if (typeSpecifierIndex != -1) {
+                    propertyName = propertyName.substring(0, typeSpecifierIndex);
+                }
+                cardinalityMap.put(propertyName, VertexProperty.Cardinality.list);
+            } else {
+                String propertyName = header;
+                final int typeSpecifierIndex = header.lastIndexOf(":");
+                if (typeSpecifierIndex != -1) {
+                    propertyName = header.substring(0, typeSpecifierIndex);
+                }
+                cardinalityMap.put(propertyName, VertexProperty.Cardinality.single);
+            }
+        }
+        return cardinalityMap;
     }
 
     @Override

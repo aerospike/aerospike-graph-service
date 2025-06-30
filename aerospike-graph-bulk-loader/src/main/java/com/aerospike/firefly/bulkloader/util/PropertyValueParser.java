@@ -1,5 +1,7 @@
 package com.aerospike.firefly.bulkloader.util;
 
+import java.util.Base64;
+
 public class PropertyValueParser {
     private final String nullValue;
     public PropertyValueParser(final String nullValue) {
@@ -52,5 +54,13 @@ public class PropertyValueParser {
         } catch (final NumberFormatException ignored) {
         }
         return id;
+    }
+
+    public Object parseBlob(final String value) {
+        if (value.equals(this.nullValue)) {
+            return null;
+        }
+
+        return Base64.getDecoder().decode(value);
     }
 }

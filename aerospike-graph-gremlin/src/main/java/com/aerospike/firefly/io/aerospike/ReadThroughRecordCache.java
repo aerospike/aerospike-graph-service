@@ -58,9 +58,14 @@ public class ReadThroughRecordCache extends FireflyCache {
                 size += 3 * record.getMap(db.PROPERTIES_BIN).size();
             }
 
-            if (record.bins.containsKey(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN)) {
+            if (record.bins.containsKey(db.VP_PROPERTY_BIN)) {
+                // Add 3 to weight for every vertex property property.
+                size += 3 * record.getMap(db.VP_PROPERTY_BIN).size();
+            }
+
+            if (record.bins.containsKey(db.VERTEX_PROPERTY_TH_BIN)) {
                 // Add 3 to weight for every vertex property.
-                size += 3 * record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN).size();
+                size += 3 * record.getMap(db.VERTEX_PROPERTY_TH_BIN).size();
             }
 
             return size;

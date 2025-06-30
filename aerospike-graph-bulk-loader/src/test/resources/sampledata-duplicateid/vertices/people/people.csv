@@ -1,4 +1,4 @@
-~id,~label,name:string,age:int,companies:string[],glasses:boolean
+~id,~label,name:string,age:int,companies:string(list),glasses:boolean
 2,person,Joe,31,Aerospike,true
 3,person,Grant,30,PhaseShift Studio;Aerospike,false
 4,person,Lyndon,29,Apache TinkerPop;Aerospike,false

@@ -34,12 +34,15 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
 
     private transient final Map<FireflyId, FireflyVertex> cache = new HashMap<>();
     private transient final List<FireflyId> inputCache =new ArrayList<>();
+    private final boolean areEdgesRequired;
     private boolean first = true;
 
     public FireflyOtherVBatchReadStepLocal(final Traversal.Admin traversal,
                                            final List<HasContainer> hasContainers,
-                                           final Set<String> labels) {
+                                           final Set<String> labels,
+                                           final boolean areEdgesRequired) {
         super(traversal);
+        this.areEdgesRequired = areEdgesRequired;
         this.labels = new HashSet<>(labels);
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
@@ -109,7 +112,7 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
         for (final FireflyId id : inputCache) {
             chunk.add(id);
             if (chunk.size() == graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
-                final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, chunk, null);
+                final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, chunk, null, areEdgesRequired);
                 for (final FireflyVertex vertex : vertices) {
                     cache.put(vertex.id, vertex);
                 }
@@ -117,7 +120,7 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
             }
         }
         if (!chunk.isEmpty()) {
-            final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, chunk, null);
+            final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, chunk, null, areEdgesRequired);
             for (final FireflyVertex vertex : vertices) {
                 cache.put(vertex.id, vertex);
             }

@@ -27,11 +27,12 @@ public class TestVertexPropertyCardinalitySindexes {
     private static GraphTraversalSource g = null;
 
     @BeforeClass
-    public static void setUp() {
+    public static void setUp() throws InterruptedException {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.index.vertex.properties", "name,age,date");
         graph = FireflyGraph.open(config);
         g = graph.traversal();
+        waitForAllIndexes(3);
     }
 
     @AfterClass
@@ -178,5 +179,15 @@ public class TestVertexPropertyCardinalitySindexes {
 
         Assert.assertEquals(actualVertex, firstDateVertex);
         Assert.assertEquals(actualVertex, secondDateVertex);
+    }
+
+    private static void waitForAllIndexes(int numOfIndexedProperties) throws InterruptedException {
+        // We always create 1 string and 1 numeric index for each property.
+        int numOfIndexes = numOfIndexedProperties * 2;
+        while (graph.fireflyIndexMetadata.getPropertyIndexInfos().size() != numOfIndexes) {
+            Thread.sleep(100);
+            // updateMetadata once sometimes doesn't help.
+            graph.fireflyIndexMetadata.updateMetadata();
+        }
     }
 }

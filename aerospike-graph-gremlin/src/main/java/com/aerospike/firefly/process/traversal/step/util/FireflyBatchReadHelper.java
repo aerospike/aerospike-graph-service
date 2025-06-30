@@ -364,21 +364,26 @@ public class FireflyBatchReadHelper {
     }
 
     public static List<HasContainer> getFireflyHasContainers(final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities) {
-        return hasContainerWithCardinalities.stream().filter(c -> !c.isSupported).map(c -> c.hasContainer).collect(Collectors.toList());
+        return hasContainerWithCardinalities.stream()
+                .filter(c -> !c.isSupported)
+                .map(c -> c.hasContainer)
+                .collect(Collectors.toList());
     }
 
     public static List<HasContainer> getAerospikeHasContainers(final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities) {
         return hasContainerWithCardinalities.stream()
                 .filter(c -> c.isSupported)
                 .map(c -> {
-                    final HasContainer newContainer = c.hasContainer.clone();
-                    if (Date.class.isAssignableFrom(newContainer.getValue().getClass()) ||
-                            OffsetDateTime.class.isAssignableFrom(newContainer.getValue().getClass())) {
+                    if (Date.class.isAssignableFrom(c.hasContainer.getValue().getClass()) ||
+                            OffsetDateTime.class.isAssignableFrom(c.hasContainer.getValue().getClass())) {
+                        // If hasContainer value is a datetime, cast its predicate value to Long
+                        final HasContainer newContainer = c.hasContainer.clone();
                         final P<Object> predicate = (P<Object>) newContainer.getPredicate();
                         final Object castedValue = FireflyHelper.typeCastPropertyValue(newContainer.getValue());
                         predicate.setValue(castedValue);
+                        return newContainer;
                     }
-                    return newContainer;
+                    return c.hasContainer;
                 })
                 .collect(Collectors.toList());
     }

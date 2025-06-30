@@ -404,7 +404,7 @@ public class TestProperties {
         names.add("simon");
         names.add("bauto");
         g.V().hasLabel("person").properties().drop().iterate();
-        g.V().hasLabel("person").property("age", 12).property(VertexProperty.Cardinality.list, "name", "simon").property(VertexProperty.Cardinality.list,"name", "bauto").iterate();
+        g.V().hasLabel("person").property("age", 12).property(VertexProperty.Cardinality.list, "name", "simon").property(VertexProperty.Cardinality.list, "name", "bauto").iterate();
         traversal = g.V().hasLabel("person").properties().count();
         propertiesCount = (long) traversal.next();
         Assert.assertEquals(3, propertiesCount);
@@ -549,19 +549,6 @@ public class TestProperties {
         }
         if (!expectedClone.isEmpty()) {
             Assert.fail("Expected list has additional values compared to actual list.");
-        }
-    }
-
-    private static void assertListPropertyValue(final List<Object> expected, final List<Object> actual) {
-        // This helper assertion function should only be used by testListPropertyValue
-        Assert.assertEquals(expected.size(), actual.size());
-        for (int i = 0; i < 5; i++) {
-            Assert.assertEquals(expected.get(i), actual.get(i));
-        }
-        final byte[] expectedByte = (byte[]) expected.get(5);
-        final byte[] actualByte = (byte[]) actual.get(5);
-        for (int i = 0; i < expectedByte.length; i++) {
-            Assert.assertEquals(expectedByte[i], actualByte[i]);
         }
     }
 }

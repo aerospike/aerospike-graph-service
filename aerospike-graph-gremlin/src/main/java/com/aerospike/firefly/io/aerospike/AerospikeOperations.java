@@ -214,7 +214,8 @@ public class AerospikeOperations {
                 continue;
             }
             // Generate disk version of property.
-            final Object validatedValue = validateVertexPropertyValue(property.getValue());
+            Object validatedValue = validateVertexPropertyValue(property.getValue());
+            validatedValue = db.convertValueToAerospikeWriteable(validatedValue);
             final Long schemaPropertyKey = db.schemaManager.getVertexPropertyWrite(property.getKey());
             if (!vertexProperties.containsKey(schemaPropertyKey)) {
                 vertexProperties.put(schemaPropertyKey, new HashMap<>());
@@ -250,7 +251,6 @@ public class AerospikeOperations {
         final Operation writeEdgeCacheOut = getEdgeCache(fromEdgeCache, db.OUT_EDGES_BIN);
         final Operation writeEdgeCacheIn = getEdgeCache(toEdgeCache, db.IN_EDGES_BIN);
 
-        db.convertVertexPropertiesToAerospikeWriteable(vertexProperties);
         final Bin vertexPropertiesBin = new Bin(db.VERTEX_PROPERTY_DATA_BIN, Value.get(vertexProperties));
         final Operation writeVertexProperties = Operation.put(vertexPropertiesBin);
         final Bin vpTypeHintsBin = new Bin(db.VERTEX_PROPERTY_TH_BIN, Value.get(vpTypeHints));
@@ -860,8 +860,6 @@ public class AerospikeOperations {
             // Add properties and type hints to Edge data.
             final TreeMap<Long, Object> propertyMapDisk = new TreeMap<>();
             db.schemaManager.populateEdgePropertyStringMapToSchemaMap(propertyMap, propertyMapDisk);
-            db.convertValuesToAerospikeWriteable(propertyMapDisk);
-
             edgeData.add(PROPERTIES_POSITION, Value.get(propertyMapDisk));
             edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHintsDisk));
 

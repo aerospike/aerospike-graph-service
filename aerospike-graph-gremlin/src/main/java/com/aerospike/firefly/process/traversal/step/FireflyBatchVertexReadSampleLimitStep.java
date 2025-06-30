@@ -14,9 +14,11 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.EmptyTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,6 +44,7 @@ public class FireflyBatchVertexReadSampleLimitStep extends CollectingBarrierStep
     // HasContainers to apply to the read of the composite id step to filter results.
     public final List<HasContainer> fireflyHasContainers;
     public final List<HasContainer> aerospikeHasContainers;
+    private final List<HasContainer> idContainers = new ArrayList<>();
     private final long sampleSize;
     private final long limitSize;
     private final int barrierSize;
@@ -67,8 +70,16 @@ public class FireflyBatchVertexReadSampleLimitStep extends CollectingBarrierStep
         this.barrierSize = barrierSize;
         this.areEdgesRequired = areEdgesRequired;
         if (hasContainers != null) {
+            final List<HasContainer> generalContainers = new ArrayList<>();
+            for (final HasContainer hasContainer : hasContainers) {
+                if (hasContainer.getKey().equals(T.id.getAccessor())) {
+                    idContainers.add(hasContainer);
+                } else {
+                    generalContainers.add(hasContainer);
+                }
+            }
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
-                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);
+                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, generalContainers);
             // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
             //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
             //  matter what.
@@ -109,9 +120,14 @@ public class FireflyBatchVertexReadSampleLimitStep extends CollectingBarrierStep
                 TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
                 final Iterator<FireflyId> vertexIdsItty = vertex.getVertexIdsFromVertex(direction, edgeLabels);
                 final List<FireflyId> vertexIds = new ArrayList<>();
+
                 while ((limitSize < 0 || totalVertexIds < limitSize) && vertexIdsItty.hasNext()) {
-                    vertexIds.add(vertexIdsItty.next());
-                    totalVertexIds++;
+                    final FireflyId id = vertexIdsItty.next();
+                    if (idContainers.isEmpty()
+                            || idContainers.stream().allMatch(c -> c.test(new ReferenceVertex(id.getUserId())))) {
+                        vertexIds.add(id);
+                        totalVertexIds++;
+                    }
                 }
                 CloseableIterator.closeIterator(vertexIdsItty);
                 outputVertexIds.put(input, vertexIds);
@@ -206,6 +222,7 @@ public class FireflyBatchVertexReadSampleLimitStep extends CollectingBarrierStep
 
     @Override
     public String toString() {
-        return StringFactory.stepString(this, this.direction, this.edgeLabels, this.barrierSize);
+        return StringFactory.stepString(this, this.direction, this.edgeLabels, this.barrierSize,
+                this.fireflyHasContainers, this.idContainers);
     }
 }

@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.AEROSPIKE_TRANSFORMABLE_TYPES;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SUPPORTED_ARR_TYPES;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SUPPORTED_VALUE_TYPES;
 
@@ -119,7 +120,7 @@ public final class FireflyHelper {
         return value;
     }
 
-    public static Object validateVertexPropertyValue(final Object v) {
+    public static Object validateAndConvertVertexPropertyValue(final Object v) {
         if (v instanceof List) {
             throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(v);
         }
@@ -128,6 +129,8 @@ public final class FireflyHelper {
             validatedValue = (Boolean) validatedValue ? TRUE_BOOL_BYTES : FALSE_BOOL_BYTES;
         } else if (validatedValue instanceof Double) {
             validatedValue = ByteBuffer.allocate(Double.BYTES).putDouble((Double) validatedValue).array();
+        } else {
+            validatedValue = convertValueToAerospikeWriteable(validatedValue);
         }
         return validatedValue;
     }
@@ -187,6 +190,25 @@ public final class FireflyHelper {
 
     public static long countEdges(final FireflyGraph graph, final Long evaluationTimeout) {
         return graph.getEdgeCount(evaluationTimeout);
+    }
+
+    // Cast value type to Aerospike supported type if necessary (matching type hint will be added later).
+    public static Object convertValueToAerospikeWriteable(final Object value) {
+        if (value instanceof List) {
+            final List<?> originalList = (List<?>) value;
+            final List<Object> transformedList = new ArrayList<>(originalList.size());
+            for (final Object element : originalList) {
+                if (element != null && AEROSPIKE_TRANSFORMABLE_TYPES.contains(element.getClass())) {
+                    transformedList.add(FireflyHelper.typeCastPropertyValue(element));
+                } else {
+                    transformedList.add(element);
+                }
+            }
+            return transformedList;
+        }
+        return (value != null && AEROSPIKE_TRANSFORMABLE_TYPES.contains(value.getClass()))
+                ? FireflyHelper.typeCastPropertyValue(value)
+                : value;
     }
 
     public static Object typeCastPropertyValue(Object val) {

@@ -2060,25 +2060,6 @@ public class AerospikeConnection implements AutoCloseable {
         this.writeOperate(writePolicy, key, operations);
     }
 
-    // Cast value type to Aerospike supported type if necessary (matching type hint will be added later).
-    public Object convertValueToAerospikeWriteable(final Object value) {
-        if (value instanceof List) {
-            List<?> originalList = (List<?>) value;
-            List<Object> transformedList = new ArrayList<>(originalList.size());
-            for (final Object element : originalList) {
-                if (element != null && AEROSPIKE_TRANSFORMABLE_TYPES.contains(element.getClass())) {
-                    transformedList.add(FireflyHelper.typeCastPropertyValue(element));
-                } else {
-                    transformedList.add(element);
-                }
-            }
-            return transformedList;
-        }
-        return (value != null && AEROSPIKE_TRANSFORMABLE_TYPES.contains(value.getClass()))
-                ? FireflyHelper.typeCastPropertyValue(value)
-                : value;
-    }
-
     /**
      * Cast an on-disk storage type to its user type
      *

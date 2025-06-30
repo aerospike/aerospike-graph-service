@@ -341,8 +341,7 @@ public class SchemaManager {
                                                          final Map<Long, Object> outMap) {
         for (final Map.Entry<String, ?> entry : edgePropertyStringMap.entrySet()) {
             final Long schemaKey = getEdgePropertyWrite(entry.getKey());
-            Object value = db.convertValueToAerospikeWriteable(entry.getValue());
-            outMap.put(schemaKey, value);
+            outMap.put(schemaKey, entry.getValue());
         }
     }
 

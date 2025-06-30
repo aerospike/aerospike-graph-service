@@ -123,6 +123,8 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                     }
                     break;
                 } else if (steps.get(index) instanceof HasStep) {
+                    if (hasContainers != null)
+                        break;
                     // Grab has containers and push them down.
                     final HasStep<?> hasStep = (HasStep<?>) steps.get(index);
                     hasContainers = hasStep.getHasContainers();
@@ -140,18 +142,8 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                         }
                     }
 
-                    // No support for pushdown of primary key check at this time.
-                    // This isn't really a useful pushdown anyway.
-                    if (hasContainers.stream().map(HasContainer::getKey).noneMatch(key -> key.equals(T.id.getAccessor()))) {
-                        labels = hasStep.getLabels();
-                        traversal.removeStep(hasStep);
-
-                        // Cannot use sample strategy after HasStep at this time so break.
-                        break;
-                    } else {
-                        hasContainers = new ArrayList<>();
-                        break;
-                    }
+                    labels = hasStep.getLabels();
+                    traversal.removeStep(hasStep);
                 } else if (steps.get(index) instanceof SampleGlobalStep) {
                     if (!graph.getBaseGraph().ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY) {
                         break;

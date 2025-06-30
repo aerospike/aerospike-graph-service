@@ -17,6 +17,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -28,7 +29,6 @@ import static com.aerospike.firefly.bulkloader.integration.Tokens.INTEGRATION_TE
 import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoad;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_EXCEPTION;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_EXCEPTION_MESSAGE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_ERROR;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_KEY;
@@ -82,7 +82,6 @@ public class TestBulkLoaderCallEntryPoint {
                 status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
             }
             Assert.assertEquals(status.get(BULK_LOAD_STATUS_KEY), BULK_LOAD_STATUS_ERROR);
-            Assert.assertTrue(status.get(BULK_LOAD_EXCEPTION) instanceof IllegalStateException);
             Assert.assertTrue(((String)status.get(BULK_LOAD_EXCEPTION_MESSAGE)).contains("Cannot clear existing data when database is empty and no recovery information is present."));
         }
     }
@@ -451,6 +450,43 @@ public class TestBulkLoaderCallEntryPoint {
             waitForBulkLoad(g);
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
+        }
+    }
+
+    @Test
+    public void testBlobTypes() {
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            Assert.assertEquals(0, g.V().count().next().longValue());
+            Assert.assertEquals(0, g.E().count().next().longValue());
+            g.call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-blob.properties").iterate();
+            waitForBulkLoad(g);
+            Assert.assertEquals(2, g.V().count().next().longValue());
+            // One of the edge blob properties is purposefully invalid Base64 so this is 1. Implicitly tests invalid String.
+            Assert.assertEquals(1, g.E().count().next().longValue());
+            Assert.assertEquals(1, g.V(1).properties("single").count().next().longValue());
+            Assert.assertEquals(2, g.V(2).properties("multi").count().next().longValue());
+            Assert.assertEquals(1, g.E().properties("single").count().next().longValue());
+            Assert.assertEquals(1, g.E().properties("multi").count().next().longValue());
+
+            final byte[] singleVal = new byte[]{1, 2, 3};
+            final byte[] multiVal1 = new byte[]{4, 5, 6};
+            final byte[] multiVal2 = new byte[]{1, 2};
+
+            byte[] singleVertexValue = (byte[]) g.V(1).properties("single").next().value();
+            Assert.assertArrayEquals(singleVal, singleVertexValue);
+            byte[] singleEdgeValue = (byte[]) g.E().properties("single").next().value();
+            Assert.assertArrayEquals(singleVal, singleEdgeValue);
+
+            Set<byte[]> vertexMultiProperties = g.V(1).properties("multi").toList().stream()
+                    .map(p -> (byte[]) p.value()).collect(Collectors.toSet());
+
+            Assert.assertTrue(vertexMultiProperties.stream().anyMatch(p -> Arrays.equals(multiVal1, p)));
+            Assert.assertTrue(vertexMultiProperties.stream().anyMatch(p -> Arrays.equals(multiVal2, p)));
+            List<byte[]> edgeListProperty = (List<byte[]>) g.E().properties("multi").next().value();
+            Assert.assertTrue(edgeListProperty.stream().anyMatch(p -> Arrays.equals(multiVal1, p)));
+            Assert.assertTrue(edgeListProperty.stream().anyMatch(p -> Arrays.equals(multiVal2, p)));
         }
     }
 

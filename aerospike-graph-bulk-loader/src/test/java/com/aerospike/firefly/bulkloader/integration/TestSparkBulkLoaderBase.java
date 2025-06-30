@@ -202,8 +202,8 @@ public abstract class TestSparkBulkLoaderBase {
     public void testPreflightCheckVertexNotAllowed() {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "0", "-c", getPreflightCheckVertex()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
-        final Exception e = waitForBulkLoadFail(g);
-        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
+        final String e = waitForBulkLoadFail(g);
+        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e);
         Assert.assertFalse(g.V().hasNext());
         Assert.assertFalse(g.E().hasNext());
     }
@@ -212,8 +212,8 @@ public abstract class TestSparkBulkLoaderBase {
     public void testPreflightCheckEdgeNotAllowed() {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "0", "-c", getPreflightCheckEdge()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
-        final Exception e = waitForBulkLoadFail(g);
-        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
+        final String e = waitForBulkLoadFail(g);
+        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e);
         Assert.assertFalse(g.V().hasNext());
         Assert.assertFalse(g.E().hasNext());
     }
@@ -225,8 +225,8 @@ public abstract class TestSparkBulkLoaderBase {
 
         // Test failing on Vertex
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "1", "-c", getBadEntries()}, DEFAULT_PARAMS));
-        Exception e = waitForBulkLoadFail(g);
-        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
+        String e = waitForBulkLoadFail(g);
+        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e);
 
         Assert.assertFalse(g.V().hasNext());
         Assert.assertFalse(g.E().hasNext());
@@ -234,7 +234,7 @@ public abstract class TestSparkBulkLoaderBase {
         // Test failing on Edge
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "2", "-c", getBadEntries()}, DEFAULT_PARAMS));
         e = waitForBulkLoadFail(g);
-        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
+        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e);
         Assert.assertFalse(g.V().hasNext());
         Assert.assertFalse(g.E().hasNext());
         // Test success
@@ -277,14 +277,14 @@ public abstract class TestSparkBulkLoaderBase {
     public void testDuplicateVertexIdNotAllowed() {
         final GraphTraversalSource g = graph.traversal();
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-adv", "0", "-c", getDuplicateVertexId()}, DEFAULT_PARAMS));
-        Exception e = waitForBulkLoadFail(g);
-        Assert.assertEquals(DUPLICATE_VERTEX_ID_COUNT_EXCEEDED, e.getMessage());
+        String e = waitForBulkLoadFail(g);
+        Assert.assertEquals(DUPLICATE_VERTEX_ID_COUNT_EXCEEDED, e);
         graph.getBaseGraph().dropDatabase(graph, false);
 
 
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-adv", "2", "-c", getDuplicateVertexId()}, DEFAULT_PARAMS));
         e = waitForBulkLoadFail(g);
-        Assert.assertEquals(DUPLICATE_VERTEX_ID_COUNT_EXCEEDED, e.getMessage());
+        Assert.assertEquals(DUPLICATE_VERTEX_ID_COUNT_EXCEEDED, e);
     }
 
     @Test
@@ -412,16 +412,14 @@ public abstract class TestSparkBulkLoaderBase {
     public void testNotAllowDetachedEdges() {
         SparkBulkLoader.main(ArrayUtils.addAll(
                 new String[]{"-local", "-ade", "0", "-c", getHasBadEdges()}, DEFAULT_PARAMS));
-        Exception e = waitForBulkLoadFail(graph.traversal());
-        Assert.assertTrue(e.getCause() instanceof RuntimeException);
-        Assert.assertEquals(BAD_EDGE_COUNT_EXCEEDED, e.getCause().getMessage());
+        String e = waitForBulkLoadFail(graph.traversal());
+        Assert.assertTrue(e.contains(BAD_EDGE_COUNT_EXCEEDED));
         graph.getBaseGraph().dropDatabase(graph, false);
 
         SparkBulkLoader.main(ArrayUtils.addAll(
                 new String[]{"-local", "-ade", "2", "-c", getHasBadEdges()}, DEFAULT_PARAMS));
         e = waitForBulkLoadFail(graph.traversal());
-        Assert.assertTrue(e.getCause() instanceof RuntimeException);
-        Assert.assertEquals(BAD_EDGE_COUNT_EXCEEDED, e.getCause().getMessage());
+        Assert.assertTrue(e.contains(BAD_EDGE_COUNT_EXCEEDED));
     }
 
     @Test
@@ -463,14 +461,14 @@ public abstract class TestSparkBulkLoaderBase {
 
 
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
-        Exception e = waitForBulkLoadFail(g);
-        Assert.assertEquals(DATABASE_NOT_EMPTY, e.getMessage());
+        String e = waitForBulkLoadFail(g);
+        Assert.assertEquals(DATABASE_NOT_EMPTY, e);
 
         g.E(edge.id()).drop();
 
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
         e = waitForBulkLoadFail(g);
-        Assert.assertEquals(DATABASE_NOT_EMPTY, e.getMessage());
+        Assert.assertEquals(DATABASE_NOT_EMPTY, e);
 
         g.V(v1.id()).drop().iterate();
         g.V(v2.id()).drop().iterate();

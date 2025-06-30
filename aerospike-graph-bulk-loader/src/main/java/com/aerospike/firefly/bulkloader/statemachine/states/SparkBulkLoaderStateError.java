@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceErrors.BAD_EDGE;
 import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceErrors.BAD_ENTRY;
 import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceErrors.DUPLICATE_VID;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_EXCEPTION;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_EXCEPTION_MESSAGE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_EXCEPTION_STACKTRACE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_ERROR;
@@ -49,7 +48,6 @@ public class SparkBulkLoaderStateError extends SparkBulkLoaderState {
     @Override
     protected BulkLoadStateStatusMap getStateMap() {
         final BulkLoadStateStatusMap stateMap = new BulkLoadStateStatusMap("error", true, BULK_LOAD_STATUS_ERROR);
-        stateMap.put(BULK_LOAD_EXCEPTION, error);
         stateMap.put(BULK_LOAD_EXCEPTION_MESSAGE, error.getMessage());
         stateMap.put(BULK_LOAD_EXCEPTION_STACKTRACE, error.getStackTrace());
         if (errorCountParsed) {

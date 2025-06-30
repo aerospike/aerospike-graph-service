@@ -11,13 +11,17 @@ public class MetadataServiceSummary<I, R> extends MetadataServiceBase<I, R> {
             "\tVertex properties by label: {}.\n" +
             "\tTotal edge count: {}.\n" +
             "\tEdge count by label: {}.\n" +
-            "\tEdge properties by label: {}.";
+            "\tEdge properties by label: {}.\n" +
+            "\tTotal supernode count: {}.\n" +
+            "\tSupernode count by label: {}.";
     public static final String PRETTY_PRINT_FORMAT_SYSTEM = "\tTotal vertex count: %d.\n" +
             "\tVertex count by label: %s.\n" +
             "\tVertex properties by label: %s.\n" +
             "\tTotal edge count: %d.\n" +
             "\tEdge count by label: %s.\n" +
-            "\tEdge properties by label: %s.";
+            "\tEdge properties by label: %s.\n" +
+            "\tTotal supernode count: %d.\n" +
+            "\tSupernode count by label: %s.";
 
     public MetadataServiceSummary(final FireflyGraph graph) {
         super(graph);
@@ -42,7 +46,7 @@ public class MetadataServiceSummary<I, R> extends MetadataServiceBase<I, R> {
 
     @Override
     protected boolean sanitize(final Map params) {
-        return params.keySet().isEmpty() || (params.containsKey("pretty") && params.get("pretty") instanceof Boolean);
+        return params.isEmpty() || (params.containsKey("pretty") && params.get("pretty") instanceof Boolean);
     }
 
     @Override
@@ -57,7 +61,9 @@ public class MetadataServiceSummary<I, R> extends MetadataServiceBase<I, R> {
                             fireflyElementMetadata.vertexPropertiesByLabel().toString(),
                             fireflyElementMetadata.totalEdgeCount(),
                             fireflyElementMetadata.edgeCountByLabel().toString(),
-                            fireflyElementMetadata.edgePropertiesByLabel().toString());
+                            fireflyElementMetadata.edgePropertiesByLabel().toString(),
+                            fireflyElementMetadata.totalSupernodeCount(),
+                            fireflyElementMetadata.supernodesCountByLabel().toString());
         }
         return (R) Map.of(
                 "Total vertex count", fireflyElementMetadata.totalVertexCount(),
@@ -65,7 +71,9 @@ public class MetadataServiceSummary<I, R> extends MetadataServiceBase<I, R> {
                 "Vertex properties by label", fireflyElementMetadata.vertexPropertiesByLabel(),
                 "Total edge count", fireflyElementMetadata.totalEdgeCount(),
                 "Edge count by label", fireflyElementMetadata.edgeCountByLabel(),
-                "Edge properties by label", fireflyElementMetadata.edgePropertiesByLabel());
+                "Edge properties by label", fireflyElementMetadata.edgePropertiesByLabel(),
+                "Total supernode count", fireflyElementMetadata.totalSupernodeCount(),
+                "Supernode count by label", fireflyElementMetadata.supernodesCountByLabel());
     }
 
     @Override

@@ -18,6 +18,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.areEdgesRequired;
+
 public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
 
     public FireflyOtherVBatchReadStrategy() {
@@ -36,9 +38,6 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
             return;
         }
 
-//        if (ComputerHelper.onGraphComputer(traversal))
-//            return;
-
         final List<Step> steps = traversal.getSteps();
 
         for (int index = 0; index < steps.size(); index++) {
@@ -50,6 +49,8 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
 
             List<HasContainer> hasContainers = null;
             Set<String> labels = original.getLabels();
+
+            final boolean areEdgesRequired = areEdgesRequired(traversal, steps, index);
 
             // there is one more following step, may be filter?
             while (labels.isEmpty()) {
@@ -89,13 +90,15 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
                 optimizedStep = new FireflyOtherVBatchReadStepLocal(
                         traversal,
                         hasContainers,
-                        labels);
+                        labels,
+                        areEdgesRequired);
             } else {
                 optimizedStep = new FireflyOtherVBatchReadStep(
                         traversal,
                         hasContainers,
                         labels,
-                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE);
+                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
+                        areEdgesRequired);
             }
 
             TraversalHelper.replaceStep(original, optimizedStep, traversal);

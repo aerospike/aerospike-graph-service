@@ -29,12 +29,15 @@ public abstract class VertexBatchReadStep extends CollectingBarrierStep<Edge> im
     protected final List<HasContainer> fireflyHasContainers;
     protected final List<HasContainer> aerospikeHasContainers;
     protected final int barrierSize;
+    protected final boolean areEdgesRequired;
 
     public VertexBatchReadStep(final Traversal.Admin traversal,
                                final List<HasContainer> hasContainers,
                                final Set<String> labels,
-                               final int barrierSize) {
+                               final int barrierSize,
+                               final boolean areEdgesRequired) {
         super(traversal, barrierSize);
+        this.areEdgesRequired = areEdgesRequired;
 
         this.labels = new HashSet<>(labels);
         this.barrierSize = barrierSize;
@@ -87,12 +90,12 @@ public abstract class VertexBatchReadStep extends CollectingBarrierStep<Edge> im
             if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
-                        fireflyVertexMap, fireflyBatchEdgeReadStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, null);
+                        fireflyVertexMap, fireflyBatchEdgeReadStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, null, areEdgesRequired);
             }
         }
 
         FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
-                fireflyVertexMap, fireflyBatchEdgeReadStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, null);
+                fireflyVertexMap, fireflyBatchEdgeReadStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, null, areEdgesRequired);
 
         if (output.isEmpty()) {
             set.add(EmptyTraverser.instance());

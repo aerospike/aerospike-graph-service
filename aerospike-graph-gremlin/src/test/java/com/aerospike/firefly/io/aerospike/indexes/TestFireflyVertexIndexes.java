@@ -115,7 +115,7 @@ public class TestFireflyVertexIndexes extends TestFireflyIndexes {
             assertFalse(birthplaceIndex.isPresent());
 
             final String setName = db.VERTEX_AERO_SET;
-            final String binName = db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
+            final String binName = db.VERTEX_PROPERTY_DATA_BIN;
 
             final Iterator<Vertex> vertexIteratorNameString = fireflyGraph.graphQuery.scanSet("name", setName, binName, P.eq("Lyndon"), fireflyGraph::vertexFromRecord, evaluationTimeout);
             Assert.assertTrue(vertexIteratorNameString.hasNext());

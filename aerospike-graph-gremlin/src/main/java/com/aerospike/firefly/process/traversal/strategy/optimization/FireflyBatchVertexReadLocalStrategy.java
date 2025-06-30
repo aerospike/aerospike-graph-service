@@ -15,6 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.areEdgesRequired;
+
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
@@ -64,6 +66,7 @@ public class FireflyBatchVertexReadLocalStrategy extends FireflyStrategyBase {
             // Note we don't want to push down ids.
             List<HasContainer> hasContainers = null;
             Set<String> labels = vertexStep.getLabels();
+            final boolean areEdgesRequired = areEdgesRequired(traversal, steps, index);
             while (labels.isEmpty()) {
                 if (index >= steps.size()) {
                     break;
@@ -102,7 +105,8 @@ public class FireflyBatchVertexReadLocalStrategy extends FireflyStrategyBase {
                     labels,
                     hasContainers,
                     null,
-                    vertexStep.getParameters()));
+                    vertexStep.getParameters(),
+                    areEdgesRequired));
 
         }
     }

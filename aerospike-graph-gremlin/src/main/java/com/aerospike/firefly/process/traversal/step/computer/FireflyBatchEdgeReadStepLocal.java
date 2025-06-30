@@ -43,16 +43,19 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> {
     private transient final Map<FireflyId, FireflyEdge> cache = new HashMap<>();
     private transient final List<Traverser.Admin<Vertex>> inputCache = new ArrayList<>();
     private boolean first = true;
+    private final boolean areEdgesRequired;
 
     public FireflyBatchEdgeReadStepLocal(final Traversal.Admin traversal,
                                          final Direction direction,
                                          final String[] edgeLabels,
                                          final Set<String> labels,
-                                         final List<HasContainer> hasContainers) {
+                                         final List<HasContainer> hasContainers,
+                                         final boolean areEdgesRequired) {
         super(traversal, Edge.class, direction, edgeLabels);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
         this.labels = new HashSet<>(labels);
+        this.areEdgesRequired = areEdgesRequired;
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
                     FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) traversal.getGraph().get(), Edge.class, hasContainers);
@@ -113,12 +116,12 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> {
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 // Drain data to output. No need to pass in aerospikeHasContainers since they were used to filter Edge IDs already.
                 FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
-                        fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, cache, graph::readEdges, null);
+                        fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, cache, graph::readEdges, null, areEdgesRequired);
             }
         }
 
         FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
-                fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, cache, graph::readEdges, null);
+                fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, cache, graph::readEdges, null, areEdgesRequired);
     }
 
     @Override

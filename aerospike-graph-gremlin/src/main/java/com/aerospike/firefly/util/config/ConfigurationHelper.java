@@ -65,6 +65,7 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_PORT = "aerospike.client.port";
         public static final String AEROSPIKE_USER = "aerospike.client.user";
         public static final String AEROSPIKE_PASSWORD = "aerospike.client.password";
+        public static final String AEROSPIKE_COMPRESS = "aerospike.client.compress";
         public static final String AEROSPIKE_NAMESPACE = "aerospike.client.namespace";
         public static final String SCAN_MAX_WAIT = "aerospike.client.scan.max.wait";
         public static final String AEROSPIKE_BATCH_READ_SIZE = "aerospike.client.batch.read.size";
@@ -92,6 +93,9 @@ public final class ConfigurationHelper {
         public static final String TTL_PURGE_INTERVAL_SECONDS = "aerospike.graph.ttl.purge.interval";
         public static final String MRT_ENABLED_FLAG = "aerospike.graph.mrt.enabled";
         public static final String MRT_TIMEOUT = "aerospike.graph.mrt.timeout";
+
+        // Mainly for testing since tinkerpop doesnt force cardinality.
+        public static final String VERTEX_PROPERTY_CARDINALITY = "aerospike.graph.vertex.property.cardinality";
 
         public static final String WRITE_SOCKET_TIMEOUT = "aerospike.client.policy.write.socketTimeout";
         public static final String READ_SOCKET_TIMEOUT = "aerospike.client.policy.read.socketTimeout";
@@ -226,8 +230,8 @@ public final class ConfigurationHelper {
 
         public enum Bins {
             GRAPH_VARIABLES_BIN(Pair.of((byte) 1, "GRAPH_VARS")),
-            VERTEX_PROPERTY_NAME_TO_VALUE_BIN(Pair.of((byte) 2, "VP_NAME_VAL")),
-            VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN(Pair.of((byte) 3, "VP_HINT")),
+            VERTEX_PROPERTY_DATA_BIN(Pair.of((byte) 2, "VP_DATA")),
+            VERTEX_PROPERTY_TH_BIN(Pair.of((byte) 3, "VP_HINTS")),
             LOCK_BIN(Pair.of((byte) 4, "LOCK")),
             SCHEMA_BIN(Pair.of((byte) 5, "SCHEMA")),
             EDGE_CACHE_DISABLED_BIN(Pair.of((byte) 6, "ECACHE_OFF")),
@@ -241,7 +245,7 @@ public final class ConfigurationHelper {
             LABEL_BIN(Pair.of((byte) 14, "LABEL")),
             SUPERNODES_IN(Pair.of((byte) 15, "SUPERNODE_IN")),
             SUPERNODES_OUT(Pair.of((byte) 16, "SUPERNODE_OUT")),
-            VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
+            VP_PROPERTY_BIN(Pair.of((byte) 17, "VP_PROPERTIES")),
             TTL_BIN(Pair.of((byte) 18, "TTL")),
             USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS")),
             EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
@@ -349,6 +353,7 @@ public final class ConfigurationHelper {
         put(Keys.E_LABEL_INDEX_ENABLED_FLAG, "false");
         put(Keys.SCAN_MAX_WAIT, "2000");
         put(Keys.AEROSPIKE_MAX_RETRIES, "2");
+        put(Keys.AEROSPIKE_COMPRESS, "false");
         put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
         put(Keys.PAGINATION_PAGE_SIZE, "2048");
         put(Keys.PAGINATION_PAGE_MAX_WAIT, "1200000"); // 20 minutes.
@@ -383,6 +388,7 @@ public final class ConfigurationHelper {
         put(Keys.EDGE_ID_RECYCLE_BUFFER_SIZE, "10");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
         put(Keys.BULK_LOAD_ID_BUFFER_SIZE, "2000000");
+        put(Keys.VERTEX_PROPERTY_CARDINALITY, "single"); // Default to single cardinality
         put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.GLOBAL_EDGE_CACHE_ENABLED, "true");

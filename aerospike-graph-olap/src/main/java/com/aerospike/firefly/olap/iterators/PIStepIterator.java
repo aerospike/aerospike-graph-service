@@ -152,7 +152,7 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
                         // TODO: HasContainer support.
                         //final Set<String> labels = Set.of(vertexStep.getEdgeLabels());
                         //final String supernodeBin = direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN;
-                        //queryPolicy.filterExp = GraphQueryHelper.phatEdgeHasContainerListToExpression(db, hasContainers, labels,
+                        //queryPolicy.filterExp = EdgeQueryHelper.phatEdgeHasContainerListToExpression(db, hasContainers, labels,
                         //        keyHashString, null, direction);
                         pageFetcher = new PartitionedSindexPageFetcher<>(
                                 graph,

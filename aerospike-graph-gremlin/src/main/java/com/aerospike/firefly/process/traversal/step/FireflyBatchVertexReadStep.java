@@ -6,6 +6,7 @@ import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -17,8 +18,10 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSe
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.javatuples.Pair;
 
 import java.util.ArrayList;
@@ -46,10 +49,12 @@ import static com.aerospike.firefly.util.exceptions.GraphError.sneakyThrow;
 public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> implements LocalBarrier<Vertex> {
     private final Direction direction;
     private final Set<String> edgeLabels;
+    private final boolean areEdgesRequired;
 
     // HasContainers to apply to the read of the composite id step to filter results.
     public final List<HasContainer> fireflyHasContainers;
     public final List<HasContainer> aerospikeHasContainers;
+    private final List<HasContainer> idContainers = new ArrayList<>();
     private final int barrierSize;
     private final List<String> requiredProperties;
     private final int threads;
@@ -60,15 +65,26 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                                       final Set<String> labels,
                                       final List<HasContainer> hasContainers,
                                       final int barrierSize,
-                                      final List<String> requiredProperties) {
+                                      final List<String> requiredProperties,
+                                      final boolean areEdgesRequired) {
         super(traversal, barrierSize);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
+        this.areEdgesRequired = areEdgesRequired;
         this.labels = new HashSet<>(labels);
         this.barrierSize = barrierSize;
         if (hasContainers != null) {
+            // separate filter by id
+            final List<HasContainer> generalContainers = new ArrayList<>();
+            for (final HasContainer hasContainer : hasContainers) {
+                if (hasContainer.getKey().equals(T.id.getAccessor())) {
+                    idContainers.add(hasContainer);
+                } else {
+                    generalContainers.add(hasContainer);
+                }
+            }
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
-                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);
+                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, generalContainers);
             // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
             //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
             //  matter what.
@@ -113,11 +129,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                 }
             } else {
                 if (!duplicateIdMap.containsKey(vertex) || duplicateIdMap.get(vertex) == null) {
-                    final List<FireflyId> ids = new ArrayList<>();
-                    final Iterator<FireflyId> fireflyIdIterator = vertex.getVertexIdsFromVertex(direction, edgeLabels);
-                    while (fireflyIdIterator.hasNext()) {
-                        ids.add(fireflyIdIterator.next());
-                    }
+                    final List<FireflyId> ids = getFilteredIds(vertex);
                     duplicateIdMap.put(vertex, ids);
                 }
             }
@@ -134,7 +146,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
             if (uniqueIds.size() > graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
                 batchReadFutures.add(executorService.submit(() -> {
-                            final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties);
+                            final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, areEdgesRequired);
                             for (final FireflyVertex vertex : vertices) {
                                 fireflyVertexMap.put(vertex.id, vertex);
                             }
@@ -146,7 +158,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
         if (!uniqueIds.isEmpty()) {
             final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
             batchReadFutures.add(executorService.submit(() -> {
-                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties);
+                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, areEdgesRequired);
                         for (final FireflyVertex vertex : vertices) {
                             fireflyVertexMap.put(vertex.id, vertex);
                         }
@@ -172,7 +184,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                         if (uniqueIds.size() > graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                             final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
                             batchReadFutures.add(executorService.submit(() -> {
-                                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties);
+                                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, areEdgesRequired);
                                         for (final FireflyVertex vertex : vertices) {
                                             fireflyVertexMap.putIfAbsent(vertex.id, vertex);
                                         }
@@ -192,7 +204,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
         if (!uniqueIds.isEmpty()) {
             final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
             batchReadFutures.add(executorService.submit(() -> {
-                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties);
+                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, areEdgesRequired);
                         for (final FireflyVertex vertex : vertices) {
                             fireflyVertexMap.put(vertex.id, vertex);
                         }
@@ -260,11 +272,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
             if (duplicateIdMap.containsKey(vertex)) {
                 fireflyIdList.addAll(duplicateIdMap.get(vertex));
             } else {
-                final List<FireflyId> ids = new ArrayList<>();
-                final Iterator<FireflyId> fireflyIdIterator = vertex.getVertexIdsFromVertex(direction, edgeLabels);
-                while (fireflyIdIterator.hasNext()) {
-                    ids.add(fireflyIdIterator.next());
-                }
+                final List<FireflyId> ids = getFilteredIds(vertex);
                 duplicateIdMap.put(vertex, ids);
                 fireflyIdList.addAll(ids);
             }
@@ -284,13 +292,13 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 // Drain data to output.
                 FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
-                        fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties);
+                        fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties, areEdgesRequired);
             }
         }
 
         // Drain data to output.
         FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
-                fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties);
+                fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties, areEdgesRequired);
 
         if (output.isEmpty()) {
             set.add(EmptyTraverser.instance());
@@ -300,8 +308,21 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
         }
     }
 
+    private List<FireflyId> getFilteredIds(final FireflyVertex vertex) {
+        final List<FireflyId> ids = new ArrayList<>();
+        final Iterator<FireflyId> fireflyIdIterator = vertex.getVertexIdsFromVertex(direction, edgeLabels);
+        while (fireflyIdIterator.hasNext()) {
+            final FireflyId id = fireflyIdIterator.next();
+            if (idContainers.isEmpty() || idContainers.stream().allMatch(c -> c.test(new ReferenceVertex(id.getUserId())))) {
+                ids.add(id);
+            }
+        }
+        return ids;
+    }
+
     @Override
     public String toString() {
-        return StringFactory.stepString(this, this.direction, this.edgeLabels, this.barrierSize);
+        return StringFactory.stepString(this, this.direction, this.edgeLabels, this.barrierSize,
+                this.fireflyHasContainers, this.idContainers);
     }
 }

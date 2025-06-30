@@ -105,6 +105,7 @@ public final class ConfigurationHelper {
         public static final String READ_TOTAL_TIMEOUT_BULK_LOAD = "aerospike.client.bulk-load.policy.read.totalTimeout";
         public static final String WRITE_SLEEP_BETWEEN_RETRY = "aerospike.client.policy.write.sleepBetweenRetry";
         public static final String READ_SLEEP_BETWEEN_RETRY = "aerospike.client.policy.read.sleepBetweenRetry";
+        public static final String LOG_WARMUP_SETS = "aerospike.graph.log.warmup.sets";
 
         // Semi internal semi external configs
         public static final String AEROSPIKE_BATCH_PER_NODE_THRESHOLD = "aerospike.client.batch-threshold.per-node";
@@ -427,6 +428,7 @@ public final class ConfigurationHelper {
         put(Keys.READ_TOTAL_TIMEOUT_BULK_LOAD, "6000");
         put(Keys.WRITE_SLEEP_BETWEEN_RETRY, "500");
         put(Keys.READ_SLEEP_BETWEEN_RETRY, "0");
+        put(Keys.LOG_WARMUP_SETS, "false");
         put(Keys.PROMETHEUS_RENAME, "true");
         put(Keys.DEBUG_MODE_FLAG, "false");
         put(Keys.TTL_ENABLED_FLAG, "false");
@@ -730,7 +732,7 @@ public final class ConfigurationHelper {
     }
 
     public static String getPrefix(final Configuration config) {
-        return config.containsKey(Keys.GRAPH_ID.toLowerCase()) ? config.get(String.class, Keys.GRAPH_ID.toLowerCase()) + "_" : DEFAULT_VALUES.get(Keys.GRAPH_ID) + "_";
+        return getOrDefaultString(Keys.GRAPH_ID, config) + "_";
     }
 
     public static String aerospikeNamespace(final Configuration c) {

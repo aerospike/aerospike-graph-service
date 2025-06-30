@@ -220,7 +220,7 @@ public class ProgressBar extends TimerTask {
                                    final long linesPerSecond,
                                    final long completedLines,
                                    final String type) {
-        if (graph == null || totalLines == -1L || linesPerSecond == 0L) {
+        if (graph == null || totalLines == -1L || linesPerSecond <= 0L) {
             return null;
         }
         final long remainingLines = totalLines - completedLines;

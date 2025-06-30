@@ -18,8 +18,8 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
-import java.time.OffsetDateTime;
 import java.nio.ByteBuffer;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -187,5 +187,18 @@ public final class FireflyHelper {
 
     public static long countEdges(final FireflyGraph graph, final Long evaluationTimeout) {
         return graph.getEdgeCount(evaluationTimeout);
+    }
+
+    public static Object typeCastPropertyValue(Object val) {
+        if (val instanceof Integer) {
+            return ((Integer) val).longValue();
+        }
+        if (val instanceof Date) {
+            return ((Date) val).getTime();
+        }
+        if (val instanceof OffsetDateTime) {
+            return ((OffsetDateTime) val).toInstant().toEpochMilli();
+        }
+        throw new IllegalArgumentException("Could not cast given type to long.");
     }
 }

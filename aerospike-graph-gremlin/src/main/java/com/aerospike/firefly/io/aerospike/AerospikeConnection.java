@@ -60,6 +60,7 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.DiagnosticUtil;
+import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.util.WarmupUtil;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.config.FireflyConfiguration;
@@ -2066,7 +2067,7 @@ public class AerospikeConnection implements AutoCloseable {
             List<Object> transformedList = new ArrayList<>(originalList.size());
             for (final Object element : originalList) {
                 if (element != null && AEROSPIKE_TRANSFORMABLE_TYPES.contains(element.getClass())) {
-                    transformedList.add(typeCastToAerospike(element));
+                    transformedList.add(FireflyHelper.typeCastPropertyValue(element));
                 } else {
                     transformedList.add(element);
                 }
@@ -2074,7 +2075,7 @@ public class AerospikeConnection implements AutoCloseable {
             return transformedList;
         }
         return (value != null && AEROSPIKE_TRANSFORMABLE_TYPES.contains(value.getClass()))
-                ? typeCastToAerospike(value)
+                ? FireflyHelper.typeCastPropertyValue(value)
                 : value;
     }
 
@@ -2125,19 +2126,6 @@ public class AerospikeConnection implements AutoCloseable {
             return Instant.ofEpochMilli((Long) val).atOffset(ZoneOffset.UTC);
         }
         return clazz.cast(val);
-    }
-
-    public Object typeCastToAerospike(final Object val) {
-        if (val instanceof Integer) {
-            return ((Integer) val).longValue();
-        }
-        if (val instanceof Date) {
-            return ((Date) val).getTime();
-        }
-        if (val instanceof OffsetDateTime) {
-            return ((OffsetDateTime) val).toInstant().toEpochMilli();
-        }
-        throw new IllegalArgumentException("Could not convert to Aerospike supported type.");
     }
 
     /**

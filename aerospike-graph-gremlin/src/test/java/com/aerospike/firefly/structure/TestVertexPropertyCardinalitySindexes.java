@@ -15,10 +15,12 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Calendar;
 import java.util.List;
 import java.util.NoSuchElementException;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.DateTimeUtil.getDate;
 
 public class TestVertexPropertyCardinalitySindexes {
     private static FireflyGraph graph = null;
@@ -27,7 +29,7 @@ public class TestVertexPropertyCardinalitySindexes {
     @BeforeClass
     public static void setUp() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty("aerospike.graph.index.vertex.properties", "name,age");
+        config.setProperty("aerospike.graph.index.vertex.properties", "name,age,date");
         graph = FireflyGraph.open(config);
         g = graph.traversal();
     }
@@ -156,5 +158,25 @@ public class TestVertexPropertyCardinalitySindexes {
         Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.gte(32)).next());
         Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.lt(10)).next());
         Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.lte(9)).next());
+    }
+
+    @Test
+    public void testVPSindex_DateTimeType() {
+        final Vertex actualVertex = g.addV("testVPSindex_DateTimeType").next();
+        actualVertex.property(VertexProperty.Cardinality.list, "date", getDate(2024, Calendar.FEBRUARY, 3));
+        actualVertex.property(VertexProperty.Cardinality.list, "date", getDate(2019, Calendar.MAY, 27));
+
+        final Vertex firstDateVertex = g.V().has("date", getDate(2024, Calendar.FEBRUARY, 3)).next();
+        final Vertex secondDateVertex = g.V().has("date", getDate(2019, Calendar.MAY, 27)).next();
+        final TraversalMetrics firstDateVertexMetrics = g.V().has("date", getDate(2024, Calendar.FEBRUARY, 3)).profile().next();
+        final TraversalMetrics secondDateVertexMetrics = g.V().has("date", getDate(2019, Calendar.MAY, 27)).profile().next();
+
+        final Metrics firstDateVertexMetricsFireflyMetric = (Metrics) firstDateVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertEquals(0, firstDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
+        final Metrics secondDateVertexMetricsFireflyMetric = (Metrics) secondDateVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertEquals(0, secondDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
+
+        Assert.assertEquals(actualVertex, firstDateVertex);
+        Assert.assertEquals(actualVertex, secondDateVertex);
     }
 }

@@ -9,13 +9,18 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
+import java.util.Calendar;
 import java.util.List;
 import java.util.NoSuchElementException;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.DateTimeUtil.getDate;
 
 public class TestVertexPropertyCardinalityScan {
     private static FireflyGraph graph = null;
@@ -162,5 +167,25 @@ public class TestVertexPropertyCardinalityScan {
         Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.gte(32)).next());
         Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.lt(10)).next());
         Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.lte(9)).next());
+    }
+
+    @Test
+    public void testVPSindex_DateTimeType() {
+        final Vertex actualVertex = g.addV("testVPSindex_DateTimeType").next();
+        actualVertex.property(VertexProperty.Cardinality.list, "date", getDate(2024, Calendar.FEBRUARY, 3));
+        actualVertex.property(VertexProperty.Cardinality.list, "date", getDate(2019, Calendar.MAY, 27));
+
+        final Vertex firstDateVertex = g.V().has("date", getDate(2024, Calendar.FEBRUARY, 3)).next();
+        final Vertex secondDateVertex = g.V().has("date", getDate(2019, Calendar.MAY, 27)).next();
+        final TraversalMetrics firstDateVertexMetrics = g.V().has("date", getDate(2024, Calendar.FEBRUARY, 3)).profile().next();
+        final TraversalMetrics secondDateVertexMetrics = g.V().has("date", getDate(2019, Calendar.MAY, 27)).profile().next();
+
+        final Metrics firstDateVertexMetricsFireflyMetric = (Metrics) firstDateVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertFalse(firstDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().isEmpty());
+        final Metrics secondDateVertexMetricsFireflyMetric = (Metrics) secondDateVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertFalse(secondDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().isEmpty());
+
+        Assert.assertEquals(actualVertex, firstDateVertex);
+        Assert.assertEquals(actualVertex, secondDateVertex);
     }
 }

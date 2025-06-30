@@ -9,9 +9,11 @@ import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.Contains;
 import org.apache.tinkerpop.gremlin.process.traversal.GremlinTypeErrorException;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -26,8 +28,10 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -248,7 +252,9 @@ public class FireflyBatchReadHelper {
                     for (final Object value : collectionValue) {
                         if (!Long.class.isAssignableFrom(value.getClass()) &&
                                 !Integer.class.isAssignableFrom(value.getClass()) &&
-                                !String.class.isAssignableFrom(value.getClass())) {
+                                !String.class.isAssignableFrom(value.getClass()) &&
+                                !Date.class.isAssignableFrom(value.getClass()) &&
+                                !OffsetDateTime.class.isAssignableFrom(value.getClass())) {
                             // All values within the collection need to be supported in order for the predicate to work.
                             isSupported = false;
                             break;
@@ -258,11 +264,15 @@ public class FireflyBatchReadHelper {
                 hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, isSupported));
             } else if (!Long.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
                     !Integer.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
-                    !String.class.isAssignableFrom(hasContainer.getValue().getClass())) {
+                    !String.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
+                    !Date.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
+                    !OffsetDateTime.class.isAssignableFrom(hasContainer.getValue().getClass())) {
                 // If the HasContainer predicate is for an unsupported type.
                 hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
             } else if ((Long.class.isAssignableFrom(hasContainer.getValue().getClass()) ||
-                    Integer.class.isAssignableFrom(hasContainer.getValue().getClass()))
+                    Integer.class.isAssignableFrom(hasContainer.getValue().getClass()) ||
+                    Date.class.isAssignableFrom(hasContainer.getValue().getClass()) ||
+                    OffsetDateTime.class.isAssignableFrom(hasContainer.getValue().getClass()))
                     && !supportedNumericPredicates.contains(hasContainer.getBiPredicate())) {
                 // Else if the HasContainer predicate is for a numeric type but is not supported.
                 hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
@@ -358,7 +368,19 @@ public class FireflyBatchReadHelper {
     }
 
     public static List<HasContainer> getAerospikeHasContainers(final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities) {
-        return hasContainerWithCardinalities.stream().filter(c -> c.isSupported).map(c -> c.hasContainer).collect(Collectors.toList());
+        return hasContainerWithCardinalities.stream()
+                .filter(c -> c.isSupported)
+                .map(c -> {
+                    final HasContainer newContainer = c.hasContainer.clone();
+                    if (Date.class.isAssignableFrom(newContainer.getValue().getClass()) ||
+                            OffsetDateTime.class.isAssignableFrom(newContainer.getValue().getClass())) {
+                        final P<Object> predicate = (P<Object>) newContainer.getPredicate();
+                        final Object castedValue = FireflyHelper.typeCastPropertyValue(newContainer.getValue());
+                        predicate.setValue(castedValue);
+                    }
+                    return newContainer;
+                })
+                .collect(Collectors.toList());
     }
 
     public static <E extends Element> void pullFromLeft(final Traversal.Admin<E, E> traversal,

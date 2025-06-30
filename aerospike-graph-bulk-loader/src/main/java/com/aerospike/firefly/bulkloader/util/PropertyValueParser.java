@@ -4,6 +4,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -99,14 +100,11 @@ public class PropertyValueParser {
         return id;
     }
 
-    public Object parseByte(final String value) {
-        if (value == null || value.isEmpty()) {
+    public Object parseBlob(final String value) {
+        if (value.equals(this.nullValue)) {
             return null;
         }
-        try {
-            return Byte.parseByte(value);
-        } catch (final NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid byte value: " + value, e);
-        }
+
+        return Base64.getDecoder().decode(value);
     }
 }

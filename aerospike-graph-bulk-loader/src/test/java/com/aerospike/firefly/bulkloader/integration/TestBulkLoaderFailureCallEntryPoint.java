@@ -18,6 +18,7 @@ import java.util.Set;
 
 import static com.aerospike.firefly.bulkloader.integration.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoad;
+import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoadFail;
 
 public class TestBulkLoaderFailureCallEntryPoint {
     @Before
@@ -241,6 +242,16 @@ public class TestBulkLoaderFailureCallEntryPoint {
                 }
             }
             Assert.assertTrue(suggestionExecuted);
+        }
+    }
+
+    @Test
+    public void testInvalidHeaderCardinality() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/bad-header.properties").next();
+            final String failure = waitForBulkLoadFail(fireflyGraph.traversal());
+            Assert.assertTrue(failure.contains("Invalid type 'int(cockroach)' for property 'badheader:int(cockroach)'. Type should not contain parentheses unless it ends with '(list)'"));
         }
     }
 }

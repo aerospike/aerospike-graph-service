@@ -4,6 +4,7 @@ import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.BadCsvEntryException;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.InvalidCsvHeaderException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.google.cloud.hadoop.repackaged.gcs.com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
@@ -71,7 +72,8 @@ public class SparkFireflyVertex extends SparkFireflyElement {
                 try {
                     final String mapString = row.getAs(header);
                     if (mapString != null && !mapString.isEmpty()) {
-                        toEdgeCache = gson.fromJson(mapString, new TypeToken<Map<String, List<List<Object>>>>(){}.getType());
+                        toEdgeCache = gson.fromJson(mapString, new TypeToken<Map<String, List<List<Object>>>>() {
+                        }.getType());
                     }
                 } catch (final Exception e) {
                     LOG.error("Failed to generate Vertex property for header '" + header + "' from value: " + row.getAs(header));
@@ -83,7 +85,8 @@ public class SparkFireflyVertex extends SparkFireflyElement {
                 try {
                     final String mapString = row.getAs(header);
                     if (mapString != null && !mapString.isEmpty()) {
-                        fromEdgeCache = gson.fromJson(mapString, new TypeToken<Map<String, List<List<Object>>>>(){}.getType());
+                        fromEdgeCache = gson.fromJson(mapString, new TypeToken<Map<String, List<List<Object>>>>() {
+                        }.getType());
                     }
                 } catch (final Exception e) {
                     LOG.error("Failed to generate Vertex property for header '" + header + "' from value: " + row.getAs(header));
@@ -103,6 +106,9 @@ public class SparkFireflyVertex extends SparkFireflyElement {
                 } else {
                     properties.add(property);
                 }
+            } catch (final InvalidCsvHeaderException iche) {
+                LOG.error("Failed to generate Vertex property for header '" + header + "' from value: " + row.getAs(header));
+                throw iche;
             } catch (final RuntimeException e) {
                 LOG.error("Failed to generate Vertex property for header '" + header + "' from value: " + row.getAs(header));
                 throw new BadCsvEntryException(e);

@@ -1288,7 +1288,6 @@ public class AerospikeConnection implements AutoCloseable {
         put(Integer.class, 2L);
         put(Double.class, 3L);
         put(byte[].class, 4L);
-        put(Byte[].class, 4L);
         put(String.class, 5L);
         put(Boolean.class, 6L);
         put(ArrayList.class, 7L);

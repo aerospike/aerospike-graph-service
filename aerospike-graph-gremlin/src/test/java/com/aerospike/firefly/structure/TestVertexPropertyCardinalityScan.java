@@ -177,15 +177,35 @@ public class TestVertexPropertyCardinalityScan {
 
         final Vertex firstDateVertex = g.V().has("date", getDate(2024, Calendar.FEBRUARY, 3)).next();
         final Vertex secondDateVertex = g.V().has("date", getDate(2019, Calendar.MAY, 27)).next();
+        final Vertex thirdDateVertex = g.V().has("date", P.gt(getDate(2024, Calendar.FEBRUARY, 2))).next();
+        final Vertex fourthDateVertex = g.V().has("date", P.gte(getDate(2024, Calendar.FEBRUARY, 3))).next();
+        final Vertex fifthDateVertex = g.V().has("date", P.lt(getDate(2024, Calendar.FEBRUARY, 4))).next();
+        final Vertex sixthDateVertex = g.V().has("date", P.lte(getDate(2024, Calendar.FEBRUARY, 3))).next();
         final TraversalMetrics firstDateVertexMetrics = g.V().has("date", getDate(2024, Calendar.FEBRUARY, 3)).profile().next();
         final TraversalMetrics secondDateVertexMetrics = g.V().has("date", getDate(2019, Calendar.MAY, 27)).profile().next();
+        final TraversalMetrics thirdDateVertexMetrics = g.V().has("date", P.gt(getDate(2024, Calendar.FEBRUARY, 2))).profile().next();
+        final TraversalMetrics fourthDateVertexMetrics = g.V().has("date", P.gte(getDate(2024, Calendar.FEBRUARY, 3))).profile().next();
+        final TraversalMetrics fifthDateVertexMetrics = g.V().has("date", P.lt(getDate(2024, Calendar.FEBRUARY, 4))).profile().next();
+        final TraversalMetrics sixthDateVertexMetrics = g.V().has("date", P.lte(getDate(2024, Calendar.FEBRUARY, 3))).profile().next();
 
         final Metrics firstDateVertexMetricsFireflyMetric = (Metrics) firstDateVertexMetrics.getMetrics().toArray()[1];
         Assert.assertFalse(firstDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().isEmpty());
         final Metrics secondDateVertexMetricsFireflyMetric = (Metrics) secondDateVertexMetrics.getMetrics().toArray()[1];
         Assert.assertFalse(secondDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().isEmpty());
+        final Metrics thirdDateVertexMetricsFireflyMetric = (Metrics) thirdDateVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertFalse(thirdDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().isEmpty());
+        final Metrics fourthDateVertexMetricsFireflyMetric = (Metrics) fourthDateVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertFalse(fourthDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().isEmpty());
+        final Metrics fifthDateVertexMetricsFireflyMetric = (Metrics) fifthDateVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertFalse(fifthDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().isEmpty());
+        final Metrics sixthDateVertexMetricsFireflyMetric = (Metrics) sixthDateVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertFalse(sixthDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().isEmpty());
 
         Assert.assertEquals(actualVertex, firstDateVertex);
         Assert.assertEquals(actualVertex, secondDateVertex);
+        Assert.assertEquals(actualVertex, thirdDateVertex);
+        Assert.assertEquals(actualVertex, fourthDateVertex);
+        Assert.assertEquals(actualVertex, fifthDateVertex);
+        Assert.assertEquals(actualVertex, sixthDateVertex);
     }
 }

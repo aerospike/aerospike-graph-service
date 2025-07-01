@@ -132,6 +132,22 @@ public abstract class SparkFireflyElement implements Serializable {
                         propertyValue = parser.parseBlob(value);
                     }
                     break;
+                case "date":
+                    if (isList) {
+                        final String[] values = value.split(MULTI_DELIMITER);
+                        propertyValue = Arrays.stream(values).map(parser::parseDate).collect(Collectors.toList());
+                    } else {
+                        propertyValue = parser.parseDate(value);
+                    }
+                    break;
+                case "offsetdatetime":
+                    if (isList) {
+                        final String[] values = value.split(MULTI_DELIMITER);
+                        propertyValue = Arrays.stream(values).map(parser::parseOffsetDateTime).collect(Collectors.toList());
+                    } else {
+                        propertyValue = parser.parseOffsetDateTime(value);
+                    }
+                    break;
                 default:
                     propertyName = header;
                     propertyValue = parser.parseString(value);

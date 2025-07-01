@@ -133,7 +133,7 @@ public class AerospikeOperations {
         }
     }
 
-    /// ///////////// VERTEX OPERATIONS ///////////////
+    //////////////// VERTEX OPERATIONS ///////////////
     public FireflyVertex writeVertex(final FireflyId vertexId,
                                      final String label,
                                      final List<Map.Entry<String, Object>> properties,
@@ -1512,7 +1512,7 @@ public class AerospikeOperations {
         return edges;
     }
 
-    /// ///////////// EDGE PROPERTIES ///////////////
+    //////////////// EDGE PROPERTIES ///////////////
 
     public <V> Property<V> writeProperty(final FireflyEdge edge, final String propertyKey, final V value) {
         final Key key = getKey(db, db.EDGE_AERO_SET, edge.id);

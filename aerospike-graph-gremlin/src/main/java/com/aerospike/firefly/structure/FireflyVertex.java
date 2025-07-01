@@ -45,6 +45,7 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
+import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
@@ -269,7 +270,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         if (edgeCache != null) {
             final List<FireflyEdge> edges = graph.readEdges(Collections.emptyList(), edgeIds, null);
             for (final FireflyEdge edge : edges) {
-                if (HasContainer.testAll(edge, hasContainers)) {
+                if (fireflyTestAll(edge, hasContainers)) {
                     edgeCache.put(edge.id, edge);
                 }
             }

@@ -38,6 +38,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.getTraversalOptionInteger;
 import static com.aerospike.firefly.util.exceptions.GraphError.sneakyThrow;
 
@@ -171,7 +172,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                 final List<FireflyId> ids = futures.containsKey(element) ? futures.get(element).get() : duplicateIdMap.get(element);
                 final List<FireflyEdge> edges = ids.stream().map(fireflyEdgeMap::get).collect(Collectors.toList());
                 for (final FireflyEdge edge : edges) {
-                    if (edge != null && HasContainer.testAll(edge, fireflyHasContainers)) {
+                    if (edge != null && fireflyTestAll(edge, fireflyHasContainers)) {
                         set.add(traverser.split(edge, this));
                     }
                 }

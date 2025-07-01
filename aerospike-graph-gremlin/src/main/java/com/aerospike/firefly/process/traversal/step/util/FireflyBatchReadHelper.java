@@ -41,6 +41,8 @@ import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
+
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
@@ -125,7 +127,7 @@ public class FireflyBatchReadHelper {
 
                 // Check firefly has containers to ensure we apply all predicates.
                 try {
-                    if (element == null || !HasContainer.testAll(element, fireflyHasContainers)) {
+                    if (element == null || !fireflyTestAll(element, fireflyHasContainers)) {
                         // Element was not found - this is because it was deleted concurrently or filtered via expression.
                         continue;
                     }
@@ -180,7 +182,7 @@ public class FireflyBatchReadHelper {
 
                 // Check firefly has containers to ensure we apply all predicates.
                 try {
-                    if (element == null || !HasContainer.testAll(element, fireflyHasContainers)) {
+                    if (element == null || !fireflyTestAll(element, fireflyHasContainers)) {
                         // Element was not found - this is because it was deleted concurrently or filtered via expression.
                         continue;
                     }

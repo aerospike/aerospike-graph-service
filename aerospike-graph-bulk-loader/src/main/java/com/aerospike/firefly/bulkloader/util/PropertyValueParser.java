@@ -63,6 +63,14 @@ public class PropertyValueParser {
         return value;
     }
 
+    public Object parseBlob(final String value) {
+        if (value.equals(this.nullValue)) {
+            return null;
+        }
+
+        return Base64.getDecoder().decode(value);
+    }
+
     public Date parseDate(final String value) {
         if (value.equals(this.nullValue)) {
             return null;
@@ -98,13 +106,5 @@ public class PropertyValueParser {
         } catch (final NumberFormatException ignored) {
         }
         return id;
-    }
-
-    public Object parseBlob(final String value) {
-        if (value.equals(this.nullValue)) {
-            return null;
-        }
-
-        return Base64.getDecoder().decode(value);
     }
 }

@@ -38,7 +38,13 @@ public class TestSpecialPropertiesRemotely {
 
     @AfterClass
     public static void teardown() {
-        server.stop().join();
+        try {
+            g.close();
+        } catch (final Exception e) {
+            System.out.println("Exception occurred in AfterClass of TestSpecialPropertiesRemotely: " + e.getMessage());
+        } finally {
+            server.stop().join();
+        }
     }
 
     @Before

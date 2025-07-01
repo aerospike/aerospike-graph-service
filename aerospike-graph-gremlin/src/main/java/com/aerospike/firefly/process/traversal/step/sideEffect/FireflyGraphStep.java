@@ -32,6 +32,8 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
+
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  * @author Pieter Martin
@@ -327,7 +329,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             // Find next element that matches HasContainer.
             while (i.hasNext()) {
                 e = i.next();
-                if (HasContainer.testAll(e, this.hasContainers)) {
+                if (fireflyTestAll(e, this.hasContainers)) {
                     valid = true;
                     return true;
                 }

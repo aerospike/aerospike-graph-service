@@ -42,7 +42,7 @@ public class TestAerospikeNetwork {
         if (matchedContainer.isPresent()) {
             containerId = matchedContainer.get();
         } else {
-            throw new IllegalStateException("No container found with port 3000 bound to 0.0.0.0");
+            throw new IllegalStateException("No container found running Aerospike server");
         }
         config.setProperty("aerospike.client.compress", true);
         compressGraph = FireflyGraph.open(config);
@@ -118,7 +118,7 @@ public class TestAerospikeNetwork {
     public Optional<String> findAerospikeServerContainerId() {
         List<Container> containers = dockerClient.listContainersCmd().exec();
         for (Container container : containers) {
-            if (container.getImage().contains("aerospike") && container.getImage().contains("server")) {
+            if (container.getImage().contains("aerospike-server")) {
                 return Optional.of(container.getId());
             }
         }

@@ -10,6 +10,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
+
 /**
  * Used for FireflyMergeEdge step, which filters Adjacent Vertex ID and Label beforehand.
  */
@@ -45,7 +47,7 @@ public class FireflyFilteredBatchEdgeIterator<E extends Edge> extends FireflyBat
                 // Search the current element iterator for one that passes the filters.
                 while (elementIterator.hasNext()) {
                     final E edge = (E) elementIterator.next();
-                    if (HasContainer.testAll(edge, filters)) {
+                    if (fireflyTestAll(edge, filters)) {
                         // We found an element. Break and return.
                         next = edge;
                         return true;

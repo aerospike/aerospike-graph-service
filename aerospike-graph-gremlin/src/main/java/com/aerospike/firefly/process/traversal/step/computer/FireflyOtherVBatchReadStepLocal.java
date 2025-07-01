@@ -28,6 +28,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
+
 public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
     private final List<HasContainer> fireflyHasContainers;
     private final List<HasContainer> aerospikeHasContainers;
@@ -97,7 +99,7 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
                 } else {
                     result = outVertex != null && !ElementHelper.areEqual(vertex, outVertex) ? outVertex : inVertex;
                 }
-                if (HasContainer.testAll(result, fireflyHasContainers))
+                if (fireflyTestAll(result, fireflyHasContainers))
                     return FireflyCloseableIteratorUtils.of(result);
                 return Collections.emptyIterator();
             }

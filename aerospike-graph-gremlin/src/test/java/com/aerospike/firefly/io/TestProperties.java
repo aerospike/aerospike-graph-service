@@ -7,6 +7,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -29,6 +30,7 @@ import org.junit.rules.TestName;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -37,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.DateTimeUtil.testDateTimePropertiesCases;
 
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
@@ -408,7 +411,7 @@ public class TestProperties {
         names.add("simon");
         names.add("bauto");
         g.V().hasLabel("person").properties().drop().iterate();
-        g.V().hasLabel("person").property("age", 12).property(VertexProperty.Cardinality.list, "name", "simon").property(VertexProperty.Cardinality.list,"name", "bauto").iterate();
+        g.V().hasLabel("person").property("age", 12).property(VertexProperty.Cardinality.list, "name", "simon").property(VertexProperty.Cardinality.list, "name", "bauto").iterate();
         traversal = g.V().hasLabel("person").properties().count();
         propertiesCount = (long) traversal.next();
         Assert.assertEquals(3, propertiesCount);
@@ -715,6 +718,27 @@ public class TestProperties {
         g.V().hasLabel("test").property(VertexProperty.Cardinality.list,"key1", 1, "test", 123).iterate();
         g.V().hasLabel("test").property(VertexProperty.Cardinality.list,"key1", 2, "test", 123).iterate();
         g.V().hasLabel("test").property(VertexProperty.Cardinality.list,"key2", 2, "test", 123).iterate();
+    }
+
+    @Test
+    public void testDateTimeProperties() {
+        final GraphTraversalSource g = graph.traversal();
+        testDateTimePropertiesCases(g);
+    }
+
+    @Test
+    public void testDateTimeMultiSharedWithNumeric() {
+        final GraphTraversalSource g = graph.traversal();
+        g.V().hasLabel("person").property(VertexProperty.Cardinality.list, "birthday", 10)
+                .property(VertexProperty.Cardinality.list, "birthday", new Date(1993, 3, 30)).next();
+        final GraphTraversal matchesLongPushdownButShouldReturn = g.V().hasLabel("person").has("birthday", P.lt(20));
+        final GraphTraversal matchesLongPushdownButShouldNotReturn = g.V().hasLabel("person").has("birthday", P.lt(new Date(1990, 1, 1)));
+        final GraphTraversal matchesDatePushdownButShouldReturn = g.V().hasLabel("person").has("birthday", P.gt(new Date(1990, 1, 1)));
+        final GraphTraversal matchesDatePushdownButShouldNotReturn = g.V().hasLabel("person").has("birthday", P.gt(20));
+        Assert.assertTrue(matchesLongPushdownButShouldReturn.hasNext());
+        Assert.assertFalse(matchesLongPushdownButShouldNotReturn.hasNext());
+        Assert.assertTrue(matchesDatePushdownButShouldReturn.hasNext());
+        Assert.assertFalse(matchesDatePushdownButShouldNotReturn.hasNext());
     }
 
     @Ignore

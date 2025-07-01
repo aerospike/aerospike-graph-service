@@ -26,7 +26,7 @@ public abstract class SparkFireflyElement implements Serializable {
     protected final List<Map.Entry<String, Object>> properties;
 
     protected SparkFireflyElement(final Object id, final String label,
-                                final List<Map.Entry<String, Object>> properties) {
+                                  final List<Map.Entry<String, Object>> properties) {
         this.id = id;
         this.label = label;
         this.properties = properties;
@@ -130,6 +130,22 @@ public abstract class SparkFireflyElement implements Serializable {
                         propertyValue = Arrays.stream(values).map(parser::parseBlob).collect(Collectors.toList());
                     } else {
                         propertyValue = parser.parseBlob(value);
+                    }
+                    break;
+                case "date":
+                    if (isList) {
+                        final String[] values = value.split(MULTI_DELIMITER);
+                        propertyValue = Arrays.stream(values).map(parser::parseDate).collect(Collectors.toList());
+                    } else {
+                        propertyValue = parser.parseDate(value);
+                    }
+                    break;
+                case "offsetdatetime":
+                    if (isList) {
+                        final String[] values = value.split(MULTI_DELIMITER);
+                        propertyValue = Arrays.stream(values).map(parser::parseOffsetDateTime).collect(Collectors.toList());
+                    } else {
+                        propertyValue = parser.parseOffsetDateTime(value);
                     }
                     break;
                 default:

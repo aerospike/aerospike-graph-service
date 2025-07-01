@@ -59,9 +59,10 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
-import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.DiagnosticUtil;
+import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.util.WarmupUtil;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.config.FireflyConfiguration;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.AerospikeMrtNotSupportedException;
@@ -80,10 +81,14 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -106,8 +111,8 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
-import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.EDGE_PACKING_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
@@ -320,7 +325,7 @@ public class AerospikeConnection implements AutoCloseable {
         // If username and password are not null or empty strings, then set the user and password on the client policy.
         final String user = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_USER, conf);
         final String password = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PASSWORD, conf);
-        if (user != null && !user.equals("") && password != null && !password.equals("")) {
+        if (user != null && !user.isEmpty() && password != null && !password.isEmpty()) {
             LOG.info("Setting Aerospike user and password.");
             clientPolicy.user = user;
             clientPolicy.password = password;
@@ -873,9 +878,8 @@ public class AerospikeConnection implements AutoCloseable {
                     .map(str -> str.split(":"))
                     .forEach(strAry -> {
                         Map<String, String> data = new TreeMap<>();
-                        Arrays.stream(strAry).forEach(kvStr -> {
-                            data.put(kvStr.split("=")[0], kvStr.split("=")[1]);
-                        });
+                        Arrays.stream(strAry).forEach(kvStr ->
+                                data.put(kvStr.split("=")[0], kvStr.split("=")[1]));
                         results.put(data.get(Keys.SET), data);
                     });
             return results;
@@ -924,7 +928,7 @@ public class AerospikeConnection implements AutoCloseable {
         /**
          * Return list of usable indices in a list of map entries.
          *
-         * @param db        AerospikeConnnection.
+         * @param db        AerospikeConnection.
          * @param namespace Namespace.
          * @return List of existing indices in a list of map entries.
          * First item of map entry is index
@@ -1287,6 +1291,8 @@ public class AerospikeConnection implements AutoCloseable {
         put(String.class, 5L);
         put(Boolean.class, 6L);
         put(ArrayList.class, 7L);
+        put(Date.class, 8L);
+        put(OffsetDateTime.class, 9L);
     }};
     public static final Map<Long, Class<? extends Serializable>> SUPPORTED_TYPE_VALUES = new HashMap<>() {{
         put(1L, Long.class);
@@ -1296,6 +1302,8 @@ public class AerospikeConnection implements AutoCloseable {
         put(5L, String.class);
         put(6L, Boolean.class);
         put(7L, ArrayList.class);
+        put(8L, Date.class);
+        put(9L, OffsetDateTime.class);
     }};
     public static final Set<Class<? extends Serializable>> SUPPORTED_ARR_TYPES = new HashSet<>() {{
         add(boolean[].class);
@@ -1307,6 +1315,13 @@ public class AerospikeConnection implements AutoCloseable {
         add(String[].class);
         add(long[].class);
         add(Long[].class);
+        add(Date[].class);
+        add(OffsetDateTime[].class);
+    }};
+    public static final Set<Class<?>> AEROSPIKE_TRANSFORMABLE_TYPES = new HashSet<>() {{
+        add(Integer.class);
+        add(Date.class);
+        add(OffsetDateTime.class);
     }};
 
     static AtomicLong readMetric = new AtomicLong(0);
@@ -1350,40 +1365,43 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Type hint value or null
      */
     public static Object getTypeHintOf(final Object value, final boolean isVertexProperty) {
-        final Class clazz = value.getClass();
+        final Class<?> clazz = value.getClass();
         if (!SUPPORTED_VALUE_TYPES.containsKey(clazz)) {
             throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(value);
         } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(ArrayList.class))) {
-            // Values within a list for our supported types are stored on disk as expected except for Integers which get
-            // stored as a Long. We need to keep track of which indexes within the list were inputted as Integers to
-            // properly cast them back upon a read.
-            final ArrayList<Long> integerIndices = new ArrayList<>();
+            // Values within a list for our supported types are stored on disk as expected except for Integers and Dats
+            // which get stored as a Long. We need to keep track of which indexes within the list were inputted as
+            // Integers to properly cast them back upon a read.
+            final Map<Long, Long> indicesAndTypeHints = new HashMap<>();
             final ArrayList<?> valueList = (ArrayList<?>) value;
             for (int i = 0; i < valueList.size(); i++) {
                 final Object valueInList = valueList.get(i);
                 if (valueInList != null) {
-                    final Class valueClass = valueInList.getClass();
+                    final Class<?> valueClass = valueInList.getClass();
                     if (!SUPPORTED_VALUE_TYPES.containsKey(valueClass) ||
                             SUPPORTED_VALUE_TYPES.get(valueClass).equals(SUPPORTED_VALUE_TYPES.get(ArrayList.class))) {
                         throw new IllegalArgumentException(valueClass.getName()
                                 + " within a List is not a supported value type");
                     }
-                    if (valueList.get(i).getClass().equals(Integer.class)) {
-                        integerIndices.add((long) i);
+                    // Transformable types
+                    if (AEROSPIKE_TRANSFORMABLE_TYPES.contains(valueClass)) {
+                        indicesAndTypeHints.put((long) i, SUPPORTED_VALUE_TYPES.get(valueClass));
                     }
                 }
             }
-            return integerIndices.isEmpty() ? null : integerIndices;
-        }
-        if (Objects.equals(SUPPORTED_VALUE_TYPES.get(clazz), SUPPORTED_VALUE_TYPES.get(Integer.class))) {
+            return indicesAndTypeHints.isEmpty() ? null : indicesAndTypeHints;
+        } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(Integer.class))) {
             return SUPPORTED_VALUE_TYPES.get(Integer.class);
         } else if (isVertexProperty && Objects.equals(SUPPORTED_VALUE_TYPES.get(clazz), SUPPORTED_VALUE_TYPES.get(Boolean.class))) {
             return SUPPORTED_VALUE_TYPES.get(Boolean.class);
         } else if (isVertexProperty && Objects.equals(SUPPORTED_VALUE_TYPES.get(clazz), SUPPORTED_VALUE_TYPES.get(Double.class))) {
             return SUPPORTED_VALUE_TYPES.get(Double.class);
-        } else {
-            return null;
+        } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(Date.class))) {
+            return SUPPORTED_VALUE_TYPES.get(Date.class);
+        } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(OffsetDateTime.class))) {
+            return SUPPORTED_VALUE_TYPES.get(OffsetDateTime.class);
         }
+        return null;
     }
 
     /**
@@ -1592,7 +1610,7 @@ public class AerospikeConnection implements AutoCloseable {
         } else {
             writePolicy = policy;
         }
-        // Operations require a WritePolicy but we only use this function to read.
+        // Operations require a WritePolicy, but we only use this function to read.
         configureReadPolicy(writePolicy);
         try {
             return (cache != null) ? cache.read(writePolicy, key, operations) : client.operate(writePolicy, key, operations);
@@ -1776,7 +1794,7 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * bulk read/operate. Not tested for write and delete.
      *
-     * @param batchPolicy query policy.
+     * @param batchPolicy  query policy.
      * @param batchRecords operations. Also contains results for read
      */
     public void batchOperate(final BatchPolicy batchPolicy, final List<BatchRecord> batchRecords) {
@@ -1915,28 +1933,30 @@ public class AerospikeConnection implements AutoCloseable {
         if (fireflyRecord.record().getMap(typeHintBin) != null) {
             typeHint = fireflyRecord.record().getMap(typeHintBin).get(mapKey);
         }
-        return (V) convertValuetoTypeUsingHint(value, typeHint);
+        return (V) convertValueToTypeUsingHint(value, typeHint);
     }
 
-    public Object convertValuetoTypeUsingHint(final Object value, final Object typeHint) {
+    public Object convertValueToTypeUsingHint(final Object value, final Object typeHint) {
         if (typeHint == null) {
             return value;
         }
-        if (typeHint instanceof ArrayList) {
+        if (typeHint instanceof Map) {
             final ArrayList<Object> valueList = new ArrayList<>((ArrayList<Object>) value);
-            final ArrayList<Long> integerIndices = (ArrayList<Long>) typeHint;
-            for (final Long index : integerIndices) {
-                final Object valueListValue = valueList.get(index.intValue());
+            final Map<Long, Long> indicesAndInnerTypeHints = (Map<Long, Long>) typeHint;
+            for (final Map.Entry<Long, Long> entry : indicesAndInnerTypeHints.entrySet()) {
+                final Object valueListValue = valueList.get(entry.getKey().intValue());
                 if (valueListValue instanceof Long) {
-                    valueList.set(index.intValue(), ((Long) valueListValue).intValue());
-                } else if (!(valueListValue instanceof Integer)) {
+                    final Class<?> clazz = SUPPORTED_TYPE_VALUES.get(entry.getValue());
+                    valueList.set(entry.getKey().intValue(), (clazz == null) ? valueListValue : typeCast(clazz, valueListValue));
+                } else if (!(AEROSPIKE_TRANSFORMABLE_TYPES.contains(valueListValue.getClass()))) {
                     // This should never happen.
-                    throw new IllegalStateException("A type hint for a list contains items that aren't int or long.");
+                    throw new IllegalStateException("A type hint for a list contains items that aren't transformable." +
+                            " Please contact support.");
                 }
             }
             return valueList;
         }
-        final Class clazz = SUPPORTED_TYPE_VALUES.get(typeHint);
+        final Class<?> clazz = SUPPORTED_TYPE_VALUES.get(typeHint);
         if (clazz == null) {
             return value;
         } else if (clazz.equals(Boolean.class) && value instanceof byte[]) {
@@ -2042,13 +2062,26 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Cast an on-disk storage type to its user type
      *
-     * @param clazz
-     * @param val
-     * @return
+     * @param clazz Target class to cast the value to
+     * @param val   Value to cast
+     * @return Casted value
      */
-    public Object typeCast(final Class clazz, final Object val) {
-        if (clazz.equals(Integer.class))
+    public Object typeCast(final Class<?> clazz, final Object val) {
+        if (clazz.equals(Integer.class)) {
             return Integer.class.isAssignableFrom(val.getClass()) ? (Integer) val : Math.toIntExact((Long) val);
+        }
+        if (clazz.equals(Date.class)) {
+            if (val instanceof Date) {
+                return val;
+            }
+            return new Date((Long) val);
+        }
+        if (clazz.equals(OffsetDateTime.class)) {
+            if (val instanceof OffsetDateTime) {
+                return val;
+            }
+            return Instant.ofEpochMilli((Long) val).atOffset(ZoneOffset.UTC);
+        }
         return clazz.cast(val);
     }
 
@@ -2311,10 +2344,10 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Wrapper for AerospikeConnection.operate() to handle returning Firefly exceptions.
      *
-     * @param writePolicy       WritePolicy for operate.
-     * @param key               Key for operate.
-     * @param suppressLogging   Flag to disable logging on failure
-     * @param operations        Operations for operate.
+     * @param writePolicy     WritePolicy for operate.
+     * @param key             Key for operate.
+     * @param suppressLogging Flag to disable logging on failure
+     * @param operations      Operations for operate.
      * @return Record resulting from operate.
      */
     private Record operate(final WritePolicy writePolicy, final Key key, boolean suppressLogging, final Operation... operations) {

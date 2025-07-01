@@ -45,6 +45,7 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
+import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
@@ -111,7 +112,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 final FireflyId fireflyVpId = this.db.getIdFactory().createVertexPropertyId(vpId);
                 final Map<Long, List<Object>> vpPropertyMap = this.vpProperties.get(schemaPropertyKey).get(vpId);
                 final Object typeHint = this.vpTypeHints.get(schemaPropertyKey).get(vpId);
-                final V convertedValue = (V) this.db.convertValuetoTypeUsingHint(valueToIdList.getKey(), typeHint);
+                final V convertedValue = (V) this.db.convertValueToTypeUsingHint(valueToIdList.getKey(), typeHint);
                 final VertexProperty<V> vertexProperty = new FireflyVertexProperty<>(graph, fireflyVpId, this, key, convertedValue, vpPropertyMap);
                 vertexProperties.add(vertexProperty);
             }
@@ -269,7 +270,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         if (edgeCache != null) {
             final List<FireflyEdge> edges = graph.readEdges(Collections.emptyList(), edgeIds, null);
             for (final FireflyEdge edge : edges) {
-                if (HasContainer.testAll(edge, hasContainers)) {
+                if (fireflyTestAll(edge, hasContainers)) {
                     edgeCache.put(edge.id, edge);
                 }
             }

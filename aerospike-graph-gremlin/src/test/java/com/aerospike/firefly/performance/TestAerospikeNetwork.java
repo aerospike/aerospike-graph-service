@@ -57,8 +57,6 @@ public class TestAerospikeNetwork {
 
     @Test
     public void testCompressionFlag1KbChar() throws Exception {
-        System.out.println("Starting network monitoring for container: " + CONTAINER_ID);
-
         String oneKbString = String.valueOf('a').repeat(1024);
         uncompressGraph.traversal().addV("1KbA").property("goCrazy", oneKbString).next();
 

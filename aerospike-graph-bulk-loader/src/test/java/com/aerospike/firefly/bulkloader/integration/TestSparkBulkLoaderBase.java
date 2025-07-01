@@ -23,10 +23,15 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoad;
@@ -36,11 +41,13 @@ import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.BAD_ENTRY_
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DUPLICATE_VERTEX_ID_COUNT_EXCEEDED;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 
 public abstract class TestSparkBulkLoaderBase {
     // Directories are relative to firefly/firefly-spark-bulk-loader
     private static final String PROVIDED_ID_PROPERTY_NAME = "testIdName";
-    private static final String[] DEFAULT_PARAMS= {"-validate_input_data", "-verify_output_data"};
+    private static final String[] DEFAULT_PARAMS = {"-validate_input_data", "-verify_output_data"};
     protected FireflyGraph graph = null;
     static private final String EDGEID_TEST_DIRECTORIES = "src/test/resources/conf/packed/temp";
     static private final String BASE_PROPERTIES = "src/test/resources/conf/base.properties";
@@ -63,7 +70,7 @@ public abstract class TestSparkBulkLoaderBase {
     }
 
     @After
-    public void afterEach(){
+    public void afterEach() {
         graph.getBaseGraph().dropDatabase(graph, true);
         Configuration config = getTestConfig();
         try {
@@ -106,11 +113,18 @@ public abstract class TestSparkBulkLoaderBase {
     protected abstract String getS3FileSystem();
 
     protected abstract String getGcsFileSystem();
+
     protected abstract String getFailingClient();
+
     protected abstract String getHasBadEdges();
+
     protected abstract String getSamplingSupernode();
+
     protected abstract String getSamplingSupernodeTooHigh();
+
     protected abstract String getSamplingSupernodeTooLow();
+
+    protected abstract String getDateTimeProperties();
 
     @Test
     public void testDataAccuracy() {
@@ -156,7 +170,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testArtificialSupernodes() {
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfigArtificialSupernode()},DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfigArtificialSupernode()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         waitForBulkLoad(g);
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
@@ -202,8 +216,8 @@ public abstract class TestSparkBulkLoaderBase {
     public void testPreflightCheckVertexNotAllowed() {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "0", "-c", getPreflightCheckVertex()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
-        final Exception e = waitForBulkLoadFail(g);
-        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
+        final String e = waitForBulkLoadFail(g);
+        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e);
         Assert.assertFalse(g.V().hasNext());
         Assert.assertFalse(g.E().hasNext());
     }
@@ -212,8 +226,8 @@ public abstract class TestSparkBulkLoaderBase {
     public void testPreflightCheckEdgeNotAllowed() {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "0", "-c", getPreflightCheckEdge()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
-        final Exception e = waitForBulkLoadFail(g);
-        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
+        final String e = waitForBulkLoadFail(g);
+        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e);
         Assert.assertFalse(g.V().hasNext());
         Assert.assertFalse(g.E().hasNext());
     }
@@ -225,8 +239,8 @@ public abstract class TestSparkBulkLoaderBase {
 
         // Test failing on Vertex
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "1", "-c", getBadEntries()}, DEFAULT_PARAMS));
-        Exception e = waitForBulkLoadFail(g);
-        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
+        String e = waitForBulkLoadFail(g);
+        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e);
 
         Assert.assertFalse(g.V().hasNext());
         Assert.assertFalse(g.E().hasNext());
@@ -234,7 +248,7 @@ public abstract class TestSparkBulkLoaderBase {
         // Test failing on Edge
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "2", "-c", getBadEntries()}, DEFAULT_PARAMS));
         e = waitForBulkLoadFail(g);
-        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
+        Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e);
         Assert.assertFalse(g.V().hasNext());
         Assert.assertFalse(g.E().hasNext());
         // Test success
@@ -277,14 +291,14 @@ public abstract class TestSparkBulkLoaderBase {
     public void testDuplicateVertexIdNotAllowed() {
         final GraphTraversalSource g = graph.traversal();
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-adv", "0", "-c", getDuplicateVertexId()}, DEFAULT_PARAMS));
-        Exception e = waitForBulkLoadFail(g);
-        Assert.assertEquals(DUPLICATE_VERTEX_ID_COUNT_EXCEEDED, e.getMessage());
+        String e = waitForBulkLoadFail(g);
+        Assert.assertEquals(DUPLICATE_VERTEX_ID_COUNT_EXCEEDED, e);
         graph.getBaseGraph().dropDatabase(graph, false);
 
 
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-adv", "2", "-c", getDuplicateVertexId()}, DEFAULT_PARAMS));
         e = waitForBulkLoadFail(g);
-        Assert.assertEquals(DUPLICATE_VERTEX_ID_COUNT_EXCEEDED, e.getMessage());
+        Assert.assertEquals(DUPLICATE_VERTEX_ID_COUNT_EXCEEDED, e);
     }
 
     @Test
@@ -295,6 +309,70 @@ public abstract class TestSparkBulkLoaderBase {
         testVertices();
         testVertexEdgeConnections();
         Assert.assertEquals(3, (long) g.E().has("testIdName", "duplicate").count().next());
+    }
+
+    @Test
+    public void testDatasetWithDateTimeProperties() {
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDateTimeProperties()}, DEFAULT_PARAMS));
+        final GraphTraversalSource g = graph.traversal();
+        waitForBulkLoad(g);
+
+        final Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        cal.set(Calendar.YEAR, 2023);
+        cal.set(Calendar.MONTH, Calendar.FEBRUARY);
+        cal.set(Calendar.DAY_OF_MONTH, 11);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        final Date date = cal.getTime();
+
+        Vertex vertex = g.V().has("dateOnly", date).next();
+        Assert.assertEquals(2007, (long) vertex.value("longProperty"));
+
+        final Calendar calDT = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        calDT.set(Calendar.YEAR, 2025);
+        calDT.set(Calendar.MONTH, Calendar.JANUARY);
+        calDT.set(Calendar.DAY_OF_MONTH, 1);
+        calDT.set(Calendar.HOUR_OF_DAY, 17);
+        calDT.set(Calendar.MINUTE, 2);
+        calDT.set(Calendar.SECOND, 0);
+        calDT.set(Calendar.MILLISECOND, 0);
+        final Date dateTime = calDT.getTime();
+
+        List<Vertex> vertices = g.V().has("dateTime", dateTime).toList();
+        Assert.assertEquals(2, vertices.size());
+
+        Calendar calD1 = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        calD1.set(Calendar.YEAR, 2021);
+        calD1.set(Calendar.MONTH, Calendar.JANUARY);
+        calD1.set(Calendar.DAY_OF_MONTH, 1);
+        calD1.set(Calendar.HOUR_OF_DAY, 0);
+        calD1.set(Calendar.MINUTE, 0);
+        calD1.set(Calendar.SECOND, 0);
+        calD1.set(Calendar.MILLISECOND, 0);
+        final Date date1 = calD1.getTime();
+
+        final Calendar calD2 = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        calD2.set(Calendar.YEAR, 2022);
+        calD2.set(Calendar.MONTH, Calendar.FEBRUARY);
+        calD2.set(Calendar.DAY_OF_MONTH, 2);
+        calD2.set(Calendar.HOUR_OF_DAY, 0);
+        calD2.set(Calendar.MINUTE, 0);
+        calD2.set(Calendar.SECOND, 0);
+        calD2.set(Calendar.MILLISECOND, 0);
+        final Date date2 = calD2.getTime();
+
+        List<Date> expectedDates = new ArrayList<>();
+        expectedDates.add(date1);
+        expectedDates.add(date2);
+        List<Object> actual = g.V("1").values("dates").toList();
+        List<String> actualNormalized = actual.stream().map(Object::toString).collect(Collectors.toList());
+        assertThat(actualNormalized, containsInAnyOrder(expectedDates.stream().map(Object::toString).toArray()));
+
+        Edge edge = g.E().has("offsetDateTime", OffsetDateTime.of(2009, 1, 2, 9, 25,
+                10, 0, ZoneOffset.UTC)).next();
+        Assert.assertEquals(47, (int) edge.value("intProperty"));
     }
 
     @Ignore("TODO GRAPH-888: NPE caused by org.codehaus.groovy.reflection.ReflectionUtils.VM_PLUGIN is null on CI machine")
@@ -330,7 +408,7 @@ public abstract class TestSparkBulkLoaderBase {
                     new String[]{"-local", "-c", getGcsFileSystem(), "-p", System.getenv("GCS_PRIVATE_KEY"), "-gem",
                             System.getenv("GCS_CLIENT_EMAIL")},
                     DEFAULT_PARAMS));
-                Assert.fail("No user for GCS mode should fail.");
+            Assert.fail("No user for GCS mode should fail.");
         } catch (final RuntimeException e) {
             Assert.assertEquals("Either 'aerospike.graphloader.gcs-keyfile' or all of 'aerospike.graphloader.gcs-email', 'aerospike.graphloader.remote-user', and 'aerospike.graphloader.remote-passkey' must be specified to read from GCS.", e.getMessage());
         }
@@ -412,16 +490,14 @@ public abstract class TestSparkBulkLoaderBase {
     public void testNotAllowDetachedEdges() {
         SparkBulkLoader.main(ArrayUtils.addAll(
                 new String[]{"-local", "-ade", "0", "-c", getHasBadEdges()}, DEFAULT_PARAMS));
-        Exception e = waitForBulkLoadFail(graph.traversal());
-        Assert.assertTrue(e.getCause() instanceof RuntimeException);
-        Assert.assertEquals(BAD_EDGE_COUNT_EXCEEDED, e.getCause().getMessage());
+        String e = waitForBulkLoadFail(graph.traversal());
+        Assert.assertTrue(e.contains(BAD_EDGE_COUNT_EXCEEDED));
         graph.getBaseGraph().dropDatabase(graph, false);
 
         SparkBulkLoader.main(ArrayUtils.addAll(
                 new String[]{"-local", "-ade", "2", "-c", getHasBadEdges()}, DEFAULT_PARAMS));
         e = waitForBulkLoadFail(graph.traversal());
-        Assert.assertTrue(e.getCause() instanceof RuntimeException);
-        Assert.assertEquals(BAD_EDGE_COUNT_EXCEEDED, e.getCause().getMessage());
+        Assert.assertTrue(e.contains(BAD_EDGE_COUNT_EXCEEDED));
     }
 
     @Test
@@ -434,8 +510,8 @@ public abstract class TestSparkBulkLoaderBase {
     @Test
     public void testSupernodeSamplingTooHigh() {
         try {
-        SparkBulkLoader.main(ArrayUtils.addAll(
-                new String[]{"-local", "-ade", "0", "-c", getSamplingSupernodeTooHigh()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(
+                    new String[]{"-local", "-ade", "0", "-c", getSamplingSupernodeTooHigh()}, DEFAULT_PARAMS));
         } catch (final ConfigurationRuntimeException e) {
             Assert.assertEquals("Value provided, \"101\", for configuration key, \"aerospike.graphloader.supernode.sampling-percentage\", is above the maximum acceptable value, \"100\".",
                     e.getMessage());
@@ -463,14 +539,14 @@ public abstract class TestSparkBulkLoaderBase {
 
 
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
-        Exception e = waitForBulkLoadFail(g);
-        Assert.assertEquals(DATABASE_NOT_EMPTY, e.getMessage());
+        String e = waitForBulkLoadFail(g);
+        Assert.assertEquals(DATABASE_NOT_EMPTY, e);
 
         g.E(edge.id()).drop();
 
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
         e = waitForBulkLoadFail(g);
-        Assert.assertEquals(DATABASE_NOT_EMPTY, e.getMessage());
+        Assert.assertEquals(DATABASE_NOT_EMPTY, e);
 
         g.V(v1.id()).drop().iterate();
         g.V(v2.id()).drop().iterate();
@@ -548,7 +624,7 @@ public abstract class TestSparkBulkLoaderBase {
     private void testSupernodes() {
         final GraphTraversalSource g = graph.traversal();
         final List<Vertex> vertices = g.V().toList();
-        for (final Vertex vertex: vertices) {
+        for (final Vertex vertex : vertices) {
             final FireflyVertex fireflyVertex = (FireflyVertex) vertex;
 
             // Car models and vertex have <=1 edge in either direction and therefore are not supernodes, all other vertices are.
@@ -619,19 +695,19 @@ public abstract class TestSparkBulkLoaderBase {
         // This also implicitly checks the proper truncation of type specifiers on property names
         final Vertex person = g.V().has("name", "Simon").next();
         Assert.assertEquals("Simon", person.value("name"));
-        Assert.assertEquals(28, (int)person.value("age"));
+        Assert.assertEquals(28, (int) person.value("age"));
         Assert.assertFalse(person.value("glasses"));
         final Iterator<? extends Property<Object>> properties = person.properties("companies");
         final List<String> companies = new ArrayList<>();
         while (properties.hasNext()) {
-            companies.add((String)properties.next().value());
+            companies.add((String) properties.next().value());
         }
         Assert.assertEquals("Apache TinkerPop", companies.get(0));
         Assert.assertEquals("Aerospike", companies.get(1));
         final Vertex model = g.V().has("model", "GR86").next();
         Assert.assertEquals("Toyota", model.value("brand"));
         Assert.assertEquals("GR86", model.value("model"));
-        Assert.assertEquals(2023, (long)model.value("year"));
+        Assert.assertEquals(2023, (long) model.value("year"));
         testDefaultVertexLabelAndProperty(g);
     }
 
@@ -687,7 +763,7 @@ public abstract class TestSparkBulkLoaderBase {
         // Check vertex IN edge listings
         final Set<Vertex> peons = g.V().has("name", "Joe").in("managedBy").toSet();
         Assert.assertEquals(2, peons.size());
-        final Set<String> peonNames = peons.stream().map(v -> (String)v.value("name")).collect(Collectors.toSet());
+        final Set<String> peonNames = peons.stream().map(v -> (String) v.value("name")).collect(Collectors.toSet());
         Assert.assertTrue((peonNames.contains("Simon") && peonNames.contains("Lyndon")));
 
     }

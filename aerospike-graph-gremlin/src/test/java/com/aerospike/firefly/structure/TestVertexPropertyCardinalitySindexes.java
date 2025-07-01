@@ -15,21 +15,24 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Calendar;
 import java.util.List;
 import java.util.NoSuchElementException;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.DateTimeUtil.getDate;
 
 public class TestVertexPropertyCardinalitySindexes {
     private static FireflyGraph graph = null;
     private static GraphTraversalSource g = null;
 
     @BeforeClass
-    public static void setUp() {
+    public static void setUp() throws InterruptedException {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty("aerospike.graph.index.vertex.properties", "name,age");
+        config.setProperty("aerospike.graph.index.vertex.properties", "name,age,date");
         graph = FireflyGraph.open(config);
         g = graph.traversal();
+        waitForAllIndexes(3);
     }
 
     @AfterClass
@@ -156,5 +159,55 @@ public class TestVertexPropertyCardinalitySindexes {
         Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.gte(32)).next());
         Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.lt(10)).next());
         Assert.assertThrows(NoSuchElementException.class, () -> g.V().has("age", P.lte(9)).next());
+    }
+
+    @Test
+    public void testVPSindex_DateTimeType() {
+        final Vertex actualVertex = g.addV("testVPSindex_DateTimeType").next();
+        actualVertex.property(VertexProperty.Cardinality.list, "date", getDate(2024, Calendar.FEBRUARY, 3));
+        actualVertex.property(VertexProperty.Cardinality.list, "date", getDate(2019, Calendar.MAY, 27));
+
+        final Vertex firstDateVertex = g.V().has("date", getDate(2024, Calendar.FEBRUARY, 3)).next();
+        final Vertex secondDateVertex = g.V().has("date", getDate(2019, Calendar.MAY, 27)).next();
+        final Vertex thirdDateVertex = g.V().has("date", P.gt(getDate(2024, Calendar.FEBRUARY, 2))).next();
+        final Vertex fourthDateVertex = g.V().has("date", P.gte(getDate(2024, Calendar.FEBRUARY, 3))).next();
+        final Vertex fifthDateVertex = g.V().has("date", P.lt(getDate(2024, Calendar.FEBRUARY, 4))).next();
+        final Vertex sixthDateVertex = g.V().has("date", P.lte(getDate(2024, Calendar.FEBRUARY, 3))).next();
+        final TraversalMetrics firstDateVertexMetrics = g.V().has("date", getDate(2024, Calendar.FEBRUARY, 3)).profile().next();
+        final TraversalMetrics secondDateVertexMetrics = g.V().has("date", getDate(2019, Calendar.MAY, 27)).profile().next();
+        final TraversalMetrics thirdDateVertexMetrics = g.V().has("date", P.gt(getDate(2024, Calendar.FEBRUARY, 2))).profile().next();
+        final TraversalMetrics fourthDateVertexMetrics = g.V().has("date", P.gte(getDate(2024, Calendar.FEBRUARY, 3))).profile().next();
+        final TraversalMetrics fifthDateVertexMetrics = g.V().has("date", P.lt(getDate(2024, Calendar.FEBRUARY, 4))).profile().next();
+        final TraversalMetrics sixthDateVertexMetrics = g.V().has("date", P.lte(getDate(2024, Calendar.FEBRUARY, 3))).profile().next();
+
+        final Metrics firstDateVertexMetricsFireflyMetric = (Metrics) firstDateVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertEquals(0, firstDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
+        final Metrics secondDateVertexMetricsFireflyMetric = (Metrics) secondDateVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertEquals(0, secondDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
+        final Metrics thirdDateVertexMetricsFireflyMetric = (Metrics) thirdDateVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertEquals(0, thirdDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
+        final Metrics fourthDateVertexMetricsFireflyMetric = (Metrics) fourthDateVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertEquals(0, fourthDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
+        final Metrics fifthDateVertexMetricsFireflyMetric = (Metrics) fifthDateVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertEquals(0, fifthDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
+        final Metrics sixthDateVertexMetricsFireflyMetric = (Metrics) sixthDateVertexMetrics.getMetrics().toArray()[1];
+        Assert.assertEquals(0, sixthDateVertexMetricsFireflyMetric.getNested("FireflyMetrics").getAnnotations().size());
+
+        Assert.assertEquals(actualVertex, firstDateVertex);
+        Assert.assertEquals(actualVertex, secondDateVertex);
+        Assert.assertEquals(actualVertex, thirdDateVertex);
+        Assert.assertEquals(actualVertex, fourthDateVertex);
+        Assert.assertEquals(actualVertex, fifthDateVertex);
+        Assert.assertEquals(actualVertex, sixthDateVertex);
+    }
+
+    private static void waitForAllIndexes(int numOfIndexedProperties) throws InterruptedException {
+        // We always create 1 string and 1 numeric index for each property.
+        int numOfIndexes = numOfIndexedProperties * 2;
+        while (graph.fireflyIndexMetadata.getPropertyIndexInfos().size() != numOfIndexes) {
+            Thread.sleep(100);
+            // updateMetadata once sometimes doesn't help.
+            graph.fireflyIndexMetadata.updateMetadata();
+        }
     }
 }

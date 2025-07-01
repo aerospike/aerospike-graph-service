@@ -40,6 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.getTraversalOptionInteger;
 import static com.aerospike.firefly.util.exceptions.GraphError.sneakyThrow;
 
@@ -230,7 +231,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
             final List<FireflyId> ids = duplicateIdMap.get(element);
             final List<FireflyVertex> vertices = ids.stream().map(fireflyVertexMap::get).collect(Collectors.toList());
             for (final FireflyVertex vertex : vertices) {
-                if (vertex != null && HasContainer.testAll(vertex, fireflyHasContainers)) {
+                if (vertex != null && fireflyTestAll(vertex, fireflyHasContainers)) {
                     set.add(traverser.split(vertex, this));
                 }
             }

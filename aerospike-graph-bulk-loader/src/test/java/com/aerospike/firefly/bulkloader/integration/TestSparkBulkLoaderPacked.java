@@ -27,6 +27,7 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     static private final String SAMPLE_SUPERNODE = "src/test/resources/conf/packed/config-sampling-supernodes.properties";
     static private final String SAMPLE_SUPERNODE_TOO_HIGH = "src/test/resources/conf/packed/config-sampling-supernodes-too-high.properties";
     static private final String SAMPLE_SUPERNODE_TOO_LOW = "src/test/resources/conf/packed/config-sampling-supernodes-too-low.properties";
+    static private final String DATETIME_PROPERTIES = "src/test/resources/conf/packed/config-datetime.properties";
     static private final String DATA_MODEL = "packed";
 
     @Test
@@ -127,5 +128,10 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     @Override
     protected String getSamplingSupernodeTooLow() {
         return SAMPLE_SUPERNODE_TOO_LOW;
+    }
+
+    @Override
+    protected String getDateTimeProperties() {
+        return DATETIME_PROPERTIES;
     }
 }

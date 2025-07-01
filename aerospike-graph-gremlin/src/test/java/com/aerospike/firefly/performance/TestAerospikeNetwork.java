@@ -26,11 +26,9 @@ import java.util.Optional;
 
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.CONTAINER_ID;
 
 public class TestAerospikeNetwork {
-    private Configuration uncompressConfig = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-    private Configuration compressConfig = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+    private final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     private FireflyGraph compressGraph;
     private FireflyGraph uncompressGraph;
     private DockerClient dockerClient;
@@ -46,13 +44,12 @@ public class TestAerospikeNetwork {
         } else {
             throw new IllegalStateException("No container found with port 3000 bound to 0.0.0.0");
         }
-
-        compressConfig.addProperty("aerospike.client.compress", true);
-        compressGraph = FireflyGraph.open(compressConfig);
-        uncompressGraph = FireflyGraph.open(uncompressConfig);
+        config.setProperty("aerospike.client.compress", true);
+        compressGraph = FireflyGraph.open(config);
+        config.setProperty("aerospike.client.compress", false);
+        uncompressGraph = FireflyGraph.open(config);
 
         compressGraph.getBaseGraph().dropDatabase(compressGraph, false);
-        uncompressGraph.getBaseGraph().dropDatabase(uncompressGraph, false);
     }
 
     @Test
@@ -60,25 +57,21 @@ public class TestAerospikeNetwork {
         String oneKbString = String.valueOf('a').repeat(1024);
         uncompressGraph.traversal().addV("1KbA").property("goCrazy", oneKbString).next();
 
-        long[] uncompress = getNetworkStats(dockerClient, uncompressGraph);
-        long[] compress = getNetworkStats(dockerClient, compressGraph);
+        long[] uncompress = getNetworkStats(uncompressGraph);
+        long[] compress = getNetworkStats(compressGraph);
 
         assertStatsReduced(uncompress, compress);
     }
 
     @Test
     public void testCompressionFlag1KEdge() throws Exception {
-        final Configuration uncompressConfig = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        final Configuration compressConfig = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        compressConfig.addProperty("aerospike.client.compress", true);
-
         Vertex v1 = uncompressGraph.traversal().addV("1KbA").next();
         for (int i = 0; i < 1000; i++) {
             uncompressGraph.traversal().addE("is" + i).to(v1).from(v1).next();
         }
 
-        long[] uncompress = getNetworkStats(dockerClient, uncompressGraph);
-        long[] compress = getNetworkStats(dockerClient, compressGraph);
+        long[] uncompress = getNetworkStats(uncompressGraph);
+        long[] compress = getNetworkStats(compressGraph);
 
         assertStatsReduced(uncompress, compress);
     }
@@ -99,9 +92,9 @@ public class TestAerospikeNetwork {
         return callback.awaitResult().getNetworks().values().iterator().next();
     }
 
-    public long[] getNetworkStats(DockerClient dockerClient, FireflyGraph graph) throws InterruptedException {
+    public long[] getNetworkStats(FireflyGraph graph) throws InterruptedException {
         StatisticNetworksConfig before = captureStats();
-        graph.traversal().V();
+        graph.traversal().V().toList();
         Thread.sleep(2000);
         StatisticNetworksConfig after = captureStats();
         return getNetworkDelta(before, after);
@@ -145,8 +138,14 @@ public class TestAerospikeNetwork {
 
     @After
     public void tearDown() throws Exception {
-        dockerClient.close();
-        uncompressGraph.close();
-        compressGraph.close();
+        if (dockerClient != null) {
+            dockerClient.close();
+        }
+        if (compressGraph != null) {
+            compressGraph.close();
+        }
+        if (uncompressGraph != null) {
+            uncompressGraph.close();
+        }
     }
 }

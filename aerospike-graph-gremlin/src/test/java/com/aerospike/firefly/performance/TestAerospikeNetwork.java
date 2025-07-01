@@ -118,8 +118,7 @@ public class TestAerospikeNetwork {
     public Optional<String> findAerospikeServerContainerId() {
         List<Container> containers = dockerClient.listContainersCmd().exec();
         for (Container container : containers) {
-            System.out.println("Container ID is: " + container.getImage());
-            if (container.getImage().contains("aerospike-server")) {
+            if (container.getImage().contains("aerospike-server") || container.getImage().contains("aerospike:ee")) {
                 return Optional.of(container.getId());
             }
         }

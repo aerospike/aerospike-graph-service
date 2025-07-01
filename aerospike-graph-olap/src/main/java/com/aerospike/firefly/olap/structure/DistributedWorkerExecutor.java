@@ -63,6 +63,7 @@ import static com.aerospike.firefly.olap.process.TraversalProgram.MUTATED_MEMORY
 import static com.aerospike.firefly.olap.process.TraversalProgram.SPARK_FLAG;
 import static com.aerospike.firefly.olap.process.TraversalProgram.VOTE_TO_HALT;
 import static com.aerospike.firefly.olap.structure.DistributedGraphComputer.magicSwap;
+import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
 
 public class DistributedWorkerExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(DistributedWorkerExecutor.class);
@@ -185,7 +186,7 @@ public class DistributedWorkerExecutor {
                                     traverserGenerator);
                             iterator = FireflyCloseableIteratorUtils.filter(iterator, t -> {
                                 final Element e = (Element) t.get();
-                                return HasContainer.testAll(e, queryInfo.fireflyHasContainers);
+                                return fireflyTestAll(e, queryInfo.fireflyHasContainers);
                             });
                             break;
                         case SCAN:
@@ -202,7 +203,7 @@ public class DistributedWorkerExecutor {
                                     traverserGenerator);
                             iterator = FireflyCloseableIteratorUtils.filter(iterator, t -> {
                                 final Element e = (Element) t.get();
-                                return HasContainer.testAll(e, queryInfo.fireflyHasContainers);
+                                return fireflyTestAll(e, queryInfo.fireflyHasContainers);
                             });
                             break;
                         case SUPERNODE:

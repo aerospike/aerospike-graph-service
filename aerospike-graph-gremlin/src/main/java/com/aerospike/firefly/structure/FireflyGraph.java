@@ -846,14 +846,15 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final Map<String, Object> typeHints = new HashMap<>();
         properties.forEach(property -> {
             final String key = property.getKey();
-            final Object value = FireflyHelper.validatePropertyValue(property.getValue());
+            final Object originalValue = FireflyHelper.validatePropertyValue(property.getValue());
+            final Object aerospikeWritableValue = FireflyHelper.convertValueToAerospikeWriteable(originalValue);
 
-            if (value == null) {
+            if (originalValue == null) {
                 propertyMap.remove(key);
                 typeHints.remove(key);
             } else {
-                propertyMap.put(key, value);
-                final Object typeHint = getTypeHintOf(value);
+                propertyMap.put(key, aerospikeWritableValue);
+                final Object typeHint = getTypeHintOf(originalValue);
                 if (typeHint != null) {
                     typeHints.put(key, typeHint);
                 }

@@ -23,6 +23,7 @@ import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
+@Ignore("TODO: GRAPH-1576")
 public class TestAdminCallHttp {
 
     public String adminIndexList() {

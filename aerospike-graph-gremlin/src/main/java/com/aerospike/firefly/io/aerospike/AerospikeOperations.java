@@ -38,7 +38,6 @@ import com.aerospike.firefly.io.FireflyEdgeRecord;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.io.aerospike.query.paged.EdgeQueryHelper;
-import com.aerospike.firefly.io.aerospike.schema.SchemaManager;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyEdgeProperty;
@@ -94,7 +93,7 @@ import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
 import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_POSITION;
 import static com.aerospike.firefly.structure.FireflyElement.TTL_PROPERTY_KEY;
-import static com.aerospike.firefly.util.FireflyHelper.validateVertexPropertyValue;
+import static com.aerospike.firefly.util.FireflyHelper.validateAndConvertVertexPropertyValue;
 import static com.aerospike.firefly.util.exceptions.EdgeRecordSizeExceededException.fromAddingEdge;
 import static com.aerospike.firefly.util.exceptions.EdgeRecordSizeExceededException.fromAddingProperty;
 import static com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException.fromAddingToEdgeCache;
@@ -215,7 +214,7 @@ public class AerospikeOperations {
                 continue;
             }
             // Generate disk version of property.
-            final Object validatedValue = validateVertexPropertyValue(property.getValue());
+            final Object validatedValue = validateAndConvertVertexPropertyValue(property.getValue());
             final Long schemaPropertyKey = db.schemaManager.getVertexPropertyWrite(property.getKey());
             if (!vertexProperties.containsKey(schemaPropertyKey)) {
                 vertexProperties.put(schemaPropertyKey, new HashMap<>());
@@ -501,7 +500,8 @@ public class AerospikeOperations {
         final List<Operation> operations = new ArrayList<>();
 
         final List<Object> valueAndTypeHint = new ArrayList<>(2);
-        valueAndTypeHint.add(propertyValue);
+        final Object propertyValueToWrite = FireflyHelper.convertValueToAerospikeWriteable(propertyValue);
+        valueAndTypeHint.add(propertyValueToWrite);
         valueAndTypeHint.add(getTypeHintOf(propertyValue));
         final MapPolicy policy = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.DEFAULT);
         final Operation writeValue = MapOperation.put(policy, db.VP_PROPERTY_BIN, Value.get(schemaPropertyKey),
@@ -535,12 +535,12 @@ public class AerospikeOperations {
     /**
      * Write Vertex Property to Vertex.
      *
-     * @param cardinality   Cardinality of Vertex Property.
-     * @param vertex        Parent Vertex of the Vertex Property.
-     * @param key           Vertex Property key.
-     * @param value         Vertex Property value.
-     * @param properties    Vertex Property Properties.
-     * @param <V>           Vertex Property value type.
+     * @param cardinality Cardinality of Vertex Property.
+     * @param vertex      Parent Vertex of the Vertex Property.
+     * @param key         Vertex Property key.
+     * @param value       Vertex Property value.
+     * @param properties  Vertex Property Properties.
+     * @param <V>         Vertex Property value type.
      * @return Newly written Vertex Property.
      */
     public <V> VertexProperty<V> writeVertexProperty(final VertexProperty.Cardinality cardinality,
@@ -561,7 +561,7 @@ public class AerospikeOperations {
         final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
         final Long schemaVpKey = this.db.schemaManager.getVertexPropertyWrite(key);
         final Object typeHint = getTypeHintOf(value, true);
-        final Object verifiedValue = validateVertexPropertyValue(value);
+        final Object verifiedValue = validateAndConvertVertexPropertyValue(value);
 
         final List<Operation> operations = new ArrayList<>();
         final Operation writeVpData;
@@ -660,17 +660,17 @@ public class AerospikeOperations {
     /**
      * Remove the Vertex Property from the Vertex.
      *
-     * @param vertex            Parent Vertex of the Vertex Property.
-     * @param key               Vertex Property key.
-     * @param value             Vertex Property value.
-     * @param vertexPropertyId  FireflyId of the Vertex Property to remove.
+     * @param vertex           Parent Vertex of the Vertex Property.
+     * @param key              Vertex Property key.
+     * @param value            Vertex Property value.
+     * @param vertexPropertyId FireflyId of the Vertex Property to remove.
      */
     public void removeVertexProperty(final FireflyVertex vertex, final String key, final Object value,
                                      final FireflyId vertexPropertyId) {
         final Key opKey = getKey(this.db, this.db.VERTEX_AERO_SET, vertex.id);
         final Long schemaKey = db.schemaManager.getVertexPropertyRead(key);
         final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
-        final Object validatedValue = validateVertexPropertyValue(value);
+        final Object validatedValue = validateAndConvertVertexPropertyValue(value);
         final Exp vpValueExp = getExpVal(validatedValue);
         final List<Operation> operations = new ArrayList<>();
 
@@ -811,9 +811,10 @@ public class AerospikeOperations {
         final Map<String, Object> typeHints = new HashMap<>();
         properties.forEach(property -> {
             final String key = property.getKey();
-            final Object value = FireflyHelper.validatePropertyValue(property.getValue());
+            final Object originalValue = FireflyHelper.validatePropertyValue(property.getValue());
+            final Object aerospikeWritableValue = FireflyHelper.convertValueToAerospikeWriteable(originalValue);
 
-            if (value == null) {
+            if (originalValue == null) {
                 propertyMap.remove(key);
                 typeHints.remove(key);
             } else {
@@ -821,21 +822,21 @@ public class AerospikeOperations {
                     if (!db.TTL_ENABLED_FLAG) {
                         throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
                     }
-                    if (Number.class.isAssignableFrom(value.getClass())) {
-                        final long ttlValueLong = ((Number) value).longValue();
+                    if (Number.class.isAssignableFrom(originalValue.getClass())) {
+                        final long ttlValueLong = ((Number) originalValue).longValue();
                         final long expirationTime = System.currentTimeMillis() + (ttlValueLong * 1000);
                         final Operation writeTtl = MapOperation.put(edgeMapPolicy, db.TTL_BIN, edgeIdkey,
                                 Value.get(expirationTime));
                         operations.add(writeTtl);
                     } else {
-                        throw new TtlArgumentException(value);
+                        throw new TtlArgumentException(originalValue);
                     }
                 } else {
-                    final Object typeHint = getTypeHintOf(value);
+                    final Object typeHint = getTypeHintOf(originalValue);
                     if (typeHint != null) {
                         typeHints.put(key, typeHint);
                     }
-                    propertyMap.put(key, value);
+                    propertyMap.put(key, aerospikeWritableValue);
                 }
             }
         });
@@ -1525,8 +1526,10 @@ public class AerospikeOperations {
 
         if (!isAttachedToSupernode) {
             final MapPolicy propertyPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-            final Operation valueOp = MapOperation.put(propertyPolicy, db.EDGE_DATA_BIN, Value.get(schemaPropertyKey), Value.get(value),
-                    CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
+            final Object propertyValueToWrite = FireflyHelper.convertValueToAerospikeWriteable(value);
+
+            final Operation valueOp = MapOperation.put(propertyPolicy, db.EDGE_DATA_BIN, Value.get(schemaPropertyKey),
+                    Value.get(propertyValueToWrite), CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
             operations.add(valueOp);
             final Operation typeHintOp;
             if (typeHint != null) {

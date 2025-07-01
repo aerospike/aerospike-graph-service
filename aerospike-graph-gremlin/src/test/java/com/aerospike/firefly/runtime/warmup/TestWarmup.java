@@ -14,10 +14,10 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -105,6 +105,39 @@ public class TestWarmup extends AbstractFireflySuite {
             }
 
             assertTrue(warmupComplete);
+        } finally {
+            if (server != null) {
+                server.stop().join();
+            }
+        }
+    }
+
+    @Test
+    public void testWarmupGraphId() throws IOException, InterruptedException {
+        FireflyServer server = null;
+
+        try (final OutputCapturer outputCapturer = new OutputCapturer()) {
+            config.addProperty(ConfigurationHelper.Keys.LOG_WARMUP_SETS, "true");
+            config.setProperty(ConfigurationHelper.Keys.AUTO_PRE_HEAT, "true");
+            WarmupUtil.create(config).preheat(WarmupUtil.passes);
+            Thread.sleep(10);
+            final String[] logList = outputCapturer.getLines();
+
+            boolean foundVertex = false;
+            boolean foundEdge = false;
+            for (final String line : logList) {
+                if (line.startsWith("Warmup Vertex Set: FIREFLYWARMUP_2")) {
+                    foundVertex = true;
+                }
+                if (line.startsWith("Warmup Edge Set: FIREFLYWARMUP_1")) {
+                    foundEdge = true;
+                }
+
+                if(foundEdge && foundVertex) break;
+            }
+            Assert.assertTrue(foundVertex);
+            Assert.assertTrue(foundEdge);
+
         } finally {
             if (server != null) {
                 server.stop().join();

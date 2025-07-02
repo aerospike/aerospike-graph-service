@@ -443,6 +443,20 @@ public class DistributedAerospikeConnection {
         return records.stream().map(Job::new).collect(Collectors.toList());
     }
 
+    public Job getFirstRunningJob() {
+        final Statement statement = new Statement();
+        statement.setNamespace(db.getNamespace());
+        statement.setSetName(jobSet);
+        statement.setFilter(Filter.equal("state", "STARTED"));
+
+        // active jobs count should be 0-1
+        final FireflyRecordSet recordSet = db.query(null, statement);
+        for (final KeyRecord keyRecord : recordSet) {
+            return new Job(keyRecord.record);
+        }
+        return null;
+    }
+
     // For testing only.
     public void removeAllJobs() {
         db.truncate(null, jobSet, null);

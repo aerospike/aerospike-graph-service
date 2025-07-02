@@ -380,6 +380,7 @@ public class DistributedGraphComputer implements GraphComputer {
     private ComputerResult submitJob() {
         final DistributedAerospikeConnection db = new DistributedAerospikeConnection(graph.getBaseGraph(), 0, 0);
         final String jobId = UUID.randomUUID().toString();
+        boolean truncateOlapSetAfterExecution = false;
 
         try {
             final DistributedConfigHelper configHelper = generateConfigHelper();
@@ -410,10 +411,18 @@ public class DistributedGraphComputer implements GraphComputer {
             if (graphStep.returnsEdge()) {
                 LOGGER.warn("Edges do not support secondary indexes, you may experience poor performance.");
             }
-            System.out.println("===== " + graphStep + " " + graphStep.returnsVertex() + " ===== " + pureTraversal.asAdmin().getSteps());
+            System.out.println("===== " + graphStep + " " + (graphStep.returnsVertex() ? "vertex" : "edge")
+                    + " ===== " + pureTraversal.asAdmin().getSteps());
+            System.out.println("===== " + vertexProgram + " =====");
+
+            final Job anotherRunningJob = db.getFirstRunningJob();
+            if (anotherRunningJob != null) {
+                LOGGER.warn("Another job is already running: {}", anotherRunningJob);
+            }
 
             // truncate only if valid query
             db.truncateOlapSet();
+            truncateOlapSetAfterExecution = true;
 
             final Codec codec = vertexProgram.getCodec();
 
@@ -428,7 +437,7 @@ public class DistributedGraphComputer implements GraphComputer {
             this.vertexProgram.storeState(vertexProgramConfiguration);
             this.vertexProgram.setup(memory);
 
-            db.writeJob(new Job(jobId, traversal.toString()));
+            db.writeJob(new Job(jobId, vertexProgram.toString(), traversal.toString()));
 
             // Broadcast spark context.
             memory.broadcastMemory(new JavaSparkContext(spark.sparkContext()));
@@ -443,7 +452,7 @@ public class DistributedGraphComputer implements GraphComputer {
                 iterationCount++;
                 final Job job = db.setJobIteration(jobId, memory.getIteration());
                 if (job == null || job.getState() == Job.State.CANCELLED) {
-                   throw new TraversalInterruptedException();
+                    throw new TraversalInterruptedException();
                 }
 
                 // Set inExecute to true, execute the vertex program, and set inExecute to false.
@@ -470,8 +479,8 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 if (configHelper.isDebugDf()) {
                     df.show();
-                    System.out.println(memory.getIteration() + " ==================> TOTAL COUNT: " + df.count());
                 }
+                System.out.println(memory.getIteration() + " ==================> TOTAL COUNT: " + df.count());
 
                 memory.setInExecute(false);
 
@@ -569,9 +578,6 @@ public class DistributedGraphComputer implements GraphComputer {
                 LOGGER.error("Query timeout or cancellation is called. Consider raising the evaluation timeout.", e);
                 throw e;
             }
-            // Maybe remove this for L2.
-            //spark.close();
-            //spark = null;
 
             LOGGER.error("A global error occurred. Shutting down {}: {}", this, e.getMessage(), e);
             e.printStackTrace();
@@ -579,7 +585,10 @@ public class DistributedGraphComputer implements GraphComputer {
         } finally {
             // memory.complete ?
             FireflyHelper.dropGraphComputerView(this.graph);
-            db.truncateOlapSet();
+            if (truncateOlapSetAfterExecution) {
+                db.truncateOlapSet();
+                System.out.println("Aerospike work set truncated by job " + jobId);
+            }
         }
     }
 

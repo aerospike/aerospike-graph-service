@@ -33,22 +33,11 @@ public class TestAerospikeNetwork {
     private FireflyGraph compressGraph;
     private FireflyGraph uncompressGraph;
     private DockerClient dockerClient;
-    private int port;
     private String containerId;
 
     @Before
     public void setUp() throws Exception {
         dockerClient = initDockerClient();
-
-        String host = config.getString("aerospike.client.host");
-        if(host.contains(",")){
-            host = host.split(",")[0];
-        }
-        if(host.contains(":")){
-            port = Integer.parseInt(host.split(":")[1]);
-        }else{
-            port = config.getInt("aerospike.graph.port", 3000);
-        }
 
         Optional<String> matchedContainer = findAerospikeServerContainerId();
         if (matchedContainer.isPresent()) {
@@ -149,14 +138,7 @@ public class TestAerospikeNetwork {
         List<Container> containers = dockerClient.listContainersCmd().exec();
         for (Container container : containers) {
             if (container.getImage().contains("aerospike-server") || container.getImage().contains("aerospike:ee")) {
-                for(ContainerPort curPort : container.getPorts()){
-                    Integer publicPort = curPort.getPublicPort();
-                    Integer privatePort = curPort.getPrivatePort();
-                    if ((publicPort != null && publicPort == port) ||
-                            (privatePort != null && privatePort == port)) {
-                        return Optional.of(container.getId());
-                    }
-                }
+                return Optional.of(container.getId());
             }
         }
         return Optional.empty();

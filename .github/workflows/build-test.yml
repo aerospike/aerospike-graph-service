@@ -696,33 +696,37 @@ jobs:
           mvn install -DskipTests
       - name: Test Summary Updater TTL Exclusion
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyGraphSummaryUpdaterTest --no-transfer-progress
       - name: Test Client Event Loop Configuration
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeClientConfigEventLoop -DfailIfNoTests=false --no-transfer-progress
       - name: Test Small Memory Maven
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
       - name: Test Stack Overflow Maven
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=TestSupernodeStackOverflow -DfailIfNoTests=false --no-transfer-progress
       - name: Test Client Provider Maven
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentClientProviderInstantiationTest -Dtest=TestAerospikeClientProviderConfiguration -DfailIfNoTests=false --no-transfer-progress
       - name: Test Query Abort Maven
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=QueryServiceAbortTest -DfailIfNoTests=false --no-transfer-progress
       - name: Test Call Steps Maven
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=TestAdminCallHttp -DfailIfNoTests=false --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflySindexCallSteps -DfailIfNoTests=false --no-transfer-progress
+      - name: Test Compression Flag Docker Network
+        run: |
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeNetwork -DfailIfNoTests=false --no-transfer-progress
   test-firefly:
     name: Test Firefly
     timeout-minutes: 120
@@ -754,7 +758,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
   test-firefly-structure:
     name: Test Packed Structure Tests
@@ -787,7 +791,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=Firefly*StructureStandardTest --no-transfer-progress
   test-mrt:
     name: Test MRT
@@ -864,7 +868,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphProcessStandardTest -Dtest=FireflyGraphUncachedProcessStandardTest --no-transfer-progress
   test-firefly-process-2:
     name: Test Firefly Process Tests 2
@@ -897,7 +901,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphSindexProcessStandardTest -Dtest=FireflyGraphSupernodeProcessStandardTest --no-transfer-progress
   test-firefly-process-3:
     name: Test Firefly Process Tests 3
@@ -930,7 +934,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphAdjacentUserIdProcessStandardTest --no-transfer-progress
   test-local-computer-process-1:
     name: Test Local Computer Process Tests 1
@@ -964,7 +968,7 @@ jobs:
         run: |
           pip3 install pyyaml
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn clean install -DskipTests --no-transfer-progress
           mvn test -pl aerospike-graph-olap --no-transfer-progress
   test-local-computer-process-2:
@@ -998,7 +1002,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn clean install -DskipTests --no-transfer-progress
           mvn test -pl aerospike-graph-olap -Dtest=FireflyComputerFeatureMapTest --no-transfer-progress
   test-local-computer-process-3:
@@ -1032,7 +1036,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn clean install -DskipTests --no-transfer-progress
           mvn test -pl aerospike-graph-olap -Dtest=FireflyComputerFeatureFilterTest --no-transfer-progress
   test-local-computer-process-4:
@@ -1066,7 +1070,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           mvn clean install -DskipTests --no-transfer-progress
           mvn test -pl aerospike-graph-olap -Dtest=FireflyComputerFeatureBranchTest --no-transfer-progress
   test-firefly-movielens:
@@ -1095,7 +1099,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          sudo echo "localhost aerospike.test.aerospike.dev" > /etc/hosts
           # We can re-enable once the movie lens certificate is updated.
           # mvn test -pl aerospike-graph-gremlin -Dtest=TestMovielens1M -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-aerospike-version-minimum:

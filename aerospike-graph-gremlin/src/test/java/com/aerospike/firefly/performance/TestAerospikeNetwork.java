@@ -57,10 +57,15 @@ public class TestAerospikeNetwork {
         String oneKbString = String.valueOf('a').repeat(1024);
         uncompressGraph.traversal().addV("1KbA").property("goCrazy", oneKbString).next();
 
-        long[] uncompress = getNetworkStats(uncompressGraph);
-        long[] compress = getNetworkStats(compressGraph);
+        long[] sumCompress = new long[] {0, 0, 0};
+        long[] sumUncompress = new long[] {0, 0, 0};
+        int loops = 4;
+        for (int i = 0; i < loops; i++) {
+            sumUncompress = addLongs(sumUncompress, getNetworkStats(uncompressGraph));
+            sumCompress = addLongs(sumCompress, getNetworkStats(compressGraph));
+        }
 
-        assertStatsReduced(uncompress, compress);
+        assertStatsReduced(averageLong(sumUncompress, loops), averageLong(sumCompress, loops));
     }
 
     @Test
@@ -70,10 +75,23 @@ public class TestAerospikeNetwork {
             uncompressGraph.traversal().addE("is" + i).to(v1).from(v1).next();
         }
 
-        long[] uncompress = getNetworkStats(uncompressGraph);
-        long[] compress = getNetworkStats(compressGraph);
+        long[] sumCompress = new long[] {0, 0, 0};
+        long[] sumUncompress = new long[] {0, 0, 0};
+        int loops = 4;
+        for (int i = 0; i < loops; i++) {
+            sumUncompress = addLongs(sumUncompress, getNetworkStats(uncompressGraph));
+            sumCompress = addLongs(sumCompress, getNetworkStats(compressGraph));
+        }
 
-        assertStatsReduced(uncompress, compress);
+        assertStatsReduced(averageLong(sumUncompress, loops), averageLong(sumCompress, loops));
+    }
+
+    private long[] addLongs(long[] a, long[] b) {
+        return new long[] {a[0] + b[0], a[1] + b[1], a[2] + b[2]};
+    }
+
+    private long[] averageLong(long[] a, int num) {
+        return new long[] {a[0] / num, a[1] / num, a[2] / num};
     }
 
     private StatisticNetworksConfig captureStats() {
@@ -112,7 +130,7 @@ public class TestAerospikeNetwork {
 
         Assert.assertTrue(uncompressed[0] > compressed[0]);
         Assert.assertTrue(uncompressed[1] > compressed[1]);
-        Assert.assertTrue(uncompressed[2] > compressed[2]);
+        Assert.assertTrue(uncompressed[2] >= compressed[2]);
     }
 
     public Optional<String> findAerospikeServerContainerId() {

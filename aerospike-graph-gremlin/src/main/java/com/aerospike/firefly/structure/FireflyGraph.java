@@ -504,6 +504,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 ConfigurationHelper.restoreLogLevel(fireflyConf);
                 throw e;
             }
+            if (ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, fireflyConf)) {
+                LOG.error("Failed to start an Aerospike Graph Service instance during Bulk Loading: {}", e.getMessage());
+                throw e;
+            }
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");
             LOG.error("========== Aerospike Graph Service failing to start is usually a result of an incorrect configuration.");
             if (e.getMessage() != null) {

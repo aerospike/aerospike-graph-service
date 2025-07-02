@@ -109,6 +109,7 @@ public class DistributedWorkerExecutor {
                     schema,
                     maxParallelQuery,
                     isFirst,
+                    partitions,
                     workerCount);
             df = initialInfo.getValue0();
             queryInfo = initialInfo.getValue1();
@@ -423,6 +424,7 @@ public class DistributedWorkerExecutor {
                                                                    final StructType outputSchema,
                                                                    final int maxParallelQuery,
                                                                    final boolean isFirst,
+                                                                   final Optional<Integer> partitions,
                                                                    final int workerCount) {
         QueryInfo queryInfo;
         if (isFirst) {
@@ -442,13 +444,23 @@ public class DistributedWorkerExecutor {
                 final List<Row> queryRanges;
                 final StructType inputSchema;
                 if (!queryInfo.queryType.equals(QueryInfo.QueryType.SUPERNODE)) {
-                    queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount)).
-                            stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
+                    if (partitions.isPresent()) {
+                        queryRanges = Range.splitPartitions(partitions.get()).
+                                stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
+                    } else {
+                        queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount)).
+                                stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
+                    }
                     inputSchema = new StructType().
                             add(START_COL, DataTypes.IntegerType, false).
                             add(COUNT_COL, DataTypes.IntegerType, false);
                 } else {
-                    final List<Range> ranges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount));
+                    final List<Range> ranges;
+                    if (partitions.isPresent()) {
+                        ranges = Range.splitPartitions(partitions.get());
+                    } else {
+                        ranges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount));
+                    }
                     queryRanges = new ArrayList<>();
                     for (int i = 0; i < ranges.size(); i++) {
                         final Range range = ranges.get(i);
@@ -509,7 +521,11 @@ public class DistributedWorkerExecutor {
                 if (configHelper.isDebugDf()) {
                     System.out.println("Starting query with " + idDataset.rdd().partitions().length + " partitions.");
                 }
-                return new Pair<>(magicSwap(idDataset.repartition(maxParallelQuery)), queryInfo);
+                if (partitions.isPresent()) {
+                    return new Pair<>(magicSwap(idDataset.repartition(partitions.get())), queryInfo);
+                } else {
+                    return new Pair<>(magicSwap(idDataset.repartition(maxParallelQuery)), queryInfo);
+                }
             }
         } else {
             throw new RuntimeException("Error, input is null and this is not the first step. Please contact support.");

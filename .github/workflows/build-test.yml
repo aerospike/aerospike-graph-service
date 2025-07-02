@@ -759,7 +759,7 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=!TestAerospikeNetwork test --no-transfer-progress
+          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
   test-firefly-structure:
     name: Test Packed Structure Tests
     timeout-minutes: 120

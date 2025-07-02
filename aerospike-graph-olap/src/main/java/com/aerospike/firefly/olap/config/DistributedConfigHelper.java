@@ -3,6 +3,7 @@ package com.aerospike.firefly.olap.config;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
+import org.apache.spark.storage.StorageLevel;
 
 import java.io.Serializable;
 import java.util.HashSet;
@@ -23,6 +24,7 @@ public class DistributedConfigHelper implements Serializable {
 
     private static final String OLAP_PREFIX = "aerospike.graph.olap.";
     private static final String DEBUG_DF = OLAP_PREFIX + "debug.df";
+    private static final String PERSISTENCE = OLAP_PREFIX + "persist";
     private static final String SUPERNODE_STEPPING = OLAP_PREFIX + "supernode.stepping";
     private static final boolean DEBUG_DF_DEFAULT = false;
     private static final boolean SUPERNODE_STEPPING_DEFAULT = true;
@@ -74,5 +76,40 @@ public class DistributedConfigHelper implements Serializable {
 
     public Optional<Integer> getPartitions() {
         return Optional.ofNullable(getOlapConfig().getInteger(PARTITIONS, null));
+    }
+
+    public StorageLevel getStorageLevel() {
+        final String persistence = getOlapConfig().getString(PERSISTENCE, "MEMORY_AND_DISK");
+        switch (persistence) {
+            case "MEMORY":
+            case "MEMORY_ONLY":
+                return StorageLevel.MEMORY_ONLY();
+            case "DISK":
+            case "DISK_ONLY":
+                return StorageLevel.DISK_ONLY();
+            case "MEMORY_AND_DISK":
+                return StorageLevel.MEMORY_AND_DISK();
+            case "MEMORY_ONLY_SER":
+                return StorageLevel.MEMORY_ONLY_SER();
+            case "MEMORY_AND_DISK_SER":
+                return StorageLevel.MEMORY_AND_DISK_SER();
+            case "DISK_ONLY_2":
+                return StorageLevel.DISK_ONLY_2();
+            case "MEMORY_ONLY_2":
+                return StorageLevel.MEMORY_ONLY_2();
+            case "MEMORY_AND_DISK_2":
+                return StorageLevel.MEMORY_AND_DISK_2();
+            case "MEMORY_ONLY_SER_2":
+                return StorageLevel.MEMORY_ONLY_SER_2();
+            case "MEMORY_AND_DISK_SER_2":
+                return StorageLevel.MEMORY_AND_DISK_SER_2();
+            case "OFF_HEAP":
+                return StorageLevel.OFF_HEAP();
+            default:
+                throw new IllegalArgumentException("Unsupported storage level: " + persistence +
+                        ". Supported values are: MEMORY_ONLY, DISK_ONLY, MEMORY_AND_DISK, MEMORY_ONLY_SER, " +
+                        "MEMORY_AND_DISK_SER, DISK_ONLY_2, MEMORY_ONLY_2, MEMORY_AND_DISK_2, MEMORY_ONLY_SER_2, " +
+                        "MEMORY_AND_DISK_SER_2, OFF_HEAP.");
+        }
     }
 }

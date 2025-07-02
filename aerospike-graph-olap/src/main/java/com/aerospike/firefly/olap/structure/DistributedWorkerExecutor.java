@@ -284,10 +284,14 @@ public class DistributedWorkerExecutor {
                     while (traverserSet.size() < maxBatchSize && iterator.hasNext()) {
                         traverserSet.add(iterator.next().asAdmin());
                     }
-                    TaskLogger.logDebuggingMessage("Input TraverserSet size: " + traverserSet.size() + "/" + runningTotal
-                            + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
-                            ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
-                            " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), LOGGER);
+                    if (configHelper.isDebugDf()) {
+                        System.gc();
+                        TaskLogger.logDebuggingMessage("Input TraverserSet size: " + traverserSet.size() + "/" + runningTotal
+                                + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
+                                ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
+                                " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024) +
+                                " BulkRowSet size approximation=" + (output.estimateSize() / (1024 * 1024)), LOGGER);
+                    }
                     if (TaskContext.get().isInterrupted()) {
                         throw new InterruptedException();
                     }

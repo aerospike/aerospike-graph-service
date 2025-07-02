@@ -465,7 +465,8 @@ public class DistributedGraphComputer implements GraphComputer {
                 // add iteration column if AlgorithmProgram
                 df = magicSwap(
                         this.vertexProgram instanceof AlgorithmProgram ? nextDf.withColumn(Codec.ITERATION, lit(memory.getIteration())) : nextDf,
-                        true);
+                        true,
+                        configHelper.getStorageLevel());
 
                 if (configHelper.isDebugDf()) {
                     df.show();
@@ -583,14 +584,17 @@ public class DistributedGraphComputer implements GraphComputer {
     }
 
     public static Dataset<Row> magicSwap(final Dataset<Row> transform) {
-        return magicSwap(transform, false);
+        // Persist false so storage level is not used.
+        return magicSwap(transform, false, null);
     }
 
-    public static Dataset<Row> magicSwap(final Dataset<Row> transform, final boolean persist) {
+    public static Dataset<Row> magicSwap(final Dataset<Row> transform,
+                                         final boolean persist,
+                                         final StorageLevel storageLevel) {
         if (isCancelled.get()) {
             throw new TraversalInterruptedException();
         }
-        final Dataset<Row> output = persist ? transform.persist(StorageLevel.MEMORY_AND_DISK()) : transform;
+        final Dataset<Row> output = persist ? transform.persist(storageLevel) : transform;
         try {
             output.count();
         } catch (Exception e) {

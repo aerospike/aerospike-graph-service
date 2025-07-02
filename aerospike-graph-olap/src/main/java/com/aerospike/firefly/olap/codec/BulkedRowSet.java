@@ -2,7 +2,7 @@ package com.aerospike.firefly.olap.codec;
 
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
-import org.apache.spark.sql.types.StructType;
+import org.apache.spark.util.SizeEstimator;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
@@ -34,6 +34,17 @@ public class BulkedRowSet implements Serializable {
 
     public Iterator<Row> iterator() {
         return IteratorUtils.concat(this.map.values().iterator(), this.collidedRows.iterator());
+    }
+
+    public long estimateSize() {
+        long size = 0;
+        for (final Row row : this.map.values()) {
+            size += SizeEstimator.estimate(row);
+        }
+        for (final Row row : this.collidedRows) {
+            size += SizeEstimator.estimate(row);
+        }
+        return size;
     }
 
     public <T> void add(final Traverser.Admin<T> traverser) {

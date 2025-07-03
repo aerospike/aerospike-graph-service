@@ -75,6 +75,7 @@ import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Property;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -2679,7 +2680,7 @@ public class AerospikeConnection implements AutoCloseable {
             }
         }
 
-        private static class FireflyKeyRecordIterator implements Iterator<KeyRecord> {
+        private static class FireflyKeyRecordIterator implements CloseableIterator<KeyRecord> {
             private final Iterator<KeyRecord> recordSetIterator;
 
             private FireflyKeyRecordIterator(final Iterator<KeyRecord> recordSetIterator) {

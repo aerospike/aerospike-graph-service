@@ -23,12 +23,14 @@ public class DistributedConfigHelper implements Serializable {
     private final Map<String, Object> olapConfig;
 
     private static final String OLAP_PREFIX = "aerospike.graph.olap.";
+    private static final String OLAP_BATCH_JOB_SIZE = OLAP_PREFIX + "batch.job.size";
     private static final String DEBUG_DF = OLAP_PREFIX + "debug.df";
     private static final String PERSISTENCE = OLAP_PREFIX + "persist";
     private static final String SUPERNODE_STEPPING = OLAP_PREFIX + "supernode.stepping";
     private static final boolean DEBUG_DF_DEFAULT = false;
     private static final boolean SUPERNODE_STEPPING_DEFAULT = true;
     private static final String PARTITIONS = OLAP_PREFIX + "partitions";
+    private static final String DISABLE_BULKING = OLAP_PREFIX + "disable.bulk.row.set";
 
     private static final Map<String, Object> OLAP_FIREFLY_CONFIG = Map.of(
             ConfigurationHelper.Keys.OLAP_ENABLED, true,
@@ -79,7 +81,7 @@ public class DistributedConfigHelper implements Serializable {
     }
 
     public StorageLevel getStorageLevel() {
-        final String persistence = getOlapConfig().getString(PERSISTENCE, "MEMORY_AND_DISK");
+        final String persistence = getOlapConfig().getString(PERSISTENCE, "DISK_ONLY");
         switch (persistence) {
             case "MEMORY":
             case "MEMORY_ONLY":
@@ -111,5 +113,13 @@ public class DistributedConfigHelper implements Serializable {
                         "MEMORY_AND_DISK_SER, DISK_ONLY_2, MEMORY_ONLY_2, MEMORY_AND_DISK_2, MEMORY_ONLY_SER_2, " +
                         "MEMORY_AND_DISK_SER_2, OFF_HEAP.");
         }
+    }
+
+    public int getBatchJobSize() {
+        return getOlapConfig().getInt(OLAP_BATCH_JOB_SIZE, 50000);
+    }
+
+    public boolean isBulkingDisabled() {
+        return getOlapConfig().getBoolean(DISABLE_BULKING, false);
     }
 }

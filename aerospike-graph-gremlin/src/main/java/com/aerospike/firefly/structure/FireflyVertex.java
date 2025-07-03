@@ -1,6 +1,8 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.Value;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
@@ -351,6 +353,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         LOG.trace("Getting vertex ids from vertex {}.", id);
         final List<FireflyId> cachedIds = getCachedVertexIds(direction, labels);
 
+
         if (isEdgeCacheOverflowed) {
             return FireflyCloseableIteratorUtils.concat(cachedIds.iterator(), getSupernodeVertexIds(direction, labels));
         } else {
@@ -404,6 +407,19 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      */
     private List<FireflyId> getCachedVertexIds(final Direction direction, final Set<String> labels) {
         return getCachedIds(direction, labels).stream().map(id -> ((FireflyIdComposite) id).getAdjacentId()).collect(Collectors.toList());
+    }
+
+    public List<byte[]> getConvertedVertexIds(final Direction direction) {
+        final List<FireflyId> cachedIds = getCachedIds(direction, Collections.emptySet());
+        final List<byte[]> data = cachedIds.stream()
+                .map(id -> Crypto.computeDigest(db.VERTEX_AERO_SET, Value.get(((FireflyIdComposite)id).getAdjacentUserId())))
+                .collect(Collectors.toList());
+        cachedIds.clear();
+        if (isEdgeCacheOverflowed) {
+            Iterator<FireflyId> ids = getSupernodeVertexIds(direction, Collections.emptySet());
+            ids.forEachRemaining(id -> data.add(id.getKeyHash()));
+        }
+        return data;
     }
 
     public Iterator<FireflyId> getSupernodeIds(final Direction direction,

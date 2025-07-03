@@ -275,31 +275,44 @@ public class DistributedWorkerExecutor {
 
                 int runningTotal = 0;
                 final Runtime runtime = Runtime.getRuntime();
-                final int maxBatchSize = graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE;
+                final int maxBatchSize = configHelper.getBatchJobSize();
 
                 TimeLog.complete("Setup");
 
                 final BulkedRowSet output = new BulkedRowSet(codec);
+                final List<Row> outputTest = new ArrayList<>();
+                boolean isBulkingDisabled = configHelper.isBulkingDisabled();
+                int count = 0;
                 while (iterator.hasNext()) {
+                    count++;
                     while (traverserSet.size() < maxBatchSize && iterator.hasNext()) {
                         traverserSet.add(iterator.next().asAdmin());
                     }
+                    TimeLog.complete("Read iterator");
                     if (configHelper.isDebugDf()) {
-                        System.gc();
+                        if ((runtime.freeMemory() / (1024 * 1024)) < 200) {
+                            TaskLogger.logDebuggingMessage("Running GC 2x.", LOGGER);
+                            System.gc();
+                            System.gc();
+                            TaskLogger.logDebuggingMessage("GC complete.", LOGGER);
+                        } else if ((runtime.freeMemory() / (1024 * 1024)) < 500) {
+                            TaskLogger.logDebuggingMessage("Running GC 1x.", LOGGER);
+                            System.gc();
+                            TaskLogger.logDebuggingMessage("GC complete.", LOGGER);
+                        }
                         TaskLogger.logDebuggingMessage("Input TraverserSet size: " + traverserSet.size() + "/" + runningTotal
                                 + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
                                 ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
-                                " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024) +
-                                " BulkRowSet size approximation=" + (output.estimateSize() / (1024 * 1024)), LOGGER);
+                                " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), LOGGER);
                     }
                     if (TaskContext.get().isInterrupted()) {
                         throw new InterruptedException();
                     }
-                    TimeLog.complete("Read iterator");
+                    TimeLog.complete("Debug logging");
 
                     runningTotal += traverserSet.size();
                     if (!traverserSet.isEmpty()) {
-                        TaskLogger.logDebuggingMessage("Step: " + new ArrayList<>(traverserSet).get(0).getStepId(), LOGGER);
+                        TaskLogger.logDebuggingMessage("Step: " + traverserSet.peek().getStepId(), LOGGER);
                     }
 
                     final BatchJob job = new BatchJob(traverserSet);
@@ -307,9 +320,13 @@ public class DistributedWorkerExecutor {
                     traverserSet.clear();
                     TimeLog.complete("Running BatchJob");
 
-                    // TODO: Is this correct for all cases ?
-                    final TraverserSet<Traverser.Admin> traversers = job.getResults();
-                    output.addAll(traversers);
+                    if (!isBulkingDisabled) {
+                        output.addAll(job.getResults());
+                    } else {
+                        for (final Traverser.Admin t : job.getResults()) {
+                            outputTest.add(codec.encode(t));
+                        }
+                    }
                     job.clear();
                     TimeLog.complete("Encoding");
 
@@ -317,7 +334,34 @@ public class DistributedWorkerExecutor {
                         TaskLogger.logDebuggingMessage("Limit reached " + memory.get(limitStepKey), LOGGER);
                         break;
                     }
+                    if (count % 20 == 0)
+                        TimeLog.log(graph);
                 }
+                //System.gc();
+                //System.gc();
+                //System.gc();
+                System.gc();
+                System.gc();
+                TaskLogger.logDebuggingMessage("Ending with " + (isBulkingDisabled ? outputTest.size() : output.rowCount()) + " rows."
+                        + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
+                        ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
+                        " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), LOGGER);
+                if (iterator instanceof CloseableIterator) {
+                    ((CloseableIterator) iterator).close();
+                    iterator = null;
+                    TaskLogger.logDebuggingMessage("Clearing iterator!!!!!!!!!", LOGGER);
+                } else {
+                    TaskLogger.logDebuggingMessage("CANT Clear iterator????????", LOGGER);
+                }
+                System.gc();
+                System.gc();
+                //System.gc();
+                //System.gc();
+                //System.gc();
+                TaskLogger.logDebuggingMessage("Ending with " + (isBulkingDisabled ? outputTest.size() : output.rowCount()) + " rows."
+                        + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
+                        ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
+                        " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), LOGGER);
 
                 // End worker iteration.
                 vertexProgram.workerIterationEnd(workerMemory.asImmutable());
@@ -326,13 +370,10 @@ public class DistributedWorkerExecutor {
                 TimeLog.complete("Worker iteration end");
 
                 // Return results.
-                TaskLogger.logDebuggingMessage("Ending with " + output.rowCount() + " rows."
-                        + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
-                        ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
-                        " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), LOGGER);
                 TimeLog.log(graph);
-                if (iterator instanceof CloseableIterator) {
-                    ((CloseableIterator) iterator).close();
+                if (isBulkingDisabled && iterator == null) {
+                    TaskLogger.logDebuggingMessage("Returning " + outputTest.size() + " rows.", LOGGER);
+                    return outputTest.iterator();
                 }
                 return output.iterator();
             } catch (final Exception e) {

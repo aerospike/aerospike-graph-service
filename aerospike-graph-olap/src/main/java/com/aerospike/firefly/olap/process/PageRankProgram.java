@@ -2,6 +2,7 @@ package com.aerospike.firefly.olap.process;
 
 import com.aerospike.firefly.olap.codec.PageRankCodec;
 import com.aerospike.firefly.olap.helper.TaskLogger;
+import com.aerospike.firefly.olap.helper.TimeLog;
 import com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection;
 import com.aerospike.firefly.olap.structure.AerospikeComputeKey;
 import com.aerospike.firefly.olap.structure.MutableDetachedVertexProperty;
@@ -19,6 +20,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalUtil;
+import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -95,20 +97,42 @@ public class PageRankProgram extends AlgorithmProgram {
         this.db = new DistributedAerospikeConnection(graph);
     }
 
+    public static class ByteArrayWrapper {
+        public final byte[] data;
+
+        ByteArrayWrapper(byte[] data) {
+            this.data = data;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof ByteArrayWrapper)) return false;
+            return Arrays.equals(data, ((ByteArrayWrapper) o).data);
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.hashCode(data);
+        }
+    }
+
     @Override
     public void execute(final BatchJob job, final Memory memory) {
         final String info = String.format("Starting PageRankProgram Iteration %d with %d traversers", memory.getIteration(), job.getStarts().size());
         TaskLogger.logDebuggingMessage(info, LOGGER);
 
+        TimeLog.complete("PageRankProgram.start");
         if (1 == memory.getIteration()) {
             memory.add(VERTEX_COUNT, (long) job.getStarts().size());
 
             job.getStarts().forEach(traverser -> {
                 final DetachedVertex vertex = buildDetached((Vertex) traverser.get());
                 traverser.set(vertex);
+                TimeLog.complete("PageRankProgram.buildDetached");
             });
 
             job.pass();
+            TimeLog.complete("PageRankProgram.iteration1job.pass()");
             return;
         }
 
@@ -120,6 +144,7 @@ public class PageRankProgram extends AlgorithmProgram {
 
         updateDetached(job.getStarts(), memory.getIteration());
 
+        TimeLog.complete("PageRankProgram.updateDetached");
         // should never happen
         final AtomicReference<FireflyVertex> anyFireflyVertex = new AtomicReference<>();
         job.getStarts().forEach(traverser -> {
@@ -134,17 +159,25 @@ public class PageRankProgram extends AlgorithmProgram {
         }
 
         // prepare cache
-        final Map<byte[], Double> cache;
+
+        TimeLog.complete("PageRankProgram.setJobStarts");
+        final Map<ByteArrayWrapper, Double> cache;
         if (memory.getIteration() > 2) {
-            final Set<byte[]> ids = new HashSet<>();
+            final Set<ByteArrayWrapper> ids = new HashSet<>();
             job.getStarts().forEach(traverser -> {
                 final DetachedVertex vertex = (DetachedVertex) traverser.get();
-                ids.addAll(vertex.<List<byte[]>>value(IN_VERTICES));
+                final List<byte[]> inVids = vertex.value(IN_VERTICES);
+                for (byte[] inVid : inVids) {
+                    ids.add(new ByteArrayWrapper(inVid));
+                }
             });
+            TimeLog.complete("PageRankProgram.creatingIdSet(iteration>2)");
             cache = db.getPackedAccumulatorDoubleCache(new ArrayList<>(ids), memory.getIteration() - 1);
+            ids.clear();
         } else {
             cache = Collections.emptyMap();
         }
+        TimeLog.complete("PageRankProgram.getCache(iteration>2)");
 
         final double teleportationEnergy = memory.get(TELEPORTATION_ENERGY);
         final Map<byte[], Double> writeBatch = new HashMap<>();
@@ -157,7 +190,7 @@ public class PageRankProgram extends AlgorithmProgram {
             double pageRank = 2 == memory.getIteration()
                     ? initialRank
                     : inVertices.stream()
-                    .mapToDouble(vertexId -> cache.getOrDefault(vertexId, 0.0))
+                    .mapToDouble(vertexId -> cache.getOrDefault(new ByteArrayWrapper(vertexId), 0.0))
                     .sum();
 
             //////////////////////////
@@ -186,12 +219,14 @@ public class PageRankProgram extends AlgorithmProgram {
             }
             traverser.set(vertex);
         });
+        TimeLog.complete("PageRankProgram.writeBatch");
 
         db.setPackedAccumulatorDouble(writeBatch, memory.getIteration());
         writeBatch.clear();
         cache.clear();
 
         job.pass();
+        TimeLog.complete("PageRankProgram.writeRemainderAndClear");
     }
 
     @Override
@@ -199,12 +234,16 @@ public class PageRankProgram extends AlgorithmProgram {
         if (vertex instanceof DetachedVertex)
             return (DetachedVertex) vertex;
 
-        final List<byte[]> inVertices = getInVertexIds(vertex);
+        TimeLog.complete("PageRankProgram.buildDetached");
+        final List<byte[]> inVertices = ((FireflyVertex)vertex).getConvertedVertexIds(Direction.IN);//getInVertexIds(vertex);
+        TimeLog.complete("PageRankProgram.getInVIds");
         final Long outVertexCount = getOutVertexCount(vertex);
+        TimeLog.complete("PageRankProgram.getOutVCount");
 
         final DetachedVertexProperty inVertexProperty = new DetachedVertexProperty(null, IN_VERTICES, inVertices, null);
         final DetachedVertexProperty outVertexCountProperty = new DetachedVertexProperty(null, OUT_VERTEX_COUNT, outVertexCount, null);
         final MutableDetachedVertexProperty pagerankProperty = new MutableDetachedVertexProperty(null, property, 0.0, null);
+        TimeLog.complete("PageRankProgram.createProperties");
 
         return new DetachedVertex(vertex.id(), "", List.of(inVertexProperty, outVertexCountProperty, pagerankProperty));
     }

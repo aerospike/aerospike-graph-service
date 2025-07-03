@@ -134,12 +134,12 @@ public class PageRankProgram extends AlgorithmProgram {
         }
 
         // prepare cache
-        final Map<String, Double> cache;
+        final Map<byte[], Double> cache;
         if (memory.getIteration() > 2) {
-            final Set<String> ids = new HashSet<>();
+            final Set<byte[]> ids = new HashSet<>();
             job.getStarts().forEach(traverser -> {
                 final DetachedVertex vertex = (DetachedVertex) traverser.get();
-                ids.addAll(vertex.<List<String>>value(IN_VERTICES));
+                ids.addAll(vertex.<List<byte[]>>value(IN_VERTICES));
             });
             cache = db.getPackedAccumulatorDoubleCache(new ArrayList<>(ids), memory.getIteration() - 1);
         } else {
@@ -147,18 +147,18 @@ public class PageRankProgram extends AlgorithmProgram {
         }
 
         final double teleportationEnergy = memory.get(TELEPORTATION_ENERGY);
-        final Map<String, Double> writeBatch = new HashMap<>();
+        final Map<byte[], Double> writeBatch = new HashMap<>();
         job.getStarts().forEach(traverser -> {
             final DetachedVertex vertex = (DetachedVertex) traverser.get();
-            final String id = graph.getIdFactory().createVertexId(vertex.id()).toString();
-            final List<String> inVertices = vertex.value(IN_VERTICES);
+            final byte[] id = graph.getIdFactory().createVertexId(vertex.id()).getKeyHash();
+            final List<byte[]> inVertices = vertex.value(IN_VERTICES);
             final Long outVertexCount = vertex.value(OUT_VERTEX_COUNT);
 
             double pageRank = 2 == memory.getIteration()
                     ? initialRank
                     : inVertices.stream()
-                        .mapToDouble(vertexId -> cache.getOrDefault(vertexId, 0.0))
-                        .sum();
+                    .mapToDouble(vertexId -> cache.getOrDefault(vertexId, 0.0))
+                    .sum();
 
             //////////////////////////
             if (teleportationEnergy > 0.0d) {
@@ -199,7 +199,7 @@ public class PageRankProgram extends AlgorithmProgram {
         if (vertex instanceof DetachedVertex)
             return (DetachedVertex) vertex;
 
-        final List<String> inVertices = getInVertexIds(vertex);
+        final List<byte[]> inVertices = getInVertexIds(vertex);
         final Long outVertexCount = getOutVertexCount(vertex);
 
         final DetachedVertexProperty inVertexProperty = new DetachedVertexProperty(null, IN_VERTICES, inVertices, null);

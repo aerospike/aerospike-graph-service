@@ -201,15 +201,15 @@ public class DistributedAerospikeConnection {
         return sum;
     }
 
-    public void setPackedAccumulatorDouble(final Map<String, Double> vertexEnergy, final int iteration) {
+    public void setPackedAccumulatorDouble(final Map<byte[], Double> vertexEnergy, final int iteration) {
         if (vertexEnergy.isEmpty()) {
             return;
         }
 
         final List<BatchRecord> batchRecords = new ArrayList<>();
-        for (Map.Entry<String, Double> entry : vertexEnergy.entrySet()) {
-            final Key key = getPackedKeyFromId(entry.getKey());
-            final String mapKeyId = entry.getKey() + "_" + iteration;
+        for (Map.Entry<byte[], Double> entry : vertexEnergy.entrySet()) {
+            final Key key = getPackedKeyFromId(toString(entry.getKey()));
+            final String mapKeyId = toString(entry.getKey()) + "_" + iteration;
             final Operation put = MapOperation.put(MapPolicy.Default, bin, Value.get(mapKeyId), Value.get(entry.getValue()));
             batchRecords.add(new BatchWrite(key, new Operation[]{put}));
         }
@@ -219,27 +219,43 @@ public class DistributedAerospikeConnection {
         db.batchOperate(policy, batchRecords);
     }
 
-    public Map<String, Double> getPackedAccumulatorDoubleCache(final List<String> vertexIds, final int iteration) {
+    private static int allowedPrints = 3;
+    public Map<byte[], Double> getPackedAccumulatorDoubleCache(final List<byte[]> vertexIds, final int iteration) {
         if (vertexIds.isEmpty()) {
             return Collections.emptyMap();
         }
 
         final int chunkSize = db.PAGINATION_PAGE_SIZE;
-        final Map<String, Double> result = new HashMap<>();
+        final Map<byte[], Double> result = new HashMap<>();
         for (int i = 0; i < vertexIds.size(); i += chunkSize) {
             final int end = Math.min(vertexIds.size(), i + chunkSize);
-            final List<String> chunk = vertexIds.subList(i, end);
+            final List<byte[]> chunk = vertexIds.subList(i, end);
 
-            final Key[] keys = chunk.stream().map(this::getPackedKeyFromId).toArray(Key[]::new);
+            final Key[] keys = chunk.stream().map(k -> getPackedKeyFromId(toString(k))).toArray(Key[]::new);
             final Record[] records = db.dynamicBatchRead(keys, null, null);
 
             for (int j = 0; j < chunk.size(); j++) {
-                final String mapKeyId = chunk.get(j) + "_" + iteration;
-                result.put(chunk.get(j), (double) records[j].getMap(bin).get(mapKeyId));
+                final String mapKeyId = toString(chunk.get(j)) + "_" + iteration;
+                try {
+                    result.put(chunk.get(j), (double) records[j].getMap(bin).get(mapKeyId));
+                } catch (final Exception e) {
+                    if (--allowedPrints > 0) {
+                        System.out.println("getPackedAccumulatorDoubleCache failed for " + mapKeyId + "; record map " + records[j].getMap(bin));
+                    }
+                    result.put(chunk.get(j), 0.0);
+                }
             }
         }
 
         return result;
+    }
+
+    private String toString(byte[] arr) {
+        StringBuilder sb = new StringBuilder(arr.length * 2);
+        for (final byte b : arr) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     public Double getPackedAccumulatorDouble(final String vertexId, final int iteration) {

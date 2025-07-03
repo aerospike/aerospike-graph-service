@@ -480,7 +480,7 @@ public class DistributedGraphComputer implements GraphComputer {
                 if (configHelper.isDebugDf()) {
                     df.show();
                 }
-                System.out.println(memory.getIteration() + " ==================> TOTAL COUNT: " + df.count());
+                System.out.println("========> Iteration " + memory.getIteration() + " done; Rows count: " + df.count());
 
                 memory.setInExecute(false);
 

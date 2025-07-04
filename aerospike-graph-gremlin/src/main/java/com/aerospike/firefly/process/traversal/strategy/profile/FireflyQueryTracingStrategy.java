@@ -40,6 +40,8 @@ public class FireflyQueryTracingStrategy extends FireflyStrategyBase {
                 ((ProfilingAware) stepToBeProfiled).prepareForProfiling();
             }
         }
-        traversal.addStep(new FireflyQueryTracingStep<>(traversal));
+        if (traversal.isRoot()) {
+            traversal.addStep(new FireflyQueryTracingStep<>(traversal));
+        }
     }
 }

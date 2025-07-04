@@ -6,6 +6,7 @@ import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.AfterClass;
@@ -115,5 +116,39 @@ public class FireflyQueryTracingStrategyTest {
         while (e3Traversal.hasNext()) {
             Assert.assertEquals("e3x", e3Traversal.next().label());
         }
+    }
+
+    @Test
+    public void testStrategyDoesNotDupeEdges() {
+        // Specific edge-case traversal that causes the issue from GRAPH-1584
+        var g = SETUP_GRAPH.traversal();
+        Assert.assertEquals(3, (long) g.V().count().next());
+        Assert.assertEquals(4, (long) g.E().count().next());
+        try {
+            g.addV("dupeTestV1").iterate();
+            g.addV("dupeTestV2").iterate();
+            addEdgeIfNotExist(g);
+            Assert.assertEquals(5, (long) g.E().count().next());
+            addEdgeIfNotExist(g);
+            Assert.assertEquals(5, (long) g.E().count().next());
+        } finally {
+            g.V().hasLabel("dupeTestV1").drop().iterate();
+            g.V().hasLabel("dupeTestV2").drop().iterate();
+        }
+
+        Assert.assertEquals(3, (long) g.V().count().next());
+        Assert.assertEquals(4, (long) g.E().count().next());
+    }
+
+    private void addEdgeIfNotExist(final GraphTraversalSource graphTraversalSource) {
+        graphTraversalSource
+                .V().hasLabel("dupeTestV1").as("v1")
+                .V().hasLabel("dupeTestV2").as("v2")
+                .select("v1", "v2")
+                .coalesce(
+                        __.select("v1").outE("dupeEdgeLabel").where(__.inV().as("v2")),
+                        __.addE("dupeEdgeLabel").from("v1").to("v2")
+                )
+                .iterate();
     }
 }

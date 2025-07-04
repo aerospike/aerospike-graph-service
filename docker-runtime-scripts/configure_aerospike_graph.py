@@ -176,15 +176,15 @@ def generate_yaml(yaml_properties, default_yaml_file, output_yaml_file, graph_co
         "interval": "180000"
     }
     csv_reporter = {
-        "enabled": "true",
+        "enabled": "false",
         "interval": "180000",
         "fileName": "/tmp/gremlin-server-metrics.csv"
     }
     jmx_reporter = {
-        "enabled": "true"
+        "enabled": "false"
     }
     slf4j_reporter = {
-        "enabled": "true",
+        "enabled": "false",
         "interval": "180000"
     }
     metrics = {

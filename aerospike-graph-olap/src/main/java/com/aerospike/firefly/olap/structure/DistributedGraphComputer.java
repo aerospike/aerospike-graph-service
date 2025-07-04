@@ -475,7 +475,10 @@ public class DistributedGraphComputer implements GraphComputer {
                 df = magicSwap(
                         this.vertexProgram instanceof AlgorithmProgram ? nextDf.withColumn(Codec.ITERATION, lit(memory.getIteration())) : nextDf,
                         true,
-                        configHelper.getStorageLevel());
+                        configHelper.getStorageLevel(),
+                        spark,
+                        configHelper.getTempWriteDirectory(),
+                        iterationCount);
 
                 if (configHelper.isDebugDf()) {
                     df.show();
@@ -594,14 +597,25 @@ public class DistributedGraphComputer implements GraphComputer {
 
     public static Dataset<Row> magicSwap(final Dataset<Row> transform) {
         // Persist false so storage level is not used.
-        return magicSwap(transform, false, null);
+        return magicSwap(transform, false, null, null, null, -1);
     }
 
     public static Dataset<Row> magicSwap(final Dataset<Row> transform,
                                          final boolean persist,
-                                         final StorageLevel storageLevel) {
+                                         final StorageLevel storageLevel,
+                                         final SparkSession spark,
+                                         final String tempWriteDirectory,
+                                         int iteration) {
+        System.out.println("Temp dir : " + tempWriteDirectory);
         if (isCancelled.get()) {
             throw new TraversalInterruptedException();
+        }
+        if (spark != null && tempWriteDirectory != null && !tempWriteDirectory.isEmpty()) {
+            // Write to temp directory.
+            LOGGER.info("Writing dataframe to temporary write directory: " + tempWriteDirectory+ "/iteration_" + iteration);
+            transform.write().mode("overwrite").parquet(tempWriteDirectory + "/iteration_" + iteration);
+            LOGGER.info("Reading back dataframe from temporary write directory: " + tempWriteDirectory+ "/iteration_" + iteration);
+            return spark.read().parquet(tempWriteDirectory+ "/iteration_" + iteration);
         }
         final Dataset<Row> output = persist ? transform.persist(storageLevel) : transform;
         try {

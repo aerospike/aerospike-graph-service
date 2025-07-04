@@ -3,6 +3,7 @@ package com.aerospike.firefly.olap.config;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.spark.storage.StorageLevel;
 
 import java.io.Serializable;
@@ -27,6 +28,7 @@ public class DistributedConfigHelper implements Serializable {
     private static final String DEBUG_DF = OLAP_PREFIX + "debug.df";
     private static final String PERSISTENCE = OLAP_PREFIX + "persist";
     private static final String SUPERNODE_STEPPING = OLAP_PREFIX + "supernode.stepping";
+    private static final String TEMP_WRITE_DIRECTORY = OLAP_PREFIX + "temp.write.directory";
     private static final boolean DEBUG_DF_DEFAULT = false;
     private static final boolean SUPERNODE_STEPPING_DEFAULT = true;
     private static final String PARTITIONS = OLAP_PREFIX + "partitions";
@@ -42,10 +44,12 @@ public class DistributedConfigHelper implements Serializable {
             ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, MAX_CONNECTIONS_PER_NODE_OLAP_EXECUTOR,
             ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE, MIN_CONNECTIONS_PER_NODE_OLAP_EXECUTOR
     );
+    final String randomTempDir;
 
     public DistributedConfigHelper(final Map<String, Object> fireflyConfig, final Map<String, Object> olapConfig) {
         this.fileConfig = fireflyConfig;
         this.olapConfig = olapConfig;
+        randomTempDir = RandomStringUtils.randomAlphanumeric(8);
         if (this.olapConfig != null) {
             final Set<String> keys = new HashSet<>(olapConfig.keySet());
             for (final String key : keys) {
@@ -121,5 +125,15 @@ public class DistributedConfigHelper implements Serializable {
 
     public boolean isBulkingDisabled() {
         return getOlapConfig().getBoolean(DISABLE_BULKING, false);
+    }
+
+    public String getTempWriteDirectory() {
+        final String tempDir = getOlapConfig().getString(TEMP_WRITE_DIRECTORY, "");
+        if (!tempDir.isEmpty()) {
+            final String separator = "/";
+            return tempDir + separator + "AGA" + separator + randomTempDir;
+        } else {
+            return "";
+        }
     }
 }

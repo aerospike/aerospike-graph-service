@@ -14,11 +14,12 @@ import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
 /**
  * A datetime utility class to align with TinkerPop datetime parsing.
- * Support both (for backward compatibility):
- * 1. java.util.Date (the official date format in TinkerPop 3.7).
- * 2. OffsetDateTime (the official date format starting with TinkerPop 4.0).
+ * Supports both (for backward compatibility):
+ * 1. java.util.Date (the official datetime type in TinkerPop 3.7).
+ * 2. OffsetDateTime (the official datetime type starting with TinkerPop 4).
  */
 public class DatetimeHelper {
+
     /**
      * Seems like the "noOffsetText" needs to only be set to "Z" once - doing it twice duplicates the "Z" on
      * {@code format()} calls.

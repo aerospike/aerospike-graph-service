@@ -36,7 +36,7 @@ public class TestUtil {
     }
 
     @Test
-    public void canConfigureMultipuleGraphs() {
+    public void canConfigureMultipleGraphs() {
         Configuration config_one = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         Configuration config_two = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 

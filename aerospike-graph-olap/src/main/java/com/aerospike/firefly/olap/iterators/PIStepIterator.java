@@ -41,6 +41,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import static com.aerospike.firefly.olap.structure.DistributedWorkerExecutor.COUNT_COL;
 import static com.aerospike.firefly.olap.structure.DistributedWorkerExecutor.FIRST_COL;
 import static com.aerospike.firefly.olap.structure.DistributedWorkerExecutor.START_COL;
+import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
 
 public class PIStepIterator implements CloseableIterator<Traverser> {
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexIterator.class);
@@ -137,7 +138,7 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
                             final List<FireflyId> edgeIds = v.getCachedEdgeIds(direction, Set.of(vertexStep.getEdgeLabels()));
                             final List<FireflyEdge> cachedEdges = graph.readEdges(List.of(), edgeIds, null);
                             for (final FireflyEdge edge : cachedEdges) {
-                                if (HasContainer.testAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
+                                if (fireflyTestAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
                                     currentEdges.add(edge);
                                 }
                             }
@@ -237,7 +238,7 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
         final List<FireflyEdgeId> edgeIdsInRecord = edgeRecord.getIndividualEdgeIdsAttachedToSupernode(inputVertexId, direction);
         for (final FireflyEdgeId edgeId : edgeIdsInRecord) {
             final Edge edge = FireflyEdgeFactory.create(edgeId, edgeRecord, graph);
-            if (HasContainer.testAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
+            if (fireflyTestAll(edge, hasContainer) && (edgeLabels.isEmpty() || edgeLabels.contains(edge.label()))) {
                 currentEdges.add(edge);
             }
         }

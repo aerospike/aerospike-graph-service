@@ -504,6 +504,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 ConfigurationHelper.restoreLogLevel(fireflyConf);
                 throw e;
             }
+            if (ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, fireflyConf)) {
+                LOG.error("Failed to start an Aerospike Graph Service instance during Bulk Loading: {}", e.getMessage());
+                throw e;
+            }
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");
             LOG.error("========== Aerospike Graph Service failing to start is usually a result of an incorrect configuration.");
             if (e.getMessage() != null) {
@@ -846,14 +850,15 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final Map<String, Object> typeHints = new HashMap<>();
         properties.forEach(property -> {
             final String key = property.getKey();
-            final Object value = FireflyHelper.validatePropertyValue(property.getValue());
+            final Object originalValue = FireflyHelper.validatePropertyValue(property.getValue());
+            final Object aerospikeWritableValue = FireflyHelper.convertValueToAerospikeWriteable(originalValue);
 
-            if (value == null) {
+            if (originalValue == null) {
                 propertyMap.remove(key);
                 typeHints.remove(key);
             } else {
-                propertyMap.put(key, value);
-                final Object typeHint = getTypeHintOf(value);
+                propertyMap.put(key, aerospikeWritableValue);
+                final Object typeHint = getTypeHintOf(originalValue);
                 if (typeHint != null) {
                     typeHints.put(key, typeHint);
                 }

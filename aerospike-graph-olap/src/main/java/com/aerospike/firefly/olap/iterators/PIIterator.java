@@ -19,6 +19,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.getId;
+import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
 
 public class PIIterator {
     public static Iterator<Traverser> getIterator(final FireflyGraph graph,
@@ -43,7 +44,7 @@ public class PIIterator {
                 // TODO: Pushdown.
                 List<FireflyVertex> vertices = graph.readVertices(List.of(), ffidList, null);
                 for (final Vertex vertex : vertices) {
-                    if (HasContainer.testAll(vertex, hasContainers)) {
+                    if (fireflyTestAll(vertex, hasContainers)) {
                         Traverser t = tg.generate(vertex, graphStep, 1l);
                         t.asAdmin().setStepId(startStep.getId());
                         traversers.add(t);
@@ -54,7 +55,7 @@ public class PIIterator {
             for (final List<FireflyId> ffidList : partitionedFfidList) {
                 List<FireflyEdge> edges = graph.readEdges(List.of(), ffidList, null);
                 for (final FireflyEdge edge : edges) {
-                    if (HasContainer.testAll(edge, hasContainers)) {
+                    if (fireflyTestAll(edge, hasContainers)) {
                         Traverser t = tg.generate(edge, startStep, 1l);
                         t.asAdmin().setStepId(startStep.getId());
                         traversers.add(t);

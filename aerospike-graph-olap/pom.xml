@@ -409,6 +409,10 @@
                                     <pattern>io.netty</pattern>
                                     <shadedPattern>aerospike.olap.shaded.netty</shadedPattern>
                                 </relocation>
+                                <relocation>
+                                    <pattern>com.google.common</pattern>
+                                    <shadedPattern>aerospike.olap.shaded.com.google.common</shadedPattern>
+                                </relocation>
                             </relocations>
                             <transformers>
                                 <transformer

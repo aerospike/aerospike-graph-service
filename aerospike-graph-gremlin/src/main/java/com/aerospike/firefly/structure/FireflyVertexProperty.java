@@ -131,7 +131,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
             final Long schemaKey = db.schemaManager.getVpPropertyRead(key);
             if (this.properties.containsKey(schemaKey)) {
                 final List<Object> valueAndTypeHint = this.properties.get(schemaKey);
-                final Object convertedValue = db.convertValuetoTypeUsingHint(valueAndTypeHint.get(0),
+                final Object convertedValue = db.convertValueToTypeUsingHint(valueAndTypeHint.get(0),
                         valueAndTypeHint.get(1));
                 final Property<V> property = new FireflyVertexPropertyProperty<>(graph, this, key, (V) convertedValue);
                 propertyList.add(property);

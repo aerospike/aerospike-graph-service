@@ -4,7 +4,6 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.model.Container;
-import com.github.dockerjava.api.model.ContainerPort;
 import com.github.dockerjava.api.model.StatisticNetworksConfig;
 import com.github.dockerjava.api.model.Statistics;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
@@ -36,14 +35,14 @@ public class TestAerospikeNetwork {
     private String containerId;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         dockerClient = initDockerClient();
 
         Optional<String> matchedContainer = findAerospikeServerContainerId();
         if (matchedContainer.isPresent()) {
             containerId = matchedContainer.get();
         } else {
-            throw new IllegalStateException("No container found running Aerospike server");
+            throw new IllegalStateException("No container found running Aerospike server.");
         }
         config.setProperty("aerospike.client.compress", true);
         compressGraph = FireflyGraph.open(config);
@@ -51,6 +50,19 @@ public class TestAerospikeNetwork {
         uncompressGraph = FireflyGraph.open(config);
 
         compressGraph.getBaseGraph().dropDatabase(compressGraph, false);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        if (dockerClient != null) {
+            dockerClient.close();
+        }
+        if (compressGraph != null) {
+            compressGraph.close();
+        }
+        if (uncompressGraph != null) {
+            uncompressGraph.close();
+        }
     }
 
     @Test
@@ -153,18 +165,5 @@ public class TestAerospikeNetwork {
                 .responseTimeout(Duration.ofSeconds(30))
                 .build();
         return DockerClientImpl.getInstance(config, httpClient);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        if (dockerClient != null) {
-            dockerClient.close();
-        }
-        if (compressGraph != null) {
-            compressGraph.close();
-        }
-        if (uncompressGraph != null) {
-            uncompressGraph.close();
-        }
     }
 }

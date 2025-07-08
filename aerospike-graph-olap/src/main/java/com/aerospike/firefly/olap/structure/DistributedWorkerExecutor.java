@@ -142,6 +142,7 @@ public class DistributedWorkerExecutor {
                 throw new InterruptedException();
             }
 
+            Iterator<Traverser> iterator = null;
             try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
                 graph.logInfo = TaskLogger.instance;
                 memory.setGraph(graph);
@@ -170,7 +171,7 @@ public class DistributedWorkerExecutor {
                         break;
                     }
                 }
-                Iterator<Traverser> iterator;
+
                 if (isFirst) {
                     switch (queryInfo.queryType) {
                         case INDEX:
@@ -279,8 +280,9 @@ public class DistributedWorkerExecutor {
 
                 TimeLog.complete("Setup");
 
+                // only one of following will be used
                 final BulkedRowSet output = new BulkedRowSet(codec);
-                final List<Row> outputTest = new ArrayList<>();
+                final List<Row> outputList = new ArrayList<>();
                 boolean isBulkingDisabled = configHelper.isBulkingDisabled();
                 int count = 0;
                 while (iterator.hasNext()) {
@@ -289,7 +291,8 @@ public class DistributedWorkerExecutor {
                         traverserSet.add(iterator.next().asAdmin());
                     }
                     TimeLog.complete("Read iterator");
-                    if (configHelper.isDebugDf()) {
+
+                    if (configHelper.isForceGC()) {
                         if ((runtime.freeMemory() / (1024 * 1024)) < 200) {
                             TaskLogger.logDebuggingMessage("Running GC 2x.", LOGGER);
                             System.gc();
@@ -300,6 +303,9 @@ public class DistributedWorkerExecutor {
                             System.gc();
                             TaskLogger.logDebuggingMessage("GC complete.", LOGGER);
                         }
+                    }
+
+                    if (configHelper.isDebugDf()) {
                         TaskLogger.logDebuggingMessage("Input TraverserSet size: " + traverserSet.size() + "/" + runningTotal
                                 + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
                                 ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
@@ -324,7 +330,7 @@ public class DistributedWorkerExecutor {
                         output.addAll(job.getResults());
                     } else {
                         for (final Traverser.Admin t : job.getResults()) {
-                            outputTest.add(codec.encode(t));
+                            outputList.add(codec.encode(t));
                         }
                     }
                     job.clear();
@@ -337,31 +343,13 @@ public class DistributedWorkerExecutor {
                     if (count % 20 == 0)
                         TimeLog.log(graph);
                 }
-                //System.gc();
-                //System.gc();
-                //System.gc();
-                System.gc();
-                System.gc();
-                TaskLogger.logDebuggingMessage("Ending with " + (isBulkingDisabled ? outputTest.size() : output.rowCount()) + " rows."
-                        + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
-                        ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
-                        " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), LOGGER);
-                if (iterator instanceof CloseableIterator) {
-                    ((CloseableIterator) iterator).close();
-                    iterator = null;
-                    TaskLogger.logDebuggingMessage("Clearing iterator!!!!!!!!!", LOGGER);
-                } else {
-                    TaskLogger.logDebuggingMessage("CANT Clear iterator????????", LOGGER);
+
+                if (configHelper.isDebugDf()) {
+                    TaskLogger.logDebuggingMessage("Ending with " + (isBulkingDisabled ? outputList.size() : output.rowCount()) + " rows."
+                            + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
+                            ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
+                            " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), LOGGER);
                 }
-                System.gc();
-                System.gc();
-                //System.gc();
-                //System.gc();
-                //System.gc();
-                TaskLogger.logDebuggingMessage("Ending with " + (isBulkingDisabled ? outputTest.size() : output.rowCount()) + " rows."
-                        + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
-                        ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
-                        " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), LOGGER);
 
                 // End worker iteration.
                 vertexProgram.workerIterationEnd(workerMemory.asImmutable());
@@ -371,15 +359,21 @@ public class DistributedWorkerExecutor {
 
                 // Return results.
                 TimeLog.log(graph);
-                if (isBulkingDisabled && iterator == null) {
-                    TaskLogger.logDebuggingMessage("Returning " + outputTest.size() + " rows.", LOGGER);
-                    return outputTest.iterator();
+                if (isBulkingDisabled) {
+                    TaskLogger.logDebuggingMessage("Returning " + outputList.size() + " rows.", LOGGER);
+                    return outputList.iterator();
                 }
                 return output.iterator();
             } catch (final Exception e) {
                 TaskLogger.logDebuggingMessage("ERROR", LOGGER);
                 e.printStackTrace();
                 throw e;
+            } finally {
+                if (iterator != null) {
+                    if (iterator instanceof CloseableIterator) {
+                        ((CloseableIterator) iterator).close();
+                    }
+                }
             }
         }, RowEncoder.apply(schema));
     }

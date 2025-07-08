@@ -26,6 +26,7 @@ public class DistributedConfigHelper implements Serializable {
     private static final String OLAP_PREFIX = "aerospike.graph.olap.";
     private static final String OLAP_BATCH_JOB_SIZE = OLAP_PREFIX + "batch.job.size";
     private static final String DEBUG_DF = OLAP_PREFIX + "debug.df";
+    private static final String FORCE_GC = OLAP_PREFIX + "debug.gc";
     private static final String PERSISTENCE = OLAP_PREFIX + "persist";
     private static final String SUPERNODE_STEPPING = OLAP_PREFIX + "supernode.stepping";
     private static final String TEMP_WRITE_DIRECTORY = OLAP_PREFIX + "temp.write.directory";
@@ -76,6 +77,10 @@ public class DistributedConfigHelper implements Serializable {
         return getOlapConfig().getBoolean(DEBUG_DF, DEBUG_DF_DEFAULT);
     }
 
+    public boolean isForceGC() {
+        return getOlapConfig().getBoolean(FORCE_GC, false);
+    }
+
     public boolean isSupernodeSteppingEnabled() {
         return getOlapConfig().getBoolean(SUPERNODE_STEPPING, SUPERNODE_STEPPING_DEFAULT);
     }
@@ -120,7 +125,7 @@ public class DistributedConfigHelper implements Serializable {
     }
 
     public int getBatchJobSize() {
-        return getOlapConfig().getInt(OLAP_BATCH_JOB_SIZE, 50000);
+        return getOlapConfig().getInt(OLAP_BATCH_JOB_SIZE, 5000);
     }
 
     public boolean isBulkingDisabled() {

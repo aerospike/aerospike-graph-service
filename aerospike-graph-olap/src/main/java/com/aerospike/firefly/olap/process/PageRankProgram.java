@@ -3,6 +3,7 @@ package com.aerospike.firefly.olap.process;
 import com.aerospike.firefly.olap.codec.PageRankCodec;
 import com.aerospike.firefly.olap.helper.TaskLogger;
 import com.aerospike.firefly.olap.helper.TimeLog;
+import com.aerospike.firefly.olap.process.packing.ByteArrayWrapper;
 import com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection;
 import com.aerospike.firefly.olap.structure.AerospikeComputeKey;
 import com.aerospike.firefly.olap.structure.MutableDetachedVertexProperty;
@@ -41,7 +42,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.aerospike.firefly.olap.codec.PageRankCodec.getInVertexIds;
 import static com.aerospike.firefly.olap.codec.PageRankCodec.getOutVertexCount;
 import static com.aerospike.firefly.process.computer.VertexProgramConfig.TRAVERSAL_VERTEX_PROGRAM_STEP;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
@@ -95,25 +95,6 @@ public class PageRankProgram extends AlgorithmProgram {
         this.codec = new PageRankCodec(t, this.property);
         this.graph = graph;
         this.db = new DistributedAerospikeConnection(graph);
-    }
-
-    public static class ByteArrayWrapper {
-        public final byte[] data;
-
-        ByteArrayWrapper(byte[] data) {
-            this.data = data;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (!(o instanceof ByteArrayWrapper)) return false;
-            return Arrays.equals(data, ((ByteArrayWrapper) o).data);
-        }
-
-        @Override
-        public int hashCode() {
-            return Arrays.hashCode(data);
-        }
     }
 
     @Override

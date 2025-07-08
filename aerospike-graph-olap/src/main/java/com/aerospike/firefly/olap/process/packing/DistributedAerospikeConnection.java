@@ -28,7 +28,6 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection.FireflyRecordSet;
-import com.aerospike.firefly.olap.process.PageRankProgram;
 import com.aerospike.firefly.olap.structure.job.Job;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.google.common.hash.HashFunction;
@@ -220,18 +219,18 @@ public class DistributedAerospikeConnection {
         db.batchOperate(policy, batchRecords);
     }
 
-    private static int allowedPrints = 3;
-    public Map<PageRankProgram.ByteArrayWrapper, Double> getPackedAccumulatorDoubleCache(final List<PageRankProgram.ByteArrayWrapper> vertexIds, final int iteration) {
+    private static int allowedErrorPrints = 3;
+    public Map<ByteArrayWrapper, Double> getPackedAccumulatorDoubleCache(final List<ByteArrayWrapper> vertexIds, final int iteration) {
         if (vertexIds.isEmpty()) {
             return Collections.emptyMap();
         }
 
         final String binName = bin + "_" + iteration;
         final int chunkSize = db.PAGINATION_PAGE_SIZE;
-        final Map<PageRankProgram.ByteArrayWrapper, Double> result = new HashMap<>();
+        final Map<ByteArrayWrapper, Double> result = new HashMap<>();
         for (int i = 0; i < vertexIds.size(); i += chunkSize) {
             final int end = Math.min(vertexIds.size(), i + chunkSize);
-            final List<PageRankProgram.ByteArrayWrapper> chunk = vertexIds.subList(i, end);
+            final List<ByteArrayWrapper> chunk = vertexIds.subList(i, end);
 
             final Key[] keys = chunk.stream().map(k -> getPackedKeyFromId(toString(k.data))).toArray(Key[]::new);
             final Operation op = Operation.get(binName);
@@ -243,7 +242,7 @@ public class DistributedAerospikeConnection {
                 try {
                     result.put(chunk.get(j), (double) records[j].getMap(binName).get(mapKeyId));
                 } catch (final Exception e) {
-                    if (--allowedPrints > 0) {
+                    if (--allowedErrorPrints > 0) {
                         System.out.println("getPackedAccumulatorDoubleCache failed for " + mapKeyId + "; record map " + records[j].getMap(binName));
                     }
                     result.put(chunk.get(j), 0.0);

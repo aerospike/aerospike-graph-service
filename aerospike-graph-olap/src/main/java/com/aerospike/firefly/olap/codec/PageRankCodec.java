@@ -47,7 +47,6 @@ public class PageRankCodec implements Codec {
         objects.add(v.id().toString()); // 0. String id.
         objects.add(getIdType(v.id()).ordinal()); // 1
 
-        // TODO: Consider serializing this into 1 large buffer.
         final List<byte[]> data = getInVertexIds(v);
         final byte[] dataAll = new byte[data.size() * 20]; // 20 bytes per vertex id.
         for (int i = 0; i < data.size(); i++) {

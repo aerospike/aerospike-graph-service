@@ -606,7 +606,6 @@ public class DistributedGraphComputer implements GraphComputer {
                                          final SparkSession spark,
                                          final String tempWriteDirectory,
                                          int iteration) {
-        System.out.println("Temp dir : " + tempWriteDirectory);
         if (isCancelled.get()) {
             throw new TraversalInterruptedException();
         }

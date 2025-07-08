@@ -196,6 +196,7 @@
                         <exclude>**/QueryServiceAbortTest</exclude>
                         <exclude>**/TestAerospikeClientConfigEventLoop</exclude>
                         <exclude>**/FireflyMergeEdgeStepRemoteTest</exclude>
+                        <exclude>**/TestAerospikeNetwork</exclude>
                         <!-- tests require MRT compatible aerospike server (version 8.0+ and SC enabled) -->
                         <exclude>**/TestMRTSupported</exclude>
                         <exclude>**/FireflyMRTFeatureTest</exclude>

@@ -133,7 +133,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             if (uniqueIds.size() > graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
                 batchReadFutures.add(executorService.submit(() -> {
-                            final List<FireflyEdge> edges = graph.readEdges(aerospikeHasContainers, idsToRead, null);
+                            final List<FireflyEdge> edges = graph.readEdges(Collections.emptyList(), idsToRead, null);
                             for (final FireflyEdge edge : edges) {
                                 fireflyEdgeMap.put(edge.id, edge);
                             }
@@ -145,7 +145,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         if (!uniqueIds.isEmpty()) {
             final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
             batchReadFutures.add(executorService.submit(() -> {
-                        final List<FireflyEdge> edges = graph.readEdges(aerospikeHasContainers, idsToRead, null);
+                        final List<FireflyEdge> edges = graph.readEdges(Collections.emptyList(), idsToRead, null);
                         for (final FireflyEdge edge : edges) {
                             fireflyEdgeMap.put(edge.id, edge);
                         }

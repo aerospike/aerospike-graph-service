@@ -157,6 +157,25 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     }
 
     @Test
+    public void edgeFilterParallelizeTest() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final Graph tg = TinkerFactory.createModern();
+
+            GraphHelper.cloneElements(tg, graph);
+            final GraphTraversalSource g = graph.traversal();
+
+            // should not push hasContainers, but apply it correctly
+            final List<Edge> result = g.with("aerospike.graph.parallelize", 4).V(1).both() // 2,3,4
+                    .outE().has("weight", P.lt(0.5)).otherV() //3
+                    .inE().has("weight", P.lt(0.3)).toList(); //6->3
+
+            assertEquals(1, result.size());
+            assertEquals(6, result.get(0).outVertex().id());
+            assertEquals(3, result.get(0).inVertex().id());
+        }
+    }
+
+    @Test
     public void g_V_out_out_path_byXnameX_byXageX() {
         Graph tg = TinkerFactory.createModern();
 

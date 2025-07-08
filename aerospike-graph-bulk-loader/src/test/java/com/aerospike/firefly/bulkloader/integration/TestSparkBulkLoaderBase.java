@@ -373,6 +373,17 @@ public abstract class TestSparkBulkLoaderBase {
         Edge edge = g.E().has("offsetDateTime", OffsetDateTime.of(2009, 1, 2, 9, 25,
                 10, 0, ZoneOffset.UTC)).next();
         Assert.assertEquals(47, (int) edge.value("intProperty"));
+
+        List<OffsetDateTime> expectedODTs = new ArrayList<>();
+        expectedODTs.add(OffsetDateTime.of(2025, 5, 7, 4, 33, 24,
+                0, ZoneOffset.UTC)); // 2025-05-06T21:33:24-07:00
+        expectedODTs.add(OffsetDateTime.of(2024, 6, 1, 18, 11, 15,
+                0, ZoneOffset.UTC)); // 2024-06-01T17:11:15-01:00
+        expectedODTs.add(OffsetDateTime.of(2025, 1, 2, 10, 30, 0,
+                0, ZoneOffset.UTC)); // 2025-01-02T12:30+02:00
+        actual = g.V("2").values("offsetDateTimes").toList();
+        actualNormalized = actual.stream().map(Object::toString).collect(Collectors.toList());
+        assertThat(actualNormalized, containsInAnyOrder(expectedODTs.stream().map(Object::toString).toArray()));
     }
 
     @Ignore("TODO GRAPH-888: NPE caused by org.codehaus.groovy.reflection.ReflectionUtils.VM_PLUGIN is null on CI machine")

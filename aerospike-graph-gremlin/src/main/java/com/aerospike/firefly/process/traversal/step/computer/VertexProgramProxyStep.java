@@ -19,6 +19,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -65,6 +66,11 @@ public class VertexProgramProxyStep extends VertexProgramStep implements Travers
         final Optional<OptionsStrategy> options = traversalVertexProgramStep.getTraversal().getStrategies().getStrategy(OptionsStrategy.class);
         final Configuration config = options.isPresent() ? options.get().getConfiguration() : new BaseConfiguration();
         program.storeState(config);
+        if (programStep instanceof Configuring) {
+            for (final Map.Entry<Object, List<Object>> entry : ((Configuring) programStep).getParameters().getRaw().entrySet()) {
+                config.addProperty(entry.getKey().toString(), entry.getValue().get(0));
+            }
+        }
 
         final VertexProgramConfig configProgram = new VertexProgramConfig();
         configProgram.loadState(graph, config);

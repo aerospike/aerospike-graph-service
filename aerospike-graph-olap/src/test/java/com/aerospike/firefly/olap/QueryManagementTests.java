@@ -27,7 +27,7 @@ public class QueryManagementTests {
         config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
 
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            final DistributedAerospikeConnection db = new DistributedAerospikeConnection(graph.getBaseGraph(), 0, 0);
+            final DistributedAerospikeConnection db = new DistributedAerospikeConnection(graph, 0, 0);
             db.removeAllJobs();
         }
     }

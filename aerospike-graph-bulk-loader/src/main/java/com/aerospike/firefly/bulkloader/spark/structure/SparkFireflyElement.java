@@ -8,6 +8,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import java.io.Serializable;
 import java.util.AbstractMap;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,9 +19,9 @@ public abstract class SparkFireflyElement implements Serializable {
     private static final String TYPE_DELIMITER = ":";
     private static final String MULTI_DELIMITER = ";";
 
-    private static final String SINGLE_CARDINALITY = "single";
-    private static final String LIST_CARDINALITY = "list";
-    private static final String SET_CARDINALITY = "set";
+    protected static final String SINGLE_CARDINALITY = "single";
+    protected static final String LIST_CARDINALITY = "list";
+    protected static final String SET_CARDINALITY = "set";
     private static final Set<String> VALID_CARDINALITIES = Set.of(SINGLE_CARDINALITY, LIST_CARDINALITY);
 
     private static final String LONG = "long";
@@ -33,6 +34,10 @@ public abstract class SparkFireflyElement implements Serializable {
     private static final String DATE = "date";
     private static final String OFFSETDATETIME = "offsetdatetime";
     private static final Set<String> VALID_TYPES = Set.of(LONG, INT, INTEGER, DOUBLE, BOOL, BOOLEAN, STRING, DATE, OFFSETDATETIME);
+
+    protected static String PROPERTY_INFO_NAME = "PROPERTY_INFO_NAME";
+    protected static String PROPERTY_INFO_TYPE = "PROPERTY_INFO_TYPE";
+    protected static String PROPERTY_INFO_CARDINALITY = "PROPERTY_INFO_CARDINALITY";
 
     public static final String ID_HEADER = "~id";
     public static final String LABEL_HEADER = "~label";
@@ -66,29 +71,10 @@ public abstract class SparkFireflyElement implements Serializable {
                                                                 final String value,
                                                                 final String nullValue) {
         final PropertyValueParser parser = new PropertyValueParser(nullValue);
-        final Stack<Integer> delimiterIndices = new Stack<>();
-        final char[] headerArr = header.toCharArray();
-        for (int i = 0; i < headerArr.length; i++) {
-            if (String.valueOf(headerArr[i]).equals(TYPE_DELIMITER)) {
-                delimiterIndices.push(i);
-            }
-        }
-        String cardinality = SINGLE_CARDINALITY;
-        String type = STRING;
-        String propertyName = "";
-        if (delimiterIndices.size() >= 2) {
-            final int cardinalityIndex = delimiterIndices.pop();
-            final int typeIndex = delimiterIndices.pop();
-            cardinality = header.substring(cardinalityIndex + 1).toLowerCase();
-            type = header.substring(typeIndex + 1, cardinalityIndex).toLowerCase();
-            propertyName = header.substring(0, typeIndex);
-        } else if (delimiterIndices.size() == 1) {
-            final int typeIndex = delimiterIndices.pop();
-            type = header.substring(typeIndex + 1).toLowerCase();
-            propertyName = header.substring(0, typeIndex);
-        } else {
-            propertyName = header;
-        }
+        final Map<String, String> propertyInfo = getPropertyInfoFromHeader(header);
+        final String cardinality = propertyInfo.get(PROPERTY_INFO_CARDINALITY);
+        final String type = propertyInfo.get(PROPERTY_INFO_TYPE);
+        final String propertyName = propertyInfo.get(PROPERTY_INFO_NAME);
         if (!VALID_CARDINALITIES.contains(cardinality)) {
             throw new InvalidCsvHeaderException(
                     String.format("Invalid cardinality '%s' detected in property header '%s'. " +
@@ -176,6 +162,37 @@ public abstract class SparkFireflyElement implements Serializable {
                 );
         }
         return new AbstractMap.SimpleEntry<>(propertyName, propertyValue);
+    }
+
+    static protected Map<String, String> getPropertyInfoFromHeader(final String header) {
+        final Map<String, String> propertyInfo = new HashMap<>();
+        final Stack<Integer> delimiterIndices = new Stack<>();
+        final char[] headerArr = header.toCharArray();
+        for (int i = 0; i < headerArr.length; i++) {
+            if (String.valueOf(headerArr[i]).equals(TYPE_DELIMITER)) {
+                delimiterIndices.push(i);
+            }
+        }
+        String cardinality = SINGLE_CARDINALITY;
+        String type = STRING;
+        String propertyName = "";
+        if (delimiterIndices.size() >= 2) {
+            final int cardinalityIndex = delimiterIndices.pop();
+            final int typeIndex = delimiterIndices.pop();
+            cardinality = header.substring(cardinalityIndex + 1).toLowerCase();
+            type = header.substring(typeIndex + 1, cardinalityIndex).toLowerCase();
+            propertyName = header.substring(0, typeIndex);
+        } else if (delimiterIndices.size() == 1) {
+            final int typeIndex = delimiterIndices.pop();
+            type = header.substring(typeIndex + 1).toLowerCase();
+            propertyName = header.substring(0, typeIndex);
+        } else {
+            propertyName = header;
+        }
+        propertyInfo.put(PROPERTY_INFO_NAME, propertyName);
+        propertyInfo.put(PROPERTY_INFO_TYPE, type);
+        propertyInfo.put(PROPERTY_INFO_CARDINALITY, cardinality);
+        return propertyInfo;
     }
 
     abstract protected boolean isVertexProperty(); // Need this later once set cardinality is supported

@@ -17,7 +17,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -680,8 +679,8 @@ public class TestBulkLoaderCallEntryPoint {
             g.V().drop().iterate();
             Assert.assertEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
-            // ~id,~label,test_multi_before_not_after:string(list),test_multi_before_and_after:string(list),test_multi_not_before_but_after:string,test_multi_not_before_not_after:string
-            // 1  ,person,before;not;after                        ,before;and;after                        ,not;before;but;after                  ,not;before;not;after
+            // ~id,~label,test_multi_before_not_after:string:list,test_multi_before_and_after:string:list,test_multi_not_before_but_after:string,test_multi_not_before_not_after:string
+            // 1  ,person,before;not;after                       ,before;and;after                       ,not;before;but;after                  ,not;before;not;after
 
             // ~label,~from,~to,test(list)
             // knows,1,1,foo;bar
@@ -704,8 +703,8 @@ public class TestBulkLoaderCallEntryPoint {
             testProperty(edge, "test", Set.of("foo", "bar"));
 
             // Incremental load next dataset.
-            // ~id,~label,test_multi_before_not_after:string,test_multi_before_and_after:string(list),test_multi_not_before_but_after:string(list),test_multi_not_before_not_after:string
-            // 1  ,person,present                           ,before;baz                              ,not;before;but;after                        ,still;not
+            // ~id,~label,test_multi_before_not_after:string,test_multi_before_and_after:string:list,test_multi_not_before_but_after:string:list,test_multi_not_before_not_after:string
+            // 1  ,person,present                           ,before;baz                             ,not;before;but;after                       ,still;not
             //
             // ~label,~from,~to,test(list)
             // knows,1,1,foo;bar

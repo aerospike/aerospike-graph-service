@@ -60,7 +60,6 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.DiagnosticUtil;
-import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.util.WarmupUtil;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.config.FireflyConfiguration;
@@ -791,7 +790,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         public ComparableVersion getDataModelVersion() {
-            if (this.metadataRecord == null) {
+            if (this.metadataRecord == null || this.metadataRecord.bins.get(DATA_MODEL_VER) == null) {
                 return null;
             } else {
                 return new ComparableVersion(this.metadataRecord.getString(DATA_MODEL_VER));
@@ -799,7 +798,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         public String getDataModelName() {
-            if (this.metadataRecord == null) {
+            if (this.metadataRecord == null || this.metadataRecord.bins.get(DATA_MODEL_NAME) == null) {
                 return null;
             } else {
                 return this.metadataRecord.getString(DATA_MODEL_NAME);

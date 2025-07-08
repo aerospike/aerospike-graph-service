@@ -16,10 +16,13 @@ import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
 import com.aerospike.client.cdt.MapReturnType;
+import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.BatchPolicy;
+import com.aerospike.client.policy.BatchWritePolicy;
+import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
@@ -30,6 +33,8 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection.FireflyRecordSet;
 import com.aerospike.firefly.olap.structure.job.Job;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertexProperty;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import org.javatuples.Pair;
@@ -43,7 +48,12 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
+import static com.aerospike.firefly.util.FireflyHelper.validateAndConvertVertexPropertyValue;
+
 public class DistributedAerospikeConnection {
+    private final FireflyGraph graph;
     private final AerospikeConnection db;
     private final String namespace;
     // used for temporary run-time data for olap
@@ -56,12 +66,13 @@ public class DistributedAerospikeConnection {
     private final String bin = "b";
     private final String secondBin = "b2";
 
-    public DistributedAerospikeConnection(final AerospikeConnection db,
+    public DistributedAerospikeConnection(final FireflyGraph graph,
                                           final String namespace,
                                           final String set,
                                           final long packedElementCount,
                                           final long packSize) {
-        this.db = db;
+        this.graph = graph;
+        this.db = graph.getBaseGraph();
         this.namespace = namespace;
         this.tempSet = set;
         this.packedElementCount = packedElementCount;
@@ -70,14 +81,14 @@ public class DistributedAerospikeConnection {
         createJobIndex();
     }
 
-    public DistributedAerospikeConnection(final AerospikeConnection db,
+    public DistributedAerospikeConnection(final FireflyGraph graph,
                                           final long packedElementCount,
                                           final long packSize) {
-        this(db, db.getNamespace(), db.OLAP_SET, packedElementCount, packSize);
+        this(graph, graph.getBaseGraph().getNamespace(), graph.getBaseGraph().OLAP_SET, packedElementCount, packSize);
     }
 
     public DistributedAerospikeConnection(final FireflyGraph graph) {
-        this(graph.getBaseGraph(), graph.fireflySummaryUpdater.getFireflyStatistics().totalVertexCount(), 10);
+        this(graph, graph.fireflySummaryUpdater.getFireflyStatistics().totalVertexCount(), 10);
     }
 
     private void createJobIndex() {
@@ -396,6 +407,49 @@ public class DistributedAerospikeConnection {
         }
 
         return pairs;
+    }
+
+    // save pageRank results as properties
+    public void setProperty(final Map<FireflyId, Double> values, final String propertyName) {
+        if (values.isEmpty()) {
+            return;
+        }
+
+        final Long schemaVpKey = this.db.schemaManager.getVertexPropertyWrite(propertyName);
+
+        final MapPolicy treeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
+        final MapPolicy hashMapPolicy = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.DEFAULT);
+        final BatchWritePolicy writePolicy = new BatchWritePolicy();
+        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+
+        final List<BatchRecord> batchRecords = new ArrayList<>();
+        for (final Map.Entry<FireflyId, Double> entry : values.entrySet()) {
+            final Key recordKey = getKey(this.db, this.db.VERTEX_AERO_SET, entry.getKey());
+            final FireflyId vertexPropertyId = this.db.getIdFactory().generateId(this.graph, FireflyVertexProperty.class);
+            final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
+            final Object typeHint = getTypeHintOf(entry.getValue(), true);
+            final Object verifiedValue = validateAndConvertVertexPropertyValue(entry.getValue());
+
+            final List<Long> idInList = new ArrayList<>(1);
+            idInList.add(vpIdKey);
+            final Map<Object, List<Long>> valueToIdList = new HashMap<>();
+            valueToIdList.put(verifiedValue, idInList);
+            final Operation writeVpData = MapOperation.put(treeMapPolicy, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(schemaVpKey), Value.get(valueToIdList));
+
+            final Map<Long, Object> idToTypeHint = new HashMap<>();
+            idToTypeHint.put(vpIdKey, typeHint);
+            final Operation writeVpTypeHint = MapOperation.put(hashMapPolicy, this.db.VERTEX_PROPERTY_TH_BIN, Value.get(schemaVpKey), Value.get(idToTypeHint));
+
+            final Map<Long, Map<Long, List<Object>>> idToProperties = new HashMap<>();
+            idToProperties.put(vpIdKey, Collections.emptyMap());
+            final Operation writeVpProperties = MapOperation.put(hashMapPolicy, this.db.VP_PROPERTY_BIN, Value.get(schemaVpKey), Value.get(idToProperties));
+
+            batchRecords.add(new BatchWrite(writePolicy, recordKey, new Operation[]{writeVpData, writeVpTypeHint, writeVpProperties}));
+        }
+
+        final BatchPolicy policy = new BatchPolicy();
+        policy.setMaxConcurrentThreads(2);
+        db.batchOperate(policy, batchRecords);
     }
 
     // jobs methods

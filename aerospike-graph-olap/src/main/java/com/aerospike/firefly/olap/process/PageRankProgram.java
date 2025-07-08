@@ -10,6 +10,7 @@ import com.aerospike.firefly.olap.structure.MutableDetachedVertexProperty;
 import com.aerospike.firefly.process.computer.VertexProgramConfig;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.BaseConfiguration;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
@@ -49,6 +50,8 @@ import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalV
 public class PageRankProgram extends AlgorithmProgram {
     private static final Logger LOGGER = LoggerFactory.getLogger(PageRankProgram.class);
 
+    private static final int BULK_WRITE_SIZE = 100;
+
     // config constants, same as in TinkerPop
     private static final String ALPHA = "gremlin.pageRankVertexProgram.alpha";
     private static final String EPSILON = "gremlin.pageRankVertexProgram.epsilon";
@@ -56,6 +59,8 @@ public class PageRankProgram extends AlgorithmProgram {
     private static final String EDGE_TRAVERSAL = "gremlin.pageRankVertexProgram.edgeTraversal";
     private static final String INITIAL_RANK_TRAVERSAL = "gremlin.pageRankVertexProgram.initialRankTraversal";
     private static final String PROPERTY = "gremlin.pageRankVertexProgram.property";
+
+    private static final String SAVE_RESULTS = "gremlin.pageRankVertexProgram.saveResults";
 
     // vertex properties
     public static final String IN_VERTICES = "~gremlin.pageRankProgram.inVertices";
@@ -65,6 +70,10 @@ public class PageRankProgram extends AlgorithmProgram {
     private static final String VERTEX_COUNT = AerospikeComputeKey.createLong("vertexCount", false);
     private static final String TELEPORTATION_ENERGY = AerospikeComputeKey.createDouble("teleportationEnergy", true);
     private static final String CONVERGENCE_ERROR = AerospikeComputeKey.createDouble("convergenceError", true);
+
+    // VOTE_TO_HALT - end of program on this worker.
+    // VOTE_TO_SAVE_RESULTS - end of computation on this worker, time to save results. Next iteration will be VOTE_TO_HALT.
+    private static final String VOTE_TO_SAVE_RESULTS = "gremlin.traversalVertexProgram.voteToSaveResults";
 
     // todo: not implemented
     private PureTraversal<Vertex, Edge> edgeTraversal = null;
@@ -103,6 +112,34 @@ public class PageRankProgram extends AlgorithmProgram {
         TaskLogger.logDebuggingMessage(info, LOGGER);
 
         TimeLog.complete("PageRankProgram.start");
+        if (memory.<Boolean>get(VOTE_TO_SAVE_RESULTS)) {
+            final List<Object> vertexIds = new ArrayList<>();
+            job.getStarts().forEach(traverser -> {
+                final DetachedVertex vertex = (DetachedVertex) traverser.get();
+                vertexIds.add(vertex.id());
+            });
+
+            final Map<FireflyId, Double> valuesToWrite = new HashMap<>();
+
+            job.getStarts().forEach(traverser -> {
+                final DetachedVertex vertex = (DetachedVertex) traverser.get();
+                valuesToWrite.put(graph.getIdFactory().createVertexId(vertex.id()), vertex.<Double>property(property).value());
+                if (valuesToWrite.size() >= BULK_WRITE_SIZE) {
+                    db.setProperty(valuesToWrite, property);
+                    valuesToWrite.clear();
+                }
+            });
+            // write leftovers for last BatchJob
+            db.setProperty(valuesToWrite, property);
+            valuesToWrite.clear();
+
+            // results might be filtered and returned
+            job.pass();
+            TimeLog.complete("PageRankProgram.results saved to db");
+            return;
+        }
+
+
         if (1 == memory.getIteration()) {
             memory.add(VERTEX_COUNT, (long) job.getStarts().size());
 
@@ -193,7 +230,7 @@ public class PageRankProgram extends AlgorithmProgram {
                 memory.add(TELEPORTATION_ENERGY, pageRank);
             else {
                 writeBatch.put(id, pageRank / outVertexCount);
-                if (writeBatch.size() >= 100) {
+                if (writeBatch.size() >= BULK_WRITE_SIZE) {
                     db.setPackedAccumulatorDouble(writeBatch, memory.getIteration());
                     writeBatch.clear();
                 }
@@ -231,11 +268,25 @@ public class PageRankProgram extends AlgorithmProgram {
 
     @Override
     public boolean terminate(final Memory memory) {
+        // we already saved results, time to terminate
+        if (memory.<Boolean>get(VOTE_TO_SAVE_RESULTS)) {
+            return true;
+        }
+
         boolean terminate = memory.getIteration() >= this.maxIterations
                 // first iteration is setup, so no CONVERGENCE_ERROR
                 || (memory.getIteration() > 1 && memory.<Double>get(CONVERGENCE_ERROR) < this.epsilon);
         // set CONVERGENCE_ERROR for next iteration
         memory.set(CONVERGENCE_ERROR, 0.0d);
+
+        // additional iteration to save results to db
+        if (terminate && (Boolean) optionsStrategy.getOptions().getOrDefault(SAVE_RESULTS, false)
+                && !memory.<Boolean>get(VOTE_TO_SAVE_RESULTS)) {
+            memory.set(VOTE_TO_SAVE_RESULTS, true);
+            return false;
+        }
+
+        memory.set(VOTE_TO_SAVE_RESULTS, false);
         return terminate;
     }
 
@@ -245,6 +296,7 @@ public class PageRankProgram extends AlgorithmProgram {
         memory.set(VERTEX_COUNT, 0L);
         // CONVERGENCE_ERROR used to determine if we need to finish
         memory.set(CONVERGENCE_ERROR, 1.00d);
+        memory.set(VOTE_TO_SAVE_RESULTS, false);
     }
 
     @Override
@@ -263,6 +315,7 @@ public class PageRankProgram extends AlgorithmProgram {
                 MemoryComputeKey.of(VERTEX_COUNT, Operator.sumLong, true, false),
                 MemoryComputeKey.of(CONVERGENCE_ERROR, Operator.sum, false, true),
                 MemoryComputeKey.of(START_STEP, Operator.assign, true, false),
+                MemoryComputeKey.of(VOTE_TO_SAVE_RESULTS, Operator.and, true, false),
                 // todo:
                 MemoryComputeKey.of(HALTED_TRAVERSERS, Operator.addAll, false, false)));
 

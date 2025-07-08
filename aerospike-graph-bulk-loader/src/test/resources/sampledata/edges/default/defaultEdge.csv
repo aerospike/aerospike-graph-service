@@ -1,2 +1,2 @@
-~id,~from,~to,defaultText,defaultNumber,defaultBoolean,invalidType:invalid,nullValue,nullInt:int,nullInList:string(list)
+~id,~from,~to,defaultText,defaultNumber,defaultBoolean,invalidType:invalid,nullValue,nullInt:int,nullInList:string:list
 1,1,1,hello world,17,true,42,null,null,null;secondElement

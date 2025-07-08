@@ -183,4 +183,9 @@ public class SparkFireflyVertex extends SparkFireflyElement {
         }
         return Optional.of(edgeIds);
     }
+
+    @Override
+    protected boolean isVertexProperty() {
+        return true;
+    }
 }

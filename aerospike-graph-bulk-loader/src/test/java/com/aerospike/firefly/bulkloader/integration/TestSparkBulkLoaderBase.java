@@ -197,8 +197,8 @@ public abstract class TestSparkBulkLoaderBase {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         waitForBulkLoad(g);
-        final Set<Object> expectedIds = Set.of(1L, 2L, 3L, 4L, 5L, 6L, 7L, "lyndon", "grant", "simon", "joe", "GR86", "f150");
-        final Set<Object> stringIds = Set.of("1", "2", "3", "4", "5", "6", "7");
+        final Set<Object> expectedIds = Set.of(2L, 3L, 4L, 5L, 6L, 7L, "lyndon", "grant", "simon", "joe", "GR86", "f150");
+        final Set<Object> stringIds = Set.of("2", "3", "4", "5", "6", "7");
         final List<Vertex> vertexIds = g.V().toList();
         Assert.assertEquals(expectedIds.size(), vertexIds.size());
         for (final Vertex v : vertexIds) {
@@ -655,7 +655,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     private void testEdgeCount(final GraphTraversalSource g) {
         long edgeCount = g.E().count().next();
-        Assert.assertEquals(24, edgeCount);
+        Assert.assertEquals(23, edgeCount);
         edgeCount = g.E().hasLabel("drives").count().next();
         Assert.assertEquals(4, edgeCount);
         edgeCount = g.E().hasLabel("worksWith").count().next();

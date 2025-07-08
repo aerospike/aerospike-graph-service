@@ -20,7 +20,8 @@ public abstract class SparkFireflyElement implements Serializable {
 
     private static final String SINGLE_CARDINALITY = "single";
     private static final String LIST_CARDINALITY = "list";
-    private static final Set<String> VALID_CARDINALITIES = Set.of(LIST_CARDINALITY);
+    private static final String SET_CARDINALITY = "set";
+    private static final Set<String> VALID_CARDINALITIES = Set.of(SINGLE_CARDINALITY, LIST_CARDINALITY);
 
     private static final String LONG = "long";
     private static final String INT = "int";

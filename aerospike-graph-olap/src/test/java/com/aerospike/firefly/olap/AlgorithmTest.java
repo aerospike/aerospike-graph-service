@@ -17,6 +17,7 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
@@ -146,6 +147,7 @@ public class AlgorithmTest {
             waitForSummaryUpdate(graph);
 
             List<Map<Object, Object>> output = graph.traversal()
+                    .with("aerospike.graph.olap.debug.df", "true")
                     .withComputer()
                     .V(1, 2, 3).pageRank().with(PageRank.times, 25)
                     .elementMap()
@@ -236,14 +238,36 @@ public class AlgorithmTest {
 
             List<Map<Object, Object>> output = graph.traversal()
                     .withComputer()
+                    //.with("aerospike.graph.olap.temp.write.directory", "c:\\tmp\\")
                     .V().pageRank().order().by(PageRankVertexProgram.PAGE_RANK, Order.desc).limit(3)
                     .elementMap()
                     .toList();
 
-            System.out.println(output);
             assertEquals(3L, output.size());
             assertEquals(3, output.get(0).get(T.id));
             assertEquals(5, output.get(1).get(T.id));
+        }
+    }
+
+    @Test
+    public void testPageRankWithSavingResults() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            final List<Vertex> output = graph.traversal()
+                    .withComputer()
+                    .with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    //.with("aerospike.graph.olap.temp.write.directory", "c:\\tmp\\")
+                    .V().pageRank().with("gremlin.pageRankVertexProgram.saveResults", true)
+                    .toList();
+
+            assertEquals(6L, output.size());
+
+            final Map<Object, Object> v1 = graph.traversal().V(1).elementMap().next();
+            assertEquals(0.113755d, (Double) v1.get(PageRankVertexProgram.PAGE_RANK), 0.00001d);
         }
     }
 
@@ -408,6 +432,23 @@ public class AlgorithmTest {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
+        }
+    }
+
+    @Ignore
+    @Test
+    public void playTest() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            var output = graph.traversal().withComputer()
+                    .with("aerospike.graph.olap.debug.df", "true")
+                    .V().out().order().by("name").limit(2).explain();
+
+            System.out.println(output);
         }
     }
 }

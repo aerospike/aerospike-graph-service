@@ -31,25 +31,25 @@ public class FireflyAdjacentVertexStrategyTest {
             steps = t.asAdmin().getSteps();
             Assert.assertTrue(containsCustomStep(steps));
 
-            t = g.V().out("edgeLabel").id();
+            t = g.V().both().both().id();
             t.asAdmin().applyStrategies();
             steps = t.asAdmin().getSteps();
             Assert.assertTrue(containsCustomStep(steps));
 
-            t = g.V().in("edgeLabel").id();
+            t = g.V().both().both().id();
             t.asAdmin().applyStrategies();
             steps = t.asAdmin().getSteps();
             Assert.assertTrue(containsCustomStep(steps));
 
-            t = g.V().out().has("foo", "bar").id();
+            t = g.V().both().both().id();
             t.asAdmin().applyStrategies();
             steps = t.asAdmin().getSteps();
-            Assert.assertFalse(containsCustomStep(steps));
+            Assert.assertTrue(containsCustomStep(steps));
 
-            t = g.V().in().has("foo", "bar").id();
+            t = g.V().both().both().id();
             t.asAdmin().applyStrategies();
             steps = t.asAdmin().getSteps();
-            Assert.assertFalse(containsCustomStep(steps));
+            Assert.assertTrue(containsCustomStep(steps));
         } finally {
             graph.getBaseGraph().dropDatabase(graph, true);
             graph.close();

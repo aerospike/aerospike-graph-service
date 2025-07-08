@@ -2,6 +2,7 @@ package com.aerospike.firefly.process.traversal.step;
 
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
+import com.aerospike.firefly.process.traversal.step.util.HasContainerHelper;
 import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -39,6 +40,7 @@ import java.util.stream.LongStream;
 public class FireflyBatchEdgeReadSampleLimitStep extends CollectingBarrierStep<Edge> implements LocalBarrier<Edge> {
     private final Direction direction;
     private final Set<String> edgeLabels;
+    private final List<HasContainer> adjustedIdContainers;
     public final List<HasContainer> fireflyHasContainers;
     public final List<HasContainer> aerospikeHasContainers;
     private final long sampleSize;
@@ -50,12 +52,14 @@ public class FireflyBatchEdgeReadSampleLimitStep extends CollectingBarrierStep<E
                                                final String[] edgeLabels,
                                                final Set<String> labels,
                                                final List<HasContainer> hasContainers,
+                                               final List<HasContainer> adjustedIdContainers,
                                                final long sampleSize,
                                                final long limitSize,
                                                final int barrierSize) {
         super(traversal, barrierSize);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
+        this.adjustedIdContainers = HasContainerHelper.convert(adjustedIdContainers, (FireflyGraph) traversal.getGraph().get());
         this.labels = new HashSet<>(labels);
         this.sampleSize = sampleSize;
         this.limitSize = limitSize;
@@ -100,7 +104,7 @@ public class FireflyBatchEdgeReadSampleLimitStep extends CollectingBarrierStep<E
             } else {
                 final FireflyVertex vertex = inputVertices.get(input);
                 TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
-                final Iterator<FireflyId> edgeIdsItty = vertex.getEdgeIdsFromVertex(direction, edgeLabels, aerospikeHasContainers);
+                final Iterator<FireflyId> edgeIdsItty = vertex.getEdgeIdsFromVertex(direction, edgeLabels, aerospikeHasContainers, adjustedIdContainers);
                 final List<FireflyId> edgeIds = new ArrayList<>();
                 while ((limitSize < 0 || totalEdgeIds < limitSize) && edgeIdsItty.hasNext()) {
                     edgeIds.add(edgeIdsItty.next());

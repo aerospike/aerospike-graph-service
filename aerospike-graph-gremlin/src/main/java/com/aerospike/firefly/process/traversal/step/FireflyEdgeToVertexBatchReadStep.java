@@ -37,4 +37,8 @@ public class FireflyEdgeToVertexBatchReadStep extends VertexBatchReadStep {
                 return List.of(edge.outVertexId(), edge.inVertexId());
         }
     }
+
+    public Direction getDirection() {
+        return direction;
+    }
 }

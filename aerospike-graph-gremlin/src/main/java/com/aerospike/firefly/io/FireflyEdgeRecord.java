@@ -2,10 +2,11 @@ package com.aerospike.firefly.io;
 
 import com.aerospike.client.Record;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -119,7 +120,8 @@ public class FireflyEdgeRecord {
 
     public synchronized List<FireflyEdgeId> getIndividualEdgeIdsAttachedToSupernode(final FireflyId supernodeVertexId,
                                                                                     final Direction direction,
-                                                                                    final FireflyId adjacentVertexId) {
+                                                                                    final FireflyId adjacentVertexId,
+                                                                                    final List<HasContainer> adjustedIdContainers) {
         final int adjacentPosition;
         final String supernodeDataMapBinName;
         final Map<Long, String> edgeUniqueIdToVHashIdKey;
@@ -148,7 +150,13 @@ public class FireflyEdgeRecord {
                         (Map<String, Object>) edgeRecord.getMap(supernodeDataMapBinName), direction, true);
                 if (edgeUniqueIdToVHashIdKey.containsKey(edgeId.getUniqueId())) {
                     if (supernodeVertexId.getKeyHashString().equals(edgeUniqueIdToVHashIdKey.get(edgeId.getUniqueId()))) {
-                        if (adjacentVertexId == null) {
+                        if (adjustedIdContainers != null) {
+                            final List<Object> edgeData = this.getEdgeData(edgeId);
+                            final FireflyId vertexId = ((FireflyId) edgeData.get(adjacentPosition));
+                            if (adjustedIdContainers.stream().allMatch(c -> c.test(new ReferenceVertex(vertexId)))) {
+                                attachedEdgeIds.add(edgeId);
+                            }
+                        } else if (adjacentVertexId == null) {
                             attachedEdgeIds.add(edgeId);
                         } else {
                             final List<Object> edgeData = this.getEdgeData(edgeId);
@@ -167,7 +175,7 @@ public class FireflyEdgeRecord {
 
     public List<FireflyEdgeId> getIndividualEdgeIdsAttachedToSupernode(final FireflyId attachedVertex,
                                                                        final Direction direction) {
-        return getIndividualEdgeIdsAttachedToSupernode(attachedVertex, direction, null);
+        return getIndividualEdgeIdsAttachedToSupernode(attachedVertex, direction, null, null);
     }
 
     private void flattenSupernodeEdgeData(final FireflyEdgeId edgeId) {

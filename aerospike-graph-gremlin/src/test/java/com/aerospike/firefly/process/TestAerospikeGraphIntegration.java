@@ -47,7 +47,6 @@ import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.Is;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,7 +84,6 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.V;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.constant;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.in;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.outE;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.properties;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
 import static org.apache.tinkerpop.gremlin.structure.Column.keys;
 import static org.apache.tinkerpop.gremlin.structure.Column.values;
@@ -134,16 +132,28 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         RANDOM_STRING = stringBuilder.toString();
     }
 
-    @Ignore
     @Test
-    public void playTest() {
-        Graph tg = TinkerFactory.createModern();
-        GraphHelper.cloneElements(tg, graph);
-        GraphTraversalSource g = graph.traversal();
+    public void inVoutVBinReadingTest() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final Graph tg = TinkerFactory.createModern();
 
-        var result = g.V().local(outE().count()).toList();
+            GraphHelper.cloneElements(tg, graph);
+            final GraphTraversalSource g = graph.traversal();
 
-        System.out.println(result);
+            final List result1 = g.V(1).bothE().as("a").otherV().hasId(2).inE().elementMap().toList();
+            final List result2 = g.V(1).bothE().otherV().hasId(2).inE().elementMap().toList();
+
+            assertEquals(1, result1.size());
+            assertEquals(result1, result2);
+
+            final List<Edge> edges = g.V(1).both().dedup().outE().has("weight", P.gt(0.7))
+                    .otherV().inE().has("weight", P.gt(0.2)).toList();
+
+            // should return edge between vertices 4 and 5
+            assertEquals(1, edges.size());
+            assertEquals(5, edges.get(0).inVertex().id());
+            assertEquals(4, edges.get(0).outVertex().id());
+        }
     }
 
     @Test

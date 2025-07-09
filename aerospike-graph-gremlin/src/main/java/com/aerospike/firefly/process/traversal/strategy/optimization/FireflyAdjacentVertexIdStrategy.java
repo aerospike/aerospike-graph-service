@@ -54,15 +54,14 @@ public class FireflyAdjacentVertexIdStrategy extends FireflyStrategyBase {
                 continue;
             }
             Set<String> labels = vertexStep.getLabels();
-            index++;
 
             while (labels.isEmpty()) {
-                if (index >= steps.size()) {
+                if (index + 1 >= steps.size()) {
                     break;
                 }
-                if (steps.get(index) instanceof NoOpBarrierStep) {
+                if (steps.get(index + 1) instanceof NoOpBarrierStep) {
                     // Grab any labels and remove the barrier.
-                    final NoOpBarrierStep<?> noOpBarrierStep = (NoOpBarrierStep<?>) steps.get(index);
+                    final NoOpBarrierStep<?> noOpBarrierStep = (NoOpBarrierStep<?>) steps.get(index + 1);
                     labels = noOpBarrierStep.getLabels();
 
                     // If there are labels we cannot place our step in so break.
@@ -71,13 +70,13 @@ public class FireflyAdjacentVertexIdStrategy extends FireflyStrategyBase {
                     }
 
                     // No labels in barrier so we can remove it without impact.
-                    traversal.removeStep(steps.get(index));
-                } else if (steps.get(index) instanceof IdStep) {
+                    traversal.removeStep(steps.get(index + 1));
+                } else if (steps.get(index + 1) instanceof IdStep) {
                     // Grab any labels and remove the identity step.
-                    final IdStep<?> idStep = (IdStep<?>) steps.get(index);
+                    final IdStep<?> idStep = (IdStep<?>) steps.get(index + 1);
                     labels = idStep.getLabels();
                     traversal.removeStep(idStep);
-                    traversal.addStep(index,
+                    traversal.addStep(index + 1,
                             new FireflyAdjacentVertexIdStep(traversal.asAdmin(),
                                     labels,
                                     vertexStep.getDirection(),

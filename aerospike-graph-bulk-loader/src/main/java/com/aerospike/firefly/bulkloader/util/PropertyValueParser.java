@@ -1,7 +1,6 @@
 package com.aerospike.firefly.bulkloader.util;
 
 import java.time.OffsetDateTime;
-import java.util.Base64;
 import java.util.Date;
 
 public class PropertyValueParser {
@@ -49,14 +48,6 @@ public class PropertyValueParser {
         }
 
         return value;
-    }
-
-    public Object parseBlob(final String value) {
-        if (value.equals(this.nullValue)) {
-            return null;
-        }
-
-        return Base64.getDecoder().decode(value);
     }
 
     public Date parseDate(final String value) {

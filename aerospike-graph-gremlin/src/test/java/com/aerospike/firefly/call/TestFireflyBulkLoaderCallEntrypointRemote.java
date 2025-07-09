@@ -46,8 +46,8 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
             g.V().drop().iterate();
             g.E().drop().iterate();
             g.with("evaluationTimeout", 60000).call("aerospike.graphloader.admin.bulk-load.load")
-                    .with("aerospike.graphloader.vertices", "s3://gha-ci-firefly-bulkloader/vertices/")
-                    .with("aerospike.graphloader.edges", "s3://gha-ci-firefly-bulkloader/edges/")
+                    .with("aerospike.graphloader.vertices", "s3://gha-ci-firefly-bulkloader/vertices_ags3/")
+                    .with("aerospike.graphloader.edges", "s3://gha-ci-firefly-bulkloader/edges_ags3/")
                     .with("aerospike.graphloader.remote-user", System.getenv("AWS_ACCESS_KEY_ID"))
                     .with("aerospike.graphloader.remote-passkey", System.getenv("AWS_SECRET_ACCESS_KEY"))
                     .next();
@@ -61,8 +61,8 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
             g.V().drop().iterate();
             g.E().drop().iterate();
             g.with("evaluationTimeout", 60000).call("aerospike.graphloader.admin.bulk-load.load")
-                    .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices/")
-                    .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges/")
+                    .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices_ags3/")
+                    .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges_ags3/")
                     .with("aerospike.graphloader.remote-user", System.getenv("GCS_PRIVATE_KEY_ID"))
                     .with("aerospike.graphloader.remote-passkey", System.getenv("GCS_PRIVATE_KEY"))
                     .with("aerospike.graphloader.gcs-email", System.getenv("GCS_CLIENT_EMAIL"))

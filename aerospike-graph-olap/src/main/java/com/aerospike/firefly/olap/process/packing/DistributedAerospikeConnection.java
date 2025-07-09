@@ -22,6 +22,8 @@ import com.aerospike.client.exp.Expression;
 import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.BatchWritePolicy;
+import com.aerospike.client.policy.QueryDuration;
+import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
@@ -243,13 +245,13 @@ public class DistributedAerospikeConnection {
             final int end = Math.min(vertexIds.size(), i + chunkSize);
             final List<ByteArrayWrapper> chunk = vertexIds.subList(i, end);
 
-            final Key[] keys = chunk.stream().map(k -> getPackedKeyFromId(toString(k.data))).toArray(Key[]::new);
+            final Key[] keys = chunk.stream().map(k -> getPackedKeyFromId(toString(k.getData()))).toArray(Key[]::new);
             final Operation op = Operation.get(binName);
 
             final Record[] records = db.dynamicBatchRead(keys, null, null, op);
 
             for (int j = 0; j < chunk.size(); j++) {
-                final String mapKeyId = toString(chunk.get(j).data);
+                final String mapKeyId = toString(chunk.get(j).getData());
                 try {
                     result.put(chunk.get(j), (double) records[j].getMap(binName).get(mapKeyId));
                 } catch (final Exception e) {
@@ -483,8 +485,11 @@ public class DistributedAerospikeConnection {
         statement.setSetName(jobSet);
         statement.setFilter(Filter.equal("state", "STARTED"));
 
+        final QueryPolicy queryPolicy = new QueryPolicy();
+        queryPolicy.setExpectedDuration(QueryDuration.SHORT);
+
         // active jobs count should be 0-1, so it's ok to write it one by one
-        final FireflyRecordSet recordSet = db.query(null, statement);
+        final FireflyRecordSet recordSet = db.query(queryPolicy, statement);
         for (final KeyRecord keyRecord : recordSet) {
             final Job job = new Job(keyRecord.record);
             job.cancel();
@@ -522,8 +527,10 @@ public class DistributedAerospikeConnection {
         statement.setSetName(jobSet);
         statement.setFilter(Filter.equal("state", "STARTED"));
 
+        final QueryPolicy queryPolicy = new QueryPolicy();
+        queryPolicy.setExpectedDuration(QueryDuration.SHORT);
         // active jobs count should be 0-1
-        final FireflyRecordSet recordSet = db.query(null, statement);
+        final FireflyRecordSet recordSet = db.query(queryPolicy, statement);
         for (final KeyRecord keyRecord : recordSet) {
             return new Job(keyRecord.record);
         }

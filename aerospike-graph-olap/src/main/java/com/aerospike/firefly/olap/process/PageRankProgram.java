@@ -113,12 +113,6 @@ public class PageRankProgram extends AlgorithmProgram {
 
         TimeLog.complete("PageRankProgram.start");
         if (memory.<Boolean>get(VOTE_TO_SAVE_RESULTS)) {
-            final List<Object> vertexIds = new ArrayList<>();
-            job.getStarts().forEach(traverser -> {
-                final DetachedVertex vertex = (DetachedVertex) traverser.get();
-                vertexIds.add(vertex.id());
-            });
-
             final Map<FireflyId, Double> valuesToWrite = new HashMap<>();
 
             job.getStarts().forEach(traverser -> {
@@ -253,7 +247,7 @@ public class PageRankProgram extends AlgorithmProgram {
             return (DetachedVertex) vertex;
 
         TimeLog.complete("PageRankProgram.buildDetached");
-        final List<byte[]> inVertices = ((FireflyVertex)vertex).getConvertedVertexIds(Direction.IN);//getInVertexIds(vertex);
+        final List<byte[]> inVertices = ((FireflyVertex)vertex).getConvertedVertexIds(Direction.IN);
         TimeLog.complete("PageRankProgram.getInVIds");
         final Long outVertexCount = getOutVertexCount(vertex);
         TimeLog.complete("PageRankProgram.getOutVCount");

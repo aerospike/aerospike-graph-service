@@ -3,10 +3,15 @@ package com.aerospike.firefly.olap.process.packing;
 import java.util.Arrays;
 
 public class ByteArrayWrapper {
-    public final byte[] data;
+    private final byte[] data;
+    private Integer hashCode = null;
 
     public ByteArrayWrapper(byte[] data) {
         this.data = data;
+    }
+
+    public byte[] getData() {
+        return data;
     }
 
     @Override
@@ -17,6 +22,10 @@ public class ByteArrayWrapper {
 
     @Override
     public int hashCode() {
-        return Arrays.hashCode(data);
+        if (hashCode == 0) {
+            hashCode = Arrays.hashCode(data);
+        }
+
+        return hashCode;
     }
 }

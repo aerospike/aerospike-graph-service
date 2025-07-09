@@ -353,7 +353,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         LOG.trace("Getting vertex ids from vertex {}.", id);
         final List<FireflyId> cachedIds = getCachedVertexIds(direction, labels);
 
-
         if (isEdgeCacheOverflowed) {
             return FireflyCloseableIteratorUtils.concat(cachedIds.iterator(), getSupernodeVertexIds(direction, labels));
         } else {

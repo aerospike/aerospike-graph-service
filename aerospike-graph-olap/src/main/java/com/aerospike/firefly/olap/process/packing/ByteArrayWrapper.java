@@ -22,7 +22,7 @@ public class ByteArrayWrapper {
 
     @Override
     public int hashCode() {
-        if (hashCode == 0) {
+        if (hashCode == null) {
             hashCode = Arrays.hashCode(data);
         }
 

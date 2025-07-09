@@ -214,16 +214,16 @@ public class DistributedAerospikeConnection {
         return sum;
     }
 
-    public void setPackedAccumulatorDouble(final Map<byte[], Double> vertexEnergy, final int iteration) {
+    public void setPackedAccumulatorDouble(final List<Pair<byte[], Double>> vertexEnergy, final int iteration) {
         if (vertexEnergy.isEmpty()) {
             return;
         }
 
         final List<BatchRecord> batchRecords = new ArrayList<>();
-        for (Map.Entry<byte[], Double> entry : vertexEnergy.entrySet()) {
-            final Key key = getPackedKeyFromId(toString(entry.getKey()));
-            final String mapKeyId = toString(entry.getKey());
-            final Operation put = MapOperation.put(MapPolicy.Default, bin + "_" + iteration, Value.get(mapKeyId), Value.get(entry.getValue()));
+        for (final Pair<byte[], Double> entry : vertexEnergy) {
+            final Key key = getPackedKeyFromId(toString(entry.getValue0()));
+            final String mapKeyId = toString(entry.getValue0());
+            final Operation put = MapOperation.put(MapPolicy.Default, bin + "_" + iteration, Value.get(mapKeyId), Value.get(entry.getValue1()));
             batchRecords.add(new BatchWrite(key, new Operation[]{put}));
         }
 

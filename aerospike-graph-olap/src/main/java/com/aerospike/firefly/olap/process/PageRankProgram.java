@@ -30,6 +30,7 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
+import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -192,7 +193,7 @@ public class PageRankProgram extends AlgorithmProgram {
         TimeLog.complete("PageRankProgram.getCache(iteration>2)");
 
         final double teleportationEnergy = memory.get(TELEPORTATION_ENERGY);
-        final Map<byte[], Double> writeBatch = new HashMap<>();
+        final List<Pair<byte[], Double>> writeBatch = new ArrayList<>();
         job.getStarts().forEach(traverser -> {
             final DetachedVertex vertex = (DetachedVertex) traverser.get();
             final byte[] id = graph.getIdFactory().createVertexId(vertex.id()).getKeyHash();
@@ -223,7 +224,7 @@ public class PageRankProgram extends AlgorithmProgram {
             if (outVertexCount == 0)
                 memory.add(TELEPORTATION_ENERGY, pageRank);
             else {
-                writeBatch.put(id, pageRank / outVertexCount);
+                writeBatch.add(Pair.with(id, pageRank / outVertexCount));
                 if (writeBatch.size() >= BULK_WRITE_SIZE) {
                     db.setPackedAccumulatorDouble(writeBatch, memory.getIteration());
                     writeBatch.clear();

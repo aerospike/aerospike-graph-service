@@ -137,7 +137,7 @@ public class FireflyBatchReadHelper {
                     // Element was not found due to a predicate filter type mismatch.
                     continue;
                 }
-                count += output.bulkSize();
+                count++;
                 output.add(info.traverser.split(element, notThat));
             }
         }

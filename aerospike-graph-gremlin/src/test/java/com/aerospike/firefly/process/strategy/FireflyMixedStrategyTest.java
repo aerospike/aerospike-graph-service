@@ -379,6 +379,96 @@ public class FireflyMixedStrategyTest {
     }
 
     @Test
+    public void testFuzz() {
+        final Random random = new Random();
+        for (int i = 0; i < 100; i++) {
+            final List<List<Pair<List<Class<?>>, Consumer<GraphTraversal<?, ?>>>>> pairs = List.of(VERTEX_FUZZY_STRATEGY,
+                    OTHERV_FUZZY_STRATEGY, INV_OUTV_BOTHV_FUZZY_STRATEGY, EDGE_FUZZY_STRATEGY);
+            final GraphTraversal t = graph.traversal().V();
+            final List<Class> expectSteps = new ArrayList<>();
+            expectSteps.add(FireflyGraphStep.class);
+            final int stepsToAdd = random.nextInt(10);
+            for (int j = 0; j < stepsToAdd; j++) {
+                final int randomIdx = random.nextInt(pairs.size());
+                switch (randomIdx) {
+                    case 0: {
+                        final int randomVertexIdx = random.nextInt(3);
+                        switch (randomVertexIdx) {
+                            case 0:
+                                t.in();
+                                break;
+                            case 1:
+                                t.out();
+                                break;
+                            case 2:
+                                t.both();
+                                break;
+                        }
+                        final int randomVertexStep = random.nextInt(VERTEX_FUZZY_STRATEGY.size());
+                        final Pair<List<Class<?>>, Consumer<GraphTraversal<?, ?>>> pair = VERTEX_FUZZY_STRATEGY.get(randomVertexStep);
+                        expectSteps.addAll(pair.first);
+                        pair.second.accept(t);
+                        break;
+                    }
+                    case 1: {
+                        final int randomOtherVIdx = random.nextInt(OTHERV_FUZZY_STRATEGY.size());
+                        final Pair<List<Class<?>>, Consumer<GraphTraversal<?, ?>>> pair = OTHERV_FUZZY_STRATEGY.get(randomOtherVIdx);
+                        switch (random.nextInt(3)) {
+                            case 0:
+                                t.inV();
+                                break;
+                            case 1:
+                                t.outV();
+                                break;
+                            case 2:
+                                t.otherV();
+                                break;
+                        }
+                        expectSteps.addAll(pair.first);
+                        pair.second.accept(t);
+                        break;
+                    }
+                    case 2: {
+                        final int randomInvOutvBothvIdx = random.nextInt(INV_OUTV_BOTHV_FUZZY_STRATEGY.size());
+                        final Pair<List<Class<?>>, Consumer<GraphTraversal<?, ?>>> pair = INV_OUTV_BOTHV_FUZZY_STRATEGY.get(randomInvOutvBothvIdx);
+                        switch (random.nextInt(3)) {
+                            case 0:
+                                t.inV();
+                                break;
+                            case 1:
+                                t.outV();
+                                break;
+                            case 2:
+                                t.bothV();
+                                break;
+                        }
+                        expectSteps.addAll(pair.first);
+                        pair.second.accept(t);
+                        break;
+                    }
+                    case 3:
+                        final int randomEdgeIdx = random.nextInt(EDGE_FUZZY_STRATEGY.size());
+                        final Pair<List<Class<?>>, Consumer<GraphTraversal<?, ?>>> pair = EDGE_FUZZY_STRATEGY.get(randomEdgeIdx);
+                        switch (random.nextInt(3)) {
+                            case 0:
+                                t.inE();
+                                break;
+                            case 1:
+                                t.outE();
+                                break;
+                            case 2:
+                                t.bothE();
+                                break;
+                        }
+                        expectSteps.addAll(pair.first);
+                        pair.second.accept(t);
+                        break;
+                }
+            }
+        }
+    }
+
+    @Test
     public void testStrategyFuzzingVertexStepHasStep() {
         final Random random = new Random();
         for (int i = 0; i < 100; i++) {

@@ -8,13 +8,12 @@ import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.EdgeOtherVertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
-import org.apache.tinkerpop.gremlin.structure.T;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -51,6 +50,7 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
             Set<String> labels = original.getLabels();
 
             final boolean areEdgesRequired = areEdgesRequired(traversal, steps, index);
+            long limitSize = -1;
 
             // there is one more following step, may be filter?
             while (labels.isEmpty()) {
@@ -66,20 +66,23 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
                     // Grab has containers and push them down.
                     final HasStep<?> hasStep = (HasStep<?>) steps.get(index + 1);
                     hasContainers = hasStep.getHasContainers();
-
-                    // No support for pushdown of primary key check at this time.
-                    // This isn't really a useful pushdown anyway.
-                    if (hasContainers.stream().map(HasContainer::getKey).noneMatch(key -> key.equals(T.id.getAccessor()))) {
-                        labels = hasStep.getLabels();
-                        traversal.removeStep(hasStep);
-
-                        // Cannot use sample strategy after HasStep at this time so break.
-                        break;
-                    } else {
-                        hasContainers = new ArrayList<>();
+                    labels = hasStep.getLabels();
+                    traversal.removeStep(steps.get(index + 1));
+                } else if (steps.get(index + 1) instanceof RangeGlobalStep) {
+                    if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY) {
                         break;
                     }
-                } else {
+                    final long low = ((RangeGlobalStep<?>) steps.get(index)).getLowRange();
+                    final long high = ((RangeGlobalStep<?>) steps.get(index)).getHighRange();
+
+                    if (low != 0) {
+                        break;
+                    }
+
+                    // Get the limit size.
+                    limitSize = high;
+                    break; // if there's has containers after limit we shouldnt push it down.
+                }else {
                     // Unknown step, break.
                     break;
                 }
@@ -98,7 +101,8 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
                         hasContainers,
                         labels,
                         graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
-                        areEdgesRequired);
+                        areEdgesRequired,
+                        limitSize);
             }
 
             TraversalHelper.replaceStep(original, optimizedStep, traversal);

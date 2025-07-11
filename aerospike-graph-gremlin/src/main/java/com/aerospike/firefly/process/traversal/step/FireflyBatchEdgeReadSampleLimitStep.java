@@ -71,7 +71,7 @@ public class FireflyBatchEdgeReadSampleLimitStep extends CollectingBarrierStep<E
             //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
             //  matter what.
             fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
-            aerospikeHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
+            aerospikeHasContainers = List.of();
         } else {
             fireflyHasContainers = List.of();
             aerospikeHasContainers = List.of();

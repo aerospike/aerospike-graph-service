@@ -95,10 +95,14 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                     hasContainers = ((HasStep) steps.get(index)).getHasContainers();
                     labels = steps.get(index).getLabels();
                     traversal.removeStep(steps.get(index));
-                    break;
                 } else if (steps.get(index) instanceof TraversalFilterStep) {
                     final Traversal.Admin filterTraversal = ((TraversalFilterStep) steps.get(index)).getFilterTraversal();
                     final List<Step> filterSteps = filterTraversal.getSteps();
+
+                    // Check for labels that need to be propagated.
+                    if (!((TraversalFilterStep<?>) steps.get(index)).getLabels().isEmpty()) {
+                        labels = ((TraversalFilterStep<?>) steps.get(index)).getLabels();
+                    }
 
                     // we support only __.otherV().hasId(<id2) pattern
                     // following if's can be combined into one, but good luck reading that.
@@ -168,6 +172,7 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                             labels.clear();
                         }
                         traversal.addStep(index, step);
+                        break;
                     } catch (final NoSuchFieldException | IllegalAccessException ignored) {
                         // Failed to get sample size, just ignore it.
                     }
@@ -187,6 +192,8 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                         break;
                     }
 
+                    // label propagation is not required for limit step b/c it is not removed.
+
                     // Get the limit size.
                     limitSize = high;
 
@@ -199,7 +206,7 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                 }
             }
 
-            if (limitSize != -1 || sampleSize != -1) {
+            if ((limitSize != -1 || sampleSize != -1) && (hasContainers == null || hasContainers.isEmpty())) {
                 traversal.addStep(index, new FireflyBatchEdgeReadSampleLimitStep(
                         traversal,
                         vertexStep.getDirection(),
@@ -218,7 +225,13 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                         labels,
                         hasContainers,
                         adjustedIdContainers,
-                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE));
+                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
+                        limitSize));
+                if (sampleSize != -1) {
+                    // If we have a sample size, we need to add a limit step after the batch edge read step.
+                    final SampleGlobalStep<?> step = new SampleGlobalStep<>(traversal.asAdmin(), sampleSize);
+                    traversal.addStep(index + 1, step);
+                }
             }
         }
     }

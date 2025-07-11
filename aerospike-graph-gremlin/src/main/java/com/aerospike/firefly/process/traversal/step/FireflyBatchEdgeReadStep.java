@@ -54,6 +54,8 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
     public final List<HasContainer> aerospikeHasContainers;
     private final int barrierSize;
     private final int threads;
+    private final long limit;
+    private long runningTotal = 0;
 
     public FireflyBatchEdgeReadStep(final Traversal.Admin traversal,
                                     final Direction direction,
@@ -61,7 +63,8 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                                     final Set<String> labels,
                                     final List<HasContainer> hasContainers,
                                     final List<HasContainer> adjustedIdContainers,
-                                    final int barrierSize) {
+                                    final int barrierSize,
+                                    final long limit) {
         super(traversal, barrierSize);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
@@ -75,13 +78,14 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
             //  matter what.
             fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
-            aerospikeHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
+            aerospikeHasContainers = List.of();
         } else {
             fireflyHasContainers = List.of();
             aerospikeHasContainers = List.of();
         }
         final Optional<Integer> threads = getTraversalOptionInteger(ConfigurationHelper.TraversalOptions.PARALLELIZE, traversal, 1, Integer.MAX_VALUE);
         this.threads = threads.orElse(-1);
+        this.limit = limit;
     }
 
     private void parallelBarrierConsumer(final TraverserSet<Edge> set) {
@@ -198,6 +202,10 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             parallelBarrierConsumer(set);
             return;
         }
+        if (limit != -1 && runningTotal >= limit) {
+            set.add(EmptyTraverser.instance());
+            return; // Limit reached in previous barrier consumer, stop processing.
+        }
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         FireflyBatchReadHelper.pullFromLeft(traversal, graph, set, barrierSize);
 
@@ -243,8 +251,17 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 // Drain data to output. No need to pass in aerospikeHasContainers since they were used to filter Edge IDs already.
-                FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
+                runningTotal += FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                         fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, output, graph::readEdges, null, true);
+                if (limit != -1 && runningTotal >= limit) {
+                    if (output.isEmpty()) {
+                        set.add(EmptyTraverser.instance());
+                    } else {
+                        set.addAll(output);
+                        output.clear(); // Force garbage collection.
+                    }
+                    return; // Limit reached, stop processing.
+                }
             }
         }
 

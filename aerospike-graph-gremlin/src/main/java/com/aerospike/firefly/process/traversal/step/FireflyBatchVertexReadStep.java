@@ -59,6 +59,8 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
     private final int barrierSize;
     private final List<String> requiredProperties;
     private final int threads;
+    private final long limit;
+    private long runningTotal = 0;
 
     public FireflyBatchVertexReadStep(final Traversal.Admin traversal,
                                       final Direction direction,
@@ -67,7 +69,8 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                                       final List<HasContainer> hasContainers,
                                       final int barrierSize,
                                       final List<String> requiredProperties,
-                                      final boolean areEdgesRequired) {
+                                      final boolean areEdgesRequired,
+                                      final long limit) {
         super(traversal, barrierSize);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
@@ -98,6 +101,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
         this.requiredProperties = requiredProperties;
         final Optional<Integer> threads = getTraversalOptionInteger(ConfigurationHelper.TraversalOptions.PARALLELIZE, traversal, 1, Integer.MAX_VALUE);
         this.threads = threads.orElse(-1);
+        this.limit = limit;
     }
 
     public void parallelBarrierConsumer(final TraverserSet<Vertex> set) {
@@ -248,6 +252,10 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
             parallelBarrierConsumer(set);
             return;
         }
+        if (limit != -1 && runningTotal >= limit) {
+            set.add(EmptyTraverser.instance());
+            return; // Limit reached in previous barrier consumer, stop processing.
+        }
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         FireflyBatchReadHelper.pullFromLeft(traversal, graph, set, barrierSize);
 
@@ -287,13 +295,21 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
             // Calculate how many ids were added by the function (size of list - previous size).
             // Create composite id info with this value and the appropriate traverser to the info list.
             fireflyCompositeIdStepInfos.add(new FireflyBatchReadHelper.ReadStepInfo<>(traverser, fireflyIdList.size() - previousSize));
-
             // If we reach or exceed batch size then execute so we don't use too much memory at any given point. Also drain if list size gets very big.
             if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 // Drain data to output.
-                FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
+                runningTotal += FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                         fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties, areEdgesRequired);
+                if (limit > 0 && runningTotal >= limit) {
+                    if (output.isEmpty()) {
+                        set.add(EmptyTraverser.instance());
+                    } else {
+                        set.addAll(output);
+                        output.clear(); // Force garbage collection.
+                    }
+                    return; // Limit reached, stop processing.
+                }
             }
         }
 

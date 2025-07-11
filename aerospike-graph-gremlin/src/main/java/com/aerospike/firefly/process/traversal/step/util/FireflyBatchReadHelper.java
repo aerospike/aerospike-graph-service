@@ -90,7 +90,7 @@ public class FireflyBatchReadHelper {
         }
     }
 
-    public static <E extends FireflyElement, T extends Element> void drainDataToOutput(final Step<T, T> notThat,
+    public static <E extends FireflyElement, T extends Element> long drainDataToOutput(final Step<T, T> notThat,
                                                                                        final List<FireflyId> fireflyIdList,
                                                                                        final Set<FireflyId> uniqueIdSet,
                                                                                        final Map<FireflyId, E> elementMap,
@@ -119,6 +119,7 @@ public class FireflyBatchReadHelper {
 
         // Loop through the info list and assign the appropriate number of vertices to each traverser using the info.
         int i = 0;
+        long count = 0;
         for (final ReadStepInfo<T> info : readInfo) {
             for (int j = 0; j < info.size; j++) {
                 // Create a new traverser with the edge and add it to the output set using the split.
@@ -135,6 +136,7 @@ public class FireflyBatchReadHelper {
                     // Element was not found due to a predicate filter type mismatch.
                     continue;
                 }
+                count += output.bulkSize();
                 output.add(info.traverser.split(element, notThat));
             }
         }
@@ -143,6 +145,7 @@ public class FireflyBatchReadHelper {
         fireflyIdList.clear();
         uniqueIdSet.clear();
         readInfo.clear();
+        return count;
     }
 
     public static <E extends FireflyElement, T extends Element> void drainDataToCache(

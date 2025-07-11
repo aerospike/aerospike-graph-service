@@ -85,6 +85,10 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         }
         final Optional<Integer> threads = getTraversalOptionInteger(ConfigurationHelper.TraversalOptions.PARALLELIZE, traversal, 1, Integer.MAX_VALUE);
         this.threads = threads.orElse(-1);
+        System.out.println("FireflyBatchEdgeReadStep created hasContainers: " + fireflyHasContainers.size() +
+                ", aerospikeHasContainers: " + aerospikeHasContainers.size() +
+                ", labels: " + labels.size() +
+                ", barrierSize: " + barrierSize);
         this.limit = limit;
     }
 
@@ -203,7 +207,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             return;
         }
         if (limit != -1 && runningTotal >= limit) {
-            set.add(EmptyTraverser.instance());
+            set.clear();
             return; // Limit reached in previous barrier consumer, stop processing.
         }
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
@@ -253,6 +257,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                 // Drain data to output. No need to pass in aerospikeHasContainers since they were used to filter Edge IDs already.
                 runningTotal += FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                         fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, output, graph::readEdges, null, true);
+                System.out.println("Added " + runningTotal + " edges so far.");
                 if (limit != -1 && runningTotal >= limit) {
                     if (output.isEmpty()) {
                         set.add(EmptyTraverser.instance());
@@ -266,9 +271,10 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         }
 
         // Drain data to output. No need to pass in aerospikeHasContainers since they were used to filter Edge IDs already.
-        FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
+        runningTotal += FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                 fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, output, graph::readEdges, null, true);
 
+        System.out.println("Added " + runningTotal + " edges so far.");
         if (output.isEmpty()) {
             set.add(EmptyTraverser.instance());
         } else {

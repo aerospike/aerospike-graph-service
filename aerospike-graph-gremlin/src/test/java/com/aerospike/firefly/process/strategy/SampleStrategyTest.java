@@ -340,7 +340,7 @@ public class SampleStrategyTest {
             final GraphTraversal<Vertex, Vertex> traversalOutHasLimit = g.V().out().has("foo", "bar").limit(1);
             traversalOutHasLimit.asAdmin().applyStrategies();
             List<Step> stepsOutHasLimit = traversalOutHasLimit.asAdmin().getSteps();
-            assertStepsLimit(stepsOutHasLimit, true, false, true);
+            assertStepsLimit(stepsOutHasLimit, false, true, true);
 
             final GraphTraversal<Vertex, Vertex> traversalHasOutLimit = g.V().out().limit(1).has("foo", "bar");
             traversalHasOutLimit.asAdmin().applyStrategies();
@@ -355,7 +355,7 @@ public class SampleStrategyTest {
             final GraphTraversal<Vertex, Vertex> traversalInHasLimit = g.V().in().has("foo", "bar").limit(1);
             traversalInHasLimit.asAdmin().applyStrategies();
             List<Step> stepsInHasLimit = traversalInHasLimit.asAdmin().getSteps();
-            assertStepsLimit(stepsInHasLimit, true, false, true);
+            assertStepsLimit(stepsInHasLimit, false, true, true);
 
             final GraphTraversal<Vertex, Vertex> traversalHasInLimit = g.V().in().limit(1).has("foo", "bar");
             traversalHasInLimit.asAdmin().applyStrategies();

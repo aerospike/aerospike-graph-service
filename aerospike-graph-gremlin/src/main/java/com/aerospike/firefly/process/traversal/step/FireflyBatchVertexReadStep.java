@@ -248,12 +248,17 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
 
     @Override
     public void barrierConsumer(final TraverserSet<Vertex> set) {
+        if (runningTotal == 0) {
+            System.out.println("VertexBatchReadStep barrierConsumer called first time");
+        } else {
+            System.out.println("VertexBatchReadStep barrierConsumer called again, runningTotal: " + runningTotal);
+        }
         if (threads != -1) {
             parallelBarrierConsumer(set);
             return;
         }
         if (limit != -1 && runningTotal >= limit) {
-            set.add(EmptyTraverser.instance());
+            set.clear();
             return; // Limit reached in previous barrier consumer, stop processing.
         }
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
@@ -301,6 +306,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                 // Drain data to output.
                 runningTotal += FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                         fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties, areEdgesRequired);
+                System.out.println("Added " + runningTotal + " outV so far.");
                 if (limit > 0 && runningTotal >= limit) {
                     if (output.isEmpty()) {
                         set.add(EmptyTraverser.instance());
@@ -308,14 +314,16 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                         set.addAll(output);
                         output.clear(); // Force garbage collection.
                     }
+                    System.out.println("Limit reached: " + runningTotal);
                     return; // Limit reached, stop processing.
                 }
             }
         }
-
+        // Final Traversal                            [FireflyGraphStep(vertex,SCAN,[code.eq(SFO)]), FireflyBatchVertexReadStep(OUT,[route],1000), PathFilterStep(simple,null,null), FireflyBatchVertexReadStep(IN,[route],1000), FireflyBatchVertexReadStep(IN,[route],1000), FireflyBatchVertexReadStep(IN,[route],1000), FireflyBatchVertexReadStep(OUT,[route],1000), PathFilterStep(simple,null,null), FireflyBatchVertexReadStep(IN,[route],1000), FireflyBatchVertexReadStep(IN,[route],1000), FireflyBatchVertexReadSampleLimitStep(IN,[route],1000), RangeGlobalStep(0,3), PathStep([value(code)])]
         // Drain data to output.
-        FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
+        runningTotal += FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                 fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties, areEdgesRequired);
+        System.out.println("Added " + runningTotal + " outV at end.");
 
         if (output.isEmpty()) {
             set.add(EmptyTraverser.instance());

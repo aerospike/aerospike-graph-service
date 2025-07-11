@@ -19,6 +19,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.SampleGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.EarlyLimitStrategy;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -45,11 +46,11 @@ public class FireflyMixedStrategyTest {
                     t -> t.has("name", "foo").id()
             ),
             new Pair<>(
-                    List.of(FireflyBatchVertexReadSampleLimitStep.class, RangeGlobalStep.class, IdStep.class),
+                    List.of(FireflyAdjacentVertexIdStep.class, RangeGlobalStep.class),
                     t -> t.limit(5).id()
             ),
             new Pair<>(
-                    List.of(FireflyBatchVertexReadSampleLimitStep.class, RangeGlobalStep.class, IdStep.class),
+                    List.of(FireflyAdjacentVertexIdStep.class, SampleGlobalStep.class),
                     t -> t.sample(5).id()
             ),
             new Pair<>(
@@ -595,7 +596,8 @@ public class FireflyMixedStrategyTest {
     public void testStrategyFuzzingOtherVHasStep() {
         final Random random = new Random();
         for (int i = 0; i < 100; i++) {
-            final GraphTraversal t = graph.traversal().V();
+            // Early limit switches g.V().otherV().limit(5) to g.V().limit(5).otherV() which causes our predictiosn to be wrong, even tho it is an invalid query anyway...
+            final GraphTraversal t = graph.traversal().withoutStrategies(EarlyLimitStrategy.class).V();
             final List<Class> expectSteps = new ArrayList<>();
             expectSteps.add(FireflyGraphStep.class);
             final int stepsToAdd = random.nextInt(2);
@@ -618,7 +620,8 @@ public class FireflyMixedStrategyTest {
             }
         }
         for (int i = 0; i < 100; i++) {
-            final GraphTraversal t = graph.traversal().V();
+            // Early limit switches g.V().otherV().limit(5) to g.V().limit(5).otherV() which causes our predictiosn to be wrong, even tho it is an invalid query anyway...
+            final GraphTraversal t = graph.traversal().withoutStrategies(EarlyLimitStrategy.class).V();
             final List<Class> expectSteps = new ArrayList<>();
             expectSteps.add(FireflyGraphStep.class);
             final int stepsToAdd = random.nextInt(5);

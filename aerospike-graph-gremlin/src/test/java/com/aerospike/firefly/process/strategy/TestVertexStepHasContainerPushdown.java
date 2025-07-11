@@ -165,8 +165,9 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
                 Assert.assertFalse(found);
 
                 found = true;
+                // Edges do not support pushdown of Aerospike containers.
                 final FireflyBatchEdgeReadStep batchEdgeReadStep = (FireflyBatchEdgeReadStep) step;
-                Assert.assertEquals(2, batchEdgeReadStep.aerospikeHasContainers.size());
+                Assert.assertEquals(0, batchEdgeReadStep.aerospikeHasContainers.size());
                 Assert.assertEquals(2, batchEdgeReadStep.fireflyHasContainers.size());
             } else if (found) {
                 // Expect all Has step to not be pulled into batch edge read.
@@ -234,7 +235,7 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
 
                 found = true;
                 final FireflyBatchEdgeReadStep batchEdgeReadStep = (FireflyBatchEdgeReadStep) step;
-                Assert.assertEquals(1, batchEdgeReadStep.aerospikeHasContainers.size());
+                Assert.assertEquals(0, batchEdgeReadStep.aerospikeHasContainers.size());
                 Assert.assertEquals(2, batchEdgeReadStep.fireflyHasContainers.size());
             } else if (found) {
                 // Expect all Has step to not be pulled into batch edge read.

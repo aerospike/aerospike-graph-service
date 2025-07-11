@@ -26,6 +26,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.time.OffsetDateTime;
@@ -284,6 +285,8 @@ public class FireflyBatchReadHelper {
             } else if (String.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
                     !supportedStringPredicates.contains(hasContainer.getBiPredicate())) {
                 // Else if the HasContainer predicate is for a string type but is not supported.
+                hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
+            } else if (hasContainer.getKey().equals(T.id.getAccessor())) {
                 hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
             } else {
                 // Else the HasContainer predicate is supported.

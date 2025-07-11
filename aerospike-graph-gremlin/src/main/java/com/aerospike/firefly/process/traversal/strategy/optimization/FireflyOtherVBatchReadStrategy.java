@@ -72,8 +72,8 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
                     if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY) {
                         break;
                     }
-                    final long low = ((RangeGlobalStep<?>) steps.get(index)).getLowRange();
-                    final long high = ((RangeGlobalStep<?>) steps.get(index)).getHighRange();
+                    final long low = ((RangeGlobalStep<?>) steps.get(index + 1)).getLowRange();
+                    final long high = ((RangeGlobalStep<?>) steps.get(index + 1)).getHighRange();
 
                     if (low != 0) {
                         break;
@@ -81,8 +81,8 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
 
                     // Get the limit size.
                     limitSize = high;
-                    break; // if there's has containers after limit we shouldnt push it down.
-                }else {
+                    break; // if there's has containers after limit we shouldn't push it down.
+                } else {
                     // Unknown step, break.
                     break;
                 }

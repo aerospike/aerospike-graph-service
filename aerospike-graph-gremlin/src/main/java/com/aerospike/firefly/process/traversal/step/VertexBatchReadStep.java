@@ -67,11 +67,6 @@ public abstract class VertexBatchReadStep extends CollectingBarrierStep<Edge> im
 
     @Override
     public void barrierConsumer(final TraverserSet<Edge> set) {
-        if (runningTotal == 0) {
-            System.out.println("VertexBatchReadStep barrierConsumer called first time");
-        } else {
-            System.out.println("VertexBatchReadStep barrierConsumer called again, runningTotal: " + runningTotal);
-        }
         if (limit != -1 && runningTotal >= limit) {
             set.clear();
             return; // Limit reached in previous barrier consumer, stop processing.
@@ -108,8 +103,6 @@ public abstract class VertexBatchReadStep extends CollectingBarrierStep<Edge> im
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 runningTotal += FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                         fireflyVertexMap, fireflyBatchEdgeReadStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, null, areEdgesRequired);
-
-                System.out.println("Added " + runningTotal + " otherV so far.");
                 if (limit != -1 && runningTotal >= limit) {
                     if (output.isEmpty()) {
                         set.add(EmptyTraverser.instance());
@@ -124,7 +117,6 @@ public abstract class VertexBatchReadStep extends CollectingBarrierStep<Edge> im
 
         runningTotal += FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                 fireflyVertexMap, fireflyBatchEdgeReadStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, null, areEdgesRequired);
-        System.out.println("Added " + runningTotal + " otherV so far.");
 
         if (output.isEmpty()) {
             set.add(EmptyTraverser.instance());

@@ -301,7 +301,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                 // Drain data to output.
                 runningTotal += FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                         fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties, areEdgesRequired);
-                if (limit > 0 && runningTotal >= limit) {
+                if (limit != 0 && runningTotal >= limit) {
                     if (output.isEmpty()) {
                         set.add(EmptyTraverser.instance());
                     } else {

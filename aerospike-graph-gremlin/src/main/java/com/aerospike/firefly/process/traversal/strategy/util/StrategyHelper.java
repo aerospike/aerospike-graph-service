@@ -1,7 +1,14 @@
 package com.aerospike.firefly.process.traversal.strategy.util;
 
+import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadSampleLimitStep;
+import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchVertexReadSampleLimitStep;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchVertexReadStep;
+import com.aerospike.firefly.process.traversal.step.FireflyEdgeToVertexBatchReadStep;
+import com.aerospike.firefly.process.traversal.step.FireflyOtherVBatchReadStep;
+import com.aerospike.firefly.process.traversal.step.computer.FireflyBatchEdgeReadStepLocal;
+import com.aerospike.firefly.process.traversal.step.computer.FireflyBatchVertexReadStepLocal;
+import com.aerospike.firefly.process.traversal.step.computer.FireflyOtherVBatchReadStepLocal;
 import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalLocalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -32,7 +39,14 @@ public class StrategyHelper {
             if (steps.get(i) instanceof VertexStep || steps.get(i) instanceof EdgeVertexStep
                     || steps.get(i) instanceof FireflyCountGlobalLocalStep
                     || steps.get(i) instanceof FireflyBatchVertexReadStep
+                    || steps.get(i) instanceof FireflyBatchVertexReadStepLocal
                     || steps.get(i) instanceof FireflyBatchVertexReadSampleLimitStep
+                    || steps.get(i) instanceof FireflyBatchEdgeReadStep
+                    || steps.get(i) instanceof FireflyBatchEdgeReadStepLocal
+                    || steps.get(i) instanceof FireflyBatchEdgeReadSampleLimitStep
+                    || steps.get(i) instanceof FireflyOtherVBatchReadStep
+                    || steps.get(i) instanceof FireflyOtherVBatchReadStepLocal
+                    || steps.get(i) instanceof FireflyEdgeToVertexBatchReadStep
                     // let's play as safe as possible with repeat step
                     || steps.get(i) instanceof RepeatStep.RepeatEndStep ) {
                 return true;

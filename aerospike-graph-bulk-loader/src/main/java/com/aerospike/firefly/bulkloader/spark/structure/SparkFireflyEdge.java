@@ -119,4 +119,9 @@ public class SparkFireflyEdge extends SparkFireflyElement {
     public Object getOutVertexId() {
         return this.fromVertexId;
     }
+
+    @Override
+    protected boolean isVertexProperty() {
+        return false;
+    }
 }

@@ -378,7 +378,7 @@ public class DistributedGraphComputer implements GraphComputer {
     // Some hardcore stuff.
     ////
     private ComputerResult submitJob() {
-        final DistributedAerospikeConnection db = new DistributedAerospikeConnection(graph.getBaseGraph(), 0, 0);
+        final DistributedAerospikeConnection db = new DistributedAerospikeConnection(graph, 0, 0);
         final String jobId = UUID.randomUUID().toString();
 
         try {

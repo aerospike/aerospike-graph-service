@@ -723,6 +723,10 @@ jobs:
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=TestAdminCallHttp -DfailIfNoTests=false --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflySindexCallSteps -DfailIfNoTests=false --no-transfer-progress
+      - name: Test Compression Flag Docker Network
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeNetwork -DfailIfNoTests=false --no-transfer-progress
   test-firefly:
     name: Test Firefly
     timeout-minutes: 120

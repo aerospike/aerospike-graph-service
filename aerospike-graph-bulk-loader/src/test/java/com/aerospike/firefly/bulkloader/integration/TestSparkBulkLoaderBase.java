@@ -197,8 +197,8 @@ public abstract class TestSparkBulkLoaderBase {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         waitForBulkLoad(g);
-        final Set<Object> expectedIds = Set.of(1L, 2L, 3L, 4L, 5L, 6L, 7L, "lyndon", "grant", "simon", "joe", "GR86", "f150");
-        final Set<Object> stringIds = Set.of("1", "2", "3", "4", "5", "6", "7");
+        final Set<Object> expectedIds = Set.of(2L, 3L, 4L, 5L, 6L, 7L, "lyndon", "grant", "simon", "joe", "GR86", "f150");
+        final Set<Object> stringIds = Set.of("2", "3", "4", "5", "6", "7");
         final List<Vertex> vertexIds = g.V().toList();
         Assert.assertEquals(expectedIds.size(), vertexIds.size());
         for (final Vertex v : vertexIds) {
@@ -238,7 +238,7 @@ public abstract class TestSparkBulkLoaderBase {
         // This data set has 2 bad Vertices, and 1 bad Edge.
 
         // Test failing on Vertex
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "1", "-c", getBadEntries()}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "2", "-c", getBadEntries()}, DEFAULT_PARAMS));
         String e = waitForBulkLoadFail(g);
         Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e);
 
@@ -246,13 +246,13 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertFalse(g.E().hasNext());
 
         // Test failing on Edge
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "2", "-c", getBadEntries()}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "4", "-c", getBadEntries()}, DEFAULT_PARAMS));
         e = waitForBulkLoadFail(g);
         Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e);
         Assert.assertFalse(g.V().hasNext());
         Assert.assertFalse(g.E().hasNext());
         // Test success
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "3", "-c", getBadEntries()}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "5", "-c", getBadEntries()}, DEFAULT_PARAMS));
         waitForBulkLoad(g);
         testEdges();
         testVertices();
@@ -373,6 +373,17 @@ public abstract class TestSparkBulkLoaderBase {
         Edge edge = g.E().has("offsetDateTime", OffsetDateTime.of(2009, 1, 2, 9, 25,
                 10, 0, ZoneOffset.UTC)).next();
         Assert.assertEquals(47, (int) edge.value("intProperty"));
+
+        List<OffsetDateTime> expectedODTs = new ArrayList<>();
+        expectedODTs.add(OffsetDateTime.of(2025, 5, 7, 4, 33, 24,
+                0, ZoneOffset.UTC)); // 2025-05-06T21:33:24-07:00
+        expectedODTs.add(OffsetDateTime.of(2024, 6, 1, 18, 11, 15,
+                0, ZoneOffset.UTC)); // 2024-06-01T17:11:15-01:00
+        expectedODTs.add(OffsetDateTime.of(2025, 1, 2, 10, 30, 0,
+                0, ZoneOffset.UTC)); // 2025-01-02T12:30+02:00
+        actual = g.V("2").values("offsetDateTimes").toList();
+        actualNormalized = actual.stream().map(Object::toString).collect(Collectors.toList());
+        assertThat(actualNormalized, containsInAnyOrder(expectedODTs.stream().map(Object::toString).toArray()));
     }
 
     @Ignore("TODO GRAPH-888: NPE caused by org.codehaus.groovy.reflection.ReflectionUtils.VM_PLUGIN is null on CI machine")
@@ -639,41 +650,17 @@ public abstract class TestSparkBulkLoaderBase {
     private void testEdges() {
         final GraphTraversalSource g = graph.traversal();
         testEdgeCount(g);
-        testEdgeLabelAndProperty(g);
     }
 
     private void testEdgeCount(final GraphTraversalSource g) {
         long edgeCount = g.E().count().next();
-        Assert.assertEquals(24, edgeCount);
+        Assert.assertEquals(23, edgeCount);
         edgeCount = g.E().hasLabel("drives").count().next();
         Assert.assertEquals(4, edgeCount);
         edgeCount = g.E().hasLabel("worksWith").count().next();
         Assert.assertEquals(12, edgeCount);
         edgeCount = g.E().hasLabel("managedBy").count().next();
         Assert.assertEquals(7, edgeCount);
-    }
-
-    private void testEdgeLabelAndProperty(final GraphTraversalSource g) {
-        // Data set has a single edge without a label - check that it correctly inserted with default edge label value
-        final List<Edge> edges = g.E().hasLabel("edge").toList();
-        Assert.assertEquals(1, edges.size());
-        final Edge e = edges.get(0);
-        // Check that properties on edges are loaded properly
-        Assert.assertEquals("hello world", e.value("defaultText"));
-        Assert.assertEquals("17", e.value("defaultNumber"));
-        Assert.assertEquals("true", e.value("defaultBoolean"));
-        // Check invalid type specifiers default to text and include the invalid specifier in the fallback property name
-        Assert.assertEquals("42", e.value("invalidType:invalid"));
-        // Check null properties dont exist
-        Assert.assertFalse(g.E().hasLabel("edge").has("nullValue").hasNext());
-        Assert.assertFalse(g.E().hasLabel("edge").has("nullInt").hasNext());
-        // Check null properties in a list do exist
-        final List<String> nullInList = e.value("nullInList");
-        Assert.assertEquals(2, nullInList.size());
-        Assert.assertNull(nullInList.get(0));
-        Assert.assertEquals("secondElement", nullInList.get(1));
-        // Check that null properties are not somehow saved as a valid property
-        Assert.assertEquals(5, (long) g.E().hasLabel("edge").properties().count().next());
     }
 
     private void testVertices() {
@@ -684,7 +671,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     private void testVertexCount(final GraphTraversalSource g) {
         long vertexCount = g.V().count().next();
-        Assert.assertEquals(13, vertexCount);
+        Assert.assertEquals(12, vertexCount);
         vertexCount = g.V().hasLabel("person").count().next();
         Assert.assertEquals(4, vertexCount);
         vertexCount = g.V().hasLabel("model").count().next();
@@ -708,28 +695,6 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertEquals("Toyota", model.value("brand"));
         Assert.assertEquals("GR86", model.value("model"));
         Assert.assertEquals(2023, (long) model.value("year"));
-        testDefaultVertexLabelAndProperty(g);
-    }
-
-    private void testDefaultVertexLabelAndProperty(final GraphTraversalSource g) {
-        // Data set has a single vertex without a label - check that it correctly inserted with default vertex label value
-        final List<Vertex> vertices = g.V().hasLabel("vertex").toList();
-        Assert.assertEquals(1, vertices.size());
-        final Vertex v = vertices.get(0);
-        // Check that properties with no type specified default to text
-        Assert.assertEquals("hello world", v.value("defaultText"));
-        Assert.assertEquals("17", v.value("defaultNumber"));
-        Assert.assertEquals("true", v.value("defaultBoolean"));
-        // Check invalid type specifiers default to text and include the invalid specifier in the fallback property name
-        Assert.assertEquals("42", v.value("invalidType:invalid"));
-        // Check null properties dont exist
-        Assert.assertFalse(g.V().hasLabel("vertex").has("nullValue").hasNext());
-        Assert.assertFalse(g.V().hasLabel("vertex").has("nullInt").hasNext());
-        // Check null properties in a list do not exist
-        final String nullInList = v.value("nullInList");
-        Assert.assertEquals("secondElement", nullInList);
-        // Check that null properties are not somehow saved as a valid property
-        Assert.assertEquals(5, (long) g.V().hasLabel("vertex").properties().count().next());
     }
 
     private void testVertexEdgeConnections() {

@@ -147,6 +147,9 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                     if (!graph.getBaseGraph().ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY) {
                         break;
                     }
+                    // If there's has containers (g.V().out().has( ...).limit(X)) then don't push down the limit.
+                    if (hasContainers != null && !hasContainers.isEmpty())
+                        break;
                     try {
                         // The sample size is private, need to use reflection to get it so the compiler doesn't complain.
                         final Field sampleField = SampleGlobalStep.class.getDeclaredField("amountToSample");
@@ -207,13 +210,12 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                     break;
                 }
             }
-            if (sampleSize != -1 || limitSize != -1) {
+            if ((sampleSize != -1 || limitSize != -1) && (hasContainers == null || hasContainers.isEmpty())) {
                 traversal.addStep(index, new FireflyBatchVertexReadSampleLimitStep(
                         traversal,
                         vertexStep.getDirection(),
                         vertexStep.getEdgeLabels(),
                         labels,
-                        hasContainers,
                         sampleSize,
                         limitSize,
                         graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
@@ -228,7 +230,12 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                         hasContainers,
                         graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
                         propertyKeys,
-                        areEdgesRequired));
+                        areEdgesRequired,
+                        limitSize));
+                if (sampleSize != -1) {
+                    // Need to force sampling
+                    traversal.addStep(index + 1, new SampleGlobalStep<>(traversal.asAdmin(), sampleSize));
+                }
             }
         }
     }

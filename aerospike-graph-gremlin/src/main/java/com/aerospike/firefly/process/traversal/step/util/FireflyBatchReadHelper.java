@@ -26,6 +26,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.time.OffsetDateTime;
@@ -90,7 +91,7 @@ public class FireflyBatchReadHelper {
         }
     }
 
-    public static <E extends FireflyElement, T extends Element> void drainDataToOutput(final Step<T, T> notThat,
+    public static <E extends FireflyElement, T extends Element> long drainDataToOutput(final Step<T, T> notThat,
                                                                                        final List<FireflyId> fireflyIdList,
                                                                                        final Set<FireflyId> uniqueIdSet,
                                                                                        final Map<FireflyId, E> elementMap,
@@ -119,6 +120,7 @@ public class FireflyBatchReadHelper {
 
         // Loop through the info list and assign the appropriate number of vertices to each traverser using the info.
         int i = 0;
+        long count = 0;
         for (final ReadStepInfo<T> info : readInfo) {
             for (int j = 0; j < info.size; j++) {
                 // Create a new traverser with the edge and add it to the output set using the split.
@@ -135,6 +137,7 @@ public class FireflyBatchReadHelper {
                     // Element was not found due to a predicate filter type mismatch.
                     continue;
                 }
+                count++;
                 output.add(info.traverser.split(element, notThat));
             }
         }
@@ -143,6 +146,7 @@ public class FireflyBatchReadHelper {
         fireflyIdList.clear();
         uniqueIdSet.clear();
         readInfo.clear();
+        return count;
     }
 
     public static <E extends FireflyElement, T extends Element> void drainDataToCache(
@@ -281,6 +285,8 @@ public class FireflyBatchReadHelper {
             } else if (String.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
                     !supportedStringPredicates.contains(hasContainer.getBiPredicate())) {
                 // Else if the HasContainer predicate is for a string type but is not supported.
+                hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
+            } else if (hasContainer.getKey().equals(T.id.getAccessor())) {
                 hasContainersWithCardinality.add(new FireflyGraphStep.HasContainerWithCardinality(hasContainer, false));
             } else {
                 // Else the HasContainer predicate is supported.

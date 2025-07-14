@@ -6,6 +6,8 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.SampleGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
@@ -54,6 +56,7 @@ public class FireflyAdjacentVertexIdStrategy extends FireflyStrategyBase {
                 continue;
             }
             Set<String> labels = vertexStep.getLabels();
+            Step limitSampleStep = null;
 
             while (labels.isEmpty()) {
                 if (index + 1 >= steps.size()) {
@@ -71,11 +74,24 @@ public class FireflyAdjacentVertexIdStrategy extends FireflyStrategyBase {
 
                     // No labels in barrier so we can remove it without impact.
                     traversal.removeStep(steps.get(index + 1));
+                } else if (steps.get(index + 1) instanceof RangeGlobalStep || steps.get(index + 1) instanceof SampleGlobalStep) {
+                    limitSampleStep = steps.get(index + 1);
+                    // If there's a limit or sample step after the vertex step, we can skip past (assuming no labels).
+                    final Set<String> nextLabels = limitSampleStep.getLabels();
+                    if (nextLabels != null && !nextLabels.isEmpty()) {
+                        break;
+                    }
+                    index++;
                 } else if (steps.get(index + 1) instanceof IdStep) {
                     // Grab any labels and remove the identity step.
                     final IdStep<?> idStep = (IdStep<?>) steps.get(index + 1);
                     labels = idStep.getLabels();
                     traversal.removeStep(idStep);
+                    if (limitSampleStep != null) {
+                        // g.V().out().id().limit(10) becomes g.V().out().limit(10).id()
+                        // due to early limit strategy
+                        index--;
+                    }
                     traversal.addStep(index + 1,
                             new FireflyAdjacentVertexIdStep(traversal.asAdmin(),
                                     labels,

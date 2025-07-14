@@ -40,9 +40,6 @@ import java.util.stream.LongStream;
 public class FireflyBatchEdgeReadSampleLimitStep extends CollectingBarrierStep<Edge> implements LocalBarrier<Edge> {
     private final Direction direction;
     private final Set<String> edgeLabels;
-    private final List<HasContainer> adjustedIdContainers;
-    public final List<HasContainer> fireflyHasContainers;
-    public final List<HasContainer> aerospikeHasContainers;
     private final long sampleSize;
     private final long limitSize;
     private final int barrierSize;
@@ -51,31 +48,16 @@ public class FireflyBatchEdgeReadSampleLimitStep extends CollectingBarrierStep<E
                                                final Direction direction,
                                                final String[] edgeLabels,
                                                final Set<String> labels,
-                                               final List<HasContainer> hasContainers,
-                                               final List<HasContainer> adjustedIdContainers,
                                                final long sampleSize,
                                                final long limitSize,
                                                final int barrierSize) {
         super(traversal, barrierSize);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
-        this.adjustedIdContainers = HasContainerHelper.convert(adjustedIdContainers, (FireflyGraph) traversal.getGraph().get());
         this.labels = new HashSet<>(labels);
         this.sampleSize = sampleSize;
         this.limitSize = limitSize;
         this.barrierSize = barrierSize;
-        if (hasContainers != null) {
-            final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
-                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Edge.class, hasContainers);
-            // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
-            //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
-            //  matter what.
-            fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
-            aerospikeHasContainers = List.of();
-        } else {
-            fireflyHasContainers = List.of();
-            aerospikeHasContainers = List.of();
-        }
     }
 
     @Override
@@ -104,7 +86,7 @@ public class FireflyBatchEdgeReadSampleLimitStep extends CollectingBarrierStep<E
             } else {
                 final FireflyVertex vertex = inputVertices.get(input);
                 TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
-                final Iterator<FireflyId> edgeIdsItty = vertex.getEdgeIdsFromVertex(direction, edgeLabels, aerospikeHasContainers, adjustedIdContainers);
+                final Iterator<FireflyId> edgeIdsItty = vertex.getEdgeIdsFromVertex(direction, edgeLabels, List.of(), List.of());
                 final List<FireflyId> edgeIds = new ArrayList<>();
                 while ((limitSize < 0 || totalEdgeIds < limitSize) && edgeIdsItty.hasNext()) {
                     edgeIds.add(edgeIdsItty.next());
@@ -163,7 +145,7 @@ public class FireflyBatchEdgeReadSampleLimitStep extends CollectingBarrierStep<E
 
         // Read the sampled edges.
         final Map<FireflyId, FireflyEdge> edgeMap = new HashMap<>();
-        FireflyBatchReadHelper.populateElementMap(new HashSet<>(sampledVertexIds), edgeMap, aerospikeHasContainers, graph::readEdges, null, true);
+        FireflyBatchReadHelper.populateElementMap(new HashSet<>(sampledVertexIds), edgeMap, List.of(), graph::readEdges, null, true);
 
         // Create list of random indices to sample and order them in ascending order so we can iterate through them.
         final List<Long> randomIndicesList = new ArrayList<>(randomIndices);

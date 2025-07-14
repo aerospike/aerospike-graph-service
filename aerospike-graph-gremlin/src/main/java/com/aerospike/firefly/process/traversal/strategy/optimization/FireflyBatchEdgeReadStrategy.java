@@ -212,8 +212,6 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                         vertexStep.getDirection(),
                         vertexStep.getEdgeLabels(),
                         labels,
-                        hasContainers,
-                        adjustedIdContainers,
                         sampleSize,
                         limitSize,
                         graph.getBaseGraph().MOVEMENT_BARRIER_SIZE));

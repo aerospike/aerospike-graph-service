@@ -226,12 +226,12 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     }
 
     public Iterator<FireflyId> getEdgeIdsFromVertex(final Direction direction, final Set<String> labels,
-                                                    final List<HasContainer> hasContainers, final List<HasContainer> adjustedIdContainers) {
+                                                    final List<HasContainer> supernodeContainers, final List<HasContainer> adjustedIdContainers) {
         LOG.trace("Getting edge ids from vertex {}.", id);
         final List<FireflyId> cachedIds = getCachedEdgeIds(direction, labels, adjustedIdContainers);
 
         if (isEdgeCacheOverflowed) {
-            return FireflyCloseableIteratorUtils.concat(cachedIds.iterator(), getSupernodeEdgeIds(direction, labels, hasContainers, adjustedIdContainers));
+            return FireflyCloseableIteratorUtils.concat(cachedIds.iterator(), getSupernodeEdgeIds(direction, labels, supernodeContainers, adjustedIdContainers));
         } else {
             return cachedIds.iterator();
         }

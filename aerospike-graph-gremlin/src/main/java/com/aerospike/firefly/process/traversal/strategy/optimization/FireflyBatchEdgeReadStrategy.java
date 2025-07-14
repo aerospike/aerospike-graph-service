@@ -206,7 +206,8 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                 }
             }
 
-            if ((limitSize != -1 || sampleSize != -1) && (hasContainers == null || hasContainers.isEmpty())) {
+            boolean hasPushdown = hasContainers != null && !hasContainers.isEmpty() || adjustedIdContainers != null && !adjustedIdContainers.isEmpty();
+            if ((limitSize != -1 || sampleSize != -1) && !hasPushdown) {
                 traversal.addStep(index, new FireflyBatchEdgeReadSampleLimitStep(
                         traversal,
                         vertexStep.getDirection(),

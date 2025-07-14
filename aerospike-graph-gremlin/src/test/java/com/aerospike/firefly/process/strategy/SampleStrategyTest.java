@@ -269,7 +269,7 @@ public class SampleStrategyTest {
             final GraphTraversal<Vertex, Vertex> traversalOutHasSample = g.V().out().has("foo", "bar").sample(1);
             traversalOutHasSample.asAdmin().applyStrategies();
             List<Step> stepsOutHasSample = traversalOutHasSample.asAdmin().getSteps();
-            assertStepsSample(stepsOutHasSample, true, false, true);
+            assertStepsSample(stepsOutHasSample, false, true, true);
 
             final GraphTraversal<Vertex, Vertex> traversalHasOutSample = g.V().out().sample(1).has("foo", "bar");
             traversalHasOutSample.asAdmin().applyStrategies();
@@ -284,7 +284,7 @@ public class SampleStrategyTest {
             final GraphTraversal<Vertex, Vertex> traversalInHasSample = g.V().in().has("foo", "bar").sample(1);
             traversalInHasSample.asAdmin().applyStrategies();
             List<Step> stepsInHasSample = traversalInHasSample.asAdmin().getSteps();
-            assertStepsSample(stepsInHasSample, true, false, true);
+            assertStepsSample(stepsInHasSample, false, true, true);
 
             final GraphTraversal<Vertex, Vertex> traversalHasInSample = g.V().in().sample(1).has("foo", "bar");
             traversalHasInSample.asAdmin().applyStrategies();
@@ -421,9 +421,10 @@ public class SampleStrategyTest {
             Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
         } else if (!sampleFirst) {
             if (!isVertex) {
-                Assert.assertEquals(3, steps.size());
-                // Graph step, limit step, has step
+                Assert.assertEquals(4, steps.size());
+                // Graph step, batch edge read step, sample, limit
                 Assert.assertTrue(steps.get(2) instanceof SampleGlobalStep);
+                Assert.assertTrue(steps.get(3) instanceof RangeGlobalStep);
             } else {
                 Assert.assertEquals(3, steps.size());
                 // Graph step, composite id step, limit step, has step

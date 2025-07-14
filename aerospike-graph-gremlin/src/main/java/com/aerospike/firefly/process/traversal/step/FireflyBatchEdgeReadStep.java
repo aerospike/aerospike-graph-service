@@ -51,7 +51,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
     private final Set<String> edgeLabels;
     private final List<HasContainer> adjustedIdContainers;
     public final List<HasContainer> fireflyHasContainers;
-    public final List<HasContainer> aerospikeHasContainers;
+    public final List<HasContainer> supernodeContainers;
     private final int barrierSize;
     private final int threads;
     private final long limit;
@@ -78,10 +78,10 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
             //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
             //  matter what.
             fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
-            aerospikeHasContainers = List.of();
+            supernodeContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
         } else {
             fireflyHasContainers = List.of();
-            aerospikeHasContainers = List.of();
+            supernodeContainers = List.of();
         }
         final Optional<Integer> threads = getTraversalOptionInteger(ConfigurationHelper.TraversalOptions.PARALLELIZE, traversal, 1, Integer.MAX_VALUE);
         this.threads = threads.orElse(-1);
@@ -116,14 +116,14 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                 if (!futures.containsKey(vertex)) {
                     futures.put(vertex, executorService.submit(() -> {
                         final List<FireflyId> ids = new ArrayList<>();
-                        vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, ids, aerospikeHasContainers, fireflyEdgeMap);
+                        vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, ids, supernodeContainers, fireflyEdgeMap);
                         return ids;
                     }));
                 }
             } else {
                 if (!duplicateIdMap.containsKey(vertex) || duplicateIdMap.get(vertex) == null) {
                     final List<FireflyId> ids = new ArrayList<>();
-                    vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, ids, aerospikeHasContainers, adjustedIdContainers);
+                    vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, ids, supernodeContainers, adjustedIdContainers);
                     duplicateIdMap.put(vertex, ids);
                 }
             }
@@ -232,7 +232,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                 fireflyIdList.addAll(duplicateIdMap.get(vertex));
             } else {
                 final List<FireflyId> ids = new ArrayList<>();
-                vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, ids, aerospikeHasContainers, adjustedIdContainers);
+                vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, ids, supernodeContainers, adjustedIdContainers);
                 duplicateIdMap.put(vertex, ids);
                 fireflyIdList.addAll(ids);
             }

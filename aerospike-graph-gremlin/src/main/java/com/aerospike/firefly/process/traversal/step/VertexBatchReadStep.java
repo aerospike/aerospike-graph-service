@@ -58,10 +58,6 @@ public abstract class VertexBatchReadStep extends CollectingBarrierStep<Edge> im
             fireflyHasContainers = List.of();
             aerospikeHasContainers = List.of();
         }
-        System.out.println("VertexBatchReadStep created hasContainers: " + fireflyHasContainers.size() +
-                ", aerospikeHasContainers: " + aerospikeHasContainers.size() +
-                ", labels: " + labels.size() +
-                ", barrierSize: " + barrierSize);
         this.limit = limit;
     }
 

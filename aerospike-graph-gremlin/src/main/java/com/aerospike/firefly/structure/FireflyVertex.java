@@ -245,7 +245,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      * @return Iterator of all edge ids.
      */
     public List<FireflyId> getBatchedEdgeIdsFromVertex(final Direction direction, final Set<String> labels, final List<FireflyId> edgeIdContainer,
-                                                       final List<HasContainer> hasContainers, final List<HasContainer> adjustedIdContainers) {
+                                                       final List<HasContainer> supernodeHasContainers, final List<HasContainer> adjustedIdContainers) {
         LOG.trace("Getting edge ids from vertex {}.", id);
         final List<FireflyId> edgeIds;
         if (edgeIdContainer == null) {
@@ -257,7 +257,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         edgeIds.addAll(getCachedEdgeIds(direction, labels, adjustedIdContainers));
 
         if (isEdgeCacheOverflowed) {
-            final Iterator<FireflyId> superNodeEdgeIds = getSupernodeEdgeIds(direction, labels, hasContainers, adjustedIdContainers);
+            final Iterator<FireflyId> superNodeEdgeIds = getSupernodeEdgeIds(direction, labels, supernodeHasContainers, adjustedIdContainers);
             superNodeEdgeIds.forEachRemaining(edgeIds::add);
         }
 
@@ -272,7 +272,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      * @return Iterator of all edge ids.
      */
     public List<FireflyId> getBatchedEdgeIdsFromVertex(final Direction direction, final Set<String> labels, final List<FireflyId> edgeIdContainer,
-                                                       final List<HasContainer> hasContainers, final Map<FireflyId, FireflyEdge> edgeCache) {
+                                                       final List<HasContainer> supernodeContainers, final Map<FireflyId, FireflyEdge> edgeCache) {
         LOG.trace("Getting edge ids from vertex {}.", id);
         final List<FireflyId> edgeIds;
         if (edgeIdContainer == null) {
@@ -285,13 +285,13 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         if (edgeCache != null) {
             final List<FireflyEdge> edges = graph.readEdges(Collections.emptyList(), edgeIds, null);
             for (final FireflyEdge edge : edges) {
-                if (fireflyTestAll(edge, hasContainers)) {
+                if (fireflyTestAll(edge, supernodeContainers)) {
                     edgeCache.put(edge.id, edge);
                 }
             }
         }
         if (isEdgeCacheOverflowed) {
-            final Iterator<FireflyId> superNodeEdgeIds = getSupernodeEdgeIds(direction, labels, hasContainers, edgeCache);
+            final Iterator<FireflyId> superNodeEdgeIds = getSupernodeEdgeIds(direction, labels, supernodeContainers, edgeCache);
             superNodeEdgeIds.forEachRemaining(edgeIds::add);
         }
 

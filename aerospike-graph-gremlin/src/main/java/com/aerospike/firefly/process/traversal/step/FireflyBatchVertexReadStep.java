@@ -312,7 +312,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                 }
             }
         }
-        // Final Traversal                            [FireflyGraphStep(vertex,SCAN,[code.eq(SFO)]), FireflyBatchVertexReadStep(OUT,[route],1000), PathFilterStep(simple,null,null), FireflyBatchVertexReadStep(IN,[route],1000), FireflyBatchVertexReadStep(IN,[route],1000), FireflyBatchVertexReadStep(IN,[route],1000), FireflyBatchVertexReadStep(OUT,[route],1000), PathFilterStep(simple,null,null), FireflyBatchVertexReadStep(IN,[route],1000), FireflyBatchVertexReadStep(IN,[route],1000), FireflyBatchVertexReadSampleLimitStep(IN,[route],1000), RangeGlobalStep(0,3), PathStep([value(code)])]
+
         // Drain data to output.
         runningTotal += FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                 fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties, areEdgesRequired);

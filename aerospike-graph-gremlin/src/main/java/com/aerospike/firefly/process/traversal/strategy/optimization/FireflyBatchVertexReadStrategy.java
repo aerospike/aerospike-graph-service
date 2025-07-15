@@ -10,12 +10,13 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.SampleGlobalStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.ElementMapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertiesStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyMapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -24,13 +25,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.areEdgesRequired;
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.getPropertyKeys;
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.isPropertyRemovalValid;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
-
-    private static final Class[] INVALIDATING_STEP_CLASSES_ARRAY = INVALIDATING_STEP_CLASSES.toArray(new Class[]{});
 
     /**
      * Default constructor for FireflyCompositeEdgeIdStrategy.
@@ -68,7 +69,7 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                 continue;
             }
 
-            final boolean propertyRemovalValid = !TraversalHelper.hasStepOfClass(traversal, INVALIDATING_STEP_CLASSES_ARRAY);
+            final boolean propertyRemovalValid = isPropertyRemovalValid(traversal);
 
             // Replace vertex step with composite id step.
             traversal.removeStep(vertexStep);
@@ -96,21 +97,23 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                     final NoOpBarrierStep<?> noOpBarrierStep = (NoOpBarrierStep<?>) steps.get(index);
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
-                } else if (steps.get(index) instanceof PropertiesStep) {
+                } else if (steps.get(index) instanceof PropertiesStep || steps.get(index) instanceof PropertyMapStep
+                        || steps.get(index) instanceof ElementMapStep) {
                     if (traversal.isRoot() && propertyRemovalValid) {
-                        // Grab any labels and remove the properties step.
-                        final PropertiesStep<?> propertiesStep = (PropertiesStep<?>) steps.get(index);
-                        final String[] propertyKeyArray = propertiesStep.getPropertyKeys();
+                        final String[] propertyKeyArray = getPropertyKeys(steps.get(index));
                         if (propertyKeyArray == null || propertyKeyArray.length == 0) {
                             break;
                         }
-                        propertyKeys = new ArrayList<>();
+                        // hasStep can add something
+                        if (propertyKeys == null) {
+                            propertyKeys = new ArrayList<>();
+                        }
                         for (final String propertyKey : propertyKeyArray) {
                             if (!propertyKeys.contains(propertyKey)) {
                                 propertyKeys.add(propertyKey);
                             }
                         }
-                        labels = propertiesStep.getLabels();
+                        labels = steps.get(index).getLabels();
                     }
                     break;
                 } else if (steps.get(index) instanceof IdStep) {

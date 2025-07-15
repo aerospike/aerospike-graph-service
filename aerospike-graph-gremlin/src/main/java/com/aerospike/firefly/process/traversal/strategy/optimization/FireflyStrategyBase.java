@@ -5,16 +5,8 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
-import org.apache.tinkerpop.gremlin.process.traversal.step.LambdaHolder;
-import org.apache.tinkerpop.gremlin.process.traversal.step.filter.PathFilterStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.PathStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.TreeStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.TreeSideEffectStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Set;
 
 import static com.aerospike.firefly.process.traversal.strategy.util.FireflyStrategyUtil.STRATEGY_ORDER;
@@ -25,8 +17,7 @@ import static com.aerospike.firefly.process.traversal.strategy.util.FireflyStrat
 public abstract class FireflyStrategyBase extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy>
         implements TraversalStrategy.ProviderOptimizationStrategy {
 
-    protected static final Set<Class> INVALIDATING_STEP_CLASSES = new HashSet<>(Arrays.asList(
-            PathStep.class, PathFilterStep.class, TreeStep.class, TreeSideEffectStep.class, LambdaHolder.class));
+
 
     /**
      * Default constructor for FireflyStrategyBase.
@@ -75,13 +66,9 @@ public abstract class FireflyStrategyBase extends AbstractTraversalStrategy<Trav
     protected void reset() {
     }
 
-    protected boolean isPropertyRemovalValid(final Traversal.Admin<?, ?> traversal) {
-        final Traversal.Admin<?, ?> root = TraversalHelper.getRootTraversal(traversal);
-        return !TraversalHelper.hasStepOfAssignableClassRecursively(INVALIDATING_STEP_CLASSES, root);
-    }
-
     /**
      * Wrapper to ensure that only enabled Firefly Strategies are invoked.
+     *
      * @param traversal
      */
     @Override

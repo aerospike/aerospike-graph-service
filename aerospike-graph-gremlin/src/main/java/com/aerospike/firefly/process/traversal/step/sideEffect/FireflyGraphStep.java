@@ -100,6 +100,10 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         this.properties = new ArrayList<>(properties);
     }
 
+    public List<String> getProperties() {
+        return this.properties;
+    }
+
     /**
      * Get an iterator of all the edges, with filter if filter is applied
      * if index is available for the filter, use the index to fill the iterator

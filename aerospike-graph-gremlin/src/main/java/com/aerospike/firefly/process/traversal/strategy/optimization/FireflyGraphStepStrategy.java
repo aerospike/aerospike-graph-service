@@ -1,21 +1,26 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.ElementMapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertiesStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyMapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.getPropertyKeys;
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.isPropertyRemovalValid;
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.isVertexOrEdgeStep;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -56,12 +61,13 @@ public class FireflyGraphStepStrategy extends FireflyStrategyBase {
                     final List<String> properties = new ArrayList<>();
                     fireflyGraphStep.getHasContainers().forEach(hasContainer -> properties.add(hasContainer.getKey()));
                     fireflyGraphStep.addProperties(properties);
-                } else if (currentStep instanceof PropertiesStep) {
-                    final PropertiesStep<?> propertiesStep = (PropertiesStep<?>) currentStep;
-                    if (propertiesStep.getPropertyKeys().length != 0) {
+                } else if (currentStep instanceof PropertiesStep || currentStep instanceof PropertyMapStep
+                        || currentStep instanceof ElementMapStep) {
+
+                    final String[] propertyKeys = getPropertyKeys(currentStep);
+                    if (propertyKeys.length != 0) {
                         final List<String> properties = new ArrayList<>();
                         fireflyGraphStep.getHasContainers().forEach(hasContainer -> properties.add(hasContainer.getKey()));
-                        final String[] propertyKeys = propertiesStep.getPropertyKeys();
                         for (final String propertyKey : propertyKeys) {
                             if (!properties.contains(propertyKey)) {
                                 properties.add(propertyKey);
@@ -69,6 +75,10 @@ public class FireflyGraphStepStrategy extends FireflyStrategyBase {
                         }
                         fireflyGraphStep.addProperties(properties);
                     }
+                } else if(isVertexOrEdgeStep(currentStep)) {
+                    final List<String> properties = new ArrayList<>();
+                    fireflyGraphStep.getHasContainers().forEach(hasContainer -> properties.add(hasContainer.getKey()));
+                    fireflyGraphStep.addProperties(properties);
                 }
             }
         }

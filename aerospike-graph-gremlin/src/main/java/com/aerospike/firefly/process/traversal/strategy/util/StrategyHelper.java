@@ -12,16 +12,42 @@ import com.aerospike.firefly.process.traversal.step.computer.FireflyOtherVBatchR
 import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalLocalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.step.LambdaHolder;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.RepeatStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.PathFilterStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.EdgeVertexStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.ElementMapStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.ElementStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.FormatStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MathStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.PathStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertiesStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyMapStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.TreeStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.TreeSideEffectStep;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class StrategyHelper {
+    private static final Set<Class> STEPS_REQUIRING_PROPERTIES = new HashSet<>(Arrays.asList(
+            PathStep.class, PathFilterStep.class, TreeStep.class, TreeSideEffectStep.class, LambdaHolder.class,
+            ElementStep.class, MathStep.class, FormatStep.class));
+
+    private static final Class[] STEPS_REQUIRING_PROPERTIES_ARRAY = STEPS_REQUIRING_PROPERTIES.toArray(new Class[]{});
+
+    // always for first step
+    public static boolean isPropertyRemovalValid(final Traversal.Admin<?, ?> traversal) {
+        final Traversal.Admin<?, ?> root = TraversalHelper.getRootTraversal(traversal);
+        return !TraversalHelper.hasStepOfAssignableClassRecursively(STEPS_REQUIRING_PROPERTIES, root);
+    }
+
     public static boolean areEdgesRequired(final Traversal.Admin<?, ?> traversal, final List<Step> steps, final int startIndex) {
         if (traversal.isRoot()) {
             return areEdgesRequired(steps, startIndex);
@@ -37,22 +63,12 @@ public class StrategyHelper {
     private static boolean areEdgesRequired(final List<Step> steps, final int startIndex) {
         for (int i = startIndex; i < steps.size(); i++) {
             // raw TinkerPop steps
-            if (steps.get(i) instanceof VertexStep || steps.get(i) instanceof EdgeVertexStep
-                    // already replaced FireFly steps
-                    || steps.get(i) instanceof FireflyCountGlobalLocalStep
-                    || steps.get(i) instanceof FireflyBatchVertexReadStep
-                    || steps.get(i) instanceof FireflyBatchVertexReadStepLocal
-                    || steps.get(i) instanceof FireflyBatchVertexReadSampleLimitStep
-                    || steps.get(i) instanceof FireflyBatchEdgeReadStep
-                    || steps.get(i) instanceof FireflyBatchEdgeReadStepLocal
-                    || steps.get(i) instanceof FireflyBatchEdgeReadSampleLimitStep
-                    || steps.get(i) instanceof FireflyOtherVBatchReadStep
-                    || steps.get(i) instanceof FireflyOtherVBatchReadStepLocal
-                    || steps.get(i) instanceof FireflyEdgeToVertexBatchReadStep
+            if (isVertexOrEdgeStep(steps.get(i))
                     // example: math("b + a").by(in("created").count())
                     || steps.get(i) instanceof MathStep
+                    || steps.get(i) instanceof FormatStep
                     // let's play as safe as possible with repeat step
-                    || steps.get(i) instanceof RepeatStep.RepeatEndStep ) {
+                    || steps.get(i) instanceof RepeatStep.RepeatEndStep) {
                 return true;
             }
             // recursively test following steps
@@ -69,5 +85,30 @@ public class StrategyHelper {
         }
 
         return false;
+    }
+
+    public static boolean isVertexOrEdgeStep(final Step step) {
+        return step instanceof VertexStep || step instanceof EdgeVertexStep
+                // already replaced FireFly steps
+                || step instanceof FireflyCountGlobalLocalStep
+                || step instanceof FireflyBatchVertexReadStep
+                || step instanceof FireflyBatchVertexReadStepLocal
+                || step instanceof FireflyBatchVertexReadSampleLimitStep
+                || step instanceof FireflyBatchEdgeReadStep
+                || step instanceof FireflyBatchEdgeReadStepLocal
+                || step instanceof FireflyBatchEdgeReadSampleLimitStep
+                || step instanceof FireflyOtherVBatchReadStep
+                || step instanceof FireflyOtherVBatchReadStepLocal
+                || step instanceof FireflyEdgeToVertexBatchReadStep;
+    }
+
+    public static String[] getPropertyKeys(final Step step) {
+        if (step instanceof PropertiesStep) {
+            return ((PropertiesStep<?>) step).getPropertyKeys();
+        } else if (step instanceof PropertyMapStep) {
+            return ((PropertyMapStep) step).getPropertyKeys();
+        } else {
+            return ((ElementMapStep) step).getPropertyKeys();
+        }
     }
 }

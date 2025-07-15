@@ -397,6 +397,52 @@ jobs:
           ec2-instance-type: t3.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
+  start-runner-recoverable-load-1-3:
+    name: Start Recoverable Load Runner 1 - 3
+    runs-on: ubuntu-latest
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-0d006286a6209f4bc
+          ec2-instance-type: t3.2xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
+  start-runner-recoverable-load-1-4:
+    name: Start Recoverable Load Runner 1 - 4
+    runs-on: ubuntu-latest
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-0d006286a6209f4bc
+          ec2-instance-type: t3.2xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
   start-runner-recoverable-load-2:
     name: Start Recoverable Load Runner 2
     runs-on: ubuntu-latest
@@ -1279,6 +1325,78 @@ jobs:
           bash -x scripts/start_aerospike.sh
           mvn clean install -DskipTests --no-transfer-progress
           mvn -pl aerospike-graph-bulk-loader test -Dtest=TestSparkStateMachineRecovery --no-transfer-progress
+
+  test-firefly-spark-bulk-loader-load-recovery-1-3:
+    name: Test Spark Bulk Loader Load Recovery 1 - 3
+    timeout-minutes: 80
+    needs: start-runner-recoverable-load-1-3
+    runs-on: ${{ needs.start-runner-recoverable-load-1-3.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
+      - name: Test with Maven
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
+          GH_WORKSPACE: ${{ github.workspace}}
+          AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+        run: |
+          bash -x scripts/start_aerospike.sh
+          mvn clean install -DskipTests --no-transfer-progress
+          mvn -pl aerospike-graph-bulk-loader test -Dtest=TestBulkLoaderRecovery3 --no-transfer-progress
+
+  test-firefly-spark-bulk-loader-load-recovery-1-4:
+    name: Test Spark Bulk Loader Load Recovery 1 - 4
+    timeout-minutes: 80
+    needs: start-runner-recoverable-load-1-4
+    runs-on: ${{ needs.start-runner-recoverable-load-1-4.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
+      - name: Test with Maven
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
+          GH_WORKSPACE: ${{ github.workspace}}
+          AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+        run: |
+          bash -x scripts/start_aerospike.sh
+          mvn clean install -DskipTests --no-transfer-progress
+          mvn -pl aerospike-graph-bulk-loader test -Dtest=TestBulkLoaderRecovery4 --no-transfer-progress
   test-firefly-spark-bulk-loader-load-recovery-3:
     name: Test Spark Bulk Loader Load Recovery 3
     timeout-minutes: 40
@@ -2054,6 +2172,48 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-recoverable-load-1-2.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-recoverable-load-1-2.outputs.ec2-instance-id }}
+  stop-runner-recoverable-load-1-3:
+    name: Stop Recoverable Load Runner 1 - 3
+    needs:
+      - test-firefly-spark-bulk-loader-load-recovery-1-3
+      - start-runner-recoverable-load-1-3
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-recoverable-load-1-3.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-recoverable-load-1-3.outputs.ec2-instance-id }}
+  stop-runner-recoverable-load-1-4:
+    name: Stop Recoverable Load Runner 1 - 4
+    needs:
+      - test-firefly-spark-bulk-loader-load-recovery-1-4
+      - start-runner-recoverable-load-1-4
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-recoverable-load-1-4.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-recoverable-load-1-4.outputs.ec2-instance-id }}
   stop-runner-recoverable-load-2:
     name: Stop Recoverable Load Runner 2
     needs:

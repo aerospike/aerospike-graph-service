@@ -54,15 +54,14 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                     DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config));
             sparkBulkLoaderStateMachine.vertexCount = sparkBulkLoaderStateMachine.vertexDataset.count();
             sparkBulkLoaderStateMachine.progressBar.setVertexTotalCount(sparkBulkLoaderStateMachine.vertexCount);
-            if (!RecoveryUtil.RecoveryState.DETECT_SUPERNODES.name().equals(info.getState())) {
-                // If we are not in DETECT_SUPERNODES state but are an incremental load, we need to repartition.
+            if (sparkBulkLoaderStateMachine.incrementalLoad) {
+                // If we are an incremental load, we need to repartition.
                 sparkBulkLoaderStateMachine.vertexDataset = sparkBulkLoaderStateMachine.vertexDataset.repartition(
                         sparkBulkLoaderStateMachine.vertexPartitionCount, new Column("~id"));
 
                 // Set partition count & vertex count in progress bar.
                 sparkBulkLoaderStateMachine.progressBar.setVertexPartitionCount(sparkBulkLoaderStateMachine.vertexPartitionCount);
                 sparkBulkLoaderStateMachine.progressBar.setVertexTotalCount(sparkBulkLoaderStateMachine.vertexCount);
-
             }
         } else {
             // Edge caches already generated.
@@ -102,7 +101,6 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                 read().option("header", "true").parquet(edgeRecoveryDirectory);
         sparkBulkLoaderStateMachine.edgeCount = sparkBulkLoaderStateMachine.edgeDataset.count();
         sparkBulkLoaderStateMachine.progressBar.setEdgeTotalCount(sparkBulkLoaderStateMachine.edgeCount);
-
 
         sparkBulkLoaderStateMachine.edgePartitionCount = info.getEdgePartitionCount();
         sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartition(

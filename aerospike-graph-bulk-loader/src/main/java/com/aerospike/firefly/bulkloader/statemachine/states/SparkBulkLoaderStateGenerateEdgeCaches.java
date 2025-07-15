@@ -104,7 +104,7 @@ public class SparkBulkLoaderStateGenerateEdgeCaches extends SparkBulkLoaderState
         LOGGER.info("Vertex dataset has {} partitions", sparkBulkLoaderStateMachine.vertexPartitionCount);
 
         // Store vertex partitioning information for recovery.
-        // Setting here only words in non-incremental mode.
+        // Setting here only works in non-incremental mode.
         sparkBulkLoaderStateMachine.progressBar.setVertexPartitionCount(sparkBulkLoaderStateMachine.vertexPartitionCount);
         RecoveryUtil.writeTempVertexDirectory(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), vertexMergedDataset);
         RecoveryUtil.updateVertexRecovery(

@@ -118,20 +118,23 @@ public class FireflyCloseableIteratorUtils {
 
     public static CloseableIterator asIterator(final Object o) {
         final Iterator itty;
-        if (o instanceof Iterable)
+        if (o instanceof CloseableIterator) {
+            return (CloseableIterator) o;
+        } else if (o instanceof Iterable) {
             itty = ((Iterable) o).iterator();
-        else if (o instanceof Iterator)
+        } else if (o instanceof Iterator) {
             itty = (Iterator) o;
-        else if (o instanceof Object[])
+        } else if (o instanceof Object[]) {
             itty = new ArrayIterator<>((Object[]) o);
-        else if (o instanceof Stream)
+        } else if (o instanceof Stream) {
             itty = ((Stream) o).iterator();
-        else if (o instanceof Map)
+        } else if (o instanceof Map) {
             itty = ((Map) o).entrySet().iterator();
-        else if (o instanceof Throwable)
+        } else if (o instanceof Throwable) {
             itty = of(((Throwable) o).getMessage());
-        else
+        } else {
             itty = of(o);
+        }
         return new FireflyCloseableIterator(itty);
     }
 

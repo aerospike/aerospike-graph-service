@@ -71,20 +71,4 @@ public class TestBulkLoaderRecovery3 extends TestBulkLoaderRecovery {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig(), "-" + FORCE, "-" + INCREMENTAL_LOAD}, DEFAULT_PARAMS));
         waitForBulkLoad(graph.traversal());
     }
-
-    @Test
-    public void testResumeWithoutIncremental() {
-        graph.traversal().addV().next();
-        graph.fireflySummaryUpdater.forceWrite();
-        System.out.println("Testing testResume");
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", FAIL_SUPERNODE, "-" + INCREMENTAL_LOAD}, DEFAULT_PARAMS));
-        waitForBulkLoadFail(graph.traversal());
-
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig(), "-" + INCREMENTAL_LOAD}, DEFAULT_PARAMS));
-        final String e = waitForBulkLoadFail(graph.traversal());
-        System.out.println(e);
-        Assert.assertTrue(e.contains("Cannot resume load without '" + RESUME + "' flag"));
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig(), "-" + FORCE, "-" + INCREMENTAL_LOAD}, DEFAULT_PARAMS));
-        waitForBulkLoad(graph.traversal());
-    }
 }

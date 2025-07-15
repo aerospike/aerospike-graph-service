@@ -15,8 +15,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.RepeatStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.EdgeVertexStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.MathStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +36,9 @@ public class StrategyHelper {
 
     private static boolean areEdgesRequired(final List<Step> steps, final int startIndex) {
         for (int i = startIndex; i < steps.size(); i++) {
+            // raw TinkerPop steps
             if (steps.get(i) instanceof VertexStep || steps.get(i) instanceof EdgeVertexStep
+                    // already replaced FireFly steps
                     || steps.get(i) instanceof FireflyCountGlobalLocalStep
                     || steps.get(i) instanceof FireflyBatchVertexReadStep
                     || steps.get(i) instanceof FireflyBatchVertexReadStepLocal
@@ -47,21 +49,19 @@ public class StrategyHelper {
                     || steps.get(i) instanceof FireflyOtherVBatchReadStep
                     || steps.get(i) instanceof FireflyOtherVBatchReadStepLocal
                     || steps.get(i) instanceof FireflyEdgeToVertexBatchReadStep
+                    // example: math("b + a").by(in("created").count())
+                    || steps.get(i) instanceof MathStep
                     // let's play as safe as possible with repeat step
                     || steps.get(i) instanceof RepeatStep.RepeatEndStep ) {
                 return true;
             }
+            // recursively test following steps
             if (steps.get(i) instanceof TraversalParent) {
                 final List<Traversal.Admin<Object, Object>> children = new ArrayList<>(((TraversalParent) steps.get(i)).getLocalChildren());
                 // for steps like match
                 children.addAll(((TraversalParent) steps.get(i)).getGlobalChildren());
                 for (final Traversal.Admin child : children) {
-                    if (TraversalHelper.hasStepOfAssignableClassRecursively(VertexStep.class, child)
-                            || TraversalHelper.hasStepOfAssignableClassRecursively(EdgeVertexStep.class, child)
-                            || TraversalHelper.hasStepOfAssignableClassRecursively(FireflyCountGlobalLocalStep.class, child)
-                            || TraversalHelper.hasStepOfAssignableClassRecursively(FireflyBatchVertexReadStep.class, child)
-                            || TraversalHelper.hasStepOfAssignableClassRecursively(FireflyBatchVertexReadSampleLimitStep.class, child)
-                            || TraversalHelper.hasStepOfAssignableClassRecursively(RepeatStep.RepeatEndStep.class, child)) {
+                    if (areEdgesRequired(child.getSteps(), 0)) {
                         return true;
                     }
                 }

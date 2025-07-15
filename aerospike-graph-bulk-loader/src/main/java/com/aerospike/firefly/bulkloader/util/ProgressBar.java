@@ -57,10 +57,22 @@ public class ProgressBar extends TimerTask {
             this.graph = graph;
             if (incrementalMode) {
                 final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata =
-                        graph.fireflySummaryUpdater.getFireflyStatistics(true);
+                        graph.fireflySummaryUpdater.getFireflyStatistics(false);
                 verticesInitial = elementMetadata.totalVertexCount();
                 edgesInitial = elementMetadata.totalEdgeCount();
             }
+        }
+    }
+
+    // Used if recovering, if that is the case the initialize values will be wrong.
+    public void updateInitialValues(final long verticesInitial, final long edgesInitial) {
+        synchronized (ProgressBar.class) {
+            this.verticesInitial = verticesInitial;
+            this.edgesInitial = edgesInitial;
+            final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata =
+                    graph.fireflySummaryUpdater.getFireflyStatistics(false);
+            //incrementalVertexDelta = elementMetadata.totalVertexCount();
+            //incrementalEdgeDelta = elementMetadata.totalEdgeCount();
         }
     }
 

@@ -1,9 +1,7 @@
 package com.aerospike.firefly.io.aerospike.admin;
 
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAuthenticationStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAuthenticationStrategy.UserClaims;
 import com.aerospike.firefly.security.JWTAuthenticator;
-import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphAuthException;

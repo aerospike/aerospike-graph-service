@@ -1,6 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import ch.qos.logback.classic.Level;
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Log;
@@ -611,7 +612,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         while (true) {
             try {
                 GraphTraversal t = traversal().mergeV(CollectionUtil.asMap(T.id, id))
-                        .option(Merge.onCreate, Map.of(BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE, isEdgeCacheOverflowed, BULK_LOAD_VERTEX_ADD_KEY, partitionId, T.label, label));
+                        .option(Merge.onCreate,
+                                Map.of(
+                                        BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE, isEdgeCacheOverflowed,
+                                        BULK_LOAD_VERTEX_ADD_KEY, partitionId,
+                                        T.label, label));
                 for (final Map.Entry<String, Object> entry : properties) {
                     if (VertexProperty.Cardinality.list.equals(vpCardinalities.get(entry.getKey()))) {
                         t = t.property(VertexProperty.Cardinality.list, entry.getKey(), entry.getValue());
@@ -659,8 +664,15 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         try {
             // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
             // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
-            aerospikeOperations.writeVertex(idValue, label, properties, false, supernode, partitionId, toEdgeCache, fromEdgeCache);
+            aerospikeOperations.writeVertex(idValue, label, properties, true, supernode, partitionId, toEdgeCache, fromEdgeCache);
         } catch (final AerospikeGraphException e) {
+            // Can throw exception if vertex already exists - this is fine because there may be duplicates.
+            if (e.getCause() instanceof AerospikeException) {
+                final AerospikeException ae = (AerospikeException) e.getCause();
+                if (ae.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                    return;
+                }
+            }
             throw new FireflyLoadingException(e);
         }
     }

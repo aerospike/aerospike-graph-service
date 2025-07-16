@@ -154,7 +154,7 @@ public class SparkBulkLoaderStateMachine {
             initializerGraph = FireflyGraph.open(initializerConfig);
             initializerConfig.clearProperty(BULK_LOADER_INITIALIZER_FLAG); // MapConfiguration updates underlying map, so clear property.
             progressBar.initialize(initializerGraph, incrementalLoad);
-            progressBarTimer.scheduleAtFixedRate(progressBar, 0, 10000);
+            progressBarTimer.scheduleAtFixedRate(progressBar, 0, progressBarIntervalMs);
 
             // Initialize bulk loader metadata.
             initializerGraph.getBaseGraph().initializeBulkLoadMetadata();

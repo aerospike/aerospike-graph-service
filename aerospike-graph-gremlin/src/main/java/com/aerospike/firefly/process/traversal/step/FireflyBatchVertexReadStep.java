@@ -342,4 +342,8 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
         return StringFactory.stepString(this, this.direction, this.edgeLabels, this.barrierSize,
                 this.fireflyHasContainers, this.idContainers);
     }
+
+    public List<String> getProperties() {
+        return this.requiredProperties;
+    }
 }

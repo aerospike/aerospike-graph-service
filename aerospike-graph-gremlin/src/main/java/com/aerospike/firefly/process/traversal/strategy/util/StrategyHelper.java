@@ -27,20 +27,22 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyMapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.TreeStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.TreeSideEffectStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
+import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class StrategyHelper {
     private static final Set<Class> STEPS_REQUIRING_PROPERTIES = new HashSet<>(Arrays.asList(
             PathStep.class, PathFilterStep.class, TreeStep.class, TreeSideEffectStep.class, LambdaHolder.class,
             ElementStep.class, MathStep.class, FormatStep.class));
-
-    private static final Class[] STEPS_REQUIRING_PROPERTIES_ARRAY = STEPS_REQUIRING_PROPERTIES.toArray(new Class[]{});
 
     // always for first step
     public static boolean isPropertyRemovalValid(final Traversal.Admin<?, ?> traversal) {
@@ -102,13 +104,37 @@ public class StrategyHelper {
                 || step instanceof FireflyEdgeToVertexBatchReadStep;
     }
 
-    public static String[] getPropertyKeys(final Step step) {
+    public static boolean isPropertyStep(final Step step) {
+        return step instanceof PropertiesStep || step instanceof PropertyMapStep
+                || step instanceof ElementMapStep;
+    }
+
+    public static List<String> getPropertyKeys(final Step step) {
+        final String[] propertyKeys;
+
         if (step instanceof PropertiesStep) {
-            return ((PropertiesStep<?>) step).getPropertyKeys();
+            propertyKeys = ((PropertiesStep<?>) step).getPropertyKeys();
         } else if (step instanceof PropertyMapStep) {
-            return ((PropertyMapStep) step).getPropertyKeys();
+            propertyKeys = ((PropertyMapStep) step).getPropertyKeys();
         } else {
-            return ((ElementMapStep) step).getPropertyKeys();
+            propertyKeys = ((ElementMapStep) step).getPropertyKeys();
         }
+
+        if (propertyKeys == null || propertyKeys.length == 0) {
+            return Collections.emptyList();
+        }
+
+        return Arrays.stream(propertyKeys).filter(k -> k != null && !k.equals(T.id.getAccessor()) && !(k.equals(T.label.getAccessor())))
+                .collect(Collectors.toList());
+    }
+
+    public static List<String> getPropertyKeys(final List<HasContainer> hasContainers) {
+        if (hasContainers == null || hasContainers.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return hasContainers.stream().map(HasContainer::getKey)
+                .filter(k -> k != null && !k.equals(T.id.getAccessor()) && !(k.equals(T.label.getAccessor())))
+                .collect(Collectors.toList());
     }
 }

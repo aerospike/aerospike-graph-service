@@ -10,11 +10,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.SampleGlobalStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.ElementMapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertiesStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyMapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 
@@ -27,6 +24,8 @@ import java.util.stream.Collectors;
 import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.areEdgesRequired;
 import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.getPropertyKeys;
 import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.isPropertyRemovalValid;
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.isPropertyStep;
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.isVertexOrEdgeStep;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -97,11 +96,11 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                     final NoOpBarrierStep<?> noOpBarrierStep = (NoOpBarrierStep<?>) steps.get(index);
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
-                } else if (steps.get(index) instanceof PropertiesStep || steps.get(index) instanceof PropertyMapStep
-                        || steps.get(index) instanceof ElementMapStep) {
+                } else if (isPropertyStep(steps.get(index))) {
                     if (traversal.isRoot() && propertyRemovalValid) {
-                        final String[] propertyKeyArray = getPropertyKeys(steps.get(index));
-                        if (propertyKeyArray == null || propertyKeyArray.length == 0) {
+                        final List<String> propertyKeyArray = getPropertyKeys(steps.get(index));
+                        if (propertyKeyArray.isEmpty()) {
+                            propertyKeys = null;
                             break;
                         }
                         // hasStep can add something
@@ -131,15 +130,14 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                     final HasStep<?> hasStep = (HasStep<?>) steps.get(index);
                     hasContainers = hasStep.getHasContainers();
 
-                    if (steps.size() > (index + 1) && steps.get(index + 1) instanceof VertexStep) {
-                        if (traversal.isRoot() && propertyRemovalValid) {
-                            propertyKeys = new ArrayList<>();
-                            final List<String> properties = hasContainers.stream().
-                                    map(HasContainer::getKey).collect(Collectors.toList());
-                            for (final String propertyKey : properties) {
-                                if (!propertyKeys.contains(propertyKey)) {
-                                    propertyKeys.add(propertyKey);
-                                }
+                    // hasStep is following by any propertyStep or vertex/edge step
+                    if (propertyRemovalValid && traversal.isRoot() && index + 1 < steps.size()
+                            && (isPropertyStep(steps.get(index + 1)) || isVertexOrEdgeStep(steps.get(index + 1)))) {
+                        propertyKeys = new ArrayList<>();
+                        final List<String> properties = getPropertyKeys(hasContainers);
+                        for (final String propertyKey : properties) {
+                            if (!propertyKeys.contains(propertyKey)) {
+                                propertyKeys.add(propertyKey);
                             }
                         }
                     }

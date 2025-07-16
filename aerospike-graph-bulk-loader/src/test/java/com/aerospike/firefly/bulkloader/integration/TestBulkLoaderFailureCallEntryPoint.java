@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 import static com.aerospike.firefly.bulkloader.integration.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -33,18 +34,22 @@ public class TestBulkLoaderFailureCallEntryPoint {
     public void allowDuplicateVertexId() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
-            fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/duplicate-vertex-id.properties").next();
+            fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").
+                    with("aerospike.graphloader.config", "src/test/resources/conf/packed/duplicate-vertex-id.properties").
+                    next();
             waitForBulkLoad(fireflyGraph.traversal());
-            final Map<String, Long> errorCounts = (Map<String, Long>) fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.error-count").next();
+            final Map<String, Long> errorCounts = (Map<String, Long>) fireflyGraph.traversal().
+                    call("aerospike.graphloader.admin.bulk-load.error-count").next();
             Assert.assertEquals(3, (long) errorCounts.get("duplicate-vertex-id-count"));
             Assert.assertEquals(0, (long) errorCounts.get("bad-edge-count"));
             Assert.assertEquals(2, (long) errorCounts.get("bad-entry-count"));
 
-            final Iterator duplicateVertexInfos = fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.errors").with("type", "duplicate-vertex-ids");
+            final Iterator<Object> duplicateVertexInfos = fireflyGraph.traversal().
+                    call("aerospike.graphloader.admin.bulk-load.errors").with("type", "duplicate-vertex-ids");
             long duplicateCount = 0;
             final Set<Object> duplicatedIds = new HashSet<>();
-            duplicatedIds.add(5l);
-            duplicatedIds.add(7l);
+            duplicatedIds.add(5L);
+            duplicatedIds.add(7L);
             while (duplicateVertexInfos.hasNext()) {
                 final Map<String, Object> duplicateVertexInfo = (Map<String, Object>) duplicateVertexInfos.next();
                 duplicateCount += (long) duplicateVertexInfo.get("count") - 1;
@@ -53,9 +58,11 @@ public class TestBulkLoaderFailureCallEntryPoint {
             Assert.assertEquals(3, duplicateCount);
             Assert.assertTrue(duplicatedIds.isEmpty());
 
-            final Iterator badEdgeInfos = fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-edges");
+            final Iterator<Object> badEdgeInfos = fireflyGraph.traversal().
+                    call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-edges");
             Assert.assertFalse(badEdgeInfos.hasNext());
-            final Iterator badEntryInfos = fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-entries");
+            final Iterator<Object> badEntryInfos = fireflyGraph.traversal().
+                    call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-entries");
             Assert.assertTrue(badEntryInfos.hasNext());
         }
     }
@@ -64,18 +71,21 @@ public class TestBulkLoaderFailureCallEntryPoint {
     public void verifyDeprecatedBulkLoaderCallApis() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
-            fireflyGraph.traversal().call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/duplicate-vertex-id.properties").next();
+            fireflyGraph.traversal().call("bulk-load").with("aerospike.graphloader.config",
+                    "src/test/resources/conf/packed/duplicate-vertex-id.properties").next();
             waitForBulkLoad(fireflyGraph.traversal());
-            final Map<String, Long> errorCounts = (Map<String, Long>) fireflyGraph.traversal().call("get-bulk-load-error-count").next();
+            final Map<String, Long> errorCounts = (Map<String, Long>) fireflyGraph.traversal().
+                    call("get-bulk-load-error-count").next();
             Assert.assertEquals(3, (long) errorCounts.get("duplicate-vertex-id-count"));
             Assert.assertEquals(0, (long) errorCounts.get("bad-edge-count"));
             Assert.assertEquals(2, (long) errorCounts.get("bad-entry-count"));
 
-            final Iterator duplicateVertexInfos = fireflyGraph.traversal().call("get-bulk-load-errors").with("type", "duplicate-vertex-ids");
+            final Iterator<Object> duplicateVertexInfos = fireflyGraph.traversal().
+                    call("get-bulk-load-errors").with("type", "duplicate-vertex-ids");
             long duplicateCount = 0;
             final Set<Object> duplicatedIds = new HashSet<>();
-            duplicatedIds.add(5l);
-            duplicatedIds.add(7l);
+            duplicatedIds.add(5L);
+            duplicatedIds.add(7L);
             while (duplicateVertexInfos.hasNext()) {
                 final Map<String, Object> duplicateVertexInfo = (Map<String, Object>) duplicateVertexInfos.next();
                 duplicateCount += (long) duplicateVertexInfo.get("count") - 1;
@@ -84,9 +94,11 @@ public class TestBulkLoaderFailureCallEntryPoint {
             Assert.assertEquals(3, duplicateCount);
             Assert.assertTrue(duplicatedIds.isEmpty());
 
-            final Iterator badEdgeInfos = fireflyGraph.traversal().call("get-bulk-load-errors").with("type", "bad-edges");
+            final Iterator<Object> badEdgeInfos = fireflyGraph.traversal().call("get-bulk-load-errors").
+                    with("type", "bad-edges");
             Assert.assertFalse(badEdgeInfos.hasNext());
-            final Iterator badEntryInfos = fireflyGraph.traversal().call("get-bulk-load-errors").with("type", "bad-entries");
+            final Iterator<Object> badEntryInfos = fireflyGraph.traversal().call("get-bulk-load-errors").
+                    with("type", "bad-entries");
             Assert.assertTrue(badEntryInfos.hasNext());
         }
     }
@@ -95,14 +107,18 @@ public class TestBulkLoaderFailureCallEntryPoint {
     public void allowBadEdges() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
-            fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/detached-edges.properties").next();
+            fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").
+                    with("aerospike.graphloader.config", "src/test/resources/conf/packed/detached-edges.properties").
+                    next();
             waitForBulkLoad(fireflyGraph.traversal());
-            final Map<String, Long> errorCounts = (Map<String, Long>) fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.error-count").next();
+            final Map<String, Long> errorCounts = (Map<String, Long>) fireflyGraph.traversal().
+                    call("aerospike.graphloader.admin.bulk-load.error-count").next();
             Assert.assertEquals(0, (long) errorCounts.get("duplicate-vertex-id-count"));
             Assert.assertEquals(5, (long) errorCounts.get("bad-edge-count"));
             Assert.assertEquals(2, (long) errorCounts.get("bad-entry-count"));
 
-            final Iterator badEdgeInfos = fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-edges");
+            final Iterator<Object> badEdgeInfos = fireflyGraph.traversal().
+                    call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-edges");
             long badEdgeCount = 0;
             final Map<Object, Long> badEdges = new HashMap();
             badEdges.put("Roma", 2L);
@@ -117,9 +133,11 @@ public class TestBulkLoaderFailureCallEntryPoint {
             Assert.assertEquals(5, badEdgeCount);
             Assert.assertTrue(badEdges.isEmpty());
 
-            final Iterator duplicateVertexInfos = fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.errors").with("type", "duplicate-vertex-ids");
+            final Iterator<Object> duplicateVertexInfos = fireflyGraph.traversal().
+                    call("aerospike.graphloader.admin.bulk-load.errors").with("type", "duplicate-vertex-ids");
             Assert.assertFalse(duplicateVertexInfos.hasNext());
-            final Iterator badEntryInfos = fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-entries");
+            final Iterator<Object> badEntryInfos = fireflyGraph.traversal().
+                    call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-entries");
             Assert.assertTrue(badEntryInfos.hasNext());
         }
     }
@@ -128,14 +146,18 @@ public class TestBulkLoaderFailureCallEntryPoint {
     public void allowBadEntries() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
-            fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/bad-entries.properties").next();
+            fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").
+                    with("aerospike.graphloader.config", "src/test/resources/conf/packed/bad-entries.properties").
+                    next();
             waitForBulkLoad(fireflyGraph.traversal());
-            final Map<String, Long> errorCounts = (Map<String, Long>) fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.error-count").next();
+            final Map<String, Long> errorCounts = (Map<String, Long>) fireflyGraph.traversal().
+                    call("aerospike.graphloader.admin.bulk-load.error-count").next();
             Assert.assertEquals(0, (long) errorCounts.get("duplicate-vertex-id-count"));
             Assert.assertEquals(0, (long) errorCounts.get("bad-edge-count"));
             Assert.assertEquals(5, (long) errorCounts.get("bad-entry-count"));
 
-            final Iterator badEntryInfos = fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-entries");
+            final Iterator<Object> badEntryInfos = fireflyGraph.traversal().
+                    call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-entries");
             int badEntryCount = 0;
             final Set<String> badFiles = new HashSet<>();
             badFiles.add("models.csv");
@@ -157,9 +179,11 @@ public class TestBulkLoaderFailureCallEntryPoint {
             Assert.assertTrue(badFiles.isEmpty());
             Assert.assertTrue(badRows.isEmpty());
 
-            final Iterator duplicateVertexInfos = fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.errors").with("type", "duplicate-vertex-ids");
+            final Iterator<Object> duplicateVertexInfos = fireflyGraph.traversal().
+                    call("aerospike.graphloader.admin.bulk-load.errors").with("type", "duplicate-vertex-ids");
             Assert.assertFalse(duplicateVertexInfos.hasNext());
-            final Iterator badEdgeInfos = fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-edges");
+            final Iterator<Object> badEdgeInfos = fireflyGraph.traversal().
+                    call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-edges");
             Assert.assertFalse(badEdgeInfos.hasNext());
         }
     }
@@ -173,25 +197,29 @@ public class TestBulkLoaderFailureCallEntryPoint {
                 g.call("aerospike.graphloader.admin.bulk-load.errors").next();
                 Assert.fail("aerospike.graphloader.admin.bulk-load.errors succeeded when failure expected due to no params");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.errors'."));
+                Assert.assertTrue(e.getMessage().
+                        startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.errors'."));
             }
             try {
                 g.call("aerospike.graphloader.admin.bulk-load.errors").with("type").next();
                 Assert.fail("aerospike.graphloader.admin.bulk-load.errors succeeded when failure expected due to param with key and no value");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.errors'."));
+                Assert.assertTrue(e.getMessage().
+                        startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.errors'."));
             }
             try {
                 g.call("aerospike.graphloader.admin.bulk-load.errors").with("type", "foo").next();
                 Assert.fail("aerospike.graphloader.admin.bulk-load.errors succeeded when failure expected due to param with bad value");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.errors'."));
+                Assert.assertTrue(e.getMessage().
+                        startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.errors'."));
             }
             try {
                 g.call("aerospike.graphloader.admin.bulk-load.errors").with("foo", "bad-edges").next();
                 Assert.fail("aerospike.graphloader.admin.bulk-load.errors succeeded when failure expected due to param with bad key");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.errors'."));
+                Assert.assertTrue(e.getMessage().
+                        startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.errors'."));
             }
         }
     }
@@ -237,8 +265,12 @@ public class TestBulkLoaderFailureCallEntryPoint {
                         }
                     }
                     Assert.assertEquals(4, delimiterCount);
-                    g.call("aerospike.graphloader.admin.bulk-load.errors").with(key, value).next();
-                    suggestionExecuted = true;
+                    suggestionExecuted = false;
+                    try {
+                        g.call("aerospike.graphloader.admin.bulk-load.errors").with(key, value).next();
+                    } catch (final NoSuchElementException ignored) {
+                        suggestionExecuted = true;
+                    }
                 }
             }
             Assert.assertTrue(suggestionExecuted);
@@ -249,9 +281,11 @@ public class TestBulkLoaderFailureCallEntryPoint {
     public void testInvalidHeaderCardinality() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
-            fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/bad-header.properties").next();
+            fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").
+                    with("aerospike.graphloader.config", "src/test/resources/conf/packed/bad-header.properties").next();
             final String failure = waitForBulkLoadFail(fireflyGraph.traversal());
-            Assert.assertTrue(failure.contains("Invalid cardinality 'cockroach' detected in property header 'badheader:int:cockroach'"));
+            Assert.assertTrue(failure.
+                    contains("Invalid cardinality 'cockroach' detected in property header 'badheader:int:cockroach'"));
         }
     }
 }

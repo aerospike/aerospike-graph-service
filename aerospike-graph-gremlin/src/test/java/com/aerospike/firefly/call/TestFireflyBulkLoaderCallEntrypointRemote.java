@@ -98,11 +98,17 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
                     .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/dupe-vid-edges")
                     .next();
             waitForBulkLoad(g);
-            Assert.assertEquals(2, (long)g.V().count().next());
-            Assert.assertEquals(2, (long)g.E().count().next());
-            Assert.assertEquals(0, IteratorUtils.toList(g.call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-edges")).size());
-            Assert.assertEquals(2, IteratorUtils.toList(g.call("aerospike.graphloader.admin.bulk-load.errors").with("type", "duplicate-vertex-ids")).size());
-            Assert.assertEquals(0, IteratorUtils.toList(g.call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-entries")).size());
+            Assert.assertEquals(2, (long) g.V().count().next());
+            Assert.assertEquals(2, (long) g.E().count().next());
+            Assert.assertEquals(0, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "bad-edges")).size());
+            Assert.assertEquals(2, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "duplicate-vertex-ids")).size());
+            Assert.assertEquals(0, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "bad-entries")).size());
         }
     }
 
@@ -116,11 +122,17 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
                     .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/bad-edge-edges")
                     .next();
             waitForBulkLoad(g);
-            Assert.assertEquals(2, (long)g.V().count().next());
-            Assert.assertEquals(2, (long)g.E().count().next());
-            Assert.assertEquals(2, IteratorUtils.toList(g.call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-edges")).size());
-            Assert.assertEquals(0, IteratorUtils.toList(g.call("aerospike.graphloader.admin.bulk-load.errors").with("type", "duplicate-vertex-ids")).size());
-            Assert.assertEquals(0, IteratorUtils.toList(g.call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-entries")).size());
+            Assert.assertEquals(2, (long) g.V().count().next());
+            Assert.assertEquals(2, (long) g.E().count().next());
+            Assert.assertEquals(2, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "bad-edges")).size());
+            Assert.assertEquals(0, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "duplicate-vertex-ids")).size());
+            Assert.assertEquals(0, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "bad-entries")).size());
         }
     }
 
@@ -134,11 +146,17 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
                     .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/bad-entry-edges")
                     .next();
             waitForBulkLoad(g);
-            Assert.assertEquals(2, (long)g.V().count().next());
-            Assert.assertEquals(2, (long)g.E().count().next());
-            Assert.assertEquals(0, IteratorUtils.toList(g.call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-edges")).size());
-            Assert.assertEquals(0, IteratorUtils.toList(g.call("aerospike.graphloader.admin.bulk-load.errors").with("type", "duplicate-vertex-ids")).size());
-            Assert.assertEquals(4, IteratorUtils.toList(g.call("aerospike.graphloader.admin.bulk-load.errors").with("type", "bad-entries")).size());
+            Assert.assertEquals(2, (long) g.V().count().next());
+            Assert.assertEquals(2, (long) g.E().count().next());
+            Assert.assertEquals(0, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "bad-edges")).size());
+            Assert.assertEquals(0, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "duplicate-vertex-ids")).size());
+            Assert.assertEquals(4, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "bad-entries")).size());
         }
     }
 }

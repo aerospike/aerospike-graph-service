@@ -138,7 +138,6 @@ public final class FireflyHelper {
 
     public static void legalPropertyKeyValueArray(Object... keyValues) {
         ElementHelper.legalPropertyKeyValueArray(keyValues);
-        Arrays.stream(keyValues).collect(Collectors.toList()).iterator();
         Iterator<Object> i = Arrays.stream(keyValues).collect(Collectors.toList()).iterator();
         while (i.hasNext()) {
             Object key = i.next();

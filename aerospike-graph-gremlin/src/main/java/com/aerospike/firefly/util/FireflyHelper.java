@@ -29,6 +29,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.AEROSPIKE_TRANSFORMABLE_TYPES;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SUPPORTED_ARR_TYPES;
@@ -137,7 +138,8 @@ public final class FireflyHelper {
 
     public static void legalPropertyKeyValueArray(Object... keyValues) {
         ElementHelper.legalPropertyKeyValueArray(keyValues);
-        Iterator i = FireflyCloseableIteratorUtils.asIterator(keyValues);
+        Arrays.stream(keyValues).collect(Collectors.toList()).iterator();
+        Iterator<Object> i = Arrays.stream(keyValues).collect(Collectors.toList()).iterator();
         while (i.hasNext()) {
             Object key = i.next();
             if (key == null)

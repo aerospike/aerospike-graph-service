@@ -2,7 +2,6 @@ package com.aerospike.firefly.structure.iterator;
 
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
-import org.apache.tinkerpop.gremlin.util.iterator.ArrayIterator;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.ArrayList;
@@ -12,7 +11,6 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -114,28 +112,6 @@ public class FireflyCloseableIteratorUtils {
                 CloseableIterator.closeIterator(iterator);
             }
         };
-    }
-
-    public static CloseableIterator asIterator(final Object o) {
-        final Iterator itty;
-        if (o instanceof CloseableIterator) {
-            return (CloseableIterator) o;
-        } else if (o instanceof Iterable) {
-            itty = ((Iterable) o).iterator();
-        } else if (o instanceof Iterator) {
-            itty = (Iterator) o;
-        } else if (o instanceof Object[]) {
-            itty = new ArrayIterator<>((Object[]) o);
-        } else if (o instanceof Stream) {
-            itty = ((Stream) o).iterator();
-        } else if (o instanceof Map) {
-            itty = ((Map) o).entrySet().iterator();
-        } else if (o instanceof Throwable) {
-            itty = of(((Throwable) o).getMessage());
-        } else {
-            itty = of(o);
-        }
-        return new FireflyCloseableIterator(itty);
     }
 
     public static final long count(final Iterator iterator) {

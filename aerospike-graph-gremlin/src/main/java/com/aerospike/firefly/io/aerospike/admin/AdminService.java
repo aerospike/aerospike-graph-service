@@ -17,6 +17,7 @@ import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -100,7 +101,14 @@ public abstract class AdminService<I, R> implements Service.ServiceFactory<I, R>
             throw new IllegalArgumentException(usage(params));
         }
         auditLog(params);
-        return FireflyCloseableIteratorUtils.asIterator(execute(params));
+        final Object executeResult = execute(params);
+        if (executeResult instanceof CloseableIterator) {
+            return (CloseableIterator<R>) executeResult;
+        } else if (executeResult instanceof Iterator) {
+            return (CloseableIterator<R>) FireflyCloseableIteratorUtils.concat((Iterator<Object>) executeResult);
+        } else {
+            return (CloseableIterator<R>) FireflyCloseableIteratorUtils.of(executeResult);
+        }
     }
 
     // service specific additional permissions validation

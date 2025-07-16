@@ -71,8 +71,6 @@ public class ProgressBar extends TimerTask {
             this.edgesInitial = edgesInitial;
             final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata =
                     graph.fireflySummaryUpdater.getFireflyStatistics(false);
-            //incrementalVertexDelta = elementMetadata.totalVertexCount();
-            //incrementalEdgeDelta = elementMetadata.totalEdgeCount();
         }
     }
 

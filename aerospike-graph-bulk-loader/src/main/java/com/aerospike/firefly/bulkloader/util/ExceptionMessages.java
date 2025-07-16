@@ -22,4 +22,7 @@ public class ExceptionMessages {
             "run a fresh load, set the '" + CLEAR_EXISTING_DATA + "' flag.";
     public static final String CANNOT_RECOVER_INCREMENTAL_LOAD_WITHOUT_INCREMENTAL_FLAG =
             "To resume an incremental load, both the '" + INCREMENTAL_LOAD + "' and '" + RESUME + "' flags must be set.";
+    public static final String CANNOT_RECOVER_NON_INCREMENTAL_LOAD_WITH_INCREMENTAL_FLAG =
+            "To resume a non-incremental load, the '" + INCREMENTAL_LOAD + "' flag must not be set. " +
+            "Use only the '" + RESUME + "' flag to resume a non-incremental load.";
 }

@@ -311,7 +311,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     public CloseableIterator<Edge> getEdgesAdjacentToVertex(final Direction direction, final FireflyId adjacent,
                                                             final String label,
                                                             final Map<String, Object> propertyEqFilters) {
-        LOG.debug("Getting Edges from Vertex {} with direction {} and adjacent Vertex {}", this.id, direction, adjacent);
+        LOG.debug("Getting Edges from Vertex {} with direction {} and adjacent Vertex {}", this.id(), direction, adjacent);
         final Set<String> labels = label == null ? Collections.emptySet() : Collections.singleton(label);
         final List<FireflyId> edgeIds = new ArrayList<>();
         final List<FireflyId> cachedIds = getCachedIds(direction, labels);

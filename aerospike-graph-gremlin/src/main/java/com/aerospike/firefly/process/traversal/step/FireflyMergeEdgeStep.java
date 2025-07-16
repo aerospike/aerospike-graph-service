@@ -322,11 +322,13 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         if (validOnCreate) {
             FireflyRecordLockHandler.FireflyRecordLock lock = null;
             try {
+                final FireflyGraph graph = ((FireflyGraph) getGraph());
                 LOG.debug("Getting MergeEdge record lock for OUT Vertex {} and IN Vertex {}.",
                         onCreateMap.get(Direction.OUT), onCreateMap.get(Direction.IN));
-                final FireflyGraph graph = ((FireflyGraph) getGraph());
                 lock = graph.getRecordLockHandler().getLock(FireflyRecord.getMergeEdgeKey(graph,
                         onCreateMap.get(Direction.OUT), onCreateMap.get(Direction.IN)));
+                LOG.debug("Obtained MergeEdge record lock for OUT Vertex {} and IN Vertex {}.",
+                        onCreateMap.get(Direction.OUT), onCreateMap.get(Direction.IN));
                 return lockedFlatMap(traverser, mergeMap, onCreateMap);
             } finally {
                 if (lock != null) {

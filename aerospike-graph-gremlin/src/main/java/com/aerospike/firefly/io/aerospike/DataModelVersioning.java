@@ -3,14 +3,11 @@ package com.aerospike.firefly.io.aerospike;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.exceptions.DataModelVersionMismatchException;
 import org.apache.maven.artifact.versioning.ComparableVersion;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class DataModelVersioning {
-    static private final Logger LOG = LoggerFactory.getLogger(DataModelVersioning.class);
 
     /**
      * Check to see if the current Aerospike Graph version is compatible with the version in Aerospike Database.

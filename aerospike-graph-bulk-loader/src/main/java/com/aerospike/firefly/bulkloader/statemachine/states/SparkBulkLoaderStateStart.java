@@ -12,6 +12,8 @@ import org.slf4j.LoggerFactory;
 
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.BUCKET_ID_COLUMN;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.STORAGE_ID_COLUMN;
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.CANNOT_RECOVER_INCREMENTAL_LOAD_WITHOUT_INCREMENTAL_FLAG;
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.CANNOT_RECOVER_NON_INCREMENTAL_LOAD_WITH_INCREMENTAL_FLAG;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.CLEAR_EXISTING_DATA_EMPTY_DATABASE;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.INCREMENTAL_AND_CLEAR_EXISTING_DATA;
@@ -43,8 +45,9 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.vertexOperations = new VertexOperations(
                 sparkBulkLoaderStateMachine.config,
                 sparkBulkLoaderStateMachine.vertexDirectories);
-        if (RecoveryUtil.RecoveryState.DETECT_SUPERNODES.name().equals(info.getState())) {
-            // Edge caches not yet generated.
+        if (RecoveryUtil.RecoveryState.DETECT_SUPERNODES.name().equals(info.getState())
+                || sparkBulkLoaderStateMachine.incrementalLoad) {
+            // Edge caches not yet generated. Also in incremental mode we do not load the vertex dataset from the recovery info.
             sparkBulkLoaderStateMachine.vertexDataset = DatasetOperations.loadDataset(
                     sparkBulkLoaderStateMachine.spark,
                     sparkBulkLoaderStateMachine.vertexDirectories,
@@ -52,6 +55,15 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                     DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config));
             sparkBulkLoaderStateMachine.vertexCount = sparkBulkLoaderStateMachine.vertexDataset.count();
             sparkBulkLoaderStateMachine.progressBar.setVertexTotalCount(sparkBulkLoaderStateMachine.vertexCount);
+            if (sparkBulkLoaderStateMachine.incrementalLoad) {
+                // If we are an incremental load, we need to repartition.
+                sparkBulkLoaderStateMachine.vertexDataset = sparkBulkLoaderStateMachine.vertexDataset.repartition(
+                        sparkBulkLoaderStateMachine.vertexPartitionCount, new Column("~id"));
+
+                // Set partition count & vertex count in progress bar.
+                sparkBulkLoaderStateMachine.progressBar.setVertexPartitionCount(sparkBulkLoaderStateMachine.vertexPartitionCount);
+                sparkBulkLoaderStateMachine.progressBar.setVertexTotalCount(sparkBulkLoaderStateMachine.vertexCount);
+            }
         } else {
             // Edge caches already generated.
             final String vertexRecoveryDirectory = info.getTempVertexDirectory();
@@ -91,7 +103,6 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
         sparkBulkLoaderStateMachine.edgeCount = sparkBulkLoaderStateMachine.edgeDataset.count();
         sparkBulkLoaderStateMachine.progressBar.setEdgeTotalCount(sparkBulkLoaderStateMachine.edgeCount);
 
-
         sparkBulkLoaderStateMachine.edgePartitionCount = info.getEdgePartitionCount();
         sparkBulkLoaderStateMachine.edgeDataset = sparkBulkLoaderStateMachine.edgeDataset.repartition(
                 sparkBulkLoaderStateMachine.edgePartitionCount, new Column(BUCKET_ID_COLUMN));
@@ -108,6 +119,10 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
 
     private void loadCheckpointDatasets(final RecoveryUtil.RecoveryInfo info) {
         // Load datasets.
+        if (info.isIncrementalLoad()) {
+            sparkBulkLoaderStateMachine.progressBar.updateInitialValues(
+                    info.getIncrementalLoadVertexStartCount(), info.getIncrementalLoadEdgeStartCount());
+        }
         loadVertexDataset(info);
         loadEdgeDataset(info);
 
@@ -171,6 +186,13 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
             } else if (recoveryInfoExists && !resumeFlag) {
                 throw new IllegalStateException(RECOVERY_INFO_NO_CLEAR_EXISTING_DATA_FLAG_OR_RESUME);
             }
+        }
+        if (resumeFlag && info.isIncrementalLoad() && !incrementalLoadFlag) {
+            // If resuming an incremental load without the incremental flag set, throw an exception.
+            throw new IllegalArgumentException(CANNOT_RECOVER_INCREMENTAL_LOAD_WITHOUT_INCREMENTAL_FLAG);
+        } else if (resumeFlag && !info.isIncrementalLoad() && incrementalLoadFlag) {
+            // If resuming a non-incremental load with the incremental flag set, throw an exception.
+            throw new IllegalArgumentException(CANNOT_RECOVER_NON_INCREMENTAL_LOAD_WITH_INCREMENTAL_FLAG);
         }
 
         // Recover from checkpoint.

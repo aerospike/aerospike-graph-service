@@ -164,6 +164,62 @@ public class RecoveryUtil {
         return r == null ? null : r.getString(db.BULK_LOAD_RECOVERY_BIN);
     }
 
+    public static boolean recoverIsIncrementalLoad(final AerospikeConnection db) {
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "incremental_load");
+        final Policy readPolicy = new Policy();
+        db.configureReadPolicy(readPolicy);
+        final Record r = retryReadOperation(db, key, readPolicy);
+        // Default false if the record does not exist.
+        return r == null ? false : r.getBoolean(db.BULK_LOAD_RECOVERY_BIN);
+    }
+
+    public static void writeIsIncrementalLoad(final AerospikeConnection db, final boolean isIncrementalLoad) {
+        // Create policy and configure.
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "incremental_load");
+        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, isIncrementalLoad);
+        final Operation operation = Operation.put(bin);
+        final WritePolicy writePolicy = new WritePolicy();
+        db.configureWritePolicy(writePolicy);
+        retryWriteOperation(db, operation, writePolicy, key, operation);
+    }
+
+    public static long recoverIncrementalLoadVertexStartCount(final AerospikeConnection db) {
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "incremental_load_vertex_count");
+        final Policy readPolicy = new Policy();
+        db.configureReadPolicy(readPolicy);
+        final Record r = retryReadOperation(db, key, readPolicy);
+        // Default false if the record does not exist.
+        return r == null ? 0 : r.getLong(db.BULK_LOAD_RECOVERY_BIN);
+    }
+
+    public static void writeIncrementalLoadVertexStartCount(final AerospikeConnection db, final long isIncrementalLoad) {
+        // Create policy and configure.
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "incremental_load_vertex_count");
+        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, isIncrementalLoad);
+        final Operation operation = Operation.put(bin);
+        final WritePolicy writePolicy = new WritePolicy();
+        db.configureWritePolicy(writePolicy);
+        retryWriteOperation(db, operation, writePolicy, key, operation);
+    }
+
+    public static long recoverIncrementalLoadEdgeStartCount(final AerospikeConnection db) {
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "incremental_load_edge_count");
+        final Policy readPolicy = new Policy();
+        db.configureReadPolicy(readPolicy);
+        final Record r = retryReadOperation(db, key, readPolicy);
+        return r == null ? 0 : r.getLong(db.BULK_LOAD_RECOVERY_BIN);
+    }
+
+    public static void writeIncrementalLoadEdgeStartCount(final AerospikeConnection db, final long edgeCount) {
+        // Create policy and configure.
+        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "incremental_load_edge_count");
+        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, edgeCount);
+        final Operation operation = Operation.put(bin);
+        final WritePolicy writePolicy = new WritePolicy();
+        db.configureWritePolicy(writePolicy);
+        retryWriteOperation(db, operation, writePolicy, key, operation);
+    }
+
     public static void updateVertexRecovery(final AerospikeConnection db, final int partitionCount) {
         // Create policy and configure.
         final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex_partition_count");
@@ -274,7 +330,10 @@ public class RecoveryUtil {
                 recoverVertexPartitionCount(db),
                 recoverEdgePartitionCount(db),
                 recoverTempEdgeDirectory(db),
-                recoverTempVertexDirectory(db));
+                recoverTempVertexDirectory(db),
+                recoverIsIncrementalLoad(db),
+                recoverIncrementalLoadVertexStartCount(db),
+                recoverIncrementalLoadEdgeStartCount(db));
     }
 
     public static Set<Long> completedVertexPartitions(final AerospikeConnection db) {
@@ -379,6 +438,9 @@ public class RecoveryUtil {
         final private int edgePartitionCount;
         final private String tempEdgeDirectory;
         final private String tempVertexDirectory;
+        final private boolean isIncrementalLoad;
+        final private long incrementalLoadVertexStartCount;
+        final private long incrementalLoadEdgeStartCount;
 
         public RecoveryInfo(final Set<Long> vertexPartitions,
                             final Set<Long> edgePartitions,
@@ -387,7 +449,10 @@ public class RecoveryUtil {
                             final int vertexPartitionCount,
                             final int edgePartitionCount,
                             final String tempEdgeDirectory,
-                            final String tempVertexDirectory) {
+                            final String tempVertexDirectory,
+                            final boolean isIncrementalLoad,
+                            final long incrementalLoadVertexStartCount,
+                            final long incrementalLoadEdgeStartCount) {
             this.vertexPartitions = vertexPartitions;
             this.edgePartitions = edgePartitions;
             this.supernodes = supernodes;
@@ -396,6 +461,9 @@ public class RecoveryUtil {
             this.edgePartitionCount = edgePartitionCount;
             this.tempEdgeDirectory = tempEdgeDirectory;
             this.tempVertexDirectory = tempVertexDirectory;
+            this.isIncrementalLoad = isIncrementalLoad;
+            this.incrementalLoadVertexStartCount = incrementalLoadVertexStartCount;
+            this.incrementalLoadEdgeStartCount = incrementalLoadEdgeStartCount;
         }
 
         public String getTempEdgeDirectory() {
@@ -428,6 +496,18 @@ public class RecoveryUtil {
 
         public int getEdgePartitionCount() {
             return edgePartitionCount;
+        }
+
+        public boolean isIncrementalLoad() {
+            return isIncrementalLoad;
+        }
+
+        public long getIncrementalLoadVertexStartCount() {
+            return incrementalLoadVertexStartCount;
+        }
+
+        public long getIncrementalLoadEdgeStartCount() {
+            return incrementalLoadEdgeStartCount;
         }
     }
 }

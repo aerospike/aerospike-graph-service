@@ -43,7 +43,7 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_SCHEMA;
 public class SchemaManager {
     static private final Logger LOG = LoggerFactory.getLogger(SchemaManager.class);
 
-    static private final Long DUMMY_SCHEMA_LONG = -1L;
+    static private final Long DUMMY_SCHEMA_LONG = -100L;
     static private final MapPolicy SCHEMA_MAP_POLICY = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.CREATE_ONLY);
 
     private final AerospikeConnection db;;

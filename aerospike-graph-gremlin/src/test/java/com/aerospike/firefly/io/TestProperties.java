@@ -741,6 +741,55 @@ public class TestProperties {
         Assert.assertFalse(matchesDatePushdownButShouldNotReturn.hasNext());
     }
 
+    @Test
+    public void testSchemaManagerNoMatchedKey() {
+        final GraphTraversalSource g = graph.traversal();
+        final Long noMatchSchema = graph.getBaseGraph().schemaManager.getVertexLabelRead("thispropertykeywillhaveneverbeenaddedbefore");
+        var v1 = g.addV("v1").next();
+        for (int i = 0; i < 1000; i++) {
+            g.V(v1.id()).property("vpKey" + i, 1L, "vppKey" + i, 1L).next();
+            var v2 = g.addV("vLabel" + i).next();
+            g.addE("eLabel" + i).from(v1).to(v2).property("epKey" + i, 1L).next();
+        }
+
+        try {
+            final String vLabel = graph.getBaseGraph().schemaManager.getVertexLabelString(noMatchSchema);
+            Assert.fail("Grabbed a valid schema string for vLabel when should have thrown an exception.");
+        } catch (final IllegalStateException expected) {
+        }
+        try {
+            final String vp = graph.getBaseGraph().schemaManager.getVertexPropertyString(noMatchSchema);
+            Assert.fail("Grabbed a valid schema string for vp when should have thrown an exception.");
+        } catch (final IllegalStateException expected) {
+        }
+        try {
+            final String vpp = graph.getBaseGraph().schemaManager.getVpPropertyString(noMatchSchema);
+            Assert.fail("Grabbed a valid schema string for vpp when should have thrown an exception.");
+        } catch (final IllegalStateException expected) {
+        }
+        try {
+            final String eLabel = graph.getBaseGraph().schemaManager.getEdgeLabelString(noMatchSchema);
+            Assert.fail("Grabbed a valid schema string for eLabel when should have thrown an exception.");
+        } catch (final IllegalStateException expected) {
+        }
+        try {
+            final String ep = graph.getBaseGraph().schemaManager.getEdgePropertyString(noMatchSchema);
+            Assert.fail("Grabbed a valid schema string for ep when should have thrown an exception.");
+        } catch (final IllegalStateException expected) {
+        }
+
+        Assert.assertFalse(g.V().hasLabel("invalid").hasNext());
+        Assert.assertFalse(g.V(v1.id()).out("invalid").hasNext());
+        Assert.assertFalse(g.V(v1.id()).outE("invalid").hasNext());
+        Assert.assertFalse(g.V(v1.id()).has("invalid").hasNext());
+        Assert.assertFalse(g.V(v1.id()).properties("invalid").hasNext());
+        Assert.assertFalse(g.V(v1.id()).properties().has("invalid").hasNext());
+        Assert.assertFalse(g.V(v1.id()).properties().properties("invalid").hasNext());
+        Assert.assertFalse(g.E().hasLabel("invalid").hasNext());
+        Assert.assertFalse(g.E().has("invalid").hasNext());
+        Assert.assertFalse(g.E().properties("invalid").hasNext());
+    }
+
     @Ignore
     @Test
     public void benchmarkPropertyInsertion() {

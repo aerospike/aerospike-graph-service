@@ -753,27 +753,27 @@ public class TestProperties {
         }
 
         try {
-            final String vLabel = SETUP_GRAPH.getBaseGraph().schemaManager.getVertexLabelString(noMatchSchema);
+            final String vLabel = graph.getBaseGraph().schemaManager.getVertexLabelString(noMatchSchema);
             Assert.fail("Grabbed a valid schema string for vLabel when should have thrown an exception.");
         } catch (final IllegalStateException expected) {
         }
         try {
-            final String vp = SETUP_GRAPH.getBaseGraph().schemaManager.getVertexPropertyString(noMatchSchema);
+            final String vp = graph.getBaseGraph().schemaManager.getVertexPropertyString(noMatchSchema);
             Assert.fail("Grabbed a valid schema string for vp when should have thrown an exception.");
         } catch (final IllegalStateException expected) {
         }
         try {
-            final String vpp = SETUP_GRAPH.getBaseGraph().schemaManager.getVpPropertyString(noMatchSchema);
+            final String vpp = graph.getBaseGraph().schemaManager.getVpPropertyString(noMatchSchema);
             Assert.fail("Grabbed a valid schema string for vpp when should have thrown an exception.");
         } catch (final IllegalStateException expected) {
         }
         try {
-            final String eLabel = SETUP_GRAPH.getBaseGraph().schemaManager.getEdgeLabelString(noMatchSchema);
+            final String eLabel = graph.getBaseGraph().schemaManager.getEdgeLabelString(noMatchSchema);
             Assert.fail("Grabbed a valid schema string for eLabel when should have thrown an exception.");
         } catch (final IllegalStateException expected) {
         }
         try {
-            final String ep = SETUP_GRAPH.getBaseGraph().schemaManager.getEdgePropertyString(noMatchSchema);
+            final String ep = graph.getBaseGraph().schemaManager.getEdgePropertyString(noMatchSchema);
             Assert.fail("Grabbed a valid schema string for ep when should have thrown an exception.");
         } catch (final IllegalStateException expected) {
         }

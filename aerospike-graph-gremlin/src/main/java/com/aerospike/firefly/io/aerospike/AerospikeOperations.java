@@ -746,7 +746,8 @@ public class AerospikeOperations {
         } catch (final AerospikeGraphException ae) {
             // Removing a property that is already removed SHOULD NOT yield an error.
             if (ae.errorCode == ResultCode.OP_NOT_APPLICABLE || ae.errorCode == ResultCode.KEY_NOT_FOUND_ERROR) {
-                LOG.debug("Ignored exception removing an already-removed vertex property {}.", this, ae);
+                LOG.debug("Ignored exception removing an already-removed vertex property {}.",
+                        new FireflyVertexProperty<>(graph, vertexPropertyId, vertex, key, value, Collections.emptyMap()), ae);
                 // Update this FireflyVertex in JVM cache
                 vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties);
             } else {
@@ -943,7 +944,7 @@ public class AerospikeOperations {
      */
     public boolean writeEdgeToVertex(final FireflyVertex vertex, final Direction direction, final FireflyId edgeId,
                                      final String edgeLabel, final Txn txn) {
-        LOG.debug("Writing Edge {} to ECACHE of Vertex {} with Direction {}.", edgeId, this, direction);
+        LOG.debug("Writing Edge {} to ECACHE of Vertex {} with Direction {}.", edgeId, vertex, direction);
         // Edge cache is overflowed for this vertex - do nothing since writing to overflow bin is on the edge record.
         if (!vertex.writeEdge(direction, edgeId, edgeLabel)) {
             return false;
@@ -1615,7 +1616,7 @@ public class AerospikeOperations {
             if (ae.errorCode == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Edge has been removed from the Phat Edge since in this case the key is
                 // the Phat Edge key and thus the key still exists.
-                LOG.debug("Ignored exception removing an already-removed property {}", this, ae);
+                LOG.debug("Ignored exception removing an already-removed property {}", property, ae);
             } else {
                 throw ae;
             }

@@ -42,8 +42,6 @@ public class FireflyBatchVertexReadSampleLimitStep extends CollectingBarrierStep
     private final Set<String> edgeLabels;
 
     // HasContainers to apply to the read of the composite id step to filter results.
-    public final List<HasContainer> fireflyHasContainers;
-    public final List<HasContainer> aerospikeHasContainers;
     private final List<HasContainer> idContainers = new ArrayList<>();
     private final long sampleSize;
     private final long limitSize;
@@ -55,7 +53,6 @@ public class FireflyBatchVertexReadSampleLimitStep extends CollectingBarrierStep
                                                  final Direction direction,
                                                  final String[] edgeLabels,
                                                  final Set<String> labels,
-                                                 final List<HasContainer> hasContainers,
                                                  final long sampleSize,
                                                  final long limitSize,
                                                  final int barrierSize,
@@ -69,26 +66,6 @@ public class FireflyBatchVertexReadSampleLimitStep extends CollectingBarrierStep
         this.limitSize = limitSize;
         this.barrierSize = barrierSize;
         this.areEdgesRequired = areEdgesRequired;
-        if (hasContainers != null) {
-            final List<HasContainer> generalContainers = new ArrayList<>();
-            for (final HasContainer hasContainer : hasContainers) {
-                if (hasContainer.getKey().equals(T.id.getAccessor())) {
-                    idContainers.add(hasContainer);
-                } else {
-                    generalContainers.add(hasContainer);
-                }
-            }
-            final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
-                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, generalContainers);
-            // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
-            //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
-            //  matter what.
-            fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
-            aerospikeHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
-        } else {
-            fireflyHasContainers = List.of();
-            aerospikeHasContainers = List.of();
-        }
         this.requiredProperties = requiredProperties;
     }
 
@@ -182,7 +159,7 @@ public class FireflyBatchVertexReadSampleLimitStep extends CollectingBarrierStep
         // Read the sampled vertices.
         final Map<FireflyId, FireflyVertex> vertexMap = new HashMap<>();
         FireflyBatchReadHelper.populateElementMap(
-                new HashSet<>(sampledVertexIds), vertexMap, aerospikeHasContainers, graph::readVertices, requiredProperties, areEdgesRequired);
+                new HashSet<>(sampledVertexIds), vertexMap, List.of(), graph::readVertices, requiredProperties, areEdgesRequired);
 
         // Create list of random indices to sample and order them in ascending order so we can iterate through them.
         final List<Long> randomIndicesList = new ArrayList<>(randomIndices);
@@ -222,7 +199,6 @@ public class FireflyBatchVertexReadSampleLimitStep extends CollectingBarrierStep
 
     @Override
     public String toString() {
-        return StringFactory.stepString(this, this.direction, this.edgeLabels, this.barrierSize,
-                this.fireflyHasContainers, this.idContainers);
+        return StringFactory.stepString(this, this.direction, this.edgeLabels, this.barrierSize, this.idContainers);
     }
 }

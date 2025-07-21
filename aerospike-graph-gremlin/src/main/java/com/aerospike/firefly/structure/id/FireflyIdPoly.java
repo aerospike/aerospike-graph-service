@@ -210,7 +210,11 @@ public class FireflyIdPoly implements FireflyId {
 
     @Override
     public String toString() {
-        return this.getKeyHashString();
+        try {
+            return getUserId().toString();
+        } catch (final Exception e) {
+            return this.getKeyHashString();
+        }
     }
 
     @Override

@@ -156,7 +156,7 @@ public class BenchmarkTestFlightsData {
                 .detectJvmArgs()
                 .forks(2)
                 .measurementIterations(2)
-                .measurementTime(TimeValue.seconds(2))
+                .measurementTime(TimeValue.seconds(5))
                 .timeout(TimeValue.seconds(60)); // Timeout
         BenchmarkTestUtils.appendJmhOptionsBuilder(optBuilder);
         Options opt = optBuilder.build();
@@ -180,7 +180,12 @@ public class BenchmarkTestFlightsData {
             obj.put("name", testToTraversal.get(result.getPrimaryResult().getLabel()));
             obj.put("unit", result.getPrimaryResult().getScoreUnit());
             obj.put("value", result.getPrimaryResult().getScore());
-            obj.put("range", result.getPrimaryResult().getScoreError());
+            final double scoreError = result.getPrimaryResult().getScoreError();
+            if (Double.isNaN(scoreError) || Double.isInfinite(scoreError)) {
+                obj.put("range", 0.0);
+            } else {
+                obj.put("range", scoreError);
+            }
             obj.put("extra", result.getPrimaryResult().getStatistics());
             root.put(obj);
         });

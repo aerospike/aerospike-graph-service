@@ -426,9 +426,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         if (FIREFLY_VERSION != null && FIREFLY_VERSION.endsWith("SNAPSHOT") && !isTesting) {
             try {
                 final String commitHash = getGitCommitHash();
-                LOG.info("Built from git commit " + commitHash);
-            }catch (Exception e) {
-                LOG.warn("Could not get the git commit hash: " + e.getMessage());
+                LOG.info("Built from git commit hash: {}", commitHash);
+            } catch (final Exception e) {
+                LOG.warn("Could not get the git commit hash: {}", e.getMessage());
             }
         }
 

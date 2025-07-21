@@ -424,8 +424,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         final boolean isTesting = Boolean.parseBoolean(System.getenv("FIREFLY_TESTING"));
         if (FIREFLY_VERSION != null && FIREFLY_VERSION.endsWith("SNAPSHOT") && !isTesting) {
-            final String commitHash = getGitCommitHash();
-            LOG.info("Built from git commit " + commitHash);
+            try {
+                final String commitHash = getGitCommitHash();
+                LOG.info("Built from git commit " + commitHash);
+            }catch (Exception e) {
+                LOG.warn("Could not get the git commit hash: " + e.getMessage());
+            }
         }
 
         if (System.getenv("FIREFLY_TESTING") != null &&

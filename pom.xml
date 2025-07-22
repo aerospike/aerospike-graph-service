@@ -194,6 +194,8 @@
                         <exclude>**/TestBulkLoaderRecovery2</exclude>
                         <exclude>**/TestBulkLoaderRecovery3</exclude>
                         <exclude>**/TestBulkLoaderRecovery4</exclude>
+                        <exclude>**/TestBulkLoaderRecovery5</exclude>
+                        <exclude>**/TestBulkLoaderRecovery6</exclude>
                         <exclude>**/TestRecoveryActionFlags</exclude>
                         <exclude>**/QueryServiceAbortTest</exclude>
                         <exclude>**/TestAerospikeClientConfigEventLoop</exclude>

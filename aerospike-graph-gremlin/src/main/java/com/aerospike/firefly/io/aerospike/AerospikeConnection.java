@@ -248,6 +248,7 @@ public class AerospikeConnection implements AutoCloseable {
     private final int INDEX_SOCKET_TIMEOUT;
     private final int INDEX_CONNECT_TIMEOUT;
     private final int INDEX_TIMEOUT_DELAY;
+    private final int AEROSPIKE_TIMEOUT;
 
     public final long PROPERTY_ID_BUFFER_SIZE;
     public final long VERTEX_ID_BUFFER_SIZE;
@@ -498,6 +499,7 @@ public class AerospikeConnection implements AutoCloseable {
         INDEX_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_SOCKET_TIMEOUT, conf);
         INDEX_CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_CONNECT_TIMEOUT, conf);
         INDEX_TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_TIMEOUT_DELAY, conf);
+        AEROSPIKE_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf);
 
         CARDINALITY_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf);
         INDEX_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf);
@@ -2143,6 +2145,10 @@ public class AerospikeConnection implements AutoCloseable {
         return record.getLong(COUNTER_BIN);
     }
 
+    public void setInfoPolicy(final InfoPolicy infoPolicy) {
+        infoPolicy.timeout = AEROSPIKE_TIMEOUT;
+    }
+
     /**
      * Drop data in all Aerospike sets associated with currently configured graph by issuing a Truncate operation
      *
@@ -2161,29 +2167,31 @@ public class AerospikeConnection implements AutoCloseable {
             // suggested to add a millisecond (ms) sleep. The truncate operation has a 1 millisecond resolution and
             // writes occurring within the same millisecond are not deleted.
             // Source: https://discuss.aerospike.com/t/guidelines-for-deleting-data/3681/1
+            final InfoPolicy infoPolicy = new InfoPolicy();
+            setInfoPolicy(infoPolicy);
             Thread.sleep(1);
-            client.truncate(null, namespace, EDGE_AERO_SET, null);
-            client.truncate(null, namespace, VERTEX_AERO_SET, null);
-            client.truncate(null, namespace, USER_SUPPLIED_ID_CACHE_SET, null);
-            client.truncate(null, namespace, TEST_SET, null);
-            client.truncate(null, namespace, GRAPH_VARIABLES_SET, null);
-            client.truncate(null, namespace, GRAPH_METADATA_SET, null);
-            client.truncate(null, namespace, INDEX_METADATA_SET, null);
-            client.truncate(null, namespace, OUT_VP_SET, null);
-            client.truncate(null, namespace, IN_VP_SET, null);
-            client.truncate(null, namespace, SUMMARY_SET, null);
-            client.truncate(null, namespace, BULK_LOAD_METADATA_SET, null);
-            client.truncate(null, namespace, BULK_LOAD_RECOVERY_VERTEX_SET, null);
-            client.truncate(null, namespace, BULK_LOAD_RECOVERY_EDGE_SET, null);
-            client.truncate(null, namespace, BULK_LOAD_RECOVERY_SUPERNODE_SET, null);
-            client.truncate(null, namespace, BULK_LOAD_RECOVERY_STATE_SET, null);
+            client.truncate(infoPolicy, namespace, EDGE_AERO_SET, null);
+            client.truncate(infoPolicy, namespace, VERTEX_AERO_SET, null);
+            client.truncate(infoPolicy, namespace, USER_SUPPLIED_ID_CACHE_SET, null);
+            client.truncate(infoPolicy, namespace, TEST_SET, null);
+            client.truncate(infoPolicy, namespace, GRAPH_VARIABLES_SET, null);
+            client.truncate(infoPolicy, namespace, GRAPH_METADATA_SET, null);
+            client.truncate(infoPolicy, namespace, INDEX_METADATA_SET, null);
+            client.truncate(infoPolicy, namespace, OUT_VP_SET, null);
+            client.truncate(infoPolicy, namespace, IN_VP_SET, null);
+            client.truncate(infoPolicy, namespace, SUMMARY_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_METADATA_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_VERTEX_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_EDGE_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_SUPERNODE_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_STATE_SET, null);
 
             // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the
             // id manager set and if we delete it here, they will likely insert a record with the same id as the one
             // we will eventually reach as we wrap around.
             if (dropIndices) {
                 // Indexes break if Schema table is dropped.
-                client.truncate(null, namespace, SCHEMA_SET, null);
+                client.truncate(infoPolicy, namespace, SCHEMA_SET, null);
                 schemaManager.updateAll();
                 dropGraphIndices(graph);
             }
@@ -2202,7 +2210,9 @@ public class AerospikeConnection implements AutoCloseable {
      * Delete all data from the namespace
      */
     public void clearNamespace() {
-        client.truncate(null, namespace, null, null);
+        final InfoPolicy infoPolicy = new InfoPolicy();
+        setInfoPolicy(infoPolicy);
+        client.truncate(infoPolicy, namespace, null, null);
         final List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(this);
         for (final Map.Entry<String, String> entry : indexes) {
             dropIndex(entry.getValue(), entry.getKey());
@@ -2532,9 +2542,11 @@ public class AerospikeConnection implements AutoCloseable {
         this.writeOperate(null, badEntryCountKey, zeroCounter);
 
         try {
-            client.truncate(null, namespace, BULK_LOAD_DUPLICATE_VID_SET, null);
-            client.truncate(null, namespace, BULK_LOAD_BAD_EDGE_SET, null);
-            client.truncate(null, namespace, BULK_LOAD_BAD_ENTRY_SET, null);
+            final InfoPolicy infoPolicy = new InfoPolicy();
+            setInfoPolicy(infoPolicy);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_DUPLICATE_VID_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_BAD_EDGE_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_BAD_ENTRY_SET, null);
             Thread.sleep(1);
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();

@@ -3,6 +3,7 @@ package com.aerospike.firefly.io.aerospike;
 import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.cluster.Node;
+import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.firefly.util.exceptions.AerospikeMrtNotSupportedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +65,7 @@ public class FireflyAerospikeVersionCheck {
     public static void validateVersion(final IAerospikeClient client, final boolean requireMRTSupport) {
         for (final Node node : client.getNodes()) {
             LOG.debug("Info.request: build");
+            // Cannot set up InfoPolicy here because AerospikeConnection does not exist yet, so use default.
             final String response = Info.request(null, node, "build");
             final FireflyAerospikeVersionCheck version = new FireflyAerospikeVersionCheck(response);
             if (!validateVersion(version)) {

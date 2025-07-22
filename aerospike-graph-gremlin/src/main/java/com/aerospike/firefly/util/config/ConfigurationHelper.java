@@ -147,6 +147,7 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_MAX_RETRIES = "aerospike.client.policy.maxRetries";
         public static final String TIMEOUT_DELAY = "aerospike.client.policy.timeoutDelay";
         public static final String CONNECT_TIMEOUT = "aerospike.client.policy.connectTimeout";
+        public static final String INFO_TIMEOUT = "aerospike.client.infoPolicy.timeout";
 
         public static final String MERGE_EDGE_TTL = "aerospike.graph.strategy.merge.edge.lock.timeout";
         public static final String MERGE_EDGE_POLL_INTERVAL = "aerospike.graph.strategy.merge.edge.poll.interval";
@@ -423,6 +424,7 @@ public final class ConfigurationHelper {
         put(Keys.MIN_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
         put(Keys.CONNECT_TIMEOUT, "0");
         put(Keys.TIMEOUT_DELAY, "2000");
+        put(Keys.INFO_TIMEOUT, "3000");
         put(Keys.WRITE_TOTAL_TIMEOUT, "2500");
         put(Keys.READ_TOTAL_TIMEOUT, "150");
         put(Keys.READ_TOTAL_TIMEOUT_BULK_LOAD, "6000");
@@ -517,6 +519,7 @@ public final class ConfigurationHelper {
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.MAX_ERROR_RATE, 0);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.CONNECT_TIMEOUT, 0);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.TIMEOUT_DELAY, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.INFO_TIMEOUT, 0);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.USAGE_STATS_UPDATE_INTERVAL, 1);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.MAX_CONNECTIONS_PER_NODE, 1);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.MIN_CONNECTIONS_PER_NODE, 1);

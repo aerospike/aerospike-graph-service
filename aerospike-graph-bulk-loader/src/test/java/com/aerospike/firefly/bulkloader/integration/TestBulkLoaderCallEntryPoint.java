@@ -198,7 +198,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(0, g.E().count().next().longValue());
             final long vertexCount = g.V().count().next().longValue();
             RecoveryUtil.truncate(fireflyGraph);
-            g.call("aerospike.graphloader.admin.bulk-load.load").with("edges").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load").with(INCREMENTAL_LOAD).with("edges").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             waitForBulkLoad(g);
             Assert.assertEquals(vertexCount, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -243,7 +243,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(0, g.E().count().next().longValue());
             final long vertexCount = g.V().count().next().longValue();
             RecoveryUtil.truncate(fireflyGraph);
-            g.call("aerospike.graphloader.admin.bulk-load.load").with("vertices", false).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load").with(INCREMENTAL_LOAD).with("vertices", false).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             waitForBulkLoad(g);
             Assert.assertEquals(vertexCount, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());

@@ -35,6 +35,7 @@ import java.util.Timer;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_EMAIL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_KEYFILE_DIRECTORY;
@@ -184,7 +185,7 @@ public class SparkBulkLoaderStateMachine {
                         fileSystem.equals(SparkBulkLoaderStateMachine.LOCAL) ? File.separator : "/");
                 configureFileSystem(spark, cmd, edgeRecoveryDirectory);
             }
-            isEdgeCacheWrittenWithVertex = !incrementalLoad && !readOnly;
+            isEdgeCacheWrittenWithVertex = !incrementalLoad && !readOnly && !config.hasAction(DISABLE_EDGE_WRITE);
             progressBar.setIsEdgeCacheGenerationRequired(isEdgeCacheWrittenWithVertex);
         } catch (final Exception e) {
             LOGGER.error("Failed to initialize SparkBulkLoaderStateMachine", e);

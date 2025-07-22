@@ -1445,7 +1445,7 @@ jobs:
           mvn -pl aerospike-graph-bulk-loader test -Dtest=TestBulkLoaderRecovery4 --no-transfer-progress
 
   test-firefly-spark-bulk-loader-load-recovery-1-5:
-    name: Test Spark Bulk Loader Load Recovery 1 - 4
+    name: Test Spark Bulk Loader Load Recovery 1 - 5
     timeout-minutes: 80
     needs: start-runner-recoverable-load-1-5
     runs-on: ${{ needs.start-runner-recoverable-load-1-5.outputs.label }}
@@ -1481,7 +1481,7 @@ jobs:
           mvn -pl aerospike-graph-bulk-loader test -Dtest=TestBulkLoaderRecovery5 --no-transfer-progress
 
   test-firefly-spark-bulk-loader-load-recovery-1-6:
-    name: Test Spark Bulk Loader Load Recovery 1 - 4
+    name: Test Spark Bulk Loader Load Recovery 1 - 6
     timeout-minutes: 80
     needs: start-runner-recoverable-load-1-6
     runs-on: ${{ needs.start-runner-recoverable-load-1-6.outputs.label }}

@@ -68,6 +68,7 @@ public enum GraphError {
     SET_CARDINALITY_NOT_SUPPORTED(1118),
     MRT_NOT_SUPPORTED(1119),
     NSUP_DISABLED(1120),
+    QUERY_IN_TRANSACTION(1121),
 	
     ELEMENT_NOT_FOUND(ResultCode.KEY_NOT_FOUND_ERROR),
     RECORD_SIZE_EXCEEDED(ResultCode.RECORD_TOO_BIG),
@@ -119,6 +120,7 @@ public enum GraphError {
                 "Please raise the query-threads-limit setting or reduce concurrent queries and try again.");
         ERROR_MESSAGES.put(SET_CARDINALITY_NOT_SUPPORTED.code, "Cardinality.set is not supported in Aerospike Graph. Use Cardinality.list or Cardinality.single.");
         ERROR_MESSAGES.put(MRT_NOT_SUPPORTED.code, "Transactions require Aerospike database version 8 or newer with strong consistency mode enabled. Please verify that all nodes in the cluster are running a compatible version of Aerospike.");
+        ERROR_MESSAGES.put(QUERY_IN_TRANSACTION.code, "Aerospike Graph Service does not support query traversals within a Transaction. If applicable, execute a traversal outside of the Transaction to grab the required Element IDs and apply a traversal directly to the IDs within the Transaction.");
 
         // Server
         ERROR_MESSAGES.put(ELEMENT_NOT_FOUND.code, "Element was dropped and no longer exists.");

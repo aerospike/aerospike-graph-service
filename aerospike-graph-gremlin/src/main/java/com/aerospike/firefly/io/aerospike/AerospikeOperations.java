@@ -114,10 +114,12 @@ public class AerospikeOperations {
     }
 
     protected Txn getOrCreateTxn() {
-        // 1. try get txn from graph (when FireflyGraph will support tx)
-        // 2. if db has MRT enabled, then create new txn
-        // 3. else no txn support
-        if (!db.MRT_ENABLED) return null;
+        // If MRTs are enabled, create a Txn.
+        // However, if the current Traversal thread is within a Tinkerpop transaction, that takes priority and is
+        // injected at a higher level.
+        if (!db.MRT_ENABLED || this.graph.tx().getCurrentTxn() != null) {
+            return null;
+        }
 
         final Txn txn = new Txn();
         txn.setTimeout(db.MRT_TIMEOUT);
@@ -1320,7 +1322,6 @@ public class AerospikeOperations {
 
         final WritePolicy policy = new WritePolicy();
         policy.txn = txn;
-        policy.durableDelete = txn != null;
         if (edge.isInSupernode() || edge.isOutSupernode()) {
             policy.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
             policy.generation = edge.getGeneration();

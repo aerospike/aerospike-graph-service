@@ -22,6 +22,8 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.javatuples.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,6 +49,8 @@ import static com.aerospike.firefly.util.exceptions.GraphError.sneakyThrow;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implements LocalBarrier<Edge> {
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyBatchEdgeReadStep.class);
+
     private final Direction direction;
     private final Set<String> edgeLabels;
     private final List<HasContainer> adjustedIdContainers;
@@ -198,15 +202,19 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
 
     @Override
     public void barrierConsumer(final TraverserSet<Edge> set) {
+        final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         if (threads != -1) {
-            parallelBarrierConsumer(set);
-            return;
+            if (graph.tx().getCurrentTxn() != null) {
+                LOG.warn("Cannot parallelize batch Edge reads within a Transaction. Falling back to synchronous mode");
+            } else {
+                parallelBarrierConsumer(set);
+                return;
+            }
         }
         if (limit != -1 && runningTotal >= limit) {
             set.clear();
             return; // Limit reached in previous barrier consumer, stop processing.
         }
-        final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         FireflyBatchReadHelper.pullFromLeft(traversal, graph, set, barrierSize);
 
         // Create output traverser set since we cant append to the input while we are iterating.

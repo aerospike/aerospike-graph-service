@@ -15,6 +15,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
+import com.aerospike.firefly.structure.transaction.FireflyTransaction;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -109,6 +110,9 @@ public class TestAerospikeOperations {
     public void testEdgeWriteWithTxn() {
         final FireflyGraph graph = mock(FireflyGraph.class);
         setFieldValue(FireflyGraph.class, graph, "fireflySummaryUpdater", mock(FireflyGraphSummaryUpdater.class));
+        final FireflyTransaction mockTransaction = mock(FireflyTransaction.class);
+        when(mockTransaction.getCurrentTxn()).thenReturn(null);
+        setFieldValue(FireflyGraph.class, graph, "transaction", mockTransaction);
 
         final FireflyId inVertexId = mock(FireflyId.class);
         when(inVertexId.getKeyHashString()).thenReturn("inId");
@@ -154,6 +158,7 @@ public class TestAerospikeOperations {
 
         when(graph.getBaseGraph()).thenReturn(connection);
         when(graph.getIdFactory()).thenReturn(fireflyIdFactory);
+        when(graph.tx()).thenReturn(mockTransaction);
 
         final AerospikeOperations operations = new AerospikeOperations(graph);
 

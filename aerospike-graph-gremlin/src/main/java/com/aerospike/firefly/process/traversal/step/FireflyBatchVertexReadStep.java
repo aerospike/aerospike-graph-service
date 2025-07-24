@@ -6,7 +6,6 @@ import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -23,6 +22,8 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.javatuples.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,6 +49,8 @@ import static com.aerospike.firefly.util.exceptions.GraphError.sneakyThrow;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> implements LocalBarrier<Vertex> {
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyBatchEdgeReadStep.class);
+
     private final Direction direction;
     private final Set<String> edgeLabels;
     private final boolean areEdgesRequired;
@@ -248,15 +251,19 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
 
     @Override
     public void barrierConsumer(final TraverserSet<Vertex> set) {
+        final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         if (threads != -1) {
-            parallelBarrierConsumer(set);
-            return;
+            if (graph.tx().getCurrentTxn() != null) {
+                LOG.warn("Cannot parallelize batch Vertex reads within a Transaction. Falling back to synchronous mode");
+            } else {
+                parallelBarrierConsumer(set);
+                return;
+            }
         }
         if (limit != -1 && runningTotal >= limit) {
             set.clear();
             return; // Limit reached in previous barrier consumer, stop processing.
         }
-        final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         FireflyBatchReadHelper.pullFromLeft(traversal, graph, set, barrierSize);
 
         // Create output traverser set since we cant append to the input while we are iterating.

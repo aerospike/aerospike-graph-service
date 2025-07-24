@@ -207,8 +207,11 @@
                         <!-- tests require MRT compatible aerospike server (version 8.0+ and SC enabled) -->
                         <exclude>**/TestMRTSupported</exclude>
                         <exclude>**/FireflyMRTFeatureTest</exclude>
+                        <exclude>**/FireflyTxFeatureTest</exclude>
+                        <exclude>**/FireflyTxMRTFeatureTest</exclude>
                         <exclude>**/TestAerospikeOperations</exclude>
                         <exclude>**/FireflyGraphSummaryUpdaterTest</exclude>
+                        <exclude>**/TestTinkerpopTransactions</exclude>
                         <!-- heavy computer tests -->
                         <exclude>**/FireflyComputerFeatureMapTest</exclude>
                         <exclude>**/FireflyComputerFeatureFilterTest</exclude>

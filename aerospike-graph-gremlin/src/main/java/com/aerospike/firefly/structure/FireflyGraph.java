@@ -36,6 +36,7 @@ import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
 import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.runtime.zipkin.OpenTelemetryZipkinExporter;
+import com.aerospike.firefly.structure.transaction.FireflyTransaction;
 import com.aerospike.firefly.structure.util.LogInfo;
 import com.aerospike.firefly.util.config.FireflyConfiguration;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
@@ -71,7 +72,6 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
-import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.service.ServiceRegistry;
@@ -125,7 +125,6 @@ import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.QUERY_T
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.QUERY_TRACING_LOG_PORT;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.QUERY_TRACING_LOG_THRESHOLD;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.QUERY_TRACING_SAMPLE_PERCENT;
-import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -265,6 +264,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static ExitManager EXIT_MANAGER = new ExitManager();
     public static boolean NEED_PREHEAT = true;
     public final GraphQuery graphQuery;
+    private final FireflyTransaction transaction;
     private boolean queryTracingEnabled = false;
     private OpenTelemetryZipkinExporter zipkinExporter;
     public LogInfo logInfo = null;
@@ -320,7 +320,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 // Default to single.
                 vpCardinality = VertexProperty.Cardinality.single;
             }
-            this.features = new FireflyFeatures(vpCardinality);
+            this.features = new FireflyFeatures(vpCardinality, this.db.TRANSACTION_ENABLED);
 
             // Create index metadata background task that will populate indexes for the named graph on the fly.
             fireflyIndexMetadata = new FireflyIndexMetadata(db);
@@ -360,6 +360,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                     PluginUtil.loadPlugin(plugin, conf, this);
                 }
             }
+
+            this.transaction = new FireflyTransaction(this);
+            this.db.setTransaction(this.transaction);
 
             if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && !db.getOlapFlag()) {
                 // Create usage statistics background task. Only one per server
@@ -1271,8 +1274,18 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     @Override
-    public Transaction tx() {
-        throw new UnsupportedOperationException(UNIMPLEMENTED);
+    public FireflyTransaction tx() {
+        return this.transaction;
+    }
+
+    public void enterTransactionState() {
+        LOG.warn("enterTransactionState on Thread: {}", Thread.currentThread().getId());
+        this.transaction.enterTransactionState();
+    }
+
+    public void exitTransactionState() {
+        LOG.warn("exitTransactionState on Thread: {}", Thread.currentThread().getId());
+        this.transaction.exitTransactionState();
     }
 
     @Override
@@ -1306,6 +1319,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
             if (this.ttlHandler != null) {
                 this.ttlHandler.close();
+            }
+
+            if (this.transaction != null) {
+                this.transaction.close();
             }
 
             if (this.zipkinExporter != null) {

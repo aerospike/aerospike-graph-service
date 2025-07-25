@@ -3,6 +3,8 @@ package com.aerospike.firefly.olap.config;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.spark.storage.StorageLevel;
 
 import java.io.Serializable;
 import java.util.HashSet;
@@ -22,11 +24,16 @@ public class DistributedConfigHelper implements Serializable {
     private final Map<String, Object> olapConfig;
 
     private static final String OLAP_PREFIX = "aerospike.graph.olap.";
+    private static final String OLAP_BATCH_JOB_SIZE = OLAP_PREFIX + "batch.job.size";
     private static final String DEBUG_DF = OLAP_PREFIX + "debug.df";
+    private static final String FORCE_GC = OLAP_PREFIX + "debug.gc";
+    private static final String PERSISTENCE = OLAP_PREFIX + "persist";
     private static final String SUPERNODE_STEPPING = OLAP_PREFIX + "supernode.stepping";
+    private static final String TEMP_WRITE_DIRECTORY = OLAP_PREFIX + "temp.write.directory";
     private static final boolean DEBUG_DF_DEFAULT = false;
     private static final boolean SUPERNODE_STEPPING_DEFAULT = true;
     private static final String PARTITIONS = OLAP_PREFIX + "partitions";
+    private static final String DISABLE_BULKING = OLAP_PREFIX + "disable.bulk.row.set";
 
     private static final Map<String, Object> OLAP_FIREFLY_CONFIG = Map.of(
             ConfigurationHelper.Keys.OLAP_ENABLED, true,
@@ -38,10 +45,12 @@ public class DistributedConfigHelper implements Serializable {
             ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, MAX_CONNECTIONS_PER_NODE_OLAP_EXECUTOR,
             ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE, MIN_CONNECTIONS_PER_NODE_OLAP_EXECUTOR
     );
+    final String randomTempDir;
 
     public DistributedConfigHelper(final Map<String, Object> fireflyConfig, final Map<String, Object> olapConfig) {
         this.fileConfig = fireflyConfig;
         this.olapConfig = olapConfig;
+        randomTempDir = RandomStringUtils.randomAlphanumeric(8);
         if (this.olapConfig != null) {
             final Set<String> keys = new HashSet<>(olapConfig.keySet());
             for (final String key : keys) {
@@ -68,11 +77,68 @@ public class DistributedConfigHelper implements Serializable {
         return getOlapConfig().getBoolean(DEBUG_DF, DEBUG_DF_DEFAULT);
     }
 
+    public boolean isForceGC() {
+        return getOlapConfig().getBoolean(FORCE_GC, false);
+    }
+
     public boolean isSupernodeSteppingEnabled() {
         return getOlapConfig().getBoolean(SUPERNODE_STEPPING, SUPERNODE_STEPPING_DEFAULT);
     }
 
     public Optional<Integer> getPartitions() {
         return Optional.ofNullable(getOlapConfig().getInteger(PARTITIONS, null));
+    }
+
+    public StorageLevel getStorageLevel() {
+        final String persistence = getOlapConfig().getString(PERSISTENCE, "DISK_ONLY");
+        switch (persistence) {
+            case "MEMORY":
+            case "MEMORY_ONLY":
+                return StorageLevel.MEMORY_ONLY();
+            case "DISK":
+            case "DISK_ONLY":
+                return StorageLevel.DISK_ONLY();
+            case "MEMORY_AND_DISK":
+                return StorageLevel.MEMORY_AND_DISK();
+            case "MEMORY_ONLY_SER":
+                return StorageLevel.MEMORY_ONLY_SER();
+            case "MEMORY_AND_DISK_SER":
+                return StorageLevel.MEMORY_AND_DISK_SER();
+            case "DISK_ONLY_2":
+                return StorageLevel.DISK_ONLY_2();
+            case "MEMORY_ONLY_2":
+                return StorageLevel.MEMORY_ONLY_2();
+            case "MEMORY_AND_DISK_2":
+                return StorageLevel.MEMORY_AND_DISK_2();
+            case "MEMORY_ONLY_SER_2":
+                return StorageLevel.MEMORY_ONLY_SER_2();
+            case "MEMORY_AND_DISK_SER_2":
+                return StorageLevel.MEMORY_AND_DISK_SER_2();
+            case "OFF_HEAP":
+                return StorageLevel.OFF_HEAP();
+            default:
+                throw new IllegalArgumentException("Unsupported storage level: " + persistence +
+                        ". Supported values are: MEMORY_ONLY, DISK_ONLY, MEMORY_AND_DISK, MEMORY_ONLY_SER, " +
+                        "MEMORY_AND_DISK_SER, DISK_ONLY_2, MEMORY_ONLY_2, MEMORY_AND_DISK_2, MEMORY_ONLY_SER_2, " +
+                        "MEMORY_AND_DISK_SER_2, OFF_HEAP.");
+        }
+    }
+
+    public int getBatchJobSize() {
+        return getOlapConfig().getInt(OLAP_BATCH_JOB_SIZE, 5000);
+    }
+
+    public boolean isBulkingDisabled() {
+        return getOlapConfig().getBoolean(DISABLE_BULKING, false);
+    }
+
+    public String getTempWriteDirectory() {
+        final String tempDir = getOlapConfig().getString(TEMP_WRITE_DIRECTORY, "");
+        if (!tempDir.isEmpty()) {
+            final String separator = "/";
+            return tempDir + separator + "AGA" + separator + randomTempDir;
+        } else {
+            return "";
+        }
     }
 }

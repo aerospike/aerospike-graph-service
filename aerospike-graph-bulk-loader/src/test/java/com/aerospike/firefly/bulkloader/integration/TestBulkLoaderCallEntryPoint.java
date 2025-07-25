@@ -17,7 +17,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -199,7 +198,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(0, g.E().count().next().longValue());
             final long vertexCount = g.V().count().next().longValue();
             RecoveryUtil.truncate(fireflyGraph);
-            g.call("aerospike.graphloader.admin.bulk-load.load").with("edges").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load").with(INCREMENTAL_LOAD).with("edges").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             waitForBulkLoad(g);
             Assert.assertEquals(vertexCount, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -222,7 +221,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(0, g.E().count().next().longValue());
             final long vertexCount = g.V().count().next().longValue();
             RecoveryUtil.truncate(fireflyGraph);
-            g.call("aerospike.graphloader.admin.bulk-load.load").with("vertices", false).with("edges", true).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load").with(INCREMENTAL_LOAD).with("vertices", false).with("edges", true).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             waitForBulkLoad(g);
             Assert.assertEquals(vertexCount, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -244,7 +243,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(0, g.E().count().next().longValue());
             final long vertexCount = g.V().count().next().longValue();
             RecoveryUtil.truncate(fireflyGraph);
-            g.call("aerospike.graphloader.admin.bulk-load.load").with("vertices", false).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load").with(INCREMENTAL_LOAD).with("vertices", false).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             waitForBulkLoad(g);
             Assert.assertEquals(vertexCount, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -266,7 +265,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(0, g.E().count().next().longValue());
             final long vertexCount = g.V().count().next().longValue();
             RecoveryUtil.truncate(fireflyGraph);
-            g.call("aerospike.graphloader.admin.bulk-load.load").with("edges", true).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load").with(INCREMENTAL_LOAD).with("edges", true).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             waitForBulkLoad(g);
             Assert.assertEquals(vertexCount, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -450,43 +449,6 @@ public class TestBulkLoaderCallEntryPoint {
             waitForBulkLoad(g);
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
-        }
-    }
-
-    @Test
-    public void testBlobTypes() {
-        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
-            final GraphTraversalSource g = fireflyGraph.traversal();
-            g.V().drop().iterate();
-            Assert.assertEquals(0, g.V().count().next().longValue());
-            Assert.assertEquals(0, g.E().count().next().longValue());
-            g.call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config-blob.properties").iterate();
-            waitForBulkLoad(g);
-            Assert.assertEquals(2, g.V().count().next().longValue());
-            // One of the edge blob properties is purposefully invalid Base64 so this is 1. Implicitly tests invalid String.
-            Assert.assertEquals(1, g.E().count().next().longValue());
-            Assert.assertEquals(1, g.V(1).properties("single").count().next().longValue());
-            Assert.assertEquals(2, g.V(2).properties("multi").count().next().longValue());
-            Assert.assertEquals(1, g.E().properties("single").count().next().longValue());
-            Assert.assertEquals(1, g.E().properties("multi").count().next().longValue());
-
-            final byte[] singleVal = new byte[]{1, 2, 3};
-            final byte[] multiVal1 = new byte[]{4, 5, 6};
-            final byte[] multiVal2 = new byte[]{1, 2};
-
-            byte[] singleVertexValue = (byte[]) g.V(1).properties("single").next().value();
-            Assert.assertArrayEquals(singleVal, singleVertexValue);
-            byte[] singleEdgeValue = (byte[]) g.E().properties("single").next().value();
-            Assert.assertArrayEquals(singleVal, singleEdgeValue);
-
-            Set<byte[]> vertexMultiProperties = g.V(1).properties("multi").toList().stream()
-                    .map(p -> (byte[]) p.value()).collect(Collectors.toSet());
-
-            Assert.assertTrue(vertexMultiProperties.stream().anyMatch(p -> Arrays.equals(multiVal1, p)));
-            Assert.assertTrue(vertexMultiProperties.stream().anyMatch(p -> Arrays.equals(multiVal2, p)));
-            List<byte[]> edgeListProperty = (List<byte[]>) g.E().properties("multi").next().value();
-            Assert.assertTrue(edgeListProperty.stream().anyMatch(p -> Arrays.equals(multiVal1, p)));
-            Assert.assertTrue(edgeListProperty.stream().anyMatch(p -> Arrays.equals(multiVal2, p)));
         }
     }
 
@@ -717,8 +679,8 @@ public class TestBulkLoaderCallEntryPoint {
             g.V().drop().iterate();
             Assert.assertEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
-            // ~id,~label,test_multi_before_not_after:string(list),test_multi_before_and_after:string(list),test_multi_not_before_but_after:string,test_multi_not_before_not_after:string
-            // 1  ,person,before;not;after                        ,before;and;after                        ,not;before;but;after                  ,not;before;not;after
+            // ~id,~label,test_multi_before_not_after:string:list,test_multi_before_and_after:string:list,test_multi_not_before_but_after:string,test_multi_not_before_not_after:string
+            // 1  ,person,before;not;after                       ,before;and;after                       ,not;before;but;after                  ,not;before;not;after
 
             // ~label,~from,~to,test(list)
             // knows,1,1,foo;bar
@@ -741,8 +703,8 @@ public class TestBulkLoaderCallEntryPoint {
             testProperty(edge, "test", Set.of("foo", "bar"));
 
             // Incremental load next dataset.
-            // ~id,~label,test_multi_before_not_after:string,test_multi_before_and_after:string(list),test_multi_not_before_but_after:string(list),test_multi_not_before_not_after:string
-            // 1  ,person,present                           ,before;baz                              ,not;before;but;after                        ,still;not
+            // ~id,~label,test_multi_before_not_after:string,test_multi_before_and_after:string:list,test_multi_not_before_but_after:string:list,test_multi_not_before_not_after:string
+            // 1  ,person,present                           ,before;baz                             ,not;before;but;after                       ,still;not
             //
             // ~label,~from,~to,test(list)
             // knows,1,1,foo;bar

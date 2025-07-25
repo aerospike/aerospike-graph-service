@@ -10,9 +10,14 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.SampleGlobalStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.TraversalFilterStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.EdgeOtherVertexStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.EdgeVertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -67,6 +72,7 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
             // Note we don't want to push down ids.
             List<HasContainer> hasContainers = null;
             Set<String> labels = vertexStep.getLabels();
+            List<HasContainer> adjustedIdContainers = null;
 
             int sampleSize = -1;
             long limitSize = -1;
@@ -89,7 +95,46 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                     hasContainers = ((HasStep) steps.get(index)).getHasContainers();
                     labels = steps.get(index).getLabels();
                     traversal.removeStep(steps.get(index));
-                    break;
+                } else if (steps.get(index) instanceof TraversalFilterStep) {
+                    final Traversal.Admin filterTraversal = ((TraversalFilterStep) steps.get(index)).getFilterTraversal();
+                    final List<Step> filterSteps = filterTraversal.getSteps();
+
+                    // Check for labels that need to be propagated.
+                    if (!((TraversalFilterStep<?>) steps.get(index)).getLabels().isEmpty()) {
+                        labels = ((TraversalFilterStep<?>) steps.get(index)).getLabels();
+                    }
+
+                    // we support only __.otherV().hasId(<id2) pattern
+                    // following if's can be combined into one, but good luck reading that.
+                    if (filterSteps.size() != 2 || !(filterSteps.get(1) instanceof HasStep)) {
+                        break;
+                    }
+                    // bothE().where(__.otherV().hasId(<id2))
+                    if (vertexStep.getDirection() == Direction.BOTH && !(filterSteps.get(0) instanceof EdgeOtherVertexStep)) {
+                        break;
+                    }
+                    // inE().where(__.outV().hasId(<id2))
+                    if (vertexStep.getDirection() == Direction.IN
+                            && (!(filterSteps.get(0) instanceof EdgeVertexStep)
+                                || ((EdgeVertexStep) filterSteps.get(0)).getDirection() == Direction.IN)) {
+                        break;
+                    }
+                    // inE().where(__.outV().hasId(<id2))
+                    if (vertexStep.getDirection() == Direction.OUT
+                            && (!(filterSteps.get(0) instanceof EdgeVertexStep)
+                                || ((EdgeVertexStep) filterSteps.get(0)).getDirection() == Direction.OUT)) {
+                        break;
+                    }
+
+                    final List<HasContainer> containers = ((HasStep) filterSteps.get(1)).getHasContainers();
+                    // only predicates by t.id supported
+                    if (containers.stream().allMatch(c -> !c.getKey().equals(T.id.getAccessor()))) {
+                        break;
+                    }
+
+                    // remove filter step
+                    traversal.removeStep(steps.get(index));
+                    adjustedIdContainers = containers;
                 } else if (steps.get(index) instanceof SampleGlobalStep) {
                     if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY) {
                         break;
@@ -121,12 +166,13 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
 
                         // Labels should be propagated after the limit step.
                         if (!labels.isEmpty()) {
-                            for (final String label: labels) {
+                            for (final String label : labels) {
                                 step.addLabel(label);
                             }
                             labels.clear();
                         }
                         traversal.addStep(index, step);
+                        break;
                     } catch (final NoSuchFieldException | IllegalAccessException ignored) {
                         // Failed to get sample size, just ignore it.
                     }
@@ -146,6 +192,8 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                         break;
                     }
 
+                    // label propagation is not required for limit step b/c it is not removed.
+
                     // Get the limit size.
                     limitSize = high;
 
@@ -158,13 +206,13 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                 }
             }
 
-            if (limitSize != -1 || sampleSize != -1) {
+            boolean hasPushdown = hasContainers != null && !hasContainers.isEmpty() || adjustedIdContainers != null && !adjustedIdContainers.isEmpty();
+            if ((limitSize != -1 || sampleSize != -1) && !hasPushdown) {
                 traversal.addStep(index, new FireflyBatchEdgeReadSampleLimitStep(
                         traversal,
                         vertexStep.getDirection(),
                         vertexStep.getEdgeLabels(),
                         labels,
-                        hasContainers,
                         sampleSize,
                         limitSize,
                         graph.getBaseGraph().MOVEMENT_BARRIER_SIZE));
@@ -175,7 +223,14 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                         vertexStep.getEdgeLabels(),
                         labels,
                         hasContainers,
-                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE));
+                        adjustedIdContainers,
+                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
+                        limitSize));
+                if (sampleSize != -1) {
+                    // If we have a sample size, we need to add a limit step after the batch edge read step.
+                    final SampleGlobalStep<?> step = new SampleGlobalStep<>(traversal.asAdmin(), sampleSize);
+                    traversal.addStep(index + 1, step);
+                }
             }
         }
     }

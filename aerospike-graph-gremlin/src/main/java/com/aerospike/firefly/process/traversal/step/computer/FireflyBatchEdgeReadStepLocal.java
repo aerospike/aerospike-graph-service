@@ -99,7 +99,7 @@ public class FireflyBatchEdgeReadStepLocal extends VertexStep<Edge> {
             // All the work for supernode scan/index/cache handling is done in the getVertexIdsFromVertex function.
             TraversalUtil.supernodeTraversalWarning(graph, this.traversal, vertex);
 
-            vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, fireflyIdList, aerospikeHasContainers);
+            vertex.getBatchedEdgeIdsFromVertex(direction, edgeLabels, fireflyIdList, aerospikeHasContainers, (List<HasContainer>)null);
             for (int i = previousSize; i < fireflyIdList.size(); i++) {
                 final FireflyId id = fireflyIdList.get(i);
                 if (!fireflyEdgeMap.containsKey(id)) {

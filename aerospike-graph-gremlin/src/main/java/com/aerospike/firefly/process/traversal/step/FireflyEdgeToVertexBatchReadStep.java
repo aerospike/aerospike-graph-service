@@ -19,8 +19,9 @@ public class FireflyEdgeToVertexBatchReadStep extends VertexBatchReadStep {
                                             final List<HasContainer> hasContainers,
                                             final Set<String> labels,
                                             final int barrierSize,
-                                            final boolean areEdgesRequired) {
-        super(traversal, hasContainers, labels, barrierSize, areEdgesRequired);
+                                            final boolean areEdgesRequired,
+                                            final long limit) {
+        super(traversal, hasContainers, labels, barrierSize, areEdgesRequired, limit);
         this.direction = direction;
     }
 
@@ -36,5 +37,9 @@ public class FireflyEdgeToVertexBatchReadStep extends VertexBatchReadStep {
             default:
                 return List.of(edge.outVertexId(), edge.inVertexId());
         }
+    }
+
+    public Direction getDirection() {
+        return direction;
     }
 }

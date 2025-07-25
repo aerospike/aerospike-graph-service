@@ -20,4 +20,9 @@ public class ExceptionMessages {
     public static final String RECOVERY_INFO_NO_CLEAR_EXISTING_DATA_FLAG_OR_RESUME = "Bulk load resume information is present. " +
             "Cannot resume load without '" + RESUME + "' flag. Alternatively, to drop the database and " +
             "run a fresh load, set the '" + CLEAR_EXISTING_DATA + "' flag.";
+    public static final String CANNOT_RECOVER_INCREMENTAL_LOAD_WITHOUT_INCREMENTAL_FLAG =
+            "To resume an incremental load, both the '" + INCREMENTAL_LOAD + "' and '" + RESUME + "' flags must be set.";
+    public static final String CANNOT_RECOVER_NON_INCREMENTAL_LOAD_WITH_INCREMENTAL_FLAG =
+            "To resume a non-incremental load, the '" + INCREMENTAL_LOAD + "' flag must not be set. " +
+            "Use only the '" + RESUME + "' flag to resume a non-incremental load.";
 }

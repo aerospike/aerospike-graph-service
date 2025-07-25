@@ -102,25 +102,57 @@ public class TestTraversalOptions extends AbstractFireflySuite {
         g.V().drop().iterate();
         List<Vertex> vertices = new ArrayList<>();
         for (int i = 0; i < 2000; i++) {
-            vertices.add(g.addV().property(T.id, i).next());
+            vertices.add(g.addV().property(T.id, i).property("i", i).next());
         }
         for (int i = 0; i < 1998; i++) {
-            g.addE("knows").from(vertices.get(i)).to(vertices.get(i + 1)).next();
+            g.addE("knows").property("i", i).from(vertices.get(i)).to(vertices.get(i + 1)).next();
         }
         for (int i = 1990; i < 2000; i++) {
             for (int j = 0; j < 10_000; j++) {
-                g.addE("knows").from(vertices.get(i)).to(vertices.get(0)).next();
+                g.addE("knows").property("ij", i + j).from(vertices.get(i)).to(vertices.get(0)).next();
             }
         }
 
-        final List<Vertex> vresult = g.V().out().toList();
-        final List<Vertex> vresult2 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 2).V().out().toList();
-        final List<Vertex> vresult4 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 4).V().out().toList();
-        final List<Vertex> vresult16 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 16).V().out().toList();
-        final List<Edge> eresult = g.V().outE().toList();
-        final List<Edge> eresult2 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 2).V().outE().toList();
-        final List<Edge> eresult4 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 4).V().outE().toList();
-        final List<Edge> eresult16 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 16).V().outE().toList();
+        List<Vertex> vresult = g.V().out().toList();
+        List<Vertex> vresult2 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 2).V().out().toList();
+        List<Vertex> vresult4 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 4).V().out().toList();
+        List<Vertex> vresult16 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 16).V().out().toList();
+        List<Edge> eresult = g.V().outE().toList();
+        List<Edge> eresult2 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 2).V().outE().toList();
+        List<Edge> eresult4 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 4).V().outE().toList();
+        List<Edge> eresult16 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 16).V().outE().toList();
+
+        Assert.assertEquals(vresult.size(), vresult2.size());
+        Assert.assertEquals(vresult.size(), vresult4.size());
+        Assert.assertEquals(vresult.size(), vresult16.size());
+        Assert.assertEquals(eresult.size(), eresult2.size());
+        Assert.assertEquals(eresult.size(), eresult4.size());
+        Assert.assertEquals(eresult.size(), eresult16.size());
+
+        vresult = g.V().out().has("i", 10).toList();
+        vresult2 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 2).V().out().has("i", 10).toList();
+        vresult4 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 4).V().out().has("i", 10).toList();
+        vresult16 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 16).V().out().has("i", 10).toList();
+        eresult = g.V().outE().has("i", 10).toList();
+        eresult2 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 2).V().outE().has("i", 10).toList();
+        eresult4 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 4).V().outE().has("i", 10).toList();
+        eresult16 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 16).V().outE().has("i", 10).toList();
+
+        Assert.assertEquals(vresult.size(), vresult2.size());
+        Assert.assertEquals(vresult.size(), vresult4.size());
+        Assert.assertEquals(vresult.size(), vresult16.size());
+        Assert.assertEquals(eresult.size(), eresult2.size());
+        Assert.assertEquals(eresult.size(), eresult4.size());
+        Assert.assertEquals(eresult.size(), eresult16.size());
+
+        vresult = g.V().out().has("i", 1999).toList();
+        vresult2 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 2).V().out().has("i", 1999).toList();
+        vresult4 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 4).V().out().has("i", 1999).toList();
+        vresult16 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 16).V().out().has("i", 1999).toList();
+        eresult = g.V().outE().has("ij", 10000).toList();
+        eresult2 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 2).V().outE().has("ij", 10000).toList();
+        eresult4 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 4).V().outE().has("ij", 10000).toList();
+        eresult16 = g.with(ConfigurationHelper.TraversalOptions.PARALLELIZE, 16).V().outE().has("ij", 10000).toList();
 
         Assert.assertEquals(vresult.size(), vresult2.size());
         Assert.assertEquals(vresult.size(), vresult4.size());

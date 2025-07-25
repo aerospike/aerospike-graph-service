@@ -1,2 +1,2 @@
-~label,~from,~to,test(list)
+~label,~from,~to,test:string:list
 knows,1,1,foo;bar

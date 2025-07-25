@@ -24,6 +24,7 @@ import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.BatchWritePolicy;
 import com.aerospike.client.policy.QueryDuration;
 import com.aerospike.client.policy.QueryPolicy;
+import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
@@ -539,7 +540,9 @@ public class DistributedAerospikeConnection {
 
     // For testing only.
     public void removeAllJobs() {
-        db.truncate(null, jobSet, null);
+        final InfoPolicy infoPolicy = new InfoPolicy();
+        db.setInfoPolicy(infoPolicy);
+        db.truncate(infoPolicy, jobSet, null);
     }
 
     public Record getPackedRecord(final String vertexId, final int iteration) {

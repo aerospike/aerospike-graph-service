@@ -3,6 +3,7 @@ package com.aerospike.firefly.bulkloader.statemachine.states;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +50,7 @@ public class SparkBulkLoaderStateError extends SparkBulkLoaderState {
     protected BulkLoadStateStatusMap getStateMap() {
         final BulkLoadStateStatusMap stateMap = new BulkLoadStateStatusMap("error", true, BULK_LOAD_STATUS_ERROR);
         stateMap.put(BULK_LOAD_EXCEPTION_MESSAGE, error.getMessage());
-        stateMap.put(BULK_LOAD_EXCEPTION_STACKTRACE, error.getStackTrace());
+        stateMap.put(BULK_LOAD_EXCEPTION_STACKTRACE, ExceptionUtils.getStackTrace(error));
         if (errorCountParsed) {
             stateMap.put(DUPLICATE_VID, duplicateVertexIdCount);
             stateMap.put(BAD_ENTRY, badEntryCount);

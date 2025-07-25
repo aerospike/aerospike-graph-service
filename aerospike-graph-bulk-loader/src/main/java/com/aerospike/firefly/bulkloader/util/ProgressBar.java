@@ -30,6 +30,7 @@ public class ProgressBar extends TimerTask {
     private long edgesWrittenHighWatermark = 0L;
     private long edgesInitial = 0L;
     private long verticesInitial = 0L;
+    private long mergeVCount = 0L;
     private int vertexPartitions = 0;
     private int edgePartitions = 0;
     private Double vertexPartitionWritePercentage = null;
@@ -37,6 +38,7 @@ public class ProgressBar extends TimerTask {
     private AerospikeGraphException lastException = null;
     private long vertexLineCount = -1L;
     private long edgeLineCount = -1L;
+    private boolean incremental = false;
 
     public ProgressBar(final int intervalMillis) {
         this.intervalMillis = intervalMillis;
@@ -55,18 +57,37 @@ public class ProgressBar extends TimerTask {
     public void initialize(final FireflyGraph graph, final boolean incrementalMode) {
         synchronized (ProgressBar.class) {
             this.graph = graph;
-            if (incrementalMode) {
+            this.incremental = incrementalMode;
+            if (this.incremental) {
                 final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata =
-                        graph.fireflySummaryUpdater.getFireflyStatistics(true);
+                        graph.fireflySummaryUpdater.getFireflyStatistics(false);
                 verticesInitial = elementMetadata.totalVertexCount();
                 edgesInitial = elementMetadata.totalEdgeCount();
             }
         }
     }
 
+    // Used if recovering, if that is the case the initialize values will be wrong.
+    public void updateInitialValues(final long verticesInitial, final long edgesInitial) {
+        synchronized (ProgressBar.class) {
+            this.verticesInitial = verticesInitial;
+            this.edgesInitial = edgesInitial;
+        }
+    }
+
     public void setEdgeIdWriteComplete() {
         synchronized (ProgressBar.class) {
             this.edgeIdWriteComplete = true;
+        }
+    }
+
+    public void latchMergeInfo() {
+        synchronized (ProgressBar.class) {
+            if (this.graph != null) {
+                final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata =
+                        graph.fireflySummaryUpdater.getFireflyStatistics(true);
+                this.mergeVCount = elementMetadata.totalMergeVertexCount();
+            }
         }
     }
 
@@ -247,8 +268,15 @@ public class ProgressBar extends TimerTask {
 
     private String getVertexWritingProgress(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         if (vertexLoadComplete) {
-            return "\t\tVertex writing complete\n" +
-                    "\t\t\tTotal of " + (elementMetadata.totalVertexCount() - verticesInitial) + " vertices have been successfully written\n";
+            if (!incremental) {
+                return "\t\tVertex writing complete\n" +
+                        "\t\t\tTotal of " + (elementMetadata.totalVertexCount() - verticesInitial) + " vertices have been successfully written\n";
+            } else {
+                final long mergeVReport = this.mergeVCount != 0 ? this.mergeVCount : elementMetadata.totalMergeVertexCount();
+                return "\t\tVertex writing complete\n" +
+                        "\t\t\tTotal of " + (elementMetadata.totalVertexCount() - verticesInitial) + " vertices have been successfully written\n" +
+                        "\t\t\tTotal of " + mergeVReport + " merge vertex have been successfully performed\n";
+            }
         } else if ((!isEdgeCacheGenerationRequired && superNodeExtractionComplete) ||
                 (isEdgeCacheGenerationRequired && generateEdgeCachesComplete)) {
             if (verticesWritten == 0) {
@@ -256,8 +284,12 @@ public class ProgressBar extends TimerTask {
                 return "\t\tVertex writing in progress\n";
             } else {
                 final long delta = updateAndGetDeltaVertexCount(elementMetadata);
-                String output = "\t\tVertex writing in progress\n" +
-                        "\t\t\tWriting " + delta / (intervalMillis / 1000) + " vertices per second\n";
+                String output = "\t\tVertex writing in progress\n";
+                if (!incremental) {
+                    output += "\t\t\tWriting " + delta / (intervalMillis / 1000) + " vertices per second\n";
+                } else {
+                    output += "\t\t\tPerforming " + delta / (intervalMillis / 1000) + " vertex write/merge operations per second\n";
+                }
                 final int totalPartitions = vertexPartitions;
                 final int completePartitions = RecoveryUtil.completedVertexPartitions(graph.getBaseGraph()).size();
                 vertexPartitionWritePercentage = getPartitionProgressPercentage(totalPartitions, completePartitions);
@@ -278,7 +310,7 @@ public class ProgressBar extends TimerTask {
     }
 
     private long updateAndGetDeltaVertexCount(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
-        final long totalVertexCount = elementMetadata.totalVertexCount() - verticesInitial;
+        final long totalVertexCount = elementMetadata.totalVertexCount() + elementMetadata.totalMergeVertexCount() - verticesInitial;
         final long delta = totalVertexCount - verticesWritten;
         verticesWritten = totalVertexCount;
         return delta;

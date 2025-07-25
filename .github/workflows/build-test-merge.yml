@@ -787,6 +787,14 @@ jobs:
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeNetwork -DfailIfNoTests=false --no-transfer-progress
+      - name: Test Summary
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflySummaryCallTest -DfailIfNoTests=false --no-transfer-progress
+      - name: Test Concurrent Firefly Instance
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentFireflyInstanceTest -DfailIfNoTests=false --no-transfer-progress
   test-firefly:
     name: Test Firefly
     timeout-minutes: 120

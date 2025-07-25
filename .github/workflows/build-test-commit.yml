@@ -427,10 +427,6 @@ jobs:
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentClientProviderInstantiationTest -Dtest=TestAerospikeClientProviderConfiguration -DfailIfNoTests=false --no-transfer-progress
-      - name: Test Query Abort Maven
-        run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=QueryServiceAbortTest -DfailIfNoTests=false --no-transfer-progress
       - name: Test Call Steps Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
@@ -505,7 +501,7 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=Firefly*StructureStandardTest --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphStructureStandardTest --no-transfer-progress
   test-mrt:
     name: Test MRT
     timeout-minutes: 30

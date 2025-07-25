@@ -2,6 +2,7 @@ package com.aerospike.firefly.util.exceptions;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 
 import java.util.HashMap;
@@ -66,6 +67,7 @@ public enum GraphError {
     THREAD_LIMIT_EXCEEDED(1117),
     SET_CARDINALITY_NOT_SUPPORTED(1118),
     MRT_NOT_SUPPORTED(1119),
+    NSUP_DISABLED(1120),
 	
     ELEMENT_NOT_FOUND(ResultCode.KEY_NOT_FOUND_ERROR),
     RECORD_SIZE_EXCEEDED(ResultCode.RECORD_TOO_BIG),
@@ -84,6 +86,9 @@ public enum GraphError {
     static final HashMap<Integer, String> ERROR_MESSAGES = new HashMap<>();
     static {
         // Graph
+        ERROR_MESSAGES.put(NSUP_DISABLED.code, String.format("'%s' set to 0 (disabled) and '%s' disabled. These are required for TTL to work," +
+                " and this will MergeE support in Aerospike Graph Service. To enable MergeE," +
+                " please set '%s' to a non-zero value.", AerospikeConnection.InfoOps.NSUP_PERIOD, AerospikeConnection.InfoOps.ALLOW_TTL_WITHOUT_NSUP, AerospikeConnection.InfoOps.NSUP_PERIOD));
         ERROR_MESSAGES.put(CACHE_ADJACENT_ENABLED_COMPOSITE_ID_DISABLED.code, String.format(
                 "Cached adjacent ID strategy (%s) cannot be used when composite ID strategy (%s) is disabled.",
                 ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY,

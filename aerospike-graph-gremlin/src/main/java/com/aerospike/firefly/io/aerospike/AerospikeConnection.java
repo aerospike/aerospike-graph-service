@@ -284,6 +284,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final int MERGE_EDGE_TTL;
     public final int MERGE_EDGE_POLL_INTERVAL;
     public final boolean MERGE_EDGE_STARVATION_PROTECTION;
+    public final boolean EXPIRATION_ENABLED;
 
     // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
     public final boolean ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY;
@@ -430,6 +431,14 @@ public class AerospikeConnection implements AutoCloseable {
         // Verify that the namespace is not using a default-ttl.
         if (InfoOps.getIsAerospikeTTLEnabled(this, namespace)) {
             throw new AerospikeGraphException(GraphError.DEFAULT_TTL_EXISTS);
+        }
+
+        // If nsup-period is 0 (disabled), and not TTL without nsup is enabled, we cannot use TTL.
+        if (InfoOps.getIsAerospikeNsupPeriodDisabled(this, namespace) && !InfoOps.getIsTTLWithoutNsupEnabled(this, namespace)) {
+            LOG.warn(GraphError.getMessage(GraphError.NSUP_DISABLED));
+            EXPIRATION_ENABLED = false;
+        } else {
+            EXPIRATION_ENABLED = true;
         }
 
         V_LABEL_INDEX_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG, conf);
@@ -841,6 +850,8 @@ public class AerospikeConnection implements AutoCloseable {
 
         private static final String MAX_RECORD_SIZE = "max-record-size";
         private static final String DEFAULT_TTL = "default-ttl";
+        public static final String NSUP_PERIOD = "nsup-period";
+        public static final String ALLOW_TTL_WITHOUT_NSUP = "allow-ttl-without-nsup";
         private static final String STORAGE_ENGINE = "storage-engine";
         private static final String WRITE_BLOCK_SIZE = "storage-engine.write-block-size";
         private static final String STORAGE_ENGINE_PMEM = "pmem";
@@ -1066,11 +1077,60 @@ public class AerospikeConnection implements AutoCloseable {
             }
         }
 
+        public static boolean getIsAerospikeNsupPeriodDisabled(final AerospikeConnection db, final String namespace) {
+            final String requestKey = Keys.GET_CONFIG + namespace;
+
+            try {
+                final Node[] nodes = db.client.getNodes();
+                final InfoPolicy policy = new InfoPolicy();
+                db.setInfoPolicy(policy);
+                for (final Node node : nodes) {
+                    LOG.debug("Info.request: {}", requestKey);
+                    final String infoResponse = Info.request(policy, node, requestKey);
+                    final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
+                    for (final Map<String, String> config : listOfConfigs) {
+                        if (config.containsKey(NSUP_PERIOD)) {
+                            if (config.get(NSUP_PERIOD).equals("0")) {
+                                return true; // nsup-period is not set
+                            }
+                        }
+                    }
+                }
+                return true;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        public static boolean getIsTTLWithoutNsupEnabled(final AerospikeConnection db, final String namespace) {
+            final String requestKey = Keys.GET_CONFIG + namespace;
+
+            try {
+                final Node[] nodes = db.client.getNodes();
+                final InfoPolicy policy = new InfoPolicy();
+                db.setInfoPolicy(policy);
+                for (final Node node : nodes) {
+                    LOG.debug("Info.request: {}", requestKey);
+                    final String infoResponse = Info.request(policy, node, requestKey);
+                    final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
+                    for (final Map<String, String> config : listOfConfigs) {
+                        if (config.containsKey(ALLOW_TTL_WITHOUT_NSUP)) {
+                            if (config.get(ALLOW_TTL_WITHOUT_NSUP).equals("false")) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                return true;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
         /**
          * Return the max-record-size configured on Aerospike. If Aerospike is in a cluster, returns the value for the
          * node with the smallest max-record-size.
          *
-         * @param client    client.
          * @param namespace Namespace.
          * @return The max-record-size.
          */

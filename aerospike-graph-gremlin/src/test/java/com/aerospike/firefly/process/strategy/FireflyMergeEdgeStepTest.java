@@ -137,7 +137,6 @@ public class FireflyMergeEdgeStepTest {
                 as("b").
                 select("a", "b").toList();
 
-        System.out.println(output);
         Assert.assertEquals(1, output.size());
         Assert.assertEquals(2, output.get(0).size());
         Assert.assertTrue(output.get(0).containsKey("a"));

@@ -17,6 +17,6 @@ pip3 install -r .github/aerospike/requirements.txt
 python3 .github/aerospike/start_cluster.py --features_file $(realpath .github/aerospike/features.conf) \
   --node_count 3 \
   --sc --aerospike_version 8.0.0.0-rc1 \
-  --config_template aerospike_sc.conf.j2 \
+  --config_template aerospike_nsup_disabled.conf.j2 \
   --repo_path $(realpath ./) $@
 

@@ -67,6 +67,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         if (step.getCallbackRegistry() != null) this.callbackRegistry = step.getCallbackRegistry();
         if (step.getOutVTraversal() != null) this.addChildOption(Merge.outV, step.getOutVTraversal());
         if (step.getInVTraversal() != null) this.addChildOption(Merge.inV, step.getInVTraversal());
+        step.getLabels().forEach(label -> addLabel((String) label));
     }
 
     public FireflyMergeEdgeStep(final Traversal.Admin traversal, final boolean isStart) {

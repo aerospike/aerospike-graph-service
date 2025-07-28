@@ -1260,6 +1260,18 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     }
 
     @Test
+    public void testMergeVLabel() {
+        GraphTraversalSource g = graph.traversal();
+        final List<Map<String, Object>> output = g.
+                mergeV(Map.of(T.id, 1)).
+                as("a").
+                mergeV(Map.of(T.id, 2)).
+                as("b").select("a", "b").toList();
+        assertEquals(1, output.size());
+        assertEquals(2, output.get(0).size());
+    }
+
+    @Test
     public void testTrivalMerge() {
         if (graph.features().vertex().supportsMultiProperties()) {
             GraphTraversalSource g = graph.traversal();

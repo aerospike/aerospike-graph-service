@@ -434,7 +434,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         // If nsup-period is 0 (disabled), and not TTL without nsup is enabled, we cannot use TTL.
-        if (InfoOps.getIsAerospikeNsupPeriodDisabled(this, namespace) && !InfoOps.getIsTTLWithoutNsupEnabled(this, namespace)) {
+        if (!InfoOps.getIsAerospikeNsupPeriodEnabled(this, namespace) && !InfoOps.getIsTTLWithoutNsupEnabled(this, namespace)) {
             LOG.warn(GraphError.getMessage(GraphError.NSUP_DISABLED));
             EXPIRATION_ENABLED = false;
         } else {
@@ -1077,7 +1077,7 @@ public class AerospikeConnection implements AutoCloseable {
             }
         }
 
-        public static boolean getIsAerospikeNsupPeriodDisabled(final AerospikeConnection db, final String namespace) {
+        public static boolean getIsAerospikeNsupPeriodEnabled(final AerospikeConnection db, final String namespace) {
             final String requestKey = Keys.GET_CONFIG + namespace;
 
             try {
@@ -1091,7 +1091,7 @@ public class AerospikeConnection implements AutoCloseable {
                     for (final Map<String, String> config : listOfConfigs) {
                         if (config.containsKey(NSUP_PERIOD)) {
                             if (config.get(NSUP_PERIOD).equals("0")) {
-                                return true; // nsup-period is not set
+                                return false; // nsup-period is not set, therefore disabled
                             }
                         }
                     }

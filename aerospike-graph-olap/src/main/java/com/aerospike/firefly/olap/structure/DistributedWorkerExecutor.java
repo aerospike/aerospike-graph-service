@@ -154,7 +154,10 @@ public class DistributedWorkerExecutor {
                 // Create VertexProgram for worker and preset iteration start.
                 final FireflyProgram vertexProgram = createVertexProgram(vertexProgramConfig, graph);
                 if (!vertexProgram.validPostProcessSteps()) {
-                    throw new IllegalStateException("Attempting to run an algorithm that does does filter the results down after execution, how to filter results please consult documentation. If you have a small dataset, you may try rerunning the query with \"g.with('allow.unfiltered.algorithm', true)\"");
+                    throw new IllegalStateException("Attempted to run an algorithm that does not filter results after execution. " +
+                            "To apply filtering, please consult the documentation. " +
+                            "If working with a small dataset, you may rerun the query with: " +
+                            "\".with('aerospike.graph.analytics.unfiltered.algorithm.enabled', true)\"");
                 }
 
                 final Codec codec = vertexProgram.getCodec();

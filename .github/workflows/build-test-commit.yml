@@ -533,7 +533,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike_nsup.sh
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestNSupError -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepNSupDisabledTest -DfailIfNoTests=false --no-transfer-progress
   test-mrt:
     name: Test MRT
     timeout-minutes: 30

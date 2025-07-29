@@ -1089,10 +1089,8 @@ public class AerospikeConnection implements AutoCloseable {
                     final String infoResponse = Info.request(policy, node, requestKey);
                     final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
                     for (final Map<String, String> config : listOfConfigs) {
-                        if (config.containsKey(NSUP_PERIOD)) {
-                            if (config.get(NSUP_PERIOD).equals("0")) {
-                                return false; // nsup-period is not set, therefore disabled
-                            }
+                        if (config.containsKey(NSUP_PERIOD) && config.get(NSUP_PERIOD).equals("0")) {
+                            return false; // nsup-period is not set, therefore disabled
                         }
                     }
                 }
@@ -1114,10 +1112,8 @@ public class AerospikeConnection implements AutoCloseable {
                     final String infoResponse = Info.request(policy, node, requestKey);
                     final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
                     for (final Map<String, String> config : listOfConfigs) {
-                        if (config.containsKey(ALLOW_TTL_WITHOUT_NSUP)) {
-                            if (config.get(ALLOW_TTL_WITHOUT_NSUP).equals("false")) {
-                                return false;
-                            }
+                        if (config.containsKey(ALLOW_TTL_WITHOUT_NSUP) && config.get(ALLOW_TTL_WITHOUT_NSUP).equals("false")) {
+                            return false;
                         }
                     }
                 }

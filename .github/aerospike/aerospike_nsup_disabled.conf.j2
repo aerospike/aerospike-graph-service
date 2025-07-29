@@ -58,8 +58,6 @@ network {
 
 namespace test {
     replication-factor 1
-    {{ legacy_memory_setting }}
-    default-ttl {{ default_ttl }}
     storage-engine device {
         file /opt/aerospike/data/test.dat
         filesize 4G

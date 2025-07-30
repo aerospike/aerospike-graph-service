@@ -53,6 +53,7 @@ public class FireflyBatchVertexReadStrategyTests {
         assertReadProperties(g.V().both().propertyMap("name"), List.of("name"));
 
         assertReadProperties(g.V().both().hasId(1).valueMap("name"), List.of("name"));
+        assertReadProperties(g.V().both().has(T.id, 1).valueMap("age"), List.of("age"));
         assertReadProperties(g.V().both().hasLabel("person").valueMap("name"), List.of("name"));
         assertReadProperties(g.V().both().has("name", "marko").valueMap("age"), List.of("name", "age"));
 

@@ -124,6 +124,28 @@ public class FireflyMergeEdgeStepTest {
     }
 
     @Test
+    public void testMergeELabelsWork() {
+        final FireflyGraph graph = getGraphWithCacheSize(1000);
+        final GraphTraversalSource g = graph.traversal();
+        final Vertex v1 = g.addV().next();
+        final Vertex v2 = g.addV().next();
+
+        List<Map<String, Object>> output = g.
+                mergeE(asMap(Direction.OUT, v1.id(), Direction.IN, v2.id())).
+                as("a").
+                mergeE(asMap(Direction.IN, v1.id(), Direction.OUT, v2.id())).
+                as("b").
+                select("a", "b").toList();
+
+        Assert.assertEquals(1, output.size());
+        Assert.assertEquals(2, output.get(0).size());
+        Assert.assertTrue(output.get(0).containsKey("a"));
+        Assert.assertTrue(output.get(0).containsKey("b"));
+
+        graph.close();
+    }
+
+    @Test
     public void testPropertiesUpdate() {
         final FireflyGraph graph = getGraphWithCacheSize(1000);
         final GraphTraversalSource g = graph.traversal();

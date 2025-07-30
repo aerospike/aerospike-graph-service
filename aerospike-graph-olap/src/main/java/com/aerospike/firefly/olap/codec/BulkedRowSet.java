@@ -2,7 +2,6 @@ package com.aerospike.firefly.olap.codec;
 
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
-import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 

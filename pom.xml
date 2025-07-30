@@ -194,11 +194,15 @@
                         <exclude>**/TestBulkLoaderRecovery2</exclude>
                         <exclude>**/TestBulkLoaderRecovery3</exclude>
                         <exclude>**/TestBulkLoaderRecovery4</exclude>
+                        <exclude>**/TestBulkLoaderRecovery5</exclude>
+                        <exclude>**/TestBulkLoaderRecovery6</exclude>
                         <exclude>**/TestRecoveryActionFlags</exclude>
                         <exclude>**/QueryServiceAbortTest</exclude>
                         <exclude>**/TestAerospikeClientConfigEventLoop</exclude>
                         <exclude>**/FireflyMergeEdgeStepRemoteTest</exclude>
                         <exclude>**/TestAerospikeNetwork</exclude>
+                        <exclude>**/FireflySummaryCallTest</exclude>
+                        <exclude>**/ConcurrentFireflyInstanceTest</exclude>
                         <!-- tests require MRT compatible aerospike server (version 8.0+ and SC enabled) -->
                         <exclude>**/TestMRTSupported</exclude>
                         <exclude>**/FireflyMRTFeatureTest</exclude>

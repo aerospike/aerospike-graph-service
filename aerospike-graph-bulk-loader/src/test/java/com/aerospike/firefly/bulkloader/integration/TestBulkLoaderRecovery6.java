@@ -7,12 +7,10 @@ import org.junit.Test;
 
 import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoad;
 import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoadFail;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.FORCE;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RESUME;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.*;
 
 // This is split into two files because otherwise CI/CD will take forever. This lets us parallelize the testing.
-public class TestBulkLoaderRecovery4 extends TestBulkLoaderRecovery {
+public class TestBulkLoaderRecovery6 extends TestBulkLoaderRecovery {
 
     @Test
     public void testVertexVerificationFailure() {

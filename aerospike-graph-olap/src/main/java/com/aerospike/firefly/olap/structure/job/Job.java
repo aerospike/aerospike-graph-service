@@ -22,6 +22,7 @@ public class Job {
 
     private final String id;
     private final String query;
+    private final String vertexProgram;
     private final Date started;
     private Date finished = null;
     private State state = State.STARTED;
@@ -34,7 +35,8 @@ public class Job {
         df.setTimeZone(tz);
     }
 
-    public Job(final String id, final String query) {
+    public Job(final String id, final String vertexProgram, final String query) {
+        this.vertexProgram = vertexProgram;
         this.started = new Date();
         this.id = id;
         this.query = query;
@@ -42,6 +44,7 @@ public class Job {
 
     public Job(final com.aerospike.client.Record record) {
         id = record.getString("id");
+        vertexProgram = record.getString("vertexProgram");
         query = record.getString("query");
         started = new Date(record.getLong("started"));
         iteration = record.getInt("iteration");
@@ -88,12 +91,13 @@ public class Job {
     }
 
     public String toString() {
-        return String.format("Job %s; query: %s; state: ", id, query, state);
+        return String.format("Job %s; vertex program: %s; query: %s; state: %s", id, vertexProgram, query, state);
     }
 
     public Vertex toVertex() {
         final List<VertexProperty> props = new ArrayList<>();
         props.add(new DetachedVertexProperty(1, "state", state.toString(), null));
+        props.add(new DetachedVertexProperty(8, "vertexProgram", vertexProgram, null));
         props.add(new DetachedVertexProperty(2, "query", query, null));
         props.add(new DetachedVertexProperty(3, "started", started, null));
         props.add(new DetachedVertexProperty(4, "iteration", iteration, null));
@@ -115,6 +119,7 @@ public class Job {
         // id is not necessary, but convenient to have
         bins.add(new Bin("id", id));
         bins.add(new Bin("state", state.toString()));
+        bins.add(new Bin("vertexProgram", vertexProgram));
         bins.add(new Bin("query", query));
         bins.add(new Bin("started", started.getTime()));
         bins.add(new Bin("iteration", iteration));

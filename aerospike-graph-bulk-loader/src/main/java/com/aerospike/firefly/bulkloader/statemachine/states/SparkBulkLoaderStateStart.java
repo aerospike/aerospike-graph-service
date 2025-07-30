@@ -24,8 +24,6 @@ import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.RESUME_AND
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.RESUME_WITHOUT_RECOVERY_INFO;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_IN_PROGRESS;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CLEAR_EXISTING_DATA;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.FORCE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.INCREMENTAL_LOAD;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.RESUME;
@@ -270,8 +268,6 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
                 }
             } else {
                 if (!sparkBulkLoaderStateMachine.initializerGraph.isEmpty() &&
-                        !sparkBulkLoaderStateMachine.config.hasAction(DISABLE_EDGE_WRITE) &&
-                        !sparkBulkLoaderStateMachine.config.hasAction(DISABLE_VERTEX_WRITE) &&
                         !sparkBulkLoaderStateMachine.config.hasAction(INCREMENTAL_LOAD)) {
                     // If we're doing partial writing checking the emptiness of the database isn't valid.
                     LOGGER.error(DATABASE_NOT_EMPTY);
@@ -287,8 +283,6 @@ public class SparkBulkLoaderStateStart extends SparkBulkLoaderState {
             }
         } else {
             if (!sparkBulkLoaderStateMachine.initializerGraph.isEmpty() &&
-                    !sparkBulkLoaderStateMachine.config.hasAction(DISABLE_EDGE_WRITE) &&
-                    !sparkBulkLoaderStateMachine.config.hasAction(DISABLE_VERTEX_WRITE) &&
                     !sparkBulkLoaderStateMachine.config.hasAction(INCREMENTAL_LOAD)) {
                 // If we're doing partial writing checking the emptiness of the database isn't valid.
                 LOGGER.error(DATABASE_NOT_EMPTY);

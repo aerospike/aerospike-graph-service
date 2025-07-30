@@ -11,6 +11,7 @@ import com.aerospike.client.cdt.ListOrder;
 import com.aerospike.client.cdt.ListPolicy;
 import com.aerospike.client.cdt.ListWriteFlags;
 import com.aerospike.client.listener.RecordSequenceListener;
+import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
@@ -46,10 +47,12 @@ public class RecoveryUtil {
     public static void truncate(final FireflyGraph graph) {
         try {
             final AerospikeConnection db = graph.getBaseGraph();
-            db.truncate(null, db.BULK_LOAD_RECOVERY_VERTEX_SET, null);
-            db.truncate(null, db.BULK_LOAD_RECOVERY_EDGE_SET, null);
-            db.truncate(null, db.BULK_LOAD_RECOVERY_SUPERNODE_SET, null);
-            db.truncate(null, db.BULK_LOAD_RECOVERY_STATE_SET, null);
+            final InfoPolicy infoPolicy = new InfoPolicy();
+            db.setInfoPolicy(infoPolicy);
+            db.truncate(infoPolicy, db.BULK_LOAD_RECOVERY_VERTEX_SET, null);
+            db.truncate(infoPolicy, db.BULK_LOAD_RECOVERY_EDGE_SET, null);
+            db.truncate(infoPolicy, db.BULK_LOAD_RECOVERY_SUPERNODE_SET, null);
+            db.truncate(infoPolicy, db.BULK_LOAD_RECOVERY_STATE_SET, null);
             graph.fireflySummaryUpdater.clearVertexPartitionData();
             graph.fireflySummaryUpdater.clearEdgePartitionData();
             graph.fireflySummaryUpdater.clearSupernodePartitionData();

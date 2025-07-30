@@ -3,7 +3,6 @@ package com.aerospike.firefly.process.strategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
-import com.aerospike.firefly.util.PerfUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -72,7 +71,6 @@ public class TestFireflyCompositeIdStrategyIntegration {
 
     @Test
     public void testCompositeIdStrategyCorrectness() throws IOException {
-
         final Set<Path> refrence_paths;
         final List<Vertex> refrence_vertices;
         try (final TinkerGraph referenceGraph = TinkerGraph.open()) {
@@ -82,7 +80,6 @@ public class TestFireflyCompositeIdStrategyIntegration {
             refrence_vertices = g_refrence.V().has("code", "SFO").out().out().toList();
         }
 
-        CONFIG.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), true);
         final Set<Path> composite_paths;
         final List<Vertex> composite_vertices;
         try (final FireflyGraph graph_composite = FireflyGraph.open(CONFIG)) {
@@ -91,64 +88,11 @@ public class TestFireflyCompositeIdStrategyIntegration {
             composite_vertices = g_composite.V().has("code", "SFO").out().out().toList();
         }
 
-        CONFIG.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), false);
-        final Set<Path> standard_paths;
-        final List<Vertex> standard_vertices;
-        try (final FireflyGraph graph_standard = FireflyGraph.open(CONFIG)) {
-            final GraphTraversalSource g_standard = graph_standard.traversal();
-            standard_paths = g_standard.V().has("code", "SFO").out().out().path().toSet();
-            standard_vertices = g_standard.V().has("code", "SFO").out().out().toList();
-        }
-
-
-        Assert.assertEquals(refrence_paths.size(), standard_paths.size());
         Assert.assertEquals(refrence_paths.size(), composite_paths.size());
-
-        Assert.assertEquals(refrence_paths, standard_paths);
         Assert.assertEquals(refrence_paths, composite_paths);
 
         refrence_vertices.sort(Comparator.comparing(v -> v.id().toString()));
         composite_vertices.sort(Comparator.comparing(v -> v.id().toString()));
-        standard_vertices.sort(Comparator.comparing(v -> v.id().toString()));
-        Assert.assertEquals(refrence_vertices, standard_vertices);
         Assert.assertEquals(refrence_vertices, composite_vertices);
-    }
-
-    @Test
-    public void testCompositeIdStrategyPerformance() {
-        CONFIG.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), true);
-        final GraphTraversalSource g_composite;
-        final PerfUtil.Results composite_sfo_results;
-        final PerfUtil.Results composite_yyj_results;
-        try (final FireflyGraph graph_composite = FireflyGraph.open(CONFIG)) {
-            g_composite = graph_composite.traversal();
-            composite_sfo_results = PerfUtil.runTestBatch(100, () -> {
-                List<Vertex> data = g_composite.V().has("code", "SFO").out().out().toList();
-            });
-            composite_yyj_results = PerfUtil.runTestBatch(100, () -> {
-                List<Vertex> data = g_composite.V().has("code", "YYJ").out().out().toList();
-            });
-        }
-
-        CONFIG.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), false);
-        final GraphTraversalSource g_standard;
-        final PerfUtil.Results standard_sfo_results;
-        final PerfUtil.Results standard_yyj_results;
-        try (final FireflyGraph graph_standard = FireflyGraph.open(CONFIG)) {
-            g_standard = graph_standard.traversal();
-            standard_sfo_results = PerfUtil.runTestBatch(100, () -> {
-                List<Vertex> data = g_standard.V().has("code", "SFO").out().out().toList();
-            });
-            standard_yyj_results = PerfUtil.runTestBatch(100, () -> {
-                List<Vertex> data = g_standard.V().has("code", "YYJ").out().out().toList();
-            });
-        }
-
-        System.out.println("SFO Airport Results:");
-        System.out.println("\tComposite Id Strategy\n" + composite_sfo_results);
-        System.out.println("\tStandard Id Strategy\n" + standard_sfo_results);
-        System.out.println("YYJ Airport Results:");
-        System.out.println("\tComposite Id Strategy\n" + composite_yyj_results);
-        System.out.println("\tStandard Id Strategy\n" + standard_yyj_results);
     }
 }

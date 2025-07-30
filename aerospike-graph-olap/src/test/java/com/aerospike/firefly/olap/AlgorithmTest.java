@@ -44,7 +44,7 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Vertex> output = graph.traversal()
+            final List<Vertex> output = graph.traversal()
                     .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
                     .V().pageRank()
                     .toList();
@@ -146,8 +146,7 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal()
-                    .with("aerospike.graph.olap.debug.df", "true")
+            final List<Map<Object, Object>> output = graph.traversal()
                     .withComputer()
                     .V(1, 2, 3).pageRank().with(PageRank.times, 25)
                     .elementMap()
@@ -168,7 +167,7 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal()
+            final List<Map<Object, Object>> output = graph.traversal()
                     .withComputer()
                     .V().pageRank().with(PageRank.times, 25)
                     .has(PageRankVertexProgram.PAGE_RANK, P.gt(0.15))
@@ -190,7 +189,7 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal()
+            final List<Map<Object, Object>> output = graph.traversal()
                     .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
                     .V().pageRank(0.86)
                     .elementMap()
@@ -213,8 +212,7 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal()
-                    .with("aerospike.graph.olap.debug.df", "true")
+            final List<Map<Object, Object>> output = graph.traversal()
                     .withComputer()
                     .V().pageRank().with(PageRank.propertyName, propName)
                     .has(propName, P.lt(0.12))
@@ -236,7 +234,7 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal()
+            final List<Map<Object, Object>> output = graph.traversal()
                     .withComputer()
                     //.with("aerospike.graph.olap.temp.write.directory", "c:\\tmp\\")
                     .V().pageRank().order().by(PageRankVertexProgram.PAGE_RANK, Order.desc).limit(3)
@@ -281,7 +279,7 @@ public class AlgorithmTest {
             graph.traversal().V(6).outE().drop().iterate();
             waitForSummaryUpdate(graph);
 
-            List<Vertex> output = graph.traversal()
+            final List<Vertex> output = graph.traversal()
                     .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
                     .V().connectedComponent()
                     .toList();
@@ -308,7 +306,7 @@ public class AlgorithmTest {
             graph.traversal().V(6).outE().drop().iterate();
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal()
+            final List<Map<Object, Object>> output = graph.traversal()
                     .withComputer()
                     .V(1, 5, 6).connectedComponent()
                     .elementMap()
@@ -336,7 +334,7 @@ public class AlgorithmTest {
             graph.traversal().V(6).outE().drop().iterate();
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal()
+            final List<Map<Object, Object>> output = graph.traversal()
                     .withComputer()
                     .V().connectedComponent()
                     .has(ConnectedComponentVertexProgram.COMPONENT, 6)
@@ -359,7 +357,7 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal().withComputer()
+            final List<Map<Object, Object>> output = graph.traversal().withComputer()
                     .V(1, 5, 6).peerPressure().elementMap().toList();
 
             assertEquals(3, output.size());
@@ -382,7 +380,7 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal().withComputer()
+            final List<Map<Object, Object>> output = graph.traversal().withComputer()
                     .V(1, 5, 6).peerPressure().with(PeerPressure.propertyName, "test_name")
                     .elementMap().toList();
 
@@ -406,8 +404,7 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal().withComputer()
-                    .with("aerospike.graph.olap.debug.df", "true")
+            final List<Map<Object, Object>> output = graph.traversal().withComputer()
                     .V().peerPressure()
                     .with(PeerPressure.times, 5)
                     .with(PeerPressure.propertyName, "pp")
@@ -444,7 +441,7 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            var output = graph.traversal().withComputer()
+            final Object output = graph.traversal().withComputer()
                     .with("aerospike.graph.olap.debug.df", "true")
                     .V().out().order().by("name").limit(2).explain();
 

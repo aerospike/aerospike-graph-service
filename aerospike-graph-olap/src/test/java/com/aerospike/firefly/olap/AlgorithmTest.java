@@ -71,7 +71,7 @@ public class AlgorithmTest {
                         .toList();
                 fail("Should have thrown an exception");
             } catch (final IllegalStateException e) {
-                assertTrue(e.getMessage().contains("Attempting to run an algorithm that does does filter the results down after execution"));
+                assertTrue(e.getMessage().contains("Attempted to run an algorithm that does not filter results after execution"));
             }
         }
     }
@@ -92,7 +92,7 @@ public class AlgorithmTest {
                         .toList();
                 fail("Should have thrown an exception");
             } catch (final IllegalStateException e) {
-                assertTrue(e.getMessage().contains("Attempting to run an algorithm that does does filter the results down after execution"));
+                assertTrue(e.getMessage().contains("Attempted to run an algorithm that does not filter results after execution"));
             }
         }
     }
@@ -113,7 +113,7 @@ public class AlgorithmTest {
                         .toList();
                 fail("Should have thrown an exception");
             } catch (final IllegalStateException e) {
-                assertTrue(e.getMessage().contains("Attempting to run an algorithm that does does filter the results down after execution"));
+                assertTrue(e.getMessage().contains("Attempted to run an algorithm that does not filter results after execution"));
             }
         }
     }
@@ -133,7 +133,7 @@ public class AlgorithmTest {
                         .toList();
                 fail("Should have thrown an exception");
             } catch (final IllegalStateException e) {
-                assertTrue(e.getMessage().contains("Attempting to run an algorithm that does does filter the results down after execution"));
+                assertTrue(e.getMessage().contains("Attempted to run an algorithm that does not filter results after execution"));
             }
         }
     }

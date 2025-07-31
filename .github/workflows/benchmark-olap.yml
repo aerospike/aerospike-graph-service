@@ -7,26 +7,22 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
-      branch_name:
-        description: 'Branch to build OLAP artifact'
-        required: true
-        default: '3.x-dev'
       aerospike_conf:
         description: 'Aerospike configuration (<count>,<type>,<ssd count>,<version>)'
         required: true
-        default: '3,n2d-highmem-16,2,7.0.*'
+        default: '8,n2d-highmem-16,4,7.0.*'
       spark_config:
         description: 'Spark configuration (<count>,<type>,<disk size>,<spark.executor.memoryOverhead>,<spark.executor.memory>,<spark.executor.cores>,<spark.task.cpus>,<olap.executor.cores - blank=vcpu*count>)'
         required: true
-        default: '3,n2d-highmem-16,150,1024m,4g,1,1,<leave empty for auto calculation>'
+        default: '16,n2d-highmem-8,150,1024m,4g,1,1,<leave empty for auto calculation>'
       bulk_load_config:
         description: 'Bulk load configuration (<vertex files>,<edge files>,<scratch directory>,<properties>)'
         required: true
-        default: 'gs://scale-free-graphs/PropertyCorrected/SF1200M/vertices,gs://scale-free-graphs/PropertyCorrected/SF1200M/edges,gs://olap-testing-scratch,aerospike.graph.index.vertex.label.enabled=true,aerospike.graph.phat.edge.size=10'
+        default: 'gs://scale-free-graphs/PropertyCorrected/SF100M/vertices,gs://scale-free-graphs/PropertyCorrected/SF100M/edges,gs://olap-testing-scratch,aerospike.graph.index.vertex.label.enabled=true,aerospike.graph.phat.edge.size=10'
       benchmark_config:
         description: 'Benchmark configuration (<client instance>,<warmup count>,<execution count>)'
         required: true
-        default: 'n2d-standard-4,1,5'
+        default: 'n2d-standard-4,1,2'
       olap_query:
         description: 'OLAP query to run (separated w/ "|")'
         required: true
@@ -123,10 +119,8 @@ jobs:
           echo "olap_query=${{ env.olap_query }}"
           echo "cleanup_clusters=${{ env.cleanup_clusters }}"
 
-      - name: Checkout branch
+      - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch_name }}
 
       - name: Authorize gcloud CLI
         uses: google-github-actions/auth@v1
@@ -306,17 +300,17 @@ jobs:
               --region="${{ env.region }}" \
               --async \
               --properties=\
-              spark.executor.memoryOverhead=${{ env.spark_executor_memory_overhead }},\
-              spark.executor.memory=${{ env.spark_executor_memory }},\
-              spark.executor.cores=${{ env.spark_executor_cores }},\
-              spark.task.cpus=${{ env.spark_task_cpus }},\
-              spark.speculation=false,\
-              spark.executor.instances=${{ env.spark_executor_cores }},\
-              spark.dynamicAllocation.enabled=true,\
-              spark.dynamicAllocation.minExecutors=${{ env.spark_executor_cores }},\
-              spark.dynamicAllocation.maxExecutors=${{ env.spark_executor_cores }},\
-              spark.dynamicAllocation.initialExecutors=${{ env.spark_executor_cores }},\
-              spark.scheduler.minRegisteredResourcesRatio=1.0,\
+              --properties=spark.executor.memoryOverhead=${{ env.spark_executor_memory_overhead }},\
+          spark.executor.memory=${{ env.spark_executor_memory }},\
+          spark.executor.cores=${{ env.spark_executor_cores }},\
+          spark.task.cpus=${{ env.spark_task_cpus }},\
+          spark.speculation=false,\
+          spark.executor.instances=${{ env.spark_executor_cores }},\
+          spark.dynamicAllocation.enabled=true,\
+          spark.dynamicAllocation.minExecutors=${{ env.spark_executor_cores }},\
+          spark.dynamicAllocation.maxExecutors=${{ env.spark_executor_cores }},\
+          spark.dynamicAllocation.initialExecutors=${{ env.spark_executor_cores }},\
+          spark.scheduler.minRegisteredResourcesRatio=1.0 \
               -- -c "${{ env.properties_file_uri }}"
           
           master_ip_address_val=$(gcloud compute instances list \

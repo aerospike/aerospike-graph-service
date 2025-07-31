@@ -191,7 +191,7 @@ jobs:
           echo "aerospike_name=${aerospike_name_val}" >> $GITHUB_ENV
           echo "dataproc_name=${dataproc_name_val}" >> $GITHUB_ENV
           echo "benchmark_client_name=${benchmark_client_name_val}" >> $GITHUB_ENV
-          echo "spark_executor_cores=${spark_executor_cores_val}" >> 
+          echo "spark_executor_cores=${spark_executor_cores_val}" >> $GITHUB_ENV
           
           # Print the values for debugging
           echo "description=${{ env.description }}"

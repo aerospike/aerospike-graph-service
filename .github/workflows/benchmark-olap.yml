@@ -14,7 +14,7 @@ on:
       aerospike_conf:
         description: 'Aerospike configuration (<count>,<type>,<ssd count>,<version>)'
         required: true
-        default: '3,n2d-highmem-16,7.0.*,2'
+        default: '3,n2d-highmem-16,2,7.0.*'
       spark_config:
         description: 'Spark configuration (<count>,<type>,<disk size>,<spark.executor.memoryOverhead>,<spark.executor.memory>,<spark.executor.cores>,<spark.task.cpus>,<olap.executor.cores - blank=vcpu*count>)'
         required: true
@@ -22,7 +22,7 @@ on:
       bulk_load_config:
         description: 'Bulk load configuration (<vertex files>,<edge files>,<scratch directory>,<properties>)'
         required: true
-        default: 'gs://scale-free-graphs/PropertyCorrected/SF1200M/vertices,gs://scale-free-graphs/PropertyCorrected/SF1200M/edges,gs://olap-testing-scratch/,aerospike.graph.index.vertex.label.enabled=true,aerospike.graph.phat.edge.size=10'
+        default: 'gs://scale-free-graphs/PropertyCorrected/SF1200M/vertices/,gs://scale-free-graphs/PropertyCorrected/SF1200M/edges/,gs://olap-testing-scratch/,aerospike.graph.index.vertex.label.enabled=true,aerospike.graph.phat.edge.size=10'
       benchmark_config:
         description: 'Benchmark configuration (<client instance>,<warmup count>,<execution count>)'
         required: true

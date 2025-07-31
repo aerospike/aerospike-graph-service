@@ -43,6 +43,7 @@ env:
   region: us-central1
   zone: us-central1-a
   project: firefly-aerospike
+  aerobot-pw: ${{ env.aerobot-pw }}
 
 jobs:
   trigger-weekly-benchmark:

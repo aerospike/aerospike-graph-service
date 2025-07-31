@@ -11,90 +11,30 @@ on:
         description: 'Branch to build OLAP artifact'
         required: true
         default: '3.x-dev'
-      aerospike_count:
-        description: 'Number of Aerospike instances'
+      aerospike_conf:
+        description: 'Aerospike configuration (<count>,<type>,<ssd count>,<version>)'
         required: true
-        default: '3'
-      aerospike_instance:
-        description: 'Aerospike instance type'
+        default: '3,n2d-highmem-16,7.0.*,2'
+      spark_config:
+        description: 'Spark configuration (<count>,<type>,<disk size>,<spark.executor.memoryOverhead>,<spark.executor.memory>,<spark.executor.cores>,<spark.task.cpus>,<olap.executor.cores - blank=vcpu*count>)'
         required: true
-        default: 'n2d-highmem-16'
-      aerospike_version:
-        description: 'Aerospike version'
+        default: '3,n2d-highmem-16,150,1024m,4g,1,1,<leave empty for auto calculation>'
+      bulk_load_config:
+        description: 'Bulk load configuration (<vertex files>,<edge files>,<scratch directory>,<properties>)'
         required: true
-        default: '7.0.*'
-      aerospike_ssd_count:
-        description: 'Number of SSDs for Aerospike instances'
+        default: 'gs://scale-free-graphs/PropertyCorrected/SF1200M/vertices,gs://scale-free-graphs/PropertyCorrected/SF1200M/edges,gs://olap-testing-scratch/,aerospike.graph.index.vertex.label.enabled=true,aerospike.graph.phat.edge.size=10'
+      benchmark_config:
+        description: 'Benchmark configuration (<client instance>,<warmup count>,<execution count>)'
         required: true
-        default: '2'
-      spark_node_count:
-        description: 'Number of Spark nodes'
-        required: true
-        default: '3'
-      spark_instance_type:
-        description: 'Spark instance type'
-        required: true
-        default: 'n2d-highmem-16'
-      spark_disk_size:
-        description: 'Disk size for Spark nodes'
-        required: true
-        default: '150'
-      bulk_load_vertex_files:
-        description: 'Bulk load vertex files'
-        required: true
-        default: 'gs://scale-free-graphs/PropertyCorrected/SF1200M/edges'
-      bulk_load_edge_files:
-        description: 'Bulk load edge files'
-        required: true
-        default: 'gs://scale-free-graphs/PropertyCorrected/SF1200M/edges'
-      scratch_directory:
-        description: 'Scratch directory for Spark (alphanumeric appended at runtime)'
-        required: true
-        default: 'gs://olap-testing-scratch/'
-      spark_executor_memory_overhead:
-        description: "Sets value spark.executor.memoryOverhead in spark submit."
-        required: true
-        default: '1024m'
-      spark_executor_memory:
-        description: "Sets value spark.executor.memory in spark submit."
-        required: true
-        default: '4g'
-      spark_executor_cores:
-        description: 'Sets value spark.executor.cores in spark submit.'
-        required: true
-        default: '1'
-      spark_task_cpus:
-        description: 'Sets value spark.task.cpus in spark submit.'
-        required: true
-        default: '1'
-      olap_executor_cores:
-        description: 'Number of OLAP executor to use cores - leaving empty will multiply vpus per worker by worker count'
-        required: true
-        default: ''
+        default: 'n2d-standard-4,1,5'
       olap_query:
-        description: 'OLAP query to run (multiple queries can be specified with "|")'
+        description: 'OLAP query to run (separated w/ "|")'
         required: true
         default: 'g.with("evaluationTimeout", 6000).withComputer().V().hasLabel("person").count()|g.with("evaluationTimeout", 6000).withComputer().V().hasLabel("person").out("knows").count()'
-      olap_query_execution_count:
-        description: 'Number of times to execute the OLAP query'
-        required: true
-        default: '1'
-      olap_query_warmup_count:
-        description: 'Number of warm-up executions for the OLAP query'
-        required: true
-        default: '0'
-      bulk_load_properties:
-        description: 'Bulk load property key-value pairs with "|" separator.'
-        required: true
-        default: 'aerospike.graph.index.vertex.label.enabled'
       cleanup_clusters:
         description: 'Cleanup clusters after the run - true/false - If true the Aerospike and Spark clusters will be destroyed after the run, otherwise they will be left running for debugging purposes.'
         required: true
         default: 'true'
-      client_instance_type:
-        description: 'Client instance type for benchmark machine'
-        required: true
-        default: 'n2d-standard-4'
 env:
   features_b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
   features_file: ${{ github.workspace }}/.github/aerospike/features.conf
@@ -109,6 +49,56 @@ jobs:
     name: Weekly Benchmark
     runs-on: ubuntu-latest
     steps:
+      - name: Clamp Runtime Variables from Grouped Inputs
+        id: clamp
+        run: |
+          # Parse Aerospike configuration
+          IFS=',' read -r AERO_COUNT AERO_TYPE AERO_VER AERO_SSD <<< "${{ github.event.inputs.aerospike_conf }}"
+
+          echo "aerospike_count=$AERO_COUNT" >> $GITHUB_ENV
+          echo "aerospike_instance=$AERO_TYPE" >> $GITHUB_ENV
+          echo "aerospike_version=$AERO_VER" >> $GITHUB_ENV
+          echo "aerospike_ssd_count=$AERO_SSD" >> $GITHUB_ENV
+
+          # Parse Spark configuration
+          IFS=',' read -r SPARK_COUNT SPARK_TYPE SPARK_DISK SPARK_MEM_OV SPARK_MEM SPARK_CORES TASK_CPUS OLAP_EXEC <<< "${{ github.event.inputs.spark_config }}"
+
+          echo "spark_node_count=$SPARK_COUNT" >> $GITHUB_ENV
+          echo "spark_instance_type=$SPARK_TYPE" >> $GITHUB_ENV
+          echo "spark_disk_size=$SPARK_DISK" >> $GITHUB_ENV
+          echo "spark_executor_memory_overhead=$SPARK_MEM_OV" >> $GITHUB_ENV
+          echo "spark_executor_memory=$SPARK_MEM" >> $GITHUB_ENV
+          echo "spark_executor_cores=$SPARK_CORES" >> $GITHUB_ENV
+          echo "spark_task_cpus=$TASK_CPUS" >> $GITHUB_ENV
+          echo "olap_executor_cores=$OLAP_EXEC" >> $GITHUB_ENV
+
+          # Parse bulk load config
+          BULK_LOAD_INPUT="${{ github.event.inputs.bulk_load_config }}"
+          BULK_VERTEX=$(echo "$BULK_LOAD_INPUT" | cut -d',' -f1)
+          BULK_EDGE=$(echo "$BULK_LOAD_INPUT" | cut -d',' -f2)
+          SCRATCH_DIR=$(echo "$BULK_LOAD_INPUT" | cut -d',' -f3)
+          BULK_PROPS=$(echo "$BULK_LOAD_INPUT" | cut -d',' -f4-)
+
+          echo "bulk_load_vertex_files=$BULK_VERTEX" >> $GITHUB_ENV
+          echo "bulk_load_edge_files=$BULK_EDGE" >> $GITHUB_ENV
+          echo "scratch_directory=$SCRATCH_DIR" >> $GITHUB_ENV
+
+          IFS=';' read -ra kv_pairs <<< "$BULK_PROPS"
+          BULK_PROPS_COMBINED=$(printf "%s|" "${kv_pairs[@]}")
+          BULK_PROPS_COMBINED=${BULK_PROPS_COMBINED%|}  # trim trailing |
+          echo "bulk_load_properties=$BULK_PROPS_COMBINED" >> $GITHUB_ENV
+
+          # Parse benchmark config
+          IFS=',' read -r CLIENT_INSTANCE WARMUP EXEC <<< "${{ github.event.inputs.benchmark_config }}"
+          echo "client_instance_type=$CLIENT_INSTANCE" >> $GITHUB_ENV
+          echo "olap_query_warmup_count=$WARMUP" >> $GITHUB_ENV
+          echo "olap_query_execution_count=$EXEC" >> $GITHUB_ENV
+
+          # OLAP query as-is
+          echo "olap_query=${{ github.event.inputs.olap_query }}" >> $GITHUB_ENV
+
+          # Cleanup flag
+          echo "cleanup_clusters=${{ github.event.inputs.cleanup_clusters }}" >> $GITHUB_ENV
       - name: Checkout branch
         uses: actions/checkout@v4
         with:

@@ -28,6 +28,6 @@ else
   git switch olap-benchmark
 
   mvn clean install -DskipTests
-  java -jar ./target/tinkerBench-1.0-SNAPSHOT-jar-with-dependencies.jar GremlinQueryClient --url "$url" --query "$queries" --count "$query_count" --warmupCount "$warmup_count"
+  java -jar ./target/tinkerBench-1.0-SNAPSHOT-jar-with-dependencies.jar --url "$url" --query "$queries" --count "$query_count" --warmupCount "$warmup_count"
 fi
 

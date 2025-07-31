@@ -53,12 +53,12 @@ jobs:
         id: clamp
         run: |
           # Parse Aerospike configuration
-          IFS=',' read -r AERO_COUNT AERO_TYPE AERO_VER AERO_SSD <<< "${{ github.event.inputs.aerospike_conf }}"
+          IFS=',' read -r AERO_COUNT AERO_TYPE AERO_SSD AERO_VER  <<< "${{ github.event.inputs.aerospike_conf }}"
 
           echo "aerospike_count=$AERO_COUNT" >> $GITHUB_ENV
           echo "aerospike_instance=$AERO_TYPE" >> $GITHUB_ENV
-          echo "aerospike_version=$AERO_VER" >> $GITHUB_ENV
           echo "aerospike_ssd_count=$AERO_SSD" >> $GITHUB_ENV
+          echo "aerospike_version=$AERO_VER" >> $GITHUB_ENV
 
           # Parse Spark configuration
           IFS=',' read -r SPARK_COUNT SPARK_TYPE SPARK_DISK SPARK_MEM_OV SPARK_MEM SPARK_CORES TASK_CPUS OLAP_EXEC <<< "${{ github.event.inputs.spark_config }}"
@@ -99,6 +99,30 @@ jobs:
 
           # Cleanup flag
           echo "cleanup_clusters=${{ github.event.inputs.cleanup_clusters }}" >> $GITHUB_ENV
+          
+          # Print the values for debugging
+          echo "aerospike_count=${{ env.aerospike_count }}"
+          echo "aerospike_instance=${{ env.aerospike_instance }}"
+          echo "aerospike_version=${{ env.aerospike_version }}"
+          echo "aerospike_ssd_count=${{ env.aerospike_ssd_count }}"
+          echo "spark_node_count=${{ env.spark_node_count }}"
+          echo "spark_instance_type=${{ env.spark_instance_type }}"
+          echo "spark_disk_size=${{ env.spark_disk_size }}"
+          echo "spark_executor_memory_overhead=${{ env.spark_executor_memory_overhead }}"
+          echo "spark_executor_memory=${{ env.spark_executor_memory }}"
+          echo "spark_executor_cores=${{ env.spark_executor_cores }}"
+          echo "spark_task_cpus=${{ env.spark_task_cpus }}"
+          echo "olap_executor_cores=${{ env.olap_executor_cores }}"
+          echo "bulk_load_vertex_files=${{ env.bulk_load_vertex_files }}"
+          echo "bulk_load_edge_files=${{ env.bulk_load_edge_files }}"
+          echo "scratch_directory=${{ env.scratch_directory }}"
+          echo "bulk_load_properties=${{ env.bulk_load_properties }}"
+          echo "client_instance_type=${{ env.client_instance_type }}"
+          echo "olap_query_warmup_count=${{ env.olap_query_warmup_count }}"
+          echo "olap_query_execution_count=${{ env.olap_query_execution_count }}"
+          echo "olap_query=${{ env.olap_query }}"
+          echo "cleanup_clusters=${{ env.cleanup_clusters }}"
+
       - name: Checkout branch
         uses: actions/checkout@v4
         with:
@@ -167,7 +191,18 @@ jobs:
           echo "aerospike_name=${aerospike_name_val}" >> $GITHUB_ENV
           echo "dataproc_name=${dataproc_name_val}" >> $GITHUB_ENV
           echo "benchmark_client_name=${benchmark_client_name_val}" >> $GITHUB_ENV
-          echo "spark_executor_cores=${spark_executor_cores_val}" >> $GITHUB_ENV
+          echo "spark_executor_cores=${spark_executor_cores_val}" >> 
+          
+          # Print the values for debugging
+          echo "description=${{ env.description }}"
+          echo "bulk_jar_uri=${{ env.bulk_jar_uri }}"
+          echo "olap_jar_uri=${{ env.olap_jar_uri }}"
+          echo "properties_file_uri=${{ env.properties_file_uri }}"
+          echo "aerospike_name=${{ env.aerospike_name }}"
+          echo "dataproc_name=${{ env.dataproc_name }}"
+          echo "benchmark_client_name=${{ env.benchmark_client_name }}"
+          echo "spark_executor_cores=${{ env.spark_executor_cores }}"
+          
 
       - name: Build and publish Bulk Loader and OLAP artifacts
         run: |

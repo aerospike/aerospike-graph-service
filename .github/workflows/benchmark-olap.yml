@@ -146,7 +146,7 @@ jobs:
         run: |
           description_val=${{ steps.date_format.outputs.year }}${{ steps.date_format.outputs.month }}${{ steps.date_format.outputs.day }}${{ steps.date_format.outputs.seconds }}
           bulk_jar_uri_val=${{ env.scratch_directory }}/${description_val}/aerospike-graph-bulk-loader.jar
-          olap_jar_uri_val=${{ env.scratch_directory }}/${description_val}/aerospike-graph-analytics.jar
+          olap_jar_uri_val=${{ env.scratch_directory }}/${description_val}/aerospike-graph-olap.jar
           properties_file_uri_val=gs://gha-ci-firefly-bulkloader/weekly-benchmark/${description_val}-perf/ags-properties.conf
           aerospike_name_val=aga-${description_val}-as
           dataproc_name_val=aga-${description_val}-dproc
@@ -176,7 +176,7 @@ jobs:
           
           # Copy the OLAP artifact to GCS.
           gcloud storage cp \
-              ${{ github.workspace }}/aerospike-graph-analytics/target/aerospike-graph-analytics-*.jar \
+              ${{ github.workspace }}/aerospike-graph-olap/target/aerospike-graph-olap-*.jar \
               ${{ env.olap_jar_uri }}
           
           # Copy the bulk loader artifact to GCS.

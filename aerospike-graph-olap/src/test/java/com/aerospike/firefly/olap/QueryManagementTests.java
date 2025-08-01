@@ -86,7 +86,7 @@ public class QueryManagementTests {
                     System.out.println("Thread started");
                     try {
                         graph.traversal()
-                                // .with("aerospike.graph.olap.debug.df", "true")
+                                // .with("aerospike.graph.analytics.debug.df", "true")
                                 .withComputer()
                                 .V().both().both().both().both().both().both().both().both()
                                 .count()

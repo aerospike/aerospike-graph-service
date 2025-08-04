@@ -34,7 +34,7 @@ public class TestFireflyVertexIndexes extends TestFireflyIndexes {
 
     @Override
     protected Optional<FireflyIndexMetadata.IndexInfo> getPropertyIndexInfo(final FireflyGraph fireflyGraph, final String key, final Object value) {
-        final List<String> indexes = fireflyGraph.fireflyIndexMetadata.getIndexesInProgress();
+        final List<String> indexes = db.getGraphIndexNames();
         for (final String index : indexes) {
             if (index.startsWith(fireflyGraph.getBaseGraph().getVpIndexPrefix())) {
                 if (index.contains(key)) {

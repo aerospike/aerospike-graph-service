@@ -1035,7 +1035,7 @@ public class AerospikeConnection implements AutoCloseable {
         /**
          * Get whether TTL is enabled in Aerospike or not.
          *
-         * @param client    client.
+         * @param db        db.
          * @param namespace Namespace.
          * @return True if enabled on any node, false otherwise.
          */
@@ -1071,7 +1071,7 @@ public class AerospikeConnection implements AutoCloseable {
          * Return the max-record-size configured on Aerospike. If Aerospike is in a cluster, returns the value for the
          * node with the smallest max-record-size.
          *
-         * @param client    client.
+         * @param db        db.
          * @param namespace Namespace.
          * @return The max-record-size.
          */
@@ -1528,18 +1528,17 @@ public class AerospikeConnection implements AutoCloseable {
      * Drop indices for Firefly
      */
     public void dropGraphIndices(final FireflyGraph graph) {
-        LOG.debug("Dropping graph indices.");
+        LOG.info("Dropping graph indices.");
         dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX_NAME);
         dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX_NAME);
-        if (graph != null) {
-            graph.fireflyIndexMetadata.getIndexesInProgress().forEach(index -> {
-                if (index.startsWith(getVpIndexPrefix())) {
-                    dropIndex(setFromElementType(FireflyVertex.class), index);
-                } else if (index.startsWith(getEpIndexPrefix())) {
-                    dropIndex(setFromElementType(FireflyEdge.class), index);
-                }
-            });
-        }
+
+        getGraphIndexNames().forEach(index -> {
+            if (index.startsWith(getVpIndexPrefix())) {
+                dropIndex(setFromElementType(FireflyVertex.class), index);
+            } else if (index.startsWith(getEpIndexPrefix())) {
+                dropIndex(setFromElementType(FireflyEdge.class), index);
+            }
+        });
     }
 
     public Map<String, Integer> abortQueries() {
@@ -2370,6 +2369,22 @@ public class AerospikeConnection implements AutoCloseable {
         } catch (final AerospikeException e) {
             throw fromAerospikeException(e);
         }
+    }
+
+    /**
+     * Get the Aerospike Graph index names.
+     *
+     * @return A copy of the aerospike graph index names.
+     */
+    public List<String> getGraphIndexNames() {
+        // Return copy.
+        return InfoOps.listExistingIndexes(this).stream()
+                .map(Map.Entry::getKey)
+                .filter(s -> s.startsWith(getVpIndexPrefix()) ||
+                        s.startsWith(getEpIndexPrefix()) ||
+                        V_LABEL_INDEX_NAME.equals(s) ||
+                        E_LABEL_INDEX_NAME.equals(s))
+                .collect(Collectors.toList());
     }
 
     public String getVpIndexPrefix() {

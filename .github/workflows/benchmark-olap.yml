@@ -353,19 +353,22 @@ jobs:
       - name: Stop dataproc cluster
         if: ${{ always() && env.cleanup_clusters == 'true' }}
         run: |
-          job_id=$(gcloud dataproc jobs list \
+          echo "Finding active Dataproc jobs for deletion..."
+          job_ids=$(gcloud dataproc jobs list \
             --cluster="${{ env.dataproc_name }}" \
             --region="${{ env.region }}" \
-            --filter='(status.state=RUNNING) OR (status.state=PENDING) OR (status.state=SETUP_DONE)' \
-            --sort-by="~status.stateStartTime" \
-            --format="value(reference.jobId)" \
-            --limit=1)
-          
-          if [ -n "$job_id" ]; then
-            echo "Deleting active job: $job_id"
-            gcloud dataproc jobs delete -q --region=${{ env.region }} "$job_id"
+            --state-filter=ACTIVE \
+            --format="value(reference.jobId)")
+      
+          if [ -z "$job_ids" ]; then
+            echo "No active jobs found to delete."
           else
-            echo "No active jobs to delete"
+            for job_id in $job_ids; do
+              echo "Attempting to delete job: $job_id"
+              if ! gcloud dataproc jobs delete "$job_id" --region="${{ env.region }}" -q; then
+                echo "Warning: Failed to delete job $job_id (possibly already finished)"
+              fi
+            done
           fi
           
           echo "Deleting cluster: ${{ env.dataproc_name }}"

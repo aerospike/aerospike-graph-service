@@ -325,7 +325,7 @@ jobs:
           aerolab client create none --zone=${{ env.zone }} --disk=pd-ssd:40 --instance ${{ env.client_instance_type }} -n ${{ env.benchmark_client_name }}
           aerolab client list -j | jq '.' > ${{ github.workspace }}/clients.json
           gcloud compute scp --zone=${{ env.zone }} ${{ github.workspace }}/scripts/run-benchmark-gcp-olap-benchmark.sh aerolab4-${{ env.benchmark_client_name }}-1:run-benchmark-gcp-olap-benchmark.sh
-          gcloud compute ssh --zone=${{ env.zone }} aerolab4-${{ env.benchmark_client_name }}-1 --command "sudo bash run-benchmark-gcp-olap-benchmark.sh ${{ env.master_ip_address }} \"${decoded_query}" ${{ env.olap_query_execution_count }} ${{ env.olap_query_warmup_count }}"
+          gcloud compute ssh --zone=${{ env.zone }} aerolab4-${{ env.benchmark_client_name }}-1 --command "sudo bash run-benchmark-gcp-olap-benchmark.sh ${{ env.master_ip_address }} "${decoded_query}" ${{ env.olap_query_execution_count }} ${{ env.olap_query_warmup_count }}"
 
       - name: Retrieve Tinkerbench Results
         run: |

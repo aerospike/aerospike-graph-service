@@ -2191,10 +2191,27 @@ public class AerospikeConnection implements AutoCloseable {
             final InfoPolicy infoPolicy = new InfoPolicy();
             setInfoPolicy(infoPolicy);
             Thread.sleep(1);
-            // Truncate all sets of the graph namespace expect for SCHEMA_SET
-            InfoOps.getNonEmptySetList(this).stream()
-                    .filter(set -> !set.equals(SCHEMA_SET))
-                    .forEach(set -> client.truncate(infoPolicy, namespace, set, null));
+            client.truncate(infoPolicy, namespace, EDGE_AERO_SET, null);
+            client.truncate(infoPolicy, namespace, VERTEX_AERO_SET, null);
+            client.truncate(infoPolicy, namespace, USER_SUPPLIED_ID_CACHE_SET, null);
+            client.truncate(infoPolicy, namespace, TEST_SET, null);
+            client.truncate(infoPolicy, namespace, GRAPH_VARIABLES_SET, null);
+            client.truncate(infoPolicy, namespace, GRAPH_METADATA_SET, null);
+            client.truncate(infoPolicy, namespace, INDEX_METADATA_SET, null);
+            client.truncate(infoPolicy, namespace, OUT_VP_SET, null);
+            client.truncate(infoPolicy, namespace, IN_VP_SET, null);
+            client.truncate(infoPolicy, namespace, SUMMARY_SET, null);
+            client.truncate(infoPolicy, namespace, USAGE_STATS_SET, null);
+            client.truncate(infoPolicy, namespace, ID_MANAGER_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_METADATA_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_VERTEX_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_EDGE_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_SUPERNODE_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_STATE_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_DUPLICATE_VID_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_BAD_EDGE_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_BAD_ENTRY_SET, null);
+            client.truncate(infoPolicy, namespace, OLAP_SET, null);
 
             // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the
             // id manager set and if we delete it here, they will likely insert a record with the same id as the one

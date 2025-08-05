@@ -92,7 +92,7 @@ jobs:
           echo "olap_query_execution_count=$EXEC" >> $GITHUB_ENV
 
           # OLAP query as-is
-          echo "olap_query='${{ github.event.inputs.olap_query }}'" >> $GITHUB_ENV
+          echo "olap_query=${{ github.event.inputs.olap_query }}" >> $GITHUB_ENV
 
           # Cleanup flag
           echo "cleanup_clusters=${{ github.event.inputs.cleanup_clusters }}" >> $GITHUB_ENV
@@ -119,3 +119,7 @@ jobs:
           echo "olap_query_execution_count=${{ env.olap_query_execution_count }}"
           echo "olap_query=${{ env.olap_query }}"
           echo "cleanup_clusters=${{ env.cleanup_clusters }}"
+
+      - name: Test env
+        run: |
+          echo "Olap query: ${{ env.olap_query }}"

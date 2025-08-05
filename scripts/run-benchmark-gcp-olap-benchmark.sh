@@ -27,7 +27,7 @@ else
   cd tinkerbench
   git switch olap-benchmark
 
-  mvn clean install -DskipTests
-  java -jar ./target/tinkerBench-1.0-SNAPSHOT-jar-with-dependencies.jar --url "$url" --query "$queries" --count "$query_count" --warmupCount "$warmup_count"
+  mvn clean install -DskipTests -q
+  java -jar ./target/tinkerBench-1.0-SNAPSHOT-jar-with-dependencies.jar --url "$url" --query "$queries" --count "$query_count" --warmup "$warmup_count"
 fi
 

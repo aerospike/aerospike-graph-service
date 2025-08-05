@@ -3,6 +3,7 @@ package com.aerospike.firefly.runtime.metadata;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.AbstractFireflySuite;
@@ -13,7 +14,13 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.InternalConfigs.E_LABEL_INDEX_NAME;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.InternalConfigs.V_LABEL_INDEX_NAME;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -58,7 +65,7 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
 
         // Check there are no indexes initially (besides vertex and edge label indexes).
         Thread.sleep(10);
-        Assert.assertEquals(getInitialIndexCount(), db.getGraphIndexNames().size());
+        Assert.assertEquals(getInitialIndexCount(), getLabelsAndPropertiesIndexNames().size());
 
         // Create 'index1'.
         config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES.toLowerCase(), "index1");
@@ -67,7 +74,7 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
 
         // Check for 'index1'. Need to check for both string and numeric existence.
         Thread.sleep(10);
-        Assert.assertEquals(getInitialIndexCount() + 2, db.getGraphIndexNames().size());
+        Assert.assertEquals(getInitialIndexCount() + 2, getLabelsAndPropertiesIndexNames().size());
         Assert.assertTrue(graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index1", 1L).isPresent());
         Assert.assertTrue(graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index1", "1").isPresent());
 
@@ -78,7 +85,7 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
 
         // Check for 'index1' and 'index2'. Need to check for both string and numeric existence.
         Thread.sleep(10);
-        Assert.assertEquals(getInitialIndexCount() + 4, db.getGraphIndexNames().size());
+        Assert.assertEquals(getInitialIndexCount() + 4, getLabelsAndPropertiesIndexNames().size());
         Assert.assertTrue(graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index1", 1L).isPresent());
         Assert.assertTrue(graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index1", "1").isPresent());
         Assert.assertTrue(graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index2", 1L).isPresent());
@@ -91,7 +98,7 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
 
         // Check for 'index1', 'index2', and 'index3'. Need to check for both string and numeric existence.
         Thread.sleep(10);
-        Assert.assertEquals(getInitialIndexCount() + 6, db.getGraphIndexNames().size());
+        Assert.assertEquals(getInitialIndexCount() + 6, getLabelsAndPropertiesIndexNames().size());
         Assert.assertTrue(graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index1", 1L).isPresent());
         Assert.assertTrue(graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index1", "1").isPresent());
         Assert.assertTrue(graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index2", 1L).isPresent());
@@ -108,7 +115,7 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
 
         // Check for 'index1' (should be removed), 'index2', and 'index3'. Need to check for both string and numeric existence.
         Thread.sleep(10);
-        Assert.assertEquals(getInitialIndexCount() + 4, db.getGraphIndexNames().size());
+        Assert.assertEquals(getInitialIndexCount() + 4, getLabelsAndPropertiesIndexNames().size());
         Assert.assertFalse(graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index1", 1L).isPresent());
         Assert.assertFalse(graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index1", "1").isPresent());
         Assert.assertTrue(graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index2", 1L).isPresent());
@@ -129,7 +136,7 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
 
         // Verify all indexes are removed.
         Thread.sleep(10);
-        Assert.assertEquals(getInitialIndexCount(), db.getGraphIndexNames().size());
+        Assert.assertEquals(getInitialIndexCount(), getLabelsAndPropertiesIndexNames().size());
         Assert.assertFalse(graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index1", 1L).isPresent());
         Assert.assertFalse(graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index1", "1").isPresent());
         Assert.assertFalse(graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index2", 1L).isPresent());
@@ -234,5 +241,15 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
         Assert.assertNotNull(cardinalityInfo.entriesPerBval);
         Assert.assertEquals(totalEntries.longValue(), cardinalityInfo.totalEntries.longValue());
         Assert.assertEquals(entriesPerBval == 0 ? 0 : totalEntries / entriesPerBval, cardinalityInfo.entriesPerBval.longValue());
+    }
+
+    private List<String> getLabelsAndPropertiesIndexNames() {
+        return AerospikeConnection.InfoOps.listExistingIndexes(db).stream()
+                .map(Map.Entry::getKey)
+                .filter(s -> s.startsWith(db.getVpIndexPrefix()) ||
+                        s.startsWith(db.getEpIndexPrefix()) ||
+                        V_LABEL_INDEX_NAME.equals(s) ||
+                        E_LABEL_INDEX_NAME.equals(s))
+                .collect(Collectors.toList());
     }
 }

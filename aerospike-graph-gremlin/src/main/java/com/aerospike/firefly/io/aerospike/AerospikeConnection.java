@@ -1525,20 +1525,12 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Drop indices for Firefly
+     * Drop all indices that belong to the graph namespace.
      */
     public void dropGraphIndices() {
-        LOG.info("Dropping graph indices.");
-        dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX_NAME);
-        dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX_NAME);
-
-        getGraphIndexNames().forEach(index -> {
-            if (index.startsWith(getVpIndexPrefix())) {
-                dropIndex(setFromElementType(FireflyVertex.class), index);
-            } else if (index.startsWith(getEpIndexPrefix())) {
-                dropIndex(setFromElementType(FireflyEdge.class), index);
-            }
-        });
+        LOG.info("Dropping all graph indices.");
+        InfoOps.listExistingIndexes(this)
+                .forEach(entry -> dropIndex(entry.getValue(), entry.getKey()));
     }
 
     public Map<String, Integer> abortQueries() {
@@ -2369,22 +2361,6 @@ public class AerospikeConnection implements AutoCloseable {
         } catch (final AerospikeException e) {
             throw fromAerospikeException(e);
         }
-    }
-
-    /**
-     * Get the Aerospike Graph index names.
-     *
-     * @return A copy of the aerospike graph index names.
-     */
-    public List<String> getGraphIndexNames() {
-        // Return copy.
-        return InfoOps.listExistingIndexes(this).stream()
-                .map(Map.Entry::getKey)
-                .filter(s -> s.startsWith(getVpIndexPrefix()) ||
-                        s.startsWith(getEpIndexPrefix()) ||
-                        V_LABEL_INDEX_NAME.equals(s) ||
-                        E_LABEL_INDEX_NAME.equals(s))
-                .collect(Collectors.toList());
     }
 
     public String getVpIndexPrefix() {

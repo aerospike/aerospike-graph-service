@@ -28,6 +28,7 @@ else
   git switch olap-benchmark
 
   mvn clean install -DskipTests -q
+  echo "Running benchmark with url: $url, query: $queries, query count: $query_count, warmup: $warmup_count"
   java -jar ./target/tinkerBench-1.0-SNAPSHOT-jar-with-dependencies.jar --url "$url" --query "$queries" --count "$query_count" --warmup "$warmup_count"
 fi
 

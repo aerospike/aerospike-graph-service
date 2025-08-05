@@ -353,15 +353,22 @@ jobs:
       - name: Stop dataproc cluster
         if: ${{ always() && env.cleanup_clusters == 'true' }}
         run: |
-          job_id=$(gcloud dataproc jobs list --cluster="${{ env.dataproc_name }}" --region="${{ env.region }}" --format="value(JOB_ID)" --limit=1)
-
+          job_id=$(gcloud dataproc jobs list \
+            --cluster="${{ env.dataproc_name }}" \
+            --region="${{ env.region }}" \
+            --filter='status.state!="DONE"' \
+            --sort-by="~status.stateStartTime" \
+            --format="value(reference.jobId)" \
+            --limit=1)
+          
           if [ -n "$job_id" ]; then
-            echo "Deleting job $job_id"
+            echo "Deleting active job: $job_id"
             gcloud dataproc jobs delete -q --region=${{ env.region }} "$job_id"
           else
-            echo "No jobs found to delete."
+            echo "No active jobs to delete"
           fi
-      
+          
+          echo "Deleting cluster: ${{ env.dataproc_name }}"
           gcloud dataproc clusters delete -q --region=${{ env.region }} ${{ env.dataproc_name }}
 
       - name: Stop Aerospike cluster

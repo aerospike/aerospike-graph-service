@@ -89,9 +89,9 @@ jobs:
           echo "client_instance_type=$CLIENT_INSTANCE" >> $GITHUB_ENV
           echo "olap_query_warmup_count=$WARMUP" >> $GITHUB_ENV
           echo "olap_query_execution_count=$EXEC" >> $GITHUB_ENV
-
+          
           # OLAP query as-is
-          echo "olap_query=${{ github.event.inputs.olap_query }}" >> $GITHUB_ENV
+          printf "olap_query=%q\n" "${{ github.event.inputs.olap_query }}" >> $GITHUB_ENV
 
           # Cleanup flag
           echo "cleanup_clusters=${{ github.event.inputs.cleanup_clusters }}" >> $GITHUB_ENV
@@ -353,24 +353,6 @@ jobs:
       - name: Stop dataproc cluster
         if: ${{ always() && env.cleanup_clusters == 'true' }}
         run: |
-          echo "Finding active Dataproc jobs for deletion..."
-          job_ids=$(gcloud dataproc jobs list \
-            --cluster="${{ env.dataproc_name }}" \
-            --region="${{ env.region }}" \
-            --state-filter=ACTIVE \
-            --format="value(reference.jobId)")
-      
-          if [ -z "$job_ids" ]; then
-            echo "No active jobs found to delete."
-          else
-            for job_id in $job_ids; do
-              echo "Attempting to delete job: $job_id"
-              if ! gcloud dataproc jobs delete "$job_id" --region="${{ env.region }}" -q; then
-                echo "Warning: Failed to delete job $job_id (possibly already finished)"
-              fi
-            done
-          fi
-          
           echo "Deleting cluster: ${{ env.dataproc_name }}"
           gcloud dataproc clusters delete -q --region=${{ env.region }} ${{ env.dataproc_name }}
 

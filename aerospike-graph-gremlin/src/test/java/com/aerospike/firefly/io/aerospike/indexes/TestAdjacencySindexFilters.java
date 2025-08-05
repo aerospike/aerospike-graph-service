@@ -53,7 +53,7 @@ public class TestAdjacencySindexFilters {
     @Before
     public void beforeEach() {
         graph = FireflyGraph.open(CONFIG);
-        graph.getBaseGraph().dropDatabase(graph, true);
+        graph.getBaseGraph().dropDatabase(graph, false);
         v1 = graph.traversal().addV("v1").next();
         v2 = graph.traversal().addV("v2").next();
     }

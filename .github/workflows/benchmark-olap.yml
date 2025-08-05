@@ -26,7 +26,7 @@ on:
       olap_query:
         description: 'OLAP query to run (separated w/ "|")'
         required: true
-        default: 'g.with("evaluationTimeout", 6000).withComputer().V().hasLabel("person").count()|g.with("evaluationTimeout", 6000).withComputer().V().hasLabel("person").out("knows").count()'
+        default: 'g.with(\"evaluationTimeout\", 6000).withComputer().V().hasLabel(\"person\").count()|g.with(\"evaluationTimeout\", 6000).withComputer().V().hasLabel(\"person\").out(\"knows\").count()'
       cleanup_clusters:
         description: 'Cleanup clusters after the run - true/false - If true the Aerospike and Spark clusters will be destroyed after the run, otherwise they will be left running for debugging purposes.'
         required: true
@@ -356,7 +356,7 @@ jobs:
           job_id=$(gcloud dataproc jobs list \
             --cluster="${{ env.dataproc_name }}" \
             --region="${{ env.region }}" \
-            --filter='status.state!="DONE"' \
+            --filter='status.state=RUNNING OR status.state=PENDING OR status.state=SETUP_DONE' \
             --sort-by="~status.stateStartTime" \
             --format="value(reference.jobId)" \
             --limit=1)

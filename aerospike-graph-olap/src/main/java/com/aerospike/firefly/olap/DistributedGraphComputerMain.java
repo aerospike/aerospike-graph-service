@@ -51,7 +51,7 @@ public class DistributedGraphComputerMain {
     public static void main(final String[] args) {
 
         // Create new Object so we can invoke non-static method load()
-        LOGGER.info("Starting Aerospike Graph OLAP Server");
+        LOGGER.info("Starting Aerospike Graph Analytics Server");
 
         System.out.println();
         System.out.println("              \\,,,/    \\,,,/    \\,,,/    \\,,,/    \\,,,/");
@@ -71,7 +71,7 @@ public class DistributedGraphComputerMain {
         System.out.println("          o00o-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-oOOo-(3)-o00o");
         System.out.println("                                                                    ");
         System.out.println("       +-----------------------------------------------------+      ");
-        System.out.println("       |              AEROSPIKE GRAPH OLAP                   |      ");
+        System.out.println("       |              Aerospike Graph Analytics              |      ");
         System.out.println("       +-----------------------------------------------------+      ");
         System.out.println("                   |                             |                  ");
         System.out.println("        +----------------------+        +-------------------+       ");
@@ -176,7 +176,7 @@ public class DistributedGraphComputerMain {
     private static String readJarFileWriteToTemp(final String directory, final String fileName) {
         final InputStream in = DistributedGraphComputerMain.class.getClassLoader().getResourceAsStream(directory + "/" + fileName);
         if (in == null) {
-            LOGGER.error("Failed to find file '" + directory + "/" + fileName + "' script in the OLAP jar. Please contact support.");
+            LOGGER.error("Failed to find file '" + directory + "/" + fileName + "' script in the Aerospike Graph Analytics jar. Please contact support.");
             System.exit(1);
         }
 

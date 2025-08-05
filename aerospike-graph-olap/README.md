@@ -193,8 +193,8 @@ g.withComputer().
 OLAP has two configs that can only be used in the query itself:
 ```
 g.withComputer().
-    with("aerospike.graph.olap.debug.df", "true"). # Enables debugging, this will provide logs in the spark cluster that can help understand what is going on if there are issues.
-    with("aerospike.graph.olap.partitions", 160). # Allows you to force the number of partitions to use to be higher or lower than executor count.
+    with("aerospike.graph.analytics.debug.df", "true"). # Enables debugging, this will provide logs in the spark cluster that can help understand what is going on if there are issues.
+    with("aerospike.graph.analytics.partitions", 160). # Allows you to force the number of partitions to use to be higher or lower than executor count.
     V(). <etc>
 ```
 

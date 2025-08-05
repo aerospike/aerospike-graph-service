@@ -22,14 +22,16 @@ public class DistributedConfigHelper implements Serializable {
 
     private final Map<String, Object> fileConfig;
     private final Map<String, Object> olapConfig;
+    private final boolean isAlgorithmProgram;
 
-    private static final String OLAP_PREFIX = "aerospike.graph.olap.";
+    public static final String OLAP_PREFIX = "aerospike.graph.analytics.";
     private static final String OLAP_BATCH_JOB_SIZE = OLAP_PREFIX + "batch.job.size";
     private static final String DEBUG_DF = OLAP_PREFIX + "debug.df";
     private static final String FORCE_GC = OLAP_PREFIX + "debug.gc";
     private static final String PERSISTENCE = OLAP_PREFIX + "persist";
     private static final String SUPERNODE_STEPPING = OLAP_PREFIX + "supernode.stepping";
     private static final String TEMP_WRITE_DIRECTORY = OLAP_PREFIX + "temp.write.directory";
+    private static final String TEMP_WRITE_DISABLED = OLAP_PREFIX + "temp.write.disabled";
     private static final boolean DEBUG_DF_DEFAULT = false;
     private static final boolean SUPERNODE_STEPPING_DEFAULT = true;
     private static final String PARTITIONS = OLAP_PREFIX + "partitions";
@@ -47,17 +49,33 @@ public class DistributedConfigHelper implements Serializable {
     );
     final String randomTempDir;
 
-    public DistributedConfigHelper(final Map<String, Object> fireflyConfig, final Map<String, Object> olapConfig) {
+    public DistributedConfigHelper(final Map<String, Object> fireflyConfig, final Map<String, Object> olapConfig, final boolean isAlgorithmProgram) {
         this.fileConfig = fireflyConfig;
         this.olapConfig = olapConfig;
+        this.isAlgorithmProgram = isAlgorithmProgram;
         randomTempDir = RandomStringUtils.randomAlphanumeric(8);
         if (this.olapConfig != null) {
             final Set<String> keys = new HashSet<>(olapConfig.keySet());
             for (final String key : keys) {
-                if (key.startsWith("aerospike") && !key.startsWith(OLAP_PREFIX) && !key.startsWith(QueryParameters.OLAP_PREFIX)) {
+                if (key.startsWith("aerospike") && !key.startsWith(OLAP_PREFIX)) {
                     this.fileConfig.put(key, olapConfig.get(key));
                     this.olapConfig.remove(key);
                 }
+            }
+        }
+
+        validateConfig();
+    }
+
+    private void validateConfig() {
+        if (isAlgorithmProgram) {
+            final boolean requiresTempWriteDirectory = !getOlapConfig().getBoolean(TEMP_WRITE_DISABLED, false);
+
+            if (requiresTempWriteDirectory && getOlapConfig().getString(TEMP_WRITE_DIRECTORY) == null) {
+                throw new IllegalStateException(
+                        "Temporary write directory must be specified for algorithm programs."
+                                + " Please set the '" + TEMP_WRITE_DIRECTORY + "' configuration property."
+                                + " Or set the '" + TEMP_WRITE_DISABLED + "' to `true`.");
             }
         }
     }
@@ -90,7 +108,8 @@ public class DistributedConfigHelper implements Serializable {
     }
 
     public StorageLevel getStorageLevel() {
-        final String persistence = getOlapConfig().getString(PERSISTENCE, "DISK_ONLY");
+        final String persistence = getOlapConfig().getString(PERSISTENCE, isAlgorithmProgram ? "DISK_ONLY" : "MEMORY_AND_DISK");
+
         switch (persistence) {
             case "MEMORY":
             case "MEMORY_ONLY":
@@ -129,10 +148,14 @@ public class DistributedConfigHelper implements Serializable {
     }
 
     public boolean isBulkingDisabled() {
-        return getOlapConfig().getBoolean(DISABLE_BULKING, false);
+        return getOlapConfig().getBoolean(DISABLE_BULKING, isAlgorithmProgram);
     }
 
     public String getTempWriteDirectory() {
+        if (getOlapConfig().getBoolean(TEMP_WRITE_DISABLED, false)) {
+            return "";
+        }
+
         final String tempDir = getOlapConfig().getString(TEMP_WRITE_DIRECTORY, "");
         if (!tempDir.isEmpty()) {
             final String separator = "/";

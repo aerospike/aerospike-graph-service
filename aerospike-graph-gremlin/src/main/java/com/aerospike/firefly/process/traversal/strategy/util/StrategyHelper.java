@@ -130,7 +130,7 @@ public class StrategyHelper {
 
     public static List<String> getPropertyKeys(final List<HasContainer> hasContainers) {
         if (hasContainers == null || hasContainers.isEmpty()) {
-            return Collections.emptyList();
+            return new ArrayList<>();
         }
 
         return hasContainers.stream().map(HasContainer::getKey)

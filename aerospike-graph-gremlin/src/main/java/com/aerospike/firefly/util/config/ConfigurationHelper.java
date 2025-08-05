@@ -169,11 +169,11 @@ public final class ConfigurationHelper {
         public static final String PAGINATION_PAGE_SIZE = "aerospike.graph.pagination.page.size";
         public static final String PAGINATION_PAGE_MAX_WAIT = "aerospike.graph.pagination.max.wait";
         public static final String PAGINATION_SHUTDOWN_WAIT = "aerospike.graph.pagination.shutdown.wait";
-        public static final String OLAP_PAGINATION_WORKERS = "aerospike.graph.olap.pagination.index.workers";
-        public static final String OLAP_WORKERS = "aerospike.graph.olap.workers";
+        public static final String OLAP_PAGINATION_WORKERS = "aerospike.graph.analytics.pagination.index.workers";
+        public static final String OLAP_WORKERS = "aerospike.graph.analytics.workers";
 
         // OLAP configuration flags.
-        public static final String OLAP_ENABLED = "aerospike.graph.olap.enabled";
+        public static final String OLAP_ENABLED = "aerospike.graph.analytics.enabled";
 
         // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "aerospike.graph.auto.preheat.enabled";
@@ -798,7 +798,7 @@ public final class ConfigurationHelper {
             if (System.getenv("FIREFLY_TESTING") != null && System.getenv("FIREFLY_TESTING").equals("true")) {
                 throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
             } else {
-                if (config.containsKey("aerospike.graph.olap.enabled") && config.getBoolean("aerospike.graph.olap.enabled")) {
+                if (config.containsKey("aerospike.graph.analytics.enabled") && config.getBoolean("aerospike.graph.analytics.enabled")) {
                     // In olap we want this to be thrown back to the user so it doesnt die silently.
                     throw new ConfigurationRuntimeException("Error, the following configuration keys are invalid: " + invalidKeys);
                 }

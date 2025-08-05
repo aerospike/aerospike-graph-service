@@ -1123,7 +1123,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } catch (final InvocationTargetException | NoSuchMethodException | ClassNotFoundException |
                        InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
-            throw new IllegalStateException("ERROR: To use OLAP, use the docker image with OLAP support or a Spark cluster.", e);
+            throw new IllegalStateException("ERROR: To use Aerospike Graph Analytics, use the docker image with Aerospike Graph Analytics support or a Spark cluster.", e);
         }
     }
 
@@ -1140,7 +1140,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } catch (final InvocationTargetException | NoSuchMethodException | ClassNotFoundException |
                        InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
-            throw new IllegalStateException("ERROR: To use OLAP, use the docker image with OLAP support or a Spark cluster.", e);
+            throw new IllegalStateException("ERROR: To use Aerospike Graph Analytics, use the docker image with Aerospike Graph Analytics support or a Spark cluster.", e);
         }
     }
 

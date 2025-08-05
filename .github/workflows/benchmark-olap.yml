@@ -356,7 +356,7 @@ jobs:
           job_id=$(gcloud dataproc jobs list \
             --cluster="${{ env.dataproc_name }}" \
             --region="${{ env.region }}" \
-            --filter='status.state=RUNNING OR status.state=PENDING OR status.state=SETUP_DONE' \
+            --filter='(status.state=RUNNING) OR (status.state=PENDING) OR (status.state=SETUP_DONE)' \
             --sort-by="~status.stateStartTime" \
             --format="value(reference.jobId)" \
             --limit=1)

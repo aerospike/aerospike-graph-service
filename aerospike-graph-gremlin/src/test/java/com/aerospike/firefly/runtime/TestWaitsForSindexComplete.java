@@ -26,7 +26,7 @@ public class TestWaitsForSindexComplete {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             // Drop graph.
-            graph.getBaseGraph().dropGraphIndices(graph);
+            graph.getBaseGraph().dropGraphIndices();
             graph.traversal().V().drop().iterate();
 
             // Load graph.

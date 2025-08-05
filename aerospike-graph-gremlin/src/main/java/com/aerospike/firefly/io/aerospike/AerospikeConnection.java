@@ -1527,7 +1527,7 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Drop indices for Firefly
      */
-    public void dropGraphIndices(final FireflyGraph graph) {
+    public void dropGraphIndices() {
         LOG.info("Dropping graph indices.");
         dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX_NAME);
         dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX_NAME);
@@ -2222,7 +2222,7 @@ public class AerospikeConnection implements AutoCloseable {
                 // Indexes break if Schema table is dropped.
                 client.truncate(infoPolicy, namespace, SCHEMA_SET, null);
                 schemaManager.updateAll();
-                dropGraphIndices(graph);
+                dropGraphIndices();
             }
             Thread.sleep(1);
         } catch (final InterruptedException e) {

@@ -27,7 +27,7 @@ on:
         description: 'OLAP query to run (separated w/ "|")'
         required: true
         default: |
-          'g.with("evaluationTimeout", 6000).withComputer().V().hasLabel("person").count()|g.with("evaluationTimeout", 6000).withComputer().V().hasLabel("person").out("knows").count()'
+          'g.with(\"evaluationTimeout\", 6000).withComputer().V().hasLabel(\"person\").count()|g.with(\"evaluationTimeout\", 6000).withComputer().V().hasLabel(\"person\").out(\"knows\").count()'
       cleanup_clusters:
         description: 'Cleanup clusters after the run - true/false - If true the Aerospike and Spark clusters will be destroyed after the run, otherwise they will be left running for debugging purposes.'
         required: true
@@ -325,7 +325,6 @@ jobs:
           # Create client machine.
           aerolab client create none --zone=${{ env.zone }} --disk=pd-ssd:40 --instance ${{ env.client_instance_type }} -n ${{ env.benchmark_client_name }}
           aerolab client list -j | jq '.' > ${{ github.workspace }}/clients.json
-          decoded_query=$(echo "$olap_query_b64" | base64 -d)
           gcloud compute scp --zone=${{ env.zone }} ${{ github.workspace }}/scripts/run-benchmark-gcp-olap-benchmark.sh aerolab4-${{ env.benchmark_client_name }}-1:run-benchmark-gcp-olap-benchmark.sh
           gcloud compute ssh --zone=${{ env.zone }} aerolab4-${{ env.benchmark_client_name }}-1 --command "sudo bash run-benchmark-gcp-olap-benchmark.sh ${{ env.master_ip_address }} \"${decoded_query}" ${{ env.olap_query_execution_count }} ${{ env.olap_query_warmup_count }}"
 

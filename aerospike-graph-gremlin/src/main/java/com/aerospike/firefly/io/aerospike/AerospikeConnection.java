@@ -2202,7 +2202,6 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(infoPolicy, namespace, IN_VP_SET, null);
             client.truncate(infoPolicy, namespace, SUMMARY_SET, null);
             client.truncate(infoPolicy, namespace, USAGE_STATS_SET, null);
-            client.truncate(infoPolicy, namespace, ID_MANAGER_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_METADATA_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_VERTEX_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_EDGE_SET, null);

@@ -89,9 +89,9 @@ jobs:
           echo "client_instance_type=$CLIENT_INSTANCE" >> $GITHUB_ENV
           echo "olap_query_warmup_count=$WARMUP" >> $GITHUB_ENV
           echo "olap_query_execution_count=$EXEC" >> $GITHUB_ENV
-          
+
           # OLAP query as-is
-          printf "olap_query=%q\n" "${{ github.event.inputs.olap_query }}" >> $GITHUB_ENV
+          echo "olap_query=''${{ github.event.inputs.olap_query }}''" >> $GITHUB_ENV
 
           # Cleanup flag
           echo "cleanup_clusters=${{ github.event.inputs.cleanup_clusters }}" >> $GITHUB_ENV

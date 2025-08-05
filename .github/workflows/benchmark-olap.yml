@@ -26,8 +26,7 @@ on:
       olap_query:
         description: 'OLAP query to run (separated w/ "|")'
         required: true
-        default: |
-          'g.with(\"evaluationTimeout\", 6000).withComputer().V().hasLabel(\"person\").count()|g.with(\"evaluationTimeout\", 6000).withComputer().V().hasLabel(\"person\").out(\"knows\").count()'
+        default: 'g.with(\"evaluationTimeout\", 6000).withComputer().V().hasLabel(\"person\").count()|g.with(\"evaluationTimeout\", 6000).withComputer().V().hasLabel(\"person\").out(\"knows\").count()'
       cleanup_clusters:
         description: 'Cleanup clusters after the run - true/false - If true the Aerospike and Spark clusters will be destroyed after the run, otherwise they will be left running for debugging purposes.'
         required: true

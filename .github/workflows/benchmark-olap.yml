@@ -346,11 +346,6 @@ jobs:
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
 
-      - name: Stop Benchmark machine
-        if: ${{ always() && env.cleanup_clusters == 'true' }}
-        run: |
-          yes | aerolab client destroy -n "${{ env.benchmark_client_name }}"
-
       - name: Stop dataproc cluster
         if: ${{ always() && env.cleanup_clusters == 'true' }}
         run: |

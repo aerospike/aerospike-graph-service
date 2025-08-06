@@ -10,11 +10,11 @@ on:
       aerospike_conf:
         description: 'Aerospike configuration (<count>,<type>,<ssd count>,<version>)'
         required: true
-        default: '8,n2d-highmem-16,4,7.0.*'
+        default: '4,n2d-highmem-16,4,7.0.*'
       spark_config:
         description: 'Spark configuration (<count>,<type>,<disk size>,<spark.executor.memoryOverhead>,<spark.executor.memory>,<spark.executor.cores>,<spark.task.cpus>,<olap.executor.cores - blank=vcpu*count>)'
         required: true
-        default: '16,n2d-highmem-8,150,1024m,4g,1,1,'
+        default: '32,n2d-highmem-8,150,1024m,4g,1,1,'
       bulk_load_config:
         description: 'Bulk load configuration (<vertex files>,<edge files>,<scratch directory>,<properties>)'
         required: true
@@ -26,7 +26,7 @@ on:
       olap_query:
         description: 'OLAP query to run (separated w/ "|")'
         required: true
-        default: 'g.with(\"evaluationTimeout\", 6000).withComputer().V().hasLabel(\"person\").count()|g.with(\"evaluationTimeout\", 6000).withComputer().V().hasLabel(\"person\").out(\"knows\").count()'
+        default: 'g.with(\"evaluationTimeout\", 60000).withComputer().V().count()|g.with(\"evaluationTimeout\", 60000).withComputer().V().hasLabel(\"person\").out(\"knows\").count()'
       cleanup_clusters:
         description: 'Cleanup clusters after the run - true/false - If true the Aerospike and Spark clusters will be destroyed after the run, otherwise they will be left running for debugging purposes.'
         required: true
@@ -331,6 +331,9 @@ jobs:
         run: |
           tinkerbench_result_dir=$(gcloud compute ssh --zone=${{ env.zone }} aerolab4-${{ env.benchmark_client_name }}-1 --command "pwd")
           gcloud compute scp --zone=${{ env.zone }} aerolab4-${{ env.benchmark_client_name }}-1:${tinkerbench_result_dir}/tinkerbench/benchmark-result-* tinkerbench_output.json
+          pwd
+          ls -l
+          cat tinkerbench_output.json
 
       - name: Publish Benchmark Results
         uses: benchmark-action/github-action-benchmark@v1

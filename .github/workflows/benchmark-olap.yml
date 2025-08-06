@@ -355,6 +355,11 @@ jobs:
           echo "Deleting cluster: ${{ env.dataproc_name }}"
           gcloud dataproc clusters delete -q --region=${{ env.region }} ${{ env.dataproc_name }}
 
+      - name: Stop Benchmark machine
+        if: ${{ always() && env.cleanup_clusters == 'true' }}
+        run: |
+          yes | aerolab client destroy -n "${{ env.benchmark_client_name }}"
+
       - name: Stop Aerospike cluster
         if: ${{ always() && env.cleanup_clusters == 'true' }}
         run: |

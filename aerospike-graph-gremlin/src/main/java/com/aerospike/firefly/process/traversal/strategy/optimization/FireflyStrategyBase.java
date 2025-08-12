@@ -17,7 +17,7 @@ import static com.aerospike.firefly.process.traversal.strategy.util.FireflyStrat
 public abstract class FireflyStrategyBase extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy>
         implements TraversalStrategy.ProviderOptimizationStrategy {
 
-    private static Boolean isEnabled = null;
+    private Boolean isEnabled = null;
 
     /**
      * Default constructor for FireflyStrategyBase.

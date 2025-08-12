@@ -7,30 +7,26 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
-      branch_name:
-        description: 'Branch to build OLAP artifact'
-        required: true
-        default: '3.x-dev'
       aerospike_conf:
         description: 'Aerospike configuration (<count>,<type>,<ssd count>,<version>)'
         required: true
-        default: '3,n2d-highmem-16,2,7.0.*'
+        default: '4,n2d-highmem-16,4,7.0.*'
       spark_config:
         description: 'Spark configuration (<count>,<type>,<disk size>,<spark.executor.memoryOverhead>,<spark.executor.memory>,<spark.executor.cores>,<spark.task.cpus>,<olap.executor.cores - blank=vcpu*count>)'
         required: true
-        default: '3,n2d-highmem-16,150,1024m,4g,1,1,<leave empty for auto calculation>'
+        default: '32,n2d-highmem-8,150,1024m,4g,1,1,'
       bulk_load_config:
         description: 'Bulk load configuration (<vertex files>,<edge files>,<scratch directory>,<properties>)'
         required: true
-        default: 'gs://scale-free-graphs/PropertyCorrected/SF1200M/vertices,gs://scale-free-graphs/PropertyCorrected/SF1200M/edges,gs://olap-testing-scratch,aerospike.graph.index.vertex.label.enabled=true,aerospike.graph.phat.edge.size=10'
+        default: 'gs://scale-free-graphs/PropertyCorrected/SF100M/vertices,gs://scale-free-graphs/PropertyCorrected/SF100M/edges,gs://olap-testing-scratch,aerospike.graph.index.vertex.label.enabled=true,aerospike.graph.phat.edge.size=10'
       benchmark_config:
         description: 'Benchmark configuration (<client instance>,<warmup count>,<execution count>)'
         required: true
-        default: 'n2d-standard-4,1,5'
+        default: 'n2d-standard-4,1,2'
       olap_query:
         description: 'OLAP query to run (separated w/ "|")'
         required: true
-        default: 'g.with("evaluationTimeout", 6000).withComputer().V().hasLabel("person").count()|g.with("evaluationTimeout", 6000).withComputer().V().hasLabel("person").out("knows").count()'
+        default: 'g.with(\"evaluationTimeout\", 60000).withComputer().V().count()|g.with(\"evaluationTimeout\", 60000).withComputer().V().hasLabel(\"person\").out(\"knows\").count()'
       cleanup_clusters:
         description: 'Cleanup clusters after the run - true/false - If true the Aerospike and Spark clusters will be destroyed after the run, otherwise they will be left running for debugging purposes.'
         required: true
@@ -45,20 +41,20 @@ env:
   project: firefly-aerospike
 
 jobs:
-  trigger-weekly-benchmark:
-    name: Weekly Benchmark
+  trigger-olap-benchmark:
+    name: OLAP Benchmark
     runs-on: ubuntu-latest
     steps:
       - name: Clamp Runtime Variables from Grouped Inputs
         id: clamp
         run: |
           # Parse Aerospike configuration
-          IFS=',' read -r AERO_COUNT AERO_TYPE AERO_VER AERO_SSD <<< "${{ github.event.inputs.aerospike_conf }}"
+          IFS=',' read -r AERO_COUNT AERO_TYPE AERO_SSD AERO_VER  <<< "${{ github.event.inputs.aerospike_conf }}"
 
           echo "aerospike_count=$AERO_COUNT" >> $GITHUB_ENV
           echo "aerospike_instance=$AERO_TYPE" >> $GITHUB_ENV
-          echo "aerospike_version=$AERO_VER" >> $GITHUB_ENV
           echo "aerospike_ssd_count=$AERO_SSD" >> $GITHUB_ENV
+          echo "aerospike_version=$AERO_VER" >> $GITHUB_ENV
 
           # Parse Spark configuration
           IFS=',' read -r SPARK_COUNT SPARK_TYPE SPARK_DISK SPARK_MEM_OV SPARK_MEM SPARK_CORES TASK_CPUS OLAP_EXEC <<< "${{ github.event.inputs.spark_config }}"
@@ -95,14 +91,37 @@ jobs:
           echo "olap_query_execution_count=$EXEC" >> $GITHUB_ENV
 
           # OLAP query as-is
-          echo "olap_query=${{ github.event.inputs.olap_query }}" >> $GITHUB_ENV
+          echo "olap_query_b64=$(echo "${{ github.event.inputs.olap_query }}" | base64 -w 0)" >> $GITHUB_ENV
 
           # Cleanup flag
           echo "cleanup_clusters=${{ github.event.inputs.cleanup_clusters }}" >> $GITHUB_ENV
-      - name: Checkout branch
+      - name: Log environment
+        run: |
+          # Print the values for debugging
+          echo "aerospike_count=${{ env.aerospike_count }}"
+          echo "aerospike_instance=${{ env.aerospike_instance }}"
+          echo "aerospike_version=${{ env.aerospike_version }}"
+          echo "aerospike_ssd_count=${{ env.aerospike_ssd_count }}"
+          echo "spark_node_count=${{ env.spark_node_count }}"
+          echo "spark_instance_type=${{ env.spark_instance_type }}"
+          echo "spark_disk_size=${{ env.spark_disk_size }}"
+          echo "spark_executor_memory_overhead=${{ env.spark_executor_memory_overhead }}"
+          echo "spark_executor_memory=${{ env.spark_executor_memory }}"
+          echo "spark_executor_cores=${{ env.spark_executor_cores }}"
+          echo "spark_task_cpus=${{ env.spark_task_cpus }}"
+          echo "olap_executor_cores=${{ env.olap_executor_cores }}"
+          echo "bulk_load_vertex_files=${{ env.bulk_load_vertex_files }}"
+          echo "bulk_load_edge_files=${{ env.bulk_load_edge_files }}"
+          echo "scratch_directory=${{ env.scratch_directory }}"
+          echo "bulk_load_properties=${{ env.bulk_load_properties }}"
+          echo "client_instance_type=${{ env.client_instance_type }}"
+          echo "olap_query_warmup_count=${{ env.olap_query_warmup_count }}"
+          echo "olap_query_execution_count=${{ env.olap_query_execution_count }}"
+          echo "olap_query_b64=${{ env.olap_query_b64 }}"
+          echo "cleanup_clusters=${{ env.cleanup_clusters }}"
+
+      - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch_name }}
 
       - name: Authorize gcloud CLI
         uses: google-github-actions/auth@v1
@@ -145,19 +164,19 @@ jobs:
       - name: Clamp Runtime Variables to Environment
         run: |
           description_val=${{ steps.date_format.outputs.year }}${{ steps.date_format.outputs.month }}${{ steps.date_format.outputs.day }}${{ steps.date_format.outputs.seconds }}
-          bulk_jar_uri_val=${{ github.event.inputs.scratch_directory }}/${description_val}/aerospike-graph-bulk-loader.jar
-          olap_jar_uri_val=${{ github.event.inputs.scratch_directory }}/${description_val}/aerospike-graph-analytics.jar
+          bulk_jar_uri_val=${{ env.scratch_directory }}/${description_val}/aerospike-graph-bulk-loader.jar
+          olap_jar_uri_val=${{ env.scratch_directory }}/${description_val}/aerospike-graph-olap.jar
           properties_file_uri_val=gs://gha-ci-firefly-bulkloader/weekly-benchmark/${description_val}-perf/ags-properties.conf
           aerospike_name_val=aga-${description_val}-as
           dataproc_name_val=aga-${description_val}-dproc
           benchmark_client_name_val=aga-${description_val}-lg
           
           # Extract number of cores from instance type
-          num_cores_per_instance=$(echo "${{ github.event.inputs.spark_instance_type }}" | grep -o '[0-9]\+$')
-          if [ -z "${{ github.event.inputs.olap_executor_cores }}" ]; then
-              spark_executor_cores_val=$((${{ github.event.inputs.spark_node_count }} * ${num_cores_per_instance}))
+          num_cores_per_instance=$(echo "${{ env.spark_instance_type }}" | grep -o '[0-9]\+$')
+          if [ -z "${{ env.olap_executor_cores }}" ]; then
+              spark_executor_cores_val=$((${{ env.spark_node_count }} * ${num_cores_per_instance}))
           else
-              spark_executor_cores_val=${{ github.event.inputs.olap_executor_cores }}
+              spark_executor_cores_val=${{ env.olap_executor_cores }}
           fi
           
           echo "description=${description_val}" >> $GITHUB_ENV
@@ -168,6 +187,17 @@ jobs:
           echo "dataproc_name=${dataproc_name_val}" >> $GITHUB_ENV
           echo "benchmark_client_name=${benchmark_client_name_val}" >> $GITHUB_ENV
           echo "spark_executor_cores=${spark_executor_cores_val}" >> $GITHUB_ENV
+          
+          # Print the values for debugging
+          echo "description=${{ env.description }}"
+          echo "bulk_jar_uri=${{ env.bulk_jar_uri }}"
+          echo "olap_jar_uri=${{ env.olap_jar_uri }}"
+          echo "properties_file_uri=${{ env.properties_file_uri }}"
+          echo "aerospike_name=${{ env.aerospike_name }}"
+          echo "dataproc_name=${{ env.dataproc_name }}"
+          echo "benchmark_client_name=${{ env.benchmark_client_name }}"
+          echo "spark_executor_cores=${{ env.spark_executor_cores }}"
+          
 
       - name: Build and publish Bulk Loader and OLAP artifacts
         run: |
@@ -176,7 +206,7 @@ jobs:
           
           # Copy the OLAP artifact to GCS.
           gcloud storage cp \
-              ${{ github.workspace }}/aerospike-graph-analytics/target/aerospike-graph-analytics-*.jar \
+              ${{ github.workspace }}/aerospike-graph-olap/target/aerospike-graph-olap-*.jar \
               ${{ env.olap_jar_uri }}
           
           # Copy the bulk loader artifact to GCS.
@@ -185,12 +215,12 @@ jobs:
               ${{ env.bulk_jar_uri }}
 
           # TODO: Generate and upload properties file.
-          echo "aerospike.graphloader.vertices=${{ github.event.inputs.bulk_load_vertex_files }}" > ${{ github.workspace }}/benchmark-bulk-load-config.properties
-          echo "aerospike.graphloader.edges=${{ github.event.inputs.bulk_load_edge_files }}" >> ${{ github.workspace }}/benchmark-bulk-load-config.properties
-          echo "aerospike.graphloader.temp-directory=${{ github.event.inputs.scratch_directory }}/temp" >> ${{ github.workspace }}/benchmark-bulk-load-config.properties
+          echo "aerospike.graphloader.vertices=${{ env.bulk_load_vertex_files }}" > ${{ github.workspace }}/benchmark-bulk-load-config.properties
+          echo "aerospike.graphloader.edges=${{ env.bulk_load_edge_files }}" >> ${{ github.workspace }}/benchmark-bulk-load-config.properties
+          echo "aerospike.graphloader.temp-directory=${{ env.scratch_directory }}/temp" >> ${{ github.workspace }}/benchmark-bulk-load-config.properties
           echo "aerospike.client.host=aerolab4-${{ env.aerospike_name }}-1" >> ${{ github.workspace }}/benchmark-bulk-load-config.properties
           # Loop through bulk_load_properties and split by '|'
-          IFS='|' read -ra properties <<< "${{ github.event.inputs.bulk_load_properties }}"
+          IFS='|' read -ra properties <<< "${{ env.bulk_load_properties }}"
           for property in "${properties[@]}"; do
               echo "$property" >> ${{ github.workspace }}/benchmark-bulk-load-config.properties
           done
@@ -208,13 +238,13 @@ jobs:
           aerolab cluster create \
             --zone ${{ env.zone }} \
             --name "${{ env.aerospike_name }}" \
-            --count "${{ github.event.inputs.aerospike_count }}" \
-            --instance "${{ github.event.inputs.aerospike_instance }}" \
-            --aerospike-version "${{ github.event.inputs.aerospike_version }}" \
+            --count "${{ env.aerospike_count }}" \
+            --instance "${{ env.aerospike_instance }}" \
+            --aerospike-version "${{ env.aerospike_version }}" \
             --featurefile "${{ env.features_file }}" \
             --customconf "${{ env.custom_conf }}" \
             --disk pd-ssd:20 \
-            --disk local-ssd@"${{ github.event.inputs.aerospike_ssd_count }}" \
+            --disk local-ssd@"${{ env.aerospike_ssd_count }}" \
             --start n
           
           # Partition cluster disks.
@@ -244,13 +274,13 @@ jobs:
             --enable-component-gateway \
             --region ${{ env.region }} \
             --zone ${{ env.zone }} \
-            --master-machine-type "${{ github.event.inputs.spark_instance_type }}" \
+            --master-machine-type "${{ env.spark_instance_type }}" \
             --master-boot-disk-type pd-ssd \
-            --master-boot-disk-size ${{ github.event.inputs.spark_disk_size }} \
-            --num-workers "${{ github.event.inputs.spark_node_count }}" \
-            --worker-machine-type "${{ github.event.inputs.spark_instance_type }}" \
+            --master-boot-disk-size ${{ env.spark_disk_size }} \
+            --num-workers "${{ env.spark_node_count }}" \
+            --worker-machine-type "${{ env.spark_instance_type }}" \
             --worker-boot-disk-type pd-ssd \
-            --worker-boot-disk-size ${{ github.event.inputs.spark_disk_size }} \
+            --worker-boot-disk-size ${{ env.spark_disk_size }} \
             --image-version 2.1-debian11 \
             --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE \
             --project ${{ env.project }}
@@ -271,17 +301,17 @@ jobs:
               --region="${{ env.region }}" \
               --async \
               --properties=\
-              spark.executor.memoryOverhead=${{ github.event.inputs.spark_executor_memory_overhead }},\
-              spark.executor.memory=${{ github.event.inputs.spark_executor_memory }},\
-              spark.executor.cores=${{ github.event.inputs.spark_executor_cores }},\
-              spark.task.cpus=${{ github.event.inputs.spark_task_cpus }},\
-              spark.speculation=false,\
-              spark.executor.instances=${{ env.spark_executor_cores }},\
-              spark.dynamicAllocation.enabled=true,\
-              spark.dynamicAllocation.minExecutors=${{ env.spark_executor_cores }},\
-              spark.dynamicAllocation.maxExecutors=${{ env.spark_executor_cores }},\
-              spark.dynamicAllocation.initialExecutors=${{ env.spark_executor_cores }},\
-              spark.scheduler.minRegisteredResourcesRatio=1.0,\
+              --properties=spark.executor.memoryOverhead=${{ env.spark_executor_memory_overhead }},\
+          spark.executor.memory=${{ env.spark_executor_memory }},\
+          spark.executor.cores=${{ env.spark_task_cpus }},\
+          spark.task.cpus=${{ env.spark_task_cpus }},\
+          spark.speculation=false,\
+          spark.executor.instances=${{ env.spark_executor_cores }},\
+          spark.dynamicAllocation.enabled=true,\
+          spark.dynamicAllocation.minExecutors=${{ env.spark_executor_cores }},\
+          spark.dynamicAllocation.maxExecutors=${{ env.spark_executor_cores }},\
+          spark.dynamicAllocation.initialExecutors=${{ env.spark_executor_cores }},\
+          spark.scheduler.minRegisteredResourcesRatio=1.0 \
               -- -c "${{ env.properties_file_uri }}"
           
           master_ip_address_val=$(gcloud compute instances list \
@@ -292,15 +322,18 @@ jobs:
       - name: Run Benchmark
         run: |
           # Create client machine.
-          aerolab client create none --zone=${{ env.zone }} --disk=pd-ssd:40 --instance ${{ github.event.inputs.client_instance_type }} -n ${{ env.benchmark_client_name }}
+          aerolab client create none --zone=${{ env.zone }} --disk=pd-ssd:40 --instance ${{ env.client_instance_type }} -n ${{ env.benchmark_client_name }}
           aerolab client list -j | jq '.' > ${{ github.workspace }}/clients.json
           gcloud compute scp --zone=${{ env.zone }} ${{ github.workspace }}/scripts/run-benchmark-gcp-olap-benchmark.sh aerolab4-${{ env.benchmark_client_name }}-1:run-benchmark-gcp-olap-benchmark.sh
-          gcloud compute ssh --zone=${{ env.zone }} aerolab4-${{ env.benchmark_client_name }}-1 --command "sudo bash run-benchmark-gcp-olap-benchmark.sh ${{ env.master_ip_address }} ${{ github.event.inputs.olap_query }} ${{ github.event.inputs.olap_query_execution_count }} ${{ github.event.inputs.olap_query_warmup_count }}"
+          gcloud compute ssh --zone=${{ env.zone }} aerolab4-${{ env.benchmark_client_name }}-1 --command "sudo bash run-benchmark-gcp-olap-benchmark.sh ${{ env.master_ip_address }} ${{ env.olap_query_b64}} ${{ env.olap_query_execution_count }} ${{ env.olap_query_warmup_count }}"
 
       - name: Retrieve Tinkerbench Results
         run: |
           tinkerbench_result_dir=$(gcloud compute ssh --zone=${{ env.zone }} aerolab4-${{ env.benchmark_client_name }}-1 --command "pwd")
           gcloud compute scp --zone=${{ env.zone }} aerolab4-${{ env.benchmark_client_name }}-1:${tinkerbench_result_dir}/tinkerbench/benchmark-result-* tinkerbench_output.json
+          pwd
+          ls -l
+          cat tinkerbench_output.json
 
       - name: Publish Benchmark Results
         uses: benchmark-action/github-action-benchmark@v1
@@ -316,18 +349,18 @@ jobs:
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
 
+      - name: Stop dataproc cluster
+        if: ${{ always() && env.cleanup_clusters == 'true' }}
+        run: |
+          echo "Deleting cluster: ${{ env.dataproc_name }}"
+          gcloud dataproc clusters delete -q --region=${{ env.region }} ${{ env.dataproc_name }}
+
       - name: Stop Benchmark machine
-        if: ${{ always() && github.event.inputs.cleanup_clusters == 'true' }}
+        if: ${{ always() && env.cleanup_clusters == 'true' }}
         run: |
           yes | aerolab client destroy -n "${{ env.benchmark_client_name }}"
 
-      - name: Stop dataproc cluster
-        if: ${{ always() && github.event.inputs.cleanup_clusters == 'true' }}
-        run: |
-          gcloud dataproc jobs delete -q --region ${{ env.region }} "$(gcloud dataproc jobs list --cluster="${{ env.dataproc_name }}" --region="${{ env.region }}" --format="value(JOB_ID)")"
-          gcloud dataproc clusters delete -q --region=${{ env.region }} ${{ env.dataproc_name }}
-
       - name: Stop Aerospike cluster
-        if: ${{ always() && github.event.inputs.cleanup_clusters == 'true' }}
+        if: ${{ always() && env.cleanup_clusters == 'true' }}
         run: |
           yes | aerolab cluster destroy -n "${{ env.aerospike_name }}"

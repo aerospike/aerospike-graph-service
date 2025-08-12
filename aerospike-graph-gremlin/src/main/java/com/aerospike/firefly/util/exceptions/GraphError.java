@@ -86,9 +86,13 @@ public enum GraphError {
     static final HashMap<Integer, String> ERROR_MESSAGES = new HashMap<>();
     static {
         // Graph
-        ERROR_MESSAGES.put(NSUP_DISABLED.code, String.format("'%s' set to 0 (disabled) and '%s' disabled. These are required for TTL to work," +
-                " and this will MergeE support in Aerospike Graph Service. To enable MergeE," +
-                " please set '%s' to a non-zero value.", AerospikeConnection.InfoOps.NSUP_PERIOD, AerospikeConnection.InfoOps.ALLOW_TTL_WITHOUT_NSUP, AerospikeConnection.InfoOps.NSUP_PERIOD));
+        ERROR_MESSAGES.put(NSUP_DISABLED.code,
+                String.format("'%s' is set to 0 (disabled), and '%s' is disabled. Both are required for TTL to work. "
+                                + "Without them, MergeE support in Aerospike Graph Service will not function. "
+                                + "To enable MergeE, please set '%s' to a non-zero value.",
+                        AerospikeConnection.InfoOps.NSUP_PERIOD,
+                        AerospikeConnection.InfoOps.ALLOW_TTL_WITHOUT_NSUP,
+                        AerospikeConnection.InfoOps.NSUP_PERIOD));
         ERROR_MESSAGES.put(CACHE_ADJACENT_ENABLED_COMPOSITE_ID_DISABLED.code, String.format(
                 "Cached adjacent ID strategy (%s) cannot be used when composite ID strategy (%s) is disabled.",
                 ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY,

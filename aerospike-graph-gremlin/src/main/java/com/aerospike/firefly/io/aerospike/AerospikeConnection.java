@@ -2462,6 +2462,9 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public Record writeKeyLock(final Key key, final int ttlMillis) {
+        if (!this.EXPIRATION_ENABLED) {
+            throw new AerospikeGraphException(GraphError.NSUP_DISABLED);
+        }
         final WritePolicy policy = new WritePolicy();
         policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
         policy.expiration = ttlMillis / 1000;

@@ -19,6 +19,8 @@ public class FireflyMergeEdgeStepNSupDisabledTest {
     public void testNsupDisabledErrorMessage() {
         try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             try {
+                graph.traversal().addV().property(T.id, "vertex1").iterate();
+                graph.traversal().addV().property(T.id, "vertex2").iterate();
                 graph.traversal().mergeE(Map.of(
                                 T.label, "connected",
                                 Direction.OUT, "vertex1",

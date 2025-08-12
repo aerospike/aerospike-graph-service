@@ -567,9 +567,9 @@ jobs:
           bash -x scripts/start_aerospike_mrt.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=TestMRTSupported -DfailIfNoTests=false --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeOperations -DfailIfNoTests=false --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMRTWorld -DfailIfNoTests=false --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxWorld -DfailIfNoTests=false --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxMRTWorld -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMRTFeatureTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxFeatureTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxMRTFeatureTest -DfailIfNoTests=false --no-transfer-progress
   test-tinkerpop-tx:
     name: Test Tinkerpop Transactions
     timeout-minutes: 30

@@ -29,6 +29,7 @@ public class FireflyMergeEdgeStepNSupDisabledTest {
                         .option(onCreate, Map.of("state", "created"))
                         .option(onMatch, Map.of("state", "matched"))
                         .toList();
+                Assert.fail("Should have thrown an exception for disabled mergeE queries.");
             } catch (Exception e) {
                 Assert.assertEquals(e.getMessage(), GraphError.getMessage(GraphError.NSUP_DISABLED));
             }

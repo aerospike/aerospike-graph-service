@@ -1,5 +1,6 @@
 package com.aerospike.firefly.tx;
 
+import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -13,6 +14,7 @@ import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.aerospike.firefly.util.exceptions.GraphError.QUERY_IN_TRANSACTION;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 import static org.junit.Assert.assertEquals;
 
@@ -303,6 +305,31 @@ public class TestTinkerpopTransactions {
         }
         Assert.assertEquals(1, (long) g.V().count().next());
     }
+
+    @Test
+    public void testScanInTx() {
+        g.addV("test").next();
+        final GraphTraversalSource gtx = g.tx().begin();
+        try {
+            gtx.V().hasLabel("test").next();
+            Assert.fail("Scan should not work in tx.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e.getMessage().contains(GraphError.getMessage(QUERY_IN_TRANSACTION)));
+        }
+    }
+
+    @Test
+    public void testQueryInTx() {
+        g.addV("test").next();
+        final GraphTraversalSource gtx = g.tx().begin();
+        try {
+            gtx.V().hasLabel("test").next();
+            Assert.fail("Query should not work in tx.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e.getMessage().contains(GraphError.getMessage(QUERY_IN_TRANSACTION)));
+        }
+    }
+
 
     private void countElementsInNewThreadTx(final GraphTraversalSource g, final long verticesCount,
                                             final long edgesCount) throws InterruptedException {

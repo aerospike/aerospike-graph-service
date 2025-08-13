@@ -208,6 +208,12 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
         reason = "Custom Firefly MergeV step removed eventing due to incompatibility with multi-properties.",
         computers = {"ALL"}
 )
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest",
+        method = "shouldTriggerRemoveVertex",
+        reason = "Uses g.V().drop().iterate() via config change that is done on the fly after latching.",
+        computers = {"ALL"}
+)
 
 // TODO: GRAPH-1565
 @Graph.OptOut(

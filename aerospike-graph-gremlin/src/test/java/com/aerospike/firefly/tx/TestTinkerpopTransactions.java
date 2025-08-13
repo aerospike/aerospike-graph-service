@@ -65,12 +65,11 @@ public class TestTinkerpopTransactions {
         gtx.tx().commit();
         GraphTraversalSource gtx2 = this.g.tx().begin();
         Assert.assertEquals(1L, (long) gtx2.V(v1.id()).count().next());
-        gtx2.V(new Object[]{v1.id()}).drop().iterate();
+        gtx2.V(v1.id()).drop().iterate();
         Assert.assertEquals(0L, (long) gtx2.V(v1.id()).count().next());
         this.countElementsInNewThreadTx(this.g, 1L, 0L);
         gtx2.tx().commit();
         GraphTraversalSource gtx3 = this.g.tx().begin();
-        Assert.assertEquals(0L, (long) gtx3.V(v1.id()).count().next());
         Assert.assertEquals(0L, (long) gtx3.V(v1.id()).count().next());
         this.countElementsInNewThreadTx(this.g, 0L, 0L);
     }
@@ -85,24 +84,24 @@ public class TestTinkerpopTransactions {
         GraphTraversalSource gtx2 = this.g.tx().begin();
         Assert.assertEquals(2L, (long) gtx2.V(v1.id(), v2.id()).count().next());
         Assert.assertEquals(1L, (long) gtx2.E(e.id()).count().next());
-        gtx2.V(new Object[]{v1.id()}).drop().iterate();
+        gtx2.V(v1.id()).drop().iterate();
         gtx2.tx().commit();
-        Assert.assertEquals(1L, (long) g.V(new Object[0]).count().next());
-        Assert.assertEquals(0L, (long) g.E(new Object[0]).count().next());
+        Assert.assertEquals(1L, (long) g.V().count().next());
+        Assert.assertEquals(0L, (long) g.E().count().next());
         this.countElementsInNewThreadTx(this.g, 1L, 0L);
     }
 
     @Test
     public void shouldChangeVertexProperty() {
         GraphTraversalSource gtx = this.g.tx().begin();
-        Vertex v1 = gtx.addV().property("test", 1, new Object[0]).next();
+        Vertex v1 = gtx.addV().property("test", 1).next();
         gtx.tx().commit();
         GraphTraversalSource gtx2 = this.g.tx().begin();
-        Assert.assertEquals(1, gtx2.V(new Object[]{v1.id()}).values("test").next());
-        gtx2.V(new Object[]{v1.id()}).property("test", 2, new Object[0]).iterate();
+        Assert.assertEquals(1, gtx2.V(v1.id()).values("test").next());
+        gtx2.V(v1.id()).property("test", 2).iterate();
         gtx2.tx().commit();
-        Assert.assertEquals(1L, (long) g.V(new Object[0]).count().next());
-        Assert.assertEquals(2, g.V(new Object[]{v1.id()}).values("test").next());
+        Assert.assertEquals(1L, (long) g.V().count().next());
+        Assert.assertEquals(2, g.V(v1.id()).values("test").next());
     }
 
     @Test
@@ -178,7 +177,132 @@ public class TestTinkerpopTransactions {
         countElementsInNewThreadTx(g, 0, 0);
     }
 
+    @Test
+    public void testTxCommitBlockedByOtherTx() {
+        final Vertex v1 = g.addV().next();
+        final Vertex v2 = g.addV().next();
 
+        final GraphTraversalSource gtx = g.tx().begin();
+        final GraphTraversalSource gtx2 = g.tx().begin();
+
+        final Edge edge = gtx.addE("tests").from(v1).to(v2).next();
+        final Object tx2id = gtx2.addV("tx2").id().next();
+        try {
+            gtx2.V(v1.id()).drop().iterate();
+            Assert.fail("Accessing a blocked record from a different transaction should fail.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e.getMessage().contains("Error code 120"));
+        }
+        Assert.assertEquals(0, (long) g.V(tx2id).count().next());
+        // Should be able to commit operations that were unrelated to failure if desired.
+        gtx2.tx().commit();
+        Assert.assertEquals(1, (long) g.V(tx2id).count().next());
+        Assert.assertEquals(0, (long) g.E().count().next());
+        gtx.tx().commit();
+        Assert.assertEquals(1, (long) g.E().count().next());
+    }
+
+    @Test
+    public void testTraversalAfterRollback() {
+        Assert.assertEquals(0, (long) g.V().count().next());
+        final GraphTraversalSource gtx = g.tx().begin();
+        gtx.addV().next();
+        Assert.assertEquals(0, (long) g.V().count().next());
+        gtx.tx().rollback();
+        Assert.assertEquals(0, (long) g.V().count().next());
+        try {
+            gtx.addV().next();
+            Assert.fail("Traversal after rollback should fail.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e.getCause().getMessage().contains("Client is closed"));
+        }
+        Assert.assertEquals(0, (long) g.V().count().next());
+    }
+
+    @Test
+    public void testCommitAfterRollback() {
+        Assert.assertEquals(0, (long) g.V().count().next());
+        final GraphTraversalSource gtx = g.tx().begin();
+        gtx.addV().next();
+        Assert.assertEquals(0, (long) g.V().count().next());
+        gtx.tx().rollback();
+        Assert.assertEquals(0, (long) g.V().count().next());
+        try {
+            gtx.tx().commit();
+            Assert.fail("Commit after rollback should fail.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e.getCause().getMessage().contains("Client is closed"));
+        }
+        Assert.assertEquals(0, (long) g.V().count().next());
+    }
+
+    @Test
+    public void testRollbackAfterRollback() {
+        Assert.assertEquals(0, (long) g.V().count().next());
+        final GraphTraversalSource gtx = g.tx().begin();
+        gtx.addV().next();
+        Assert.assertEquals(0, (long) g.V().count().next());
+        gtx.tx().rollback();
+        Assert.assertEquals(0, (long) g.V().count().next());
+        try {
+            gtx.tx().rollback();
+            Assert.fail("Rollback after rollback should fail.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e.getCause().getMessage().contains("Client is closed"));
+        }
+        Assert.assertEquals(0, (long) g.V().count().next());
+    }
+
+    @Test
+    public void testTraversalAfterCommit() {
+        Assert.assertEquals(0, (long) g.V().count().next());
+        final GraphTraversalSource gtx = g.tx().begin();
+        gtx.addV().next();
+        Assert.assertEquals(0, (long) g.V().count().next());
+        gtx.tx().commit();
+        Assert.assertEquals(1, (long) g.V().count().next());
+        try {
+            gtx.addV().next();
+            Assert.fail("Traversal after commit should fail.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e.getCause().getMessage().contains("Client is closed"));
+        }
+        Assert.assertEquals(1, (long) g.V().count().next());
+    }
+
+    @Test
+    public void testCommitAfterCommit() {
+        Assert.assertEquals(0, (long) g.V().count().next());
+        final GraphTraversalSource gtx = g.tx().begin();
+        gtx.addV().next();
+        Assert.assertEquals(0, (long) g.V().count().next());
+        gtx.tx().commit();
+        Assert.assertEquals(1, (long) g.V().count().next());
+        try {
+            gtx.tx().commit();
+            Assert.fail("Commit after commit should fail.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e.getCause().getMessage().contains("Client is closed"));
+        }
+        Assert.assertEquals(1, (long) g.V().count().next());
+    }
+
+    @Test
+    public void testRollbackAfterCommit() {
+        Assert.assertEquals(0, (long) g.V().count().next());
+        final GraphTraversalSource gtx = g.tx().begin();
+        gtx.addV().next();
+        Assert.assertEquals(0, (long) g.V().count().next());
+        gtx.tx().commit();
+        Assert.assertEquals(1, (long) g.V().count().next());
+        try {
+            gtx.tx().rollback();
+            Assert.fail("Rollback after commit should fail.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e.getCause().getMessage().contains("Client is closed"));
+        }
+        Assert.assertEquals(1, (long) g.V().count().next());
+    }
 
     private void countElementsInNewThreadTx(final GraphTraversalSource g, final long verticesCount,
                                             final long edgesCount) throws InterruptedException {

@@ -74,7 +74,8 @@ public enum GraphError {
 	
     ELEMENT_NOT_FOUND(ResultCode.KEY_NOT_FOUND_ERROR),
     RECORD_SIZE_EXCEEDED(ResultCode.RECORD_TOO_BIG),
-    OUT_OF_MEMORY(ResultCode.SERVER_MEM_ERROR);
+    OUT_OF_MEMORY(ResultCode.SERVER_MEM_ERROR),
+    RECORD_TX_BLOCKED(ResultCode.MRT_BLOCKED);
 
     public final int code;
 
@@ -131,6 +132,7 @@ public enum GraphError {
                 "Properties / Edges added to an Element. Consider breaking this Element into more Elements.");
         ERROR_MESSAGES.put(OUT_OF_MEMORY.code, "Aerospike server side memory error detected. " +
                 "Check index memory usage and/or increase server memory in Aerospike configuration.");
+        ERROR_MESSAGES.put(RECORD_TX_BLOCKED.code, "The current transaction attempted to access a record currently blocked by a different transaction.");
 
         // Client
         ERROR_MESSAGES.put(GRAPH_NO_MORE_CONNECTIONS.code, "There are no more available connections. Consider increasing the maximum allowable amount via the '" +

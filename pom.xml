@@ -212,6 +212,7 @@
                         <exclude>**/TestAerospikeOperations</exclude>
                         <exclude>**/FireflyGraphSummaryUpdaterTest</exclude>
                         <exclude>**/TestTinkerpopTransactions</exclude>
+                        <exclude>**/TestTxDisabled</exclude>
                         <!-- heavy computer tests -->
                         <exclude>**/FireflyComputerFeatureMapTest</exclude>
                         <exclude>**/FireflyComputerFeatureFilterTest</exclude>

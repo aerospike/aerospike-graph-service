@@ -11,6 +11,7 @@ import org.junit.Test;
 import java.io.IOException;
 
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.MRT_ENABLED_FLAG;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.TRANSACTION_ENABLED_FLAG;
 import static com.aerospike.firefly.util.exceptions.GraphError.getMessage;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -37,6 +38,36 @@ public class TestMRTNotSupported extends AbstractFireflySuite {
 
         try (final OutputCapturer outputCapturer = new OutputCapturer()) {
             txnConfig.setProperty(MRT_ENABLED_FLAG, "true");
+            FireflyGraph.open(txnConfig);
+
+            assertTrue(exited);
+
+            final String[] logList = outputCapturer.getLines();
+            boolean errorMessageFound = false;
+            for (String line : logList) {
+                if (line.contains(getMessage(GraphError.MRT_NOT_SUPPORTED))) {
+                    errorMessageFound = true;
+                    break;
+                }
+            }
+            assertTrue(errorMessageFound);
+        }
+    }
+
+    @Test
+    public void testTx() throws IOException {
+        FireflyGraph.EXIT_MANAGER = new ExitManagerTest();
+
+        Configuration txnConfig = ConfigurationUtils.cloneConfiguration(config);
+
+        // should not fail
+        try (final FireflyGraph graph = FireflyGraph.open(txnConfig)) {
+            graph.traversal().V().count().iterate();
+        }
+        assertFalse(exited);
+
+        try (final OutputCapturer outputCapturer = new OutputCapturer()) {
+            txnConfig.setProperty(TRANSACTION_ENABLED_FLAG, "true");
             FireflyGraph.open(txnConfig);
 
             assertTrue(exited);

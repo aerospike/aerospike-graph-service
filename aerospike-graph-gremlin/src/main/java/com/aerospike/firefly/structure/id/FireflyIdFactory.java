@@ -49,7 +49,7 @@ public class FireflyIdFactory {
     public FireflyIdFactory(final AerospikeConnection db) {
         this.db = db;
         this.vertexIdManager = new DecrementingNumericIdManager(VERTEX_ID_COUNTER, db.VERTEX_ID_BUFFER_SIZE);
-        if (db.MRT_ENABLED && !db.getBulkLoaderFlag()) {
+        if ((db.MRT_ENABLED || db.TRANSACTION_ENABLED) && !db.getBulkLoaderFlag()) {
             this.edgeIdManager = new MrtRecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, db.EDGE_ID_RECYCLE_BUFFER_SIZE, db.PHAT_EDGE_SIZE);
         } else {
             this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, db.EDGE_ID_RECYCLE_BUFFER_SIZE);

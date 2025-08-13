@@ -55,6 +55,7 @@ import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.PluginUtil;
 import com.aerospike.firefly.util.concurrency.FireflyRecordLockHandler;
+import com.aerospike.firefly.util.exceptions.TxNotEnabledException;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
@@ -1279,6 +1280,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public void enterTransactionState() {
+        if (!this.getBaseGraph().TRANSACTION_ENABLED) {
+            throw new TxNotEnabledException(this.getBaseGraph().GRAPH_ID);
+        }
         LOG.debug("enterTransactionState on Thread: {}", Thread.currentThread().getId());
         this.transaction.enterTransactionState();
     }

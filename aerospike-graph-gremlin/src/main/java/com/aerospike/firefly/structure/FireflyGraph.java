@@ -1279,12 +1279,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public void enterTransactionState() {
-        LOG.warn("enterTransactionState on Thread: {}", Thread.currentThread().getId());
+        LOG.debug("enterTransactionState on Thread: {}", Thread.currentThread().getId());
         this.transaction.enterTransactionState();
     }
 
     public void exitTransactionState() {
-        LOG.warn("exitTransactionState on Thread: {}", Thread.currentThread().getId());
+        LOG.debug("exitTransactionState on Thread: {}", Thread.currentThread().getId());
         this.transaction.exitTransactionState();
     }
 

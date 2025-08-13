@@ -34,7 +34,7 @@ public class FireflyTransactionOpProcessor extends SessionOpProcessor {
 
     @Override
     protected void beforeProcessing(final Graph graph, final Context ctx) {
-        LOG.warn("beforeProcessing on Thread: {}", Thread.currentThread().getId());
+        LOG.debug("beforeProcessing on Thread: {}", Thread.currentThread().getId());
         if (graph != null) {
             ((FireflyGraph) graph).enterTransactionState();
         }
@@ -43,7 +43,7 @@ public class FireflyTransactionOpProcessor extends SessionOpProcessor {
 
     @Override
     protected void onError(final Graph graph, final Context ctx) {
-        LOG.warn("onError on Thread: {}", Thread.currentThread().getId());
+        LOG.debug("onError on Thread: {}", Thread.currentThread().getId());
         try {
             super.onError(graph, ctx);
         } finally {
@@ -55,7 +55,7 @@ public class FireflyTransactionOpProcessor extends SessionOpProcessor {
 
     @Override
     protected void onTraversalSuccess(final Graph graph, final Context ctx) {
-        LOG.warn("onTraversalSuccess on Thread: {}", Thread.currentThread().getId());
+        LOG.debug("onTraversalSuccess on Thread: {}", Thread.currentThread().getId());
         try {
             super.onTraversalSuccess(graph, ctx);
         } finally {

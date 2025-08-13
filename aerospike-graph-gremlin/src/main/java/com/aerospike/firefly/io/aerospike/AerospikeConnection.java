@@ -2628,7 +2628,7 @@ public class AerospikeConnection implements AutoCloseable {
         this.transaction.readWrite();
         final Txn txn = this.transaction.getCurrentTxn();
         if (txn != null) {
-            LOG.warn("Using Txn ID {} for Thread {}", txn.getId(), Thread.currentThread().getId());
+            LOG.debug("Using Txn ID {} for Thread {}", txn.getId(), Thread.currentThread().getId());
         }
         return txn;
     }

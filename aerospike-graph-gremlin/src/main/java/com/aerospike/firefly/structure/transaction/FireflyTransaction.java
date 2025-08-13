@@ -30,7 +30,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
     @Override
     protected void doOpen() {
         if (isInTxnState()) {
-            LOG.warn("doOpen invoked on Thread: {}", Thread.currentThread().getId());
+            LOG.debug("doOpen invoked on Thread: {}", Thread.currentThread().getId());
             final Txn txn = new Txn();
             txn.setTimeout(timeout);
             this.dbTxn.set(txn);
@@ -41,7 +41,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
     protected void doCommit() throws TransactionException {
         if (isInTxnState()) {
             try {
-                LOG.warn("doCommit invoked on Thread: {}", Thread.currentThread().getId());
+                LOG.debug("doCommit invoked on Thread: {}", Thread.currentThread().getId());
                 this.graph.getBaseGraph().commit(this.dbTxn.get());
             } catch (final Exception e) {
                 throw new TransactionException("Exception occurred when commiting transaction.", e);
@@ -53,7 +53,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
     protected void doRollback() throws TransactionException {
         if (isInTxnState()) {
             try {
-                LOG.warn("doRollback invoked on Thread: {}", Thread.currentThread().getId());
+                LOG.debug("doRollback invoked on Thread: {}", Thread.currentThread().getId());
                 this.graph.getBaseGraph().rollback(this.dbTxn.get());
             } catch (final Exception e) {
                 // Reset the txn since a failed rollback should still reset the state to allow new txns.
@@ -67,7 +67,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
     public boolean isOpen() {
         if (isInTxnState()) {
             final Txn currentTxn = this.dbTxn.get();
-            LOG.warn("isOpen invoked on Thread: {}", Thread.currentThread().getId());
+            LOG.debug("isOpen invoked on Thread: {}", Thread.currentThread().getId());
             return currentTxn != null && currentTxn.getState() == Txn.State.OPEN;
         }
         return false;

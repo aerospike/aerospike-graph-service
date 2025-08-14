@@ -34,6 +34,7 @@ import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
+import com.aerospike.firefly.process.traversal.strategy.util.FireflyStrategyUtil;
 import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.runtime.zipkin.OpenTelemetryZipkinExporter;
 import com.aerospike.firefly.structure.util.LogInfo;
@@ -206,12 +207,6 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
         test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest",
         method = "shouldTriggerAddVertexPropertyChangedViaMergeV",
         reason = "Custom Firefly MergeV step removed eventing due to incompatibility with multi-properties.",
-        computers = {"ALL"}
-)
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest",
-        method = "shouldTriggerRemoveVertex",
-        reason = "Uses g.V().drop().iterate() via config change that is done on the fly after latching.",
         computers = {"ALL"}
 )
 
@@ -508,6 +503,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                     Thread.currentThread().interrupt();
                 }
             }
+
+            // Reset strategy enable flags.
+            FireflyStrategyUtil.resetStrategies();
 
             return GraphFactory.createGraph(AerospikeConnection.connect(fireflyConf), fireflyConf);
         } catch (final Exception e) {

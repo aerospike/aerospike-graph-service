@@ -69,6 +69,11 @@ public abstract class FireflyStrategyBase extends AbstractTraversalStrategy<Trav
     protected void reset() {
     }
 
+    public void resetIsEnabled() {
+        // Reset the enabled state so that it can be re-evaluated on the next apply.
+        isEnabled = null;
+    }
+
     /**
      * Wrapper to ensure that only enabled Firefly Strategies are invoked.
      *

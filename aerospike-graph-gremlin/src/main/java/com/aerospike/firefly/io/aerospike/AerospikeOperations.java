@@ -103,6 +103,14 @@ import static com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededExce
 
 public class AerospikeOperations {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeOperations.class);
+    private static final Set<Integer> ALLOWED_EDGE_DELETE_CODES = Set.of(
+            GraphError.ELEMENT_NOT_FOUND.code,
+            ResultCode.GENERATION_ERROR
+    );
+    private static final Set<Integer> ALLOWED_EDGE_WRITE_CODES = Set.of(
+            GraphError.RECORD_TX_BLOCKED.code,
+            GraphError.RECORD_SIZE_EXCEEDED.code
+    );
 
     // next fields `protected` for tests
     protected final AerospikeConnection db;
@@ -884,7 +892,7 @@ public class AerospikeOperations {
         writePolicy.txn = txn;
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
         try {
-            final Record record = db.writeOperate(writePolicy, key, operations.toArray(new Operation[0]));
+            final Record record = db.writeOperate(writePolicy, key, ALLOWED_EDGE_WRITE_CODES, false, operations.toArray(new Operation[0]));
             graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, validProperties.stream().map(Map.Entry::getKey)
                     .collect(Collectors.toSet()));
             return FireflyEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id,
@@ -897,43 +905,94 @@ public class AerospikeOperations {
         }
     }
 
+    public FireflyEdge writeEdge(final String label,
+                                 final List<Map.Entry<String, Object>> properties,
+                                 final FireflyVertex inVertex,
+                                 final FireflyVertex outVertex) {
+        FireflyEdgeId edgeId = (FireflyEdgeId) graph.getIdFactory().generateId(graph, FireflyEdge.class);
+        final Txn txn = getOrCreateTxn();
+
+        if (graph.tx().getCurrentTxn() != null || txn != null) {
+            try {
+                // In Txn mode, write the Edge first so we can handle transaction collisions. Txn also ensures either
+                // all or no writes go commit so the ordering doesn't matter.
+                // Note: txn being null is expected. tx() txn is injected at a higher level that overwrites.
+                boolean hasLogged = false;
+                int attempts = 0;
+                long attemptCap = Math.round(graph.getBaseGraph().PHAT_EDGE_SIZE * 2.5);
+                FireflyEdge edge = null;
+                while (edge == null) {
+                    try {
+                        edge = writeEdgeToRecord(edgeId, label, properties, inVertex, outVertex,
+                                !inVertex.isEdgeCacheOverflowed(), !outVertex.isEdgeCacheOverflowed(), txn);
+                    } catch (final AerospikeGraphException e) {
+                        attempts++;
+                        if (e.errorCode == GraphError.RECORD_TX_BLOCKED.code) {
+                            graph.getIdFactory().recycleEdgeId(edgeId);
+                            if (attempts > attemptCap) {
+                                // This should very rarely if ever happen.
+                                LOG.error("Failed to write a new Edge due to an excessive amount of transaction collisions. If the issue persists, please contact support.");
+                                throw e;
+                            }
+                            edgeId = graph.getIdFactory().generateNonRecycledEdgeId(graph);
+                            if (!hasLogged) {
+                                LOG.info("A transaction collision occurred when writing a new Edge. Changing target record and retrying.");
+                                hasLogged = true;
+                            }
+                        } else {
+                            throw e;
+                        }
+                    }
+                }
+
+                writeEdgeToVertex(inVertex, Direction.IN, graph.getIdFactory().createCompositeEdgeId(edgeId, outVertex.id), label, txn);
+                writeEdgeToVertex(outVertex, Direction.OUT, graph.getIdFactory().createCompositeEdgeId(edgeId, inVertex.id), label, txn);
+
+                db.commit(txn);
+
+                if (db.IS_AUDIT_LOG_ENABLED) {
+                    // Edge id is byte buffer so not useful.
+                    LOG.info("[{}] created edge: [{}]-[{}]>[{}].", graph.getUser(), inVertex.id(), label, outVertex.id());
+                }
+                return edge;
+            } catch (final RuntimeException e) {
+                db.rollback(txn);
+                throw e;
+            }
+        } else {
+            return writeEdgeWithNoTransaction(edgeId, label, properties, inVertex, outVertex);
+        }
+    }
+
     /**
-     * Function to write edge to Aerospike.
+     * Function to write edge to Aerospike with a specified ID. This should not be used by default outside of this
+     * class and direct invocation is mostly used for testing.
      *
-     * @param edgeId     Edge id.
+     * @param edgeId     Edge ID.
      * @param label      Edge label.
      * @param properties Edge properties.
      * @param inVertex   In vertex of edge.
      * @param outVertex  Out vertex of edge.
      * @return Edge.
      */
-    public FireflyEdge writeEdge(final FireflyEdgeId edgeId,
-                                 final String label,
-                                 final List<Map.Entry<String, Object>> properties,
-                                 final FireflyVertex inVertex,
-                                 final FireflyVertex outVertex) {
-        final Txn txn = getOrCreateTxn();
+    public FireflyEdge writeEdgeWithNoTransaction(final FireflyEdgeId edgeId,
+                                                  final String label,
+                                                  final List<Map.Entry<String, Object>> properties,
+                                                  final FireflyVertex inVertex,
+                                                  final FireflyVertex outVertex) {
+        // Write edge to vertex, if edge write fails, null check on edge record will protect from inconsistent data.
+        // Add edge to inVertex and outVertex.
+        final boolean inVertexCacheWrite = writeEdgeToVertex(inVertex, Direction.IN, graph.getIdFactory().createCompositeEdgeId(edgeId, outVertex.id), label, null);
+        final boolean outVertexCacheWrite = writeEdgeToVertex(outVertex, Direction.OUT, graph.getIdFactory().createCompositeEdgeId(edgeId, inVertex.id), label, null);
 
-        try {
-            // Write edge to vertex, if edge write fails, null check on edge record will protect from inconsistent data.
-            // Add edge to inVertex and outVertex.
-            final boolean inVertexCacheWrite = writeEdgeToVertex(inVertex, Direction.IN, graph.getIdFactory().createCompositeEdgeId(edgeId, outVertex.id), label, txn);
-            final boolean outVertexCacheWrite = writeEdgeToVertex(outVertex, Direction.OUT, graph.getIdFactory().createCompositeEdgeId(edgeId, inVertex.id), label, txn);
+        // Write edge to Aerospike and return FireflyEdge.
+        final FireflyEdge edge = writeEdgeToRecord(edgeId, label, properties, inVertex, outVertex, inVertexCacheWrite, outVertexCacheWrite, null);
 
-            // Write edge to Aerospike and return FireflyEdge.
-            final FireflyEdge edge = writeEdgeToRecord(edgeId, label, properties, inVertex, outVertex, inVertexCacheWrite, outVertexCacheWrite, txn);
-
-            db.commit(txn);
-
-            if (db.IS_AUDIT_LOG_ENABLED) {
-                // Edge id is byte buffer so not useful.
-                LOG.info("[{}] created edge: [{}]-[{}]>[{}].", graph.getUser(), inVertex.id(), label, outVertex.id());
-            }
-            return edge;
-        } catch (final RuntimeException e) {
-            db.rollback(txn);
-            throw e;
+        if (db.IS_AUDIT_LOG_ENABLED) {
+            // Edge id is byte buffer so not useful.
+            LOG.info("[{}] created edge: [{}]-[{}]>[{}].", graph.getUser(), inVertex.id(), label, outVertex.id());
         }
+        return edge;
     }
 
     /**
@@ -1328,7 +1387,7 @@ public class AerospikeOperations {
         }
 
         try {
-            final Record record = db.writeOperate(policy, key, true, operations.toArray(new Operation[0]));
+            final Record record = db.writeOperate(policy, key, ALLOWED_EDGE_DELETE_CODES, false, operations.toArray(new Operation[0]));
 
             // Result returned is always [List<?>, null] since we have operations [removeEdgeData, removeEdgeDataBin]
             final Command.OpResults results = (Command.OpResults) record.getValue(db.EDGE_DATA_BIN);
@@ -1337,7 +1396,11 @@ public class AerospikeOperations {
                 // Check edgeData value was returned to protect against concurrent deletes.
                 // If this Edge was already removed edgeData returns null and this check returns false.
                 if (edgeData instanceof List || edgeData instanceof Map) {
-                    if (innerTxn != null) {
+                    if (this.graph.tx().getCurrentTxn() != null) {
+                        // Tinkerpop transaction
+                        this.graph.tx().addIdToRecycle(edge.id);
+                    } else if (innerTxn != null) {
+                        // MRT transaction
                         innerTxn.addIdToRecycle(edge.id);
                     } else {
                         graph.getIdFactory().recycleEdgeId(edge.id);
@@ -1358,7 +1421,6 @@ public class AerospikeOperations {
                 // rollback only own txn
                 if (outerTxn == null)
                     db.rollback(txn);
-                LOG.error(e.getMessage());
                 throw e;
             }
             LOG.debug("Regenerating supernode Edge with id {} to clean up supernode property bin.", edge.id.getUserId());

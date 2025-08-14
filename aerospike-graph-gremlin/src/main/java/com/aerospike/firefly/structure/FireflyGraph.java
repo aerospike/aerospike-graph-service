@@ -1283,12 +1283,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         if (!this.getBaseGraph().TRANSACTION_ENABLED) {
             throw new TxNotEnabledException(this.getBaseGraph().GRAPH_ID);
         }
-        LOG.debug("enterTransactionState on Thread: {}", Thread.currentThread().getId());
+        LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("enterTransactionState on Thread: {}");
         this.transaction.enterTransactionState();
     }
 
     public void exitTransactionState() {
-        LOG.debug("exitTransactionState on Thread: {}", Thread.currentThread().getId());
+        LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("exitTransactionState on Thread: {}");
         this.transaction.exitTransactionState();
     }
 

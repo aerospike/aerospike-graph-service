@@ -34,7 +34,7 @@ public class FireflyTransactionOpProcessor extends SessionOpProcessor {
 
     @Override
     protected void beforeProcessing(final Graph graph, final Context ctx) {
-        LOG.debug("beforeProcessing on Thread: {}", Thread.currentThread().getId());
+        LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("beforeProcessing on Thread: {}");
         if (graph != null) {
             ((FireflyGraph) graph).enterTransactionState();
         }
@@ -43,7 +43,7 @@ public class FireflyTransactionOpProcessor extends SessionOpProcessor {
 
     @Override
     protected void onError(final Graph graph, final Context ctx) {
-        LOG.debug("onError on Thread: {}", Thread.currentThread().getId());
+        LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("onError on Thread: {}");
         try {
             super.onError(graph, ctx);
         } finally {
@@ -55,7 +55,7 @@ public class FireflyTransactionOpProcessor extends SessionOpProcessor {
 
     @Override
     protected void onTraversalSuccess(final Graph graph, final Context ctx) {
-        LOG.debug("onTraversalSuccess on Thread: {}", Thread.currentThread().getId());
+        LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("onTraversalSuccess on Thread: {}");
         try {
             super.onTraversalSuccess(graph, ctx);
         } finally {
@@ -65,6 +65,7 @@ public class FireflyTransactionOpProcessor extends SessionOpProcessor {
         }
     }
 
+    // Copied and minimally modified from parent class
     @Override
     protected void handleGraphOperation(final Bytecode bytecode, final Graph graph, final Context context) {
         final RequestMessage msg = context.getRequestMessage();
@@ -136,6 +137,7 @@ public class FireflyTransactionOpProcessor extends SessionOpProcessor {
         }
     }
 
+    // Copied and minimally modified from parent class
     private static void submitToGremlinExecutor(final Context context, final long seto, final Session session,
                                                 final FutureTask<Void> evalFuture) {
         final Future<?> executionFuture = session.getGremlinExecutor().getExecutorService().submit(evalFuture);

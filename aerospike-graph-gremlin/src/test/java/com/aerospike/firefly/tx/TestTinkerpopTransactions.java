@@ -330,6 +330,34 @@ public class TestTinkerpopTransactions {
         }
     }
 
+    @Test
+    public void testTxUsesMrtEdgeIdManager() {
+        final Vertex v1 = g.addV().next();
+        final Vertex v2 = g.addV().next();
+        final Vertex v3 = g.addV().next();
+        final Vertex v4 = g.addV().next();
+        Assert.assertEquals(0, (long) g.E().count().next());
+
+        final GraphTraversalSource gtx1 = g.tx().begin();
+        final GraphTraversalSource gtx2 = g.tx().begin();
+
+        final Vertex v5 = gtx1.addV().next();
+        final Vertex v6 = gtx1.addV().next();
+        final Vertex v7 = gtx2.addV().next();
+        final Vertex v8 = gtx2.addV().next();
+
+        for (int i = 0; i < 100; i++) {
+            gtx1.addE("tx1").from(v1).to(v2).iterate();
+            gtx2.addE("tx2").from(v3).to(v4).iterate();
+            gtx1.addE("tx1").from(v5).to(v6).iterate();
+            gtx2.addE("tx2").from(v7).to(v8).iterate();
+        }
+
+        gtx1.tx().commit();
+        gtx2.tx().commit();
+
+        Assert.assertEquals(400, (long) g.E().count().next());
+    }
 
     private void countElementsInNewThreadTx(final GraphTraversalSource g, final long verticesCount,
                                             final long edgesCount) throws InterruptedException {

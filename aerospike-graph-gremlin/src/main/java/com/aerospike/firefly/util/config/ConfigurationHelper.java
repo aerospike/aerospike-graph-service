@@ -388,7 +388,7 @@ public final class ConfigurationHelper {
         put(Keys.READ_SOCKET_TIMEOUT_BULK_LOAD, "2000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
-        put(Keys.EDGE_ID_RECYCLE_BUFFER_SIZE, "10");
+        put(Keys.EDGE_ID_RECYCLE_BUFFER_SIZE, "100");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
         put(Keys.BULK_LOAD_ID_BUFFER_SIZE, "2000000");
         put(Keys.VERTEX_PROPERTY_CARDINALITY, "single"); // Default to single cardinality

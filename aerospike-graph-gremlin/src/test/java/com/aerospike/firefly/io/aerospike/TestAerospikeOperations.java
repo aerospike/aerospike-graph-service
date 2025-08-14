@@ -162,7 +162,7 @@ public class TestAerospikeOperations {
 
         final AerospikeOperations operations = new AerospikeOperations(graph);
 
-        operations.writeEdge(edgeId, "test", List.of(), inVertex, outVertex);
+        operations.writeEdgeWithNoTransaction(edgeId, "test", List.of(), inVertex, outVertex);
 
         // should commit txn only once
         assertNotNull(txn.get(0));

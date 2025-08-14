@@ -77,7 +77,7 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
             throw new IllegalArgumentException(message);
         }
         if (this.recycledIds.size() >= bufferSize) {
-            LOG.warn("Recycled IDs buffer is full. Recycling ID {} will be dropped.", recycledId);
+            LOG.debug("Recycled IDs buffer is full. Recycling ID {} will be dropped.", recycledId);
             return;
         }
         this.recycledIds.add(recycledId);

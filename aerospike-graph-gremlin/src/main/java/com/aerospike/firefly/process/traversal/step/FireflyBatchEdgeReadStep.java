@@ -9,6 +9,8 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
@@ -22,8 +24,6 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.javatuples.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,8 +49,6 @@ import static com.aerospike.firefly.util.exceptions.GraphError.sneakyThrow;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implements LocalBarrier<Edge> {
-    private static final Logger LOG = LoggerFactory.getLogger(FireflyBatchEdgeReadStep.class);
-
     private final Direction direction;
     private final Set<String> edgeLabels;
     private final List<HasContainer> adjustedIdContainers;
@@ -205,7 +203,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         if (threads != -1) {
             if (graph.tx().getCurrentTxn() != null) {
-                LOG.warn("Cannot parallelize batch Edge reads within a Transaction. Falling back to synchronous mode");
+                throw new AerospikeGraphException(GraphError.PARALLELIZE_IN_TX);
             } else {
                 parallelBarrierConsumer(set);
                 return;

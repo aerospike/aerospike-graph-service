@@ -71,6 +71,7 @@ public enum GraphError {
     NSUP_DISABLED(1120),
     QUERY_IN_TRANSACTION(1121),
     TX_NOT_ENABLED(1122),
+    PARALLELIZE_IN_TX(1123),
 	
     ELEMENT_NOT_FOUND(ResultCode.KEY_NOT_FOUND_ERROR),
     RECORD_SIZE_EXCEEDED(ResultCode.RECORD_TOO_BIG),
@@ -125,6 +126,7 @@ public enum GraphError {
         ERROR_MESSAGES.put(MRT_NOT_SUPPORTED.code, "Transactions require Aerospike database version 8 or newer with strong consistency mode enabled. Please verify that all nodes in the cluster are running a compatible version of Aerospike.");
         ERROR_MESSAGES.put(QUERY_IN_TRANSACTION.code, "Aerospike Graph Service does not support query traversals within a Transaction. If applicable, execute a traversal outside of the Transaction to grab the required Element IDs and apply a traversal directly to the IDs within the Transaction.");
         ERROR_MESSAGES.put(TX_NOT_ENABLED.code, "Transactions are not enabled for the '%s' graph. To use transactions, configure the '" + TRANSACTION_ENABLED_FLAG + "' setting.");
+        ERROR_MESSAGES.put(PARALLELIZE_IN_TX.code, "The '" + ConfigurationHelper.TraversalOptions.PARALLELIZE + "' parameter is not allowed for traversals within a transaction.");
 
         // Server
         ERROR_MESSAGES.put(ELEMENT_NOT_FOUND.code, "Element was dropped and no longer exists.");

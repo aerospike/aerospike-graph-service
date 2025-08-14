@@ -5,6 +5,7 @@ import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.GraphError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -156,7 +157,9 @@ public class FireflyRecordLockHandler {
                     this.lockRecord.hotKeyBackoff.set(0);
                     this.cancel();
                 } catch (final AerospikeGraphException e) {
-                    if (e.errorCode == ResultCode.KEY_BUSY) {
+                    if (e.errorCode == GraphError.NSUP_DISABLED.code) {
+                        throw e;
+                    } else if (e.errorCode == ResultCode.KEY_BUSY) {
                         // Hot key.
                         LOG.warn("Hot key on record lock with Key {}. Exponentially backing off before next grab attempt.",
                                 this.lockRecord.key);

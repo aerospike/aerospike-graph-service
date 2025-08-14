@@ -27,9 +27,7 @@ import static java.util.Collections.emptyIterator;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-
-// SSL certificate of hosting site of movie lens is expired so the test doesnt work anymore.
-@Ignore
+@Ignore("SSL certificate of hosting site of movie lens is expired")
 public class Movielens {
     public static final long vertexCount = 9941;
     public static final long edgeCount = 1006617;

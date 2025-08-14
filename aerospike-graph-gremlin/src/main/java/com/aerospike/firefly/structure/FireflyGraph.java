@@ -424,8 +424,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         final boolean isTesting = Boolean.parseBoolean(System.getenv("FIREFLY_TESTING"));
         if (FIREFLY_VERSION != null && FIREFLY_VERSION.endsWith("SNAPSHOT") && !isTesting) {
-            final String commitHash = getGitCommitHash();
-            LOG.info("Built from git commit " + commitHash);
+            try {
+                final String commitHash = getGitCommitHash();
+                LOG.info("Built from git commit hash: {}", commitHash);
+            } catch (final Exception e) {
+                LOG.warn("Could not get the git commit hash: {}", e.getMessage());
+            }
         }
 
         if (System.getenv("FIREFLY_TESTING") != null &&
@@ -1119,7 +1123,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } catch (final InvocationTargetException | NoSuchMethodException | ClassNotFoundException |
                        InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
-            throw new IllegalStateException("ERROR: To use OLAP, use the docker image with OLAP support or a Spark cluster.", e);
+            throw new IllegalStateException("ERROR: To use Aerospike Graph Analytics, use the docker image with Aerospike Graph Analytics support or a Spark cluster.", e);
         }
     }
 
@@ -1136,7 +1140,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } catch (final InvocationTargetException | NoSuchMethodException | ClassNotFoundException |
                        InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
-            throw new IllegalStateException("ERROR: To use OLAP, use the docker image with OLAP support or a Spark cluster.", e);
+            throw new IllegalStateException("ERROR: To use Aerospike Graph Analytics, use the docker image with Aerospike Graph Analytics support or a Spark cluster.", e);
         }
     }
 

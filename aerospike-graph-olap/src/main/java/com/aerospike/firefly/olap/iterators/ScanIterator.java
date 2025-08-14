@@ -42,7 +42,7 @@ import static com.aerospike.firefly.olap.structure.DistributedWorkerExecutor.STA
 public class ScanIterator implements CloseableIterator<Traverser> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScanIterator.class);
     final FireflyGraph graph;
-    final LinkedBlockingQueue<PageFetcher.Page> pageQueue;
+    LinkedBlockingQueue<PageFetcher.Page> pageQueue;
     final List<Row> rows = new ArrayList<>();
     final List<HasContainer> hasContainers;
     final String startStep;
@@ -170,6 +170,10 @@ public class ScanIterator implements CloseableIterator<Traverser> {
 
     private void verifyPageHasNext() {
         if (page == null || !page.keyRecords.hasNext()) {
+            if (page.keyRecords != null) {
+                final PaginationIterator pi = (PaginationIterator) page.keyRecords;
+                pi.close();
+            }
             throw new NoSuchElementException("No more elements. Please contact support.");
         }
     }
@@ -212,9 +216,15 @@ public class ScanIterator implements CloseableIterator<Traverser> {
         if (page != null) {
             final PaginationIterator pi = (PaginationIterator) page.keyRecords;
             pi.close();
+            page = null;
         }
         if (pageFetcher != null) {
             pageFetcher.shutdownAwait();
+            pageFetcher = null;
+        }
+        if (pageQueue != null) {
+            pageQueue.clear();
+            pageQueue = null;
         }
     }
 }

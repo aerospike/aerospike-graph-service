@@ -10,7 +10,6 @@ import org.apache.tinkerpop.gremlin.process.computer.clustering.peerpressure.Pee
 import org.apache.tinkerpop.gremlin.process.computer.ranking.pagerank.PageRankVertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.PageRank;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.PeerPressure;
-import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -20,10 +19,16 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.tinkerpop.gremlin.process.traversal.Order.desc;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.values;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -44,8 +49,9 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Vertex> output = graph.traversal()
+            final List<Vertex> output = graph.traversal()
                     .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
                     .V().pageRank()
                     .toList();
 
@@ -53,6 +59,89 @@ public class AlgorithmTest {
             final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
             //precision is PageRankProgram.epsilon
             assertEquals(0.113755d, v1.value(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+
+            // verify saved data
+            final Map<Object, Object> savedV1 = graph.traversal().V(1).elementMap().next();
+            assertEquals(0.113755d, (Double) savedV1.get(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+        }
+    }
+
+    @Test
+    public void testPageRankWithTempDir() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            final List<Vertex> output = graph.traversal()
+                    .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    .with("aerospike.graph.analytics.temp.write.directory", System.getProperty("java.io.tmpdir"))
+                    .V().pageRank()
+                    .toList();
+
+            assertEquals(6L, output.size());
+            final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
+            //precision is PageRankProgram.epsilon
+            assertEquals(0.113755d, v1.value(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+        }
+    }
+
+    @Test
+    public void testPageRankWithPartitions() throws IOException {
+        try (final OutputCapturer outputCapturer = new OutputCapturer();
+             final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            final List<Vertex> output = graph.traversal()
+                    .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.partitions", 2)
+                    .with("aerospike.graph.analytics.debug.df", "true")
+                    .V().pageRank()
+                    .toList();
+
+            assertEquals(6L, output.size());
+            final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
+            //precision is PageRankProgram.epsilon
+            assertEquals(0.113755d, v1.value(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+
+            final String[] logList = outputCapturer.getLines();
+            boolean repartitionedMessageFound = false;
+            boolean startingMessageFound = false;
+            for (String line : logList) {
+                if (line.contains("Repartitioned query with 2 partitions.")) {
+                    repartitionedMessageFound = true;
+                } else if (line.contains("Starting with 2 partitions.")) {
+                    startingMessageFound = true;
+                }
+            }
+
+            assertTrue(repartitionedMessageFound);
+            assertTrue(startingMessageFound);
+        }
+    }
+
+    @Test
+    public void testPageRankWithMissingTempDir() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            try {
+                graph.traversal()
+                        .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                        .V().pageRank()
+                        .toList();
+                fail("Should have thrown an exception");
+            } catch (final IllegalStateException e) {
+                assertTrue(e.getMessage().contains("Temporary write directory must be specified for algorithm programs."));
+            }
         }
     }
 
@@ -66,12 +155,12 @@ public class AlgorithmTest {
 
             try {
                 graph.traversal()
-                        .withComputer()
+                        .withComputer().with("aerospike.graph.analytics.temp.write.disabled", true)
                         .V().pageRank().with(PageRank.times, 3)
                         .toList();
                 fail("Should have thrown an exception");
             } catch (final IllegalStateException e) {
-                assertTrue(e.getMessage().contains("Attempting to run an algorithm that does does filter the results down after execution"));
+                assertTrue(e.getMessage().contains("Attempted to run an algorithm that does not filter results after execution"));
             }
         }
     }
@@ -86,13 +175,13 @@ public class AlgorithmTest {
 
             try {
                 graph.traversal()
-                        .withComputer()
+                        .withComputer().with("aerospike.graph.analytics.temp.write.disabled", true)
                         .V().pageRank()
                         .has("some_random_property", P.lt(0.12))
                         .toList();
                 fail("Should have thrown an exception");
             } catch (final IllegalStateException e) {
-                assertTrue(e.getMessage().contains("Attempting to run an algorithm that does does filter the results down after execution"));
+                assertTrue(e.getMessage().contains("Attempted to run an algorithm that does not filter results after execution"));
             }
         }
     }
@@ -107,13 +196,13 @@ public class AlgorithmTest {
 
             try {
                 graph.traversal()
-                        .withComputer()
+                        .withComputer().with("aerospike.graph.analytics.temp.write.disabled", true)
                         .V().pageRank()
                         .order().by("some_random_property")
                         .toList();
                 fail("Should have thrown an exception");
             } catch (final IllegalStateException e) {
-                assertTrue(e.getMessage().contains("Attempting to run an algorithm that does does filter the results down after execution"));
+                assertTrue(e.getMessage().contains("Attempted to run an algorithm that does not filter results after execution"));
             }
         }
     }
@@ -128,12 +217,12 @@ public class AlgorithmTest {
 
             try {
                 graph.traversal()
-                        .withComputer()
-                        .V().pageRank().order().by(PageRankVertexProgram.PAGE_RANK, Order.desc)
+                        .withComputer().with("aerospike.graph.analytics.temp.write.disabled", true)
+                        .V().pageRank().order().by(PageRankVertexProgram.PAGE_RANK, desc)
                         .toList();
                 fail("Should have thrown an exception");
             } catch (final IllegalStateException e) {
-                assertTrue(e.getMessage().contains("Attempting to run an algorithm that does does filter the results down after execution"));
+                assertTrue(e.getMessage().contains("Attempted to run an algorithm that does not filter results after execution"));
             }
         }
     }
@@ -146,9 +235,9 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal()
-                    .with("aerospike.graph.olap.debug.df", "true")
-                    .withComputer()
+            final List<Map<Object, Object>> output = graph.traversal()
+                    .withComputer().with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
                     .V(1, 2, 3).pageRank().with(PageRank.times, 25)
                     .elementMap()
                     .toList();
@@ -168,8 +257,9 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal()
-                    .withComputer()
+            final List<Map<Object, Object>> output = graph.traversal()
+                    .withComputer().with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
                     .V().pageRank().with(PageRank.times, 25)
                     .has(PageRankVertexProgram.PAGE_RANK, P.gt(0.15))
                     .elementMap()
@@ -190,8 +280,9 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal()
+            final List<Map<Object, Object>> output = graph.traversal()
                     .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    .with("aerospike.graph.analytics.temp.write.disabled", true).with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
                     .V().pageRank(0.86)
                     .elementMap()
                     .toList();
@@ -213,9 +304,9 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal()
-                    .with("aerospike.graph.olap.debug.df", "true")
-                    .withComputer()
+            final List<Map<Object, Object>> output = graph.traversal()
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .withComputer().with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
                     .V().pageRank().with(PageRank.propertyName, propName)
                     .has(propName, P.lt(0.12))
                     .elementMap()
@@ -236,10 +327,10 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal()
-                    .withComputer()
-                    //.with("aerospike.graph.olap.temp.write.directory", "c:\\tmp\\")
-                    .V().pageRank().order().by(PageRankVertexProgram.PAGE_RANK, Order.desc).limit(3)
+            final List<Map<Object, Object>> output = graph.traversal()
+                    .withComputer().with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
+                    .V().pageRank().order().by(PageRankVertexProgram.PAGE_RANK, desc).limit(3)
                     .elementMap()
                     .toList();
 
@@ -250,7 +341,7 @@ public class AlgorithmTest {
     }
 
     @Test
-    public void testPageRankWithSavingResults() {
+    public void testPageRankWithoutSavingResults() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();
             final Graph tg = TinkerFactory.createModern();
@@ -258,16 +349,19 @@ public class AlgorithmTest {
             waitForSummaryUpdate(graph);
 
             final List<Vertex> output = graph.traversal()
-                    .withComputer()
+                    .withComputer().with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
                     .with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
-                    //.with("aerospike.graph.olap.temp.write.directory", "c:\\tmp\\")
-                    .V().pageRank().with("gremlin.pageRankVertexProgram.saveResults", true)
+                    .V().pageRank().with("gremlin.pageRankVertexProgram.saveResults", false)
                     .toList();
 
+            // correct result returned, but not saved
             assertEquals(6L, output.size());
+            final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
+            assertEquals(0.113755d, v1.value(PageRankVertexProgram.PAGE_RANK), 0.00001d);
 
-            final Map<Object, Object> v1 = graph.traversal().V(1).elementMap().next();
-            assertEquals(0.113755d, (Double) v1.get(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+            final Map<Object, Object> savedV1 = graph.traversal().V(1).elementMap().next();
+            assertFalse(savedV1.containsKey(PageRankVertexProgram.PAGE_RANK));
         }
     }
 
@@ -281,8 +375,10 @@ public class AlgorithmTest {
             graph.traversal().V(6).outE().drop().iterate();
             waitForSummaryUpdate(graph);
 
-            List<Vertex> output = graph.traversal()
+            final List<Vertex> output = graph.traversal()
                     .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
                     .V().connectedComponent()
                     .toList();
 
@@ -308,8 +404,9 @@ public class AlgorithmTest {
             graph.traversal().V(6).outE().drop().iterate();
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal()
-                    .withComputer()
+            final List<Map<Object, Object>> output = graph.traversal()
+                    .withComputer().with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
                     .V(1, 5, 6).connectedComponent()
                     .elementMap()
                     .toList();
@@ -336,8 +433,9 @@ public class AlgorithmTest {
             graph.traversal().V(6).outE().drop().iterate();
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal()
-                    .withComputer()
+            final List<Map<Object, Object>> output = graph.traversal()
+                    .withComputer().with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
                     .V().connectedComponent()
                     .has(ConnectedComponentVertexProgram.COMPONENT, 6)
                     .elementMap()
@@ -359,7 +457,9 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal().withComputer()
+            final List<Map<Object, Object>> output = graph.traversal().withComputer()
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
                     .V(1, 5, 6).peerPressure().elementMap().toList();
 
             assertEquals(3, output.size());
@@ -382,7 +482,9 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal().withComputer()
+            final List<Map<Object, Object>> output = graph.traversal().withComputer()
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
                     .V(1, 5, 6).peerPressure().with(PeerPressure.propertyName, "test_name")
                     .elementMap().toList();
 
@@ -406,8 +508,9 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            List<Map<Object, Object>> output = graph.traversal().withComputer()
-                    .with("aerospike.graph.olap.debug.df", "true")
+            final List<Map<Object, Object>> output = graph.traversal().withComputer()
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
                     .V().peerPressure()
                     .with(PeerPressure.times, 5)
                     .with(PeerPressure.propertyName, "pp")
@@ -444,9 +547,17 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            var output = graph.traversal().withComputer()
-                    .with("aerospike.graph.olap.debug.df", "true")
-                    .V().out().order().by("name").limit(2).explain();
+            final var output = graph.traversal().withComputer()
+                    // .with("aerospike.graph.analytics.debug.df", "true")
+                    .with("aerospike.graph.analytics.unfiltered.algorithm.enabled", true)
+                    .V().pageRank()
+                    .with(PageRank.propertyName, "score")
+                    .project("vertex", "pagerank")
+                    .by(identity())
+                    .by(values("score"))
+                    .order().by(select("pagerank"), desc)
+                    .limit(5)
+                    .toList();
 
             System.out.println(output);
         }

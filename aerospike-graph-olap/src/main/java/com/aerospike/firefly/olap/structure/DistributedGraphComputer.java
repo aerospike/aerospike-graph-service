@@ -19,6 +19,7 @@ import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.strategy.verification.FireflyComputerVerificationStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.FireflyHelper;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -52,6 +53,8 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -139,7 +142,7 @@ public class DistributedGraphComputer implements GraphComputer {
                 getStrategy(OptionsStrategy.class).ifPresent(
                         optionsStrategy -> traversalOptions.putAll(optionsStrategy.getOptions()));
 
-        return new DistributedConfigHelper(config, traversalOptions);
+        return new DistributedConfigHelper(config, traversalOptions, this.vertexProgram instanceof AlgorithmProgram);
     }
 
     private static SparkSession buildSparkSession(final int workers) {
@@ -380,9 +383,11 @@ public class DistributedGraphComputer implements GraphComputer {
     private ComputerResult submitJob() {
         final DistributedAerospikeConnection db = new DistributedAerospikeConnection(graph, 0, 0);
         final String jobId = UUID.randomUUID().toString();
+        boolean truncateOlapSetAfterExecution = false;
+        DistributedConfigHelper configHelper = null;
 
         try {
-            final DistributedConfigHelper configHelper = generateConfigHelper();
+            configHelper = generateConfigHelper();
             System.out.println("Configuration: " + Arrays.toString(spark.sparkContext().getConf().getAll()));
 
             final PureTraversal<?, ?> traversal = vertexProgram.getTraversal().clone();
@@ -404,16 +409,24 @@ public class DistributedGraphComputer implements GraphComputer {
             }
 
             if (!(firstStep instanceof FireflyGraphStep)) {
-                throw new RuntimeException("OLAP only supports starting on GraphStep, please contact support.");
+                throw new RuntimeException("Aerospike Graph Analytics only supports starting on GraphStep, please contact support.");
             }
             final FireflyGraphStep graphStep = (FireflyGraphStep) firstStep;
             if (graphStep.returnsEdge()) {
                 LOGGER.warn("Edges do not support secondary indexes, you may experience poor performance.");
             }
-            System.out.println("===== " + graphStep + " " + graphStep.returnsVertex() + " ===== " + pureTraversal.asAdmin().getSteps());
+            System.out.println("===== " + graphStep + " " + (graphStep.returnsVertex() ? "vertex" : "edge")
+                    + " ===== " + pureTraversal.asAdmin().getSteps());
+            System.out.println("===== " + vertexProgram + " =====");
+
+            final Job anotherRunningJob = db.getFirstRunningJob();
+            if (anotherRunningJob != null) {
+                LOGGER.warn("Another job is already running: {}", anotherRunningJob);
+            }
 
             // truncate only if valid query
             db.truncateOlapSet();
+            truncateOlapSetAfterExecution = true;
 
             final Codec codec = vertexProgram.getCodec();
 
@@ -428,13 +441,17 @@ public class DistributedGraphComputer implements GraphComputer {
             this.vertexProgram.storeState(vertexProgramConfiguration);
             this.vertexProgram.setup(memory);
 
-            db.writeJob(new Job(jobId, traversal.toString()));
+            db.writeJob(new Job(jobId, vertexProgram.toString(), traversal.toString(), configHelper.getOlapConfig()));
 
             // Broadcast spark context.
             memory.broadcastMemory(new JavaSparkContext(spark.sparkContext()));
             memory.incrIteration();
 
             final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace) - 4; // Leave some room.
+            final int workerCount = Math.max(1, workers - 1);
+            if (configHelper.getPartitions().isEmpty() && (maxParallelSindexes < workerCount)) {
+                LOGGER.warn("Aerospike database configured to support only {} parallel queries, but worker count is {}. This may lead to performance issues. Consider configuring 'query-threads-limit' and 'single-query-threads'.", maxParallelSindexes, workerCount);
+            }
 
             Dataset<Row> df = null;
             Dataset<Row> results = null;
@@ -443,7 +460,7 @@ public class DistributedGraphComputer implements GraphComputer {
                 iterationCount++;
                 final Job job = db.setJobIteration(jobId, memory.getIteration());
                 if (job == null || job.getState() == Job.State.CANCELLED) {
-                   throw new TraversalInterruptedException();
+                    throw new TraversalInterruptedException();
                 }
 
                 // Set inExecute to true, execute the vertex program, and set inExecute to false.
@@ -461,16 +478,20 @@ public class DistributedGraphComputer implements GraphComputer {
                         memory,
                         vertexProgramConfiguration,
                         schema,
-                        Math.max(1, workers - 1));
+                        workerCount);
                 // add iteration column if AlgorithmProgram
                 df = magicSwap(
                         this.vertexProgram instanceof AlgorithmProgram ? nextDf.withColumn(Codec.ITERATION, lit(memory.getIteration())) : nextDf,
-                        true);
+                        true,
+                        configHelper.getStorageLevel(),
+                        spark,
+                        configHelper.getTempWriteDirectory(),
+                        iterationCount);
 
                 if (configHelper.isDebugDf()) {
                     df.show();
-                    System.out.println(memory.getIteration() + " ==================> TOTAL COUNT: " + df.count());
                 }
+                System.out.println("========> Iteration " + memory.getIteration() + " done; Rows count: " + df.count());
 
                 memory.setInExecute(false);
 
@@ -568,29 +589,61 @@ public class DistributedGraphComputer implements GraphComputer {
                 LOGGER.error("Query timeout or cancellation is called. Consider raising the evaluation timeout.", e);
                 throw e;
             }
-            // Maybe remove this for L2.
-            //spark.close();
-            //spark = null;
 
             LOGGER.error("A global error occurred. Shutting down {}: {}", this, e.getMessage(), e);
             e.printStackTrace();
-            throw new RuntimeException("Global error '" + e.getMessage() + "' occurred during OLAP traversal.", e);
+            throw new RuntimeException("Global error '" + e.getMessage() + "' occurred during Aerospike Graph Analytics traversal.", e);
         } finally {
             // memory.complete ?
             FireflyHelper.dropGraphComputerView(this.graph);
-            db.truncateOlapSet();
+            if (truncateOlapSetAfterExecution) {
+                db.truncateOlapSet();
+                System.out.println("Aerospike work set truncated by job " + jobId);
+            }
+
+            if (configHelper != null) {
+                final String tempWriteDirectory = configHelper.getTempWriteDirectory();
+                if (tempWriteDirectory != null && !tempWriteDirectory.isEmpty()) {
+                    // Clean up temporary write directory.
+                    LOGGER.info("Cleaning up temporary write directory: {}", tempWriteDirectory);
+                    try {
+                        FileUtils.deleteDirectory(new File(tempWriteDirectory));
+                    } catch (final IOException e) {
+                        LOGGER.warn("Failed to delete temporary write directory: {}", tempWriteDirectory, e);
+                    }
+                }
+            }
         }
     }
 
     public static Dataset<Row> magicSwap(final Dataset<Row> transform) {
-        return magicSwap(transform, false);
+        // Persist false so storage level is not used.
+        return magicSwap(transform, false, null, null, null, -1);
     }
 
-    public static Dataset<Row> magicSwap(final Dataset<Row> transform, final boolean persist) {
+    public static Dataset<Row> magicSwap(final Dataset<Row> transform,
+                                         final boolean persist,
+                                         final StorageLevel storageLevel,
+                                         final SparkSession spark,
+                                         final String tempWriteDirectory,
+                                         int iteration) {
         if (isCancelled.get()) {
             throw new TraversalInterruptedException();
         }
-        final Dataset<Row> output = persist ? transform.persist(StorageLevel.MEMORY_AND_DISK()) : transform;
+
+        final Dataset<Row> output;
+        if (persist) {
+            if (spark != null && tempWriteDirectory != null && !tempWriteDirectory.isEmpty()) {
+                // Write to temp directory.
+                LOGGER.info("Writing dataframe to temporary write directory: " + tempWriteDirectory + "/iteration_" + iteration);
+                transform.write().mode("overwrite").parquet(tempWriteDirectory + "/iteration_" + iteration);
+                LOGGER.info("Reading back dataframe from temporary write directory: " + tempWriteDirectory + "/iteration_" + iteration);
+                return spark.read().parquet(tempWriteDirectory + "/iteration_" + iteration);
+            }
+            output = transform.persist(storageLevel);
+        } else {
+            output = transform;
+        }
         try {
             output.count();
         } catch (Exception e) {

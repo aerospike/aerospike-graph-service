@@ -24,7 +24,8 @@ public class PartitionedSindexPageFetcher<R> extends SindexPageFetcher<R> {
 
     public PartitionedSindexPageFetcher(final FireflyGraph graph,
                                         final QueryPolicy policy,
-                                        final String setName, final String namespace,
+                                        final String setName,
+                                        final String namespace,
                                         final Filter filter,
                                         final int maxPageSize,
                                         final FireflyGraph.TransformKeyRecord<R> transformKeyRecord,

@@ -21,6 +21,17 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingBufferedNumer
     }
 
     @Override
+    public synchronized byte[] getNextId(final FireflyGraph graph) {
+        // MRT Edge Id Manager prefers new IDs until a pack is exhausted
+        final EdgePackIds ids = this.edgePackIds.get();
+        if ((ids == null || ids.isEmpty()) && this.recycledIds.peek() != null) {
+            return getRecycledId(graph);
+        } else {
+            return getNewId(graph);
+        }
+    }
+
+    @Override
     protected byte[] getNewId(final FireflyGraph graph) {
         final EdgePackIds ids = this.edgePackIds.get();
         if (ids == null || ids.isEmpty()) {

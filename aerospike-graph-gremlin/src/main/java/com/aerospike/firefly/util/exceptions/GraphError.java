@@ -24,6 +24,7 @@ import static com.aerospike.client.ResultCode.SERVER_NOT_AVAILABLE;
 import static com.aerospike.firefly.structure.FireflyElement.TTL_PROPERTY_KEY;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.CLEAR_ON_VERSION_INCOMPATIBILITY;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.TRANSACTION_ENABLED_FLAG;
 
 /**
  * Client codes are absolute value of ResultCode + 1000
@@ -68,10 +69,14 @@ public enum GraphError {
     SET_CARDINALITY_NOT_SUPPORTED(1118),
     MRT_NOT_SUPPORTED(1119),
     NSUP_DISABLED(1120),
+    QUERY_IN_TRANSACTION(1121),
+    TX_NOT_ENABLED(1122),
+    PARALLELIZE_IN_TX(1123),
 	
     ELEMENT_NOT_FOUND(ResultCode.KEY_NOT_FOUND_ERROR),
     RECORD_SIZE_EXCEEDED(ResultCode.RECORD_TOO_BIG),
-    OUT_OF_MEMORY(ResultCode.SERVER_MEM_ERROR);
+    OUT_OF_MEMORY(ResultCode.SERVER_MEM_ERROR),
+    RECORD_TX_BLOCKED(ResultCode.MRT_BLOCKED);
 
     public final int code;
 
@@ -119,6 +124,9 @@ public enum GraphError {
                 "Please raise the query-threads-limit setting or reduce concurrent queries and try again.");
         ERROR_MESSAGES.put(SET_CARDINALITY_NOT_SUPPORTED.code, "Cardinality.set is not supported in Aerospike Graph. Use Cardinality.list or Cardinality.single.");
         ERROR_MESSAGES.put(MRT_NOT_SUPPORTED.code, "Transactions require Aerospike database version 8 or newer with strong consistency mode enabled. Please verify that all nodes in the cluster are running a compatible version of Aerospike.");
+        ERROR_MESSAGES.put(QUERY_IN_TRANSACTION.code, "Aerospike Graph Service does not support query traversals within a Transaction. If applicable, execute a traversal outside of the Transaction to grab the required Element IDs and apply a traversal directly to the IDs within the Transaction.");
+        ERROR_MESSAGES.put(TX_NOT_ENABLED.code, "Transactions are not enabled for the '%s' graph. To use transactions, configure the '" + TRANSACTION_ENABLED_FLAG + "' setting.");
+        ERROR_MESSAGES.put(PARALLELIZE_IN_TX.code, "The '" + ConfigurationHelper.TraversalOptions.PARALLELIZE + "' parameter is not allowed for traversals within a transaction.");
 
         // Server
         ERROR_MESSAGES.put(ELEMENT_NOT_FOUND.code, "Element was dropped and no longer exists.");
@@ -126,6 +134,7 @@ public enum GraphError {
                 "Properties / Edges added to an Element. Consider breaking this Element into more Elements.");
         ERROR_MESSAGES.put(OUT_OF_MEMORY.code, "Aerospike server side memory error detected. " +
                 "Check index memory usage and/or increase server memory in Aerospike configuration.");
+        ERROR_MESSAGES.put(RECORD_TX_BLOCKED.code, "The current transaction attempted to access a record currently blocked by a different transaction.");
 
         // Client
         ERROR_MESSAGES.put(GRAPH_NO_MORE_CONNECTIONS.code, "There are no more available connections. Consider increasing the maximum allowable amount via the '" +

@@ -12,6 +12,10 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.aerospike.firefly.util.exceptions.GraphError.QUERY_IN_TRANSACTION;
@@ -338,6 +342,18 @@ public class TestTinkerpopTransactions {
         final Vertex v4 = g.addV().next();
         Assert.assertEquals(0, (long) g.E().count().next());
 
+        final LinkedList<String> ids = new LinkedList<>();
+        final AtomicInteger dropCounter = new AtomicInteger(0);
+        final Random rng = new Random();
+        final Vertex fromVDrop = g.addV().next();
+        final Vertex toVDrop = g.addV().next();
+        for (int i = 0; i < 400; i++) {
+            // These are tightly packed edge records that share record IDs we're going to recycle IDs of.
+            final String id = (String) g.addE("drop").from(fromVDrop).to(toVDrop).id().next();
+            ids.add(id);
+        }
+        Assert.assertEquals(400, (long) g.E().count().next());
+
         final GraphTraversalSource gtx1 = g.tx().begin();
         final GraphTraversalSource gtx2 = g.tx().begin();
 
@@ -348,15 +364,40 @@ public class TestTinkerpopTransactions {
 
         for (int i = 0; i < 100; i++) {
             gtx1.addE("tx1").from(v1).to(v2).iterate();
+            dropEAndCatchTransactionConflict(g, ids, dropCounter, rng);
             gtx2.addE("tx2").from(v3).to(v4).iterate();
+            dropEAndCatchTransactionConflict(g, ids, dropCounter, rng);
             gtx1.addE("tx1").from(v5).to(v6).iterate();
+            dropEAndCatchTransactionConflict(g, ids, dropCounter, rng);
             gtx2.addE("tx2").from(v7).to(v8).iterate();
+            dropEAndCatchTransactionConflict(g, ids, dropCounter, rng);
         }
 
         gtx1.tx().commit();
         gtx2.tx().commit();
 
-        Assert.assertEquals(400, (long) g.E().count().next());
+        Assert.assertEquals(200, (long) g.E().hasLabel("tx1").count().next());
+        Assert.assertEquals(200, (long) g.E().hasLabel("tx2").count().next());
+        Assert.assertTrue(dropCounter.get() > 0);
+        Assert.assertTrue(dropCounter.get() <= 400);
+        Assert.assertEquals(0, ids.size());
+        Assert.assertEquals((400 - dropCounter.get()), (long) g.E().hasLabel("drop").count().next());
+    }
+
+    private void dropEAndCatchTransactionConflict(final GraphTraversalSource g, final List<String> ids,
+                                                  final AtomicInteger dropCounter, final Random rng) {
+        final int indexToRemove = rng.nextInt(ids.size());
+        final String id = ids.get(indexToRemove);
+        Assert.assertTrue(ids.remove(id));
+        try {
+            g.E(id).drop().iterate();
+            dropCounter.incrementAndGet();
+        } catch (final Exception e) {
+            final boolean containsMessage = e.getMessage().contains("Error code 120");
+            if (!containsMessage) {
+                Assert.fail(e.getMessage());
+            }
+        }
     }
 
     private void countElementsInNewThreadTx(final GraphTraversalSource g, final long verticesCount,

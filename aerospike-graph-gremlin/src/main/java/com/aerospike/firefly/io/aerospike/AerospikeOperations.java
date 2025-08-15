@@ -917,28 +917,16 @@ public class AerospikeOperations {
                 // In Txn mode, write the Edge first so we can handle transaction collisions. Txn also ensures either
                 // all or no writes go commit so the ordering doesn't matter.
                 // Note: txn being null is expected. tx() txn is injected at a higher level that overwrites.
-                boolean hasLogged = false;
-                int attempts = 0;
-                long attemptCap = Math.round(graph.getBaseGraph().PHAT_EDGE_SIZE * 2.5);
                 FireflyEdge edge = null;
                 while (edge == null) {
                     try {
                         edge = writeEdgeToRecord(edgeId, label, properties, inVertex, outVertex,
                                 !inVertex.isEdgeCacheOverflowed(), !outVertex.isEdgeCacheOverflowed(), txn);
                     } catch (final AerospikeGraphException e) {
-                        attempts++;
                         if (e.errorCode == GraphError.RECORD_TX_BLOCKED.code) {
                             graph.getIdFactory().recycleEdgeId(edgeId);
-                            if (attempts > attemptCap) {
-                                // This should very rarely if ever happen.
-                                LOG.error("Failed to write a new Edge due to an excessive amount of transaction collisions. If the issue persists, please contact support.");
-                                throw e;
-                            }
                             edgeId = graph.getIdFactory().generateNonRecycledEdgeId(graph);
-                            if (!hasLogged) {
-                                LOG.info("A transaction collision occurred when writing a new Edge. Changing target record and retrying.");
-                                hasLogged = true;
-                            }
+                            LOG.info("A transaction collision occurred when writing a new Edge. Changing target record and retrying.");
                         } else {
                             throw e;
                         }

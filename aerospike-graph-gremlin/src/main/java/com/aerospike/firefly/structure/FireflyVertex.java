@@ -5,7 +5,6 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
-import com.aerospike.firefly.structure.id.FireflyEdgeId;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
@@ -679,13 +678,10 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             throw elementAlreadyRemoved(Vertex.class, this.id);
         }
 
-        // Get id for edge.
-        final FireflyEdgeId edgeId = (FireflyEdgeId) graph.getIdFactory().generateId(graph, FireflyEdge.class);
-
         // Write fully qualified edge.
         final List<Map.Entry<String, Object>> properties =
                 graph.convertFullyQualified(graph.features().edge().supportsNullPropertyValues(), keyValues);
-        return graph.getAerospikeOperations().writeEdge(edgeId, label, properties, (FireflyVertex) vertex, this);
+        return graph.getAerospikeOperations().writeEdge(label, properties, (FireflyVertex) vertex, this);
     }
 
     @Override

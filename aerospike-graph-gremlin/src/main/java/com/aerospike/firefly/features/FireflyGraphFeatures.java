@@ -8,6 +8,12 @@ import org.apache.tinkerpop.gremlin.structure.io.GraphReader;
 import org.apache.tinkerpop.gremlin.structure.io.GraphWriter;
 
 class FireflyGraphFeatures implements Graph.Features.GraphFeatures {
+    private final boolean transactionsEnabled;
+
+    FireflyGraphFeatures(final boolean transactionsEnabled) {
+        this.transactionsEnabled = transactionsEnabled;
+    }
+
     /**
      * Determines if the {@code Graph} implementation supports {@link GraphComputer} based processing.
      */
@@ -44,7 +50,7 @@ class FireflyGraphFeatures implements Graph.Features.GraphFeatures {
      */
     @Override
     public boolean supportsTransactions() {
-        return false;
+        return this.transactionsEnabled;
     }
 
     /**

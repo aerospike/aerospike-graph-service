@@ -148,7 +148,7 @@ public class DistributedConfigHelper implements Serializable {
     }
 
     public boolean isBulkingDisabled() {
-        return getOlapConfig().getBoolean(DISABLE_BULKING, isAlgorithmProgram);
+        return getOlapConfig().getBoolean(DISABLE_BULKING, true);
     }
 
     public String getTempWriteDirectory() {

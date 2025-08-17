@@ -275,7 +275,7 @@ public class PageRankProgram extends AlgorithmProgram {
         memory.set(CONVERGENCE_ERROR, 0.0d);
 
         // additional iteration to save results to db
-        if (terminate && (Boolean) optionsStrategy.getOptions().getOrDefault(SAVE_RESULTS, false)
+        if (terminate && (Boolean) optionsStrategy.getOptions().getOrDefault(SAVE_RESULTS, true)
                 && !memory.<Boolean>get(VOTE_TO_SAVE_RESULTS)) {
             memory.set(VOTE_TO_SAVE_RESULTS, true);
             return false;

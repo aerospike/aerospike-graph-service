@@ -28,6 +28,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identi
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.values;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -58,6 +59,10 @@ public class AlgorithmTest {
             final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
             //precision is PageRankProgram.epsilon
             assertEquals(0.113755d, v1.value(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+
+            // verify saved data
+            final Map<Object, Object> savedV1 = graph.traversal().V(1).elementMap().next();
+            assertEquals(0.113755d, (Double) savedV1.get(PageRankVertexProgram.PAGE_RANK), 0.00001d);
         }
     }
 
@@ -336,7 +341,7 @@ public class AlgorithmTest {
     }
 
     @Test
-    public void testPageRankWithSavingResults() {
+    public void testPageRankWithoutSavingResults() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();
             final Graph tg = TinkerFactory.createModern();
@@ -347,14 +352,16 @@ public class AlgorithmTest {
                     .withComputer().with("aerospike.graph.analytics.temp.write.disabled", true)
                     .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
                     .with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
-                    //.with("aerospike.graph.analytics.temp.write.directory", "c:\\tmp\\")
-                    .V().pageRank().with("gremlin.pageRankVertexProgram.saveResults", true)
+                    .V().pageRank().with("gremlin.pageRankVertexProgram.saveResults", false)
                     .toList();
 
+            // correct result returned, but not saved
             assertEquals(6L, output.size());
+            final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
+            assertEquals(0.113755d, v1.value(PageRankVertexProgram.PAGE_RANK), 0.00001d);
 
-            final Map<Object, Object> v1 = graph.traversal().V(1).elementMap().next();
-            assertEquals(0.113755d, (Double) v1.get(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+            final Map<Object, Object> savedV1 = graph.traversal().V(1).elementMap().next();
+            assertFalse(savedV1.containsKey(PageRankVertexProgram.PAGE_RANK));
         }
     }
 

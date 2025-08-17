@@ -3,6 +3,9 @@ package com.aerospike.firefly.process.traversal.strategy.optimization;
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.FireflyMergeEdgeStep;
 import com.aerospike.firefly.process.traversal.step.FireflyMergeVertexStep;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeEdgeStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeVertexStep;
@@ -29,6 +32,11 @@ public class FireflyMergeStepStrategy extends FireflyStrategyBase {
         }
 
         for (final MergeEdgeStep originalMergeEdgeStep : TraversalHelper.getStepsOfClass(MergeEdgeStep.class, traversal)) {
+            // If we cannot run mergeE queries (expiration disabled), we should error early.
+            final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
+            if (!graph.getBaseGraph().EXPIRATION_ENABLED) {
+                throw new AerospikeGraphException(GraphError.NSUP_DISABLED);
+            }
             final FireflyMergeEdgeStep fireflyMergeEdgeStep = new FireflyMergeEdgeStep(originalMergeEdgeStep);
             TraversalHelper.replaceStep(originalMergeEdgeStep, fireflyMergeEdgeStep, traversal);
         }

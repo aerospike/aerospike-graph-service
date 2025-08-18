@@ -1,6 +1,5 @@
 package com.aerospike.firefly.io.aerospike.schema;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
@@ -20,6 +19,7 @@ import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.GraphError;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import org.slf4j.Logger;
@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -42,6 +43,9 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_SCHEMA;
 
 public class SchemaManager {
     static private final Logger LOG = LoggerFactory.getLogger(SchemaManager.class);
+
+    private static final Set<Integer> KEY_EXISTS_CODE = Set.of(ResultCode.KEY_EXISTS_ERROR);
+    private static final Set<Integer> ELEMENT_NOT_FOUND_CODE = Set.of(GraphError.ELEMENT_NOT_FOUND.code);
 
     static private final Long DUMMY_SCHEMA_LONG = -100L;
     static private final MapPolicy SCHEMA_MAP_POLICY = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.CREATE_ONLY);
@@ -434,7 +438,7 @@ public class SchemaManager {
         operations.add(readSchema);
 
         try {
-            final Record record = this.db.writeOperate(null, recordKey, true, operations.toArray(new Operation[0]));
+            final Record record = this.db.writeOperate(null, recordKey, ELEMENT_NOT_FOUND_CODE, true, operations.toArray(new Operation[0]));
             if (record == null) {
                 // Need to handle re-initialization of the schema sets if someone drops the entire database.
                 this.initializedMap.get(recordKey).set(false);
@@ -465,9 +469,6 @@ public class SchemaManager {
             this.initializedMap.get(recordKey).set(false);
             initializeSchemaSet(recordKey);
             updateSchemaMap(schemaKey, recordKey, schemaMap);
-        } catch (final AerospikeException age) {
-            LOG.error(age.getMessage());
-            throw age;
         }
     }
 
@@ -491,12 +492,11 @@ public class SchemaManager {
                 final Operation initializeSchemaValue = Operation.put(new Bin(this.db.COUNTER_BIN, initialSchemaValue));
                 final Operation initializeSchemaMap = Operation.put(new Bin(this.db.SCHEMA_BIN, initialMap));
                 LOG.info("Initializing {} schema data.", this.readableNames.get(recordKey));
-                this.db.writeOperate(policy, recordKey, true, initializeSchemaMap, initializeSchemaValue);
+                this.db.writeOperate(policy, recordKey, KEY_EXISTS_CODE, true, initializeSchemaMap, initializeSchemaValue);
             } catch (final AerospikeGraphException e) {
                 if (e.errorCode == ResultCode.KEY_EXISTS_ERROR) {
                     LOG.info("Existing {} schema data found.", this.readableNames.get(recordKey));
                 } else {
-                    LOG.error(e.getMessage());
                     this.initializedMap.get(recordKey).set(false);
                     throw e;
                 }

@@ -27,7 +27,10 @@ else
   cd tinkerbench
   git switch olap-benchmark
 
-  mvn clean install -DskipTests
-  java -jar ./target/tinkerBench-1.0-SNAPSHOT-jar-with-dependencies.jar GremlinQueryClient --url "$url" --query "$queries" --count "$query_count" --warmupCount "$warmup_count"
+  mvn clean install -DskipTests -q
+  decoded_query=$(echo "${queries}" | base64 -d)
+
+  echo "Running benchmark with url: $url, query: $queries, query count: $query_count, warmup: $warmup_count"
+  java -jar ./target/tinkerBench-1.0-SNAPSHOT-jar-with-dependencies.jar --url "$url" --query "$decoded_query" --count "$query_count" --warmup "$warmup_count"
 fi
 

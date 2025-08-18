@@ -181,7 +181,6 @@ public class GraphQuery {
                                              final Long evaluationTimeout) {
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
-        graph.getBaseGraph().configureIndexPolicy(queryPolicy);
         queryPolicy.filterExp = VertexQueryHelper.hasContainerListToExpression(graph.getBaseGraph(), hasContainers);
 
         // Override with evaluationTimeout if < default.

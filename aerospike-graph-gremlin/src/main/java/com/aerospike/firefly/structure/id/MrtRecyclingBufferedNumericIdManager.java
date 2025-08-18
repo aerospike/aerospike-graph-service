@@ -17,15 +17,33 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingBufferedNumer
                                                    final long recycleBufferSize, final int packingSize) {
         super(uniqueIdCounterName, packingIdCounterName, bufferSize, recycleBufferSize);
         this.packingSize = packingSize;
-        this.edgePackIds = new ThreadLocal<>();
+        this.edgePackIds = ThreadLocal.withInitial(() -> new EdgePackIds(this));
     }
 
     @Override
-    protected byte[] getNewId(final FireflyGraph graph) {
+    public synchronized byte[] getNextId(final FireflyGraph graph) {
+        // MRT Edge Id Manager prefers new IDs until a pack is exhausted
         final EdgePackIds ids = this.edgePackIds.get();
-        if (ids == null || ids.isEmpty()) {
+        if (ids.isEmpty() && this.recycledIds.peek() != null) {
+            return getRecycledId(graph);
+        } else {
+            return getNextPackId(graph);
+        }
+    }
+
+    @Override
+    protected synchronized byte[] getNewId(final FireflyGraph graph) {
+        // Forcibly get a new pack to avoid MRT conflict
+        final EdgePackIds ids = this.edgePackIds.get();
+        ids.recycleCurrentPack();
+        return getNextPackId(graph);
+    }
+
+    private byte[] getNextPackId(final FireflyGraph graph) {
+        final EdgePackIds ids = this.edgePackIds.get();
+        if (ids.isEmpty()) {
             reserveEdgePackIds(graph);
-            return this.getNewId(graph);
+            return this.getNextPackId(graph);
         }
         final byte[] id = new byte[8];
         final long newId = ids.poll();
@@ -74,16 +92,20 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingBufferedNumer
             return this.ids.size();
         }
 
-        @Override
-        protected void finalize() {
+        private void recycleCurrentPack() {
             while (!this.ids.isEmpty()) {
                 if (this.idManager.recycledIds.size() >= idManager.bufferSize) {
-                    LOG.warn("Recycled IDs buffer is full. Dropping {} recycling IDs.", this.ids.size());
+                    LOG.debug("Recycled IDs buffer is full. Dropping {} recycling IDs.", this.ids.size());
                     break;
                 } else {
                     this.idManager.recycledIds.add(this.ids.poll());
                 }
             }
+        }
+
+        @Override
+        protected void finalize() {
+            recycleCurrentPack();
         }
     }
 }

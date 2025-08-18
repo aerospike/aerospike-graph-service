@@ -12,9 +12,12 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.tinkerpop.gremlin.process.traversal.Order.desc;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -40,7 +43,10 @@ public class QueryManagementTests {
             GraphHelper.cloneElements(tg, graph);
 
             // do some jobs
-            graph.traversal().withComputer().V().toList();
+            graph.traversal().withComputer()
+                    .with("aerospike.graph.analytics.debug.df", "false")
+                    .with("evaluationTimeout", 67890)
+                    .V().toList();
             graph.traversal().withComputer().V().limit(2).toList();
             try {
                 graph.traversal().withComputer().V().both().both().fail().toList();
@@ -51,10 +57,17 @@ public class QueryManagementTests {
                     .withComputer()
                     .call("aerospike.graph.analytics.job.list")
                     .has("state", "FINISHED")
+                    .order().by("started", desc)
                     .elementMap()
                     .toList();
 
             assertEquals(2, jobs.size());
+            final Map config = (Map)(((LinkedHashMap) jobs.get(1)).get("config"));
+            assertEquals(2, config.size());
+            assertTrue(config.containsKey("evaluationTimeout"));
+            assertEquals("67890", config.get("evaluationTimeout"));
+            assertTrue(config.containsKey("aerospike.graph.analytics.debug.df"));
+            assertEquals("false", config.get("aerospike.graph.analytics.debug.df"));
 
             graph.traversal()
                     .withComputer()

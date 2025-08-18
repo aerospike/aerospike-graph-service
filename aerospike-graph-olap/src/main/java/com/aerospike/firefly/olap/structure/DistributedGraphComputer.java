@@ -441,13 +441,17 @@ public class DistributedGraphComputer implements GraphComputer {
             this.vertexProgram.storeState(vertexProgramConfiguration);
             this.vertexProgram.setup(memory);
 
-            db.writeJob(new Job(jobId, vertexProgram.toString(), traversal.toString()));
+            db.writeJob(new Job(jobId, vertexProgram.toString(), traversal.toString(), configHelper.getOlapConfig()));
 
             // Broadcast spark context.
             memory.broadcastMemory(new JavaSparkContext(spark.sparkContext()));
             memory.incrIteration();
 
             final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace) - 4; // Leave some room.
+            final int workerCount = Math.max(1, workers - 1);
+            if (configHelper.getPartitions().isEmpty() && (maxParallelSindexes < workerCount)) {
+                LOGGER.warn("Aerospike database configured to support only {} parallel queries, but worker count is {}. This may lead to performance issues. Consider configuring 'query-threads-limit' and 'single-query-threads'.", maxParallelSindexes, workerCount);
+            }
 
             Dataset<Row> df = null;
             Dataset<Row> results = null;
@@ -474,7 +478,7 @@ public class DistributedGraphComputer implements GraphComputer {
                         memory,
                         vertexProgramConfiguration,
                         schema,
-                        Math.max(1, workers - 1));
+                        workerCount);
                 // add iteration column if AlgorithmProgram
                 df = magicSwap(
                         this.vertexProgram instanceof AlgorithmProgram ? nextDf.withColumn(Codec.ITERATION, lit(memory.getIteration())) : nextDf,

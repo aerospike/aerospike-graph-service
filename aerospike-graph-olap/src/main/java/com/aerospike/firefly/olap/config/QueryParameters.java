@@ -1,9 +1,9 @@
 package com.aerospike.firefly.olap.config;
 
+import static com.aerospike.firefly.olap.config.DistributedConfigHelper.OLAP_PREFIX;
+
 // this parameters should be accessible without DistributedConfigHelper
 public class QueryParameters {
-    public static final String OLAP_PREFIX = "aerospike.graph.analytics.";
-
     // global flags
     public static final String ALLOW_UNFILTERED_ALGORITHM = OLAP_PREFIX + "unfiltered.algorithm.enabled";
 

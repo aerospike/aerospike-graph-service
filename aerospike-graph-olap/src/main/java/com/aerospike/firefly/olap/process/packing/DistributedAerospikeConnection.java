@@ -16,10 +16,16 @@ import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
 import com.aerospike.client.cdt.MapReturnType;
+import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.BatchPolicy;
+import com.aerospike.client.policy.BatchWritePolicy;
+import com.aerospike.client.policy.QueryDuration;
+import com.aerospike.client.policy.QueryPolicy;
+import com.aerospike.client.policy.InfoPolicy;
+import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
@@ -30,6 +36,8 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection.FireflyRecordSet;
 import com.aerospike.firefly.olap.structure.job.Job;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertexProperty;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import org.javatuples.Pair;
@@ -43,7 +51,12 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
+import static com.aerospike.firefly.util.FireflyHelper.validateAndConvertVertexPropertyValue;
+
 public class DistributedAerospikeConnection {
+    private final FireflyGraph graph;
     private final AerospikeConnection db;
     private final String namespace;
     // used for temporary run-time data for olap
@@ -56,12 +69,13 @@ public class DistributedAerospikeConnection {
     private final String bin = "b";
     private final String secondBin = "b2";
 
-    public DistributedAerospikeConnection(final AerospikeConnection db,
+    public DistributedAerospikeConnection(final FireflyGraph graph,
                                           final String namespace,
                                           final String set,
                                           final long packedElementCount,
                                           final long packSize) {
-        this.db = db;
+        this.graph = graph;
+        this.db = graph.getBaseGraph();
         this.namespace = namespace;
         this.tempSet = set;
         this.packedElementCount = packedElementCount;
@@ -70,14 +84,14 @@ public class DistributedAerospikeConnection {
         createJobIndex();
     }
 
-    public DistributedAerospikeConnection(final AerospikeConnection db,
+    public DistributedAerospikeConnection(final FireflyGraph graph,
                                           final long packedElementCount,
                                           final long packSize) {
-        this(db, db.getNamespace(), db.OLAP_SET, packedElementCount, packSize);
+        this(graph, graph.getBaseGraph().getNamespace(), graph.getBaseGraph().OLAP_SET, packedElementCount, packSize);
     }
 
     public DistributedAerospikeConnection(final FireflyGraph graph) {
-        this(graph.getBaseGraph(), graph.fireflySummaryUpdater.getFireflyStatistics().totalVertexCount(), 10);
+        this(graph, graph.fireflySummaryUpdater.getFireflyStatistics().totalVertexCount(), 10);
     }
 
     private void createJobIndex() {
@@ -201,16 +215,16 @@ public class DistributedAerospikeConnection {
         return sum;
     }
 
-    public void setPackedAccumulatorDouble(final Map<String, Double> vertexEnergy, final int iteration) {
+    public void setPackedAccumulatorDouble(final List<Pair<byte[], Double>> vertexEnergy, final int iteration) {
         if (vertexEnergy.isEmpty()) {
             return;
         }
 
         final List<BatchRecord> batchRecords = new ArrayList<>();
-        for (Map.Entry<String, Double> entry : vertexEnergy.entrySet()) {
-            final Key key = getPackedKeyFromId(entry.getKey());
-            final String mapKeyId = entry.getKey() + "_" + iteration;
-            final Operation put = MapOperation.put(MapPolicy.Default, bin, Value.get(mapKeyId), Value.get(entry.getValue()));
+        for (final Pair<byte[], Double> entry : vertexEnergy) {
+            final Key key = getPackedKeyFromId(toString(entry.getValue0()));
+            final String mapKeyId = toString(entry.getValue0());
+            final Operation put = MapOperation.put(MapPolicy.Default, bin + "_" + iteration, Value.get(mapKeyId), Value.get(entry.getValue1()));
             batchRecords.add(new BatchWrite(key, new Operation[]{put}));
         }
 
@@ -219,27 +233,46 @@ public class DistributedAerospikeConnection {
         db.batchOperate(policy, batchRecords);
     }
 
-    public Map<String, Double> getPackedAccumulatorDoubleCache(final List<String> vertexIds, final int iteration) {
+    private static int allowedErrorPrints = 3;
+    public Map<ByteArrayWrapper, Double> getPackedAccumulatorDoubleCache(final List<ByteArrayWrapper> vertexIds, final int iteration) {
         if (vertexIds.isEmpty()) {
             return Collections.emptyMap();
         }
 
+        final String binName = bin + "_" + iteration;
         final int chunkSize = db.PAGINATION_PAGE_SIZE;
-        final Map<String, Double> result = new HashMap<>();
+        final Map<ByteArrayWrapper, Double> result = new HashMap<>();
         for (int i = 0; i < vertexIds.size(); i += chunkSize) {
             final int end = Math.min(vertexIds.size(), i + chunkSize);
-            final List<String> chunk = vertexIds.subList(i, end);
+            final List<ByteArrayWrapper> chunk = vertexIds.subList(i, end);
 
-            final Key[] keys = chunk.stream().map(this::getPackedKeyFromId).toArray(Key[]::new);
-            final Record[] records = db.dynamicBatchRead(keys, null, null);
+            final Key[] keys = chunk.stream().map(k -> getPackedKeyFromId(toString(k.getData()))).toArray(Key[]::new);
+            final Operation op = Operation.get(binName);
+
+            final Record[] records = db.dynamicBatchRead(keys, null, null, op);
 
             for (int j = 0; j < chunk.size(); j++) {
-                final String mapKeyId = chunk.get(j) + "_" + iteration;
-                result.put(chunk.get(j), (double) records[j].getMap(bin).get(mapKeyId));
+                final String mapKeyId = toString(chunk.get(j).getData());
+                try {
+                    result.put(chunk.get(j), (double) records[j].getMap(binName).get(mapKeyId));
+                } catch (final Exception e) {
+                    if (--allowedErrorPrints > 0) {
+                        System.out.println("getPackedAccumulatorDoubleCache failed for " + mapKeyId + "; record map " + records[j].getMap(binName));
+                    }
+                    result.put(chunk.get(j), 0.0);
+                }
             }
         }
 
         return result;
+    }
+
+    private String toString(byte[] arr) {
+        StringBuilder sb = new StringBuilder(arr.length * 2);
+        for (final byte b : arr) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     public Double getPackedAccumulatorDouble(final String vertexId, final int iteration) {
@@ -379,6 +412,49 @@ public class DistributedAerospikeConnection {
         return pairs;
     }
 
+    // save pageRank results as properties
+    public void setProperty(final Map<FireflyId, Double> values, final String propertyName) {
+        if (values.isEmpty()) {
+            return;
+        }
+
+        final Long schemaVpKey = this.db.schemaManager.getVertexPropertyWrite(propertyName);
+
+        final MapPolicy treeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
+        final MapPolicy hashMapPolicy = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.DEFAULT);
+        final BatchWritePolicy writePolicy = new BatchWritePolicy();
+        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+
+        final List<BatchRecord> batchRecords = new ArrayList<>();
+        for (final Map.Entry<FireflyId, Double> entry : values.entrySet()) {
+            final Key recordKey = getKey(this.db, this.db.VERTEX_AERO_SET, entry.getKey());
+            final FireflyId vertexPropertyId = this.db.getIdFactory().generateId(this.graph, FireflyVertexProperty.class);
+            final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
+            final Object typeHint = getTypeHintOf(entry.getValue(), true);
+            final Object verifiedValue = validateAndConvertVertexPropertyValue(entry.getValue());
+
+            final List<Long> idInList = new ArrayList<>(1);
+            idInList.add(vpIdKey);
+            final Map<Object, List<Long>> valueToIdList = new HashMap<>();
+            valueToIdList.put(verifiedValue, idInList);
+            final Operation writeVpData = MapOperation.put(treeMapPolicy, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(schemaVpKey), Value.get(valueToIdList));
+
+            final Map<Long, Object> idToTypeHint = new HashMap<>();
+            idToTypeHint.put(vpIdKey, typeHint);
+            final Operation writeVpTypeHint = MapOperation.put(hashMapPolicy, this.db.VERTEX_PROPERTY_TH_BIN, Value.get(schemaVpKey), Value.get(idToTypeHint));
+
+            final Map<Long, Map<Long, List<Object>>> idToProperties = new HashMap<>();
+            idToProperties.put(vpIdKey, Collections.emptyMap());
+            final Operation writeVpProperties = MapOperation.put(hashMapPolicy, this.db.VP_PROPERTY_BIN, Value.get(schemaVpKey), Value.get(idToProperties));
+
+            batchRecords.add(new BatchWrite(writePolicy, recordKey, new Operation[]{writeVpData, writeVpTypeHint, writeVpProperties}));
+        }
+
+        final BatchPolicy policy = new BatchPolicy();
+        policy.setMaxConcurrentThreads(2);
+        db.batchOperate(policy, batchRecords);
+    }
+
     // jobs methods
     public void writeJob(final Job job) {
         final Key key = new Key(namespace, jobSet, job.getId());
@@ -410,8 +486,11 @@ public class DistributedAerospikeConnection {
         statement.setSetName(jobSet);
         statement.setFilter(Filter.equal("state", "STARTED"));
 
+        final QueryPolicy queryPolicy = new QueryPolicy();
+        queryPolicy.setExpectedDuration(QueryDuration.SHORT);
+
         // active jobs count should be 0-1, so it's ok to write it one by one
-        final FireflyRecordSet recordSet = db.query(null, statement);
+        final FireflyRecordSet recordSet = db.query(queryPolicy, statement);
         for (final KeyRecord keyRecord : recordSet) {
             final Job job = new Job(keyRecord.record);
             job.cancel();
@@ -443,9 +522,27 @@ public class DistributedAerospikeConnection {
         return records.stream().map(Job::new).collect(Collectors.toList());
     }
 
+    public Job getFirstRunningJob() {
+        final Statement statement = new Statement();
+        statement.setNamespace(db.getNamespace());
+        statement.setSetName(jobSet);
+        statement.setFilter(Filter.equal("state", "STARTED"));
+
+        final QueryPolicy queryPolicy = new QueryPolicy();
+        queryPolicy.setExpectedDuration(QueryDuration.SHORT);
+        // active jobs count should be 0-1
+        final FireflyRecordSet recordSet = db.query(queryPolicy, statement);
+        for (final KeyRecord keyRecord : recordSet) {
+            return new Job(keyRecord.record);
+        }
+        return null;
+    }
+
     // For testing only.
     public void removeAllJobs() {
-        db.truncate(null, jobSet, null);
+        final InfoPolicy infoPolicy = new InfoPolicy();
+        db.setInfoPolicy(infoPolicy);
+        db.truncate(infoPolicy, jobSet, null);
     }
 
     public Record getPackedRecord(final String vertexId, final int iteration) {

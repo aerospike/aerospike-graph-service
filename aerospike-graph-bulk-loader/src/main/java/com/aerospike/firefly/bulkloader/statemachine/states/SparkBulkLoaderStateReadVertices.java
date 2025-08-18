@@ -4,6 +4,9 @@ import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.statemachine.machine.SparkBulkLoaderStateMachine;
 import com.aerospike.firefly.bulkloader.util.BulkLoadStateStatusMap;
+import com.aerospike.firefly.bulkloader.util.RecoveryUtil;
+import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
+import org.apache.spark.sql.Column;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +32,34 @@ public class SparkBulkLoaderStateReadVertices extends SparkBulkLoaderState {
                 DatasetOperations.getDfStorageLevel(sparkBulkLoaderStateMachine.config));
         sparkBulkLoaderStateMachine.vertexCount = sparkBulkLoaderStateMachine.vertexDataset.count();
         sparkBulkLoaderStateMachine.progressBar.setVertexTotalCount(sparkBulkLoaderStateMachine.vertexCount);
+
+
+        // Latch info for incremental load.
+        RecoveryUtil.writeIsIncrementalLoad(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), sparkBulkLoaderStateMachine.incrementalLoad);
+        if (sparkBulkLoaderStateMachine.incrementalLoad) {
+            // Get summary and set initial values for incremental load.
+            FireflyGraphSummaryUpdater.FireflyElementMetadata summary =
+                    sparkBulkLoaderStateMachine.initializerGraph.fireflySummaryUpdater.getFireflyStatistics();
+            RecoveryUtil.writeIncrementalLoadVertexStartCount(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), summary.totalVertexCount());
+            RecoveryUtil.writeIncrementalLoadEdgeStartCount(sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(), summary.totalEdgeCount());
+        }
+
+        // This stuff is done in the edge cache generation state, so we need to do it here if we are not generating the edge caches.
+        if (!sparkBulkLoaderStateMachine.isEdgeCacheWrittenWithVertex) {
+            // Assign partition count.
+            sparkBulkLoaderStateMachine.vertexPartitionCount = sparkBulkLoaderStateMachine.vertexDataset.rdd().partitions().length;
+            sparkBulkLoaderStateMachine.progressBar.setVertexPartitionCount(sparkBulkLoaderStateMachine.vertexPartitionCount);
+            if (!sparkBulkLoaderStateMachine.readOnly) {
+                // If not read-only, need to repartition the vertex dataset for consistency.
+                sparkBulkLoaderStateMachine.vertexDataset = sparkBulkLoaderStateMachine.vertexDataset.repartition(
+                        sparkBulkLoaderStateMachine.vertexPartitionCount, new Column("~id"));
+
+                // Update the vertex partition count in the state machine.
+                RecoveryUtil.updateVertexRecovery(
+                        sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph(),
+                        sparkBulkLoaderStateMachine.vertexPartitionCount);
+            }
+        }
     }
 
     @Override

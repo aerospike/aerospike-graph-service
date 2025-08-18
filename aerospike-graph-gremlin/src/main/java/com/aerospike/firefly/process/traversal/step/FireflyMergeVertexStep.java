@@ -23,7 +23,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.Event;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.ListCallbackRegistry;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
-import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -37,6 +36,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
+
+import static com.aerospike.firefly.structure.FireflyGraph.BULK_LOAD_VERTEX_ADD_KEY;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -199,10 +200,17 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
             validateMapInput(matchMap, true);
         }
 
+        final Map<?, ?> onCreateMap = onCreateMap(traverser, mergeMap);
+        final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
         while (true) {
             try {
                 Stream<Vertex> stream = createSearchStream(mergeMap);
                 stream = stream.map(v -> {
+                    if (onCreateMap.containsKey(BULK_LOAD_VERTEX_ADD_KEY)) {
+                        // Do not need properties so leave blank.
+                        graph.fireflySummaryUpdater.stageVertexMergeToQueue(v.label(), (Integer) onCreateMap.get(BULK_LOAD_VERTEX_ADD_KEY));
+                    }
+
                     // If no onMatch is defined then there is no update - return the vertex unchanged
                     if (null == onMatchTraversal) return v;
 
@@ -245,7 +253,6 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> implements Mut
                 if (vertices.hasNext()) {
                     return vertices;
                 } else {
-                    final Map<?, ?> onCreateMap = onCreateMap(traverser, mergeMap);
                     final List<Object> keyValues = new ArrayList<>();
                     for (Map.Entry<?, ?> entry : onCreateMap.entrySet()) {
                         // Do not insert card values up front.

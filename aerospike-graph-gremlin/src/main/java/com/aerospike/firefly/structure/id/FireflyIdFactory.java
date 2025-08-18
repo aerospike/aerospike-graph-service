@@ -17,7 +17,6 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
@@ -33,7 +32,7 @@ public class FireflyIdFactory {
 
     private final AerospikeConnection db;
     private final IdManager<Long> vertexIdManager;
-    private final IdManager<byte[]> edgeIdManager;
+    private final RecyclingBufferedNumericIdManager edgeIdManager;
     private final IdManager<Long> vertexPropertyIdManager;
 
     public static final Map<Class<? extends Serializable>, Long> VERTEX_ID_TYPE_TO_HINT = new HashMap<>() {{
@@ -49,7 +48,7 @@ public class FireflyIdFactory {
     public FireflyIdFactory(final AerospikeConnection db) {
         this.db = db;
         this.vertexIdManager = new DecrementingNumericIdManager(VERTEX_ID_COUNTER, db.VERTEX_ID_BUFFER_SIZE);
-        if (db.MRT_ENABLED && !db.getBulkLoaderFlag()) {
+        if (db.MRT_ENABLED || db.TRANSACTION_ENABLED) {
             this.edgeIdManager = new MrtRecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, db.EDGE_ID_RECYCLE_BUFFER_SIZE, db.PHAT_EDGE_SIZE);
         } else {
             this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, db.EDGE_ID_RECYCLE_BUFFER_SIZE);
@@ -189,6 +188,10 @@ public class FireflyIdFactory {
 
     public void recycleEdgeId(final FireflyId id) {
         this.edgeIdManager.recycleId(id);
+    }
+
+    public FireflyEdgeId generateNonRecycledEdgeId(final FireflyGraph graph) {
+        return createEdgeId(this.edgeIdManager.getNewId(graph));
     }
 
     public void convertMapToLazyIdsInPlace(final Map<String, ?> fireflyObjectIds,

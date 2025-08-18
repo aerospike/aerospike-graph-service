@@ -173,7 +173,7 @@ public class FireflyIdComposite implements FireflyEdgeId {
     @Override
     public String toString() {
         return "FireflyIdComposite{" +
-                "adjacentId=" + getAdjacentId() +
+                "adjacentId=" + getAdjacentUserId() +
                 ", edgeId=" + getEdgeId() +
                 '}';
     }

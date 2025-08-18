@@ -13,11 +13,11 @@ public class FireflyWorld extends FireflyWorldBase {
     private static final FireflyGraph grateful;
 
     static {
-        empty = FireflyGraph.open(getConfiguration("empty", false));
-        modern = createFireflyGraph("modern", TinkerFactory.createModern(), false);
-        crew = createFireflyGraph("crew", TinkerFactory.createTheCrew(), false);
-        sink = createFireflyGraph("sink", TinkerFactory.createKitchenSink(), false);
-        grateful = createFireflyGraph("grateful", TinkerFactory.createGratefulDead(), false);
+        empty = FireflyGraph.open(getConfiguration("empty", false, false));
+        modern = createFireflyGraph("modern", TinkerFactory.createModern(), false, false);
+        crew = createFireflyGraph("crew", TinkerFactory.createTheCrew(), false, false);
+        sink = createFireflyGraph("sink", TinkerFactory.createKitchenSink(), false, false);
+        grateful = createFireflyGraph("grateful", TinkerFactory.createGratefulDead(), false, false);
     }
 
     @Override

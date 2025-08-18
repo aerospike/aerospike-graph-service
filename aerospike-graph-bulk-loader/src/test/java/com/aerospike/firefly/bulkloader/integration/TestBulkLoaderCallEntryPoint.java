@@ -28,7 +28,6 @@ import static com.aerospike.firefly.bulkloader.integration.Tokens.INTEGRATION_TE
 import static com.aerospike.firefly.bulkloader.integration.util.BulkLoadTestUtil.waitForBulkLoad;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_EXCEPTION;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_EXCEPTION_MESSAGE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_ERROR;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_KEY;
@@ -82,7 +81,6 @@ public class TestBulkLoaderCallEntryPoint {
                 status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
             }
             Assert.assertEquals(status.get(BULK_LOAD_STATUS_KEY), BULK_LOAD_STATUS_ERROR);
-            Assert.assertTrue(status.get(BULK_LOAD_EXCEPTION) instanceof IllegalStateException);
             Assert.assertTrue(((String)status.get(BULK_LOAD_EXCEPTION_MESSAGE)).contains("Cannot clear existing data when database is empty and no recovery information is present."));
         }
     }
@@ -200,7 +198,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(0, g.E().count().next().longValue());
             final long vertexCount = g.V().count().next().longValue();
             RecoveryUtil.truncate(fireflyGraph);
-            g.call("aerospike.graphloader.admin.bulk-load.load").with("edges").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load").with(INCREMENTAL_LOAD).with("edges").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             waitForBulkLoad(g);
             Assert.assertEquals(vertexCount, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -223,7 +221,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(0, g.E().count().next().longValue());
             final long vertexCount = g.V().count().next().longValue();
             RecoveryUtil.truncate(fireflyGraph);
-            g.call("aerospike.graphloader.admin.bulk-load.load").with("vertices", false).with("edges", true).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load").with(INCREMENTAL_LOAD).with("vertices", false).with("edges", true).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             waitForBulkLoad(g);
             Assert.assertEquals(vertexCount, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -245,7 +243,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(0, g.E().count().next().longValue());
             final long vertexCount = g.V().count().next().longValue();
             RecoveryUtil.truncate(fireflyGraph);
-            g.call("aerospike.graphloader.admin.bulk-load.load").with("vertices", false).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load").with(INCREMENTAL_LOAD).with("vertices", false).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             waitForBulkLoad(g);
             Assert.assertEquals(vertexCount, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -267,7 +265,7 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(0, g.E().count().next().longValue());
             final long vertexCount = g.V().count().next().longValue();
             RecoveryUtil.truncate(fireflyGraph);
-            g.call("aerospike.graphloader.admin.bulk-load.load").with("edges", true).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load").with(INCREMENTAL_LOAD).with("edges", true).with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
             waitForBulkLoad(g);
             Assert.assertEquals(vertexCount, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -681,8 +679,8 @@ public class TestBulkLoaderCallEntryPoint {
             g.V().drop().iterate();
             Assert.assertEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
-            // ~id,~label,test_multi_before_not_after:string(list),test_multi_before_and_after:string(list),test_multi_not_before_but_after:string,test_multi_not_before_not_after:string
-            // 1  ,person,before;not;after                        ,before;and;after                        ,not;before;but;after                  ,not;before;not;after
+            // ~id,~label,test_multi_before_not_after:string:list,test_multi_before_and_after:string:list,test_multi_not_before_but_after:string,test_multi_not_before_not_after:string
+            // 1  ,person,before;not;after                       ,before;and;after                       ,not;before;but;after                  ,not;before;not;after
 
             // ~label,~from,~to,test(list)
             // knows,1,1,foo;bar
@@ -705,8 +703,8 @@ public class TestBulkLoaderCallEntryPoint {
             testProperty(edge, "test", Set.of("foo", "bar"));
 
             // Incremental load next dataset.
-            // ~id,~label,test_multi_before_not_after:string,test_multi_before_and_after:string(list),test_multi_not_before_but_after:string(list),test_multi_not_before_not_after:string
-            // 1  ,person,present                           ,before;baz                              ,not;before;but;after                        ,still;not
+            // ~id,~label,test_multi_before_not_after:string,test_multi_before_and_after:string:list,test_multi_not_before_but_after:string:list,test_multi_not_before_not_after:string
+            // 1  ,person,present                           ,before;baz                             ,not;before;but;after                       ,still;not
             //
             // ~label,~from,~to,test(list)
             // knows,1,1,foo;bar

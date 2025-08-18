@@ -15,6 +15,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
+import com.aerospike.firefly.structure.transaction.FireflyTransaction;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -109,6 +111,9 @@ public class TestAerospikeOperations {
     public void testEdgeWriteWithTxn() {
         final FireflyGraph graph = mock(FireflyGraph.class);
         setFieldValue(FireflyGraph.class, graph, "fireflySummaryUpdater", mock(FireflyGraphSummaryUpdater.class));
+        final FireflyTransaction mockTransaction = mock(FireflyTransaction.class);
+        when(mockTransaction.getCurrentTxn()).thenReturn(null);
+        setFieldValue(FireflyGraph.class, graph, "transaction", mockTransaction);
 
         final FireflyId inVertexId = mock(FireflyId.class);
         when(inVertexId.getKeyHashString()).thenReturn("inId");
@@ -136,6 +141,7 @@ public class TestAerospikeOperations {
         final FireflyIdFactory fireflyIdFactory = mock(FireflyIdFactory.class);
         when(fireflyIdFactory.createCompositeEdgeId(edgeId, inVertexId)).thenReturn(compositeIdIn);
         when(fireflyIdFactory.createCompositeEdgeId(edgeId, outVertexId)).thenReturn(compositeIdOut);
+        when(fireflyIdFactory.generateId(graph, FireflyEdge.class)).thenReturn(edgeId);
         when(connection.writeOperate(any(WritePolicy.class), any(Key.class),
                 any(Operation.class)))
                 .thenReturn(null);
@@ -144,7 +150,11 @@ public class TestAerospikeOperations {
         doAnswer(invocation -> {
             writePolicy.add(invocation.getArgument(0));
             return new Record(Map.of("EDGE_CACHE_DISABLED_BIN", List.of(true, false)), 0, 0);
-        }).when(connection).writeOperate(any(WritePolicy.class), any(Key.class), any(Operation.class));
+        }).when(connection).writeOperate(any(WritePolicy.class), any(Key.class), any(Set.class), any(Boolean.class), any(Operation.class));
+        doAnswer(invocation -> {
+            writePolicy.add(invocation.getArgument(0));
+            return new Record(Map.of("EDGE_CACHE_DISABLED_BIN", List.of(true, false)), 0, 0);
+        }).when(connection).writeOperate(any(WritePolicy.class), any(Key.class),any(Operation.class));
 
         final List<Txn> txn = new ArrayList<>();
         doAnswer(invocation -> {
@@ -154,10 +164,11 @@ public class TestAerospikeOperations {
 
         when(graph.getBaseGraph()).thenReturn(connection);
         when(graph.getIdFactory()).thenReturn(fireflyIdFactory);
+        when(graph.tx()).thenReturn(mockTransaction);
 
         final AerospikeOperations operations = new AerospikeOperations(graph);
 
-        operations.writeEdge(edgeId, "test", List.of(), inVertex, outVertex);
+        operations.writeEdge("test", List.of(), inVertex, outVertex);
 
         // should commit txn only once
         assertNotNull(txn.get(0));

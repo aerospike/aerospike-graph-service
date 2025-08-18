@@ -1,15 +1,20 @@
 package com.aerospike.firefly.io;
 
+import com.aerospike.client.Key;
+import com.aerospike.client.Record;
 import com.aerospike.firefly.io.utils.PropertyInsertionBenchmark;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Property;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -25,13 +30,16 @@ import org.junit.rules.TestName;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.DateTimeUtil.testDateTimePropertiesCases;
 
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
@@ -403,7 +411,7 @@ public class TestProperties {
         names.add("simon");
         names.add("bauto");
         g.V().hasLabel("person").properties().drop().iterate();
-        g.V().hasLabel("person").property("age", 12).property(VertexProperty.Cardinality.list, "name", "simon").property(VertexProperty.Cardinality.list,"name", "bauto").iterate();
+        g.V().hasLabel("person").property("age", 12).property(VertexProperty.Cardinality.list, "name", "simon").property(VertexProperty.Cardinality.list, "name", "bauto").iterate();
         traversal = g.V().hasLabel("person").properties().count();
         propertiesCount = (long) traversal.next();
         Assert.assertEquals(3, propertiesCount);
@@ -520,6 +528,268 @@ public class TestProperties {
         Assert.assertEquals(propertyValue, vpPValue);
     }
 
+    @Test
+    public void testVpRemovalDataModel() {
+        final GraphTraversalSource g = graph.traversal();
+        final Key vertexRecordKey = new Key(graph.getBaseGraph().namespace, graph.getBaseGraph().VERTEX_AERO_SET, 123);
+        Record vertexRecord;
+        Map<Long, Map<Object, List<?>>> vpData;
+        Map<Long, Map<Long, Long>> vpTypeHint;
+        Map<Long, Map<Long, Map<Long, List<?>>>> vpProperties;
+        createDataModelTestVertex(g);
+        final Long key1 = graph.getBaseGraph().schemaManager.getVertexPropertyRead("key1");
+        final Long key2 = graph.getBaseGraph().schemaManager.getVertexPropertyRead("key2");
+
+        // Remove an unique property key and value
+        g.V().hasLabel("test").properties("key2").drop().iterate();
+        vertexRecord = graph.getBaseGraph().read(vertexRecordKey, null);
+        vpData = (Map<Long, Map<Object, List<?>>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN);
+        vpTypeHint = (Map<Long, Map<Long, Long>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_TH_BIN);
+        vpProperties = (Map<Long, Map<Long, Map<Long, List<?>>>>) vertexRecord.getMap(graph.getBaseGraph().VP_PROPERTY_BIN);
+        Assert.assertEquals(1, vpData.size());
+        Assert.assertEquals(1, vpTypeHint.size());
+        Assert.assertEquals(1, vpProperties.size());
+        Assert.assertTrue(vpData.containsKey(key1));
+        Assert.assertTrue(vpTypeHint.containsKey(key1));
+        Assert.assertTrue(vpProperties.containsKey(key1));
+        Assert.assertEquals(2, vpData.get(key1).size());
+        Assert.assertEquals(3, vpTypeHint.get(key1).size());
+        Assert.assertEquals(3, vpProperties.get(key1).size());
+
+        createDataModelTestVertex(g);
+
+        // Remove a shared property key with unique value
+        var t = g.V().hasLabel("test").properties("key1");
+        while (t.hasNext()) {
+            final Property<Object> vp = t.next();
+            if ((int) vp.value() == 2) {
+                vp.remove();
+            }
+        }
+        vertexRecord = graph.getBaseGraph().read(vertexRecordKey, null);
+        vpData = (Map<Long, Map<Object, List<?>>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN);
+        vpTypeHint = (Map<Long, Map<Long, Long>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_TH_BIN);
+        vpProperties = (Map<Long, Map<Long, Map<Long, List<?>>>>) vertexRecord.getMap(graph.getBaseGraph().VP_PROPERTY_BIN);
+        Assert.assertEquals(2, vpData.size());
+        Assert.assertEquals(2, vpTypeHint.size());
+        Assert.assertEquals(2, vpProperties.size());
+        Assert.assertTrue(vpData.containsKey(key1));
+        Assert.assertTrue(vpData.containsKey(key2));
+        Assert.assertTrue(vpTypeHint.containsKey(key1));
+        Assert.assertTrue(vpTypeHint.containsKey(key2));
+        Assert.assertTrue(vpProperties.containsKey(key1));
+        Assert.assertTrue(vpProperties.containsKey(key2));
+        Assert.assertEquals(1, vpData.get(key1).size());
+        Assert.assertEquals(1, vpData.get(key2).size());
+        Assert.assertEquals(2, vpTypeHint.get(key1).size());
+        Assert.assertEquals(1, vpTypeHint.get(key2).size());
+        Assert.assertEquals(2, vpProperties.get(key1).size());
+        Assert.assertEquals(1, vpProperties.get(key2).size());
+
+        createDataModelTestVertex(g);
+
+        // Remove a shared property key with shared value
+        t = g.V().hasLabel("test").properties("key1");
+        while (t.hasNext()) {
+            final Property<Object> vp = t.next();
+            if ((int) vp.value() == 1) {
+                vp.remove();
+                break;
+            }
+        }
+        vertexRecord = graph.getBaseGraph().read(vertexRecordKey, null);
+        vpData = (Map<Long, Map<Object, List<?>>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN);
+        vpTypeHint = (Map<Long, Map<Long, Long>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_TH_BIN);
+        vpProperties = (Map<Long, Map<Long, Map<Long, List<?>>>>) vertexRecord.getMap(graph.getBaseGraph().VP_PROPERTY_BIN);
+        Assert.assertEquals(2, vpData.size());
+        Assert.assertEquals(2, vpTypeHint.size());
+        Assert.assertEquals(2, vpProperties.size());
+        Assert.assertTrue(vpData.containsKey(key1));
+        Assert.assertTrue(vpData.containsKey(key2));
+        Assert.assertTrue(vpTypeHint.containsKey(key1));
+        Assert.assertTrue(vpTypeHint.containsKey(key2));
+        Assert.assertTrue(vpProperties.containsKey(key1));
+        Assert.assertTrue(vpProperties.containsKey(key2));
+        Assert.assertEquals(2, vpData.get(key1).size());
+        Assert.assertEquals(1, vpData.get(key2).size());
+        Assert.assertEquals(2, vpTypeHint.get(key1).size());
+        Assert.assertEquals(1, vpTypeHint.get(key2).size());
+        Assert.assertEquals(2, vpProperties.get(key1).size());
+        Assert.assertEquals(1, vpProperties.get(key2).size());
+
+        // Remove all properties
+        t = g.V().hasLabel("test").properties().drop().iterate();
+        vertexRecord = graph.getBaseGraph().read(vertexRecordKey, null);
+        vpData = (Map<Long, Map<Object, List<?>>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN);
+        vpTypeHint = (Map<Long, Map<Long, Long>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_TH_BIN);
+        vpProperties = (Map<Long, Map<Long, Map<Long, List<?>>>>) vertexRecord.getMap(graph.getBaseGraph().VP_PROPERTY_BIN);
+        Assert.assertEquals(0, vpData.size());
+        Assert.assertEquals(0, vpTypeHint.size());
+        Assert.assertEquals(0, vpProperties.size());
+    }
+
+    @Test
+    public void testMutateRemovedProperty() {
+        final GraphTraversalSource g = graph.traversal();
+        createDataModelTestVertex(g);
+
+        final Property<Object> key2Val2 = g.V().hasLabel("test").properties("key2").next();
+        g.V().hasLabel("test").properties("key2").drop().iterate();
+        try {
+            ((VertexProperty<Object>) key2Val2).property("new", "test");
+            Assert.fail("Mutating a removed VP should throw an exception.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e instanceof AerospikeGraphElementNotFoundException);
+        }
+        ((VertexProperty<Object>) key2Val2).property("test").remove();
+        key2Val2.remove();
+        Assert.assertEquals(3, (long) g.V().hasLabel("test").properties().count().next());
+
+        var t = g.V().hasLabel("test").properties("key1");
+        Property<Object> key1Val2 = null;
+        while (t.hasNext()) {
+            final Property<Object> vp = t.next();
+            if ((int) vp.value() == 2) {
+                key1Val2 = vp;
+                break;
+            }
+        }
+        t = g.V().hasLabel("test").properties("key1");
+        while (t.hasNext()) {
+            final Property<Object> vp = t.next();
+            if ((int) vp.value() == 2) {
+                vp.remove();
+                break;
+            }
+        }
+        try {
+            ((VertexProperty<Object>) key1Val2).property("new", "test");
+            Assert.fail("Mutating a removed VP should throw an exception.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e instanceof AerospikeGraphElementNotFoundException);
+        }
+        ((VertexProperty<Object>) key1Val2).property("test").remove();
+        key1Val2.remove();
+        Assert.assertEquals(2, (long) g.V().hasLabel("test").properties().count().next());
+
+        t = g.V().hasLabel("test").properties("key1");
+        VertexProperty<Object> key1Val1 = null;
+        while (t.hasNext()) {
+            final VertexProperty<Object> vp = (VertexProperty<Object>) t.next();
+            if ((int) vp.value() == 1) {
+                key1Val1 = vp;
+                break;
+            }
+        }
+        t = g.V().hasLabel("test").properties("key1");
+        while (t.hasNext()) {
+            final VertexProperty<Object> vp = (VertexProperty<Object>) t.next();
+            if (vp.id().equals(key1Val1.id())) {
+                vp.remove();
+                break;
+            }
+        }
+        try {
+            ((VertexProperty<Object>) key1Val1).property("new", "test");
+            Assert.fail("Mutating a removed VP should throw an exception.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e instanceof AerospikeGraphElementNotFoundException);
+        }
+        ((VertexProperty<Object>) key1Val1).property("test").remove();
+        key1Val1.remove();
+        Assert.assertEquals(1, (long) g.V().hasLabel("test").properties().count().next());
+
+        key1Val1 = (VertexProperty<Object>) g.V().hasLabel("test").properties("key1").next();
+        g.V().hasLabel("test").drop().iterate();
+        try {
+            ((VertexProperty<Object>) key1Val1).property("new", "test");
+            Assert.fail("Mutating a removed VP should throw an exception.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e instanceof AerospikeGraphElementNotFoundException);
+        }
+        ((VertexProperty<Object>) key1Val1).property("test").remove();
+        key1Val1.remove();
+    }
+
+    static private void createDataModelTestVertex(final GraphTraversalSource g) {
+        g.V().drop().iterate();
+        g.addV("test").property(T.id, 123).iterate();
+        g.V().hasLabel("test").property(VertexProperty.Cardinality.list, "key1", 1, "test", 123).iterate();
+        g.V().hasLabel("test").property(VertexProperty.Cardinality.list,"key1", 1, "test", 123).iterate();
+        g.V().hasLabel("test").property(VertexProperty.Cardinality.list,"key1", 2, "test", 123).iterate();
+        g.V().hasLabel("test").property(VertexProperty.Cardinality.list,"key2", 2, "test", 123).iterate();
+    }
+
+    @Test
+    public void testDateTimeProperties() {
+        final GraphTraversalSource g = graph.traversal();
+        testDateTimePropertiesCases(g);
+    }
+
+    @Test
+    public void testDateTimeMultiSharedWithNumeric() {
+        final GraphTraversalSource g = graph.traversal();
+        g.V().hasLabel("person").property(VertexProperty.Cardinality.list, "birthday", 10)
+                .property(VertexProperty.Cardinality.list, "birthday", new Date(1993, 3, 30)).next();
+        final GraphTraversal matchesLongPushdownButShouldReturn = g.V().hasLabel("person").has("birthday", P.lt(20));
+        final GraphTraversal matchesLongPushdownButShouldNotReturn = g.V().hasLabel("person").has("birthday", P.lt(new Date(1990, 1, 1)));
+        final GraphTraversal matchesDatePushdownButShouldReturn = g.V().hasLabel("person").has("birthday", P.gt(new Date(1990, 1, 1)));
+        final GraphTraversal matchesDatePushdownButShouldNotReturn = g.V().hasLabel("person").has("birthday", P.gt(20));
+        Assert.assertTrue(matchesLongPushdownButShouldReturn.hasNext());
+        Assert.assertFalse(matchesLongPushdownButShouldNotReturn.hasNext());
+        Assert.assertTrue(matchesDatePushdownButShouldReturn.hasNext());
+        Assert.assertFalse(matchesDatePushdownButShouldNotReturn.hasNext());
+    }
+
+    @Test
+    public void testSchemaManagerNoMatchedKey() {
+        final GraphTraversalSource g = graph.traversal();
+        final Long noMatchSchema = graph.getBaseGraph().schemaManager.getVertexLabelRead("thispropertykeywillhaveneverbeenaddedbefore");
+        var v1 = g.addV("v1").next();
+        for (int i = 0; i < 1000; i++) {
+            g.V(v1.id()).property("vpKey" + i, 1L, "vppKey" + i, 1L).next();
+            var v2 = g.addV("vLabel" + i).next();
+            g.addE("eLabel" + i).from(v1).to(v2).property("epKey" + i, 1L).next();
+        }
+
+        try {
+            final String vLabel = graph.getBaseGraph().schemaManager.getVertexLabelString(noMatchSchema);
+            Assert.fail("Grabbed a valid schema string for vLabel when should have thrown an exception.");
+        } catch (final IllegalStateException expected) {
+        }
+        try {
+            final String vp = graph.getBaseGraph().schemaManager.getVertexPropertyString(noMatchSchema);
+            Assert.fail("Grabbed a valid schema string for vp when should have thrown an exception.");
+        } catch (final IllegalStateException expected) {
+        }
+        try {
+            final String vpp = graph.getBaseGraph().schemaManager.getVpPropertyString(noMatchSchema);
+            Assert.fail("Grabbed a valid schema string for vpp when should have thrown an exception.");
+        } catch (final IllegalStateException expected) {
+        }
+        try {
+            final String eLabel = graph.getBaseGraph().schemaManager.getEdgeLabelString(noMatchSchema);
+            Assert.fail("Grabbed a valid schema string for eLabel when should have thrown an exception.");
+        } catch (final IllegalStateException expected) {
+        }
+        try {
+            final String ep = graph.getBaseGraph().schemaManager.getEdgePropertyString(noMatchSchema);
+            Assert.fail("Grabbed a valid schema string for ep when should have thrown an exception.");
+        } catch (final IllegalStateException expected) {
+        }
+
+        Assert.assertFalse(g.V().hasLabel("invalid").hasNext());
+        Assert.assertFalse(g.V(v1.id()).out("invalid").hasNext());
+        Assert.assertFalse(g.V(v1.id()).outE("invalid").hasNext());
+        Assert.assertFalse(g.V(v1.id()).has("invalid").hasNext());
+        Assert.assertFalse(g.V(v1.id()).properties("invalid").hasNext());
+        Assert.assertFalse(g.V(v1.id()).properties().has("invalid").hasNext());
+        Assert.assertFalse(g.V(v1.id()).properties().properties("invalid").hasNext());
+        Assert.assertFalse(g.E().hasLabel("invalid").hasNext());
+        Assert.assertFalse(g.E().has("invalid").hasNext());
+        Assert.assertFalse(g.E().properties("invalid").hasNext());
+    }
+
     @Ignore
     @Test
     public void benchmarkPropertyInsertion() {
@@ -542,19 +812,6 @@ public class TestProperties {
         }
         if (!expectedClone.isEmpty()) {
             Assert.fail("Expected list has additional values compared to actual list.");
-        }
-    }
-
-    private static void assertListPropertyValue(final List<Object> expected, final List<Object> actual) {
-        // This helper assertion function should only be used by testListPropertyValue
-        Assert.assertEquals(expected.size(), actual.size());
-        for (int i = 0; i < 5; i++) {
-            Assert.assertEquals(expected.get(i), actual.get(i));
-        }
-        final byte[] expectedByte = (byte[]) expected.get(5);
-        final byte[] actualByte = (byte[]) actual.get(5);
-        for (int i = 0; i < expectedByte.length; i++) {
-            Assert.assertEquals(expectedByte[i], actualByte[i]);
         }
     }
 }

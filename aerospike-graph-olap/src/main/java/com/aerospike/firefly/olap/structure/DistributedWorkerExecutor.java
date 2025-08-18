@@ -63,6 +63,7 @@ import static com.aerospike.firefly.olap.process.TraversalProgram.MUTATED_MEMORY
 import static com.aerospike.firefly.olap.process.TraversalProgram.SPARK_FLAG;
 import static com.aerospike.firefly.olap.process.TraversalProgram.VOTE_TO_HALT;
 import static com.aerospike.firefly.olap.structure.DistributedGraphComputer.magicSwap;
+import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
 
 public class DistributedWorkerExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(DistributedWorkerExecutor.class);
@@ -108,6 +109,7 @@ public class DistributedWorkerExecutor {
                     schema,
                     maxParallelQuery,
                     isFirst,
+                    partitions,
                     workerCount);
             df = initialInfo.getValue0();
             queryInfo = initialInfo.getValue1();
@@ -140,6 +142,7 @@ public class DistributedWorkerExecutor {
                 throw new InterruptedException();
             }
 
+            Iterator<Traverser> iterator = null;
             try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
                 graph.logInfo = TaskLogger.instance;
                 memory.setGraph(graph);
@@ -151,7 +154,10 @@ public class DistributedWorkerExecutor {
                 // Create VertexProgram for worker and preset iteration start.
                 final FireflyProgram vertexProgram = createVertexProgram(vertexProgramConfig, graph);
                 if (!vertexProgram.validPostProcessSteps()) {
-                    throw new IllegalStateException("Attempting to run an algorithm that does does filter the results down after execution, how to filter results please consult documentation. If you have a small dataset, you may try rerunning the query with \"g.with('allow.unfiltered.algorithm', true)\"");
+                    throw new IllegalStateException("Attempted to run an algorithm that does not filter results after execution. " +
+                            "To apply filtering, please consult the documentation. " +
+                            "If working with a small dataset, you may rerun the query with: " +
+                            "\".with('aerospike.graph.analytics.unfiltered.algorithm.enabled', true)\"");
                 }
 
                 final Codec codec = vertexProgram.getCodec();
@@ -168,7 +174,7 @@ public class DistributedWorkerExecutor {
                         break;
                     }
                 }
-                Iterator<Traverser> iterator;
+
                 if (isFirst) {
                     switch (queryInfo.queryType) {
                         case INDEX:
@@ -185,7 +191,7 @@ public class DistributedWorkerExecutor {
                                     traverserGenerator);
                             iterator = FireflyCloseableIteratorUtils.filter(iterator, t -> {
                                 final Element e = (Element) t.get();
-                                return HasContainer.testAll(e, queryInfo.fireflyHasContainers);
+                                return fireflyTestAll(e, queryInfo.fireflyHasContainers);
                             });
                             break;
                         case SCAN:
@@ -202,7 +208,7 @@ public class DistributedWorkerExecutor {
                                     traverserGenerator);
                             iterator = FireflyCloseableIteratorUtils.filter(iterator, t -> {
                                 final Element e = (Element) t.get();
-                                return HasContainer.testAll(e, queryInfo.fireflyHasContainers);
+                                return fireflyTestAll(e, queryInfo.fireflyHasContainers);
                             });
                             break;
                         case SUPERNODE:
@@ -273,27 +279,49 @@ public class DistributedWorkerExecutor {
 
                 int runningTotal = 0;
                 final Runtime runtime = Runtime.getRuntime();
-                final int maxBatchSize = graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE;
+                final int maxBatchSize = configHelper.getBatchJobSize();
 
                 TimeLog.complete("Setup");
 
+                // only one of following will be used
                 final BulkedRowSet output = new BulkedRowSet(codec);
+                final List<Row> outputList = new ArrayList<>();
+                boolean isBulkingDisabled = configHelper.isBulkingDisabled();
+                int count = 0;
                 while (iterator.hasNext()) {
+                    count++;
                     while (traverserSet.size() < maxBatchSize && iterator.hasNext()) {
                         traverserSet.add(iterator.next().asAdmin());
                     }
-                    TaskLogger.logDebuggingMessage("Input TraverserSet size: " + traverserSet.size() + "/" + runningTotal
-                            + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
-                            ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
-                            " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), LOGGER);
+                    TimeLog.complete("Read iterator");
+
+                    if (configHelper.isForceGC()) {
+                        if ((runtime.freeMemory() / (1024 * 1024)) < 200) {
+                            TaskLogger.logDebuggingMessage("Running GC 2x.", LOGGER);
+                            System.gc();
+                            System.gc();
+                            TaskLogger.logDebuggingMessage("GC complete.", LOGGER);
+                        } else if ((runtime.freeMemory() / (1024 * 1024)) < 500) {
+                            TaskLogger.logDebuggingMessage("Running GC 1x.", LOGGER);
+                            System.gc();
+                            TaskLogger.logDebuggingMessage("GC complete.", LOGGER);
+                        }
+                    }
+
+                    if (configHelper.isDebugDf()) {
+                        TaskLogger.logDebuggingMessage("Input TraverserSet size: " + traverserSet.size() + "/" + runningTotal
+                                + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
+                                ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
+                                " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), LOGGER);
+                    }
                     if (TaskContext.get().isInterrupted()) {
                         throw new InterruptedException();
                     }
-                    TimeLog.complete("Read iterator");
+                    TimeLog.complete("Debug logging");
 
                     runningTotal += traverserSet.size();
                     if (!traverserSet.isEmpty()) {
-                        TaskLogger.logDebuggingMessage("Step: " + new ArrayList<>(traverserSet).get(0).getStepId(), LOGGER);
+                        TaskLogger.logDebuggingMessage("Step: " + traverserSet.peek().getStepId(), LOGGER);
                     }
 
                     final BatchJob job = new BatchJob(traverserSet);
@@ -301,9 +329,13 @@ public class DistributedWorkerExecutor {
                     traverserSet.clear();
                     TimeLog.complete("Running BatchJob");
 
-                    // TODO: Is this correct for all cases ?
-                    final TraverserSet<Traverser.Admin> traversers = job.getResults();
-                    output.addAll(traversers);
+                    if (!isBulkingDisabled) {
+                        output.addAll(job.getResults());
+                    } else {
+                        for (final Traverser.Admin t : job.getResults()) {
+                            outputList.add(codec.encode(t));
+                        }
+                    }
                     job.clear();
                     TimeLog.complete("Encoding");
 
@@ -311,6 +343,15 @@ public class DistributedWorkerExecutor {
                         TaskLogger.logDebuggingMessage("Limit reached " + memory.get(limitStepKey), LOGGER);
                         break;
                     }
+                    if (count % 20 == 0)
+                        TimeLog.log(graph);
+                }
+
+                if (configHelper.isDebugDf()) {
+                    TaskLogger.logDebuggingMessage("Ending with " + (isBulkingDisabled ? outputList.size() : output.rowCount()) + " rows."
+                            + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
+                            ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
+                            " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), LOGGER);
                 }
 
                 // End worker iteration.
@@ -320,19 +361,22 @@ public class DistributedWorkerExecutor {
                 TimeLog.complete("Worker iteration end");
 
                 // Return results.
-                TaskLogger.logDebuggingMessage("Ending with " + output.rowCount() + " rows."
-                        + " Total allocated(Mb)=" + runtime.totalMemory() / (1024 * 1024) +
-                        ", Free memory=" + runtime.freeMemory() / (1024 * 1024) +
-                        " Used memory=" + (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024), LOGGER);
                 TimeLog.log(graph);
-                if (iterator instanceof CloseableIterator) {
-                    ((CloseableIterator) iterator).close();
+                if (isBulkingDisabled) {
+                    TaskLogger.logDebuggingMessage("Returning " + outputList.size() + " rows.", LOGGER);
+                    return outputList.iterator();
                 }
                 return output.iterator();
             } catch (final Exception e) {
                 TaskLogger.logDebuggingMessage("ERROR", LOGGER);
                 e.printStackTrace();
                 throw e;
+            } finally {
+                if (iterator != null) {
+                    if (iterator instanceof CloseableIterator) {
+                        ((CloseableIterator) iterator).close();
+                    }
+                }
             }
         }, RowEncoder.apply(schema));
     }
@@ -422,6 +466,7 @@ public class DistributedWorkerExecutor {
                                                                    final StructType outputSchema,
                                                                    final int maxParallelQuery,
                                                                    final boolean isFirst,
+                                                                   final Optional<Integer> partitions,
                                                                    final int workerCount) {
         QueryInfo queryInfo;
         if (isFirst) {
@@ -441,13 +486,23 @@ public class DistributedWorkerExecutor {
                 final List<Row> queryRanges;
                 final StructType inputSchema;
                 if (!queryInfo.queryType.equals(QueryInfo.QueryType.SUPERNODE)) {
-                    queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount)).
-                            stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
+                    if (partitions.isPresent()) {
+                        queryRanges = Range.splitPartitions(partitions.get()).
+                                stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
+                    } else {
+                        queryRanges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount)).
+                                stream().map(range -> RowFactory.create(range.start, range.count)).collect(Collectors.toList());
+                    }
                     inputSchema = new StructType().
                             add(START_COL, DataTypes.IntegerType, false).
                             add(COUNT_COL, DataTypes.IntegerType, false);
                 } else {
-                    final List<Range> ranges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount));
+                    final List<Range> ranges;
+                    if (partitions.isPresent()) {
+                        ranges = Range.splitPartitions(partitions.get());
+                    } else {
+                        ranges = Range.splitPartitions(Math.min(maxParallelQuery, workerCount));
+                    }
                     queryRanges = new ArrayList<>();
                     for (int i = 0; i < ranges.size(); i++) {
                         final Range range = ranges.get(i);
@@ -508,7 +563,11 @@ public class DistributedWorkerExecutor {
                 if (configHelper.isDebugDf()) {
                     System.out.println("Starting query with " + idDataset.rdd().partitions().length + " partitions.");
                 }
-                return new Pair<>(magicSwap(idDataset.repartition(maxParallelQuery)), queryInfo);
+                if (partitions.isPresent()) {
+                    return new Pair<>(magicSwap(idDataset.repartition(partitions.get())), queryInfo);
+                } else {
+                    return new Pair<>(magicSwap(idDataset.repartition(maxParallelQuery)), queryInfo);
+                }
             }
         } else {
             throw new RuntimeException("Error, input is null and this is not the first step. Please contact support.");

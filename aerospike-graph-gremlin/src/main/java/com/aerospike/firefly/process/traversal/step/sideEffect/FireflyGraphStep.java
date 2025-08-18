@@ -16,7 +16,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.AndP;
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -31,6 +30,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
+import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -96,6 +97,10 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
 
     public void addProperties(final List<String> properties) {
         this.properties = new ArrayList<>(properties);
+    }
+
+    public List<String> getProperties() {
+        return this.properties;
     }
 
     /**
@@ -327,7 +332,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             // Find next element that matches HasContainer.
             while (i.hasNext()) {
                 e = i.next();
-                if (HasContainer.testAll(e, this.hasContainers)) {
+                if (fireflyTestAll(e, this.hasContainers)) {
                     valid = true;
                     return true;
                 }

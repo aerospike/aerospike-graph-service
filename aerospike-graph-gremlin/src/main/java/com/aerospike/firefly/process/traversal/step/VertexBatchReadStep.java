@@ -30,12 +30,15 @@ public abstract class VertexBatchReadStep extends CollectingBarrierStep<Edge> im
     protected final List<HasContainer> aerospikeHasContainers;
     protected final int barrierSize;
     protected final boolean areEdgesRequired;
+    private final long limit;
+    private long runningTotal = 0;
 
     public VertexBatchReadStep(final Traversal.Admin traversal,
                                final List<HasContainer> hasContainers,
                                final Set<String> labels,
                                final int barrierSize,
-                               final boolean areEdgesRequired) {
+                               final boolean areEdgesRequired,
+                               final long limit) {
         super(traversal, barrierSize);
         this.areEdgesRequired = areEdgesRequired;
 
@@ -55,10 +58,15 @@ public abstract class VertexBatchReadStep extends CollectingBarrierStep<Edge> im
             fireflyHasContainers = List.of();
             aerospikeHasContainers = List.of();
         }
+        this.limit = limit;
     }
 
     @Override
     public void barrierConsumer(final TraverserSet<Edge> set) {
+        if (limit != -1 && runningTotal >= limit) {
+            set.clear();
+            return; // Limit reached in previous barrier consumer, stop processing.
+        }
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         FireflyBatchReadHelper.pullFromLeft(traversal, graph, set, barrierSize);
 
@@ -89,12 +97,21 @@ public abstract class VertexBatchReadStep extends CollectingBarrierStep<Edge> im
 
             if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
-                FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
+                runningTotal += FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                         fireflyVertexMap, fireflyBatchEdgeReadStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, null, areEdgesRequired);
+                if (limit != -1 && runningTotal >= limit) {
+                    if (output.isEmpty()) {
+                        set.add(EmptyTraverser.instance());
+                    } else {
+                        set.addAll(output);
+                        output.clear(); // Force garbage collection.
+                    }
+                    return; // Limit reached, stop processing.
+                }
             }
         }
 
-        FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
+        runningTotal += FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                 fireflyVertexMap, fireflyBatchEdgeReadStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, null, areEdgesRequired);
 
         if (output.isEmpty()) {

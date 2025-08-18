@@ -50,6 +50,11 @@ public class FireflyAdjacentVertexStrategyTest {
             t.asAdmin().applyStrategies();
             steps = t.asAdmin().getSteps();
             Assert.assertFalse(containsCustomStep(steps));
+
+            t = g.V().both().both().id();
+            t.asAdmin().applyStrategies();
+            steps = t.asAdmin().getSteps();
+            Assert.assertTrue(containsCustomStep(steps));
         } finally {
             graph.getBaseGraph().dropDatabase(graph, true);
             graph.close();

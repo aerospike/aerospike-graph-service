@@ -11,7 +11,6 @@ public class BulkLoadStatusTokens {
     public static String BULK_LOAD_STATUS_SUCCESS = "success";
     public static String BULK_LOAD_STATUS_ERROR = "error";
 
-    public static String BULK_LOAD_EXCEPTION = "exception";
     public static String BULK_LOAD_EXCEPTION_MESSAGE = "message";
     public static String BULK_LOAD_EXCEPTION_STACKTRACE = "stacktrace";
 

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.call;
 
+import org.apache.commons.collections.IteratorUtils;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -46,8 +47,8 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
             g.V().drop().iterate();
             g.E().drop().iterate();
             g.with("evaluationTimeout", 60000).call("aerospike.graphloader.admin.bulk-load.load")
-                    .with("aerospike.graphloader.vertices", "s3://gha-ci-firefly-bulkloader/vertices/")
-                    .with("aerospike.graphloader.edges", "s3://gha-ci-firefly-bulkloader/edges/")
+                    .with("aerospike.graphloader.vertices", "s3://gha-ci-firefly-bulkloader/vertices_ags3/")
+                    .with("aerospike.graphloader.edges", "s3://gha-ci-firefly-bulkloader/edges_ags3/")
                     .with("aerospike.graphloader.remote-user", System.getenv("AWS_ACCESS_KEY_ID"))
                     .with("aerospike.graphloader.remote-passkey", System.getenv("AWS_SECRET_ACCESS_KEY"))
                     .next();
@@ -61,8 +62,8 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
             g.V().drop().iterate();
             g.E().drop().iterate();
             g.with("evaluationTimeout", 60000).call("aerospike.graphloader.admin.bulk-load.load")
-                    .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices/")
-                    .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges/")
+                    .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices_ags3/")
+                    .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges_ags3/")
                     .with("aerospike.graphloader.remote-user", System.getenv("GCS_PRIVATE_KEY_ID"))
                     .with("aerospike.graphloader.remote-passkey", System.getenv("GCS_PRIVATE_KEY"))
                     .with("aerospike.graphloader.gcs-email", System.getenv("GCS_CLIENT_EMAIL"))
@@ -84,6 +85,78 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
             Assert.assertEquals("Initializing the bulk loader was interrupted. This is most likely caused by the" +
                     " specified configuration requiring more time. Please retry using the '.with(\"evaluationTimeout\")'" +
                     " traversal modifier or contact support if the problem persists.", e.getCause().getMessage());
+        }
+    }
+
+    @Test
+    public void testRemoteDuplicateVertexId() throws Exception {
+        try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
+            g.V().drop().iterate();
+            g.E().drop().iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load")
+                    .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/dupe-vid-vertices")
+                    .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/dupe-vid-edges")
+                    .next();
+            waitForBulkLoad(g);
+            Assert.assertEquals(2, (long) g.V().count().next());
+            Assert.assertEquals(2, (long) g.E().count().next());
+            Assert.assertEquals(0, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "bad-edges")).size());
+            Assert.assertEquals(2, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "duplicate-vertex-ids")).size());
+            Assert.assertEquals(0, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "bad-entries")).size());
+        }
+    }
+
+    @Test
+    public void testRemoteBadEdges() throws Exception {
+        try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
+            g.V().drop().iterate();
+            g.E().drop().iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load")
+                    .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/bad-edge-vertices")
+                    .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/bad-edge-edges")
+                    .next();
+            waitForBulkLoad(g);
+            Assert.assertEquals(2, (long) g.V().count().next());
+            Assert.assertEquals(2, (long) g.E().count().next());
+            Assert.assertEquals(2, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "bad-edges")).size());
+            Assert.assertEquals(0, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "duplicate-vertex-ids")).size());
+            Assert.assertEquals(0, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "bad-entries")).size());
+        }
+    }
+
+    @Test
+    public void testRemoteBadEntry() throws Exception {
+        try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
+            g.V().drop().iterate();
+            g.E().drop().iterate();
+            g.call("aerospike.graphloader.admin.bulk-load.load")
+                    .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/bad-entry-vertices")
+                    .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/bad-entry-edges")
+                    .next();
+            waitForBulkLoad(g);
+            Assert.assertEquals(2, (long) g.V().count().next());
+            Assert.assertEquals(2, (long) g.E().count().next());
+            Assert.assertEquals(0, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "bad-edges")).size());
+            Assert.assertEquals(0, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "duplicate-vertex-ids")).size());
+            Assert.assertEquals(4, IteratorUtils.toList(g.
+                    call("aerospike.graphloader.admin.bulk-load.errors").
+                    with("type", "bad-entries")).size());
         }
     }
 }

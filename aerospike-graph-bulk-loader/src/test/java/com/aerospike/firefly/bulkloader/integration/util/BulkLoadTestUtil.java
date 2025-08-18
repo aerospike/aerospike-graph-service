@@ -5,7 +5,7 @@ import org.junit.Assert;
 
 import java.util.Map;
 
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_EXCEPTION;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_EXCEPTION_MESSAGE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_ERROR;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoadStatusTokens.BULK_LOAD_STATUS_SUCCESS;
@@ -26,7 +26,7 @@ public class BulkLoadTestUtil {
         Assert.assertEquals(BULK_LOAD_STATUS_SUCCESS, status.get(BULK_LOAD_STATUS_KEY));
     }
 
-    static public Exception waitForBulkLoadFail(final GraphTraversalSource g) {
+    static public String waitForBulkLoadFail(final GraphTraversalSource g) {
         Map<String, Object> status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
         while (!(boolean)status.get(PROGRESS_COMPLETE)) {
             status = (Map<String, Object>) g.call("aerospike.graphloader.admin.bulk-load.status").next();
@@ -37,6 +37,6 @@ public class BulkLoadTestUtil {
             }
         }
         Assert.assertEquals(BULK_LOAD_STATUS_ERROR, status.get(BULK_LOAD_STATUS_KEY));
-        return (Exception) status.get(BULK_LOAD_EXCEPTION);
+        return (String) status.get(BULK_LOAD_EXCEPTION_MESSAGE);
     }
 }

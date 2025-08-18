@@ -49,7 +49,7 @@ public class TestDistributedAerospikeConnection {
         final long elementCount = 10_000;
         final long packSize = 10;
         final DistributedAerospikeConnection ddb =
-                new DistributedAerospikeConnection(db, db.getNamespace(), db.OLAP_SET, elementCount, packSize);
+                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_SET, elementCount, packSize);
         final List<String> ids = Stream.range(1, 10_001).map(String::valueOf).collect(Collectors.toList());
         assertEquals(10_000, ids.size());
         for (final String id : ids) {
@@ -65,7 +65,7 @@ public class TestDistributedAerospikeConnection {
         final long elementCount = 10_000;
         final long packSize = 10;
         final DistributedAerospikeConnection ddb =
-                new DistributedAerospikeConnection(db, db.getNamespace(), db.OLAP_SET, elementCount, packSize);
+                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_SET, elementCount, packSize);
         final List<String> ids = Stream.range(1, 10_001).map(String::valueOf).collect(Collectors.toList());
         assertEquals(10_000, ids.size());
         for (final String id : ids) {
@@ -85,7 +85,7 @@ public class TestDistributedAerospikeConnection {
         final long elementCount = 10_000;
         final long packSize = 10;
         final DistributedAerospikeConnection ddb =
-                new DistributedAerospikeConnection(db, db.getNamespace(), db.OLAP_SET, elementCount, packSize);
+                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_SET, elementCount, packSize);
         ddb.setPackedMinValue("foo", "5000");
         final String value = ddb.getPackedMinValue("foo");
         assertEquals("5000", value);
@@ -102,7 +102,7 @@ public class TestDistributedAerospikeConnection {
         final long elementCount = 10_000;
         final long packSize = 10;
         final DistributedAerospikeConnection ddb =
-                new DistributedAerospikeConnection(db, db.getNamespace(), db.OLAP_SET, elementCount, packSize);
+                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_SET, elementCount, packSize);
         final List<String> ids = Stream.range(1, 10_001).map(String::valueOf).collect(Collectors.toList());
         assertEquals(10_000, ids.size());
         for (final String id : ids) {
@@ -115,7 +115,7 @@ public class TestDistributedAerospikeConnection {
 
     @Test
     public void testPairs() {
-        final DistributedAerospikeConnection ddb = new DistributedAerospikeConnection(db, 100, 10);
+        final DistributedAerospikeConnection ddb = new DistributedAerospikeConnection(graph, 100, 10);
 
         for (Integer i = 0; i < 10; i++) {
             ddb.addPair("test", i.toString(), i.doubleValue(), 1);
@@ -131,7 +131,7 @@ public class TestDistributedAerospikeConnection {
 
     @Test
     public void testPackedMaxPairs() {
-        final DistributedAerospikeConnection ddb = new DistributedAerospikeConnection(db, 100, 10);
+        final DistributedAerospikeConnection ddb = new DistributedAerospikeConnection(graph, 100, 10);
 
         // create new
         ddb.setPackedPairMax("test", "a", 1.0, 1);
@@ -160,7 +160,7 @@ public class TestDistributedAerospikeConnection {
 
     @Test
     public void testPackedPairs() {
-        final DistributedAerospikeConnection ddb = new DistributedAerospikeConnection(db, 100, 10);
+        final DistributedAerospikeConnection ddb = new DistributedAerospikeConnection(graph, 100, 10);
 
         // run on empty
         List<Pair<String, Double>> pairs = ddb.getPackedPairs("test", 1);

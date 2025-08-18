@@ -2,6 +2,7 @@ package com.aerospike.firefly.runtime;
 
 import com.aerospike.firefly.runtime.metrics.ServerMetrics;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.transaction.FireflyTransactionOpProcessor;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.ReflectionHelper;
 import com.aerospike.firefly.util.WarmupUtil;
@@ -9,11 +10,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.tinkerpop.gremlin.groovy.engine.GremlinExecutor;
 import org.apache.tinkerpop.gremlin.server.GraphManager;
 import org.apache.tinkerpop.gremlin.server.GremlinServer;
+import org.apache.tinkerpop.gremlin.server.OpProcessor;
 import org.apache.tinkerpop.gremlin.server.Settings;
+import org.apache.tinkerpop.gremlin.server.op.OpLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -77,6 +81,14 @@ public class FireflyServer {
 
             // need to add TraversalSource's to GraphManager
             final GraphManager graphManager = gremlinServer.getServerGremlinExecutor().getGraphManager();
+
+            final Map<String, OpProcessor> processors = (Map<String, OpProcessor>) ReflectionHelper.getFieldValue(OpLoader.class, null, "processors");
+            if (processors.containsKey("session")) {
+                processors.put("session", new FireflyTransactionOpProcessor());
+            } else {
+                // This should only occur if Tinkerpop updates and the internals no longer sets or uses this key
+                throw new RuntimeException("Unexpectedly found no default processor in OpLoader. Please contact support.");
+            }
 
             final Set<String> graphs = graphManager.getGraphNames();
             for (final String graphName : graphs) {

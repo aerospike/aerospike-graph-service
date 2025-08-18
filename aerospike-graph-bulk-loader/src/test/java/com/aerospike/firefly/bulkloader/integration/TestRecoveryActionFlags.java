@@ -81,7 +81,7 @@ public class TestRecoveryActionFlags {
         graph.traversal().V().drop().iterate();
     }
 
-    public void setPartiallyWritten() {
+    public void setPartiallyWritten(final boolean setIncremental) {
         // Partially written means there is data and recovery info available.
         for (int i = 0; i < 300; i++) {
             graph.traversal().addV("test").property("test", "test").next();
@@ -89,6 +89,13 @@ public class TestRecoveryActionFlags {
         RecoveryUtil.updateState(graph.getBaseGraph(), RecoveryUtil.RecoveryState.DETECT_SUPERNODES);
         RecoveryUtil.updateVertexRecovery(graph.getBaseGraph(), 1);
         RecoveryUtil.updateEdgeRecovery(graph.getBaseGraph(), 1);
+        if (setIncremental) {
+            RecoveryUtil.writeIsIncrementalLoad(graph.getBaseGraph(), true);
+        }
+    }
+
+    public void setPartiallyWritten() {
+        setPartiallyWritten(false);
     }
 
     public void setComplete() {
@@ -113,7 +120,7 @@ public class TestRecoveryActionFlags {
             Assert.assertTrue(e.getMessage().contains(INCREMENTAL_LOAD_EMPTY_DATABASE));
         }
 
-        setPartiallyWritten();
+        setPartiallyWritten(true);
         SparkBulkLoaderStateMachine stateMachinePartial = new SparkBulkLoaderStateMachine(
                 new String[]{"-local", "-c", getDefaultConfig(), "-" + RESUME, "-" + INCREMENTAL_LOAD});
         SparkBulkLoaderState statePartial = new SparkBulkLoaderStateStart(stateMachinePartial);

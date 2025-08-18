@@ -93,6 +93,8 @@ public final class ConfigurationHelper {
         public static final String TTL_PURGE_INTERVAL_SECONDS = "aerospike.graph.ttl.purge.interval";
         public static final String MRT_ENABLED_FLAG = "aerospike.graph.mrt.enabled";
         public static final String MRT_TIMEOUT = "aerospike.graph.mrt.timeout";
+        public static final String TRANSACTION_ENABLED_FLAG = "aerospike.graph.tx.enabled";
+        public static final String TRANSACTION_TIMEOUT = "aerospike.graph.tx.timeout";
 
         // Mainly for testing since tinkerpop doesnt force cardinality.
         public static final String VERTEX_PROPERTY_CARDINALITY = "aerospike.graph.vertex.property.cardinality";
@@ -105,6 +107,7 @@ public final class ConfigurationHelper {
         public static final String READ_TOTAL_TIMEOUT_BULK_LOAD = "aerospike.client.bulk-load.policy.read.totalTimeout";
         public static final String WRITE_SLEEP_BETWEEN_RETRY = "aerospike.client.policy.write.sleepBetweenRetry";
         public static final String READ_SLEEP_BETWEEN_RETRY = "aerospike.client.policy.read.sleepBetweenRetry";
+        public static final String LOG_WARMUP_SETS = "aerospike.graph.log.warmup.sets";
 
         // Semi internal semi external configs
         public static final String AEROSPIKE_BATCH_PER_NODE_THRESHOLD = "aerospike.client.batch-threshold.per-node";
@@ -146,6 +149,7 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_MAX_RETRIES = "aerospike.client.policy.maxRetries";
         public static final String TIMEOUT_DELAY = "aerospike.client.policy.timeoutDelay";
         public static final String CONNECT_TIMEOUT = "aerospike.client.policy.connectTimeout";
+        public static final String INFO_TIMEOUT = "aerospike.client.infoPolicy.timeout";
 
         public static final String MERGE_EDGE_TTL = "aerospike.graph.strategy.merge.edge.lock.timeout";
         public static final String MERGE_EDGE_POLL_INTERVAL = "aerospike.graph.strategy.merge.edge.poll.interval";
@@ -167,11 +171,11 @@ public final class ConfigurationHelper {
         public static final String PAGINATION_PAGE_SIZE = "aerospike.graph.pagination.page.size";
         public static final String PAGINATION_PAGE_MAX_WAIT = "aerospike.graph.pagination.max.wait";
         public static final String PAGINATION_SHUTDOWN_WAIT = "aerospike.graph.pagination.shutdown.wait";
-        public static final String OLAP_PAGINATION_WORKERS = "aerospike.graph.olap.pagination.index.workers";
-        public static final String OLAP_WORKERS = "aerospike.graph.olap.workers";
+        public static final String OLAP_PAGINATION_WORKERS = "aerospike.graph.analytics.pagination.index.workers";
+        public static final String OLAP_WORKERS = "aerospike.graph.analytics.workers";
 
         // OLAP configuration flags.
-        public static final String OLAP_ENABLED = "aerospike.graph.olap.enabled";
+        public static final String OLAP_ENABLED = "aerospike.graph.analytics.enabled";
 
         // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "aerospike.graph.auto.preheat.enabled";
@@ -384,7 +388,7 @@ public final class ConfigurationHelper {
         put(Keys.READ_SOCKET_TIMEOUT_BULK_LOAD, "2000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
-        put(Keys.EDGE_ID_RECYCLE_BUFFER_SIZE, "10");
+        put(Keys.EDGE_ID_RECYCLE_BUFFER_SIZE, "100");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
         put(Keys.BULK_LOAD_ID_BUFFER_SIZE, "2000000");
         put(Keys.VERTEX_PROPERTY_CARDINALITY, "single"); // Default to single cardinality
@@ -422,17 +426,21 @@ public final class ConfigurationHelper {
         put(Keys.MIN_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
         put(Keys.CONNECT_TIMEOUT, "0");
         put(Keys.TIMEOUT_DELAY, "2000");
+        put(Keys.INFO_TIMEOUT, "3000");
         put(Keys.WRITE_TOTAL_TIMEOUT, "2500");
         put(Keys.READ_TOTAL_TIMEOUT, "150");
         put(Keys.READ_TOTAL_TIMEOUT_BULK_LOAD, "6000");
         put(Keys.WRITE_SLEEP_BETWEEN_RETRY, "500");
         put(Keys.READ_SLEEP_BETWEEN_RETRY, "0");
+        put(Keys.LOG_WARMUP_SETS, "false");
         put(Keys.PROMETHEUS_RENAME, "true");
         put(Keys.DEBUG_MODE_FLAG, "false");
         put(Keys.TTL_ENABLED_FLAG, "false");
         put(Keys.TTL_PURGE_INTERVAL_SECONDS, "2");
         put(Keys.MRT_ENABLED_FLAG, "false");
         put(Keys.MRT_TIMEOUT, "0"); // SECONDS
+        put(Keys.TRANSACTION_ENABLED_FLAG, "false");
+        put(Keys.TRANSACTION_TIMEOUT, "0"); // SECONDS
         put(Keys.USAGE_STATS_UPDATE_INTERVAL, "3600000"); // 1 hour default
         put(Keys.AUTH_MODE, "internal");
         put(Keys.CLIENT_SERVICES_ALTERNATE, "false");
@@ -515,6 +523,7 @@ public final class ConfigurationHelper {
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.MAX_ERROR_RATE, 0);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.CONNECT_TIMEOUT, 0);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.TIMEOUT_DELAY, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.INFO_TIMEOUT, 0);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.USAGE_STATS_UPDATE_INTERVAL, 1);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.MAX_CONNECTIONS_PER_NODE, 1);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.MIN_CONNECTIONS_PER_NODE, 1);
@@ -525,6 +534,7 @@ public final class ConfigurationHelper {
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.DELAY_QUEUE_SIZE, 0);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, 0);
         INTEGER_CONFIG_VALIDATOR.addConfig(Keys.MRT_TIMEOUT, 0, 120);
+        INTEGER_CONFIG_VALIDATOR.addConfig(Keys.TRANSACTION_TIMEOUT, 0, 120);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.QUERY_TRACING_LOG_THRESHOLD, -1);
         INTEGER_CONFIG_VALIDATOR.addConfig(Keys.QUERY_TRACING_SAMPLE_PERCENT, 1, 100);
     }
@@ -730,7 +740,7 @@ public final class ConfigurationHelper {
     }
 
     public static String getPrefix(final Configuration config) {
-        return config.containsKey(Keys.GRAPH_ID.toLowerCase()) ? config.get(String.class, Keys.GRAPH_ID.toLowerCase()) + "_" : DEFAULT_VALUES.get(Keys.GRAPH_ID) + "_";
+        return getOrDefaultString(Keys.GRAPH_ID, config) + "_";
     }
 
     public static String aerospikeNamespace(final Configuration c) {
@@ -793,7 +803,7 @@ public final class ConfigurationHelper {
             if (System.getenv("FIREFLY_TESTING") != null && System.getenv("FIREFLY_TESTING").equals("true")) {
                 throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
             } else {
-                if (config.containsKey("aerospike.graph.olap.enabled") && config.getBoolean("aerospike.graph.olap.enabled")) {
+                if (config.containsKey("aerospike.graph.analytics.enabled") && config.getBoolean("aerospike.graph.analytics.enabled")) {
                     // In olap we want this to be thrown back to the user so it doesnt die silently.
                     throw new ConfigurationRuntimeException("Error, the following configuration keys are invalid: " + invalidKeys);
                 }

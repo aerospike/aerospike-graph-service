@@ -1,6 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import ch.qos.logback.classic.Level;
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Log;
@@ -35,6 +36,7 @@ import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
 import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.runtime.zipkin.OpenTelemetryZipkinExporter;
+import com.aerospike.firefly.structure.transaction.FireflyTransaction;
 import com.aerospike.firefly.structure.util.LogInfo;
 import com.aerospike.firefly.util.config.FireflyConfiguration;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
@@ -53,6 +55,7 @@ import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.PluginUtil;
 import com.aerospike.firefly.util.concurrency.FireflyRecordLockHandler;
+import com.aerospike.firefly.util.exceptions.TxNotEnabledException;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
@@ -70,7 +73,6 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
-import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.service.ServiceRegistry;
@@ -124,7 +126,6 @@ import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.QUERY_T
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.QUERY_TRACING_LOG_PORT;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.QUERY_TRACING_LOG_THRESHOLD;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.QUERY_TRACING_SAMPLE_PERCENT;
-import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -264,6 +265,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static ExitManager EXIT_MANAGER = new ExitManager();
     public static boolean NEED_PREHEAT = true;
     public final GraphQuery graphQuery;
+    private final FireflyTransaction transaction;
     private boolean queryTracingEnabled = false;
     private OpenTelemetryZipkinExporter zipkinExporter;
     public LogInfo logInfo = null;
@@ -319,7 +321,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 // Default to single.
                 vpCardinality = VertexProperty.Cardinality.single;
             }
-            this.features = new FireflyFeatures(vpCardinality);
+            this.features = new FireflyFeatures(vpCardinality, this.db.TRANSACTION_ENABLED);
 
             // Create index metadata background task that will populate indexes for the named graph on the fly.
             fireflyIndexMetadata = new FireflyIndexMetadata(db);
@@ -359,6 +361,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                     PluginUtil.loadPlugin(plugin, conf, this);
                 }
             }
+
+            this.transaction = new FireflyTransaction(this);
+            this.db.setTransaction(this.transaction);
 
             if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && !db.getOlapFlag()) {
                 // Create usage statistics background task. Only one per server
@@ -423,8 +428,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         final boolean isTesting = Boolean.parseBoolean(System.getenv("FIREFLY_TESTING"));
         if (FIREFLY_VERSION != null && FIREFLY_VERSION.endsWith("SNAPSHOT") && !isTesting) {
-            final String commitHash = getGitCommitHash();
-            LOG.info("Built from git commit " + commitHash);
+            try {
+                final String commitHash = getGitCommitHash();
+                LOG.info("Built from git commit hash: {}", commitHash);
+            } catch (final Exception e) {
+                LOG.warn("Could not get the git commit hash: {}", e.getMessage());
+            }
         }
 
         if (System.getenv("FIREFLY_TESTING") != null &&
@@ -502,6 +511,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } catch (final Exception e) {
             if (ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, fireflyConf)) {
                 ConfigurationHelper.restoreLogLevel(fireflyConf);
+                throw e;
+            }
+            if (ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, fireflyConf)) {
+                LOG.error("Failed to start an Aerospike Graph Service instance during Bulk Loading: {}", e.getMessage());
                 throw e;
             }
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");
@@ -607,7 +620,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         while (true) {
             try {
                 GraphTraversal t = traversal().mergeV(CollectionUtil.asMap(T.id, id))
-                        .option(Merge.onCreate, Map.of(BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE, isEdgeCacheOverflowed, BULK_LOAD_VERTEX_ADD_KEY, partitionId, T.label, label));
+                        .option(Merge.onCreate,
+                                Map.of(
+                                        BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE, isEdgeCacheOverflowed,
+                                        BULK_LOAD_VERTEX_ADD_KEY, partitionId,
+                                        T.label, label));
                 for (final Map.Entry<String, Object> entry : properties) {
                     if (VertexProperty.Cardinality.list.equals(vpCardinalities.get(entry.getKey()))) {
                         t = t.property(VertexProperty.Cardinality.list, entry.getKey(), entry.getValue());
@@ -655,8 +672,15 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         try {
             // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
             // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
-            aerospikeOperations.writeVertex(idValue, label, properties, false, supernode, partitionId, toEdgeCache, fromEdgeCache);
+            aerospikeOperations.writeVertex(idValue, label, properties, true, supernode, partitionId, toEdgeCache, fromEdgeCache);
         } catch (final AerospikeGraphException e) {
+            // Can throw exception if vertex already exists - this is fine because there may be duplicates.
+            if (e.getCause() instanceof AerospikeException) {
+                final AerospikeException ae = (AerospikeException) e.getCause();
+                if (ae.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                    return;
+                }
+            }
             throw new FireflyLoadingException(e);
         }
     }
@@ -846,14 +870,15 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final Map<String, Object> typeHints = new HashMap<>();
         properties.forEach(property -> {
             final String key = property.getKey();
-            final Object value = FireflyHelper.validatePropertyValue(property.getValue());
+            final Object originalValue = FireflyHelper.validatePropertyValue(property.getValue());
+            final Object aerospikeWritableValue = FireflyHelper.convertValueToAerospikeWriteable(originalValue);
 
-            if (value == null) {
+            if (originalValue == null) {
                 propertyMap.remove(key);
                 typeHints.remove(key);
             } else {
-                propertyMap.put(key, value);
-                final Object typeHint = getTypeHintOf(value);
+                propertyMap.put(key, aerospikeWritableValue);
+                final Object typeHint = getTypeHintOf(originalValue);
                 if (typeHint != null) {
                     typeHints.put(key, typeHint);
                 }
@@ -1102,7 +1127,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } catch (final InvocationTargetException | NoSuchMethodException | ClassNotFoundException |
                        InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
-            throw new IllegalStateException("ERROR: To use OLAP, use the docker image with OLAP support or a Spark cluster.", e);
+            throw new IllegalStateException("ERROR: To use Aerospike Graph Analytics, use the docker image with Aerospike Graph Analytics support or a Spark cluster.", e);
         }
     }
 
@@ -1119,7 +1144,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } catch (final InvocationTargetException | NoSuchMethodException | ClassNotFoundException |
                        InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
-            throw new IllegalStateException("ERROR: To use OLAP, use the docker image with OLAP support or a Spark cluster.", e);
+            throw new IllegalStateException("ERROR: To use Aerospike Graph Analytics, use the docker image with Aerospike Graph Analytics support or a Spark cluster.", e);
         }
     }
 
@@ -1250,8 +1275,21 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     @Override
-    public Transaction tx() {
-        throw new UnsupportedOperationException(UNIMPLEMENTED);
+    public FireflyTransaction tx() {
+        return this.transaction;
+    }
+
+    public void enterTransactionState() {
+        if (!this.getBaseGraph().TRANSACTION_ENABLED) {
+            throw new TxNotEnabledException(this.getBaseGraph().GRAPH_ID);
+        }
+        LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("enterTransactionState on Thread: {}");
+        this.transaction.enterTransactionState();
+    }
+
+    public void exitTransactionState() {
+        LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("exitTransactionState on Thread: {}");
+        this.transaction.exitTransactionState();
     }
 
     @Override
@@ -1285,6 +1323,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
             if (this.ttlHandler != null) {
                 this.ttlHandler.close();
+            }
+
+            if (this.transaction != null) {
+                this.transaction.close();
             }
 
             if (this.zipkinExporter != null) {

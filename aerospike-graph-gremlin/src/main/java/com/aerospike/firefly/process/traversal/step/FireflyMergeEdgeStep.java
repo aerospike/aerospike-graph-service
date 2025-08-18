@@ -67,6 +67,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         if (step.getCallbackRegistry() != null) this.callbackRegistry = step.getCallbackRegistry();
         if (step.getOutVTraversal() != null) this.addChildOption(Merge.outV, step.getOutVTraversal());
         if (step.getInVTraversal() != null) this.addChildOption(Merge.inV, step.getInVTraversal());
+        step.getLabels().forEach(label -> addLabel((String) label));
     }
 
     public FireflyMergeEdgeStep(final Traversal.Admin traversal, final boolean isStart) {
@@ -322,11 +323,13 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         if (validOnCreate) {
             FireflyRecordLockHandler.FireflyRecordLock lock = null;
             try {
+                final FireflyGraph graph = ((FireflyGraph) getGraph());
                 LOG.debug("Getting MergeEdge record lock for OUT Vertex {} and IN Vertex {}.",
                         onCreateMap.get(Direction.OUT), onCreateMap.get(Direction.IN));
-                final FireflyGraph graph = ((FireflyGraph) getGraph());
                 lock = graph.getRecordLockHandler().getLock(FireflyRecord.getMergeEdgeKey(graph,
                         onCreateMap.get(Direction.OUT), onCreateMap.get(Direction.IN)));
+                LOG.debug("Obtained MergeEdge record lock for OUT Vertex {} and IN Vertex {}.",
+                        onCreateMap.get(Direction.OUT), onCreateMap.get(Direction.IN));
                 return lockedFlatMap(traverser, mergeMap, onCreateMap);
             } finally {
                 if (lock != null) {

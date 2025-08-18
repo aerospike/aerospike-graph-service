@@ -2,10 +2,7 @@ package com.aerospike.firefly.io.aerospike.query.paged;
 
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.Filter;
-import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
-import com.aerospike.client.query.Statement;
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.util.Iterator;
@@ -24,7 +21,8 @@ public class PartitionedSindexPageFetcher<R> extends SindexPageFetcher<R> {
 
     public PartitionedSindexPageFetcher(final FireflyGraph graph,
                                         final QueryPolicy policy,
-                                        final String setName, final String namespace,
+                                        final String setName,
+                                        final String namespace,
                                         final Filter filter,
                                         final int maxPageSize,
                                         final FireflyGraph.TransformKeyRecord<R> transformKeyRecord,

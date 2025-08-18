@@ -5,6 +5,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -24,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -59,7 +61,7 @@ public class ConcurrentFireflyInstanceTest {
             final FireflyVertex b = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createVertexId(2), "foo", new ArrayList<>());
             for (int i = 0; i < INITIAL_COUNT; i++) {
                 final byte[] id = getBytesId(i);
-                fireflyGraph.getAerospikeOperations().writeEdge(fireflyGraph.getIdFactory().createEdgeId(id), "bar", new ArrayList<>(), a, b);
+                fireflyGraph.getAerospikeOperations().writeEdgeWithNoTransaction(fireflyGraph.getIdFactory().createEdgeId(id), "bar", new ArrayList<>(), a, b);
             }
             final CyclicBarrier gate = new CyclicBarrier(THREAD_COUNT + 1);
             ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT);
@@ -70,7 +72,7 @@ public class ConcurrentFireflyInstanceTest {
             gate.await();
             for (int i = 0; i < ADD_REMOVE_COUNT; i++) {
                 final byte[] id = getBytesId(INITIAL_COUNT + i + 100 * ADD_REMOVE_COUNT);
-                final FireflyEdge edge = fireflyGraph.getAerospikeOperations().writeEdge(fireflyGraph.getIdFactory().createEdgeId(id), "bar", new ArrayList<>(), a, b);
+                final FireflyEdge edge = fireflyGraph.getAerospikeOperations().writeEdgeWithNoTransaction(fireflyGraph.getIdFactory().createEdgeId(id), "bar", new ArrayList<>(), a, b);
             }
             executorService.shutdown();
             executorService.awaitTermination(30, TimeUnit.SECONDS);
@@ -98,7 +100,7 @@ public class ConcurrentFireflyInstanceTest {
             final FireflyVertex b = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createVertexId(2), "foo", new ArrayList<>());
             for (int i = 0; i < INITIAL_COUNT; i++) {
                 final byte[] id = getBytesId(i);
-                fireflyGraph.getAerospikeOperations().writeEdge(fireflyGraph.getIdFactory().createEdgeId(id), "bar", new ArrayList<>(), a, b);
+                fireflyGraph.getAerospikeOperations().writeEdgeWithNoTransaction(fireflyGraph.getIdFactory().createEdgeId(id), "bar", new ArrayList<>(), a, b);
             }
             final CyclicBarrier gate = new CyclicBarrier(THREAD_COUNT + 1);
             ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT);
@@ -137,7 +139,7 @@ public class ConcurrentFireflyInstanceTest {
             final FireflyVertex b = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createVertexId(2), "foo", new ArrayList<>());
             for (int i = 0; i < INITIAL_COUNT; i++) {
                 final byte[] id = getBytesId(i);
-                fireflyGraph.getAerospikeOperations().writeEdge(fireflyGraph.getIdFactory().createEdgeId(id), "bar", new ArrayList<>(), a, b);
+                fireflyGraph.getAerospikeOperations().writeEdgeWithNoTransaction(fireflyGraph.getIdFactory().createEdgeId(id), "bar", new ArrayList<>(), a, b);
             }
             final CyclicBarrier gate = new CyclicBarrier((2 * THREAD_COUNT) + 1);
             final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT * 2);
@@ -149,7 +151,7 @@ public class ConcurrentFireflyInstanceTest {
             gate.await();
             for (int i = 0; i < ADD_REMOVE_COUNT; i++) {
                 final byte[] id = getBytesId(INITIAL_COUNT + i + 100 * ADD_REMOVE_COUNT);
-                fireflyGraph.getAerospikeOperations().writeEdge(fireflyGraph.getIdFactory().createEdgeId(id), "bar", new ArrayList<>(), a, b);
+                fireflyGraph.getAerospikeOperations().writeEdgeWithNoTransaction(fireflyGraph.getIdFactory().createEdgeId(id), "bar", new ArrayList<>(), a, b);
             }
             executorService.shutdown();
             executorService.awaitTermination(30, TimeUnit.SECONDS);
@@ -381,6 +383,75 @@ public class ConcurrentFireflyInstanceTest {
         }
     }
 
+    @Test
+    public void concurrentFireflyInstanceAllMultiPropertyTraversalsCombinedTest() throws InterruptedException {
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
+            final GraphTraversalSource masterG = fireflyGraph.traversal();
+            final Object id = masterG.addV("foo").next().id();
+            final AtomicBoolean isRunning = new AtomicBoolean(true);
+            final AtomicReference<Exception> exception = new AtomicReference<>(null);
+            final Random rng = new Random();
+            final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT * 2);
+            for (int i = 0; i < THREAD_COUNT * 2; i++) {
+                executorService.submit(() -> {
+                    while (isRunning.get()) {
+                        final int cardRng = rng.nextInt(10);
+                        final int addOrRemoveRng = rng.nextInt(10);
+                        final int valueKeyRng = rng.nextInt(5);
+                        final int valueTypeRng = rng.nextInt(7);
+                        try {
+                            final GraphTraversalSource g = fireflyGraph.traversal();
+                            if (addOrRemoveRng < 1) {
+                                g.V(id).properties(String.valueOf(valueKeyRng)).drop().iterate();
+                            } else {
+                                final VertexProperty.Cardinality cardinality = cardRng < 1 ?
+                                        VertexProperty.Cardinality.single : VertexProperty.Cardinality.list;
+                                final Object propertyValue;
+                                switch (valueTypeRng) {
+                                    case 0:
+                                        propertyValue = Long.valueOf(rng.nextInt());
+                                        break;
+                                    case 1:
+                                        propertyValue = rng.nextInt();
+                                        break;
+                                    case 2:
+                                        propertyValue = rng.nextDouble() * 1000;
+                                        break;
+                                    case 3:
+                                        final byte[] byteArr = new byte[8];
+                                        rng.nextBytes(byteArr);
+                                        propertyValue = byteArr;
+                                        break;
+                                    case 4:
+                                        propertyValue = RandomStringUtils.randomAlphanumeric(10);
+                                        break;
+                                    case 5:
+                                        propertyValue = (rng.nextInt(2) == 0);
+                                        break;
+                                    default:
+                                        propertyValue = null;
+                                }
+                                g.V(id).property(cardinality, String.valueOf(valueKeyRng), propertyValue).iterate();
+                            }
+                        } catch (final Exception e) {
+                            exception.set(e);
+                            break;
+                        }
+                    }
+                });
+            }
+            final long start = System.currentTimeMillis();
+            while (System.currentTimeMillis() - start < 3500) {
+                Thread.sleep(100);
+            }
+            isRunning.set(false);
+            executorService.shutdown();
+            Assert.assertTrue(executorService.awaitTermination(1, TimeUnit.SECONDS));
+            Assert.assertNull(exception.get());
+        }
+    }
+
     private void concurrentFireflyEdgeRemoval(final FireflyGraph fireflyGraph, int threadIdx, final CyclicBarrier gate) {
         try {
             gate.await();
@@ -399,7 +470,7 @@ public class ConcurrentFireflyInstanceTest {
             gate.await();
             for (int i = 0; i < ADD_REMOVE_COUNT; i++) {
                 final byte[] id = getBytesId(INITIAL_COUNT + i + (long) threadId * ADD_REMOVE_COUNT);
-                graph.getAerospikeOperations().writeEdge(graph.getIdFactory().createEdgeId(id), "bar", new ArrayList<>(), vertexA, vertexB);
+                graph.getAerospikeOperations().writeEdgeWithNoTransaction(graph.getIdFactory().createEdgeId(id), "bar", new ArrayList<>(), vertexA, vertexB);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

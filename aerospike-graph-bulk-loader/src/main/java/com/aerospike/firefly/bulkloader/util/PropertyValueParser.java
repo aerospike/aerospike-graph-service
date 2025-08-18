@@ -1,7 +1,11 @@
 package com.aerospike.firefly.bulkloader.util;
 
+import java.time.OffsetDateTime;
+import java.util.Date;
+
 public class PropertyValueParser {
     private final String nullValue;
+
     public PropertyValueParser(final String nullValue) {
         this.nullValue = nullValue;
     }
@@ -46,22 +50,27 @@ public class PropertyValueParser {
         return value;
     }
 
+    public Date parseDate(final String value) {
+        if (value.equals(this.nullValue)) {
+            return null;
+        }
+
+        return DatetimeHelper.parseDate(value);
+    }
+
+    public OffsetDateTime parseOffsetDateTime(final String value) {
+        if (value.equals(this.nullValue)) {
+            return null;
+        }
+
+        return DatetimeHelper.parseOffsetDateTime(value);
+    }
+
     public static Object parseId(final String id) {
         try {
             return Long.parseLong(id);
         } catch (final NumberFormatException ignored) {
         }
         return id;
-    }
-
-    public Object parseByte(final String value) {
-        if (value == null || value.isEmpty()) {
-            return null;
-        }
-        try {
-            return Byte.parseByte(value);
-        } catch (final NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid byte value: " + value, e);
-        }
     }
 }

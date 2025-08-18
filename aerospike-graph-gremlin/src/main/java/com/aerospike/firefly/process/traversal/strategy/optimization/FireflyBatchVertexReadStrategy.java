@@ -12,11 +12,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalSte
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.SampleGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.IdStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertiesStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
-import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -25,13 +22,15 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.areEdgesRequired;
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.getPropertyKeys;
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.isPropertyRemovalValid;
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.isPropertyStep;
+import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.isVertexOrEdgeStep;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
-
-    private static final Class[] INVALIDATING_STEP_CLASSES_ARRAY = INVALIDATING_STEP_CLASSES.toArray(new Class[]{});
 
     /**
      * Default constructor for FireflyCompositeEdgeIdStrategy.
@@ -69,7 +68,7 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                 continue;
             }
 
-            final boolean propertyRemovalValid = !TraversalHelper.hasStepOfClass(traversal, INVALIDATING_STEP_CLASSES_ARRAY);
+            final boolean propertyRemovalValid = isPropertyRemovalValid(traversal);
 
             // Replace vertex step with composite id step.
             traversal.removeStep(vertexStep);
@@ -97,21 +96,23 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                     final NoOpBarrierStep<?> noOpBarrierStep = (NoOpBarrierStep<?>) steps.get(index);
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
-                } else if (steps.get(index) instanceof PropertiesStep) {
+                } else if (isPropertyStep(steps.get(index))) {
                     if (traversal.isRoot() && propertyRemovalValid) {
-                        // Grab any labels and remove the properties step.
-                        final PropertiesStep<?> propertiesStep = (PropertiesStep<?>) steps.get(index);
-                        final String[] propertyKeyArray = propertiesStep.getPropertyKeys();
-                        if (propertyKeyArray == null || propertyKeyArray.length == 0) {
+                        final List<String> propertyKeyArray = getPropertyKeys(steps.get(index));
+                        if (propertyKeyArray.isEmpty()) {
+                            propertyKeys = null;
                             break;
                         }
-                        propertyKeys = new ArrayList<>();
+                        // hasStep can add something
+                        if (propertyKeys == null) {
+                            propertyKeys = new ArrayList<>();
+                        }
                         for (final String propertyKey : propertyKeyArray) {
                             if (!propertyKeys.contains(propertyKey)) {
                                 propertyKeys.add(propertyKey);
                             }
                         }
-                        labels = propertiesStep.getLabels();
+                        labels = steps.get(index).getLabels();
                     }
                     break;
                 } else if (steps.get(index) instanceof IdStep) {
@@ -129,15 +130,14 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                     final HasStep<?> hasStep = (HasStep<?>) steps.get(index);
                     hasContainers = hasStep.getHasContainers();
 
-                    if (steps.size() > (index + 1) && steps.get(index + 1) instanceof VertexStep) {
-                        if (traversal.isRoot() && propertyRemovalValid) {
-                            propertyKeys = new ArrayList<>();
-                            final List<String> properties = hasContainers.stream().
-                                    map(HasContainer::getKey).collect(Collectors.toList());
-                            for (final String propertyKey : properties) {
-                                if (!propertyKeys.contains(propertyKey)) {
-                                    propertyKeys.add(propertyKey);
-                                }
+                    // hasStep is following by any propertyStep or vertex/edge step
+                    if (propertyRemovalValid && traversal.isRoot() && index + 1 < steps.size()
+                            && (isPropertyStep(steps.get(index + 1)) || isVertexOrEdgeStep(steps.get(index + 1)))) {
+                        propertyKeys = new ArrayList<>();
+                        final List<String> properties = getPropertyKeys(hasContainers);
+                        for (final String propertyKey : properties) {
+                            if (!propertyKeys.contains(propertyKey)) {
+                                propertyKeys.add(propertyKey);
                             }
                         }
                     }
@@ -148,6 +148,9 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                     if (!graph.getBaseGraph().ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY) {
                         break;
                     }
+                    // If there's has containers (g.V().out().has( ...).limit(X)) then don't push down the limit.
+                    if (hasContainers != null && !hasContainers.isEmpty())
+                        break;
                     try {
                         // The sample size is private, need to use reflection to get it so the compiler doesn't complain.
                         final Field sampleField = SampleGlobalStep.class.getDeclaredField("amountToSample");
@@ -208,13 +211,12 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                     break;
                 }
             }
-            if (sampleSize != -1 || limitSize != -1) {
+            if ((sampleSize != -1 || limitSize != -1) && (hasContainers == null || hasContainers.isEmpty())) {
                 traversal.addStep(index, new FireflyBatchVertexReadSampleLimitStep(
                         traversal,
                         vertexStep.getDirection(),
                         vertexStep.getEdgeLabels(),
                         labels,
-                        hasContainers,
                         sampleSize,
                         limitSize,
                         graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
@@ -229,7 +231,12 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                         hasContainers,
                         graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
                         propertyKeys,
-                        areEdgesRequired));
+                        areEdgesRequired,
+                        limitSize));
+                if (sampleSize != -1) {
+                    // Need to force sampling
+                    traversal.addStep(index + 1, new SampleGlobalStep<>(traversal.asAdmin(), sampleSize));
+                }
             }
         }
     }

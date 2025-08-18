@@ -43,10 +43,15 @@ public abstract class FireflyWorldBase implements World {
         add(Pair.with("g_mergeVXname_markoX_optionXonMatch_age_setX33XX", skipCardinalitySet));
     }};
 
-    protected static Configuration getConfiguration(final String graphName, final boolean withMRT) {
+    protected static Configuration getConfiguration(final String graphName, final boolean withMRT,
+                                                    final boolean withTx) {
         final Configuration config = ConfigurationHelper.loadFromFile(Path.of(configLocation));
-        if (withMRT)
+        if (withMRT) {
             config.setProperty(ConfigurationHelper.Keys.MRT_ENABLED_FLAG, "true");
+        }
+        if (withTx) {
+            config.setProperty(ConfigurationHelper.Keys.TRANSACTION_ENABLED_FLAG, "true");
+        }
         config.setProperty(ConfigurationHelper.Keys.GRAPH_ID, graphName);
         config.setProperty(ConfigurationHelper.Keys.TRAVERSAL_NAME, "g" + graphName);
         config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
@@ -55,8 +60,9 @@ public abstract class FireflyWorldBase implements World {
         return config;
     }
 
-    protected static FireflyGraph createFireflyGraph(final String graphName, final Graph graph, final boolean withMRT) {
-        final FireflyGraph firefly = FireflyGraph.open(getConfiguration(graphName, withMRT));
+    protected static FireflyGraph createFireflyGraph(final String graphName, final Graph graph, final boolean withMRT ,
+                                                     final boolean withTx) {
+        final FireflyGraph firefly = FireflyGraph.open(getConfiguration(graphName, withMRT, withTx));
         firefly.getBaseGraph().dropDatabase(firefly, false);
         GraphHelper.cloneElements(graph, firefly);
         return firefly;

@@ -16,6 +16,12 @@
             <artifactId>aerospike-client-bc-jdk8</artifactId>
             <version>${aerospike-client.version}</version>
         </dependency>
+        <!-- Include Netty explicitly to ensure version compatibility -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+            <version>${netty.version}</version>
+        </dependency>
         <!-- TINKERPOP -->
         <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6475534 in gremlin-core@3.7.3 -->
         <dependency>

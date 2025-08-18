@@ -54,7 +54,7 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <aerospike-client.version>9.0.5</aerospike-client.version>
-        <tinkerpop.version>3.7.4</tinkerpop.version>
+        <tinkerpop.version>3.7.3</tinkerpop.version>
         <junit.version>4.13.1</junit.version>
         <hamcrest.version>2.2</hamcrest.version>
         <awaitly.version>4.2.0</awaitly.version>

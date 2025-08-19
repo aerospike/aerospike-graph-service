@@ -118,6 +118,7 @@ public abstract class VertexBatchReadStep extends CollectingBarrierStep<Edge> im
         if (output.isEmpty()) {
             set.add(EmptyTraverser.instance());
         } else {
+            set.clear();
             set.addAll(output);
             output.clear(); // Force garbage collection.
         }

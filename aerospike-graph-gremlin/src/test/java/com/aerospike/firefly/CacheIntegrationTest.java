@@ -52,7 +52,7 @@ public class CacheIntegrationTest extends AbstractFireflySuite {
         final Key key = new Key("test", "test", uuid.toString());
         final Bin bin = new Bin("test", "test");
         db.checkedPut(null, key, bin);
-        final FireflyCache cache = new ReadThroughRecordCache(db);
+        final FireflyCache cache = new ReadThroughRecordCache(db, uuid);
         final Record miss = cache.read(null, key);
         Assert.assertNotNull(miss);
         Assert.assertEquals("test", miss.getString("test"));
@@ -79,7 +79,7 @@ public class CacheIntegrationTest extends AbstractFireflySuite {
         Key[] keys = new Key[2];
         keys[0] = key;
         keys[1] = key2;
-        final FireflyCache cache = new ReadThroughRecordCache(db);
+        final FireflyCache cache = new ReadThroughRecordCache(db, uuid);
         final Record[] misses = cache.read(keys, null);
         Assert.assertNotNull(misses);
         Assert.assertTrue(

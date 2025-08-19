@@ -362,7 +362,7 @@ public final class ConfigurationHelper {
         put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
         put(Keys.PAGINATION_PAGE_SIZE, "0");
         put(Keys.PAGINATION_PAGE_SIZE_PER_NODE, "20");
-        put(Keys.PAGINATION_PAGE_MAX_WAIT, "2000"); // 20 minutes.
+        put(Keys.PAGINATION_PAGE_MAX_WAIT, "60000");
         put(Keys.PAGINATION_SHUTDOWN_WAIT, "0");
         put(Keys.OLAP_PAGINATION_WORKERS, String.valueOf(Runtime.getRuntime().availableProcessors()));
         put(Keys.OLAP_WORKERS, String.valueOf(4 * Runtime.getRuntime().availableProcessors()));

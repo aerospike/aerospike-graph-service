@@ -69,6 +69,7 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_NAMESPACE = "aerospike.client.namespace";
         public static final String SCAN_MAX_WAIT = "aerospike.client.scan.max.wait";
         public static final String AEROSPIKE_BATCH_READ_SIZE = "aerospike.client.batch.read.size";
+        public static final String AEROSPIKE_BATCH_READ_SIZE_PER_NODE = "aerospike.client.batch.read.size.per-node";
         public static final String TLS = "aerospike.client.tls";
         public static final String AUTH_MODE = "aerospike.client.auth.mode";
         public static final String CLIENT_SERVICES_ALTERNATE = "aerospike.client.services.alternate";
@@ -167,6 +168,7 @@ public final class ConfigurationHelper {
         // Pagination flags.
         public static final String PAGINATION_PAGE_QUEUE_SIZE = "aerospike.graph.pagination.page.queue.size";
         public static final String PAGINATION_PAGE_SIZE = "aerospike.graph.pagination.page.size";
+        public static final String PAGINATION_PAGE_SIZE_PER_NODE = "aerospike.graph.pagination.page.size.per-node";
         public static final String PAGINATION_PAGE_MAX_WAIT = "aerospike.graph.pagination.max.wait";
         public static final String PAGINATION_SHUTDOWN_WAIT = "aerospike.graph.pagination.shutdown.wait";
         public static final String OLAP_PAGINATION_WORKERS = "aerospike.graph.analytics.pagination.index.workers";
@@ -356,8 +358,9 @@ public final class ConfigurationHelper {
         put(Keys.AEROSPIKE_MAX_RETRIES, "2");
         put(Keys.AEROSPIKE_COMPRESS, "false");
         put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
-        put(Keys.PAGINATION_PAGE_SIZE, "2048");
-        put(Keys.PAGINATION_PAGE_MAX_WAIT, "1200000"); // 20 minutes.
+        put(Keys.PAGINATION_PAGE_SIZE, "0");
+        put(Keys.PAGINATION_PAGE_SIZE_PER_NODE, "20");
+        put(Keys.PAGINATION_PAGE_MAX_WAIT, "2000"); // 20 minutes.
         put(Keys.PAGINATION_SHUTDOWN_WAIT, "0");
         put(Keys.OLAP_PAGINATION_WORKERS, String.valueOf(Runtime.getRuntime().availableProcessors()));
         put(Keys.OLAP_WORKERS, String.valueOf(4 * Runtime.getRuntime().availableProcessors()));
@@ -382,7 +385,7 @@ public final class ConfigurationHelper {
         put(Keys.AEROSPIKE_PORT, "3000");
         put(Keys.AEROSPIKE_TIMEOUT, "2000");
         put(Keys.WRITE_SOCKET_TIMEOUT, "500");
-        put(Keys.READ_SOCKET_TIMEOUT, "50");
+        put(Keys.READ_SOCKET_TIMEOUT, "150");
         put(Keys.READ_SOCKET_TIMEOUT_BULK_LOAD, "2000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
@@ -398,7 +401,8 @@ public final class ConfigurationHelper {
         put(Keys.HTTP_ENABLED, "true");
         put(Keys.PROMETHEUS_PATH, "/metrics");
         put(Keys.HEALTHCHECK_PATH, "/healthcheck");
-        put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
+        put(Keys.AEROSPIKE_BATCH_READ_SIZE, "0");
+        put(Keys.AEROSPIKE_BATCH_READ_SIZE_PER_NODE, "20");
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
         put(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, "4");
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
@@ -426,7 +430,7 @@ public final class ConfigurationHelper {
         put(Keys.TIMEOUT_DELAY, "2000");
         put(Keys.INFO_TIMEOUT, "3000");
         put(Keys.WRITE_TOTAL_TIMEOUT, "2500");
-        put(Keys.READ_TOTAL_TIMEOUT, "150");
+        put(Keys.READ_TOTAL_TIMEOUT, "450");
         put(Keys.READ_TOTAL_TIMEOUT_BULK_LOAD, "6000");
         put(Keys.WRITE_SLEEP_BETWEEN_RETRY, "500");
         put(Keys.READ_SLEEP_BETWEEN_RETRY, "0");
@@ -448,11 +452,11 @@ public final class ConfigurationHelper {
         put(Keys.USAGE_STATS_SET_INDEX_ENABLED, "true");
         put(Keys.AUDIT_LOG_ENABLED, "false");
         put(Keys.SCAN_TOTAL_TIMEOUT, "0");
-        put(Keys.SCAN_SOCKET_TIMEOUT, "1200000");
+        put(Keys.SCAN_SOCKET_TIMEOUT, "450");
         put(Keys.SCAN_CONNECT_TIMEOUT, "0");
         put(Keys.SCAN_TIMEOUT_DELAY, "0");
         put(Keys.INDEX_TOTAL_TIMEOUT, "0");
-        put(Keys.INDEX_SOCKET_TIMEOUT, "1200000");
+        put(Keys.INDEX_SOCKET_TIMEOUT, "450");
         put(Keys.INDEX_CONNECT_TIMEOUT, "0");
         put(Keys.INDEX_TIMEOUT_DELAY, "0");
         put(Keys.EVENT_LOOP_TYPE, EventLoopType.NETTY_NIO.name());
@@ -491,7 +495,8 @@ public final class ConfigurationHelper {
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.SCAN_MAX_WAIT, 100);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_MAX_RETRIES, 0);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_QUEUE_SIZE, 1);
-        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_SIZE, 128);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_SIZE, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_SIZE_PER_NODE, 1);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_MAX_WAIT, 1000);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_TIMEOUT, 0);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.WRITE_SOCKET_TIMEOUT, 0);
@@ -511,8 +516,8 @@ public final class ConfigurationHelper {
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, 1);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.INDEX_METADATA_UPDATE_FREQUENCY, 1);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.TTL_PURGE_INTERVAL_SECONDS, 1);
-        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_READ_SIZE, 1);
-        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, 1);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_READ_SIZE, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_READ_SIZE_PER_NODE, 1);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, 1);
         INTEGER_CONFIG_VALIDATOR.addConfig(Keys.PHAT_EDGE_SIZE, 1, 100);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.MOVEMENT_BARRIER_SIZE, 1);

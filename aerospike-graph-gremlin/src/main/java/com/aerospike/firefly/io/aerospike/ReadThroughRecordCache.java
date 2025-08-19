@@ -18,6 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -80,7 +81,8 @@ public class ReadThroughRecordCache extends FireflyCache {
         }
     }
 
-    public ReadThroughRecordCache(final AerospikeConnection db) {
+    public ReadThroughRecordCache(final AerospikeConnection db, final UUID uuid) {
+        super(uuid);
         this.db = db;
         cache = Caffeine.newBuilder().
                 maximumWeight(db.FIREFLY_READ_THROUGH_CACHE_WEIGHT).

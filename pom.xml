@@ -58,15 +58,15 @@
         <junit.version>4.13.1</junit.version>
         <hamcrest.version>2.2</hamcrest.version>
         <awaitly.version>4.2.0</awaitly.version>
-        <logback.version>1.2.13</logback.version>
-        <slf4j.version>1.7.30</slf4j.version>
+        <logback.version>1.5.18</logback.version>
+        <slf4j.version>2.0.17</slf4j.version>
         <guava.version>31.1-jre</guava.version>
         <resilience4j.version>1.7.1</resilience4j.version>
         <spark.version>3.4.3</spark.version>
-        <vertx.version>4.5.16</vertx.version>
+        <vertx.version>4.5.18</vertx.version>
         <prometheus.version>0.16.0</prometheus.version>
         <awssdk.version>1.12.641</awssdk.version>
-        <netty.version>4.1.118.Final</netty.version>
+        <netty.version>4.1.124.Final</netty.version>
         <!-- MAVEN PLUGIN VERSIONS -->
         <mvn-shade-plugin.version>3.6.0</mvn-shade-plugin.version>
         <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>
@@ -207,8 +207,12 @@
                         <!-- tests require MRT compatible aerospike server (version 8.0+ and SC enabled) -->
                         <exclude>**/TestMRTSupported</exclude>
                         <exclude>**/FireflyMRTFeatureTest</exclude>
+                        <exclude>**/FireflyTxFeatureTest</exclude>
+                        <exclude>**/FireflyTxMRTFeatureTest</exclude>
                         <exclude>**/TestAerospikeOperations</exclude>
                         <exclude>**/FireflyGraphSummaryUpdaterTest</exclude>
+                        <exclude>**/TestTinkerpopTransactions</exclude>
+                        <exclude>**/TestTxDisabled</exclude>
                         <!-- heavy computer tests -->
                         <exclude>**/FireflyComputerFeatureMapTest</exclude>
                         <exclude>**/FireflyComputerFeatureFilterTest</exclude>

@@ -6,8 +6,9 @@ import com.aerospike.firefly.process.traversal.step.util.TraversalUtil;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.LocalBarrier;
@@ -248,15 +249,19 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
 
     @Override
     public void barrierConsumer(final TraverserSet<Vertex> set) {
+        final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         if (threads != -1) {
-            parallelBarrierConsumer(set);
-            return;
+            if (graph.tx().getCurrentTxn() != null) {
+                throw new AerospikeGraphException(GraphError.PARALLELIZE_IN_TX);
+            } else {
+                parallelBarrierConsumer(set);
+                return;
+            }
         }
         if (limit != -1 && runningTotal >= limit) {
             set.clear();
             return; // Limit reached in previous barrier consumer, stop processing.
         }
-        final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         FireflyBatchReadHelper.pullFromLeft(traversal, graph, set, barrierSize);
 
         // Create output traverser set since we cant append to the input while we are iterating.

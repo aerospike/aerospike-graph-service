@@ -94,6 +94,8 @@ public final class ConfigurationHelper {
         public static final String TTL_PURGE_INTERVAL_SECONDS = "aerospike.graph.ttl.purge.interval";
         public static final String MRT_ENABLED_FLAG = "aerospike.graph.mrt.enabled";
         public static final String MRT_TIMEOUT = "aerospike.graph.mrt.timeout";
+        public static final String TRANSACTION_ENABLED_FLAG = "aerospike.graph.tx.enabled";
+        public static final String TRANSACTION_TIMEOUT = "aerospike.graph.tx.timeout";
 
         // Mainly for testing since tinkerpop doesnt force cardinality.
         public static final String VERTEX_PROPERTY_CARDINALITY = "aerospike.graph.vertex.property.cardinality";
@@ -389,7 +391,7 @@ public final class ConfigurationHelper {
         put(Keys.READ_SOCKET_TIMEOUT_BULK_LOAD, "2000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
-        put(Keys.EDGE_ID_RECYCLE_BUFFER_SIZE, "10");
+        put(Keys.EDGE_ID_RECYCLE_BUFFER_SIZE, "100");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
         put(Keys.BULK_LOAD_ID_BUFFER_SIZE, "2000000");
         put(Keys.VERTEX_PROPERTY_CARDINALITY, "single"); // Default to single cardinality
@@ -441,6 +443,8 @@ public final class ConfigurationHelper {
         put(Keys.TTL_PURGE_INTERVAL_SECONDS, "2");
         put(Keys.MRT_ENABLED_FLAG, "false");
         put(Keys.MRT_TIMEOUT, "0"); // SECONDS
+        put(Keys.TRANSACTION_ENABLED_FLAG, "false");
+        put(Keys.TRANSACTION_TIMEOUT, "0"); // SECONDS
         put(Keys.USAGE_STATS_UPDATE_INTERVAL, "3600000"); // 1 hour default
         put(Keys.AUTH_MODE, "internal");
         put(Keys.CLIENT_SERVICES_ALTERNATE, "false");
@@ -535,6 +539,7 @@ public final class ConfigurationHelper {
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.DELAY_QUEUE_SIZE, 0);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, 0);
         INTEGER_CONFIG_VALIDATOR.addConfig(Keys.MRT_TIMEOUT, 0, 120);
+        INTEGER_CONFIG_VALIDATOR.addConfig(Keys.TRANSACTION_TIMEOUT, 0, 120);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.QUERY_TRACING_LOG_THRESHOLD, -1);
         INTEGER_CONFIG_VALIDATOR.addConfig(Keys.QUERY_TRACING_SAMPLE_PERCENT, 1, 100);
     }

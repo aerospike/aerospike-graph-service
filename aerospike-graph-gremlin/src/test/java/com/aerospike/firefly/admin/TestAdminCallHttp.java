@@ -158,7 +158,7 @@ public class TestAdminCallHttp {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
-            fireflyGraph.getBaseGraph().dropGraphIndices(fireflyGraph);
+            fireflyGraph.getBaseGraph().dropGraphIndices();
             final List<String> indexesAfterDrop = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             Assert.assertTrue(indexesAfterDrop.isEmpty());
             final String indexList = adminIndexList();
@@ -220,7 +220,7 @@ public class TestAdminCallHttp {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
-            fireflyGraph.getBaseGraph().dropGraphIndices(fireflyGraph);
+            fireflyGraph.getBaseGraph().dropGraphIndices();
             Assert.assertTrue(((List<String>) g.call("aerospike.graph.admin.index.list").next()).isEmpty());
             adminIndexCreate("nameA", "vertex");
             Map<String, Long> nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
@@ -245,7 +245,7 @@ public class TestAdminCallHttp {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
-            fireflyGraph.getBaseGraph().dropGraphIndices(fireflyGraph);
+            fireflyGraph.getBaseGraph().dropGraphIndices();
             final List<String> indexesAfterDrop = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             Assert.assertTrue(indexesAfterDrop.isEmpty());
             g.call("aerospike.graph.admin.index.create").

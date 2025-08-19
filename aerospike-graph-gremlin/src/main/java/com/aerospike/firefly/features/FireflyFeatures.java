@@ -5,15 +5,18 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 public class FireflyFeatures implements Graph.Features {
-
     private final VertexProperty.Cardinality defaultCardinality;
-    public FireflyFeatures(final VertexProperty.Cardinality defaultCardinality) {
+    private final boolean transactionsEnabled;
+
+    public FireflyFeatures(final VertexProperty.Cardinality defaultCardinality,
+                           final boolean transactionsEnabled) {
         this.defaultCardinality = defaultCardinality;
+        this.transactionsEnabled = transactionsEnabled;
     }
 
     @Override
     public GraphFeatures graph() {
-        return new FireflyGraphFeatures();
+        return new FireflyGraphFeatures(this.transactionsEnabled);
     }
 
     /**

@@ -567,7 +567,59 @@ jobs:
           bash -x scripts/start_aerospike_mrt.sh
           mvn test -pl aerospike-graph-gremlin -Dtest=TestMRTSupported -DfailIfNoTests=false --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeOperations -DfailIfNoTests=false --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMRTWorld -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMRTFeatureTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxFeatureTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxMRTFeatureTest -DfailIfNoTests=false --no-transfer-progress
+  test-tinkerpop-tx:
+    name: Test Tinkerpop Transactions
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Login to JFrog 🐸
+        uses: docker/login-action@v1
+        with:
+          registry: aerospike.jfrog.io
+          username: ${{ secrets.JFROG_USERNAME }}
+          password: ${{ secrets.JFROG_PASSWORD }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
+      - name: Build docker
+        run: |
+          pip3 install python_on_whales
+          echo "Building docker image"
+          python3 scripts/build-docker.py --tags firefly --platforms linux/amd64
+      - name: Run Tinkerpop Transaction Tests
+        env:
+          AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+        run: |
+          bash -x scripts/start_aerospike_mrt.sh
+          
+          echo "Running docker image with transactions enabled"
+          docker run -p 8182:8182  \
+            -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -e aerospike.graph.tx.enabled=true firefly &
+
+          echo "Sleeping for 30 seconds while docker image starts"
+          sleep 30
+
+          echo "Running Tinkerpop transactions test"
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestTinkerpopTransactions --no-transfer-progress
+          docker stop $(docker ps -q --filter ancestor=firefly)
   test-firefly-process-1:
     name: Test Firefly Process Tests 1
     timeout-minutes: 120
@@ -1034,7 +1086,6 @@ jobs:
           GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
-          
           docker run -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
@@ -1046,13 +1097,7 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote -DfailIfNoTests=false --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
-      - name: Test Firefly Docker Image Merge Edge Step
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+      - name: Test Firefly Docker Image Merge Edge Step and Tx when Disabled
         run: |
           docker run -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
@@ -1062,6 +1107,7 @@ jobs:
           sleep 30
           
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepRemoteTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestTxDisabled --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image

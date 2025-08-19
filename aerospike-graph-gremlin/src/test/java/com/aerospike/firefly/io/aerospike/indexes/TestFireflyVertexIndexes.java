@@ -17,6 +17,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -34,7 +35,10 @@ public class TestFireflyVertexIndexes extends TestFireflyIndexes {
 
     @Override
     protected Optional<FireflyIndexMetadata.IndexInfo> getPropertyIndexInfo(final FireflyGraph fireflyGraph, final String key, final Object value) {
-        final List<String> indexes = fireflyGraph.fireflyIndexMetadata.getIndexesInProgress();
+        final List<String> indexes = AerospikeConnection.InfoOps.listExistingIndexes(db).stream()
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+
         for (final String index : indexes) {
             if (index.startsWith(fireflyGraph.getBaseGraph().getVpIndexPrefix())) {
                 if (index.contains(key)) {

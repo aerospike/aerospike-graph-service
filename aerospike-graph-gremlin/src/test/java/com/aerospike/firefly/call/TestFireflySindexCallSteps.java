@@ -87,7 +87,7 @@ public class TestFireflySindexCallSteps {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
-            fireflyGraph.getBaseGraph().dropGraphIndices(fireflyGraph);
+            fireflyGraph.getBaseGraph().dropGraphIndices();
             final List<String> indexesAfterDrop = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             Assert.assertTrue(indexesAfterDrop.isEmpty());
             g.call("aerospike.graph.admin.index.create").
@@ -182,7 +182,7 @@ public class TestFireflySindexCallSteps {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
-            fireflyGraph.getBaseGraph().dropGraphIndices(fireflyGraph);
+            fireflyGraph.getBaseGraph().dropGraphIndices();
             Assert.assertTrue(((List<String>) g.call("aerospike.graph.admin.index.list").next()).isEmpty());
             g.call("aerospike.graph.admin.index.create").
                     with("property_key", "nameA").
@@ -226,7 +226,7 @@ public class TestFireflySindexCallSteps {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
-            fireflyGraph.getBaseGraph().dropGraphIndices(fireflyGraph);
+            fireflyGraph.getBaseGraph().dropGraphIndices();
             Assert.assertTrue(((List<String>) g.call("aerospike.graph.admin.index.list").next()).isEmpty());
             g.call("aerospike.graph.admin.index.create").
                     with("property_key", "nameA").

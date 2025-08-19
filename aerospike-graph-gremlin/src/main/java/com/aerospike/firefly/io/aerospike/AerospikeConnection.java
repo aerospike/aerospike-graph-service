@@ -1593,21 +1593,12 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Drop indices for Firefly
+     * Drop all indices that belong to the graph namespace.
      */
-    public void dropGraphIndices(final FireflyGraph graph) {
-        LOG.debug("Dropping graph indices.");
-        dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX_NAME);
-        dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX_NAME);
-        if (graph != null) {
-            graph.fireflyIndexMetadata.getIndexesInProgress().forEach(index -> {
-                if (index.startsWith(getVpIndexPrefix())) {
-                    dropIndex(setFromElementType(FireflyVertex.class), index);
-                } else if (index.startsWith(getEpIndexPrefix())) {
-                    dropIndex(setFromElementType(FireflyEdge.class), index);
-                }
-            });
-        }
+    public void dropGraphIndices() {
+        LOG.info("Dropping all graph indices.");
+        InfoOps.listExistingIndexes(this)
+                .forEach(entry -> dropIndex(entry.getValue(), entry.getKey()));
     }
 
     public Map<String, Integer> abortQueries() {
@@ -2279,11 +2270,16 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(infoPolicy, namespace, OUT_VP_SET, null);
             client.truncate(infoPolicy, namespace, IN_VP_SET, null);
             client.truncate(infoPolicy, namespace, SUMMARY_SET, null);
+            client.truncate(infoPolicy, namespace, USAGE_STATS_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_METADATA_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_VERTEX_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_EDGE_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_SUPERNODE_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_STATE_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_DUPLICATE_VID_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_BAD_EDGE_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_BAD_ENTRY_SET, null);
+            client.truncate(infoPolicy, namespace, OLAP_SET, null);
 
             // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the
             // id manager set and if we delete it here, they will likely insert a record with the same id as the one
@@ -2292,7 +2288,7 @@ public class AerospikeConnection implements AutoCloseable {
                 // Indexes break if Schema table is dropped.
                 client.truncate(infoPolicy, namespace, SCHEMA_SET, null);
                 schemaManager.updateAll();
-                dropGraphIndices(graph);
+                dropGraphIndices();
             }
             Thread.sleep(1);
         } catch (final InterruptedException e) {

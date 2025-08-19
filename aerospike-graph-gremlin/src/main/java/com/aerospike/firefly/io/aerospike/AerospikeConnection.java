@@ -582,7 +582,8 @@ public class AerospikeConnection implements AutoCloseable {
         BL_FILE_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.BL_FILE_BIN.name(), conf);
         BULK_LOAD_RECOVERY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.BL_RECOVERY_BIN.name(), conf);
 
-
+        AEROSPIKE_BATCH_THRESHOLD = this.client.getNodes().length *
+                ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, conf);
         final int batchReadSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf);
         if (batchReadSize == 0) {
             AEROSPIKE_BATCH_READ_SIZE = this.client.getNodes().length *

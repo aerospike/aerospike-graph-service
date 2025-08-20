@@ -48,7 +48,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 @Warmup(iterations = 1)
 @Measurement(iterations = 1, time = 45, timeUnit = TimeUnit.SECONDS)
 public class BenchmarkTestProjectNewGeneratorSchemaData {
-    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Dbenchmark.mode=[all|throughput|average] -Dbenchmark.threads=4 -Ddocker.benchmark=1 -Ddataset.size=1g -Dstorage.type=mmd -Dtest=BenchmarkTestProjectNewGeneratorSchemaData -DfailIfNoTests=false --no-transfer-progress
+    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Dbenchmark.mode=[all|throughput|average] -Dbenchmark.threads=4 -Ddocker.benchmark=1 -Ddataset.size=1g -Dstorage.type=mmd -Dtest=BenchmarkTestProjectNewGeneratorSchemaData  --no-transfer-progress
     private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTestProjectNewGeneratorSchemaData.class);
     private static final String HOST = BenchmarkTestUtils.getHost();
     private static final int PORT = 8182;

@@ -587,7 +587,7 @@ public class AerospikeConnection implements AutoCloseable {
         final int batchReadSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf);
         if (batchReadSize == 0) {
             AEROSPIKE_BATCH_READ_SIZE = this.client.getNodes().length *
-                    ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, conf);;
+                    ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE_PER_NODE, conf);;
         } else {
             AEROSPIKE_BATCH_READ_SIZE = batchReadSize;
         }

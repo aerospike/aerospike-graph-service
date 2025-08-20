@@ -456,11 +456,11 @@ public final class ConfigurationHelper {
         put(Keys.USAGE_STATS_SET_INDEX_ENABLED, "true");
         put(Keys.AUDIT_LOG_ENABLED, "false");
         put(Keys.SCAN_TOTAL_TIMEOUT, "0");
-        put(Keys.SCAN_SOCKET_TIMEOUT, "450");
+        put(Keys.SCAN_SOCKET_TIMEOUT, "30000");
         put(Keys.SCAN_CONNECT_TIMEOUT, "0");
         put(Keys.SCAN_TIMEOUT_DELAY, "0");
         put(Keys.INDEX_TOTAL_TIMEOUT, "0");
-        put(Keys.INDEX_SOCKET_TIMEOUT, "450");
+        put(Keys.INDEX_SOCKET_TIMEOUT, "30000");
         put(Keys.INDEX_CONNECT_TIMEOUT, "0");
         put(Keys.INDEX_TIMEOUT_DELAY, "0");
         put(Keys.EVENT_LOOP_TYPE, EventLoopType.NETTY_NIO.name());

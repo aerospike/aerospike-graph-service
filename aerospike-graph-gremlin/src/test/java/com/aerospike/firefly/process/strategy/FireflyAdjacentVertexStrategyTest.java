@@ -18,46 +18,46 @@ public class FireflyAdjacentVertexStrategyTest {
     public void testStrategyEnabled() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, "true");
-        final FireflyGraph graph = FireflyGraph.open(config);
-        try {
-            final var g = graph.traversal();
-            var t = g.V().out().id();
-            t.asAdmin().applyStrategies();
-            List<Step> steps = t.asAdmin().getSteps();
-            Assert.assertTrue(containsCustomStep(steps));
+        try (FireflyGraph graph = FireflyGraph.open(config)) {
+            try {
+                final var g = graph.traversal();
+                var t = g.V().out().id();
+                t.asAdmin().applyStrategies();
+                List<Step> steps = t.asAdmin().getSteps();
+                Assert.assertTrue(containsCustomStep(steps));
 
-            t = g.V().in().id();
-            t.asAdmin().applyStrategies();
-            steps = t.asAdmin().getSteps();
-            Assert.assertTrue(containsCustomStep(steps));
+                t = g.V().in().id();
+                t.asAdmin().applyStrategies();
+                steps = t.asAdmin().getSteps();
+                Assert.assertTrue(containsCustomStep(steps));
 
-            t = g.V().out("edgeLabel").id();
-            t.asAdmin().applyStrategies();
-            steps = t.asAdmin().getSteps();
-            Assert.assertTrue(containsCustomStep(steps));
+                t = g.V().out("edgeLabel").id();
+                t.asAdmin().applyStrategies();
+                steps = t.asAdmin().getSteps();
+                Assert.assertTrue(containsCustomStep(steps));
 
-            t = g.V().in("edgeLabel").id();
-            t.asAdmin().applyStrategies();
-            steps = t.asAdmin().getSteps();
-            Assert.assertTrue(containsCustomStep(steps));
+                t = g.V().in("edgeLabel").id();
+                t.asAdmin().applyStrategies();
+                steps = t.asAdmin().getSteps();
+                Assert.assertTrue(containsCustomStep(steps));
 
-            t = g.V().out().has("foo", "bar").id();
-            t.asAdmin().applyStrategies();
-            steps = t.asAdmin().getSteps();
-            Assert.assertFalse(containsCustomStep(steps));
+                t = g.V().out().has("foo", "bar").id();
+                t.asAdmin().applyStrategies();
+                steps = t.asAdmin().getSteps();
+                Assert.assertFalse(containsCustomStep(steps));
 
-            t = g.V().in().has("foo", "bar").id();
-            t.asAdmin().applyStrategies();
-            steps = t.asAdmin().getSteps();
-            Assert.assertFalse(containsCustomStep(steps));
+                t = g.V().in().has("foo", "bar").id();
+                t.asAdmin().applyStrategies();
+                steps = t.asAdmin().getSteps();
+                Assert.assertFalse(containsCustomStep(steps));
 
-            t = g.V().both().both().id();
-            t.asAdmin().applyStrategies();
-            steps = t.asAdmin().getSteps();
-            Assert.assertTrue(containsCustomStep(steps));
-        } finally {
-            graph.getBaseGraph().dropDatabase(graph, true);
-            graph.close();
+                t = g.V().both().both().id();
+                t.asAdmin().applyStrategies();
+                steps = t.asAdmin().getSteps();
+                Assert.assertTrue(containsCustomStep(steps));
+            } finally {
+                graph.getBaseGraph().dropDatabase(graph, true);
+            }
         }
     }
 
@@ -65,32 +65,32 @@ public class FireflyAdjacentVertexStrategyTest {
     public void testStrategyDisabled() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, "false");
-        final FireflyGraph graph = FireflyGraph.open(config);
-        try {
-            final var g = graph.traversal();
-            var t = g.V().out().id();
-            t.asAdmin().applyStrategies();
-            List<Step> steps = t.asAdmin().getSteps();
-            Assert.assertFalse(containsCustomStep(steps));
+        try (FireflyGraph graph = FireflyGraph.open(config)) {
+            try {
+                final var g = graph.traversal();
+                var t = g.V().out().id();
+                t.asAdmin().applyStrategies();
+                List<Step> steps = t.asAdmin().getSteps();
+                Assert.assertFalse(containsCustomStep(steps));
 
-            t = g.V().in().id();
-            t.asAdmin().applyStrategies();
-            steps = t.asAdmin().getSteps();
-            Assert.assertFalse(containsCustomStep(steps));
+                t = g.V().in().id();
+                t.asAdmin().applyStrategies();
+                steps = t.asAdmin().getSteps();
+                Assert.assertFalse(containsCustomStep(steps));
 
-            t = g.V().out("edgeLabel").id();
-            t.asAdmin().applyStrategies();
-            steps = t.asAdmin().getSteps();
-            Assert.assertFalse(containsCustomStep(steps));
+                t = g.V().out("edgeLabel").id();
+                t.asAdmin().applyStrategies();
+                steps = t.asAdmin().getSteps();
+                Assert.assertFalse(containsCustomStep(steps));
 
-            t = g.V().in("edgeLabel").id();
-            t.asAdmin().applyStrategies();
-            steps = t.asAdmin().getSteps();
-            Assert.assertFalse(containsCustomStep(steps));
-            Assert.assertFalse(containsCustomStep(steps));
-        } finally {
-            graph.getBaseGraph().dropDatabase(graph, true);
-            graph.close();
+                t = g.V().in("edgeLabel").id();
+                t.asAdmin().applyStrategies();
+                steps = t.asAdmin().getSteps();
+                Assert.assertFalse(containsCustomStep(steps));
+                Assert.assertFalse(containsCustomStep(steps));
+            } finally {
+                graph.getBaseGraph().dropDatabase(graph, true);
+            }
         }
     }
 

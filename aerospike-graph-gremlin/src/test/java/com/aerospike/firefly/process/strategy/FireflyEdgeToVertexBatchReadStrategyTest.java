@@ -94,17 +94,18 @@ public class FireflyEdgeToVertexBatchReadStrategyTest {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY, "true");
 
-        final FireflyGraph graph = FireflyGraph.open(config);
-        final var g = graph.traversal();
+        try (FireflyGraph graph = FireflyGraph.open(config)) {
+            final var g = graph.traversal();
 
-        var t = g.V().outE().not(__.hasLabel("knows")).inV().hasLabel("test");
-        assertTrue(containsCustomStep(t));
+            var t = g.V().outE().not(__.hasLabel("knows")).inV().hasLabel("test");
+            assertTrue(containsCustomStep(t));
 
-        t = g.V().outE().not(__.hasLabel("knows")).outV().hasLabel("test");
-        assertTrue(containsCustomStep(t));
+            t = g.V().outE().not(__.hasLabel("knows")).outV().hasLabel("test");
+            assertTrue(containsCustomStep(t));
 
-        t = g.V().outE().not(__.hasLabel("knows")).bothV().hasLabel("test");
-        assertTrue(containsCustomStep(t));
+            t = g.V().outE().not(__.hasLabel("knows")).bothV().hasLabel("test");
+            assertTrue(containsCustomStep(t));
+        }
     }
 
     @Test
@@ -112,19 +113,18 @@ public class FireflyEdgeToVertexBatchReadStrategyTest {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY, "false");
 
-        final FireflyGraph graph = FireflyGraph.open(config);
-        final var g = graph.traversal();
+        try (FireflyGraph graph = FireflyGraph.open(config)) {
+            final var g = graph.traversal();
 
-        var t = g.V().outE().not(__.hasLabel("knows")).inV().hasLabel("test");
-        assertFalse(containsCustomStep(t));
+            var t = g.V().outE().not(__.hasLabel("knows")).inV().hasLabel("test");
+            assertFalse(containsCustomStep(t));
 
-        t = g.V().outE().not(__.hasLabel("knows")).outV().hasLabel("test");
-        assertFalse(containsCustomStep(t));
+            t = g.V().outE().not(__.hasLabel("knows")).outV().hasLabel("test");
+            assertFalse(containsCustomStep(t));
 
-        t = g.V().outE().not(__.hasLabel("knows")).bothV().hasLabel("test");
-        assertFalse(containsCustomStep(t));
-
-        graph.close();
+            t = g.V().outE().not(__.hasLabel("knows")).bothV().hasLabel("test");
+            assertFalse(containsCustomStep(t));
+        }
     }
 
     @Test

@@ -479,7 +479,6 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         TTL_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf);
-        PAGINATION_PAGE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf);
         PAGINATION_PAGE_MAX_WAIT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, conf);
         PAGINATION_SHUTDOWN_WAIT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_SHUTDOWN_WAIT, conf);
         OLAP_PAGINATION_WORKERS = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.OLAP_PAGINATION_WORKERS, conf);
@@ -583,9 +582,24 @@ public class AerospikeConnection implements AutoCloseable {
         BL_FILE_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.BL_FILE_BIN.name(), conf);
         BULK_LOAD_RECOVERY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.BL_RECOVERY_BIN.name(), conf);
 
-        AEROSPIKE_BATCH_READ_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf);
         AEROSPIKE_BATCH_THRESHOLD = this.client.getNodes().length *
                 ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, conf);
+        final int batchReadSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf);
+        if (batchReadSize == 0) {
+            AEROSPIKE_BATCH_READ_SIZE = this.client.getNodes().length *
+                    ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE_PER_NODE, conf);;
+        } else {
+            AEROSPIKE_BATCH_READ_SIZE = batchReadSize;
+        }
+        final int pageSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf);
+        if (pageSize == 0) {
+            PAGINATION_PAGE_SIZE = this.client.getNodes().length *
+                    ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE_PER_NODE, conf);
+        } else {
+            PAGINATION_PAGE_SIZE = pageSize;
+        }
+        LOG.info("Batch read size {}, page size {}", AEROSPIKE_BATCH_READ_SIZE, PAGINATION_PAGE_SIZE);
+
         FIREFLY_READ_THROUGH_CACHE_WEIGHT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf);
         PHAT_EDGE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PHAT_EDGE_SIZE, conf);
         MOVEMENT_BARRIER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MOVEMENT_BARRIER_SIZE, conf);

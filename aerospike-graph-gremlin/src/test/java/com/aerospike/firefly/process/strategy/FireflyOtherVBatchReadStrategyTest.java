@@ -114,6 +114,9 @@ public class FireflyOtherVBatchReadStrategyTest {
 
     @Test
     public void testStrategyEnabled() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY, "true");
+        FireflyGraph graph = FireflyGraph.open(config);
         final var g = graph.traversal();
 
         final var t = g.V().outE().not(__.hasLabel("knows")).otherV().hasLabel("test");

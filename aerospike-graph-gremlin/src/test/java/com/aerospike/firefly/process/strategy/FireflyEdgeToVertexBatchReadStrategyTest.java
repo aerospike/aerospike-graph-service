@@ -91,6 +91,10 @@ public class FireflyEdgeToVertexBatchReadStrategyTest {
 
     @Test
     public void testStrategyEnabled() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY, "true");
+
+        final FireflyGraph graph = FireflyGraph.open(config);
         final var g = graph.traversal();
 
         var t = g.V().outE().not(__.hasLabel("knows")).inV().hasLabel("test");

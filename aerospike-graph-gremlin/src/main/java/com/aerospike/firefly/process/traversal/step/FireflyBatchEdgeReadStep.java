@@ -263,6 +263,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
                     if (output.isEmpty()) {
                         set.add(EmptyTraverser.instance());
                     } else {
+                        set.clear();
                         set.addAll(output);
                         output.clear(); // Force garbage collection.
                     }
@@ -278,6 +279,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> implem
         if (output.isEmpty()) {
             set.add(EmptyTraverser.instance());
         } else {
+            set.clear();
             set.addAll(output);
             output.clear(); // Force garbage collection.
         }

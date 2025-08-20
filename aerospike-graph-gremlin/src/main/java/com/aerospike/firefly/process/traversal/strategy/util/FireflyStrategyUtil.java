@@ -85,6 +85,10 @@ public class FireflyStrategyUtil {
         }
     }
 
+    public static void resetStrategies() {
+        FIREFLY_STRATEGIES.forEach(FireflyStrategyBase::resetIsEnabled);
+    }
+
     static public class StrategyOrdering {
         public final Set<Class<? extends TraversalStrategy.ProviderOptimizationStrategy>> prior;
         public final Set<Class<? extends TraversalStrategy.ProviderOptimizationStrategy>> post;

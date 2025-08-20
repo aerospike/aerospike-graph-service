@@ -17,7 +17,7 @@ import static com.aerospike.firefly.process.traversal.strategy.util.FireflyStrat
 public abstract class FireflyStrategyBase extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy>
         implements TraversalStrategy.ProviderOptimizationStrategy {
 
-
+    private Boolean isEnabled = null;
 
     /**
      * Default constructor for FireflyStrategyBase.
@@ -41,8 +41,11 @@ public abstract class FireflyStrategyBase extends AbstractTraversalStrategy<Trav
      * @return Boolean true if enabled, false otherwise.
      */
     protected boolean isEnabled(final FireflyGraph graph) {
-        final String enabledKey = getStrategyEnabledKey();
-        return enabledKey == null || ConfigurationHelper.getOrDefaultBool(enabledKey, graph.configuration());
+        if (isEnabled == null) {
+            final String enabledKey = getStrategyEnabledKey();
+            isEnabled = enabledKey == null || ConfigurationHelper.getOrDefaultBool(enabledKey, graph.configuration());
+        }
+        return isEnabled;
     }
 
     /**
@@ -64,6 +67,11 @@ public abstract class FireflyStrategyBase extends AbstractTraversalStrategy<Trav
     }
 
     protected void reset() {
+    }
+
+    public void resetIsEnabled() {
+        // Reset the enabled state so that it can be re-evaluated on the next apply.
+        isEnabled = null;
     }
 
     /**

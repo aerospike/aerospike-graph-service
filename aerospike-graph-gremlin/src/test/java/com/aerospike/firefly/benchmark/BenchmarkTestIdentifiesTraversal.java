@@ -45,7 +45,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 @State(Scope.Benchmark)
 @Warmup(iterations = 2)
 public class BenchmarkTestIdentifiesTraversal {
-    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Ddocker.benchmark=1 -Dtest=BenchmarkTestIdentifiesTraversal -DfailIfNoTests=false --no-transfer-progress
+    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Ddocker.benchmark=1 -Dtest=BenchmarkTestIdentifiesTraversal  --no-transfer-progress
     private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTestIdentifiesTraversal.class);
     private static final String HOST = BenchmarkTestUtils.getHost();
     private static final int PORT = 8182;

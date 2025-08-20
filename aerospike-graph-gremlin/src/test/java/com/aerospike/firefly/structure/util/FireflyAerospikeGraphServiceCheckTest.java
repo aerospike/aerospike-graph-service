@@ -16,7 +16,7 @@ import static org.junit.Assert.fail;
 public class FireflyAerospikeGraphServiceCheckTest {
     // This test should only be called with a different feature-key file that does not include the graph-service.
     // in the standard test suite.
-    // mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeGraphServiceCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
+    // mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeGraphServiceCheckTest  -Dintegration.test.properties=packed --no-transfer-progress
 
     @Test
     public void testConnectFails() {

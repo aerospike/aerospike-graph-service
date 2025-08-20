@@ -116,12 +116,13 @@ public class FireflyOtherVBatchReadStrategyTest {
     public void testStrategyEnabled() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY, "true");
-        FireflyGraph graph = FireflyGraph.open(config);
-        final var g = graph.traversal();
+        try (FireflyGraph graph = FireflyGraph.open(config)) {
+            final var g = graph.traversal();
 
-        final var t = g.V().outE().not(__.hasLabel("knows")).otherV().hasLabel("test");
+            final var t = g.V().outE().not(__.hasLabel("knows")).otherV().hasLabel("test");
 
-        assertTrue(containsCustomStep(t));
+            assertTrue(containsCustomStep(t));
+        }
     }
 
     @Test
@@ -129,14 +130,13 @@ public class FireflyOtherVBatchReadStrategyTest {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY, "false");
 
-        final FireflyGraph graph = FireflyGraph.open(config);
-        final var g = graph.traversal();
+        try (FireflyGraph graph = FireflyGraph.open(config)) {
+            final var g = graph.traversal();
 
-        final var t = g.V().outE().not(__.hasLabel("knows")).otherV().hasLabel("test");
+            final var t = g.V().outE().not(__.hasLabel("knows")).otherV().hasLabel("test");
 
-        assertFalse(containsCustomStep(t));
-
-        graph.close();
+            assertFalse(containsCustomStep(t));
+        }
     }
 
     @Test

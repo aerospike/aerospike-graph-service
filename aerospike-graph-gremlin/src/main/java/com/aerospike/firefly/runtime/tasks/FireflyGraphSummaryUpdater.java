@@ -3,6 +3,7 @@ package com.aerospike.firefly.runtime.tasks;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
+import com.aerospike.client.Txn;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
@@ -95,10 +96,18 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     public Map<String, AtomicLong> edgeCounts = new ConcurrentHashMap<>();
     public Map<String, AtomicLong> vertexCounts = new ConcurrentHashMap<>();
     public Map<String, AtomicLong> supernodeCounts = new ConcurrentHashMap<>();
-    public Map<Integer, Map<String, AtomicLong>> vertexPartitionCounts = new ConcurrentHashMap<>();
-    public Map<Integer, Map<String, AtomicLong>> mergeVertexPartitionCounts = new ConcurrentHashMap<>();
-    public Map<Integer, Map<String, AtomicLong>> edgePartitionCounts = new ConcurrentHashMap<>();
-    public Map<Integer, Map<String, AtomicLong>> supernodePartitionCounts = new ConcurrentHashMap<>();
+    public final Map<Integer, Map<String, AtomicLong>> vertexPartitionCounts = new ConcurrentHashMap<>();
+    public final Map<Integer, Map<String, AtomicLong>> mergeVertexPartitionCounts = new ConcurrentHashMap<>();
+    public final Map<Integer, Map<String, AtomicLong>> edgePartitionCounts = new ConcurrentHashMap<>();
+    public final Map<Integer, Map<String, AtomicLong>> supernodePartitionCounts = new ConcurrentHashMap<>();
+
+    // MRT and Tx summary info
+    public final Map<Long, Map<String, Set<String>>> txnEdgeProperties = new ConcurrentHashMap<>();
+    public final Map<Long, Map<String, Set<String>>> txnVertexProperties = new ConcurrentHashMap<>();
+    public final Map<Long, Map<String, AtomicLong>> txnEdgeCounts = new ConcurrentHashMap<>();
+    public final Map<Long, Map<String, AtomicLong>> txnVertexCounts = new ConcurrentHashMap<>();
+    public final Map<Long, Map<String, AtomicLong>> txnSupernodeCounts = new ConcurrentHashMap<>();
+    public final Map<Long, AtomicLong> txnCountdownCounts = new ConcurrentHashMap<>();
 
     private final Key V_SUMMARY_KEY;
     private final Key E_SUMMARY_KEY;
@@ -180,17 +189,30 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      *
      * @param label      The label of the vertex to update.
      * @param properties The properties of the vertex to update.
+     * @param txn        The transaction that this operation occurred within.
      */
-    public void addVertexWriteToQueue(final String label, final Set<String> properties) {
+    public void addVertexWriteToQueue(final String label, final Set<String> properties, final Txn txn) {
         if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
 
-        vertexCounts.computeIfAbsent(label, k -> new AtomicLong(0));
-        vertexCounts.get(label).addAndGet(1);
-        vertexProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
-        vertexProperties.get(label).addAll(properties);
-        COUNTDOWN_LATCH.countDown();
+        if (txn != null) {
+            final long id = txn.getId();
+            txnVertexCounts.computeIfAbsent(id, k -> new ConcurrentHashMap<>());
+            txnVertexCounts.get(id).computeIfAbsent(label, k -> new AtomicLong(0));
+            txnVertexCounts.get(id).get(label).addAndGet(1);
+            txnVertexProperties.computeIfAbsent(id, k -> new ConcurrentHashMap<>());
+            txnVertexProperties.get(id).computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
+            txnVertexProperties.get(id).get(label).addAll(properties);
+            txnCountdownCounts.computeIfAbsent(id, k -> new AtomicLong(0));
+            txnCountdownCounts.get(id).incrementAndGet();
+        } else {
+            vertexCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+            vertexCounts.get(label).addAndGet(1);
+            vertexProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
+            vertexProperties.get(label).addAll(properties);
+            COUNTDOWN_LATCH.countDown();
+        }
     }
 
     /**
@@ -232,33 +254,56 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * Update the number of vertices that exist under the provided label in the summary record.
      *
      * @param label The label of the vertex to remove.
+     * @param txn   The transaction that this operation occurred within.
      */
-    public void addVertexRemoveToQueue(final String label) {
+    public void addVertexRemoveToQueue(final String label, final Txn txn) {
         if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
 
-        vertexCounts.computeIfAbsent(label, k -> new AtomicLong(0));
-        vertexCounts.get(label).addAndGet(-1);
-        COUNTDOWN_LATCH.countDown();
+        if (txn != null) {
+            final long id = txn.getId();
+            txnVertexCounts.computeIfAbsent(id, k -> new ConcurrentHashMap<>());
+            txnVertexCounts.get(id).computeIfAbsent(label, k -> new AtomicLong(0));
+            txnVertexCounts.get(id).get(label).addAndGet(-1);
+            txnCountdownCounts.computeIfAbsent(id, k -> new AtomicLong(0));
+            txnCountdownCounts.get(id).incrementAndGet();
+        } else {
+            vertexCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+            vertexCounts.get(label).addAndGet(-1);
+            COUNTDOWN_LATCH.countDown();
+        }
     }
 
     /**
      * Update the number of edges that exist under the provided label in the summary record.
      *
-     * @param label      The label of the edge to update.
-     * @param properties The properties of the edge to update.
+     * @param label         The label of the edge to update.
+     * @param properties    The properties of the edge to update.
+     * @param txn           The transaction that this operation occurred within.
      */
-    public void addEdgeWriteToQueue(final String label, final Set<String> properties) {
+    public void addEdgeWriteToQueue(final String label, final Set<String> properties, final Txn txn) {
         if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
 
-        edgeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
-        edgeCounts.get(label).addAndGet(1);
-        edgeProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
-        edgeProperties.get(label).addAll(properties);
-        COUNTDOWN_LATCH.countDown();
+        if (txn != null) {
+            final long id = txn.getId();
+            txnEdgeCounts.computeIfAbsent(id, k -> new ConcurrentHashMap<>());
+            txnEdgeCounts.get(id).computeIfAbsent(label, k -> new AtomicLong(0));
+            txnEdgeCounts.get(id).get(label).addAndGet(1);
+            txnEdgeProperties.computeIfAbsent(id, k -> new ConcurrentHashMap<>());
+            txnEdgeProperties.get(id).computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
+            txnEdgeProperties.get(id).get(label).addAll(properties);
+            txnCountdownCounts.computeIfAbsent(id, k -> new AtomicLong(0));
+            txnCountdownCounts.get(id).incrementAndGet();
+        } else {
+            edgeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+            edgeCounts.get(label).addAndGet(1);
+            edgeProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
+            edgeProperties.get(label).addAll(properties);
+            COUNTDOWN_LATCH.countDown();
+        }
     }
 
     /**
@@ -284,15 +329,25 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * Update the number of supernodes that exist under the provided label in the summary record.
      *
      * @param label The label of the supernode to update.
+     * @param txn   The transaction that this operation occurred within.
      */
-    public void addSupernodeWriteToQueue(final String label) {
+    public void addSupernodeWriteToQueue(final String label, final Txn txn) {
         if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
 
-        supernodeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
-        supernodeCounts.get(label).addAndGet(1);
-        COUNTDOWN_LATCH.countDown();
+        if (txn != null) {
+            final long id = txn.getId();
+            txnSupernodeCounts.computeIfAbsent(id, k -> new ConcurrentHashMap<>());
+            txnSupernodeCounts.get(id).computeIfAbsent(label, k -> new AtomicLong(0));
+            txnSupernodeCounts.get(id).get(label).addAndGet(1);
+            txnCountdownCounts.computeIfAbsent(id, k -> new AtomicLong(0));
+            txnCountdownCounts.get(id).incrementAndGet();
+        } else {
+            supernodeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+            supernodeCounts.get(label).addAndGet(1);
+            COUNTDOWN_LATCH.countDown();
+        }
     }
 
     /**
@@ -315,15 +370,25 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * Update the number of supernodes that exist under the provided label in the summary record.
      *
      * @param label The label of the supernode to remove.
+     * @param txn   The transaction that this operation occurred within.
      */
-    public void addSupernodeRemoveToQueue(final String label) {
+    public void addSupernodeRemoveToQueue(final String label, final Txn txn) {
         if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
 
-        supernodeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
-        supernodeCounts.get(label).addAndGet(-1);
-        COUNTDOWN_LATCH.countDown();
+        if (txn != null) {
+            final long id = txn.getId();
+            txnSupernodeCounts.computeIfAbsent(id, k -> new ConcurrentHashMap<>());
+            txnSupernodeCounts.get(id).computeIfAbsent(label, k -> new AtomicLong(0));
+            txnSupernodeCounts.get(id).get(label).addAndGet(-1);
+            txnCountdownCounts.computeIfAbsent(id, k -> new AtomicLong(0));
+            txnCountdownCounts.get(id).incrementAndGet();
+        } else {
+            supernodeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+            supernodeCounts.get(label).addAndGet(-1);
+            COUNTDOWN_LATCH.countDown();
+        }
     }
 
     public void startVertexPartition(final int partitionId) {
@@ -462,14 +527,23 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      *
      * @param label The label of the vertex or edge to update.
      */
-    public void addEdgeRemoveToQueue(final String label) {
+    public void addEdgeRemoveToQueue(final String label, final Txn txn) {
         if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
 
-        edgeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
-        edgeCounts.get(label).addAndGet(-1);
-        COUNTDOWN_LATCH.countDown();
+        if (txn != null) {
+            final long id = txn.getId();
+            txnEdgeCounts.computeIfAbsent(id, k -> new ConcurrentHashMap<>());
+            txnEdgeCounts.get(id).computeIfAbsent(label, k -> new AtomicLong(0));
+            txnEdgeCounts.get(id).get(label).addAndGet(-1);
+            txnCountdownCounts.computeIfAbsent(id, k -> new AtomicLong(0));
+            txnCountdownCounts.get(id).incrementAndGet();
+        } else {
+            edgeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+            edgeCounts.get(label).addAndGet(-1);
+            COUNTDOWN_LATCH.countDown();
+        }
     }
 
     /**
@@ -478,14 +552,23 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param label      The label of the vertex or edge to update.
      * @param properties The properties of the vertex to update.
      */
-    public void addVertexPropertiesWriteToQueue(final String label, final Set<String> properties) {
+    public void addVertexPropertiesWriteToQueue(final String label, final Set<String> properties, final Txn txn) {
         if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
 
-        vertexProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
-        vertexProperties.get(label).addAll(properties);
-        COUNTDOWN_LATCH.countDown();
+        if (txn != null) {
+            final long id = txn.getId();
+            txnVertexProperties.computeIfAbsent(id, k -> new ConcurrentHashMap<>());
+            txnVertexProperties.get(id).computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
+            txnVertexProperties.get(id).get(label).addAll(properties);
+            txnCountdownCounts.computeIfAbsent(id, k -> new AtomicLong(0));
+            txnCountdownCounts.get(id).incrementAndGet();
+        } else {
+            vertexProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
+            vertexProperties.get(label).addAll(properties);
+            COUNTDOWN_LATCH.countDown();
+        }
     }
 
     /**
@@ -494,14 +577,79 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param label      The label of the edge to update.
      * @param properties The properties of the edge to update.
      */
-    public void addEdgePropertiesWriteToQueue(final String label, final Set<String> properties) {
+    public void addEdgePropertiesWriteToQueue(final String label, final Set<String> properties, final Txn txn) {
         if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
 
-        edgeProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
-        edgeProperties.get(label).addAll(properties);
-        COUNTDOWN_LATCH.countDown();
+        if (txn != null) {
+            final long id = txn.getId();;
+            txnEdgeProperties.computeIfAbsent(id, k -> new ConcurrentHashMap<>());
+            txnEdgeProperties.get(id).computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
+            txnEdgeProperties.get(id).get(label).addAll(properties);
+            txnCountdownCounts.computeIfAbsent(id, k -> new AtomicLong(0));
+            txnCountdownCounts.get(id).incrementAndGet();
+        } else {
+            edgeProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
+            edgeProperties.get(label).addAll(properties);
+            COUNTDOWN_LATCH.countDown();
+        }
+    }
+
+    public void commitSummaryForTxn(final Txn txn) {
+        final long id = txn.getId();
+        final Map<String, Set<String>> edgePropertiesForTxn = txnEdgeProperties.remove(id);
+        final Map<String, Set<String>> vertexPropertiesForTxn = txnVertexProperties.remove(id);
+        final Map<String, AtomicLong> edgeCountsForTxn = txnEdgeCounts.remove(id);
+        final Map<String, AtomicLong> vertexCountsForTxn = txnVertexCounts.remove(id);
+        final Map<String, AtomicLong> supernodeCountsForTxn = txnSupernodeCounts.remove(id);
+        joinTxnSummaryDataSetToUpdater(edgePropertiesForTxn, edgeProperties);
+        joinTxnSummaryDataSetToUpdater(vertexPropertiesForTxn, vertexProperties);
+        joinTxnSummaryDataCounterToUpdater(edgeCountsForTxn, edgeCounts);
+        joinTxnSummaryDataCounterToUpdater(vertexCountsForTxn, vertexCounts);
+        joinTxnSummaryDataCounterToUpdater(supernodeCountsForTxn, supernodeCounts);
+
+        // This should never happen but just force countdown to be safe
+        final long count = txnCountdownCounts.get(id) != null ? txnCountdownCounts.remove(id).get() : Long.MAX_VALUE;
+        countDownLatchBy(count);
+    }
+
+    public void abortSummaryForTxn(final Txn txn) {
+        final long id = txn.getId();
+        txnEdgeProperties.remove(id);
+        txnVertexProperties.remove(id);
+        txnEdgeCounts.remove(id);
+        txnVertexCounts.remove(id);
+        txnSupernodeCounts.remove(id);
+        txnCountdownCounts.remove(id);
+    }
+
+    private void joinTxnSummaryDataSetToUpdater(final Map<String, Set<String>> txnMap, final Map<String, Set<String>> graphMap) {
+        if (txnMap == null) {
+            return;
+        }
+
+        for (final Map.Entry<String, Set<String>> txnSetKv : txnMap.entrySet()) {
+            if (graphMap.containsKey(txnSetKv.getKey())) {
+                graphMap.get(txnSetKv.getKey()).addAll(txnSetKv.getValue());
+            } else {
+                graphMap.put(txnSetKv.getKey(), txnSetKv.getValue());
+            }
+        }
+    }
+
+    private void joinTxnSummaryDataCounterToUpdater(final Map<String, AtomicLong> txnMap, final Map<String, AtomicLong> graphMap) {
+        if (txnMap == null) {
+            return;
+        }
+
+        for (final Map.Entry<String, AtomicLong> txnSetKv : txnMap.entrySet()) {
+            if (graphMap.containsKey(txnSetKv.getKey())) {
+                graphMap.get(txnSetKv.getKey()).addAndGet(txnSetKv.getValue().get());
+            } else {
+                graphMap.put(txnSetKv.getKey(), txnSetKv.getValue());
+            }
+        }
     }
 
     @Override
@@ -1100,8 +1248,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             return;
         }
 
-        final long TICKER_OUTPUT_INTERVAL_MS = 60000L;
-        if (lastTickerOutputTime.get() + TICKER_OUTPUT_INTERVAL_MS > System.currentTimeMillis()) {
+        if (lastTickerOutputTime.get() + db.SUMMARY_TICKER_INTERVAL_MS > System.currentTimeMillis()) {
             return;
         }
 
@@ -1292,8 +1439,14 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void forceWrite() {
-        while (COUNTDOWN_LATCH.getCount() > 0) {
+        countDownLatchBy(Long.MAX_VALUE);
+    }
+
+    private void countDownLatchBy(final long count) {
+        long iterationsRemaining = count;
+        while (COUNTDOWN_LATCH.getCount() > 0 && iterationsRemaining > 0) {
             COUNTDOWN_LATCH.countDown();
+            iterationsRemaining--;
         }
     }
 }

@@ -620,6 +620,11 @@ jobs:
           echo "Running Tinkerpop transactions test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTinkerpopTransactions --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
+          echo "Sleeping 10 seconds for docker to kill the container"
+      - name: Test Summary Updater with Transactions
+        run: |
+          echo "Running transaction summary updater test"
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestTransactionSummary --no-transfer-progress
   test-firefly-process-1:
     name: Test Firefly Process Tests 1
     timeout-minutes: 120

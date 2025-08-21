@@ -220,6 +220,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final int PHAT_EDGE_SIZE;
     public final int MOVEMENT_BARRIER_SIZE;
     public final boolean SUMMARY_TICKER_ENABLED_FLAG;
+    public final int SUMMARY_TICKER_INTERVAL_MS;
     public final boolean SUMMARY_ENABLED_FLAG;
     public final boolean TTL_ENABLED_FLAG;
     public final String TTL_BIN;
@@ -456,6 +457,7 @@ public class AerospikeConnection implements AutoCloseable {
         E_LABEL_INDEX_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG, conf);
         GLOBAL_EDGE_CACHE_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED, conf);
         SUMMARY_TICKER_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG, conf);
+        SUMMARY_TICKER_INTERVAL_MS = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SUMMARY_TICKER_INTERVAL_MS, conf);
         SUMMARY_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG, conf);
         ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY, conf);
         ENABLE_COMPOSITE_ID_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY, conf);
@@ -2727,10 +2729,11 @@ public class AerospikeConnection implements AutoCloseable {
         return record.getLong(COUNTER_BIN);
     }
 
-    public void commit(final Txn txn) {
+    public void commit(final FireflyGraph graph, final Txn txn) {
         try {
             if (txn != null) {
                 this.client.commit(txn);
+                graph.fireflySummaryUpdater.commitSummaryForTxn(txn);
             }
         } catch (final AerospikeException e) {
             LOG.error("Error - AerospikeException in transaction commit: {}", e.getMessage());
@@ -2738,10 +2741,11 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
-    public void rollback(final Txn txn) {
+    public void rollback(final FireflyGraph graph, final Txn txn) {
         try {
             if (txn != null) {
                 this.client.abort(txn);
+                graph.fireflySummaryUpdater.abortSummaryForTxn(txn);
             }
         } catch (final AerospikeException e) {
             LOG.error("Error - AerospikeException in transaction abort: {}", e.getMessage());
@@ -2763,7 +2767,7 @@ public class AerospikeConnection implements AutoCloseable {
 
             checkedPut(writePolicy, key, bin);
 
-            rollback(txn);
+            this.client.abort(txn);
         } catch (final AerospikeGraphException e) {
             throw new AerospikeMrtNotSupportedException();
         }

@@ -47,7 +47,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
         if (isInTxnState()) {
             try {
                 LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("doCommit invoked on Thread: {}");
-                this.graph.getBaseGraph().commit(this.dbTxn.get());
+                this.graph.getBaseGraph().commit(this.graph, this.dbTxn.get());
                 final Queue<FireflyId> idsToRecycle = this.edgeIdsToRecycle.get();
                 while (!idsToRecycle.isEmpty()) {
                     this.graph.getIdFactory().recycleEdgeId(idsToRecycle.poll());
@@ -63,7 +63,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
         if (isInTxnState()) {
             try {
                 LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("doRollback invoked on Thread: {}");
-                this.graph.getBaseGraph().rollback(this.dbTxn.get());
+                this.graph.getBaseGraph().rollback(this.graph, this.dbTxn.get());
             } catch (final Exception e) {
                 // Reset the txn since a failed rollback should still reset the state to allow new txns.
                 this.dbTxn.remove();

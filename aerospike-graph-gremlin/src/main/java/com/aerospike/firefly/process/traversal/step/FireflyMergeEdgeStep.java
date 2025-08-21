@@ -239,17 +239,14 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         final FireflyId fromVId = fireflyGraph.getIdFactory().createVertexId(fromId);
         final FireflyId toVId = fireflyGraph.getIdFactory().createVertexId(toId);
         final List<FireflyVertex> fromVAndToV = fireflyGraph.readVertices(Collections.emptyList(),
-                List.of(fromVId, toVId), Collections.emptyList());
-        FireflyVertex fromV = null;
-        FireflyVertex toV = null;
+                List.of(fromVId), Collections.emptyList());
+        FireflyVertex fromV = fromVAndToV.get(0);
         for (final FireflyVertex vertex : fromVAndToV) {
             if (vertex.id.equals(fromVId)) {
                 fromV = vertex;
-            } else if (vertex.id.equals(toVId)) {
-                toV = vertex;
             }
         }
-        if (fromV == null || toV == null) {
+        if (fromV == null) {
             return CloseableIterator.of(Collections.emptyIterator());
         }
 
@@ -262,12 +259,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
             }
         }
 
-        // If OUT/FROM is a supernode, just use IN/TO since it's a 50/50 which is faster if both are supernodes
-        if (fromV.isEdgeCacheOverflowed()) {
-            return toV.getEdgesAdjacentToVertex(Direction.IN, fromV.id, edgeLabel, propertyFilters);
-        } else {
-            return fromV.getEdgesAdjacentToVertex(Direction.OUT, toV.id, edgeLabel, propertyFilters);
-        }
+        return fromV.getEdgesAdjacentToVertex(Direction.OUT, toVId, edgeLabel, propertyFilters);
     }
 
     protected Map<?,?> resolveVertices(final Map map, final Traverser.Admin<S> traverser) {

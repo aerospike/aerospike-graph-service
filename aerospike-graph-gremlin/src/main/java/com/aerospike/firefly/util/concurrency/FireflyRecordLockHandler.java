@@ -14,14 +14,12 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 
 /**
- * Distributed record lock handler:
- * - Local fairness: baton queue (capacity 1, fair=true) hands off the right to proceed.
- * - Distributed lock: db.writeKeyLock(key, ttl) acquires; db.delete(key, null) releases.
- * - A shared scheduler polls to acquire the distributed lock and deposits the baton for one waiter.
- * - No global synchronized on the lock table; uses CHM.compute for concurrency.
+ * Scalable distributed record lock handler.
  *
- * Assumes lock TTL and timeout are expressed in milliseconds (as in the original).
- * If your Aerospike TTL is in seconds, convert in the AerospikeConnection wrapper.
+ * Semantics:
+ *  - Distributed lock is acquired via db.writeKeyLock(key, ttl) and released via db.delete(key, null).
+ *  - Local fairness via a baton queue (capacity=1, fair=true).
+ *  - A shared scheduler polls only when needed; first waiter attempts inline before waiting.
  */
 public class FireflyRecordLockHandler {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyRecordLockHandler.class);
@@ -29,18 +27,19 @@ public class FireflyRecordLockHandler {
     /** All live per-key locks. */
     private static final ConcurrentHashMap<Key, FireflyRecordLock> RECORD_LOCKS = new ConcurrentHashMap<>();
 
-    /** Shared scheduler for all polling tasks (daemon threads). */
-    private static final ScheduledExecutorService SCHEDULER =
-            Executors.newScheduledThreadPool(
-                    Math.max(2, Runtime.getRuntime().availableProcessors() / 4),
-                    new ThreadFactory() {
-                        private final AtomicInteger n = new AtomicInteger();
-                        @Override public Thread newThread(Runnable r) {
-                            Thread t = new Thread(r, "firefly-lock-poller-" + n.incrementAndGet());
-                            t.setDaemon(true);
-                            return t;
-                        }
-                    });
+    /** Shared scheduler for all polling tasks (daemon). Size is generous to avoid starvation under many hot keys. */
+    private static final ScheduledThreadPoolExecutor SCHEDULER;
+    static {
+        int n = Math.max(8, Math.min(256, Runtime.getRuntime().availableProcessors() * 2));
+        SCHEDULER = new ScheduledThreadPoolExecutor(n, r -> {
+            Thread t = new Thread(r, "firefly-lock-poller");
+            t.setDaemon(true);
+            return t;
+        });
+        SCHEDULER.setRemoveOnCancelPolicy(true);
+        SCHEDULER.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+        SCHEDULER.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
+    }
 
     private final AerospikeConnection db;
     private final int lockTtl;                 // ms
@@ -57,9 +56,8 @@ public class FireflyRecordLockHandler {
     }
 
     /**
-     * Acquire a record lock for {@code key}. Returns only when both:
-     *  1) this JVM instance is the selected waiter (baton received), and
-     *  2) the distributed Aerospike lock has been acquired (writeKeyLock succeeded).
+     * Acquire a record lock for {@code key}. Returns only when this JVM instance owns both:
+     *  (1) local baton (FIFO) and (2) the distributed Aerospike lock.
      *
      * Caller MUST call {@link FireflyRecordLock#unlock()} exactly once.
      */
@@ -74,17 +72,22 @@ public class FireflyRecordLockHandler {
 
     /** Represents the held lock for a specific record key. */
     public static final class FireflyRecordLock {
+        private static final Object TOKEN = new Object();
+
         private final FireflyRecordLockHandler handler;
         private final Key key;
 
-        /** Fair hand-off queue. One object enqueued == one rightful owner proceeds. */
+        /** Fair hand-off queue. One token enqueued == one rightful owner proceeds. */
         private final ArrayBlockingQueue<Object> baton = new ArrayBlockingQueue<>(1, true);
 
-        /** Scheduler future for the poller (null when not polling). */
+        /** Poller future (null when not polling). */
         private volatile ScheduledFuture<?> pollerFuture;
 
         /** Awaiters for this key. */
         private final AtomicInteger pendingRequests = new AtomicInteger(0);
+
+        /** True iff this instance currently holds the distributed lock (set when baton consumed). */
+        private final AtomicBoolean holdingDistributed = new AtomicBoolean(false);
 
         /** When the current owner acquired the distributed lock (ms since epoch). */
         private final AtomicLong lockAcquireTime = new AtomicLong(0);
@@ -96,69 +99,123 @@ public class FireflyRecordLockHandler {
         /** Rate-limit unexpected error logs during contention. */
         private final AtomicBoolean printErrorToLog = new AtomicBoolean(true);
 
-        /** Marker object used as a baton token. */
-        private static final Object TOKEN = new Object();
-
         private FireflyRecordLock(final FireflyRecordLockHandler handler, final Key key) {
             this.handler = handler;
             this.key = key;
-            schedulePoller(0); // immediate first attempt
+            schedulePoller(0); // first attempt will run soon
         }
 
         /**
-         * Blocks until baton is received (i.e., distributed lock acquired by the poller) or timeout elapses.
+         * Acquire: try inline fast-path first, then wait for baton with the remaining timeout.
          */
         private FireflyRecordLock lock() {
+            final long deadlineNs = System.nanoTime() +
+                    TimeUnit.MILLISECONDS.toNanos(handler.lockTimeout);
+
+            // 1) Inline fast-path: try to grab the distributed lock immediately
             try {
-                final Object got = baton.poll(handler.lockTimeout, TimeUnit.MILLISECONDS);
-                if (got != null) {
-                    // Distributed lock is acquired by this instance. Mark time and proceed.
+                if (tryAcquireDistributedOnce()) {
+                    // We own distributed lock now; mark + return without waiting.
+                    holdingDistributed.set(true);
                     lockAcquireTime.set(System.currentTimeMillis());
+                    // Clear baton if any stale token remains (shouldn't, but defensive).
+                    baton.poll();
                     return this;
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                LOG.error("Interrupted while waiting for record lock baton for key {}", key, e);
+            } catch (AerospikeGraphException fatal) {
+                if (fatal.errorCode == GraphError.NSUP_DISABLED.code) {
+                    // Non-recoverable in this mode → fail fast
+                    decrementAndCleanupIfLast();
+                    throw fatal;
+                }
+                // Other errors fall through to waiting path.
+            } catch (Exception unexpected) {
+                if (printErrorToLog.getAndSet(false)) {
+                    LOG.error("Unexpected error during inline lock attempt for key {}", key, unexpected);
+                }
             }
 
-            // Timed out or interrupted: decrement and possibly clean up.
-            if (pendingRequests.decrementAndGet() == 0) {
-                cleanup();
+            // Ensure a poller is running (it may have been cancelled by a prior owner)
+            ensurePoller();
+
+            // 2) Wait for baton within remaining timeout
+            try {
+                long remainingMs = TimeUnit.NANOSECONDS.toMillis(deadlineNs - System.nanoTime());
+                if (remainingMs > 0) {
+                    Object token = baton.poll(remainingMs, TimeUnit.MILLISECONDS);
+                    if (token != null) {
+                        holdingDistributed.set(true);
+                        lockAcquireTime.set(System.currentTimeMillis());
+                        return this;
+                    }
+                }
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                LOG.error("Interrupted while waiting for record lock baton for key {}", key, ie);
+            }
+
+            // Timed out: if baton is present, we (last waiter) can free the distributed lock early
+            if (decrementAndCleanupIfLast()) {
+                Object token = baton.poll();
+                if (token != null) {
+                    try {
+                        handler.db.delete(key, null);
+                    } catch (Exception e) {
+                        LOG.warn("Best-effort delete after timeout for key {}", key, e);
+                    }
+                }
             }
             throw new RuntimeException("Timeout of " + handler.lockTimeout +
                     "ms exceeded when attempting to acquire record lock for key " + key + ".");
         }
 
         /**
-         * Releases the distributed lock (if still valid) and hands over to the next waiter if any.
-         * Must be called exactly once by the current owner.
+         * Release: delete distributed lock (if still valid) and either wake next waiter (restart poller) or clean up.
+         * Must be called exactly once by the owner.
          */
         public void unlock() {
-            final int remaining;
             try {
-                // Only delete if still within TTL to avoid deleting a lock renewed by someone else.
-                final long heldMs = System.currentTimeMillis() - lockAcquireTime.get();
-                if (heldMs < handler.lockTtl) {
-                    handler.db.delete(key, null);
+                if (holdingDistributed.get()) {
+                    long heldMs = System.currentTimeMillis() - lockAcquireTime.get();
+                    if (heldMs < handler.lockTtl) {
+                        handler.db.delete(key, null);
+                    }
                 }
             } catch (Exception e) {
                 LOG.error("Unexpected error when unlocking record lock for key {}", key, e);
             } finally {
-                remaining = pendingRequests.decrementAndGet();
+                holdingDistributed.set(false);
             }
 
+            final int remaining = pendingRequests.decrementAndGet();
             if (remaining == 0) {
                 cleanup();
             } else {
-                // More waiters exist → re-start poller to acquire again and pass the baton.
+                // More waiters exist → restart poller to acquire and hand off baton
                 final int delay = handler.starvationProtectionEnabled ? handler.lockPollIntervalMillis : 0;
                 schedulePoller(delay);
             }
         }
 
+        /** Single attempt to acquire distributed lock. Returns true if successful. */
+        private boolean tryAcquireDistributedOnce() {
+            final Record r = handler.db.writeKeyLock(key, handler.lockTtl);
+            // Success → drop a token so a waiter (if any) can proceed, but also allow inline fast-path to proceed.
+            // We prefer not to enqueue the token for our own inline acquisition; just return true.
+            return r != null;
+        }
+
+        /** Make sure a poller is active if there are waiters and no owner. */
+        private void ensurePoller() {
+            ScheduledFuture<?> f = pollerFuture;
+            if (f == null || f.isCancelled()) {
+                schedulePoller(0);
+            }
+        }
+
         /** Schedule (or reschedule) the poller to acquire the distributed lock and hand off the baton. */
         private void schedulePoller(final int initialDelayMs) {
-            cancelPoller(); // ensure only one active poller
+            cancelPoller(); // ensure single active poller
             pollerFuture = SCHEDULER.scheduleAtFixedRate(
                     new AcquireRecordLockTask(this),
                     Math.max(0, initialDelayMs),
@@ -167,7 +224,7 @@ public class FireflyRecordLockHandler {
             );
         }
 
-        /** Stop polling and allow GC/removal. */
+        /** Stop polling. */
         private void cancelPoller() {
             final ScheduledFuture<?> f = pollerFuture;
             if (f != null) {
@@ -179,16 +236,21 @@ public class FireflyRecordLockHandler {
         /** Remove from map if no waiters; stop the poller. */
         private void cleanup() {
             cancelPoller();
-            // Remove only if mapping still points to this instance
-            RECORD_LOCKS.remove(this.key, this);
+            RECORD_LOCKS.remove(this.key, this); // only remove if mapping still points to this instance
+        }
+
+        /** Decrement waiters; if this was the last, clean up and return true. */
+        private boolean decrementAndCleanupIfLast() {
+            if (pendingRequests.decrementAndGet() == 0) {
+                cleanup();
+                return true;
+            }
+            return false;
         }
 
         /**
-         * Background task:
-         *  - Optionally backs off when {@code KEY_BUSY} (hot key) was observed.
-         *  - Attempts db.writeKeyLock(key, ttl).
-         *  - On success, deposits a baton token to wake exactly one waiter (FIFO).
-         *  - Cancels itself until the current owner calls unlock().
+         * Poller: backs off on hot keys, attempts writeKeyLock, and hands a baton to exactly one waiter (FIFO).
+         * Cancels itself after a successful handoff until the next unlock().
          */
         private static final class AcquireRecordLockTask implements Runnable {
             private final FireflyRecordLock lockRecord;
@@ -199,55 +261,47 @@ public class FireflyRecordLockHandler {
 
             @Override
             public void run() {
-                // If there are no pending waiters, stop polling early.
-                if (lockRecord.pendingRequests.get() <= 0) {
+                // If no waiters, don't waste cycles.
+                if (lockRecord.pendingRequests.get() <= 0 || lockRecord.holdingDistributed.get()) {
                     lockRecord.cancelPoller();
                     return;
                 }
 
-                // Backoff ticks for hot keys
+                // Hot-key backoff ticks
                 if (lockRecord.hotKeyBackoff.getAndDecrement() > 0) {
-                    return; // skip this interval
+                    return;
                 }
 
                 try {
-                    // Attempt to acquire the distributed lock
-                    final Record record = lockRecord.handler.db.writeKeyLock(
+                    final Record rec = lockRecord.handler.db.writeKeyLock(
                             lockRecord.key, lockRecord.handler.lockTtl);
 
                     // Success → hand off baton to one waiter in FIFO order
-                    final boolean offered = lockRecord.baton.offer(TOKEN);
-                    // Reset hot-key & error-suppression state
+                    // If a waiter already consumed via inline fast-path, baton may not be needed; that's OK.
+                    lockRecord.baton.offer(TOKEN);
                     lockRecord.printErrorToLog.set(true);
                     lockRecord.hotKeyCount.set(0);
                     lockRecord.hotKeyBackoff.set(0);
 
-                    // Once baton is delivered, we can stop polling until unlock()
-                    // (If 'offered' is false, baton was already present; still stop polling.)
-                    lockRecord.cancelPoller();
+                    lockRecord.cancelPoller(); // stop until next unlock()
 
                 } catch (final AerospikeGraphException e) {
                     if (e.errorCode == GraphError.NSUP_DISABLED.code) {
-                        // Non-recoverable in this mode → surface
-                        throw e;
+                        throw e; // fatal in this mode
                     } else if (e.errorCode == ResultCode.KEY_BUSY) {
-                        // Hot key (server busy) → exponential backoff
+                        // Server considers this a hot key — exponential backoff
                         LOG.warn("Hot key on record lock {}. Backing off before next attempt.", lockRecord.key);
                         int c = lockRecord.hotKeyCount.incrementAndGet();
-                        if (c > 15) c = 15; // cap to avoid overflow
-                        // 2 << c == 2^(c+1)
+                        if (c > 15) c = 15;
                         lockRecord.hotKeyBackoff.set(Math.max(1, 2 << c));
                     } else if (e.errorCode == ResultCode.KEY_EXISTS_ERROR) {
-                        // Lock held by someone else → no log spam, keep polling
-                        // (Leave backoff at 0 so we retry on next tick.)
+                        // Lock held elsewhere — quiet retry on next tick
                     } else {
-                        // Unexpected error: log once per burst, then keep trying
                         if (lockRecord.printErrorToLog.getAndSet(false)) {
                             LOG.error("Unexpected error acquiring record lock for key {}", lockRecord.key, e);
                         }
                     }
                 } catch (final Exception e) {
-                    // Defensive: unexpected runtime exception
                     if (lockRecord.printErrorToLog.getAndSet(false)) {
                         LOG.error("Unexpected runtime error in lock poller for key {}", lockRecord.key, e);
                     }

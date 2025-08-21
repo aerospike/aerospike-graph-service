@@ -22,7 +22,7 @@ public class TestTransactionSummary {
         final String[] environmentVariables = new String[]{
                 "aerospike.client.host=172.17.0.1:3000",
                 "aerospike.graph.tx.enabled=true",
-                "aerospike.graph.summary.ticker.interval=2000"
+                "aerospike.graph.summary.ticker.interval=5000"
         };
         final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
 

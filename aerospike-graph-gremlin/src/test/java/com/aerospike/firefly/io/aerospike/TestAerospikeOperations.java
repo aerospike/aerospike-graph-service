@@ -158,7 +158,7 @@ public class TestAerospikeOperations {
 
         final List<Txn> txn = new ArrayList<>();
         doAnswer(invocation -> {
-            txn.add(invocation.getArgument(0));
+            txn.add(invocation.getArgument(1));
             return null;
         }).when(connection).commit(any(FireflyGraph.class), any(Txn.class));
 

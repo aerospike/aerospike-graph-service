@@ -847,7 +847,7 @@ public final class ConfigurationHelper {
         if (Epoll.isAvailable()) {
             return EventLoopType.NETTY_EPOLL.name();
         }
-        LOG.info("Netty Epoll is unavailable, falling back to Netty Nio as default EventLoops.");
+        LOG.info("Netty Epoll is unavailable, falling back to Netty Nio as default EventLoopType.");
         return EventLoopType.NETTY_NIO.name();
     }
 }

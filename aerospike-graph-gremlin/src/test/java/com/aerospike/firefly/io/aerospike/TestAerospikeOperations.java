@@ -158,9 +158,9 @@ public class TestAerospikeOperations {
 
         final List<Txn> txn = new ArrayList<>();
         doAnswer(invocation -> {
-            txn.add(invocation.getArgument(0));
+            txn.add(invocation.getArgument(1));
             return null;
-        }).when(connection).commit(any(Txn.class));
+        }).when(connection).commit(any(FireflyGraph.class), any(Txn.class));
 
         when(graph.getBaseGraph()).thenReturn(connection);
         when(graph.getIdFactory()).thenReturn(fireflyIdFactory);
@@ -207,11 +207,11 @@ public class TestAerospikeOperations {
 
                 latchOut.countDown();
                 latchIn.await(1, TimeUnit.SECONDS);
-                db.commit(txn);
+                db.commit(graph, txn);
 
                 return edge;
             } catch (final RuntimeException e) {
-                db.rollback(txn);
+                db.rollback(graph, txn);
                 throw e;
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);

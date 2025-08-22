@@ -35,6 +35,10 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
     protected void doOpen() {
         if (isInTxnState()) {
             LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("doOpen invoked on Thread: {}");
+            final Txn oldTxn = this.dbTxn.get();
+            if (oldTxn != null) {
+                this.graph.fireflySummaryUpdater.abortSummaryForTxn(oldTxn);
+            }
             final Txn txn = new Txn();
             txn.setTimeout(timeout);
             this.dbTxn.set(txn);

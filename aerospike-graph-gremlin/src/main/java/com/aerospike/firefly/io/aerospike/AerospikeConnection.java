@@ -100,6 +100,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -2744,8 +2745,8 @@ public class AerospikeConnection implements AutoCloseable {
     public void rollback(final FireflyGraph graph, final Txn txn) {
         try {
             if (txn != null) {
-                this.client.abort(txn);
                 graph.fireflySummaryUpdater.abortSummaryForTxn(txn);
+                this.client.abort(txn);
             }
         } catch (final AerospikeException e) {
             LOG.error("Error - AerospikeException in transaction abort: {}", e.getMessage());
@@ -2757,7 +2758,7 @@ public class AerospikeConnection implements AutoCloseable {
         FireflyAerospikeVersionCheck.validateVersion(this.client, true);
 
         try {
-            final FireflyId id = this.getIdFactory().getTestId("test");
+            final FireflyId id = this.getIdFactory().getTestId(UUID.randomUUID().toString());
             final Bin bin = new Bin("txn", "support check");
             final Key key = getKey(this, this.TEST_SET, id);
 

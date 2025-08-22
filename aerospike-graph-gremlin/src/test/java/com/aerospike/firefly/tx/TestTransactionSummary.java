@@ -29,7 +29,7 @@ public class TestTransactionSummary {
     private static String EDGE_PROPERTIES_BY_LABEL = "Edge properties by label";
 
     @Test
-    public void testSandbox() throws Exception {
+    public void testSummaryWithTxns() throws Exception {
         final String[] environmentVariables = new String[]{
                 "aerospike.client.host=172.17.0.1:3000",
                 "aerospike.graph.tx.enabled=true",
@@ -94,11 +94,10 @@ public class TestTransactionSummary {
             Assert.assertTrue(summaryLog.get(VERTEX_COUNT_BY_LABEL).contains("labelgtx2=1"));
             Assert.assertTrue(summaryLog.get(VERTEX_COUNT_BY_LABEL).contains("labelshared=2"));
             Assert.assertFalse(summaryLog.get(VERTEX_COUNT_BY_LABEL).contains("labelgtx1"));
-            Assert.assertTrue(summaryLog.get(VERTEX_PROPERTIES_BY_LABEL).contains("p1=1"));
-            Assert.assertTrue(summaryLog.get(VERTEX_PROPERTIES_BY_LABEL).contains("p2=1"));
-            Assert.assertTrue(summaryLog.get(VERTEX_PROPERTIES_BY_LABEL).contains("gtx2p1=1"));
-            Assert.assertTrue(summaryLog.get(VERTEX_PROPERTIES_BY_LABEL).contains("gtx2p2=1"));
-            Assert.assertTrue(summaryLog.get(VERTEX_PROPERTIES_BY_LABEL).contains("pshared=4"));
+            Assert.assertTrue(summaryLog.get(VERTEX_PROPERTIES_BY_LABEL).contains("labelg=[p1, pshared]"));
+            Assert.assertTrue(summaryLog.get(VERTEX_PROPERTIES_BY_LABEL).contains("labelgtx2=[gtx2p1, pshared]"));
+            Assert.assertTrue(summaryLog.get(VERTEX_PROPERTIES_BY_LABEL).contains("labelshared=[p2, gtx2p2, pshared]"));
+            Assert.assertFalse(summaryLog.get(VERTEX_PROPERTIES_BY_LABEL).contains("labelgtx1"));
             Assert.assertFalse(summaryLog.get(VERTEX_PROPERTIES_BY_LABEL).contains("gtx1p1"));
             Assert.assertFalse(summaryLog.get(VERTEX_PROPERTIES_BY_LABEL).contains("gtx1p2"));
             Assert.assertTrue(summaryLog.get(EDGE_COUNT).contains(" 4."));
@@ -106,11 +105,10 @@ public class TestTransactionSummary {
             Assert.assertTrue(summaryLog.get(EDGE_COUNT_BY_LABEL).contains("labelgtx2=1"));
             Assert.assertTrue(summaryLog.get(EDGE_COUNT_BY_LABEL).contains("labelshared=2"));
             Assert.assertFalse(summaryLog.get(EDGE_COUNT_BY_LABEL).contains("labelgtx1"));
-            Assert.assertTrue(summaryLog.get(EDGE_PROPERTIES_BY_LABEL).contains("p1=1"));
-            Assert.assertTrue(summaryLog.get(EDGE_PROPERTIES_BY_LABEL).contains("p2=1"));
-            Assert.assertTrue(summaryLog.get(EDGE_PROPERTIES_BY_LABEL).contains("gtx2p1=1"));
-            Assert.assertTrue(summaryLog.get(EDGE_PROPERTIES_BY_LABEL).contains("gtx2p2=1"));
-            Assert.assertTrue(summaryLog.get(EDGE_PROPERTIES_BY_LABEL).contains("pshared=2"));
+            Assert.assertTrue(summaryLog.get(EDGE_PROPERTIES_BY_LABEL).contains("labelg=[pshared]"));
+            Assert.assertTrue(summaryLog.get(EDGE_PROPERTIES_BY_LABEL).contains("labelgtx2=[pshared]"));
+            Assert.assertTrue(summaryLog.get(EDGE_PROPERTIES_BY_LABEL).contains("labelshared=[p1, p2, gtx2p2, gtx2p1]"));
+            Assert.assertFalse(summaryLog.get(EDGE_PROPERTIES_BY_LABEL).contains("labelgtx1"));
             Assert.assertFalse(summaryLog.get(EDGE_PROPERTIES_BY_LABEL).contains("gtx1p1"));
             Assert.assertFalse(summaryLog.get(EDGE_PROPERTIES_BY_LABEL).contains("gtx1p2"));
         } finally {

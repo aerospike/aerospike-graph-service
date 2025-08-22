@@ -245,8 +245,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         for (final FireflyVertex vertex : fromVAndToV) {
             if (vertex.id.equals(fromVId)) {
                 fromV = vertex;
-            }
-            if (vertex.id.equals(toVId)) {
+            } else if (vertex.id.equals(toVId)) {
                 toV = vertex;
             }
         }

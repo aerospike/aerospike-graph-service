@@ -47,7 +47,7 @@ public class TestTransactionSummary {
             Object gid2 = gtx1.addV("label2").next();
             gtx1.V(gid2).property("p2", "foo").next();
             gtx1.addE("label1").property("p1", "foo").property("p2", "foo").from(__.V(gid1)).to(__.V(gid2)).next();
-            Thread.sleep(2000);
+            Thread.sleep(7500);
             Map<String, String> summaryLog = getLastSummaryTicker(containerId);
             Assert.assertTrue(summaryLog.get(VERTEX_COUNT).contains(" 0."));
             Assert.assertTrue(summaryLog.get(VERTEX_COUNT_BY_LABEL).contains(" {}."));
@@ -87,7 +87,7 @@ public class TestTransactionSummary {
             gtx1.tx().rollback();
             gtx2.tx().commit();
 
-            Thread.sleep(2000);
+            Thread.sleep(7500);
             summaryLog = getLastSummaryTicker(containerId);
             Assert.assertTrue(summaryLog.get(VERTEX_COUNT).contains(" 4."));
             Assert.assertTrue(summaryLog.get(VERTEX_COUNT_BY_LABEL).contains("labelg=1"));
@@ -142,6 +142,12 @@ public class TestTransactionSummary {
                 summaryInfo.put(EDGE_COUNT_BY_LABEL, line);
             } else if (line.contains(EDGE_PROPERTIES_BY_LABEL)) {
                 summaryInfo.put(EDGE_PROPERTIES_BY_LABEL, line);
+            }
+        }
+        if (summaryInfo.size() != 6) {
+            LOG.error("Unexpected missing information from Summary. Printing entire log...");
+            for (final String line : log) {
+                LOG.error(line);
             }
         }
         Assert.assertEquals(6, summaryInfo.size());

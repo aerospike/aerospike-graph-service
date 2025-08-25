@@ -100,6 +100,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -220,6 +221,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final int PHAT_EDGE_SIZE;
     public final int MOVEMENT_BARRIER_SIZE;
     public final boolean SUMMARY_TICKER_ENABLED_FLAG;
+    public final int SUMMARY_TICKER_INTERVAL_MS;
     public final boolean SUMMARY_ENABLED_FLAG;
     public final boolean TTL_ENABLED_FLAG;
     public final String TTL_BIN;
@@ -456,6 +458,7 @@ public class AerospikeConnection implements AutoCloseable {
         E_LABEL_INDEX_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG, conf);
         GLOBAL_EDGE_CACHE_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED, conf);
         SUMMARY_TICKER_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG, conf);
+        SUMMARY_TICKER_INTERVAL_MS = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SUMMARY_TICKER_INTERVAL_MS, conf);
         SUMMARY_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG, conf);
         ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY, conf);
         ENABLE_COMPOSITE_ID_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY, conf);
@@ -479,7 +482,6 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         TTL_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf);
-        PAGINATION_PAGE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf);
         PAGINATION_PAGE_MAX_WAIT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, conf);
         PAGINATION_SHUTDOWN_WAIT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_SHUTDOWN_WAIT, conf);
         OLAP_PAGINATION_WORKERS = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.OLAP_PAGINATION_WORKERS, conf);
@@ -583,9 +585,24 @@ public class AerospikeConnection implements AutoCloseable {
         BL_FILE_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.BL_FILE_BIN.name(), conf);
         BULK_LOAD_RECOVERY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.BL_RECOVERY_BIN.name(), conf);
 
-        AEROSPIKE_BATCH_READ_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf);
         AEROSPIKE_BATCH_THRESHOLD = this.client.getNodes().length *
                 ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, conf);
+        final int batchReadSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf);
+        if (batchReadSize == 0) {
+            AEROSPIKE_BATCH_READ_SIZE = this.client.getNodes().length *
+                    ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE_PER_NODE, conf);;
+        } else {
+            AEROSPIKE_BATCH_READ_SIZE = batchReadSize;
+        }
+        final int pageSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf);
+        if (pageSize == 0) {
+            PAGINATION_PAGE_SIZE = this.client.getNodes().length *
+                    ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE_PER_NODE, conf);
+        } else {
+            PAGINATION_PAGE_SIZE = pageSize;
+        }
+        LOG.info("Batch read size {}, page size {}", AEROSPIKE_BATCH_READ_SIZE, PAGINATION_PAGE_SIZE);
+
         FIREFLY_READ_THROUGH_CACHE_WEIGHT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf);
         PHAT_EDGE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PHAT_EDGE_SIZE, conf);
         MOVEMENT_BARRIER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MOVEMENT_BARRIER_SIZE, conf);
@@ -1593,21 +1610,12 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Drop indices for Firefly
+     * Drop all indices that belong to the graph namespace.
      */
-    public void dropGraphIndices(final FireflyGraph graph) {
-        LOG.debug("Dropping graph indices.");
-        dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX_NAME);
-        dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX_NAME);
-        if (graph != null) {
-            graph.fireflyIndexMetadata.getIndexesInProgress().forEach(index -> {
-                if (index.startsWith(getVpIndexPrefix())) {
-                    dropIndex(setFromElementType(FireflyVertex.class), index);
-                } else if (index.startsWith(getEpIndexPrefix())) {
-                    dropIndex(setFromElementType(FireflyEdge.class), index);
-                }
-            });
-        }
+    public void dropGraphIndices() {
+        LOG.info("Dropping all graph indices.");
+        InfoOps.listExistingIndexes(this)
+                .forEach(entry -> dropIndex(entry.getValue(), entry.getKey()));
     }
 
     public Map<String, Integer> abortQueries() {
@@ -2279,11 +2287,16 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(infoPolicy, namespace, OUT_VP_SET, null);
             client.truncate(infoPolicy, namespace, IN_VP_SET, null);
             client.truncate(infoPolicy, namespace, SUMMARY_SET, null);
+            client.truncate(infoPolicy, namespace, USAGE_STATS_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_METADATA_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_VERTEX_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_EDGE_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_SUPERNODE_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_RECOVERY_STATE_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_DUPLICATE_VID_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_BAD_EDGE_SET, null);
+            client.truncate(infoPolicy, namespace, BULK_LOAD_BAD_ENTRY_SET, null);
+            client.truncate(infoPolicy, namespace, OLAP_SET, null);
 
             // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the
             // id manager set and if we delete it here, they will likely insert a record with the same id as the one
@@ -2292,7 +2305,7 @@ public class AerospikeConnection implements AutoCloseable {
                 // Indexes break if Schema table is dropped.
                 client.truncate(infoPolicy, namespace, SCHEMA_SET, null);
                 schemaManager.updateAll();
-                dropGraphIndices(graph);
+                dropGraphIndices();
             }
             Thread.sleep(1);
         } catch (final InterruptedException e) {
@@ -2727,10 +2740,11 @@ public class AerospikeConnection implements AutoCloseable {
         return record.getLong(COUNTER_BIN);
     }
 
-    public void commit(final Txn txn) {
+    public void commit(final FireflyGraph graph, final Txn txn) {
         try {
             if (txn != null) {
                 this.client.commit(txn);
+                graph.fireflySummaryUpdater.commitSummaryForTxn(txn);
             }
         } catch (final AerospikeException e) {
             LOG.error("Error - AerospikeException in transaction commit: {}", e.getMessage());
@@ -2738,9 +2752,10 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
-    public void rollback(final Txn txn) {
+    public void rollback(final FireflyGraph graph, final Txn txn) {
         try {
             if (txn != null) {
+                graph.fireflySummaryUpdater.abortSummaryForTxn(txn);
                 this.client.abort(txn);
             }
         } catch (final AerospikeException e) {
@@ -2753,7 +2768,7 @@ public class AerospikeConnection implements AutoCloseable {
         FireflyAerospikeVersionCheck.validateVersion(this.client, true);
 
         try {
-            final FireflyId id = this.getIdFactory().getTestId("test");
+            final FireflyId id = this.getIdFactory().getTestId(UUID.randomUUID().toString());
             final Bin bin = new Bin("txn", "support check");
             final Key key = getKey(this, this.TEST_SET, id);
 
@@ -2763,7 +2778,7 @@ public class AerospikeConnection implements AutoCloseable {
 
             checkedPut(writePolicy, key, bin);
 
-            rollback(txn);
+            this.client.abort(txn);
         } catch (final AerospikeGraphException e) {
             throw new AerospikeMrtNotSupportedException();
         }

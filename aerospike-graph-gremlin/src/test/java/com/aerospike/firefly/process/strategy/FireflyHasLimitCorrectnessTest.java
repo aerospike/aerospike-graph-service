@@ -25,14 +25,14 @@ public class FireflyHasLimitCorrectnessTest {
         final Configuration configuration = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         configuration.setProperty(AEROSPIKE_BATCH_READ_SIZE, 5);
         configuration.setProperty(MOVEMENT_BARRIER_SIZE, 50);
-        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
             GraphTraversalSource g = graph.traversal();
             g.V().drop().iterate();
-            for (int i = 0; i < 10000; i++) {
+            for (int i = 0; i < 12000; i++) {
                 g.addV().property(T.id, i).property("name", "vertex" + i).property("name2", 1.0).next();
             }
 
-            for (int i = 0; i < 10000; i++) {
+            for (int i = 0; i < 12000; i++) {
                 g.addE("edge").from(__.V(i)).to(__.V((i + 1) % 1000)).property("weight", i).property("name2", 1.0).next();
             }
             GraphTraversal t1 = g.V().order().by(T.id).out().limit(1).has("name", "vertex500").has("name2", 1.0);

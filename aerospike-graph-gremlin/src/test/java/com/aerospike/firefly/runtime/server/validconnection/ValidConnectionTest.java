@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
 public class ValidConnectionTest {
-    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Ddocker.benchmark=1 -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
+    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Ddocker.benchmark=1 -Dtest=ValidConnectionTest  --no-transfer-progress
     private static final Logger LOG = LoggerFactory.getLogger(ValidConnectionTest.class);
     private static final String HOST = BenchmarkTestUtils.getHost();
     private static final int PORT = 8182;

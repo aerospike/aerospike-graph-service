@@ -25,4 +25,4 @@ sudo docker run --name firefly -d -p 8182:8182 -p 9090:9090 -e aerospike.client.
 
 # Run Benchmark
 sudo mvn clean install -DskipTests
-sudo mvn test -pl aerospike-graph-gremlin -Dfirefly.host=localhost -Ddataset.size="$(cat ./data_size.txt)" -Dstorage.type="$(cat ./storage_type.txt)" -Dtest="$(cat ./benchmark_name.txt)" -DfailIfNoTests=false --no-transfer-progress
+sudo mvn test -pl aerospike-graph-gremlin -Dfirefly.host=localhost -Ddataset.size="$(cat ./data_size.txt)" -Dstorage.type="$(cat ./storage_type.txt)" -Dtest="$(cat ./benchmark_name.txt)"  --no-transfer-progress

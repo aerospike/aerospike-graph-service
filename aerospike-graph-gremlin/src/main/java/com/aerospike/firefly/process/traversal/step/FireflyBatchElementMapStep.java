@@ -86,6 +86,7 @@ public class FireflyBatchElementMapStep extends CollectingBarrierStep<Element> i
         if (output.isEmpty()) {
             set.add(EmptyTraverser.instance());
         } else {
+            set.clear();
             set.addAll(output);
             output.clear(); // Force garbage collection.
         }

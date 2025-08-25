@@ -42,7 +42,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 // Takes about 30 minutes to run in GitHub actions.
 @Measurement(iterations = 1, time = 45, timeUnit = TimeUnit.SECONDS)
 public class BenchmarkTestSyntheticData {
-    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Dbenchmark.mode=[all|throughput|average] -Dbenchmark.threads=4 -Ddocker.benchmark=1 -Dtest=BenchmarkTestSyntheticData -DfailIfNoTests=false --no-transfer-progress
+    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Dbenchmark.mode=[all|throughput|average] -Dbenchmark.threads=4 -Ddocker.benchmark=1 -Dtest=BenchmarkTestSyntheticData  --no-transfer-progress
     private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTestSyntheticData.class);
     private static final String HOST = BenchmarkTestUtils.getHost();
     private static final int PORT = 8182;

@@ -379,7 +379,7 @@ jobs:
             -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
             aerospike/firefly &
           
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark --no-transfer-progress
   test-firefly-chainable-maven:
     name: Test Chainable Maven
     timeout-minutes: 120
@@ -414,28 +414,28 @@ jobs:
       - name: Test Client Event Loop Configuration
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeClientConfigEventLoop -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeClientConfigEventLoop --no-transfer-progress
       - name: Test Small Memory Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
       - name: Test Stack Overflow Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestSupernodeStackOverflow -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestSupernodeStackOverflow --no-transfer-progress
       - name: Test Client Provider Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentClientProviderInstantiationTest -Dtest=TestAerospikeClientProviderConfiguration -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentClientProviderInstantiationTest -Dtest=TestAerospikeClientProviderConfiguration  --no-transfer-progress
       - name: Test Call Steps Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestAdminCallHttp -DfailIfNoTests=false --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflySindexCallSteps -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAdminCallHttp  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflySindexCallSteps  --no-transfer-progress
       - name: Test Compression Flag Docker Network
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeNetwork -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeNetwork  --no-transfer-progress
   test-firefly:
     name: Test Firefly
     timeout-minutes: 120
@@ -533,7 +533,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike_nsup.sh
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepNSupDisabledTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepNSupDisabledTest  --no-transfer-progress
   test-mrt:
     name: Test MRT
     timeout-minutes: 30
@@ -565,11 +565,11 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike_mrt.sh
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestMRTSupported -DfailIfNoTests=false --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeOperations -DfailIfNoTests=false --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMRTFeatureTest -DfailIfNoTests=false --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxFeatureTest -DfailIfNoTests=false --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxMRTFeatureTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestMRTSupported  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeOperations  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMRTFeatureTest  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxFeatureTest  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxMRTFeatureTest --no-transfer-progress
   test-tinkerpop-tx:
     name: Test Tinkerpop Transactions
     timeout-minutes: 30
@@ -620,6 +620,10 @@ jobs:
           echo "Running Tinkerpop transactions test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTinkerpopTransactions --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
+      - name: Test Summary Updater with Transactions
+        run: |
+          echo "Running transaction summary updater test"
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestTransactionSummary --no-transfer-progress
   test-firefly-process-1:
     name: Test Firefly Process Tests 1
     timeout-minutes: 120
@@ -884,7 +888,7 @@ jobs:
           bash -x scripts/start_aerospike.sh
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           # We can re-enable once the movie lens certificate is updated.
-          # mvn test -pl aerospike-graph-gremlin -Dtest=TestMovielens1M -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
+          # mvn test -pl aerospike-graph-gremlin -Dtest=TestMovielens1M  -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-aerospike-version-minimum:
     name: Test Aerospike Version Minimum
     timeout-minutes: 120
@@ -910,7 +914,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh --aerospike_version ee-6.2.0.3
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeVersionCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeVersionCheckTest  -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-invalid-feature-key:
     name: Test Aerospike Invalid Feature Key
     timeout-minutes: 120
@@ -936,7 +940,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE_WITHOUT_GRAPH_SERVICE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeGraphServiceCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeGraphServiceCheckTest  -Dintegration.test.properties=packed --no-transfer-progress
   test-aerospike-graph-api:
     name: Test Aerospike Graph API
     timeout-minutes: 15
@@ -1014,11 +1018,10 @@ jobs:
           sleep 30
           
           echo "Running usage test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyUsageStatsCallMultiTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyUsageStatsCallMultiTest --no-transfer-progress
           
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image Secret Masking
         # This test does not need to stop the image because SSL is not configured properly, so it errors and exits but the test serves its purpose regardless.
         run: |
@@ -1039,11 +1042,10 @@ jobs:
           sleep 30
           
           echo "Running connection test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest --no-transfer-progress
           
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Launch Firefly Docker Image with Custom properties
         run: |
           echo "Running docker image with custom properties file"
@@ -1053,9 +1055,8 @@ jobs:
           sleep 30
 
           echo "Running ValidConnectionTest"
-          mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image with Security Enabled
         run: |
           echo "Running docker image with security enabled"
@@ -1064,9 +1065,8 @@ jobs:
           sleep 30
 
           echo "Running Security Test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=JwtAuthenticationDockerTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=JwtAuthenticationDockerTest --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image with Default Prometheus
         run: |
           echo "Running docker image with prometheus"
@@ -1075,9 +1075,8 @@ jobs:
           sleep 30
 
           echo "Running Prometheus Test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=PrometheusExporterTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=PrometheusExporterTest --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image Bulk Loader Call
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -1094,9 +1093,8 @@ jobs:
           echo "Sleeping for 30 seconds while docker image starts"
           sleep 30
           
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image Merge Edge Step and Tx when Disabled
         run: |
           docker run -p 8182:8182  \
@@ -1106,18 +1104,17 @@ jobs:
           echo "Sleeping for 30 seconds while docker image starts"
           sleep 30
           
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepRemoteTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepRemoteTest --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTxDisabled --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image
         run: |
           echo "Running performance mode tests"
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestPerformanceModes -DfailIfNoTests=false --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerJavaOptions -DfailIfNoTests=false --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerConfigs -DfailIfNoTests=false --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestSlimVsFat -DfailIfNoTests=false --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerShutdown -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestPerformanceModes --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerJavaOptions --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerConfigs --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestSlimVsFat --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerShutdown --no-transfer-progress
   test-tls-docker:
     name: Test TLS Docker
     timeout-minutes: 15
@@ -1158,11 +1155,10 @@ jobs:
           sleep 30
 
           echo "Running TLS test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestTLSIntegration -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestTLSIntegration --no-transfer-progress
 
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
   test-aerospike-ttl:
     name: Test Aerospike TTL Fails
     timeout-minutes: 30
@@ -1190,7 +1186,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike_default_ttl.sh
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeTTL -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeTTL --no-transfer-progress
   snyk-test:
     name: Snyk Vulnerability Scan
     runs-on: ubuntu-latest

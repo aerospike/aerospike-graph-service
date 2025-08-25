@@ -8,7 +8,6 @@ import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.UUID;
 

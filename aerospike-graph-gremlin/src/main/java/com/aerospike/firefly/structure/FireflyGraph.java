@@ -34,6 +34,7 @@ import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
+import com.aerospike.firefly.process.traversal.strategy.util.FireflyStrategyUtil;
 import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.runtime.zipkin.OpenTelemetryZipkinExporter;
 import com.aerospike.firefly.structure.transaction.FireflyTransaction;
@@ -506,6 +507,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                     Thread.currentThread().interrupt();
                 }
             }
+
+            // Reset strategy enable flags.
+            FireflyStrategyUtil.resetStrategies();
 
             return GraphFactory.createGraph(AerospikeConnection.connect(fireflyConf), fireflyConf);
         } catch (final Exception e) {

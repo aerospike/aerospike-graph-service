@@ -947,6 +947,10 @@ jobs:
           echo "Running Tinkerpop transactions test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTinkerpopTransactions --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
+      - name: Test Summary Updater with Transactions
+        run: |
+          echo "Running transaction summary updater test"
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestTransactionSummary --no-transfer-progress
   test-firefly-process-1:
     name: Test Firefly Process Tests 1
     timeout-minutes: 120
@@ -1773,7 +1777,6 @@ jobs:
           
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image Secret Masking
         # This test does not need to stop the image because SSL is not configured properly, so it errors and exits but the test serves its purpose regardless.
         run: |
@@ -1798,7 +1801,6 @@ jobs:
           
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Launch Firefly Docker Image with Custom properties
         run: |
           echo "Running docker image with custom properties file"
@@ -1810,7 +1812,6 @@ jobs:
           echo "Running benchmark"
           mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest  --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image with Security Enabled
         run: |
           echo "Running docker image with security enabled"
@@ -1821,7 +1822,6 @@ jobs:
           echo "Running Security Test"
           mvn test -pl aerospike-graph-gremlin -Dtest=JwtAuthenticationDockerTest  --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image with Default Prometheus
         run: |
           echo "Running docker image with prometheus"
@@ -1832,7 +1832,6 @@ jobs:
           echo "Running Prometheus Test"
           mvn test -pl aerospike-graph-gremlin -Dtest=PrometheusExporterTest  --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image Bulk Loader Call
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -1851,7 +1850,6 @@ jobs:
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote  --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image Merge Edge Step and Tx when Disabled
         run: |
           docker run -p 8182:8182  \
@@ -1864,7 +1862,6 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepRemoteTest  --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTxDisabled --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image
         run: |
           echo "Running performance mode tests"
@@ -1917,7 +1914,6 @@ jobs:
 
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
   test-aerospike-ttl:
     name: Test Aerospike TTL Fails
     timeout-minutes: 30

@@ -214,6 +214,7 @@
                         <exclude>**/FireflyGraphSummaryUpdaterTest</exclude>
                         <exclude>**/TestTinkerpopTransactions</exclude>
                         <exclude>**/TestTxDisabled</exclude>
+                        <exclude>**/TestTransactionSummary</exclude>
                         <!-- heavy computer tests -->
                         <exclude>**/FireflyComputerFeatureMapTest</exclude>
                         <exclude>**/FireflyComputerFeatureFilterTest</exclude>

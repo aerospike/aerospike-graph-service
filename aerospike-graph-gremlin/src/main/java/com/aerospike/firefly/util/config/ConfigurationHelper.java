@@ -283,8 +283,8 @@ public final class ConfigurationHelper {
             E_LABEL_INDEX_NAME(Pair.of((byte) 5, "E_LABEL_IDX")),
             E_IN_INDEX_NAME(Pair.of((byte) 6, "E_IN_IDX")),
             E_OUT_INDEX_NAME(Pair.of((byte) 7, "E_OUT_IDX")),
-            TTL_EDGE_INDEX_NAME(Pair.of((byte) 8, "TTL_V_IDX")),
-            TTL_VERTEX_INDEX_NAME(Pair.of((byte) 9, "TTL_E_IDX"));
+            TTL_EDGE_INDEX_NAME(Pair.of((byte) 8, "TTL_E_IDX")),
+            TTL_VERTEX_INDEX_NAME(Pair.of((byte) 9, "TTL_V_IDX"));
 
             private final Pair value;
 

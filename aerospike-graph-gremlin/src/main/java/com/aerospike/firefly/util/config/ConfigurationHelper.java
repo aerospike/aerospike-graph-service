@@ -775,6 +775,10 @@ public final class ConfigurationHelper {
         return sw.toString();
     }
 
+    public static Map<Object, String> dumpDefaultsMap() {
+        return DEFAULT_VALUES;
+    }
+
     public static void validateConfig(final Configuration config) {
         final Field[] keyFields = Keys.class.getFields();
         final Keys keys = new Keys();

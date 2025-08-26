@@ -36,11 +36,11 @@ public class FireflyRecordLockHandler {
     private static final ScheduledThreadPoolExecutor SCHEDULER;
     static {
         // We should not have less than 8, but also shouldn't go crazy on very large machines so cap at 256.
-        int n = Math.max(8, Math.min(256, Runtime.getRuntime().availableProcessors() * 2));
-        SCHEDULER = new ScheduledThreadPoolExecutor(n, r -> {
-            Thread t = new Thread(r, "firefly-lock-poller");
-            t.setDaemon(true);
-            return t;
+        final int schedulerThreads = Math.max(8, Math.min(256, Runtime.getRuntime().availableProcessors() * 2));
+        SCHEDULER = new ScheduledThreadPoolExecutor(schedulerThreads, task -> {
+            final Thread executorThread = new Thread(task, "firefly-lock-poller");
+            executorThread.setDaemon(true);
+            return executorThread;
         });
         SCHEDULER.setRemoveOnCancelPolicy(true);
         SCHEDULER.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
@@ -69,9 +69,9 @@ public class FireflyRecordLockHandler {
      */
     public FireflyRecordLock getLock(final Key key) {
         final FireflyRecordLock lock = RECORD_LOCKS.compute(key, (k, existing) -> {
-            final FireflyRecordLock l = existing != null ? existing : new FireflyRecordLock(this, k);
-            l.pendingRequests.incrementAndGet();
-            return l;
+            final FireflyRecordLock lockForKey = existing != null ? existing : new FireflyRecordLock(this, k);
+            lockForKey.pendingRequests.incrementAndGet();
+            return lockForKey;
         });
         return lock.lock();
     }
@@ -92,7 +92,7 @@ public class FireflyRecordLockHandler {
         // Awaiters for this key.
         private final AtomicInteger pendingRequests = new AtomicInteger(0);
 
-        // True iff this instance currently holds the distributed lock (set when baton consumed).
+        // True if this instance currently holds the distributed lock (set when baton consumed).
         private final AtomicBoolean holdingDistributed = new AtomicBoolean(false);
 
         // When the current owner acquired the distributed lock (ms since epoch).
@@ -108,11 +108,10 @@ public class FireflyRecordLockHandler {
         private FireflyRecordLock(final FireflyRecordLockHandler handler, final Key key) {
             this.handler = handler;
             this.key = key;
-            schedulePoller(0);
         }
 
         private boolean fastPathEligible() {
-            // We are the first waiter (value includes us), no current owner, and no baton staged.
+            // We are the first waiter (value includes us), don't already have the distributed lock, and no baton staged.
             return pendingRequests.get() == 1
                     && !holdingDistributed.get()
                     && baton.peek() == null;
@@ -122,9 +121,6 @@ public class FireflyRecordLockHandler {
          * Acquire: try inline fast-path first, then wait for baton with the remaining timeout.
          */
         private FireflyRecordLock lock() {
-            final long deadlineNs = System.nanoTime() +
-                    TimeUnit.MILLISECONDS.toNanos(handler.lockTimeout);
-
             // Try fast path only if we're the first (and only) waiter.
             if (fastPathEligible()) {
                 try {
@@ -135,44 +131,42 @@ public class FireflyRecordLockHandler {
                         baton.poll();
                         return this;
                     }
-                } catch (AerospikeGraphException fatal) {
-                    if (fatal.errorCode == GraphError.NSUP_DISABLED.code) {
+                } catch (final AerospikeGraphException age) {
+                    if (age.errorCode == GraphError.NSUP_DISABLED.code) {
                         decrementAndCleanupIfLast();
-                        throw fatal;
+                        throw age;
                     }
                     // KEY_BUSY / KEY_EXISTS_ERROR etc → fall through to waiting path.
-                } catch (Exception unexpected) {
-                    if (printErrorToLog.getAndSet(false)) {
-                        LOG.error("Unexpected inline lock error for key {}", key, unexpected);
-                    }
+                } catch (final Exception unexpected) {
+                    LOG.error("Unexpected error acquiring immediate lock for key {}", key, unexpected);
                 }
             }
 
-            // Ensure persistent poller is running; it no-ops if nothing to do.
+            // Ensure the poller is running; it no-ops if nothing to do.
             ensurePoller();
 
             // Wait for baton with the remaining timeout.
             try {
-                long remainingMs = TimeUnit.NANOSECONDS.toMillis(deadlineNs - System.nanoTime());
-                if (remainingMs > 0) {
-                    Object token = baton.poll(remainingMs, TimeUnit.MILLISECONDS);
-                    if (token != null) {
-                        holdingDistributed.set(true);
-                        lockAcquireTime.set(System.currentTimeMillis());
-                        return this;
-                    }
+                final Object token = baton.poll(handler.lockTimeout, TimeUnit.MILLISECONDS);
+                if (token != null) {
+                    return this;
                 }
-            } catch (InterruptedException ie) {
+            } catch (final InterruptedException ie) {
                 Thread.currentThread().interrupt();
                 LOG.error("Interrupted while waiting for record lock baton for key {}", key, ie);
             }
 
             // Timeout: if we’re the last waiter and a baton exists, free the distributed lock early.
             if (decrementAndCleanupIfLast()) {
-                Object token = baton.poll();
+                final Object token = baton.poll();
                 if (token != null) {
-                    try { handler.db.delete(key, null); }
-                    catch (Exception e) { LOG.warn("Best-effort delete after timeout for {}", key, e); }
+                    try {
+                        handler.db.delete(key, null);
+                    } catch (final Exception e) {
+                        LOG.warn("Unexpected error during Best-effort delete after timeout for key {} ", key, e);
+                    } finally {
+                        this.holdingDistributed.set(false);
+                    }
                 }
             }
             throw new RuntimeException("Timeout of " + handler.lockTimeout +
@@ -197,28 +191,17 @@ public class FireflyRecordLockHandler {
                 holdingDistributed.set(false);
             }
 
-            final int remaining = pendingRequests.decrementAndGet();
-            if (remaining == 0) {
-                cleanup();
-            } else {
+            if (!decrementAndCleanupIfLast()) {
                 // More waiters exist → restart poller to acquire and hand off baton
                 final int delay = handler.starvationProtectionEnabled ? handler.lockPollIntervalMillis : 0;
                 schedulePoller(delay);
             }
         }
 
-        /** Single attempt to acquire distributed lock. Returns true if successful. */
-        private boolean tryAcquireDistributedOnce() {
-            final Record r = handler.db.writeKeyLock(key, handler.lockTtl);
-            // Success → drop a token so a waiter (if any) can proceed, but also allow inline fast-path to proceed.
-            // We prefer not to enqueue the token for our own inline acquisition; just return true.
-            return r != null;
-        }
-
         /** Make sure a poller is active if there are waiters and no owner. */
         private void ensurePoller() {
-            ScheduledFuture<?> f = pollerFuture;
-            if (f == null || f.isCancelled()) {
+            final ScheduledFuture<?> currentPoller = pollerFuture;
+            if (currentPoller == null || currentPoller.isCancelled()) {
                 schedulePoller(0);
             }
         }
@@ -228,31 +211,26 @@ public class FireflyRecordLockHandler {
             cancelPoller(); // ensure single active poller
             pollerFuture = SCHEDULER.scheduleAtFixedRate(
                     new AcquireRecordLockTask(this),
-                    Math.max(0, initialDelayMs),
-                    Math.max(1, handler.lockPollIntervalMillis),
+                    initialDelayMs,
+                    handler.lockPollIntervalMillis,
                     TimeUnit.MILLISECONDS
             );
         }
 
         /** Stop polling. */
         private void cancelPoller() {
-            final ScheduledFuture<?> f = pollerFuture;
-            if (f != null) {
-                f.cancel(false);
-                pollerFuture = null;
+            final ScheduledFuture<?> currentPoller = pollerFuture;
+            pollerFuture = null;
+            if (currentPoller != null) {
+                currentPoller.cancel(false);
             }
         }
 
-        /** Remove from map if no waiters; stop the poller. */
-        private void cleanup() {
-            cancelPoller();
-            RECORD_LOCKS.remove(this.key, this); // only remove if mapping still points to this instance
-        }
-
-        /** Decrement waiters; if this was the last, clean up and return true. */
+        /** Decrement waiters; if this was the last, remove from map and stop the poller. */
         private boolean decrementAndCleanupIfLast() {
             if (pendingRequests.decrementAndGet() == 0) {
-                cleanup();
+                cancelPoller();
+                RECORD_LOCKS.remove(this.key, this); // only remove if mapping still points to this instance
                 return true;
             }
             return false;
@@ -284,6 +262,8 @@ public class FireflyRecordLockHandler {
 
                 try {
                     final Record r = lockRecord.handler.db.writeKeyLock(lockRecord.key, lockRecord.handler.lockTtl);
+                    lockRecord.holdingDistributed.set(true);
+                    lockRecord.lockAcquireTime.set(System.currentTimeMillis());
 
                     // Success → hand off baton to one waiter in FIFO order
                     // If a waiter already consumed via inline fast-path, baton may not be needed; that's OK.
@@ -293,16 +273,14 @@ public class FireflyRecordLockHandler {
                     lockRecord.hotKeyBackoff.set(0);
 
                     lockRecord.cancelPoller(); // stop until next unlock()
-
                 } catch (final AerospikeGraphException e) {
                     if (e.errorCode == GraphError.NSUP_DISABLED.code) {
                         throw e; // fatal in this mode
                     } else if (e.errorCode == ResultCode.KEY_BUSY) {
                         // Server considers this a hot key — exponential backoff
                         LOG.warn("Hot key on record lock {}. Backing off before next attempt.", lockRecord.key);
-                        int c = lockRecord.hotKeyCount.incrementAndGet();
-                        if (c > 15) c = 15;
-                        lockRecord.hotKeyBackoff.set(Math.max(1, 2 << c));
+                        int hotKeyCount = Math.min(15, lockRecord.hotKeyCount.incrementAndGet());
+                        lockRecord.hotKeyBackoff.set(Math.max(1, 2 << hotKeyCount));
                     } else if (e.errorCode == ResultCode.KEY_EXISTS_ERROR) {
                         // Lock held elsewhere — quiet retry on next tick
                     } else {

@@ -39,7 +39,7 @@ public class TestSlimVsFat {
             "aerospike.graph.admin.metadata.config",
             "aerospike.graph.admin.rbac-jwt.issue-token",
             "aerospike.graph.admin.query.abort",
-            "aerospike.graph.admin.config.dump-defaults");
+            "aerospike.graph.admin.config.dump-config");
     private static final List<Object> EXPECTED_CALL_STEPS_SLIM = List.of(
             "aerospike.graph.admin.metadata.summary",
             "summary",
@@ -55,7 +55,7 @@ public class TestSlimVsFat {
             "aerospike.graph.admin.metadata.config",
             "aerospike.graph.admin.rbac-jwt.issue-token",
             "aerospike.graph.admin.query.abort",
-            "aerospike.graph.admin.config.dump-defaults");
+            "aerospike.graph.admin.config.dump-config");
     private static final DockerUtil DOCKER_UTIL = new DockerUtil();
 
     private static final String[] DEFAULT_ENV_VARIABLES = new String[]{
@@ -112,7 +112,6 @@ public class TestSlimVsFat {
         final DriverRemoteConnection connection = DriverRemoteConnection.using("localhost", 8182);
         final GraphTraversalSource g = traversal().withRemote(connection);
         final List<Object> list = g.call("--list").toList();
-
         Assert.assertEquals(new HashSet<>(EXPECTED_CALL_STEPS_SLIM), new HashSet<>(list));
     }
 

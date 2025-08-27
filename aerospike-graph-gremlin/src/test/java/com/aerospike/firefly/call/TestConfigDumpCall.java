@@ -6,7 +6,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.*;
+import java.util.Map;
 
 public class TestConfigDumpCall extends AbstractFireflySuite {
 
@@ -36,3 +36,4 @@ public class TestConfigDumpCall extends AbstractFireflySuite {
                         .with("Bombo").with("Rass", "Clart").next());
     }
 }
+

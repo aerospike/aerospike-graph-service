@@ -38,7 +38,8 @@ public class TestSlimVsFat {
             "aerospike.graph.admin.metadata.version",
             "aerospike.graph.admin.metadata.config",
             "aerospike.graph.admin.rbac-jwt.issue-token",
-            "aerospike.graph.admin.query.abort");
+            "aerospike.graph.admin.query.abort",
+            "aerospike.graph.admin.config.dump-defaults");
     private static final List<Object> EXPECTED_CALL_STEPS_SLIM = List.of(
             "aerospike.graph.admin.metadata.summary",
             "summary",
@@ -53,7 +54,8 @@ public class TestSlimVsFat {
             "aerospike.graph.admin.metadata.version",
             "aerospike.graph.admin.metadata.config",
             "aerospike.graph.admin.rbac-jwt.issue-token",
-            "aerospike.graph.admin.query.abort");
+            "aerospike.graph.admin.query.abort",
+            "aerospike.graph.admin.config.dump-defaults");
     private static final DockerUtil DOCKER_UTIL = new DockerUtil();
 
     private static final String[] DEFAULT_ENV_VARIABLES = new String[]{

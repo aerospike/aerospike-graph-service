@@ -38,7 +38,8 @@ public class TestFireflyBasicCall {
                     "aerospike.graph.admin.metadata.version",
                     "aerospike.graph.admin.metadata.config",
                     "aerospike.graph.admin.rbac-jwt.issue-token",
-                    "aerospike.graph.admin.query.abort"
+                    "aerospike.graph.admin.query.abort",
+                    "aerospike.graph.admin.config.dump-defaults"
             ), new HashSet<>(normalOutput));
 
             // The verbose output is a list of strings that looks like, note the innards of the list is straight up string:

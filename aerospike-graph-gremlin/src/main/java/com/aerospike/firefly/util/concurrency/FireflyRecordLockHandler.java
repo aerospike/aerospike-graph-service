@@ -92,7 +92,7 @@ public class FireflyRecordLockHandler {
         // Awaiters for this key.
         private final AtomicInteger pendingRequests = new AtomicInteger(0);
 
-        // True if this instance currently holds the distributed lock (set when baton consumed).
+        // Set when distributed record written and baton offered.
         private final AtomicBoolean holdingDistributed = new AtomicBoolean(false);
 
         // When the current owner acquired the distributed lock (ms since epoch).
@@ -228,12 +228,23 @@ public class FireflyRecordLockHandler {
 
         /** Decrement waiters; if this was the last, remove from map and stop the poller. */
         private boolean decrementAndCleanupIfLast() {
-            if (pendingRequests.decrementAndGet() == 0) {
-                cancelPoller();
-                RECORD_LOCKS.remove(this.key, this); // only remove if mapping still points to this instance
-                return true;
-            }
-            return false;
+            final AtomicBoolean removed = new AtomicBoolean(false);
+            RECORD_LOCKS.compute(this.key, (k, cur) -> {
+                // If another instance replaced us (shouldn't happen often), just leave it alone.
+                if (cur != this) {
+                    return cur;
+                }
+
+                int remaining = pendingRequests.decrementAndGet();
+                // Should never be negative, but just in case.
+                if (remaining <= 0) {
+                    cur.cancelPoller();
+                    removed.set(true);
+                    return null; // remove from map
+                }
+                return cur; // keep current instance in map
+            });
+            return removed.get();
         }
 
         /**

@@ -1970,6 +1970,16 @@ public class AerospikeConnection implements AutoCloseable {
      * @return whether record existed on server before deletion
      */
     public boolean delete(final Key key, final Txn txn) {
+        return this.delete(key, txn, false);
+    }
+
+    /**
+     * Delete by Key
+     *
+     * @param key Aerospike Key to delete
+     * @return whether record existed on server before deletion
+     */
+    public boolean delete(final Key key, final Txn txn, final boolean txnOverride) {
         final FireflyCache cache = transactionCache.get();
         if (cache != null) {
             cache.invalidate(key);
@@ -1981,6 +1991,10 @@ public class AerospikeConnection implements AutoCloseable {
         final WritePolicy policy = new WritePolicy();
         policy.txn = txn;
         configureWritePolicy(policy);
+        if (txnOverride) {
+            policy.txn = null;
+            policy.durableDelete = false;
+        }
         try {
             return client.delete(policy, key);
         } catch (final AerospikeException e) {
@@ -2495,10 +2509,9 @@ public class AerospikeConnection implements AutoCloseable {
         final WritePolicy policy = new WritePolicy();
         policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
         policy.expiration = ttlMillis / 1000;
-        configureWritePolicy(policy);
         final Operation createLockRecord = Operation.put(new Bin(this.LOCK_BIN, false));
         try {
-            return this.client.operate(policy, key, createLockRecord);
+            return this.writeOperate(policy, key, Collections.emptySet(), true, createLockRecord);
         } catch (final AerospikeException e) {
             throw fromAerospikeException(e);
         }

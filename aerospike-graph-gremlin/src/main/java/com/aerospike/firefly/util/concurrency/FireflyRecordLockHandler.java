@@ -72,6 +72,7 @@ public class FireflyRecordLockHandler {
         }
 
         private FireflyRecordLock lock() {
+            System.out.println("Locking key: " + this.key);
             try {
                 if (lockQueue.poll(this.handler.lockTimeout, TimeUnit.MILLISECONDS) != null) {
                     this.lockAcquireTime.set(System.currentTimeMillis());
@@ -97,6 +98,7 @@ public class FireflyRecordLockHandler {
          * of holding the lock for longer than the configured TTL or if misused by invoking more than once.
          */
         public void unlock() {
+            System.out.println("Unlocking key: " + this.key);
             final int pendingLockRequests;
             synchronized (RECORD_LOCKS) {
                 pendingLockRequests = pendingRequests.decrementAndGet();
@@ -110,7 +112,8 @@ public class FireflyRecordLockHandler {
                 if (System.currentTimeMillis() - this.lockAcquireTime.get() < this.handler.lockTtl) {
                     // Holding a record lock for longer than its TTL invalidates it since it is released, so check here
                     // to at least not unlock a different Firefly that might've grabbed this lock.
-                    this.handler.db.delete(this.key, null);
+                    System.out.println("Deleting lock: " + this.key);
+                    this.handler.db.delete(this.key, null, true);
                 }
             } catch (final Exception e) {
                 LOG.error("Unexpected error when unlocking record lock.", e);
@@ -149,8 +152,10 @@ public class FireflyRecordLockHandler {
                     return;
                 }
                 try {
+                    System.out.println("Writing lock key: " + this.lockRecord.key);
                     final Record record = this.lockRecord.handler.db.writeKeyLock(this.lockRecord.key,
                             this.lockRecord.handler.lockTtl);
+                    System.out.println("Sending lock key: " + this.lockRecord.key + " to queue");
                     this.lockRecord.lockQueue.offer(record);
                     this.lockRecord.printErrorToLog.set(true);
                     this.lockRecord.hotKeyCount.set(0);

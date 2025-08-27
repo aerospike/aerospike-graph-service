@@ -235,7 +235,7 @@ public class FireflyRecordLockHandler {
                     this.cancelPoller();
                     removed.set(true);
                     if (cur == this) {
-                        // If curr == this, we can safely remove from map.
+                        // If cur == this, we can safely remove from map.
                         return null;
                     } else {
                         // Leave the current mapping untouched because someone replaced us.

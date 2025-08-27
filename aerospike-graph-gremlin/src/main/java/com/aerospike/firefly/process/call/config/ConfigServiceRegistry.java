@@ -8,7 +8,7 @@ import java.util.Set;
 public class ConfigServiceRegistry extends ServiceRegistryBase {
 
     public ConfigServiceRegistry(final FireflyGraph graph) {
-        services = Set.of(new ConfigServiceDumpDefaults<>(graph));
+        services = Set.of(new ConfigServiceDumpConfig<>(graph));
         services.forEach(graph.getServiceRegistry()::registerService);
     }
 }

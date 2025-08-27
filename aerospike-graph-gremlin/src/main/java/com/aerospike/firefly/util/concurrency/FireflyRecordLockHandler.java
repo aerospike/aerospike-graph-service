@@ -230,19 +230,19 @@ public class FireflyRecordLockHandler {
         private boolean decrementAndCleanupIfLast() {
             final AtomicBoolean removed = new AtomicBoolean(false);
             RECORD_LOCKS.compute(this.key, (k, cur) -> {
-                // If another instance replaced us (shouldn't happen often), just leave it alone.
-                if (cur != this) {
-                    return cur;
-                }
-
-                int remaining = pendingRequests.decrementAndGet();
-                // Should never be negative, but just in case.
+                final int remaining = pendingRequests.decrementAndGet();
                 if (remaining <= 0) {
-                    cur.cancelPoller();
+                    this.cancelPoller();
                     removed.set(true);
-                    return null; // remove from map
+                    if (cur == this) {
+                        // If curr == this, we can safely remove from map.
+                        return null;
+                    } else {
+                        // Leave the current mapping untouched because someone replaced us.
+                        return cur;
+                    }
                 }
-                return cur; // keep current instance in map
+                return cur; // keep current instance in map.
             });
             return removed.get();
         }
@@ -272,7 +272,7 @@ public class FireflyRecordLockHandler {
                 }
 
                 try {
-                    final Record r = lockRecord.handler.db.writeKeyLock(lockRecord.key, lockRecord.handler.lockTtl);
+                    lockRecord.handler.db.writeKeyLock(lockRecord.key, lockRecord.handler.lockTtl);
                     lockRecord.holdingDistributed.set(true);
                     lockRecord.lockAcquireTime.set(System.currentTimeMillis());
 

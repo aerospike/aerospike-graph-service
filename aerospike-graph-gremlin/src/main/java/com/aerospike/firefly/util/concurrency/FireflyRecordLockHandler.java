@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Scalable distributed record lock handler.
@@ -87,7 +88,7 @@ public class FireflyRecordLockHandler {
         private final ArrayBlockingQueue<Object> baton = new ArrayBlockingQueue<>(1, true);
 
         // Poller future (null when not polling).
-        private volatile ScheduledFuture<?> pollerFuture;
+        private final AtomicReference<ScheduledFuture<?>> pollerRef = new AtomicReference<>();
 
         // Awaiters for this key.
         private final AtomicInteger pendingRequests = new AtomicInteger(0);
@@ -200,29 +201,32 @@ public class FireflyRecordLockHandler {
 
         /** Make sure a poller is active if there are waiters and no owner. */
         private void ensurePoller() {
-            final ScheduledFuture<?> currentPoller = pollerFuture;
+            final ScheduledFuture<?> currentPoller = pollerFuture();
             if (currentPoller == null || currentPoller.isCancelled()) {
                 schedulePoller(0);
             }
         }
 
+        private ScheduledFuture<?> pollerFuture() { return pollerRef.get(); }
+
         /** Schedule (or reschedule) the poller to acquire the distributed lock and hand off the baton. */
         private void schedulePoller(final int initialDelayMs) {
-            cancelPoller(); // ensure single active poller
-            pollerFuture = SCHEDULER.scheduleAtFixedRate(
-                    new AcquireRecordLockTask(this),
-                    initialDelayMs,
-                    handler.lockPollIntervalMillis,
-                    TimeUnit.MILLISECONDS
-            );
+            final ScheduledFuture<?> newFut =
+                    SCHEDULER.scheduleAtFixedRate(new AcquireRecordLockTask(this),
+                            initialDelayMs,
+                            handler.lockPollIntervalMillis,
+                            TimeUnit.MILLISECONDS);
+            final ScheduledFuture<?> old = pollerRef.getAndSet(newFut);
+            if (old != null) {
+                old.cancel(false);
+            }
         }
 
         /** Stop polling. */
         private void cancelPoller() {
-            final ScheduledFuture<?> currentPoller = pollerFuture;
-            pollerFuture = null;
-            if (currentPoller != null) {
-                currentPoller.cancel(false);
+            final ScheduledFuture<?> old = pollerRef.getAndSet(null);
+            if (old != null) {
+                old.cancel(false);
             }
         }
 

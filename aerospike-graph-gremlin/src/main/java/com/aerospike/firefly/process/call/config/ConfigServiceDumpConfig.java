@@ -2,7 +2,6 @@ package com.aerospike.firefly.process.call.config;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
-
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.configuration2.Configuration;
@@ -36,15 +35,17 @@ public class ConfigServiceDumpConfig<I, R> extends ConfigServiceBase<I, R> {
     @Override
     protected R execute(final Map params) {
         Configuration config = graph.configuration();
-        Map<Object, String> defaults = ConfigurationHelper.dumpDefaultConfigMap();
+        Map<Object, String> defaults = ConfigurationHelper.getDefaultConfigMap();
         Map<String, Object> result = new HashMap<>();
-        for (final Object key : defaults.keySet()) {
-            String keyStr = key.toString();
-            Object value;
+        for (final Map.Entry<Object, String> entry : defaults.entrySet()) {
+            String keyStr = entry.getKey().toString();
+            Object value = entry.getValue();
+
+            if (config.containsKey(keyStr)) {
+                value = config.getString(keyStr);
+            }
             if (keyStr.contains("password") || keyStr.contains("secret") || keyStr.contains("token") || keyStr.contains("passkey")) {
                 value = "*******";
-            } else {
-                value = ConfigurationHelper.getOrDefault(keyStr, config);
             }
             result.put(keyStr, value);
         }

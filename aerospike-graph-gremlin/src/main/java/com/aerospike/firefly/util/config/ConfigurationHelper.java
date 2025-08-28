@@ -775,7 +775,7 @@ public final class ConfigurationHelper {
         return sw.toString();
     }
 
-    public static Map<Object, String> dumpDefaultConfigMap() {
+    public static Map<Object, String> getDefaultConfigMap() {
         return new HashMap<>(DEFAULT_VALUES);
     }
 

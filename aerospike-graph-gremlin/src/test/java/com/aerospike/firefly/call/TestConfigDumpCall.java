@@ -7,8 +7,10 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;
 import org.junit.Test;
-import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import java.util.Map;
+
+import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+
 
 public class TestConfigDumpCall extends AbstractFireflySuite {
 
@@ -30,12 +32,13 @@ public class TestConfigDumpCall extends AbstractFireflySuite {
             Assert.assertEquals("4000", result.get("aerospike.graph.http.port"));
             Assert.assertEquals("test", result.get("aerospike.client.namespace"));
 
-            for (final String key : result.keySet()) {
-                Object value = result.get(key);
-                if (key.contains("password") || key.contains("secret") || key.contains("token") || key.contains("passkey")) {
+            for (final Map.Entry<String, Object> entry : result.entrySet()) {
+                String keystr = entry.getKey();
+                Object value = entry.getValue();
+                if (keystr.contains("password") || keystr.contains("secret") || keystr.contains("token") || keystr.contains("passkey")) {
                     Assert.assertEquals("*******", value);
-                }else{
-                    Assert.assertEquals(ConfigurationHelper.getOrDefault(key, config), value);
+                } else {
+                    Assert.assertEquals(ConfigurationHelper.getOrDefault(keystr, config).toString(), value);
                 }
             }
         }

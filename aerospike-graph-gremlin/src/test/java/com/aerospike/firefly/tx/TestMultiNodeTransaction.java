@@ -180,7 +180,7 @@ public class TestMultiNodeTransaction {
         // Still a single vertex by id
         assertTrue(g1.V(300).hasNext());
         // property value is last-writer-wins (backend dependent) – we just ensure a value exists
-        String val = (String) g1.V(300).values("p").tryNext().orElse("?");
+        String val = (String) g1.V(300).values("p").tryNext().orElse(null);
         assertNotNull(val);
     }
 

@@ -30,7 +30,6 @@ public class ServerMetrics {
         MetricManager.INSTANCE.getRegistry().register(connectionQueueSizeMetricName, (Gauge<Integer>) this::getConnectionQueueSize);
         MetricManager.INSTANCE.getRegistry().register(ioQueueSizeMetricName, (Gauge<Integer>) this::getNettyQueueSize);
         MetricManager.INSTANCE.getRegistry().register(gremlinQueueSizeMetricName, (Gauge<Integer>) this::getGremlinQueueSize);
-
     }
 
     public void shutDown() {

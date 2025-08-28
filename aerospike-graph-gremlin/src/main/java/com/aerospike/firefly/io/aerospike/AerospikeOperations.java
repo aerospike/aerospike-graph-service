@@ -926,7 +926,7 @@ public class AerospikeOperations {
                                 !inVertex.isEdgeCacheOverflowed(), !outVertex.isEdgeCacheOverflowed(), txn);
                     } catch (final AerospikeGraphException e) {
                         if (e.errorCode == GraphError.RECORD_TX_BLOCKED.code) {
-                            graph.getIdFactory().recycleEdgeId(edgeId);
+                            graph.getIdFactory().recycleEdgeId(edgeId, graph);
                             edgeId = graph.getIdFactory().generateNonRecycledEdgeId(graph);
                             LOG.info("A transaction collision occurred when writing a new Edge. Changing target record and retrying.");
                         } else {
@@ -1396,7 +1396,7 @@ public class AerospikeOperations {
                         innerTxn.addIdToRecycle(edge.id);
                         graph.fireflySummaryUpdater.addEdgeRemoveToQueue(edge.label(), innerTxn.aerospikeTxn);
                     } else {
-                        graph.getIdFactory().recycleEdgeId(edge.id);
+                        graph.getIdFactory().recycleEdgeId(edge.id, graph);
                         graph.fireflySummaryUpdater.addEdgeRemoveToQueue(edge.label(), null);
                     }
                 } else if (edgeData != null) {

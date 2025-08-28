@@ -102,7 +102,7 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
         }
 
         while (!idsToRecycle.isEmpty()) {
-            ID_MANAGER.recycleId(idsToRecycle.poll());
+            ID_MANAGER.recycleId(idsToRecycle.poll(), GRAPH);
             for (int i = 0; i < GRAPH.getBaseGraph().PHAT_EDGE_SIZE * 2; i++) {
                 final FireflyPhatEdgeId id = getId(GRAPH);
                 recycledPackIds.remove(id.getPackingId());

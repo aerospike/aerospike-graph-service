@@ -619,11 +619,21 @@ jobs:
 
           echo "Running Tinkerpop transactions test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTinkerpopTransactions --no-transfer-progress
-          docker stop $(docker ps -q --filter ancestor=firefly)
-      - name: Test Summary Updater with Transactions
-        run: |
-          echo "Running transaction summary updater test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTransactionSummary --no-transfer-progress
+          docker stop $(docker ps -q --filter ancestor=firefly)
+      - name: Test Multi Node AGS Transactions
+        run: |
+          echo "Running multi node transaction test"
+
+          docker run -d -p 8182:8183  \
+            -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -e aerospike.graph.tx.enabled=true firefly
+          docker run -d -p 8182:8184  \
+            -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -e aerospike.graph.tx.enabled=true firefly
+          sleep 30
+
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestMultiNodeTransaction --no-transfer-progress
   test-firefly-process-1:
     name: Test Firefly Process Tests 1
     timeout-minutes: 120

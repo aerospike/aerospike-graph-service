@@ -946,11 +946,8 @@ jobs:
 
           echo "Running Tinkerpop transactions test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTinkerpopTransactions --no-transfer-progress
-          docker stop $(docker ps -q --filter ancestor=firefly)
-      - name: Test Summary Updater with Transactions
-        run: |
-          echo "Running transaction summary updater test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTransactionSummary --no-transfer-progress
+          docker stop $(docker ps -q --filter ancestor=firefly)
       - name: Test Multi Node AGS Transactions
         run: |
           echo "Running multi node transaction test"

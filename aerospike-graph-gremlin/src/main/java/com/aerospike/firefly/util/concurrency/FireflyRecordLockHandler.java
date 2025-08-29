@@ -183,7 +183,7 @@ public class FireflyRecordLockHandler {
                 if (holdingDistributed.get()) {
                     long heldMs = System.currentTimeMillis() - lockAcquireTime.get();
                     if (heldMs < handler.lockTtl) {
-                        handler.db.delete(key, null);
+                        handler.db.delete(key, null, true);
                     }
                 }
             } catch (final Exception e) {

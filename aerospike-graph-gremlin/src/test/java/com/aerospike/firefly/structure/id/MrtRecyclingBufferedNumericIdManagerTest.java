@@ -12,11 +12,15 @@ import org.junit.Test;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -109,6 +113,176 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
             }
         }
         Assert.assertTrue(recycledPackIds.isEmpty());
+    }
+
+    @Test
+    public void testEdgeRecordIdBlocking() {
+        Long currentEdgeRecordId = null;
+        Set<Long> inUseRecordIdsSnapshot = null;
+        int iterations = 0;
+        while (iterations < 4) {
+            final FireflyPhatEdgeId edgeId = getId(GRAPH);
+            final Long storageId = (Long) edgeId.getStorageId();
+            if (!storageId.equals(currentEdgeRecordId)) {
+                if (currentEdgeRecordId != null) {
+                    inUseRecordIdsSnapshot = ID_MANAGER.getInUseEdgeRecordIds();
+                    Assert.assertFalse(inUseRecordIdsSnapshot.contains(currentEdgeRecordId));
+                }
+                currentEdgeRecordId = storageId;
+                inUseRecordIdsSnapshot = ID_MANAGER.getInUseEdgeRecordIds();
+                Assert.assertTrue(inUseRecordIdsSnapshot.contains(storageId));
+                iterations++;
+            } else {
+                // When we're still using the same record ID, we check the last snapshot because pulling the last
+                // packing ID for a record ID removes it from the set
+                Assert.assertTrue(inUseRecordIdsSnapshot.contains(storageId));
+                inUseRecordIdsSnapshot = ID_MANAGER.getInUseEdgeRecordIds();
+            }
+        }
+    }
+
+    @Test
+    public void testGettingNewIdReleasesAndRecyclesRecordId() {
+        FireflyPhatEdgeId edgeId = getId(GRAPH);
+        Long storageId = (Long) edgeId.getStorageId();
+        // Cycle until new pack
+        while (true) {
+            edgeId = getId(GRAPH);
+            if (!storageId.equals((Long) edgeId.getStorageId())) {
+                storageId = (Long) edgeId.getStorageId();
+                break;
+            }
+        }
+        Assert.assertTrue(ID_MANAGER.getInUseEdgeRecordIds().contains(storageId));
+        Assert.assertFalse(ID_MANAGER.getRecycledPackIds().containsKey(storageId));
+        final FireflyPhatEdgeId newId = FireflyPhatEdgeId.fromByteArray(ID_MANAGER.getNewId(GRAPH),
+                GRAPH.getBaseGraph().PHAT_EDGE_SIZE, GRAPH.getBaseGraph().EDGE_AERO_SET);
+        final Long newStorageId = (Long) newId.getStorageId();
+        Assert.assertNotEquals(storageId, newStorageId);
+        Assert.assertFalse(ID_MANAGER.getInUseEdgeRecordIds().contains(storageId));
+        Assert.assertTrue(ID_MANAGER.getInUseEdgeRecordIds().contains(newStorageId));
+        Assert.assertTrue(ID_MANAGER.getRecycledPackIds().containsKey(storageId));
+        Assert.assertEquals(GRAPH.getBaseGraph().PHAT_EDGE_SIZE - 1, ID_MANAGER.getRecycledPackIds().get(storageId).size());
+    }
+
+    @Test
+    public void testCanRecycleToInUseRecordId() throws Exception {
+        final AtomicBoolean breakBoolean = new AtomicBoolean(false);
+        final AtomicLong recycleStorageId = new AtomicLong();
+        final AtomicBoolean internalAssertFailure = new AtomicBoolean(false);
+        final Thread t = new Thread(() -> {
+            FireflyPhatEdgeId id = getId(GRAPH);
+            Long storageId = (Long) id.getStorageId();
+            recycleStorageId.set(storageId);
+            ID_MANAGER.recycleId(id, GRAPH);
+            id = getId(GRAPH);
+            storageId = (Long) id.getStorageId();
+            if (!storageId.equals(recycleStorageId.get())) {
+                internalAssertFailure.set(true);
+            }
+            ID_MANAGER.recycleId(id, GRAPH);
+            while (!breakBoolean.get()) {
+                try {
+                    Thread.sleep(100);
+                } catch (final InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        t.start();
+
+        FireflyPhatEdgeId edgeId = getId(GRAPH);
+        Long storageId = (Long) edgeId.getStorageId();
+        // Cycle until new pack
+        while (true) {
+            edgeId = getId(GRAPH);
+            if (!storageId.equals(edgeId.getStorageId())) {
+                storageId = (Long) edgeId.getStorageId();
+                break;
+            }
+        }
+        Assert.assertTrue(ID_MANAGER.getInUseEdgeRecordIds().contains(recycleStorageId.get()));
+        Assert.assertTrue(ID_MANAGER.getRecycledPackIds().containsKey(recycleStorageId.get()));
+        // Cycle until new pack and make sure we don't get the Record ID even though there's a key in the recycling map
+        while (true) {
+            edgeId = getId(GRAPH);
+            Assert.assertNotEquals(edgeId.getStorageId(), recycleStorageId.get());
+            if (!storageId.equals(edgeId.getStorageId())) {
+                break;
+            }
+        }
+        breakBoolean.set(true);
+        t.join();
+        Assert.assertFalse("Should not have mismatched Record IDs in thread", internalAssertFailure.get());
+    }
+
+    @Test
+    public void testFinalizeReleasesRecordIdAndRecycles() throws Exception {
+        final Set<Long> storageIdsUsed = ConcurrentHashMap.newKeySet();
+        final List<Thread> threads = new ArrayList<>();
+        final AtomicBoolean internalAssertFailure = new AtomicBoolean(false);
+        for (int i = 0; i < 4; i++) {
+            final Thread t = new Thread(() -> {
+                final FireflyPhatEdgeId id = getId(GRAPH);
+                final Long storageId = (Long) id.getStorageId();
+                if (storageIdsUsed.contains(storageId)) {
+                    internalAssertFailure.set(true);
+                }
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            t.start();
+            threads.add(t);
+        }
+        for (final Long storageId : storageIdsUsed) {
+            Assert.assertTrue(ID_MANAGER.getInUseEdgeRecordIds().contains(storageId));
+            Assert.assertFalse(ID_MANAGER.getRecycledPackIds().containsKey(storageId));
+        }
+        // Join all the threads, deference them, and wait for garbage collection
+        for (final Thread t : threads) {
+            t.join();
+        }
+        final long startTime = System.currentTimeMillis();
+        final Set<Long> cleanedIds = new HashSet<>();
+        while (System.currentTimeMillis() > startTime + 10000) {
+            System.gc();
+            boolean containsIdStillInUse = false;
+            final Set<Long> inUseIds = ID_MANAGER.getInUseEdgeRecordIds();
+            for (final Long storageId : storageIdsUsed) {
+                if (inUseIds.contains(storageId)) {
+                    containsIdStillInUse = true;
+                } else {
+                    cleanedIds.add(storageId);
+                }
+            }
+            if (!containsIdStillInUse) {
+                // All the threads were garbage collected
+                break;
+            }
+        }
+        if (System.currentTimeMillis() > startTime + 10000) {
+            // If we timed out, just check to see if any threads were garbage collected as one thread working proves it works
+            Assert.assertFalse(cleanedIds.isEmpty());
+            // Find the cleaned IDs
+            final Set<Long> inUseRecordIds = ID_MANAGER.getInUseEdgeRecordIds();
+            final Map<Long, MrtRecyclingBufferedNumericIdManager.EdgePackIds> recyclingPacks = ID_MANAGER.getRecycledPackIds();
+            for (final Long storageId : cleanedIds) {
+                Assert.assertFalse(inUseRecordIds.contains(storageId));
+                Assert.assertTrue(recyclingPacks.containsKey(storageId));
+                Assert.assertEquals(GRAPH.getBaseGraph().PHAT_EDGE_SIZE - 1, recyclingPacks.get(storageId).size());
+            }
+        } else {
+            final Set<Long> inUseRecordIds = ID_MANAGER.getInUseEdgeRecordIds();
+            final Map<Long, MrtRecyclingBufferedNumericIdManager.EdgePackIds> recyclingPacks = ID_MANAGER.getRecycledPackIds();
+            for (final Long storageId : storageIdsUsed) {
+                Assert.assertFalse(inUseRecordIds.contains(storageId));
+                Assert.assertTrue(recyclingPacks.containsKey(storageId));
+                Assert.assertEquals(GRAPH.getBaseGraph().PHAT_EDGE_SIZE - 1, recyclingPacks.get(storageId).size());
+            }
+        }
     }
 
     private FireflyPhatEdgeId getId(final FireflyGraph graph) {

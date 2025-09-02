@@ -4,7 +4,10 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -127,8 +130,10 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager
     /**
      * Simple wrapper class to ensure that if there are any threads that grab Edge IDs and then shut down that no IDs
      * are leaked when unused.
+     *
+     * Public for testing purposes.
      */
-    static private class EdgePackIds {
+    static public class EdgePackIds {
         private final ConcurrentLinkedQueue<byte[]> ids = new ConcurrentLinkedQueue<>();
         private final MrtRecyclingBufferedNumericIdManager idManager;
         private final Long edgeRecordId;
@@ -177,6 +182,10 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager
             }
         }
 
+        public int size() {
+            return this.ids.size();
+        }
+
         @Override
         protected void finalize() {
             // The normal lifecycle ensures that either poll() was invoked until all IDs were consumed, or that
@@ -186,5 +195,26 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager
             // recycleCurrentPack().
             recycleCurrentPack();
         }
+    }
+
+    /**
+     * Testing function
+     */
+    public Map<Long, EdgePackIds> getRecycledPackIds() {
+        return new HashMap<>(this.edgeRecordIdToPackIds);
+    }
+
+    /**
+     * Testing function
+     */
+    public Set<Long> getInUseEdgeRecordIds() {
+        return new HashSet<>(this.inUseEdgeRecordIds);
+    }
+
+    /**
+     * Testing function
+     */
+    public int getCurrentPackCount() {
+        return this.edgePackIds.get().ids.size();
     }
 }

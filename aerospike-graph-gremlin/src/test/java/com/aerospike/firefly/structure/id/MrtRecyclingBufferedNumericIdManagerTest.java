@@ -168,7 +168,7 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
     @Test
     public void testCanRecycleToInUseRecordId() throws Exception {
         final AtomicBoolean breakBoolean = new AtomicBoolean(false);
-        final AtomicLong recycleStorageId = new AtomicLong();
+        final AtomicLong recycleStorageId = new AtomicLong(Long.MAX_VALUE);
         final AtomicBoolean internalAssertFailure = new AtomicBoolean(false);
         final Thread t = new Thread(() -> {
             FireflyPhatEdgeId id = getId(GRAPH);
@@ -200,6 +200,9 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
                 storageId = (Long) edgeId.getStorageId();
                 break;
             }
+        }
+        while (recycleStorageId.get() == Long.MAX_VALUE) {
+            Thread.sleep(10);
         }
         Assert.assertTrue(ID_MANAGER.getInUseEdgeRecordIds().contains(recycleStorageId.get()));
         Assert.assertTrue(ID_MANAGER.getRecycledPackIds().containsKey(recycleStorageId.get()));

@@ -54,7 +54,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
                 this.graph.getBaseGraph().commit(this.graph, this.dbTxn.get());
                 final Queue<FireflyId> idsToRecycle = this.edgeIdsToRecycle.get();
                 while (!idsToRecycle.isEmpty()) {
-                    this.graph.getIdFactory().recycleEdgeId(idsToRecycle.poll());
+                    this.graph.getIdFactory().recycleEdgeId(idsToRecycle.poll(), graph);
                 }
             } catch (final Exception e) {
                 throw new TransactionException("Exception occurred when commiting transaction.", e);

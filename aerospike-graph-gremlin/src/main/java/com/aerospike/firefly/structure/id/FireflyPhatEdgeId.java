@@ -83,9 +83,13 @@ public class FireflyPhatEdgeId extends FireflyIdPoly implements FireflyEdgeId {
     @Override
     public Object getStorageId() {
         if (this.storageId == null) {
-            this.storageId = Math.floorDiv(getPackingId(), capacity);
+            this.storageId = getPhatEdgeStorageId(this.getPackingId(), this.capacity);
         }
         return this.storageId;
+    }
+
+    static public Long getPhatEdgeStorageId(final Long packingId, final long phatEdgeSize) {
+        return Math.floorDiv(packingId, phatEdgeSize);
     }
 
     @Override

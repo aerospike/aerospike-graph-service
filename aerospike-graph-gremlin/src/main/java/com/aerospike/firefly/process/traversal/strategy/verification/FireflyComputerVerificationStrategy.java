@@ -54,6 +54,10 @@ public final class FireflyComputerVerificationStrategy extends AbstractTraversal
         if (TraversalHelper.getRootTraversal(traversal).getTraverserRequirements().contains(TraverserRequirement.ONE_BULK))
             throw new VerificationException("One bulk is currently not supported on GraphComputer: " + traversal, traversal);
 
+        // sack is a problem because the sack value is not serialized across OLAP workers
+        if (TraversalHelper.getRootTraversal(traversal).getTraverserRequirements().contains(TraverserRequirement.SACK))
+            throw new VerificationException("Sack is currently not supported on GraphComputer: " + traversal, traversal);
+
 //        // you can not traverse past the local star graph with localChildren (e.g. by()-modulators).
 //        if (!TraversalHelper.isGlobalChild(traversal) && !TraversalHelper.isLocalStarGraph(traversal))
 //            throw new VerificationException("Local traversals may not traverse past the local star-graph on GraphComputer: " + traversal, traversal);

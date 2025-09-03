@@ -87,6 +87,16 @@ public class TestDistributedGraphComputer {
     }
 
     @Test
+    public void testSackErrorMessage() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+                    graph.traversal().withComputer().withSack(100).V().sack().iterate());
+            assertNotNull(exception);
+            assertEquals("Sack is currently not supported on GraphComputer: [FireflyGraphStep(vertex,SCAN,[]), SackStep, NoneStep]", exception.getMessage());
+        }
+    }
+
+    @Test
     public void testEarlyLimit() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = graph.traversal();

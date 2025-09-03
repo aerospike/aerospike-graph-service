@@ -51,7 +51,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.large
+          ec2-instance-type: m8i.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-structure:
@@ -80,7 +80,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.xlarge
+          ec2-instance-type: m8i.xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-process-1:
@@ -109,7 +109,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.large
+          ec2-instance-type: m8i.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-process-2:
@@ -138,7 +138,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.large
+          ec2-instance-type: m8i.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-process-3:
@@ -167,7 +167,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.large
+          ec2-instance-type: m8i.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-local-computer-process-1:
@@ -196,7 +196,6 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          #          ec2-instance-type: t3.2xlarge
           ec2-instance-type: c7a.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
@@ -313,7 +312,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-movielens:
@@ -336,7 +335,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.large
+          ec2-instance-type: m8i.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-recoverable-load-1-1:
@@ -359,7 +358,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-recoverable-load-1-2:
@@ -382,7 +381,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-recoverable-load-1-3:
@@ -405,7 +404,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-recoverable-load-1-4:
@@ -428,7 +427,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-recoverable-load-1-5:
@@ -451,7 +450,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-recoverable-load-1-6:
@@ -474,7 +473,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-recoverable-load-2:
@@ -497,7 +496,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-benchmark:
@@ -520,7 +519,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-benchmark-internal dataset:
@@ -543,7 +542,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-benchmark-identifies:
@@ -566,7 +565,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-spark-bulk-loader:
@@ -589,7 +588,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t3.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   negative-test-bulk-loader-call-docker:

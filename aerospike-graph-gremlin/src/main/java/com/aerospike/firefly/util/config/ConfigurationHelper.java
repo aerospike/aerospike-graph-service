@@ -6,6 +6,7 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.LoggerUtil;
+import io.netty.channel.epoll.Epoll;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
@@ -156,7 +157,7 @@ public final class ConfigurationHelper {
         public static final String MERGE_EDGE_TTL = "aerospike.graph.strategy.merge.edge.lock.timeout";
         public static final String MERGE_EDGE_POLL_INTERVAL = "aerospike.graph.strategy.merge.edge.poll.interval";
         public static final String MERGE_EDGE_EVAL_TIMEOUT = "aerospike.graph.strategy.merge.edge.eval.timeout";
-        public static final String MERGE_EDGE_STARVATION_PROTECTION  = "aerospike.graph.strategy.merge.edge.starvation.protection.enabled";
+        public static final String MERGE_EDGE_STARVATION_PROTECTION = "aerospike.graph.strategy.merge.edge.starvation.protection.enabled";
 
         // TODO: Figure out what scan policy settings can be shared with normal read policy settings and therefore removed
         public static final String SCAN_TOTAL_TIMEOUT = "aerospike.client.policy.scan.totalTimeout";
@@ -465,7 +466,7 @@ public final class ConfigurationHelper {
         put(Keys.QUERY_SOCKET_TIMEOUT, "30000");
         put(Keys.QUERY_CONNECT_TIMEOUT, "0");
         put(Keys.QUERY_TIMEOUT_DELAY, "0");
-        put(Keys.EVENT_LOOP_TYPE, EventLoopType.NETTY_NIO.name());
+        put(Keys.EVENT_LOOP_TYPE, selectDefaultEventLoopType());
         put(Keys.EVENT_LOOP_COUNT, "2");
         put(Keys.COMMANDS_PER_EVENT_LOOP, "50");
         put(Keys.DELAY_QUEUE_SIZE, "50");
@@ -832,6 +833,7 @@ public final class ConfigurationHelper {
 
     /**
      * Used to restore the logging level after being modified by a warmup Graph.
+     *
      * @param config Configuration for the Graph.
      */
     public static void restoreLogLevel(final Configuration config) {
@@ -842,5 +844,13 @@ public final class ConfigurationHelper {
             level = DEFAULT_VALUES.get(Keys.LOG_LEVEL);
         }
         LoggerUtil.setLogLevel(Level.toLevel(level));
+    }
+
+    private static String selectDefaultEventLoopType() {
+        if (Epoll.isAvailable()) {
+            return EventLoopType.NETTY_EPOLL.name();
+        }
+        LOG.info("Netty Epoll is unavailable, falling back to Netty Nio as default EventLoopType.");
+        return EventLoopType.NETTY_NIO.name();
     }
 }

@@ -27,7 +27,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: c7i.xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-l3-bulk-loader:
@@ -50,7 +50,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
+          ec2-instance-type: c7i.xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   run-l3-bulk-loader-pe:

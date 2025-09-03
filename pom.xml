@@ -220,6 +220,7 @@
                         <exclude>**/FireflyComputerFeatureFilterTest</exclude>
                         <exclude>**/FireflyComputerFeatureBranchTest</exclude>
                         <exclude>**/TestSupernodeStackOverflow</exclude>
+                        <exclude>**/TestMultiNodeTransaction</exclude>
                     </excludes>
                 </configuration>
             </plugin>

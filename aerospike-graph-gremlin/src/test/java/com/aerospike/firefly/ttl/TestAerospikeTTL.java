@@ -16,7 +16,7 @@ public class TestAerospikeTTL {
         public void exit(final int code) {
             exited = true;
         }
-    };
+    }
 
     @Test
     public void test() {

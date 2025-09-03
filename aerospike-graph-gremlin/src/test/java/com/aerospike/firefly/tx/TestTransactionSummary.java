@@ -1,26 +1,22 @@
 package com.aerospike.firefly.tx;
 
-import com.aerospike.firefly.util.DockerUtil;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
+import java.util.stream.Collectors;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
 public class TestTransactionSummary {
     private static final Logger LOG = LoggerFactory.getLogger(TestTransactionSummary.class);
-    private static final DockerUtil DOCKER_UTIL = new DockerUtil();
     private static String VERTEX_COUNT = "Total vertex count";
     private static String VERTEX_COUNT_BY_LABEL = "Vertex count by label";
     private static String VERTEX_PROPERTIES_BY_LABEL = "Vertex properties by label";
@@ -30,15 +26,10 @@ public class TestTransactionSummary {
 
     @Test
     public void testSummaryWithTxns() throws Exception {
-        final String[] environmentVariables = new String[]{
-                "aerospike.client.host=172.17.0.1:3000",
-                "aerospike.graph.tx.enabled=true",
-                "aerospike.graph.summary.ticker.interval=2000"
-        };
-        final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
         final DriverRemoteConnection connection = DriverRemoteConnection.using("localhost", 8182);
         final GraphTraversalSource g = traversal().withRemote(connection);
         try {
+            g.V().drop().iterate();
             Assert.assertEquals(0, (long) g.V().count().next());
 
             // Test that uncommitted info is not added.
@@ -47,8 +38,8 @@ public class TestTransactionSummary {
             Object gid2 = gtx1.addV("label2").next();
             gtx1.V(gid2).property("p2", "foo").next();
             gtx1.addE("label1").property("p1", "foo").property("p2", "foo").from(__.V(gid1)).to(__.V(gid2)).next();
-            Thread.sleep(2000);
-            Map<String, String> summaryLog = getLastSummaryTicker(containerId);
+            Thread.sleep(3333);
+            Map<String, String> summaryLog = parseSummary(g);
             Assert.assertTrue(summaryLog.get(VERTEX_COUNT).contains(" 0."));
             Assert.assertTrue(summaryLog.get(VERTEX_COUNT_BY_LABEL).contains(" {}."));
             Assert.assertTrue(summaryLog.get(VERTEX_PROPERTIES_BY_LABEL).contains(" {}."));
@@ -87,8 +78,8 @@ public class TestTransactionSummary {
             gtx1.tx().rollback();
             gtx2.tx().commit();
 
-            Thread.sleep(2000);
-            summaryLog = getLastSummaryTicker(containerId);
+            Thread.sleep(3333);
+            summaryLog = parseSummary(g);
             Assert.assertTrue(summaryLog.get(VERTEX_COUNT).contains(" 4."));
             Assert.assertTrue(summaryLog.get(VERTEX_COUNT_BY_LABEL).contains("labelg=1"));
             Assert.assertTrue(summaryLog.get(VERTEX_COUNT_BY_LABEL).contains("labelgtx2=1"));
@@ -117,16 +108,9 @@ public class TestTransactionSummary {
         }
     }
 
-    private Map<String, String> getLastSummaryTicker(final String containerId) throws Exception {
-        final Queue<String> log = DOCKER_UTIL.getLogs(containerId);
-        final List<String> lastTickerLines = new ArrayList<>();
-        for (final String line : log) {
-            if (line.contains("Graph summary ticker for")) {
-                lastTickerLines.clear();
-            } else {
-                lastTickerLines.add(line);
-            }
-        }
+    private Map<String, String> parseSummary(final GraphTraversalSource g) {
+        final String summary = (String) g.call("aerospike.graph.admin.metadata.summary").with("pretty").next();
+        final List<String> lastTickerLines = summary.lines().collect(Collectors.toList());
         final Map<String, String> summaryInfo = new HashMap<>();
         for (final String line : lastTickerLines) {
             LOG.warn(line);
@@ -146,10 +130,5 @@ public class TestTransactionSummary {
         }
         Assert.assertEquals(6, summaryInfo.size());
         return summaryInfo;
-    }
-
-    @After
-    public void afterEach() {
-        DOCKER_UTIL.stopAllDockerImages();
     }
 }

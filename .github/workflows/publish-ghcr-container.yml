@@ -53,16 +53,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: publish-artifacts
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: false
-          swap-storage: true
 
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -119,16 +109,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: publish-artifacts
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: false
-          swap-storage: true
 
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -185,16 +165,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: publish-artifacts
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: false
-          swap-storage: true
 
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -250,16 +220,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: publish-artifacts
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: false
-          swap-storage: true
 
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -315,16 +275,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [publish-github-amd-slim,publish-github-arm-slim]
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: false
-          swap-storage: true
 
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -381,16 +331,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [publish-github-amd,publish-github-arm]
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: false
-          swap-storage: true
 
       - name: Checkout repository
         uses: actions/checkout@v3

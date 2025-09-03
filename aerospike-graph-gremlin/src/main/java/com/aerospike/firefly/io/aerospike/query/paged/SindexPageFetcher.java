@@ -26,7 +26,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
                              final FireflyGraph.TransformKeyRecord<R> transformKeyRecord,
                              final String indexName) {
         super(graph, transformKeyRecord, indexName);
-        graph.getBaseGraph().configureIndexPolicy(policy);
+        graph.getBaseGraph().configureQueryPolicy(policy);
         this.policy = policy;
         this.statement = new Statement();
         this.statement.setNamespace(namespace);

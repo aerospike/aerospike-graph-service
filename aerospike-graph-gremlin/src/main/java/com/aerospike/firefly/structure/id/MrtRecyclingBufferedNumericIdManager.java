@@ -4,35 +4,58 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayDeque;
-import java.util.Queue;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class MrtRecyclingBufferedNumericIdManager extends RecyclingBufferedNumericIdManager {
+import static com.aerospike.firefly.structure.id.FireflyPhatEdgeId.getPhatEdgeStorageId;
+
+public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager {
     private static final Logger LOG = LoggerFactory.getLogger(MrtRecyclingBufferedNumericIdManager.class);
     private final int packingSize;
     private final ThreadLocal<EdgePackIds> edgePackIds;
+    // Must be LinkedHashMap due to FIFO ordering on the key set
+    private final LinkedHashMap<Long, EdgePackIds> edgeRecordIdToPackIds = new LinkedHashMap<>();
+    // Shared Set between Threads of current Edge record IDs that any thread owns. Required to prevent a thread from
+    // grabbing an EdgePackIds created via recycling that may have the same Edge record ID that another thread is
+    // generating from.
+    private final Set<Long> inUseEdgeRecordIds = ConcurrentHashMap.newKeySet();
 
     protected MrtRecyclingBufferedNumericIdManager(final String uniqueIdCounterName,
                                                    final String packingIdCounterName, final long bufferSize,
                                                    final long recycleBufferSize, final int packingSize) {
         super(uniqueIdCounterName, packingIdCounterName, bufferSize, recycleBufferSize);
         this.packingSize = packingSize;
-        this.edgePackIds = ThreadLocal.withInitial(() -> new EdgePackIds(this));
+        this.edgePackIds = ThreadLocal.withInitial(() -> null);
     }
 
     @Override
-    public synchronized byte[] getNextId(final FireflyGraph graph) {
-        // MRT Edge Id Manager prefers new IDs until a pack is exhausted
+    public byte[] getNextId(final FireflyGraph graph) {
         final EdgePackIds ids = this.edgePackIds.get();
-        if (ids.isEmpty() && this.recycledIds.peek() != null) {
-            return getRecycledId(graph);
-        } else {
-            return getNextPackId(graph);
+        if (ids == null || ids.isEmpty()) {
+            // See if there is a recycled pack available if current pack is exhausted
+            synchronized (this.edgeRecordIdToPackIds) {
+                final Set<Long> recordIdSet = edgeRecordIdToPackIds.keySet();
+                for (final Long recordId : recordIdSet) {
+                    if (!inUseEdgeRecordIds.contains(recordId)) {
+                        this.inUseEdgeRecordIds.add(recordId);
+                        this.edgePackIds.set(this.edgeRecordIdToPackIds.remove(recordId));
+                        return getNextId(graph);
+                    }
+                }
+                // If none found getNextPackId will generate a new pack
+            }
         }
+        return getNextPackId(graph);
     }
 
     @Override
-    protected synchronized byte[] getNewId(final FireflyGraph graph) {
+    protected byte[] getNewId(final FireflyGraph graph) {
         // Forcibly get a new pack to avoid MRT conflict
         final EdgePackIds ids = this.edgePackIds.get();
         ids.recycleCurrentPack();
@@ -41,71 +64,157 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingBufferedNumer
 
     private byte[] getNextPackId(final FireflyGraph graph) {
         final EdgePackIds ids = this.edgePackIds.get();
-        if (ids.isEmpty()) {
-            reserveEdgePackIds(graph);
+        if (ids == null || ids.isEmpty()) {
+            reserveNewEdgePackIds(graph);
             return this.getNextPackId(graph);
         }
-        final byte[] id = new byte[8];
-        final long newId = ids.poll();
-        System.arraycopy(longToBytes(newId), 0, id, 0, 8);
-        return id;
+        return ids.poll();
     }
 
-    private synchronized void reserveEdgePackIds(final FireflyGraph graph) {
-        final EdgePackIds ids = new EdgePackIds(this);
-        while (true) {
-            final Long id = this.packingIdManager.getNextId(graph);
-            ids.add(id);
-            if (Math.floorMod(id, packingSize) == 0) {
-                // This is the last ID before the next Edge pack so set the cutoff here.
-                break;
+    private synchronized void reserveNewEdgePackIds(final FireflyGraph graph) {
+        Long packingId = this.packingIdManager.getNextId(graph);
+        Long edgeRecordId = getPhatEdgeStorageId(packingId, this.packingSize);
+        final EdgePackIds ids = new EdgePackIds(this, edgeRecordId);
+        ids.add(longToBytes(packingId));
+        // When this is 0 then packingId is the last ID before the next Edge pack so set the cutoff here
+        while (Math.floorMod(packingId, this.packingSize) != 0) {
+            packingId = this.packingIdManager.getNextId(graph);
+            edgeRecordId = getPhatEdgeStorageId(packingId, this.packingSize);
+            if (!edgeRecordId.equals(ids.edgeRecordId)) {
+                // This should never happen.
+                final String error = "ID manager reserved IDs in multiple Edge record packs. Please contact support.";
+                LOG.error(error);
+                throw new IllegalStateException(error);
+            } else {
+                ids.add(longToBytes(packingId));
             }
         }
+        this.inUseEdgeRecordIds.add(ids.edgeRecordId);
         this.edgePackIds.set(ids);
+    }
+
+    @Override
+    public void recycleId(final FireflyId id, final FireflyGraph graph) {
+        final long recycledId;
+        final long recordId;
+        if (id instanceof FireflyPhatEdgeId) {
+            recycledId = ((FireflyPhatEdgeId) id).getPackingId();
+            recordId = (Long) id.getStorageId();
+        } else {
+            final String message = "Could not recycle ID of unexpected type " + id.getClass().getName();
+            LOG.error(message);
+            throw new IllegalArgumentException(message);
+        }
+        if (this.edgeRecordIdToPackIds.size() >= bufferSize) {
+            LOG.debug("Recycled IDs buffer is full. Recycling ID {} will be dropped.", recycledId);
+            return;
+        }
+        synchronized (this.edgeRecordIdToPackIds) {
+            this.edgeRecordIdToPackIds.compute(recordId, (key, current) -> {
+                final EdgePackIds edgePackIds = Objects.requireNonNullElseGet(current,
+                        () -> new EdgePackIds(this, recordId));
+                edgePackIds.add(getRecycledId(graph, recycledId));
+                return edgePackIds;
+            });
+        }
+    }
+
+    private byte[] getRecycledId(final FireflyGraph graph, final long recycledPackingId) {
+        final byte[] id = new byte[16];
+        final Long recycledUniqueId = this.uniqueIdManager.getNextId(graph);
+        System.arraycopy(longToBytes(recycledPackingId), 0, id, 0, 8);
+        System.arraycopy(longToBytes(recycledUniqueId), 0, id, 8, 8);
+        return id;
     }
 
     /**
      * Simple wrapper class to ensure that if there are any threads that grab Edge IDs and then shut down that no IDs
      * are leaked when unused.
+     *
+     * Public for testing purposes.
      */
-    static private class EdgePackIds {
-        private final Queue<Long> ids = new ArrayDeque<>();
+    static public class EdgePackIds {
+        private final ConcurrentLinkedQueue<byte[]> ids = new ConcurrentLinkedQueue<>();
         private final MrtRecyclingBufferedNumericIdManager idManager;
+        private final Long edgeRecordId;
 
-        private EdgePackIds(final MrtRecyclingBufferedNumericIdManager idManager) {
+
+        private EdgePackIds(final MrtRecyclingBufferedNumericIdManager idManager, final Long edgeRecordId) {
             this.idManager = idManager;
+            this.edgeRecordId = edgeRecordId;
         }
 
         private boolean isEmpty() {
-            return ids.isEmpty();
+            return this.ids.isEmpty();
         }
 
-        private void add(final Long id) {
+        private void add(final byte[] id) {
             this.ids.add(id);
         }
 
-        private Long poll() {
-            return this.ids.poll();
-        }
-
-        private int size() {
-            return this.ids.size();
+        private byte[] poll() {
+            final byte[] id = this.ids.poll();
+            if (this.ids.isEmpty()) {
+                this.idManager.inUseEdgeRecordIds.remove(this.edgeRecordId);
+            }
+            return id;
         }
 
         private void recycleCurrentPack() {
-            while (!this.ids.isEmpty()) {
-                if (this.idManager.recycledIds.size() >= idManager.bufferSize) {
+            if (!this.ids.isEmpty()) {
+                if (this.idManager.edgeRecordIdToPackIds.size() >= this.idManager.bufferSize) {
                     LOG.debug("Recycled IDs buffer is full. Dropping {} recycling IDs.", this.ids.size());
-                    break;
                 } else {
-                    this.idManager.recycledIds.add(this.ids.poll());
+                    synchronized (this.idManager.edgeRecordIdToPackIds) {
+                        this.idManager.edgeRecordIdToPackIds.compute(this.edgeRecordId, (key, current) -> {
+                            final EdgePackIds edgePackIds = Objects.requireNonNullElseGet(current,
+                                    () -> new EdgePackIds(this.idManager, this.edgeRecordId));
+                            while (!this.ids.isEmpty()) {
+                                edgePackIds.add(this.ids.poll());
+                            }
+                            return edgePackIds;
+                        });
+                    }
                 }
+                // Make sure to clear here so that finalize doesn't release the Edge Record ID incorrectly
+                this.ids.clear();
+                this.idManager.inUseEdgeRecordIds.remove(this.edgeRecordId);
             }
+        }
+
+        public int size() {
+            return this.ids.size();
         }
 
         @Override
         protected void finalize() {
+            // The normal lifecycle ensures that either poll() was invoked until all IDs were consumed, or that
+            // recycleCurrentPack() was invoked before this is dereferenced, both of which releases the Edge Record
+            // ID and empties out the IDs. Therefore, finalize() only needs to take action in the case where the parent
+            // thread was destroyed and there are still IDs not consumed, which matches the requirements of
+            // recycleCurrentPack().
             recycleCurrentPack();
         }
+    }
+
+    /**
+     * Testing function
+     */
+    public Map<Long, EdgePackIds> getRecycledPackIds() {
+        return new HashMap<>(this.edgeRecordIdToPackIds);
+    }
+
+    /**
+     * Testing function
+     */
+    public Set<Long> getInUseEdgeRecordIds() {
+        return new HashSet<>(this.inUseEdgeRecordIds);
+    }
+
+    /**
+     * Testing function
+     */
+    public int getCurrentPackCount() {
+        return this.edgePackIds.get().ids.size();
     }
 }

@@ -163,10 +163,10 @@ public final class ConfigurationHelper {
         public static final String SCAN_SOCKET_TIMEOUT = "aerospike.client.policy.scan.socketTimeout";
         public static final String SCAN_CONNECT_TIMEOUT = "aerospike.client.policy.scan.connectTimeout";
         public static final String SCAN_TIMEOUT_DELAY = "aerospike.client.policy.scan.timeoutDelay";
-        public static final String INDEX_TOTAL_TIMEOUT = "aerospike.client.policy.index.totalTimeout";
-        public static final String INDEX_SOCKET_TIMEOUT = "aerospike.client.policy.index.socketTimeout";
-        public static final String INDEX_CONNECT_TIMEOUT = "aerospike.client.policy.index.connectTimeout";
-        public static final String INDEX_TIMEOUT_DELAY = "aerospike.client.policy.index.timeoutDelay";
+        public static final String QUERY_TOTAL_TIMEOUT = "aerospike.client.policy.query.totalTimeout";
+        public static final String QUERY_SOCKET_TIMEOUT = "aerospike.client.policy.query.socketTimeout";
+        public static final String QUERY_CONNECT_TIMEOUT = "aerospike.client.policy.query.connectTimeout";
+        public static final String QUERY_TIMEOUT_DELAY = "aerospike.client.policy.query.timeoutDelay";
 
         // Pagination flags.
         public static final String PAGINATION_PAGE_QUEUE_SIZE = "aerospike.graph.pagination.page.queue.size";
@@ -461,10 +461,10 @@ public final class ConfigurationHelper {
         put(Keys.SCAN_SOCKET_TIMEOUT, "30000");
         put(Keys.SCAN_CONNECT_TIMEOUT, "0");
         put(Keys.SCAN_TIMEOUT_DELAY, "0");
-        put(Keys.INDEX_TOTAL_TIMEOUT, "0");
-        put(Keys.INDEX_SOCKET_TIMEOUT, "30000");
-        put(Keys.INDEX_CONNECT_TIMEOUT, "0");
-        put(Keys.INDEX_TIMEOUT_DELAY, "0");
+        put(Keys.QUERY_TOTAL_TIMEOUT, "0");
+        put(Keys.QUERY_SOCKET_TIMEOUT, "30000");
+        put(Keys.QUERY_CONNECT_TIMEOUT, "0");
+        put(Keys.QUERY_TIMEOUT_DELAY, "0");
         put(Keys.EVENT_LOOP_TYPE, EventLoopType.NETTY_NIO.name());
         put(Keys.EVENT_LOOP_COUNT, "2");
         put(Keys.COMMANDS_PER_EVENT_LOOP, "50");

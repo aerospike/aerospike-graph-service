@@ -4,7 +4,6 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -12,33 +11,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
+public class RecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager {
     private static final Logger LOG = LoggerFactory.getLogger(RecyclingBufferedNumericIdManager.class);
-    protected final long bufferSize;
-    protected final BufferedNumericIdManager packingIdManager;
-    protected final BufferedNumericIdManager uniqueIdManager;
     protected final ConcurrentLinkedQueue<Long> recycledIds = new ConcurrentLinkedQueue<>();
 
     protected RecyclingBufferedNumericIdManager(final String uniqueIdCounterName,
                                                 final String packingIdCounterName,
                                                 final long bufferSize,
                                                 final long recycleBufferSize) {
-        this.packingIdManager = new DecrementingNumericIdManager(packingIdCounterName, bufferSize);
-        this.uniqueIdManager = new IncrementingNumericIdManager(uniqueIdCounterName, recycleBufferSize);
-        this.bufferSize = bufferSize;
-    }
-
-    static public byte[] longToBytes(final long x) {
-        final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-        buffer.putLong(x);
-        return buffer.array();
-    }
-
-    private long bytesToLong(final byte[] bytes) {
-        final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-        buffer.put(bytes);
-        buffer.flip();
-        return buffer.getLong();
+        super(uniqueIdCounterName, packingIdCounterName, bufferSize, recycleBufferSize);
     }
 
     @Override
@@ -67,7 +48,7 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
     }
 
     @Override
-    public void recycleId(final FireflyId id) {
+    public void recycleId(final FireflyId id, final FireflyGraph graph) {
         final long recycledId;
         if (id instanceof FireflyPhatEdgeId) {
             recycledId = ((FireflyPhatEdgeId) id).getPackingId();

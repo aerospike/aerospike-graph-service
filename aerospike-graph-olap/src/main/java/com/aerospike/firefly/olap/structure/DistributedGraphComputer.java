@@ -41,6 +41,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.CallStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.ComputerVerificationStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
@@ -105,7 +106,7 @@ public class DistributedGraphComputer implements GraphComputer {
         // todo: fix FireflyGraphFilterStrategy and remove GraphFilterStrategy
         TraversalStrategies.GlobalCache.registerStrategies(DistributedGraphComputer.class,
                 TraversalStrategies.GlobalCache.getStrategies(GraphComputer.class).clone()
-                        .removeStrategies(MessagePassingReductionStrategy.class)
+                        .removeStrategies(MessagePassingReductionStrategy.class, ComputerVerificationStrategy.class)
                         .addStrategies(FireflyComputerVerificationStrategy.instance(),
                                 SparkOptimizationStrategy.instance()));
     }

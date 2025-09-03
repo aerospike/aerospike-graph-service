@@ -627,10 +627,10 @@ jobs:
           bash -x scripts/start_aerospike.sh
           python3 ./scripts/build-docker.py --tags aerospike/firefly --slim
           
-          docker run -p 8182:8182  \
+          docker run -d -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/custom/ \
             -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
-            aerospike/firefly &
+            aerospike/firefly
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark --no-transfer-progress
   test-heap-usage:
@@ -937,16 +937,34 @@ jobs:
           bash -x scripts/start_aerospike_mrt.sh
           
           echo "Running docker image with transactions enabled"
-          docker run -p 8182:8182  \
+          docker run -d -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
-            -e aerospike.graph.tx.enabled=true firefly &
+            -e aerospike.graph.tx.enabled=true firefly
 
           echo "Sleeping for 30 seconds while docker image starts"
           sleep 30
 
           echo "Running Tinkerpop transactions test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTinkerpopTransactions --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestTransactionSummary --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
+          sleep 10
+      - name: Test Multi Node AGS Transactions
+        run: |
+          echo "Running multi node transaction test"
+          
+          docker run -d -p 8182:8182  \
+            -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -e aerospike.graph.tx.enabled=true firefly
+          docker run -d -p 8183:8182  \
+            -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -e aerospike.graph.tx.enabled=true firefly
+          docker run -d -p 8184:8182  \
+            -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -e aerospike.graph.tx.enabled=true firefly
+          sleep 30
+          
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestMultiNodeTransaction --no-transfer-progress
   test-firefly-process-1:
     name: Test Firefly Process Tests 1
     timeout-minutes: 120
@@ -1764,7 +1782,7 @@ jobs:
           bash -x scripts/start_aerospike.sh
 
           echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs-usage-stats/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
+          docker run -d -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs-usage-stats/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
           
@@ -1773,7 +1791,6 @@ jobs:
           
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image Secret Masking
         # This test does not need to stop the image because SSL is not configured properly, so it errors and exits but the test serves its purpose regardless.
         run: |
@@ -1789,7 +1806,7 @@ jobs:
       - name: Launch Firefly Docker Image with Custom yaml
         run: |
           echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/custom firefly &
+          docker run -d -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/custom firefly
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
           
@@ -1798,11 +1815,10 @@ jobs:
           
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Launch Firefly Docker Image with Custom properties
         run: |
           echo "Running docker image with custom properties file"
-          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
+          docker run -d -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
 
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
@@ -1810,29 +1826,26 @@ jobs:
           echo "Running benchmark"
           mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest  --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image with Security Enabled
         run: |
           echo "Running docker image with security enabled"
-          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-security/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e aerospike.graph.audit.log.enabled=true firefly &
+          docker run -d -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-security/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e aerospike.graph.audit.log.enabled=true firefly
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
           echo "Running Security Test"
           mvn test -pl aerospike-graph-gremlin -Dtest=JwtAuthenticationDockerTest  --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image with Default Prometheus
         run: |
           echo "Running docker image with prometheus"
-          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
+          docker run -d -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
           echo "Running Prometheus Test"
           mvn test -pl aerospike-graph-gremlin -Dtest=PrometheusExporterTest  --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image Bulk Loader Call
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -1841,22 +1854,21 @@ jobs:
           GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
-          docker run -p 8182:8182  \
+          docker run -d -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
-            firefly &
+            firefly
           
           echo "Sleeping for 30 seconds while docker image starts"
           sleep 30
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote  --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image Merge Edge Step and Tx when Disabled
         run: |
-          docker run -p 8182:8182  \
+          docker run -d -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
-            firefly &
+            firefly
           
           echo "Sleeping for 30 seconds while docker image starts"
           sleep 30
@@ -1864,7 +1876,6 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepRemoteTest  --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTxDisabled --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image
         run: |
           echo "Running performance mode tests"
@@ -1908,7 +1919,7 @@ jobs:
           bash -x scripts/start_aerospike_tls.sh
 
           echo "Running docker image with SSL enabled on GLV<->Gremlin Server and TLS enabled on AGS<->Aerospike DB"
-          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-tls/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/aerospike-client-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/gremlin-server-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.key:/opt/aerospike-graph/gremlin-server-tls/aerospike.key firefly &
+          docker run -d -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-tls/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/aerospike-client-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/gremlin-server-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.key:/opt/aerospike-graph/gremlin-server-tls/aerospike.key firefly
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
@@ -1917,7 +1928,6 @@ jobs:
 
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
-          echo "Sleeping 10 seconds for docker to kill the container"
   test-aerospike-ttl:
     name: Test Aerospike TTL Fails
     timeout-minutes: 30

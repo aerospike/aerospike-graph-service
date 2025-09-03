@@ -14,7 +14,6 @@ public class FireflyTxn {
     private final FireflyGraph graph;
     public final Txn aerospikeTxn;
     private final Set<FireflyId> recycledEdgeIds;
-    // TODO: GRAPH-1462 Summary updater
 
     public FireflyTxn(final FireflyGraph graph, final Txn txn) {
         this.graph = graph;
@@ -27,17 +26,17 @@ public class FireflyTxn {
     }
 
     private void commit() {
-        this.graph.getBaseGraph().commit(this.aerospikeTxn);
+        this.graph.getBaseGraph().commit(this.graph, this.aerospikeTxn);
         processPostCommit();
     }
 
     private void rollback() {
-        this.graph.getBaseGraph().rollback(this.aerospikeTxn);
+        this.graph.getBaseGraph().rollback(this.graph, this.aerospikeTxn);
     }
 
     private void processPostCommit() {
         for (final FireflyId id : recycledEdgeIds) {
-            this.graph.getIdFactory().recycleEdgeId(id);
+            this.graph.getIdFactory().recycleEdgeId(id, this.graph);
         }
     }
 

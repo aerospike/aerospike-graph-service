@@ -22,7 +22,7 @@ public class TestFireflyTtl {
     private static final Configuration DEFAULT_TTL_CONFIG = getConfig(2);
     private static final Configuration DEFAULT_CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     private FireflyGraph graph;
-    private FireflyGraph noTtlGraph; // This is required to ensure TTL is working outside of lazy evaluation
+    private FireflyGraph noTtlGraph; // This is required to ensure TTL is working outside lazy evaluation
 
     @Before
     public void beforeEach() {
@@ -123,26 +123,26 @@ public class TestFireflyTtl {
             g.addV("vertex").property("~ttl", "string").iterate();
             Assert.fail("String ttl value succeeded for adding Vertex");
         } catch (final AerospikeGraphException e) {
-            Assert.assertTrue(e.errorCode == GraphError.TTL_ILLEGAL_ARGUMENT.code);
+            Assert.assertEquals(e.errorCode, GraphError.TTL_ILLEGAL_ARGUMENT.code);
         }
         try {
             g.V(v1.id()).property("~ttl", "string").iterate();
             Assert.fail("String ttl value succeeded for adding property to Vertex");
         } catch (final AerospikeGraphException e) {
-            Assert.assertTrue(e.errorCode == GraphError.TTL_ILLEGAL_ARGUMENT.code);
+            Assert.assertEquals(e.errorCode, GraphError.TTL_ILLEGAL_ARGUMENT.code);
         }
         try {
             g.addE("edge").property("~ttl", "string").from(v1).to(v2).iterate();
             Assert.fail("String ttl value succeeded for adding Edge");
         } catch (final AerospikeGraphException e) {
-            Assert.assertTrue(e.errorCode == GraphError.TTL_ILLEGAL_ARGUMENT.code);
+            Assert.assertEquals(e.errorCode, GraphError.TTL_ILLEGAL_ARGUMENT.code);
         }
         try {
             final Edge e = g.addE("edge").from(v1).to(v2).next();
             g.E(e.id()).property("~ttl", "string").iterate();
             Assert.fail("String ttl value succeeded for adding property to Edge");
         } catch (final AerospikeGraphException e) {
-            Assert.assertTrue(e.errorCode == GraphError.TTL_ILLEGAL_ARGUMENT.code);
+            Assert.assertEquals(e.errorCode, GraphError.TTL_ILLEGAL_ARGUMENT.code);
         }
     }
 

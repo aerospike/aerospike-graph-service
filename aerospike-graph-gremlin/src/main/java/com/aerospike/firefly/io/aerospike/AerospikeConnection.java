@@ -100,6 +100,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -220,6 +221,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final int PHAT_EDGE_SIZE;
     public final int MOVEMENT_BARRIER_SIZE;
     public final boolean SUMMARY_TICKER_ENABLED_FLAG;
+    public final int SUMMARY_TICKER_INTERVAL_MS;
     public final boolean SUMMARY_ENABLED_FLAG;
     public final boolean TTL_ENABLED_FLAG;
     public final String TTL_BIN;
@@ -249,11 +251,11 @@ public class AerospikeConnection implements AutoCloseable {
     private final int SCAN_SOCKET_TIMEOUT;
     private final int SCAN_CONNECT_TIMEOUT;
     private final int SCAN_TIMEOUT_DELAY;
+    private final int QUERY_TOTAL_TIMEOUT;
+    private final int QUERY_SOCKET_TIMEOUT;
+    private final int QUERY_CONNECT_TIMEOUT;
+    private final int QUERY_TIMEOUT_DELAY;
 
-    private final int INDEX_TOTAL_TIMEOUT;
-    private final int INDEX_SOCKET_TIMEOUT;
-    private final int INDEX_CONNECT_TIMEOUT;
-    private final int INDEX_TIMEOUT_DELAY;
     private final int AEROSPIKE_TIMEOUT;
     private final int INFO_TIMEOUT;
 
@@ -456,6 +458,7 @@ public class AerospikeConnection implements AutoCloseable {
         E_LABEL_INDEX_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG, conf);
         GLOBAL_EDGE_CACHE_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED, conf);
         SUMMARY_TICKER_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG, conf);
+        SUMMARY_TICKER_INTERVAL_MS = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SUMMARY_TICKER_INTERVAL_MS, conf);
         SUMMARY_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG, conf);
         ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY, conf);
         ENABLE_COMPOSITE_ID_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY, conf);
@@ -514,11 +517,11 @@ public class AerospikeConnection implements AutoCloseable {
         SCAN_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_SOCKET_TIMEOUT, conf);
         SCAN_CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_CONNECT_TIMEOUT, conf);
         SCAN_TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_TIMEOUT_DELAY, conf);
+        QUERY_TOTAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.QUERY_TOTAL_TIMEOUT, conf);
+        QUERY_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.QUERY_SOCKET_TIMEOUT, conf);
+        QUERY_CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.QUERY_CONNECT_TIMEOUT, conf);
+        QUERY_TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.QUERY_TIMEOUT_DELAY, conf);
 
-        INDEX_TOTAL_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_TOTAL_TIMEOUT, conf);
-        INDEX_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_SOCKET_TIMEOUT, conf);
-        INDEX_CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_CONNECT_TIMEOUT, conf);
-        INDEX_TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_TIMEOUT_DELAY, conf);
         AEROSPIKE_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf);
         INFO_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INFO_TIMEOUT, conf);
 
@@ -587,7 +590,7 @@ public class AerospikeConnection implements AutoCloseable {
         final int batchReadSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf);
         if (batchReadSize == 0) {
             AEROSPIKE_BATCH_READ_SIZE = this.client.getNodes().length *
-                    ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE_PER_NODE, conf);;
+                    ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE_PER_NODE, conf);
         } else {
             AEROSPIKE_BATCH_READ_SIZE = batchReadSize;
         }
@@ -1888,7 +1891,7 @@ public class AerospikeConnection implements AutoCloseable {
 
     public FireflyRecordSet query(final QueryPolicy policy, final Statement statement) {
         final QueryPolicy queryPolicy = policy == null ? new QueryPolicy() : policy;
-        configureScanPolicy(queryPolicy);
+        configureQueryPolicy(queryPolicy);
         try {
             return new FireflyRecordSet(this.client.query(queryPolicy, statement));
         } catch (final AerospikeException e) {
@@ -1967,6 +1970,16 @@ public class AerospikeConnection implements AutoCloseable {
      * @return whether record existed on server before deletion
      */
     public boolean delete(final Key key, final Txn txn) {
+        return this.delete(key, txn, false);
+    }
+
+    /**
+     * Delete by Key
+     *
+     * @param key Aerospike Key to delete
+     * @return whether record existed on server before deletion
+     */
+    public boolean delete(final Key key, final Txn txn, final boolean txnOverride) {
         final FireflyCache cache = transactionCache.get();
         if (cache != null) {
             cache.invalidate(key);
@@ -1978,6 +1991,10 @@ public class AerospikeConnection implements AutoCloseable {
         final WritePolicy policy = new WritePolicy();
         policy.txn = txn;
         configureWritePolicy(policy);
+        if (txnOverride) {
+            policy.txn = null;
+            policy.durableDelete = false;
+        }
         try {
             return client.delete(policy, key);
         } catch (final AerospikeException e) {
@@ -2492,10 +2509,9 @@ public class AerospikeConnection implements AutoCloseable {
         final WritePolicy policy = new WritePolicy();
         policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
         policy.expiration = ttlMillis / 1000;
-        configureWritePolicy(policy);
         final Operation createLockRecord = Operation.put(new Bin(this.LOCK_BIN, false));
         try {
-            return this.client.operate(policy, key, createLockRecord);
+            return this.writeOperate(policy, key, Collections.emptySet(), true, createLockRecord);
         } catch (final AerospikeException e) {
             throw fromAerospikeException(e);
         }
@@ -2586,7 +2602,7 @@ public class AerospikeConnection implements AutoCloseable {
 
     public FireflyRecordSet queryPartitions(final QueryPolicy policy, final Statement statement, final PartitionFilter filter) {
         final QueryPolicy queryPolicy = policy == null ? new QueryPolicy() : policy;
-        configureIndexPolicy(queryPolicy);
+        configureQueryPolicy(queryPolicy);
         try {
             return new FireflyRecordSet(this.client.queryPartitions(queryPolicy, statement, filter));
         } catch (final AerospikeException e) {
@@ -2650,7 +2666,7 @@ public class AerospikeConnection implements AutoCloseable {
         return txn;
     }
 
-    public void configureScanPolicy(final Policy policy) {
+    public void configureScanPolicy(final ScanPolicy policy) {
         final Txn txn = getReadWriteTxn();
         if (txn != null) {
             throw new AerospikeGraphException(GraphError.QUERY_IN_TRANSACTION);
@@ -2665,7 +2681,7 @@ public class AerospikeConnection implements AutoCloseable {
         policy.compress = COMPRESS;
     }
 
-    public void configureIndexPolicy(final Policy policy) {
+    public void configureQueryPolicy(final QueryPolicy policy) {
         final Txn txn = getReadWriteTxn();
         if (txn != null) {
             throw new AerospikeGraphException(GraphError.QUERY_IN_TRANSACTION);
@@ -2673,10 +2689,10 @@ public class AerospikeConnection implements AutoCloseable {
 
         policy.maxRetries = AEROSPIKE_MAX_RETRIES;
         policy.sleepBetweenRetries = READ_SLEEP_BETWEEN_RETRY;
-        policy.totalTimeout = INDEX_TOTAL_TIMEOUT;
-        policy.socketTimeout = INDEX_SOCKET_TIMEOUT;
-        policy.connectTimeout = INDEX_CONNECT_TIMEOUT;
-        policy.timeoutDelay = INDEX_TIMEOUT_DELAY;
+        policy.totalTimeout = QUERY_TOTAL_TIMEOUT;
+        policy.socketTimeout = QUERY_SOCKET_TIMEOUT;
+        policy.connectTimeout = QUERY_CONNECT_TIMEOUT;
+        policy.timeoutDelay = QUERY_TIMEOUT_DELAY;
         policy.compress = COMPRESS;
     }
 
@@ -2737,10 +2753,11 @@ public class AerospikeConnection implements AutoCloseable {
         return record.getLong(COUNTER_BIN);
     }
 
-    public void commit(final Txn txn) {
+    public void commit(final FireflyGraph graph, final Txn txn) {
         try {
             if (txn != null) {
                 this.client.commit(txn);
+                graph.fireflySummaryUpdater.commitSummaryForTxn(txn);
             }
         } catch (final AerospikeException e) {
             LOG.error("Error - AerospikeException in transaction commit: {}", e.getMessage());
@@ -2748,9 +2765,10 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
-    public void rollback(final Txn txn) {
+    public void rollback(final FireflyGraph graph, final Txn txn) {
         try {
             if (txn != null) {
+                graph.fireflySummaryUpdater.abortSummaryForTxn(txn);
                 this.client.abort(txn);
             }
         } catch (final AerospikeException e) {
@@ -2763,7 +2781,7 @@ public class AerospikeConnection implements AutoCloseable {
         FireflyAerospikeVersionCheck.validateVersion(this.client, true);
 
         try {
-            final FireflyId id = this.getIdFactory().getTestId("test");
+            final FireflyId id = this.getIdFactory().getTestId(UUID.randomUUID().toString());
             final Bin bin = new Bin("txn", "support check");
             final Key key = getKey(this, this.TEST_SET, id);
 
@@ -2773,7 +2791,7 @@ public class AerospikeConnection implements AutoCloseable {
 
             checkedPut(writePolicy, key, bin);
 
-            rollback(txn);
+            this.client.abort(txn);
         } catch (final AerospikeGraphException e) {
             throw new AerospikeMrtNotSupportedException();
         }

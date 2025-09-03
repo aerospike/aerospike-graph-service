@@ -384,6 +384,20 @@ public class TestTinkerpopTransactions {
         Assert.assertEquals((400 - dropCounter.get()), (long) g.E().hasLabel("drop").count().next());
     }
 
+    @Test
+    public void testExceedRecordCount() {
+        GraphTraversalSource gtx = this.g.tx().begin();
+        try {
+            for (int i = 1; i < 5000; i++) {
+                gtx.addV().next();
+            }
+            gtx.tx().commit();
+            Assert.fail("Should have throw an exception for exceeding the MRT record limit.");
+        } catch (final Exception e) {
+            gtx.tx().rollback();
+            Assert.assertTrue(e.getMessage().contains(GraphError.getMessage(GraphError.TX_RECORD_LIMIT_EXCEEDED)));
+        }
+    }
     private void dropEAndCatchTransactionConflict(final GraphTraversalSource g, final List<String> ids,
                                                   final AtomicInteger dropCounter, final Random rng) {
         final int indexToRemove = rng.nextInt(ids.size());

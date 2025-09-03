@@ -84,6 +84,7 @@ public final class ConfigurationHelper {
         public static final String E_LABEL_INDEX_ENABLED_FLAG = "aerospike.graph.index.edge.label.enabled";
         public static final String SUMMARY_ENABLED_FLAG = "aerospike.graph.summary.enabled";
         public static final String SUMMARY_TICKER_ENABLED_FLAG = "aerospike.graph.summary.ticker.enabled";
+        public static final String SUMMARY_TICKER_INTERVAL_MS = "aerospike.graph.summary.ticker.interval";
         public static final String PHAT_EDGE_SIZE = "aerospike.graph.phat.edge.size";
         public static final String MOVEMENT_BARRIER_SIZE = "aerospike.graph.movement.barrier.size";
         public static final String VERTEX_PROPERTY_INDEXES = "aerospike.graph.index.vertex.properties";
@@ -163,10 +164,10 @@ public final class ConfigurationHelper {
         public static final String SCAN_SOCKET_TIMEOUT = "aerospike.client.policy.scan.socketTimeout";
         public static final String SCAN_CONNECT_TIMEOUT = "aerospike.client.policy.scan.connectTimeout";
         public static final String SCAN_TIMEOUT_DELAY = "aerospike.client.policy.scan.timeoutDelay";
-        public static final String INDEX_TOTAL_TIMEOUT = "aerospike.client.policy.index.totalTimeout";
-        public static final String INDEX_SOCKET_TIMEOUT = "aerospike.client.policy.index.socketTimeout";
-        public static final String INDEX_CONNECT_TIMEOUT = "aerospike.client.policy.index.connectTimeout";
-        public static final String INDEX_TIMEOUT_DELAY = "aerospike.client.policy.index.timeoutDelay";
+        public static final String QUERY_TOTAL_TIMEOUT = "aerospike.client.policy.query.totalTimeout";
+        public static final String QUERY_SOCKET_TIMEOUT = "aerospike.client.policy.query.socketTimeout";
+        public static final String QUERY_CONNECT_TIMEOUT = "aerospike.client.policy.query.connectTimeout";
+        public static final String QUERY_TIMEOUT_DELAY = "aerospike.client.policy.query.timeoutDelay";
 
         // Pagination flags.
         public static final String PAGINATION_PAGE_QUEUE_SIZE = "aerospike.graph.pagination.page.queue.size";
@@ -283,8 +284,8 @@ public final class ConfigurationHelper {
             E_LABEL_INDEX_NAME(Pair.of((byte) 5, "E_LABEL_IDX")),
             E_IN_INDEX_NAME(Pair.of((byte) 6, "E_IN_IDX")),
             E_OUT_INDEX_NAME(Pair.of((byte) 7, "E_OUT_IDX")),
-            TTL_EDGE_INDEX_NAME(Pair.of((byte) 8, "TTL_V_IDX")),
-            TTL_VERTEX_INDEX_NAME(Pair.of((byte) 9, "TTL_E_IDX"));
+            TTL_EDGE_INDEX_NAME(Pair.of((byte) 8, "TTL_E_IDX")),
+            TTL_VERTEX_INDEX_NAME(Pair.of((byte) 9, "TTL_V_IDX"));
 
             private final Pair value;
 
@@ -423,6 +424,7 @@ public final class ConfigurationHelper {
         put(Keys.CLIENT_FAILURE_RATE, "0");
         put(Keys.ASCLIENT_LOG_ENABLED, "false");
         put(Keys.SUMMARY_TICKER_ENABLED_FLAG, "true");
+        put(Keys.SUMMARY_TICKER_INTERVAL_MS, "60000");
         put(Keys.SUMMARY_ENABLED_FLAG, "true");
         put(Keys.BULK_LOADER_FLAG, "false");
         put(Keys.BULK_LOADER_INITIALIZER_FLAG, "false");
@@ -460,10 +462,10 @@ public final class ConfigurationHelper {
         put(Keys.SCAN_SOCKET_TIMEOUT, "30000");
         put(Keys.SCAN_CONNECT_TIMEOUT, "0");
         put(Keys.SCAN_TIMEOUT_DELAY, "0");
-        put(Keys.INDEX_TOTAL_TIMEOUT, "0");
-        put(Keys.INDEX_SOCKET_TIMEOUT, "30000");
-        put(Keys.INDEX_CONNECT_TIMEOUT, "0");
-        put(Keys.INDEX_TIMEOUT_DELAY, "0");
+        put(Keys.QUERY_TOTAL_TIMEOUT, "0");
+        put(Keys.QUERY_SOCKET_TIMEOUT, "30000");
+        put(Keys.QUERY_CONNECT_TIMEOUT, "0");
+        put(Keys.QUERY_TIMEOUT_DELAY, "0");
         put(Keys.EVENT_LOOP_TYPE, selectDefaultEventLoopType());
         put(Keys.EVENT_LOOP_COUNT, "2");
         put(Keys.COMMANDS_PER_EVENT_LOOP, "50");
@@ -543,6 +545,7 @@ public final class ConfigurationHelper {
         INTEGER_CONFIG_VALIDATOR.addConfig(Keys.TRANSACTION_TIMEOUT, 0, 120);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.QUERY_TRACING_LOG_THRESHOLD, -1);
         INTEGER_CONFIG_VALIDATOR.addConfig(Keys.QUERY_TRACING_SAMPLE_PERCENT, 1, 100);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.SUMMARY_TICKER_INTERVAL_MS, 1000);
     }
 
     public static Optional<Integer> getTraversalOptionInteger(final String key, final Traversal.Admin traversal,

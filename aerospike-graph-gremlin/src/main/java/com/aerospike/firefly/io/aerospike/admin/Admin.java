@@ -5,8 +5,6 @@ import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -96,10 +94,18 @@ public class Admin {
         }
 
         public I createVertexPropertyIndex(final FireflyGraph firefly, final String key) {
+            // TODO GRAPH-1671
             firefly.createIndexes(FireflyVertex.class,
                     firefly.getBaseGraph().VERTEX_PROPERTY_DATA_BIN,
                     firefly.getBaseGraph().getVpIndexPrefix(),
                     List.of(key),
+                    STRING,
+                    true);
+            firefly.createIndexes(FireflyVertex.class,
+                    firefly.getBaseGraph().VERTEX_PROPERTY_DATA_BIN,
+                    firefly.getBaseGraph().getVpIndexPrefix(),
+                    List.of(key),
+                    NUMERIC,
                     true);
             return (I) ("Vertex index creation of property key '" + key + "' in progress.");
         }

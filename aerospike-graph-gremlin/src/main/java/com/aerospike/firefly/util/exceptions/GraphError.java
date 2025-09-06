@@ -24,6 +24,7 @@ import static com.aerospike.client.ResultCode.SERVER_NOT_AVAILABLE;
 import static com.aerospike.firefly.structure.FireflyElement.TTL_PROPERTY_KEY;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.CLEAR_ON_VERSION_INCOMPATIBILITY;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.TRANSACTION_ENABLED_FLAG;
 
 /**
@@ -72,6 +73,7 @@ public enum GraphError {
     QUERY_IN_TRANSACTION(1121),
     TX_NOT_ENABLED(1122),
     PARALLELIZE_IN_TX(1123),
+    SCAN_NOT_ALLOWED(1124),
 	
     ELEMENT_NOT_FOUND(ResultCode.KEY_NOT_FOUND_ERROR),
     RECORD_SIZE_EXCEEDED(ResultCode.RECORD_TOO_BIG),
@@ -129,6 +131,7 @@ public enum GraphError {
         ERROR_MESSAGES.put(QUERY_IN_TRANSACTION.code, "Aerospike Graph Service does not support query traversals within a Transaction. If applicable, execute a traversal outside of the Transaction to grab the required Element IDs and apply a traversal directly to the IDs within the Transaction.");
         ERROR_MESSAGES.put(TX_NOT_ENABLED.code, "Transactions are not enabled for the '%s' graph. To use transactions, configure the '" + TRANSACTION_ENABLED_FLAG + "' setting.");
         ERROR_MESSAGES.put(PARALLELIZE_IN_TX.code, "The '" + ConfigurationHelper.TraversalOptions.PARALLELIZE + "' parameter is not allowed for traversals within a transaction.");
+        ERROR_MESSAGES.put(SCAN_NOT_ALLOWED.code, "Scan queries are not permitted. Please create an index for the query or configure the '" + SCAN_QUERY_ALLOWED + "' setting to 'true'.");
 
         // Server
         ERROR_MESSAGES.put(ELEMENT_NOT_FOUND.code, "Element was dropped and no longer exists.");

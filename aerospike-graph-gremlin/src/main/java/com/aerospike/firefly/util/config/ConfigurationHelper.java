@@ -193,6 +193,7 @@ public final class ConfigurationHelper {
         public static final String BULK_LOADER_FLAG = "aerospike.graph.bulk.loading.enabled";
         public static final String BULK_LOADER_INITIALIZER_FLAG = "aerospike.graph.bulk.loading.initializer.enabled";
         public static final String USAGE_STATS_UPDATE_INTERVAL = "aerospike.graph.usage.update.interval";
+        public static final String SCAN_QUERY_ALLOWED = "aerospike.graph.scan.query.enabled";
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
@@ -483,6 +484,7 @@ public final class ConfigurationHelper {
         put(Keys.QUERY_TRACING_LOG_PORT, "9411");
         put(Keys.QUERY_TRACING_LOG_THRESHOLD, "-1");
         put(Keys.QUERY_TRACING_SAMPLE_PERCENT, "100");
+        put(Keys.SCAN_QUERY_ALLOWED, "true");
     }};
 
     private static final Map<Object, String> WARMUP_VALUES = new HashMap<>() {{

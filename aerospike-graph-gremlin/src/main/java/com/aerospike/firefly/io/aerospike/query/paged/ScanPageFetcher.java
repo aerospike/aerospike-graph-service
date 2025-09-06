@@ -9,6 +9,8 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.io.aerospike.ScanHitCounter;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
+import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +53,9 @@ public class ScanPageFetcher<E extends Element> extends PageFetcher<E> {
             return null;
         };
         this.startTime = System.currentTimeMillis();
+        if (!graph.getBaseGraph().SCAN_QUERY_ALLOWED) {
+            throw new AerospikeGraphException(GraphError.SCAN_NOT_ALLOWED);
+        }
     }
 
     public ScanPageFetcher(final FireflyGraph graph,

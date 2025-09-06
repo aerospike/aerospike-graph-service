@@ -313,6 +313,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final List<String> vertexPropertyBins = new ArrayList<>();
 
     public final String QUERY_IMPL;
+    public final boolean SCAN_QUERY_ALLOWED;
 
     // Tinkerpop transactions
     private FireflyTransaction transaction = null;
@@ -622,6 +623,7 @@ public class AerospikeConnection implements AutoCloseable {
         PROMETHEUS_RENAME_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.PROMETHEUS_RENAME, conf);
 
         QUERY_IMPL = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.QUERY_IMPL, conf);
+        SCAN_QUERY_ALLOWED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, conf);
 
         bulkLoaderFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf);
         bulkLoaderInitializerFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_INITIALIZER_FLAG, conf);

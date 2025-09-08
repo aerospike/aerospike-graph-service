@@ -6,6 +6,7 @@ import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.SparkSession;
 import org.slf4j.Logger;
@@ -80,7 +81,7 @@ public class DistributedGraphComputerMain {
         System.out.println();
 
         final CommandLine commandLine = CommandLineParser.parseCmdArgs(args);
-        if (commandLine.getOptionValue("c") == null) {
+        if (StringUtils.isEmpty(commandLine.getOptionValue("c"))) {
             LOGGER.error("Configuration file is required. Please provide a configuration file using the -c option.");
             System.exit(1);
         }

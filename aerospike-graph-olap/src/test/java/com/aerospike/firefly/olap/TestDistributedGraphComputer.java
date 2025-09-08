@@ -12,7 +12,6 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.GraphHelper;
-import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -24,27 +23,24 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE;
-import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 
 public class TestDistributedGraphComputer {
     private Configuration config;
@@ -53,56 +49,51 @@ public class TestDistributedGraphComputer {
     public void beforeEach() {
         config = ConfigurationHelper.loadFromFile(Tokens.INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
+    }
+
+    @Test
+    public void testProjectWithBoth() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            //graph.getBaseGraph().dropGraphIndices(graph);
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            final List<Map<String, Object>> result = graph.traversal().withComputer()
+                    .V()
+                    .project("id", "ageSum")
+                    .by(__.id())
+                    .by(__.coalesce(
+                            __.both().dedup().values("age").sum(),
+                            __.constant(0L)))
+                    .order().by("ageSum", Order.desc)
+                    .toList();
+
+            assertEquals(6, result.size());
+            assertEquals(59L, result.get(1).get("ageSum"));
         }
     }
 
-
-    private static final int INSERT_COUNT = 200000;
-
-    public static void insertPersons(final GraphTraversalSource g) {
-        for (int i = 0; i < INSERT_COUNT; i++) {
-            final Vertex v1 = g.addV("Person").property("name", "person" + i).next();
-            final Vertex v2 = g.addV("Person").property("name", "person" + (i + 1)).next();
-            g.addE("knows").from(v1).to(v2).property("weight", i).next();
+    @Test
+    public void testInjectErrorMessage() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+                    graph.traversal().withComputer()
+                            .V()
+                            .inject(new ReferenceVertex(1))
+                            .iterate());
+            assertNotNull(exception);
+            assertEquals("The following step is currently not supported on GraphComputer: InjectStep([v[1]])", exception.getMessage());
         }
     }
 
-    public static void loadGraph(final GraphTraversalSource g) throws InterruptedException {
-        final ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-        for (int i = 0; i < Runtime.getRuntime().availableProcessors(); i++) {
-            executorService.submit(() -> insertPersons(g));
+    @Test
+    public void testSackErrorMessage() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+                    graph.traversal().withComputer().withSack(100).V().sack().iterate());
+            assertNotNull(exception);
+            assertEquals("Sack is currently not supported on GraphComputer: [FireflyGraphStep(vertex,SCAN,[]), SackStep, NoneStep]", exception.getMessage());
         }
-        executorService.shutdown();
-        executorService.awaitTermination(10, TimeUnit.MINUTES);
-    }
-
-    // @Test
-    public void testSparkCluster() throws Exception {
-        final Instant instant = Instant.now();
-        GraphTraversalSource g = null;
-        try {
-            g = traversal().withRemote(DriverRemoteConnection.using("35.202.200.21", 8182, "g"));
-            //g.withComputer().V().hasLabel("asdf").toList();
-            //System.out.println("Result: " + g.
-            //        withComputer().
-            //        with("evaluationTimeout", 24 * 3600 * 1000).
-            //        V().hasLabel("Person").groupCount().by(__.out("HasCat").count()).
-            //        toList());
-            System.out.println("Result: " + g.
-                    withComputer().
-                    with("evaluationTimeout", 24 * 3600 * 1000).
-                    V().hasLabel("Person").groupCount().by(__.out("HasCat").count()).
-                    toList());
-        } catch (Exception e) {
-            System.out.println("Failed " + e);
-            if (g != null) {
-                g.close();
-            }
-        }
-        System.out.println("Total time: " + (Instant.now().toEpochMilli() - instant.toEpochMilli()) + " ms.");
-
     }
 
     @Test

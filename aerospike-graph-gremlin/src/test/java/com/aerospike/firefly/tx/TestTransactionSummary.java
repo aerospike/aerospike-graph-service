@@ -1,10 +1,8 @@
 package com.aerospike.firefly.tx;
 
-import com.aerospike.firefly.util.DockerUtil;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -19,7 +17,6 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 
 public class TestTransactionSummary {
     private static final Logger LOG = LoggerFactory.getLogger(TestTransactionSummary.class);
-    private static final DockerUtil DOCKER_UTIL = new DockerUtil();
     private static String VERTEX_COUNT = "Total vertex count";
     private static String VERTEX_COUNT_BY_LABEL = "Vertex count by label";
     private static String VERTEX_PROPERTIES_BY_LABEL = "Vertex properties by label";
@@ -29,12 +26,6 @@ public class TestTransactionSummary {
 
     @Test
     public void testSummaryWithTxns() throws Exception {
-        final String[] environmentVariables = new String[]{
-                "aerospike.client.host=172.17.0.1:3000",
-                "aerospike.graph.tx.enabled=true",
-                "aerospike.graph.summary.ticker.interval=2000"
-        };
-        final String containerId = DOCKER_UTIL.startDockerImageCustom("firefly", false, environmentVariables);
         final DriverRemoteConnection connection = DriverRemoteConnection.using("localhost", 8182);
         final GraphTraversalSource g = traversal().withRemote(connection);
         try {
@@ -139,10 +130,5 @@ public class TestTransactionSummary {
         }
         Assert.assertEquals(6, summaryInfo.size());
         return summaryInfo;
-    }
-
-    @After
-    public void afterEach() {
-        DOCKER_UTIL.stopAllDockerImages();
     }
 }

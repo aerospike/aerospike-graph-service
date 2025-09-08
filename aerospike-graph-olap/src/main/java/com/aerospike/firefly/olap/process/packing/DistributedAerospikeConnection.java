@@ -1,12 +1,14 @@
 package com.aerospike.firefly.olap.process.packing;
 
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.BatchRecord;
 import com.aerospike.client.BatchWrite;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
+import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
@@ -228,9 +230,7 @@ public class DistributedAerospikeConnection {
             batchRecords.add(new BatchWrite(key, new Operation[]{put}));
         }
 
-        final BatchPolicy policy = new BatchPolicy();
-        policy.setMaxConcurrentThreads(2);
-        db.batchOperate(policy, batchRecords);
+        writeWithBackoff(batchRecords);
     }
 
     private static int allowedErrorPrints = 3;
@@ -450,9 +450,38 @@ public class DistributedAerospikeConnection {
             batchRecords.add(new BatchWrite(writePolicy, recordKey, new Operation[]{writeVpData, writeVpTypeHint, writeVpProperties}));
         }
 
+        writeWithBackoff(batchRecords);
+    }
+
+    private void writeWithBackoff(final List<BatchRecord> batchRecords) {
         final BatchPolicy policy = new BatchPolicy();
         policy.setMaxConcurrentThreads(2);
-        db.batchOperate(policy, batchRecords);
+
+        int backoff = 1;
+        int backoffCount = 10;
+        while (backoffCount-- > 0) {
+            try {
+                db.batchOperate(policy, batchRecords);
+                break;
+            } catch (final AerospikeException e) {
+                if (e.getResultCode() == ResultCode.DEVICE_OVERLOAD) {
+                    try {
+                        Thread.sleep(backoff * 1000L);
+                    } catch (final InterruptedException ignored) {
+                    }
+
+                    // 1, 2, 4, 8, 10, 10, 10, ...
+                    // 75 seconds max wait
+                    if (backoff < 5) {
+                        backoff *= 2;
+                    } else {
+                        backoff = 10;
+                    }
+                } else {
+                    throw new RuntimeException("Failed to write intermediate results after exponentially backing off 10 times.", e);
+                }
+            }
+        }
     }
 
     // jobs methods

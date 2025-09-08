@@ -32,7 +32,7 @@ public class FireflyIdFactory {
 
     private final AerospikeConnection db;
     private final IdManager<Long> vertexIdManager;
-    private final RecyclingBufferedNumericIdManager edgeIdManager;
+    private final RecyclingEdgeIdManager edgeIdManager;
     private final IdManager<Long> vertexPropertyIdManager;
 
     public static final Map<Class<? extends Serializable>, Long> VERTEX_ID_TYPE_TO_HINT = new HashMap<>() {{
@@ -186,8 +186,8 @@ public class FireflyIdFactory {
         return this.edgeIdManager.getNextId(graph);
     }
 
-    public void recycleEdgeId(final FireflyId id) {
-        this.edgeIdManager.recycleId(id);
+    public void recycleEdgeId(final FireflyId id, final FireflyGraph graph) {
+        this.edgeIdManager.recycleId(id, graph);
     }
 
     public FireflyEdgeId generateNonRecycledEdgeId(final FireflyGraph graph) {

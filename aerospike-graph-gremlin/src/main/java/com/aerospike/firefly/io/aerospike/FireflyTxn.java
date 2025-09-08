@@ -36,7 +36,7 @@ public class FireflyTxn {
 
     private void processPostCommit() {
         for (final FireflyId id : recycledEdgeIds) {
-            this.graph.getIdFactory().recycleEdgeId(id);
+            this.graph.getIdFactory().recycleEdgeId(id, this.graph);
         }
     }
 

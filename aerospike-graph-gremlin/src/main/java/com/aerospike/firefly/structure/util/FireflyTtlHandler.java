@@ -27,9 +27,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class FireflyTtlHandler implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyTtlHandler.class);
-    private static final QueryPolicy INDEX_POLICY = new QueryPolicy();
+    private static final QueryPolicy QUERY_POLICY = new QueryPolicy();
     static {
-        INDEX_POLICY.includeBinData = true;
+        QUERY_POLICY.includeBinData = true;
     }
     public static final String TTL_TIME_KEY = "TTL_TIME_KEY";
     private final FireflyGraph graph;
@@ -108,7 +108,7 @@ public class FireflyTtlHandler implements Closeable {
         long removalCount = 0;
         try {
             final Iterator<KeyRecord> vertexRecordsToDelete = graph.graphQuery.querySIndex(db.VERTEX_AERO_SET,
-                    db.TTL_VERTEX_INDEX_NAME, Filter.range(db.TTL_BIN, startTime, endTime), INDEX_POLICY);
+                    db.TTL_VERTEX_INDEX_NAME, Filter.range(db.TTL_BIN, startTime, endTime), QUERY_POLICY);
             while (vertexRecordsToDelete.hasNext()) {
                 final KeyRecord vertexRecord = vertexRecordsToDelete.next();
                 final FireflyVertex vertex = this.graph.vertexFromRecord(vertexRecord);
@@ -136,7 +136,7 @@ public class FireflyTtlHandler implements Closeable {
         try {
             final Iterator<KeyRecord> edgesToDelete = graph.graphQuery.querySIndex(db.EDGE_AERO_SET,
                     db.TTL_EDGE_INDEX_NAME, Filter.range(db.TTL_BIN, IndexCollectionType.MAPVALUES, startTime, endTime),
-                    INDEX_POLICY);
+                    QUERY_POLICY);
             long currentEdgeDeleteTime = System.currentTimeMillis();
             while (edgesToDelete.hasNext()) {
                 final Record record = edgesToDelete.next().record;

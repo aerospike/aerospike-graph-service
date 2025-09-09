@@ -104,7 +104,7 @@ public class PageRankProgram extends AlgorithmProgram {
         this.columnName = PageRankCodec.PAGERANK_COL;
         this.codec = new PageRankCodec(t, this.property);
         this.graph = graph;
-        this.db = new DistributedAerospikeConnection(graph);
+        this.db = new DistributedAerospikeConnection(graph, true);
     }
 
     @Override

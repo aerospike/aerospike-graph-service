@@ -83,7 +83,7 @@ public class PeerPressureProgram extends AlgorithmProgram {
         this.columnName = PeerPressureCodec.PEER_PRESSURE_COL;
         this.codec = new PeerPressureCodec(t, this.property);
         this.graph = graph;
-        this.db = new DistributedAerospikeConnection(graph);
+        this.db = new DistributedAerospikeConnection(graph, true);
     }
 
     @Override

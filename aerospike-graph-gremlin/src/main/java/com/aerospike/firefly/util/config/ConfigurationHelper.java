@@ -325,7 +325,9 @@ public final class ConfigurationHelper {
             BULK_LOAD_RECOVERY_EDGE_SET(Pair.of((byte) 20, "BL_RECOVERY_E")),
             BULK_LOAD_RECOVERY_SUPERNODE_SET(Pair.of((byte) 21, "BL_RECOVERY_SN")),
             BULK_LOAD_RECOVERY_STATE_SET(Pair.of((byte) 22, "BL_RECOVERY_S")),
-            OLAP_SET(Pair.of((byte) 23, "OLAP"));
+            OLAP_TEMP_SET(Pair.of((byte) 23, "OLAP_TEMP")),
+            OLAP_ALGORITHM_TEMP_SET(Pair.of((byte) 24, "OLAP_ALGORITHM_TEMP")),
+            OLAP_JOB_SET(Pair.of((byte) 25, "OLAP_JOBS")),;
 
             private final Pair value;
 

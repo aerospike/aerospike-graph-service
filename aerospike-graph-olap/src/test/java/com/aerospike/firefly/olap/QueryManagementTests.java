@@ -30,7 +30,7 @@ public class QueryManagementTests {
         config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
 
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            final DistributedAerospikeConnection db = new DistributedAerospikeConnection(graph, 0, 0);
+            final DistributedAerospikeConnection db = new DistributedAerospikeConnection(graph, "fakeId", 0, 0, false);
             db.removeAllJobs();
         }
     }
@@ -62,7 +62,7 @@ public class QueryManagementTests {
                     .toList();
 
             assertEquals(2, jobs.size());
-            final Map config = (Map)(((LinkedHashMap) jobs.get(1)).get("config"));
+            final Map config = (Map) (((LinkedHashMap) jobs.get(1)).get("config"));
             assertEquals(2, config.size());
             assertTrue(config.containsKey("evaluationTimeout"));
             assertEquals("67890", config.get("evaluationTimeout"));

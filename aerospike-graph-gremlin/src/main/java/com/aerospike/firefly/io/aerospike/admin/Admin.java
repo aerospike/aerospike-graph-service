@@ -16,7 +16,8 @@ import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
 
 public class Admin {
-    public static final Index index = new Index();
+    public static final Index INDEX = new Index();
+    private static final String VERTEX_LABEL_TOKEN = "~vertex:LABEL";
 
     public static class Index<I> {
         public I getIndexList(final FireflyGraph firefly) {
@@ -28,14 +29,27 @@ public class Admin {
                 throw new IllegalStateException("Failed to update index information. " + e.getMessage());
             }
 
-            final List<String> vertexPropertyIndexes = firefly.fireflyCardinalityMetadata.getVertexPropertyIndexes();
+            final List<String> vertexPropertyStringIndexes = firefly.fireflyCardinalityMetadata.getVertexPropertyIndexes(STRING);
 
             final List<String> validVertexPropertyIndexes = new ArrayList<>();
-            for (final String index : vertexPropertyIndexes) {
+            for (final String index : vertexPropertyStringIndexes) {
                 try {
-                    final Map<String, Long> indexInfo = (Map<String, Long>) getStatusVertexPropertyIndex(firefly, index);
+                    final Map<String, Long> indexInfo = (Map<String, Long>) getStatusVertexPropertyIndex(firefly, index, STRING);
                     if (indexInfo.get("percent_complete") == 100L) {
-                        validVertexPropertyIndexes.add(index);
+                        validVertexPropertyIndexes.add(index + ":STRING");
+                    }
+                } catch (final IllegalStateException ignored) {
+                    // Do nothing.
+                }
+            }
+
+            final List<String> vertexPropertyNumericIndexes = firefly.fireflyCardinalityMetadata.getVertexPropertyIndexes(NUMERIC);
+
+            for (final String index : vertexPropertyNumericIndexes) {
+                try {
+                    final Map<String, Long> indexInfo = (Map<String, Long>) getStatusVertexPropertyIndex(firefly, index, NUMERIC);
+                    if (indexInfo.get("percent_complete") == 100L) {
+                        validVertexPropertyIndexes.add(index + ":NUMERIC");
                     }
                 } catch (final IllegalStateException ignored) {
                     // Do nothing.
@@ -45,7 +59,7 @@ public class Admin {
             final boolean vertexLabelIndex = firefly.fireflyCardinalityMetadata.getVertexLabelIndexExists();
             try {
                 if (vertexLabelIndex && getIndexStatus(firefly, firefly.getBaseGraph().V_LABEL_INDEX_NAME).get("percent_complete") == 100L) {
-                    validVertexPropertyIndexes.add("vertex.~label");
+                    validVertexPropertyIndexes.add(VERTEX_LABEL_TOKEN);
                 }
             } catch (final IllegalStateException ignored) {
                 // Do nothing.
@@ -64,7 +78,6 @@ public class Admin {
                 throw new IllegalStateException("Failed to update index information. " + e.getMessage());
             }
 
-            final List<String> vertexPropertyIndexes = firefly.fireflyCardinalityMetadata.getVertexPropertyIndexes();
             final boolean vertexLabelIndex = firefly.fireflyCardinalityMetadata.getVertexLabelIndexExists();
 
             final Map<String, Long> cardinalityMap = new HashMap<>();
@@ -72,21 +85,25 @@ public class Admin {
                 firefly.fireflyCardinalityMetadata.getVertexLabelCardinality().ifPresent(cardinality -> {
                     Long cardinalityValue = cardinality.getCardinality();
                     if (cardinalityValue != null) {
-                        cardinalityMap.put("~vertex.label", cardinalityValue);
+                        cardinalityMap.put(VERTEX_LABEL_TOKEN, cardinalityValue);
                     }
                 });
             }
-            for (final String index : vertexPropertyIndexes) {
+            final List<String> vertexPropertyStringIndexes = firefly.fireflyCardinalityMetadata.getVertexPropertyIndexes(STRING);
+            for (final String index : vertexPropertyStringIndexes) {
                 firefly.fireflyCardinalityMetadata.getVertexPropertyCardinality(index, STRING).ifPresent(cardinality -> {
                     final Long cardinalityValue = cardinality.getCardinality();
                     if (cardinalityValue != null) {
-                        cardinalityMap.put(index, cardinalityValue);
+                        cardinalityMap.put(index + ":STRING", cardinalityValue);
                     }
                 });
+            }
+            final List<String> vertexPropertyNumericIndexes = firefly.fireflyCardinalityMetadata.getVertexPropertyIndexes(NUMERIC);
+            for (final String index : vertexPropertyNumericIndexes) {
                 firefly.fireflyCardinalityMetadata.getVertexPropertyCardinality(index, NUMERIC).ifPresent(cardinality -> {
                     final Long cardinalityValue = cardinality.getCardinality();
                     if (cardinalityValue != null) {
-                        cardinalityMap.merge(index, cardinalityValue, Long::sum);
+                        cardinalityMap.put(index + ":NUMERIC", cardinalityValue);
                     }
                 });
             }
@@ -193,33 +210,50 @@ public class Admin {
             throw new IllegalStateException("Index not found: " + indexName + ".");
         }
 
-        public I getStatusVertexPropertyIndex(final FireflyGraph firefly, final String key) {
-            final String formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
-            final String stringIndexName = formattedIndex + "_" + STRING;
-            final String numericIndexName = formattedIndex + "_" + NUMERIC;
+        public I getStatusVertexPropertyIndex(final FireflyGraph firefly, final String key, final IndexType indexType) {
+            final String formattedIndex = String.format("%s_%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key, indexType);
             try {
-                final Map<String, Long> numericIndexStatus = getIndexStatus(firefly, numericIndexName);
-                final Map<String, Long> stringIndexStatus = getIndexStatus(firefly, stringIndexName);
-                if (numericIndexStatus.get("percent_complete") == 100L && stringIndexStatus.get("percent_complete") == 100L) {
-                    return (I) Map.of("percent_complete", (long) 100,
-                            "total_entries", numericIndexStatus.get("total_entries") + stringIndexStatus.get("total_entries"),
-                            "total_used_bytes", numericIndexStatus.get("total_used_bytes") + stringIndexStatus.get("total_used_bytes"),
-                            "load_time", Math.max(numericIndexStatus.get("load_time"), stringIndexStatus.get("load_time")));
-                } else {
-                    if (numericIndexStatus.get("percent_complete") != 100L) {
-                        return (I) Map.of("percent_complete", numericIndexStatus.get("percent_complete"),
-                                "total_entries", stringIndexStatus.get("total_entries") + numericIndexStatus.get("total_entries"),
-                                "total_used_bytes", stringIndexStatus.get("total_used_bytes") + numericIndexStatus.get("total_used_bytes"),
-                                "load_time", Math.max(numericIndexStatus.get("load_time"), stringIndexStatus.get("load_time")));
-                    } else {
-                        return (I) Map.of("percent_complete", stringIndexStatus.get("percent_complete"),
-                                "total_entries", stringIndexStatus.get("total_entries") + numericIndexStatus.get("total_entries"),
-                                "total_used_bytes", stringIndexStatus.get("total_used_bytes") + numericIndexStatus.get("total_used_bytes"),
-                                "load_time", Math.max(numericIndexStatus.get("load_time"), stringIndexStatus.get("load_time")));
-                    }
-                }
+                final Map<String, Long> indexStatus = getIndexStatus(firefly, formattedIndex);
+                return (I) Map.of("percent_complete", indexStatus.get("percent_complete"),
+                        "total_entries", indexStatus.get("total_entries"),
+                        "total_used_bytes", indexStatus.get("total_used_bytes"),
+                        "load_time", indexStatus.get("load_time"));
             } catch (final IllegalStateException e) {
+                throw new IllegalStateException("No '" + indexType + "' index found for vertex property key '" + key + "'.");
+            }
+        }
+
+        public I getStatusVertexPropertyIndex(final FireflyGraph firefly, final String key) {
+            Map<String, Long> stringIndexStatus = null;
+            Map<String, Long> numericIndexStatus = null;
+            try {
+                stringIndexStatus = (Map<String, Long>) getStatusVertexPropertyIndex(firefly, key, STRING);
+            } catch (final IllegalStateException ignored) {
+                // Handled later
+            }
+            try {
+                numericIndexStatus = (Map<String, Long>) getStatusVertexPropertyIndex(firefly, key, NUMERIC);
+            } catch (final IllegalStateException ignored) {
+                // Handled later
+            }
+            if (stringIndexStatus == null && numericIndexStatus == null) {
                 throw new IllegalStateException("No index found for vertex property key '" + key + "'.");
+            } else if (stringIndexStatus != null && numericIndexStatus != null) {
+                final Map<String, Long> indexStatus = new HashMap<>(numericIndexStatus);
+                stringIndexStatus.forEach((k, v) -> {
+                    indexStatus.merge(k, v, (numV, strV) -> {
+                        if (k.equals("percent_complete")) {
+                            return Math.min(numV,strV);
+                        } else if (k.equals("load_time")) {
+                            return Math.max(numV, strV);
+                        } else {
+                            return numV + strV;
+                        }
+                    });
+                });
+                return (I) indexStatus;
+            } else {
+                return (I) (stringIndexStatus == null ? numericIndexStatus : stringIndexStatus);
             }
         }
     }

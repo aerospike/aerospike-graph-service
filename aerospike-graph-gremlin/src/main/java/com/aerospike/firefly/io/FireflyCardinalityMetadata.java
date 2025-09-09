@@ -172,8 +172,15 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
         }
     }
 
-    public List<String> getVertexPropertyIndexes() {
-        return vertexStringPropertyCardinalityInfo.stream().map(cardinalityInfo -> cardinalityInfo.property).collect(Collectors.toList());
+    public List<String> getVertexPropertyIndexes(final IndexType type) {
+        if (IndexType.STRING.equals(type)) {
+            return vertexStringPropertyCardinalityInfo.stream().map(cardinalityInfo -> cardinalityInfo.property).collect(Collectors.toList());
+        } else if (IndexType.NUMERIC.equals(type)) {
+            return vertexNumericPropertyCardinalityInfo.stream().map(cardinalityInfo -> cardinalityInfo.property).collect(Collectors.toList());
+        } else {
+            // This should never happen.
+            throw new IllegalArgumentException("Attempted to get VP indexes with unsupported type '" + type + "'. Please contact support.");
+        }
     }
 
     public boolean getVertexLabelIndexExists() {

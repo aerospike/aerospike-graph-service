@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io.aerospike.indexes;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.admin.Admin;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
@@ -25,6 +26,7 @@ public class TestVertexPropertyIndexes {
     public void beforeEach() throws Exception {
         try (final FireflyGraph graph = FireflyGraph.open(SETUP_CONFIG)) {
             graph.getBaseGraph().dropDatabase(graph, true);
+            Thread.sleep(1000);
         }
     }
 
@@ -76,14 +78,12 @@ public class TestVertexPropertyIndexes {
     }
 
     @Test
-    public void testBasicIndexFilter() throws Exception {
+    public void testBasicIndexFilter() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, "false");
         config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_STRING_INDEXES, "string");
         config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, "numeric");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            // Sleep to wait for sindex creation
-            Thread.sleep(5000);
             final var g = graph.traversal();
             for (long i = 0; i < 50; i++) {
                 g.addV().property("string", "string" + i).iterate();
@@ -91,24 +91,24 @@ public class TestVertexPropertyIndexes {
                 g.addV().property("numeric", i).iterate();
                 g.addV().property("numeric", "string" + i).iterate();
             }
+            waitForIndex(graph, "string", "numeric");
             Assert.assertFalse(g.V().has("string", "string25").toList().isEmpty());
             Assert.assertFalse(g.V().has("numeric", 25).toList().isEmpty());
         }
     }
 
     @Test
-    public void testCanFilterNumericOnStringIndexedKey() throws Exception {
+    public void testCanFilterNumericOnStringIndexedKey() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, "false");
         config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_STRING_INDEXES, "string");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            // Sleep to wait for sindex creation
-            Thread.sleep(5000);
             final var g = graph.traversal();
             for (long i = 0; i < 50; i++) {
                 g.addV().property("string", "string" + i).iterate();
                 g.addV().property("string", i).iterate();
             }
+            waitForIndex(graph, "string");
             try {
                 Assert.assertFalse(g.V().has("string", 25).toList().isEmpty());
                 Assert.fail("Scan did not fail when it should have.");
@@ -124,18 +124,17 @@ public class TestVertexPropertyIndexes {
     }
 
     @Test
-    public void testCanFilterStringOnNumericIndexedKey() throws Exception {
+    public void testCanFilterStringOnNumericIndexedKey() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, "false");
         config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, "numeric");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            // Sleep to wait for sindex creation
-            Thread.sleep(5000);
             final var g = graph.traversal();
             for (long i = 0; i < 50; i++) {
                 g.addV().property("numeric", "string" + i).iterate();
                 g.addV().property("numeric", i).iterate();
             }
+            waitForIndex(graph, "numeric");
             try {
                 Assert.assertFalse(g.V().has("numeric", "string25").toList().isEmpty());
                 Assert.fail("Scan did not fail when it should have.");
@@ -151,13 +150,10 @@ public class TestVertexPropertyIndexes {
     }
 
     @Test
-    public void testSelectsHighestStringCardinalityProperly() throws Exception {
+    public void testSelectsHighestStringCardinalityProperly() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, "false");
-        config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_STRING_INDEXES, "low,high");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            // Sleep to wait for sindex creation
-            Thread.sleep(5000);
             final var g = graph.traversal();
             for (long i = 0; i < 50; i++) {
                 // "low" cardinality is of the correct type but lower cardinality.
@@ -166,18 +162,22 @@ public class TestVertexPropertyIndexes {
                 g.addV().property("low", "foo").property("high", i).iterate();
                 g.addV().property("low", "foo").property("high", "string" + i).iterate();
             }
+        }
+        // Cardinality has long delay to update unless index is created on existing records.
+        config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_STRING_INDEXES, "low,high");
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final var g = graph.traversal();
+            waitForIndex(graph, "low", "high");
+            waitForCardinality(graph, "low:STRING", "high:STRING");
             Assert.assertFalse(g.V().has("low", "foo").has("high", 25).toList().isEmpty());
         }
     }
 
     @Test
-    public void testSelectsHighestNumericCardinalityProperly() throws Exception {
+    public void testSelectsHighestNumericCardinalityProperly() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, "false");
-        config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, "low,high");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            // Sleep to wait for sindex creation
-            Thread.sleep(5000);
             final var g = graph.traversal();
             for (long i = 0; i < 50; i++) {
                 // "low" cardinality is of the correct type but lower cardinality.
@@ -186,18 +186,22 @@ public class TestVertexPropertyIndexes {
                 g.addV().property("low", 1).property("high", "string" + i).iterate();
                 g.addV().property("low", 1).property("high", i).iterate();
             }
+        }
+        // Cardinality has long delay to update unless index is created on existing records.
+        config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, "low,high");
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final var g = graph.traversal();
+            waitForIndex(graph, "low", "high");
+            waitForCardinality(graph, "low:NUMERIC", "high:NUMERIC");
             Assert.assertFalse(g.V().has("low", 1).has("high", "string25").toList().isEmpty());
         }
     }
 
     @Test
-    public void testMultiPropertyMixedTypeCardinalitySelection() throws Exception {
+    public void testMultiPropertyMixedTypeCardinalitySelection() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, "false");
-        config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, "low,high");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            // Sleep to wait for sindex creation
-            Thread.sleep(5000);
             final var g = graph.traversal();
             for (long i = 0; i < 50; i++) {
                 // "low" cardinality is of the correct type but lower cardinality.
@@ -208,8 +212,52 @@ public class TestVertexPropertyIndexes {
                         .property(VertexProperty.Cardinality.list, "high", "string" + i)
                         .property(VertexProperty.Cardinality.list, "high", i).iterate();
             }
+        }
+        // Cardinality has long delay to update unless index is created on existing records.
+        config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, "low,high");
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final var g = graph.traversal();
+            waitForIndex(graph, "low", "high");
+            waitForCardinality(graph, "low:NUMERIC", "high:NUMERIC");
             Assert.assertFalse(g.V().has("low", 1).has("high", "string25").toList().isEmpty());
             Assert.assertFalse(g.V().has("low", 1).has("high", 25).toList().isEmpty());
         }
+    }
+
+    static private void waitForIndex(final FireflyGraph graph, final String... propertyKeys) {
+        final long startTime = System.currentTimeMillis();
+        for (final String propertyKey : propertyKeys) {
+            Map<String, Long> indexStatus = (Map<String, Long>) Admin.INDEX.getStatusVertexPropertyIndex(graph, propertyKey);
+            while (indexStatus == null || !indexStatus.get("percent_complete").equals(100L)) {
+                indexStatus = (Map<String, Long>) Admin.INDEX.getStatusVertexPropertyIndex(graph, propertyKey);
+                if (System.currentTimeMillis() > startTime + 30000) {
+                    Assert.fail("Timed out waiting for index creation.");
+                }
+            }
+        }
+        final List<String> indexes = ((List<String>) Admin.INDEX.getIndexList(graph)).stream().map(index -> {
+            final String[] splitIndex = index.split(":");
+            return splitIndex[0];
+        }).collect(Collectors.toList());
+        for (final String propertyKey : propertyKeys) {
+            Assert.assertTrue(indexes.contains(propertyKey));
+        }
+    }
+
+    static private void waitForCardinality(final FireflyGraph graph, final String... cardinalityKeys) {
+        final long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() < startTime + 30000) {
+            Map<String, Long> cardinalityMap = (Map<String, Long>) Admin.INDEX.getIndexCardinality(graph);
+            boolean missedAKey = false;
+            for (final String cardinalityKey : cardinalityKeys) {
+                if (!cardinalityMap.containsKey(cardinalityKey)) {
+                    missedAKey = true;
+                }
+            }
+            if (!missedAKey) {
+                return;
+            }
+        }
+        Assert.fail("Timed out waiting for cardinality info.");
     }
 }

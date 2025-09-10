@@ -88,6 +88,8 @@ public final class ConfigurationHelper {
         public static final String PHAT_EDGE_SIZE = "aerospike.graph.phat.edge.size";
         public static final String MOVEMENT_BARRIER_SIZE = "aerospike.graph.movement.barrier.size";
         public static final String VERTEX_PROPERTY_INDEXES = "aerospike.graph.index.vertex.properties";
+        public static final String VERTEX_PROPERTY_STRING_INDEXES = "aerospike.graph.index.vertex.properties.string";
+        public static final String VERTEX_PROPERTY_NUMERIC_INDEXES = "aerospike.graph.index.vertex.properties.numeric";
         public static final String EDGE_PROPERTY_INDEXES = "aerospike.graph.index.edge.properties";
         public static final String GRAPH_ID = "aerospike.graph.id";
         public static final String TRAVERSAL_NAME = "aerospike.graph.traversal";
@@ -191,6 +193,7 @@ public final class ConfigurationHelper {
         public static final String BULK_LOADER_FLAG = "aerospike.graph.bulk.loading.enabled";
         public static final String BULK_LOADER_INITIALIZER_FLAG = "aerospike.graph.bulk.loading.initializer.enabled";
         public static final String USAGE_STATS_UPDATE_INTERVAL = "aerospike.graph.usage.update.interval";
+        public static final String SCAN_QUERY_ALLOWED = "aerospike.graph.scan.query.enabled";
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
@@ -412,6 +415,8 @@ public final class ConfigurationHelper {
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
         put(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, "4");
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
+        put(Keys.VERTEX_PROPERTY_STRING_INDEXES, "");
+        put(Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, "");
         put(Keys.EDGE_PROPERTY_INDEXES, "");
         put(Keys.PHAT_EDGE_SIZE, "10");
         put(Keys.MOVEMENT_BARRIER_SIZE, "1000");
@@ -481,6 +486,7 @@ public final class ConfigurationHelper {
         put(Keys.QUERY_TRACING_LOG_PORT, "9411");
         put(Keys.QUERY_TRACING_LOG_THRESHOLD, "-1");
         put(Keys.QUERY_TRACING_SAMPLE_PERCENT, "100");
+        put(Keys.SCAN_QUERY_ALLOWED, "true");
     }};
 
     private static final Map<Object, String> WARMUP_VALUES = new HashMap<>() {{

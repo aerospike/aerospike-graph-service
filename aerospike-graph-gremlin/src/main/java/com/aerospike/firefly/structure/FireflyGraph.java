@@ -20,6 +20,7 @@ import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.IndexCollectionType;
+import com.aerospike.client.query.IndexType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.features.FireflyFeatures;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
@@ -92,6 +93,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -109,8 +111,6 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import static com.aerospike.client.query.IndexType.NUMERIC;
-import static com.aerospike.client.query.IndexType.STRING;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.process.traversal.strategy.util.FireflyStrategyUtil.FIREFLY_STRATEGIES;
@@ -335,7 +335,14 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             if (db.shouldCreateIndexes()) {
                 // Grab user defined vertex property indexes from the configuration and create them.
                 final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
-                createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_DATA_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
+                final List<String> vertexPropertyStringIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_STRING_INDEXES, configuration);
+                final List<String> vertexPropertyNumericIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, configuration);
+                final Set<String> combinedStringVpIndexes = new HashSet<>(vertexPropertyIndexes);
+                combinedStringVpIndexes.addAll(vertexPropertyStringIndexes);
+                final Set<String> combinedNumericVpIndexes = new HashSet<>(vertexPropertyIndexes);
+                combinedNumericVpIndexes.addAll(vertexPropertyNumericIndexes);
+                createVertexPropertyIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_DATA_BIN, db.getVpIndexPrefix(),
+                        combinedStringVpIndexes, combinedNumericVpIndexes);
 
                 // Grab user defined edge property indexes from the configuration and create them.
                 final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
@@ -343,7 +350,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                     // TODO: Edge indexes.
                     throw new RuntimeException("Edge property indexes are not currently supported.");
                 }
-                createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
             }
 
             // Create ttl background task.
@@ -1238,10 +1244,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         Iterator<E> getUnfiltered(final Object... ids);
     }
+
     public void createIndexes(final Class<? extends FireflyElement> elementClass,
                               final String binName,
                               final String prefix,
-                              final List<String> vertexPropertyIndexes,
+                              final Collection<String> vertexPropertyIndexes,
+                              final IndexType indexType,
                               final boolean errorOnDuplicate) {
         final List<String> existingIndexes =
                 AerospikeConnection.InfoOps.listExistingIndexes(db).stream()
@@ -1253,10 +1261,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             final String formattedIndex = String.format("%s_%s", prefix, index);
             final Long indexSchema = db.schemaManager.getVertexPropertyWrite(index);
             db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + STRING, binName, STRING, IndexCollectionType.MAPKEYS, errorOnDuplicate,
-                    CTX.mapKey(Value.get(indexSchema)));
-            db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + NUMERIC, binName, NUMERIC, IndexCollectionType.MAPKEYS, errorOnDuplicate,
+                    formattedIndex + "_" + indexType, binName, indexType, IndexCollectionType.MAPKEYS, errorOnDuplicate,
                     CTX.mapKey(Value.get(indexSchema)));
         }
 
@@ -1264,11 +1269,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         fireflyIndexMetadata.updateMetadata();
     }
 
-    public void createIndexes(final Class<? extends FireflyElement> elementClass,
-                              final String binName,
-                              final String prefix,
-                              final List<String> vertexPropertyIndexes) {
-        createIndexes(elementClass, binName, prefix, vertexPropertyIndexes, false);
+    public void createVertexPropertyIndexes(final Class<? extends FireflyElement> elementClass,
+                                            final String binName,
+                                            final String prefix,
+                                            final Set<String> stringIndexes,
+                                            final Set<String> numericIndexes) {
+        createIndexes(elementClass, binName, prefix, stringIndexes, IndexType.STRING, false);
+        createIndexes(elementClass, binName, prefix, numericIndexes, IndexType.NUMERIC, false);
     }
 
     public boolean isEmpty() {

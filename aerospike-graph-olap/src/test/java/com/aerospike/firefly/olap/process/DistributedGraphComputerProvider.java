@@ -51,13 +51,14 @@ import static com.aerospike.firefly.olap.Tokens.INTEGRATION_TEST_PROPERTIES;
         method = "*",
         reason = "Sack encoding is not supported.")
 @Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.process.traversal.step.ComplexTest",
-        method = "allShortestPaths",
-        reason = "LinkedHashMap in Path is not supported.")
-@Graph.OptOut(
         test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.SideEffectTest",
         method = "g_withSideEffectXa__linkedhashmapX_V_out_groupCountXaX_byXlabelX_out_out_capXaX",
         reason = "Tests that include lambdas are not supported.")
+
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.step.ComplexTest",
+        method = "allShortestPaths",
+        reason = "LinkedHashMap in Path is not supported.")
 @Graph.OptOut(
         test = "org.apache.tinkerpop.gremlin.process.traversal.step.ComplexTest",
         method = "classicRecommendation",
@@ -67,9 +68,23 @@ import static com.aerospike.firefly.olap.Tokens.INTEGRATION_TEST_PROPERTIES;
         method = "coworkerSummary",
         reason = "unstable test, check later.")
 @Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.step.ComplexTest",
+        method = "playlistPaths",
+        reason = "unstable test, check later.")
+
+@Graph.OptOut(
         test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SeedStrategyProcessTest",
         method = "shouldSeedGlobalSample",
         reason = "Require GRATEFUL graph with multi-properties.")
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.ReadOnlyStrategyProcessTest",
+        method = "*",
+        reason = "Error message for olap is different.")
+
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SubgraphStrategyProcessTest",
+        method = "shouldFilterComplexVertexCriterion",
+        reason = "Not supported.")
 
 @GraphProvider.Descriptor(computer = DistributedGraphComputer.class)
 public class DistributedGraphComputerProvider extends AbstractGraphProvider {

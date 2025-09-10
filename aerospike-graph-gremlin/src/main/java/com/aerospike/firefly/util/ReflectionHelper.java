@@ -23,7 +23,25 @@ public class ReflectionHelper {
 
     public static void setFieldValue(final Class clazz, final Object object, final String fieldName, final Object value) {
         try {
-            final Field field = clazz.getDeclaredField(fieldName);
+            Field field = null;
+            if (fieldName.equals("path")) {
+                Class c = clazz;
+                do {
+                    try {
+                        field = c.getDeclaredField(fieldName);
+                        break;
+                    } catch (final NoSuchFieldException ignored) {
+                        // Ignore and search parent class
+                        c = c.getSuperclass();
+                    }
+                } while (c != null);
+
+                if (field == null) {
+                    throw new NoSuchFieldException();
+                }
+            } else {
+                field = clazz.getDeclaredField(fieldName);
+            }
             field.setAccessible(true);
             field.set(object, value);
         } catch (final NoSuchFieldException | IllegalAccessException e) {

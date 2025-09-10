@@ -6,6 +6,7 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.LoggerUtil;
+import io.netty.channel.epoll.Epoll;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
@@ -87,6 +88,8 @@ public final class ConfigurationHelper {
         public static final String PHAT_EDGE_SIZE = "aerospike.graph.phat.edge.size";
         public static final String MOVEMENT_BARRIER_SIZE = "aerospike.graph.movement.barrier.size";
         public static final String VERTEX_PROPERTY_INDEXES = "aerospike.graph.index.vertex.properties";
+        public static final String VERTEX_PROPERTY_STRING_INDEXES = "aerospike.graph.index.vertex.properties.string";
+        public static final String VERTEX_PROPERTY_NUMERIC_INDEXES = "aerospike.graph.index.vertex.properties.numeric";
         public static final String EDGE_PROPERTY_INDEXES = "aerospike.graph.index.edge.properties";
         public static final String GRAPH_ID = "aerospike.graph.id";
         public static final String TRAVERSAL_NAME = "aerospike.graph.traversal";
@@ -157,17 +160,17 @@ public final class ConfigurationHelper {
         public static final String MERGE_EDGE_TTL = "aerospike.graph.strategy.merge.edge.lock.timeout";
         public static final String MERGE_EDGE_POLL_INTERVAL = "aerospike.graph.strategy.merge.edge.poll.interval";
         public static final String MERGE_EDGE_EVAL_TIMEOUT = "aerospike.graph.strategy.merge.edge.eval.timeout";
-        public static final String MERGE_EDGE_STARVATION_PROTECTION  = "aerospike.graph.strategy.merge.edge.starvation.protection.enabled";
+        public static final String MERGE_EDGE_STARVATION_PROTECTION = "aerospike.graph.strategy.merge.edge.starvation.protection.enabled";
 
         // TODO: Figure out what scan policy settings can be shared with normal read policy settings and therefore removed
         public static final String SCAN_TOTAL_TIMEOUT = "aerospike.client.policy.scan.totalTimeout";
         public static final String SCAN_SOCKET_TIMEOUT = "aerospike.client.policy.scan.socketTimeout";
         public static final String SCAN_CONNECT_TIMEOUT = "aerospike.client.policy.scan.connectTimeout";
         public static final String SCAN_TIMEOUT_DELAY = "aerospike.client.policy.scan.timeoutDelay";
-        public static final String INDEX_TOTAL_TIMEOUT = "aerospike.client.policy.index.totalTimeout";
-        public static final String INDEX_SOCKET_TIMEOUT = "aerospike.client.policy.index.socketTimeout";
-        public static final String INDEX_CONNECT_TIMEOUT = "aerospike.client.policy.index.connectTimeout";
-        public static final String INDEX_TIMEOUT_DELAY = "aerospike.client.policy.index.timeoutDelay";
+        public static final String QUERY_TOTAL_TIMEOUT = "aerospike.client.policy.query.totalTimeout";
+        public static final String QUERY_SOCKET_TIMEOUT = "aerospike.client.policy.query.socketTimeout";
+        public static final String QUERY_CONNECT_TIMEOUT = "aerospike.client.policy.query.connectTimeout";
+        public static final String QUERY_TIMEOUT_DELAY = "aerospike.client.policy.query.timeoutDelay";
 
         // Pagination flags.
         public static final String PAGINATION_PAGE_QUEUE_SIZE = "aerospike.graph.pagination.page.queue.size";
@@ -191,6 +194,7 @@ public final class ConfigurationHelper {
         public static final String BULK_LOADER_FLAG = "aerospike.graph.bulk.loading.enabled";
         public static final String BULK_LOADER_INITIALIZER_FLAG = "aerospike.graph.bulk.loading.initializer.enabled";
         public static final String USAGE_STATS_UPDATE_INTERVAL = "aerospike.graph.usage.update.interval";
+        public static final String SCAN_QUERY_ALLOWED = "aerospike.graph.scan.query.enabled";
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
@@ -325,7 +329,9 @@ public final class ConfigurationHelper {
             BULK_LOAD_RECOVERY_EDGE_SET(Pair.of((byte) 20, "BL_RECOVERY_E")),
             BULK_LOAD_RECOVERY_SUPERNODE_SET(Pair.of((byte) 21, "BL_RECOVERY_SN")),
             BULK_LOAD_RECOVERY_STATE_SET(Pair.of((byte) 22, "BL_RECOVERY_S")),
-            OLAP_SET(Pair.of((byte) 23, "OLAP"));
+            OLAP_TEMP_SET(Pair.of((byte) 23, "OLAP_TEMP")),
+            OLAP_ALGORITHM_TEMP_SET(Pair.of((byte) 24, "OLAP_ALGORITHM_TEMP")),
+            OLAP_JOB_SET(Pair.of((byte) 25, "OLAP_JOBS")),;
 
             private final Pair value;
 
@@ -411,6 +417,8 @@ public final class ConfigurationHelper {
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
         put(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, "4");
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
+        put(Keys.VERTEX_PROPERTY_STRING_INDEXES, "");
+        put(Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, "");
         put(Keys.EDGE_PROPERTY_INDEXES, "");
         put(Keys.PHAT_EDGE_SIZE, "10");
         put(Keys.MOVEMENT_BARRIER_SIZE, "1000");
@@ -463,11 +471,11 @@ public final class ConfigurationHelper {
         put(Keys.SCAN_SOCKET_TIMEOUT, "30000");
         put(Keys.SCAN_CONNECT_TIMEOUT, "0");
         put(Keys.SCAN_TIMEOUT_DELAY, "0");
-        put(Keys.INDEX_TOTAL_TIMEOUT, "0");
-        put(Keys.INDEX_SOCKET_TIMEOUT, "30000");
-        put(Keys.INDEX_CONNECT_TIMEOUT, "0");
-        put(Keys.INDEX_TIMEOUT_DELAY, "0");
-        put(Keys.EVENT_LOOP_TYPE, EventLoopType.NETTY_NIO.name());
+        put(Keys.QUERY_TOTAL_TIMEOUT, "0");
+        put(Keys.QUERY_SOCKET_TIMEOUT, "30000");
+        put(Keys.QUERY_CONNECT_TIMEOUT, "0");
+        put(Keys.QUERY_TIMEOUT_DELAY, "0");
+        put(Keys.EVENT_LOOP_TYPE, selectDefaultEventLoopType());
         put(Keys.EVENT_LOOP_COUNT, "2");
         put(Keys.COMMANDS_PER_EVENT_LOOP, "50");
         put(Keys.DELAY_QUEUE_SIZE, "50");
@@ -480,6 +488,7 @@ public final class ConfigurationHelper {
         put(Keys.QUERY_TRACING_LOG_PORT, "9411");
         put(Keys.QUERY_TRACING_LOG_THRESHOLD, "-1");
         put(Keys.QUERY_TRACING_SAMPLE_PERCENT, "100");
+        put(Keys.SCAN_QUERY_ALLOWED, "true");
     }};
 
     private static final Map<Object, String> WARMUP_VALUES = new HashMap<>() {{
@@ -834,6 +843,7 @@ public final class ConfigurationHelper {
 
     /**
      * Used to restore the logging level after being modified by a warmup Graph.
+     *
      * @param config Configuration for the Graph.
      */
     public static void restoreLogLevel(final Configuration config) {
@@ -844,5 +854,13 @@ public final class ConfigurationHelper {
             level = DEFAULT_VALUES.get(Keys.LOG_LEVEL);
         }
         LoggerUtil.setLogLevel(Level.toLevel(level));
+    }
+
+    private static String selectDefaultEventLoopType() {
+        if (Epoll.isAvailable()) {
+            return EventLoopType.NETTY_EPOLL.name();
+        }
+        LOG.info("Netty Epoll is unavailable, falling back to Netty Nio as default EventLoopType.");
+        return EventLoopType.NETTY_NIO.name();
     }
 }

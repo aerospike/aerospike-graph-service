@@ -61,9 +61,9 @@ public class SindexServiceStatus<I, R> extends SindexServiceBase<I, R> {
     protected R execute(final Map params) {
         if (params.get(ELEMENT_TYPE).equals("vertex")) {
             if (params.get(PROPERTY_KEY).equals("~label")) {
-                return (R) Admin.index.getStatusVertexLabelIndex(graph);
+                return (R) Admin.INDEX.getStatusVertexLabelIndex(graph);
             } else {
-                return (R) Admin.index.getStatusVertexPropertyIndex(graph, (String) params.get(PROPERTY_KEY));
+                return (R) Admin.INDEX.getStatusVertexPropertyIndex(graph, (String) params.get(PROPERTY_KEY));
             }
         } else {
             // Should be caught by sanitize().

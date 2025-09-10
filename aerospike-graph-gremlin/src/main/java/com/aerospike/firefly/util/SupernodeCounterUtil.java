@@ -1,63 +1,34 @@
 package com.aerospike.firefly.util;
 
-import java.util.concurrent.atomic.LongAdder;
+import com.codahale.metrics.Counter;
 
 public class SupernodeCounterUtil {
-    private final int windowSeconds;
-    private final Bucket[] buckets;
-
-    private static final class Bucket {
-        volatile long epochSecond = Long.MIN_VALUE;
-        final LongAdder adder = new LongAdder();
-    }
+    private Counter counter = null;
 
     private static SupernodeCounterUtil instance;
 
-    public static synchronized SupernodeCounterUtil getInstance(final int windowSeconds) {
+    public static synchronized SupernodeCounterUtil getInstance() {
         if (instance == null) {
-            instance = new SupernodeCounterUtil(windowSeconds);
-        }
-        if (instance.windowSeconds != windowSeconds) {
-            throw new IllegalStateException("SupernodeCounterUtil already initialized with a different window size: " + instance.windowSeconds + ". Please contact support.");
+            instance = new SupernodeCounterUtil();
         }
         return instance;
     }
 
-    private SupernodeCounterUtil(final int windowSeconds) {
-        this.windowSeconds = windowSeconds;
-        this.buckets = new Bucket[windowSeconds];
-        for (int i = 0; i < windowSeconds; i++) {
-            // Initialize buckets.
-            buckets[i] = new Bucket();
-        }
+    public static void init(final Counter counter) {
+        getInstance().counter = counter;
+    }
+
+    private SupernodeCounterUtil() {
     }
 
     public void add() {
-        final long nowSec = getCurrentEpochSecond();
-        final int bucketIndex = (int) (nowSec % windowSeconds);
-        if (buckets[bucketIndex].epochSecond != nowSec) {
-            // If bucket is stale, reset it.
-            buckets[bucketIndex].adder.reset();
-        }
-        buckets[bucketIndex].adder.increment();
+        if (counter != null)
+            counter.inc();
     }
 
-    public long getCount() {
-        final long nowSec = getCurrentEpochSecond();
-        long total = 0L;
-        for (int i = 0; i < windowSeconds; i++) {
-            final Bucket b = buckets[i];
-            final long age = nowSec - b.epochSecond;
-
-            // Count only buckets within window.
-            if (age >= 0 && age < windowSeconds) {
-                total += b.adder.sum();
-            }
-        }
-        return total;
-    }
-
-    private long getCurrentEpochSecond() {
-        return System.currentTimeMillis() / 1000;
+    public long count() {
+        if (counter != null)
+            return counter.getCount();
+        return 0;
     }
 }

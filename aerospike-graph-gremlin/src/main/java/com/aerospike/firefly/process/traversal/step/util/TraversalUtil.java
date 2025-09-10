@@ -33,7 +33,7 @@ public class TraversalUtil {
 
     static public void supernodeTraversalWarning(final FireflyGraph graph, final Traversal.Admin traversal,
                                                  final FireflyVertex vertex) {
-        if (graph.getBaseGraph().SUPERNODE_COUNTER_ENABLED) {
+        if (graph.getBaseGraph().SUPERNODE_COUNTER_ENABLED && vertex.isEdgeCacheOverflowed()) {
             graph.incrementSupernodesTraversed();
         }
         if (graph.getBaseGraph().SUPERNODE_TRAVERSAL_LOG_WARNING && vertex.isEdgeCacheOverflowed()) {

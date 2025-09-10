@@ -1,6 +1,7 @@
 package com.aerospike.firefly.runtime.metrics;
 
 import com.aerospike.firefly.util.ReflectionHelper;
+import com.aerospike.firefly.util.SupernodeCounterUtil;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import io.netty.channel.EventLoopGroup;
@@ -20,6 +21,7 @@ public class ServerMetrics {
     private final String connectionQueueSizeMetricName = MetricRegistry.name("server_connection_queue_size");
     private final String ioQueueSizeMetricName = MetricRegistry.name("server_io_queue_size");
     private final String gremlinQueueSizeMetricName = MetricRegistry.name("gremlin_queue_size");
+    private final String supernodesTraversedMetricName = MetricRegistry.name("supernode_traversed_count");
     private final GremlinServer gremlinServer;
 
     public ServerMetrics(final GremlinServer gremlinServer) {
@@ -30,6 +32,7 @@ public class ServerMetrics {
         MetricManager.INSTANCE.getRegistry().register(connectionQueueSizeMetricName, (Gauge<Integer>) this::getConnectionQueueSize);
         MetricManager.INSTANCE.getRegistry().register(ioQueueSizeMetricName, (Gauge<Integer>) this::getNettyQueueSize);
         MetricManager.INSTANCE.getRegistry().register(gremlinQueueSizeMetricName, (Gauge<Integer>) this::getGremlinQueueSize);
+        SupernodeCounterUtil.init(MetricManager.INSTANCE.getRegistry().counter(supernodesTraversedMetricName));
     }
 
     public void shutDown() {
@@ -37,6 +40,7 @@ public class ServerMetrics {
         MetricManager.INSTANCE.getRegistry().remove(connectionQueueSizeMetricName);
         MetricManager.INSTANCE.getRegistry().remove(ioQueueSizeMetricName);
         MetricManager.INSTANCE.getRegistry().remove(gremlinQueueSizeMetricName);
+        MetricManager.INSTANCE.getRegistry().remove(supernodesTraversedMetricName);
     }
 
     private int getConnectionQueueSize() {

@@ -36,7 +36,6 @@ import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
 import com.aerospike.firefly.process.traversal.strategy.util.FireflyStrategyUtil;
 import com.aerospike.firefly.runtime.HttpServer;
-import com.aerospike.firefly.runtime.metrics.GraphMetrics;
 import com.aerospike.firefly.runtime.zipkin.OpenTelemetryZipkinExporter;
 import com.aerospike.firefly.structure.transaction.FireflyTransaction;
 import com.aerospike.firefly.structure.util.LogInfo;
@@ -273,7 +272,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private OpenTelemetryZipkinExporter zipkinExporter;
     public LogInfo logInfo = null;
     private final SupernodeCounterUtil supernodeCounterUtil;
-    private final GraphMetrics graphMetrics;
 
     public void logMessage(final String message, final Logger logger) {
         if (logInfo != null) {
@@ -358,10 +356,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
             fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
             fireflyRecordLockHandler = new FireflyRecordLockHandler(db);
-            supernodeCounterUtil = SupernodeCounterUtil.getInstance(
-                    ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SUPERNODE_COUNTER_WINDOW, configuration));
-            graphMetrics = new GraphMetrics(this);
-            graphMetrics.start();
+            supernodeCounterUtil = SupernodeCounterUtil.getInstance();
 
             if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
                 final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
@@ -428,10 +423,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public boolean isQueryTracingEnabled() {
         return this.queryTracingEnabled;
-    }
-
-    public int getSupernodesTraversed() {
-        return (int) supernodeCounterUtil.getCount();
     }
 
     public void incrementSupernodesTraversed() {
@@ -1351,10 +1342,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
             if (this.zipkinExporter != null) {
                 this.zipkinExporter.close();
-            }
-
-            if (this.graphMetrics != null) {
-                this.graphMetrics.shutDown();
             }
 
             this.db.close();

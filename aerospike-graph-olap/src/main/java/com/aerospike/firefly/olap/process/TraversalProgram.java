@@ -2,6 +2,7 @@ package com.aerospike.firefly.olap.process;
 
 import com.aerospike.firefly.olap.codec.Codec;
 import com.aerospike.firefly.olap.codec.TraverserCodec;
+import com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection;
 import com.aerospike.firefly.olap.process.traversal.step.SparkOperation;
 import com.aerospike.firefly.olap.structure.AerospikeComputeKey;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -92,8 +93,10 @@ public class TraversalProgram implements FireflyProgram {
     private boolean profile = false;
     // handle current profile metrics if profile is true
     private MutableMetrics iterationMetrics;
+    private DistributedAerospikeConnection db;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TraversalProgram.class);
+    private String jobId;
 
     private TraversalProgram() {
     }
@@ -112,6 +115,7 @@ public class TraversalProgram implements FireflyProgram {
 
         // does the traversal need profile information
         this.profile = !TraversalHelper.getStepsOfAssignableClassRecursively(ProfileStep.class, this.traversal.get()).isEmpty();
+        this.db = new DistributedAerospikeConnection(((FireflyGraph) traversalMatrix.getTraversal().getGraph().get()), jobId);
     }
 
     // register TraversalVertexProgram specific memory compute keys
@@ -229,6 +233,7 @@ public class TraversalProgram implements FireflyProgram {
 
         // does the traversal need profile information
         this.profile = !TraversalHelper.getStepsOfAssignableClassRecursively(ProfileStep.class, this.traversal.get()).isEmpty();
+        this.db = new DistributedAerospikeConnection((FireflyGraph) graph, jobId);
     }
 
     @Override
@@ -369,6 +374,21 @@ public class TraversalProgram implements FireflyProgram {
             }
             this.iterationMetrics = null;
         }
+    }
+
+    @Override
+    public void setJobId(final String jobId) {
+        this.jobId = jobId;
+    }
+
+    @Override
+    public void initDB() {
+        this.db.deleteTemporaryData();
+    }
+
+    @Override
+    public void cleanUpDB() {
+        this.db.deleteTemporaryData();
     }
 
     @Override

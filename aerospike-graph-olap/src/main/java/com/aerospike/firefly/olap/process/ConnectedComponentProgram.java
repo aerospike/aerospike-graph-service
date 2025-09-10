@@ -70,7 +70,7 @@ public class ConnectedComponentProgram extends AlgorithmProgram {
         this.columnName = ConnectedComponentCodec.COMPONENT_COL;
         this.codec = new ConnectedComponentCodec(t, this.property);
         this.graph = graph;
-        this.db = new DistributedAerospikeConnection(graph);
+        this.db = new DistributedAerospikeConnection(graph, true);
     }
 
     @Override

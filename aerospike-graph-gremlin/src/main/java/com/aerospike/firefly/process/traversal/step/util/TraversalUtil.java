@@ -33,10 +33,13 @@ public class TraversalUtil {
 
     static public void supernodeTraversalWarning(final FireflyGraph graph, final Traversal.Admin traversal,
                                                  final FireflyVertex vertex) {
-        if (graph.getBaseGraph().SUPERNODE_COUNTER_ENABLED && vertex.isEdgeCacheOverflowed()) {
+        if (!vertex.isEdgeCacheOverflowed()) {
+            return;
+        }
+        if (graph.getBaseGraph().SUPERNODE_COUNTER_ENABLED) {
             graph.incrementSupernodesTraversed();
         }
-        if (graph.getBaseGraph().SUPERNODE_TRAVERSAL_LOG_WARNING && vertex.isEdgeCacheOverflowed()) {
+        if (graph.getBaseGraph().SUPERNODE_TRAVERSAL_LOG_WARNING) {
             final String traversalString = toStringScript(traversal, graph.getBaseGraph().REDACT_SCRIPT_LITERALS_ENABLED);
             if (!TRAVERSAL_LOG_CACHE.contains(traversalString)) {
                 final String message = "The traversal, \"" + traversalString +

@@ -71,7 +71,7 @@ public class TestVertexPropertyIndexes {
                 g.addV().property("foo", i).iterate();
             }
             g.V().has("foo", 5).iterate();
-            Assert.fail("Scan timeout should have errored for testing purposes but did not.");
+            Assert.fail("Scans should throw an exception when not allowed via config but did not.");
         } catch (final AerospikeGraphException e) {
             Assert.assertEquals(GraphError.SCAN_NOT_ALLOWED.code, e.errorCode);
         }

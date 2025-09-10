@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.call.metadata;
 
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 
 import java.io.BufferedReader;
@@ -14,6 +15,8 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
 
     public static final String GREMLIN_SERVER_CONFIG = "Gremlin Server Configuration";
     public static final String GRAPH_PROPERTIES = "Graph Properties";
+    public static final String KEY = "mode";
+    public static final String DEFAULTS = "defaults";
 
     public MetadataServiceConfig(final FireflyGraph graph) {
         super(graph);
@@ -27,30 +30,48 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
     @Override
     protected String usage(final Map params) {
         return String.format("Illegal arguments provided to '%s'.\n" +
-                        "\tExpected no arguments.\n" +
-                        "\tProvided arguments: '%s'.\n" +
-                        "\tExample of correct usage:\n" +
-                        "\t\tg.call(\"%s\").next();\n",
-                getName(), params);
+                        "\tExpected no arguments or argument key '%s' with value of '%s'.\n" +
+                        "\tProvided argument: '%s'.\n" +
+                        "\tExamples of correct usage:\n" +
+                        "\t\tg.call(\"%s\").with(\"%s\", \"%s\").next();\n" +
+                getName(), KEY, DEFAULTS, params,
+                getName(), KEY, DEFAULTS);
     }
 
     @Override
     protected boolean sanitize(final Map params) {
-        return params.keySet().isEmpty();
+        return params.isEmpty() || (params.size() == 1 && params.containsKey(KEY) && params.get(KEY) == DEFAULTS);
     }
 
     @Override
     protected R execute(final Map params) {
         final Map<String, Object> completeConfig = new HashMap<>();
         final Configuration configuration = graph.configuration();
-        final Iterator<String> keys = configuration.getKeys();
         final Map<String, Object> configurationMap = new HashMap<>();
-        while (keys.hasNext()) {
-            final String key = keys.next();
-            if (!key.contains("password") && !key.contains("secret") && !key.contains("token")) {
-                configurationMap.put(key, configuration.getProperty(key));
-            } else {
-                configurationMap.put(key, "********");
+
+        if(params.containsKey(KEY) && params.get(KEY) == DEFAULTS) {
+            Map<Object, String> defaults = ConfigurationHelper.getDefaultConfigMap();
+            for (final Map.Entry<Object, String> entry : defaults.entrySet()) {
+                String key = entry.getKey().toString();
+                Object value = entry.getValue();
+
+                if (configuration.containsKey(key)) {
+                    value = configuration.getString(key);
+                }
+                if (isSensitive(key)) {
+                    value = "*******";
+                }
+                configurationMap.put(key, value);
+            }
+        }else{
+            final Iterator<String> keys = configuration.getKeys();
+            while (keys.hasNext()) {
+                final String key = keys.next();
+                if (isSensitive(key)) {
+                    configurationMap.put(key, "********");
+                } else {
+                    configurationMap.put(key, configuration.getProperty(key));
+                }
             }
         }
         completeConfig.put(GRAPH_PROPERTIES, configurationMap);
@@ -64,6 +85,10 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
         }
 
         return (R) completeConfig;
+    }
+
+    private static boolean isSensitive(final String key) {
+        return key.contains("password") || key.contains("secret") || key.contains("token");
     }
 
     private static String serializeFile(final String file) {

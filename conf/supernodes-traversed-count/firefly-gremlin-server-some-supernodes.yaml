@@ -3,7 +3,7 @@ port: 8182
 evaluationTimeout: 10000
 channelizer: org.apache.tinkerpop.gremlin.server.channel.WebSocketChannelizer
 graphs: {
-  graph: ../conf/supernode-count/aerospike-graph-supernode-count-disabled.properties}
+  graph: ../conf/supernodes-traversed-count/aerospike-graph-some-supernodes.properties}
 
 scriptEngines: {}
 serializers:

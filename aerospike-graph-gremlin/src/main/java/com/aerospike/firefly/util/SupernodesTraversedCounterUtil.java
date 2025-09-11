@@ -2,14 +2,14 @@ package com.aerospike.firefly.util;
 
 import com.codahale.metrics.Counter;
 
-public class SupernodeCounterUtil {
+public class SupernodesTraversedCounterUtil {
     private Counter counter = null;
 
-    private static SupernodeCounterUtil instance;
+    private static SupernodesTraversedCounterUtil instance;
 
-    public static synchronized SupernodeCounterUtil getInstance() {
+    public static synchronized SupernodesTraversedCounterUtil getInstance() {
         if (instance == null) {
-            instance = new SupernodeCounterUtil();
+            instance = new SupernodesTraversedCounterUtil();
         }
         return instance;
     }
@@ -18,7 +18,7 @@ public class SupernodeCounterUtil {
         getInstance().counter = counter;
     }
 
-    private SupernodeCounterUtil() {
+    private SupernodesTraversedCounterUtil() {
     }
 
     public void add() {

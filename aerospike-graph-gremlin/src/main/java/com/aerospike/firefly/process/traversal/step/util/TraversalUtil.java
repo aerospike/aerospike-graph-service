@@ -36,7 +36,7 @@ public class TraversalUtil {
         if (!vertex.isEdgeCacheOverflowed()) {
             return;
         }
-        if (graph.getBaseGraph().SUPERNODE_COUNTER_ENABLED) {
+        if (graph.getBaseGraph().SUPERNODES_TRAVERSED_COUNTER_ENABLED) {
             graph.incrementSupernodesTraversed();
         }
         if (graph.getBaseGraph().SUPERNODE_TRAVERSAL_LOG_WARNING) {

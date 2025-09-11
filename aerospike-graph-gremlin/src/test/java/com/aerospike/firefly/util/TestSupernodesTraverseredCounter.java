@@ -19,7 +19,7 @@ import java.util.Random;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
-public class TestSupernodeCountingUtil {
+public class TestSupernodesTraverseredCounter {
     private static GraphTraversalSource g;
     private static DriverRemoteConnection connection;
     private static Vertex v1;
@@ -115,7 +115,7 @@ public class TestSupernodeCountingUtil {
                }
                t.toList();
            }
-           Assert.assertEquals(300L * (j + 1), SupernodeCounterUtil.getInstance().count());
+           Assert.assertEquals(300L * (j + 1), SupernodesTraversedCounterUtil.getInstance().count());
        }
    }
 
@@ -123,7 +123,7 @@ public class TestSupernodeCountingUtil {
    public void testDisableWorks() {
        initializeServerWithCounterDisabled();
        g.V(v1).both().both().toList();
-       Assert.assertEquals(0L, SupernodeCounterUtil.getInstance().count());
+       Assert.assertEquals(0L, SupernodesTraversedCounterUtil.getInstance().count());
    }
 
    @Test
@@ -131,13 +131,13 @@ public class TestSupernodeCountingUtil {
        initializeServerWithSomeSupernodes();
        g.V(v1).out("1").out("1").toList();
        // Only 1 supernode, should be counted once.
-       Assert.assertEquals(1L, SupernodeCounterUtil.getInstance().count());
+       Assert.assertEquals(1L, SupernodesTraversedCounterUtil.getInstance().count());
    }
 
     public void initializeServerWithAllSupernodes() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, String.valueOf(0));
-        server = FireflyServer.start(new String[] {"../conf/supernode-count/firefly-gremlin-server-all-supernodes.yaml"});
+        server = FireflyServer.start(new String[] {"../conf/supernodes-traversed-count/firefly-gremlin-server-all-supernodes.yaml"});
 
         connection = DriverRemoteConnection.using("localhost", 8182);
         g = traversal().withRemote(connection);
@@ -146,7 +146,7 @@ public class TestSupernodeCountingUtil {
     }
 
     public void initializeServerWithSomeSupernodes() {
-        server = FireflyServer.start(new String[] {"../conf/supernode-count/firefly-gremlin-server-some-supernodes.yaml"});
+        server = FireflyServer.start(new String[] {"../conf/supernodes-traversed-count/firefly-gremlin-server-some-supernodes.yaml"});
         connection = DriverRemoteConnection.using("localhost", 8182);
         g = traversal().withRemote(connection);
         // create chain A->B->A->B ... where A is a supernode but B is not.
@@ -161,7 +161,7 @@ public class TestSupernodeCountingUtil {
     }
 
     public void initializeServerWithCounterDisabled() {
-        server = FireflyServer.start(new String[] {"../conf/supernode-count/firefly-gremlin-server-supernode-count-disabled.yaml"});
+        server = FireflyServer.start(new String[] {"../conf/supernodes-traversed-count/firefly-gremlin-server-supernode-count-disabled.yaml"});
         connection = DriverRemoteConnection.using("localhost", 8182);
         g = traversal().withRemote(connection);
         v1 = g.addV().next();

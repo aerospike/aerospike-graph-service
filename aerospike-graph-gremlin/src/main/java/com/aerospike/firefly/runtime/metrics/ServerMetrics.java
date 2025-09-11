@@ -1,7 +1,7 @@
 package com.aerospike.firefly.runtime.metrics;
 
 import com.aerospike.firefly.util.ReflectionHelper;
-import com.aerospike.firefly.util.SupernodeCounterUtil;
+import com.aerospike.firefly.util.SupernodesTraversedCounterUtil;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import io.netty.channel.EventLoopGroup;
@@ -32,7 +32,7 @@ public class ServerMetrics {
         MetricManager.INSTANCE.getRegistry().register(connectionQueueSizeMetricName, (Gauge<Integer>) this::getConnectionQueueSize);
         MetricManager.INSTANCE.getRegistry().register(ioQueueSizeMetricName, (Gauge<Integer>) this::getNettyQueueSize);
         MetricManager.INSTANCE.getRegistry().register(gremlinQueueSizeMetricName, (Gauge<Integer>) this::getGremlinQueueSize);
-        SupernodeCounterUtil.init(MetricManager.INSTANCE.getRegistry().counter(supernodesTraversedMetricName));
+        SupernodesTraversedCounterUtil.init(MetricManager.INSTANCE.getRegistry().counter(supernodesTraversedMetricName));
     }
 
     public void shutDown() {

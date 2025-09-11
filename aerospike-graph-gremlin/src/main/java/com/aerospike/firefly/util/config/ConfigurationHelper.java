@@ -369,7 +369,7 @@ public final class ConfigurationHelper {
         put(Keys.AEROSPIKE_COMPRESS, "false");
         put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
         put(Keys.PAGINATION_PAGE_SIZE, "0");
-        put(Keys.PAGINATION_PAGE_SIZE_PER_NODE, "20");
+        put(Keys.PAGINATION_PAGE_SIZE_PER_NODE, "200");
         put(Keys.PAGINATION_PAGE_MAX_WAIT, "60000");
         put(Keys.PAGINATION_SHUTDOWN_WAIT, "0");
         put(Keys.OLAP_PAGINATION_WORKERS, String.valueOf(Runtime.getRuntime().availableProcessors()));

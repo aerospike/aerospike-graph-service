@@ -67,6 +67,7 @@ import com.aerospike.firefly.util.config.FireflyConfiguration;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.AerospikeMrtNotSupportedException;
 import com.aerospike.firefly.util.exceptions.GraphError;
+import com.aerospike.firefly.util.exceptions.SindexAlreadyExistsException;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
@@ -2458,7 +2459,7 @@ public class AerospikeConnection implements AutoCloseable {
 
         if (existingIndexes.contains(indexName)) {
             if (errorOnDuplicate) {
-                throw new RuntimeException("Index " + indexName + " already exists");
+                throw new SindexAlreadyExistsException(indexName);
             } else {
                 LOG.debug("Index {} already exists", indexName);
                 return;

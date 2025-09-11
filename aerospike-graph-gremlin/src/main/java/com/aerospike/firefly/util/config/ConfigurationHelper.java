@@ -119,6 +119,7 @@ public final class ConfigurationHelper {
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
         public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.index.update.frequency";
         public static final String CARDINALITY_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.cardinality.update.frequency";
+        public static final String SUPERNODES_TRAVERSED_COUNTER_ENABLED = "aerospike.graph.supernodes-traversed-counter.enabled";
         public static final String ENABLE_FAST_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.enabled";
         public static final String ENABLE_READ_THROUGH_CACHE = "aerospike.graph.strategy.cache.read.through.enabled";
         public static final String ENABLE_PREFETCH_STRATEGY = "aerospike.graph.strategy.prefetch.enabled";
@@ -388,6 +389,7 @@ public final class ConfigurationHelper {
         put(Keys.OLAP_ENABLED, "false");
         put(Keys.ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, "true");
+        put(Keys.SUPERNODES_TRAVERSED_COUNTER_ENABLED, "true");
         put(Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, "true");

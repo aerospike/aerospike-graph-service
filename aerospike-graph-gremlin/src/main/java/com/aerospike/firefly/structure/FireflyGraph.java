@@ -40,6 +40,7 @@ import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.runtime.zipkin.OpenTelemetryZipkinExporter;
 import com.aerospike.firefly.structure.transaction.FireflyTransaction;
 import com.aerospike.firefly.structure.util.LogInfo;
+import com.aerospike.firefly.util.SupernodesTraversedCounterUtil;
 import com.aerospike.firefly.util.config.FireflyConfiguration;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
@@ -270,6 +271,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private boolean queryTracingEnabled = false;
     private OpenTelemetryZipkinExporter zipkinExporter;
     public LogInfo logInfo = null;
+    private final SupernodesTraversedCounterUtil supernodesTraversedCounterUtil;
 
     public void logMessage(final String message, final Logger logger) {
         if (logInfo != null) {
@@ -360,6 +362,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
             fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
             fireflyRecordLockHandler = new FireflyRecordLockHandler(db);
+            supernodesTraversedCounterUtil = SupernodesTraversedCounterUtil.getInstance();
 
             if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
                 final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
@@ -426,6 +429,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public boolean isQueryTracingEnabled() {
         return this.queryTracingEnabled;
+    }
+
+    public void incrementSupernodesTraversed() {
+        supernodesTraversedCounterUtil.add();
     }
 
     public static FireflyGraph open(final Configuration conf) {

@@ -79,12 +79,14 @@ public class TestFireflyBasicCall {
                     case "{\"name\":\"aerospike.graph.admin.index.create\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{\"property_key\":\"The property key to create the index on. '~label' can be used to create an index on labels.\"");
-                        Assert.assertEquals(infoPieces.get(3), "\"element_type\":\"The type of element to create the index on. Only 'vertex' is currently supported.\"}}");
+                        Assert.assertEquals(infoPieces.get(3), "\"element_type\":\"The type of element to create the index on. Only 'vertex' is currently supported.\"");
+                        Assert.assertEquals(infoPieces.get(4), "\"index_type\":\"Optional parameter and not supported for labels. The type of index to create on the property key. Value must be 'string' or 'numeric'. If not specified both types are created.\"}}");
                         break;
                     case "{\"name\":\"aerospike.graph.admin.index.drop\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{\"property_key\":\"The property key to drop the index on. '~label' can be used to drop an index on labels.\"");
-                        Assert.assertEquals(infoPieces.get(3), "\"element_type\":\"The type of element to drop the index on. Only 'vertex' is currently supported.\"}}");
+                        Assert.assertEquals(infoPieces.get(3), "\"element_type\":\"The type of element to drop the index on. Only 'vertex' is currently supported.\"");
+                        Assert.assertEquals(infoPieces.get(4), "\"index_type\":\"Optional parameter and not supported for labels. The type of index to drop on the property key. Value must be 'string' or 'numeric'. If not specified both types are dropped.\"}}");
                         break;
                     case "{\"name\":\"aerospike.graph.admin.index.status\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");

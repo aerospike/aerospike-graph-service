@@ -15,8 +15,8 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
 
     public static final String GREMLIN_SERVER_CONFIG = "Gremlin Server Configuration";
     public static final String GRAPH_PROPERTIES = "Graph Properties";
-    public static final String KEY = "mode";
-    public static final String DEFAULTS = "defaults";
+    public static final String KEY = "MODE";
+    public static final String DEFAULTS = "full";
 
     public MetadataServiceConfig(final FireflyGraph graph) {
         super(graph);
@@ -34,13 +34,15 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
                         "\tProvided argument: '%s'.\n" +
                         "\tExamples of correct usage:\n" +
                         "\t\tg.call(\"%s\").with(\"%s\", \"%s\").next();\n" +
-                getName(), KEY, DEFAULTS, params,
+                        "\t\t or \n" +
+                        "\t\tg.call(\"%s\").next();\n" +
+                        getName(), KEY, DEFAULTS, params,
                 getName(), KEY, DEFAULTS);
     }
 
     @Override
     protected boolean sanitize(final Map params) {
-        return params.isEmpty() || (params.size() == 1 && params.containsKey(KEY) && params.get(KEY) == DEFAULTS);
+        return params.isEmpty() || (params.size() == 1 && params.containsKey(KEY) && params.get(KEY).equals(DEFAULTS));
     }
 
     @Override
@@ -49,7 +51,7 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
         final Configuration configuration = graph.configuration();
         final Map<String, Object> configurationMap = new HashMap<>();
 
-        if(params.containsKey(KEY) && params.get(KEY) == DEFAULTS) {
+        if (params.containsKey(KEY) && params.get(KEY).equals(DEFAULTS)) {
             Map<Object, String> defaults = ConfigurationHelper.getDefaultConfigMap();
             for (final Map.Entry<Object, String> entry : defaults.entrySet()) {
                 String key = entry.getKey().toString();
@@ -63,7 +65,7 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
                 }
                 configurationMap.put(key, value);
             }
-        }else{
+        } else {
             final Iterator<String> keys = configuration.getKeys();
             while (keys.hasNext()) {
                 final String key = keys.next();
@@ -87,8 +89,9 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
         return (R) completeConfig;
     }
 
-    private static boolean isSensitive(final String key) {
-        return key.contains("password") || key.contains("secret") || key.contains("token");
+    public static boolean isSensitive(final String key) {
+        String lowerCaseKey = key.toLowerCase();
+        return lowerCaseKey.contains("password") || lowerCaseKey.contains("secret") || lowerCaseKey.contains("token") ||  lowerCaseKey.contains("passkey");
     }
 
     private static String serializeFile(final String file) {

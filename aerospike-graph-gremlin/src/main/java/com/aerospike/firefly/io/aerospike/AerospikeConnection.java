@@ -231,6 +231,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final String TTL_VERTEX_INDEX_NAME;
     public final String TTL_EDGE_INDEX_NAME;
     public final int TTL_PURGE_INTERVAL_SECONDS;
+    public final boolean SUPERNODES_TRAVERSED_COUNTER_ENABLED;
     public final boolean SUPERNODE_TRAVERSAL_LOG_WARNING;
     public final boolean REDACT_SCRIPT_LITERALS_ENABLED;
     public long lastQueryMissCount = 0; // For testing
@@ -315,6 +316,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final List<String> vertexPropertyBins = new ArrayList<>();
 
     public final String QUERY_IMPL;
+    public final boolean SCAN_QUERY_ALLOWED;
 
     // Tinkerpop transactions
     private FireflyTransaction transaction = null;
@@ -531,6 +533,7 @@ public class AerospikeConnection implements AutoCloseable {
         INDEX_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf);
         TTL_PURGE_INTERVAL_SECONDS = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.TTL_PURGE_INTERVAL_SECONDS, conf);
         SUPERNODE_TRAVERSAL_LOG_WARNING = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUPERNODE_TRAVERSAL_LOG_WARNING, conf);
+        SUPERNODES_TRAVERSED_COUNTER_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUPERNODES_TRAVERSED_COUNTER_ENABLED, conf);
         REDACT_SCRIPT_LITERALS_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.REDACT_SCRIPT_LITERALS_ENABLED, conf);
 
         TEST_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.TEST_SET.name(), conf);
@@ -626,6 +629,7 @@ public class AerospikeConnection implements AutoCloseable {
         PROMETHEUS_RENAME_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.PROMETHEUS_RENAME, conf);
 
         QUERY_IMPL = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.QUERY_IMPL, conf);
+        SCAN_QUERY_ALLOWED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, conf);
 
         bulkLoaderFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf);
         bulkLoaderInitializerFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_INITIALIZER_FLAG, conf);

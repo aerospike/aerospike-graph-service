@@ -47,11 +47,13 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     private final Map<String, AccumulatorV2<DistributedMemoryEntry, DistributedMemoryEntry>> sparkMemory = new HashMap<>();
     private final AtomicInteger iteration = new AtomicInteger(0);
     private final AtomicLong runtime = new AtomicLong(0L);
+    private final String jobId;
     private Broadcast<Map<String, Object>> broadcast;
     private boolean inExecute = false;
     private transient DistributedAerospikeConnection db;
 
-    public DistributedMemory(final VertexProgram<?> vertexProgram, final Set<MapReduce> mapReducers, final JavaSparkContext sparkContext) {
+    public DistributedMemory(final VertexProgram<?> vertexProgram, final Set<MapReduce> mapReducers, final JavaSparkContext sparkContext, final String jobId) {
+        this.jobId = jobId;
         FireflyProgram program = (FireflyProgram) vertexProgram;
         if (null != vertexProgram) {
             for (final MemoryComputeKey key : vertexProgram.getMemoryComputeKeys()) {
@@ -67,7 +69,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
             if (program instanceof TraversalProgram && isAccumulator(memoryComputeKey.getKey())) {
                 final TraversalMatrix tm = ((TraversalProgram) program).getTraversalMatrix();
                 final RangeGlobalStep step = (RangeGlobalStep) tm.getStepById(memoryComputeKey.getKey().substring(0, memoryComputeKey.getKey().length() - "-accumulator".length()));
-                this.db = new DistributedAerospikeConnection(((FireflyGraph) program.getTraversal().get().getGraph().get()));
+                this.db = new DistributedAerospikeConnection(((FireflyGraph) program.getTraversal().get().getGraph().get()), jobId);
                 this.db.setAccumulator(memoryComputeKey.getKey(), step.getHighRange());
             }
             JavaSparkContext.toSparkContext(sparkContext).register(accumulator, memoryComputeKey.getKey());
@@ -76,7 +78,7 @@ public class DistributedMemory implements Memory.Admin, Serializable {
     }
 
     public void setGraph(final FireflyGraph graph) {
-        this.db = new DistributedAerospikeConnection(graph);
+        this.db = new DistributedAerospikeConnection(graph, jobId);
     }
 
     @Override

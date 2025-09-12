@@ -71,6 +71,9 @@ public abstract class AlgorithmProgram implements FireflyProgram {
     protected FireflyGraph graph;
     protected DistributedAerospikeConnection db;
 
+    protected String jobId;
+    private Boolean truncateOlapTempSetAfterExecution = false;
+
     @Override
     public void postProcessResults(final TraverserSet traversers, final Memory memory) {
         removeTemporaryProperties(traversers, property);
@@ -270,6 +273,25 @@ public abstract class AlgorithmProgram implements FireflyProgram {
         if (anyFireflyVertex.get() != null) {
             TaskLogger.logDebuggingMessage("Possible spark recovery started, found FireflyVertex "
                     + anyFireflyVertex.get() + " at iteration " + iteration, LOGGER);
+        }
+    }
+
+    @Override
+    public void setJobId(final String jobId) {
+        this.jobId = jobId;
+    }
+
+    @Override
+    public void initDB() {
+        db.truncateOlapTempSet();
+        truncateOlapTempSetAfterExecution = true;
+    }
+
+    @Override
+    public void cleanUpDB() {
+        if (truncateOlapTempSetAfterExecution) {
+            db.truncateOlapTempSet();
+            System.out.println("Aerospike work set truncated by job " + jobId);
         }
     }
 }

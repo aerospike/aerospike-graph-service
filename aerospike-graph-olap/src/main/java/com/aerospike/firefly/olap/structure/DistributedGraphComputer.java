@@ -382,9 +382,12 @@ public class DistributedGraphComputer implements GraphComputer {
     // Some hardcore stuff.
     ////
     private ComputerResult submitJob() {
-        final DistributedAerospikeConnection db = new DistributedAerospikeConnection(graph, 0, 0);
         final String jobId = UUID.randomUUID().toString();
-        boolean truncateOlapSetAfterExecution = false;
+        vertexProgram.setJobId(jobId);
+
+        final DistributedAerospikeConnection db
+                = new DistributedAerospikeConnection(graph, jobId, 0, 0, vertexProgram instanceof AlgorithmProgram);
+
         DistributedConfigHelper configHelper = null;
 
         try {
@@ -425,9 +428,7 @@ public class DistributedGraphComputer implements GraphComputer {
                 LOGGER.warn("Another job is already running: {}", anotherRunningJob);
             }
 
-            // truncate only if valid query
-            db.truncateOlapSet();
-            truncateOlapSetAfterExecution = true;
+            vertexProgram.initDB();
 
             final Codec codec = vertexProgram.getCodec();
 
@@ -436,7 +437,8 @@ public class DistributedGraphComputer implements GraphComputer {
 
             // Create necessary things for execution (Memory, ResultGraph, Config, etc.)
             this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
-            final DistributedMemory memory = new DistributedMemory(this.vertexProgram, this.mapReducers, new JavaSparkContext(spark.sparkContext()));
+            final DistributedMemory memory = new DistributedMemory(this.vertexProgram, this.mapReducers, new JavaSparkContext(spark.sparkContext()),
+                    vertexProgram instanceof TraversalProgram ? jobId : null);
             memory.setGraph(graph);
             final DistributedConfiguration vertexProgramConfiguration = new DistributedConfiguration();
             this.vertexProgram.storeState(vertexProgramConfiguration);
@@ -597,10 +599,8 @@ public class DistributedGraphComputer implements GraphComputer {
         } finally {
             // memory.complete ?
             FireflyHelper.dropGraphComputerView(this.graph);
-            if (truncateOlapSetAfterExecution) {
-                db.truncateOlapSet();
-                System.out.println("Aerospike work set truncated by job " + jobId);
-            }
+
+            vertexProgram.cleanUpDB();
 
             if (configHelper != null) {
                 final String tempWriteDirectory = configHelper.getTempWriteDirectory();

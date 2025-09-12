@@ -199,7 +199,9 @@ public class AerospikeConnection implements AutoCloseable {
     public final String ID_MANAGER_SET;
     public final String ID_TYPE_BIN;
     public final String TEST_SET;
-    public final String OLAP_SET;
+    public final String OLAP_JOB_SET;
+    public final String OLAP_TEMP_SET;
+    public final String OLAP_ALGORITHM_TEMP_SET;
     public final String SCHEMA_SET;
     public final String SCHEMA_BIN;
 
@@ -532,7 +534,9 @@ public class AerospikeConnection implements AutoCloseable {
         REDACT_SCRIPT_LITERALS_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.REDACT_SCRIPT_LITERALS_ENABLED, conf);
 
         TEST_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.TEST_SET.name(), conf);
-        OLAP_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OLAP_SET.name(), conf);
+        OLAP_JOB_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OLAP_JOB_SET.name(), conf);
+        OLAP_TEMP_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OLAP_TEMP_SET.name(), conf);
+        OLAP_ALGORITHM_TEMP_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OLAP_ALGORITHM_TEMP_SET.name(), conf);
         SUMMARY_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.SUMMARY_SET.name(), conf);
         GRAPH_ID = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.GRAPH_ID, conf);
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET.name(), conf);
@@ -2310,7 +2314,9 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(infoPolicy, namespace, BULK_LOAD_DUPLICATE_VID_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_BAD_EDGE_SET, null);
             client.truncate(infoPolicy, namespace, BULK_LOAD_BAD_ENTRY_SET, null);
-            client.truncate(infoPolicy, namespace, OLAP_SET, null);
+            client.truncate(infoPolicy, namespace, OLAP_TEMP_SET, null);
+            client.truncate(infoPolicy, namespace, OLAP_ALGORITHM_TEMP_SET, null);
+            client.truncate(infoPolicy, namespace, OLAP_JOB_SET, null);
 
             // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the
             // id manager set and if we delete it here, they will likely insert a record with the same id as the one

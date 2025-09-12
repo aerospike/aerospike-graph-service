@@ -16,6 +16,7 @@ import io.vavr.collection.Stream;
 import org.apache.commons.configuration2.Configuration;
 import org.javatuples.Pair;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -53,7 +54,31 @@ public class TestDistributedAerospikeConnection {
 
     @Before
     public void beforeEach() {
-        db.truncate(null, db.OLAP_SET, null);
+        db.truncate(null, db.OLAP_TEMP_SET, null);
+        db.truncate(null, db.OLAP_ALGORITHM_TEMP_SET, null);
+    }
+
+    @Test
+    public void testAccumulator() {
+        for (int i = 0; i < 10; i++) {
+            final DistributedAerospikeConnection ddb =
+                    new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_TEMP_SET, "test-" + i, false, 0, 0);
+            // make some accumulator operations
+            ddb.setAccumulator("test", 1L);
+            ddb.setAccumulator("test2", 2.0);
+            ddb.addAccumulator("test", 3L);
+            ddb.addAccumulator("test2", 4.0);
+
+            assertEquals((Long) 4L, ddb.getAccumulatorLong("test"));
+            assertEquals((Double) 6.0, ddb.getAccumulatorDouble("test2"));
+            ddb.deleteTemporaryData();
+        }
+
+        final DistributedAerospikeConnection ddb =
+                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_TEMP_SET, "test-1", false, 0, 0);
+
+        // data is removed, so should throw exception
+        Assert.assertThrows(NullPointerException.class, () -> ddb.getAccumulatorLong("test"));
     }
 
     @Test
@@ -61,14 +86,14 @@ public class TestDistributedAerospikeConnection {
         final long elementCount = 10_000;
         final long packSize = 10;
         final DistributedAerospikeConnection ddb =
-                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_SET, elementCount, packSize);
+                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_TEMP_SET, "test-id", true, elementCount, packSize);
         final List<String> ids = Stream.range(1, 10_001).map(String::valueOf).collect(Collectors.toList());
         assertEquals(10_000, ids.size());
         for (final String id : ids) {
             ddb.addPackedAccumulatorDouble(id, 0.0, 0);
         }
         final Queue<com.aerospike.client.Record> records = new ConcurrentLinkedQueue<>();
-        db.scanAll(null, db.OLAP_SET, (key, record) -> records.add(record));
+        db.scanAll(null, db.OLAP_TEMP_SET, (key, record) -> records.add(record));
         assertEquals(1000, records.size());
     }
 
@@ -77,7 +102,7 @@ public class TestDistributedAerospikeConnection {
         final long elementCount = 10_000;
         final long packSize = 10;
         final DistributedAerospikeConnection ddb =
-                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_SET, elementCount, packSize);
+                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_TEMP_SET, "test-id", true, elementCount, packSize);
         final List<String> ids = Stream.range(1, 10_001).map(String::valueOf).collect(Collectors.toList());
         assertEquals(10_000, ids.size());
         for (final String id : ids) {
@@ -97,7 +122,7 @@ public class TestDistributedAerospikeConnection {
         final long elementCount = 10_000;
         final long packSize = 10;
         final DistributedAerospikeConnection ddb =
-                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_SET, elementCount, packSize);
+                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_TEMP_SET, "test-id", true, elementCount, packSize);
         ddb.setPackedMinValue("foo", "5000");
         final String value = ddb.getPackedMinValue("foo");
         assertEquals("5000", value);
@@ -114,20 +139,20 @@ public class TestDistributedAerospikeConnection {
         final long elementCount = 10_000;
         final long packSize = 10;
         final DistributedAerospikeConnection ddb =
-                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_SET, elementCount, packSize);
+                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_TEMP_SET, "test-id", true, elementCount, packSize);
         final List<String> ids = Stream.range(1, 10_001).map(String::valueOf).collect(Collectors.toList());
         assertEquals(10_000, ids.size());
         for (final String id : ids) {
             ddb.addPackedAccumulatorDouble(id, 1.5, 1);
         }
         final Queue<com.aerospike.client.Record> records = new ConcurrentLinkedQueue<>();
-        db.scanAll(null, db.OLAP_SET, (key, record) -> records.add(record));
+        db.scanAll(null, db.OLAP_TEMP_SET, (key, record) -> records.add(record));
         assertEquals(1000, records.size());
     }
 
     @Test
     public void testPairs() {
-        final DistributedAerospikeConnection ddb = new DistributedAerospikeConnection(graph, 100, 10);
+        final DistributedAerospikeConnection ddb = new DistributedAerospikeConnection(graph, null, 100, 10, true);
 
         for (Integer i = 0; i < 10; i++) {
             ddb.addPair("test", i.toString(), i.doubleValue(), 1);
@@ -143,7 +168,7 @@ public class TestDistributedAerospikeConnection {
 
     @Test
     public void testPackedMaxPairs() {
-        final DistributedAerospikeConnection ddb = new DistributedAerospikeConnection(graph, 100, 10);
+        final DistributedAerospikeConnection ddb = new DistributedAerospikeConnection(graph, null, 100, 10, true);
 
         // create new
         ddb.setPackedPairMax("test", "a", 1.0, 1);
@@ -172,7 +197,7 @@ public class TestDistributedAerospikeConnection {
 
     @Test
     public void testPackedPairs() {
-        final DistributedAerospikeConnection ddb = new DistributedAerospikeConnection(graph, 100, 10);
+        final DistributedAerospikeConnection ddb = new DistributedAerospikeConnection(graph, null, 100, 10, true);
 
         // run on empty
         List<Pair<String, Double>> pairs = ddb.getPackedPairs("test", 1);
@@ -218,7 +243,7 @@ public class TestDistributedAerospikeConnection {
         final long elementCount = 10_000;
         final long packSize = 10;
         final DistributedAerospikeConnection ddb =
-                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_SET, elementCount, packSize);
+                new DistributedAerospikeConnection(graph, db.getNamespace(), db.OLAP_TEMP_SET, "test-id", true, elementCount, packSize);
 
         ReflectionHelper.setFieldValue(DistributedAerospikeConnection.class, ddb, "db", mockAerospikeConnection);
 

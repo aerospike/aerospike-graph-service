@@ -34,6 +34,7 @@ import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.Statement;
+import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection.FireflyRecordSet;
 import com.aerospike.firefly.olap.structure.job.Job;
@@ -43,6 +44,8 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import org.javatuples.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -53,17 +56,17 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.util.FireflyHelper.validateAndConvertVertexPropertyValue;
 
 public class DistributedAerospikeConnection {
+    private static final Logger LOG = LoggerFactory.getLogger(DistributedAerospikeConnection.class);
     private final FireflyGraph graph;
     private final AerospikeConnection db;
     private final String namespace;
-    // used for temporary run-time data for olap
+    // used for temporary run-time data
     private final String tempSet;
-    private final String jobSet = "jobs";
+    private final String jobSet;
     private final long packedElementCount;
     private final long packSize;
     private final HashFunction hashingFunction = Hashing.murmur3_128();
@@ -71,82 +74,143 @@ public class DistributedAerospikeConnection {
     private final String bin = "b";
     private final String secondBin = "b2";
 
+    private final String jobId;
+    private final boolean isAlgorithm;
+
     public DistributedAerospikeConnection(final FireflyGraph graph,
                                           final String namespace,
-                                          final String set,
+                                          final String tempSet,
+                                          final String jobId,
+                                          final boolean isAlgorithm,
                                           final long packedElementCount,
                                           final long packSize) {
         this.graph = graph;
         this.db = graph.getBaseGraph();
         this.namespace = namespace;
-        this.tempSet = set;
+        this.tempSet = tempSet;
+        this.jobId = jobId;
+        this.isAlgorithm = isAlgorithm;
         this.packedElementCount = packedElementCount;
         this.packSize = packSize;
 
-        createJobIndex();
+        this.jobSet = graph.getBaseGraph().OLAP_JOB_SET;
+
+        createIndexes();
+    }
+
+    public DistributedAerospikeConnection(final FireflyGraph graph,
+                                          final String jobId,
+                                          final long packedElementCount,
+                                          final long packSize,
+                                          final boolean isAlgorithm) {
+        this(graph, graph.getBaseGraph().getNamespace(),
+                isAlgorithm ? graph.getBaseGraph().OLAP_ALGORITHM_TEMP_SET : graph.getBaseGraph().OLAP_TEMP_SET, jobId, isAlgorithm, packedElementCount, packSize);
     }
 
     public DistributedAerospikeConnection(final FireflyGraph graph,
                                           final long packedElementCount,
-                                          final long packSize) {
-        this(graph, graph.getBaseGraph().getNamespace(), graph.getBaseGraph().OLAP_SET, packedElementCount, packSize);
+                                          final long packSize,
+                                          final boolean isAlgorithm) {
+        this(graph, graph.getBaseGraph().getNamespace(), graph.getBaseGraph().OLAP_ALGORITHM_TEMP_SET, null, isAlgorithm, packedElementCount, packSize);
+
+        if (!isAlgorithm) {
+            throw new IllegalArgumentException("jobId is required, use different constructor");
+        }
     }
 
-    public DistributedAerospikeConnection(final FireflyGraph graph) {
-        this(graph, graph.fireflySummaryUpdater.getFireflyStatistics().totalVertexCount(), 10);
+    public DistributedAerospikeConnection(final FireflyGraph graph, final String jobId) {
+        this(graph, jobId, graph.fireflySummaryUpdater.getFireflyStatistics().totalVertexCount(), 10, jobId == null);
     }
 
-    private void createJobIndex() {
+    public DistributedAerospikeConnection(final FireflyGraph graph, final boolean isAlgorithm) {
+        this(graph, graph.fireflySummaryUpdater.getFireflyStatistics().totalVertexCount(), 10, isAlgorithm);
+    }
+
+    private void createIndexes() {
         final List<String> existingIndexes =
                 AerospikeConnection.InfoOps.listExistingIndexes(db).stream()
                         .map(Map.Entry::getKey).collect(Collectors.toList());
 
-        db.createIndex(existingIndexes, jobSet, "job_state", "state", IndexType.STRING, IndexCollectionType.DEFAULT);
+        // Create index on job state if not exists.
+        db.createIndex(existingIndexes, jobSet, db.GRAPH_ID + "_job_state_IDX", "state", IndexType.STRING, IndexCollectionType.DEFAULT);
+        createSetIndex(jobSet);
+    }
+
+    private void createSetIndex(final String setName) {
+        final List<String> results = AerospikeConnection.InfoOps.createSetIndex(db, setName);
+        for (final String result : results) {
+            if (!"ok".equals(result)) {
+                LOG.warn("Error creating set index {}: {}", setName, result);
+                break;
+            }
+        }
     }
 
     // Truncate OLAP set.
-    public void truncateOlapSet() {
+    public void truncateOlapTempSet() {
         db.truncate(null, tempSet, null);
+    }
+
+    public void deleteTemporaryData() {
+        final Key key = new Key(namespace, tempSet, jobId);
+        db.delete(key, null, true);
+    }
+
+    // Algorithm use separate set, so name can be used as record key.
+    // Aggregate queries use single record, so name can be used as bin.
+    Key getKey(final String name) {
+        return isAlgorithm ? new Key(namespace, tempSet, name) : new Key(namespace, tempSet, jobId);
+    }
+
+    String getBinName(final String name) {
+        // bin name limit is 15 chars
+        return isAlgorithm ? bin : (name.length() > 15 ? name.substring(0, 15) : name);
+    }
+
+    private WritePolicy getWritePolicy() {
+        // algorithm should care about own temporary data.
+        if (isAlgorithm)
+            return null;
+
+        final WritePolicy policy = new WritePolicy();
+        policy.expiration = 7 * 24 * 60 * 60; // 7 days
+        return policy;
     }
 
     // Long accumulator functions.
     public void setAccumulator(final String name, final Long amount) {
-        final Key key = new Key(namespace, tempSet, name);
-        final Bin ctr = new Bin(bin, amount);
-        db.writeOperate(null, key, Operation.put(ctr));
+        final Bin ctr = new Bin(getBinName(name), amount);
+        db.writeOperate(getWritePolicy(), getKey(name), Operation.put(ctr));
     }
 
     public Long getAccumulatorLong(final String name) {
-        final Key key = new Key(namespace, tempSet, name);
-        final Record record = db.writeOperate(null, key, Operation.get(bin));
-        return record.getLong(bin);
+        final Record record = db.writeOperate(null, getKey(name), Operation.get(getBinName(name)));
+        return record.getLong(getBinName(name));
     }
 
     public void addAccumulator(final String name, final Long amount) {
-        final Key key = new Key(namespace, tempSet, name);
-        final Bin ctr = new Bin(bin, amount);
-        db.writeOperate(null, key, Operation.add(ctr));
+        final Bin ctr = new Bin(getBinName(name), amount);
+        db.writeOperate(getWritePolicy(), getKey(name), Operation.add(ctr));
     }
 
     // Double accumulator functions.
 
     public void setAccumulator(final String name, final Double amount) {
-        final Key key = new Key(namespace, tempSet, name);
-        final Bin ctr = new Bin(bin, amount);
-        db.writeOperate(null, key, Operation.put(ctr));
+        final Bin ctr = new Bin(getBinName(name), amount);
+        db.writeOperate(getWritePolicy(), getKey(name), Operation.put(ctr));
     }
 
     public Double getAccumulatorDouble(final String name) {
-        final Key key = new Key(namespace, tempSet, name);
-        final Record record = db.writeOperate(null, key, Operation.get(bin));
-        return record.getDouble(bin);
+        final Record record = db.writeOperate(null, getKey(name), Operation.get(getBinName(name)));
+        return record.getDouble(getBinName(name));
     }
 
     public void addAccumulator(final String name, final Double amount) {
-        final Key key = new Key(namespace, tempSet, name);
-        final Bin ctr = new Bin(bin, amount);
-        db.writeOperate(null, key, Operation.add(ctr));
+        final Bin ctr = new Bin(getBinName(name), amount);
+        db.writeOperate(getWritePolicy(), getKey(name), Operation.add(ctr));
     }
+
+    /////////////// packing function used only for algorithms
 
     // Packing key function.
 
@@ -234,6 +298,7 @@ public class DistributedAerospikeConnection {
     }
 
     private static int allowedErrorPrints = 3;
+
     public Map<ByteArrayWrapper, Double> getPackedAccumulatorDoubleCache(final List<ByteArrayWrapper> vertexIds, final int iteration) {
         if (vertexIds.isEmpty()) {
             return Collections.emptyMap();
@@ -427,7 +492,7 @@ public class DistributedAerospikeConnection {
 
         final List<BatchRecord> batchRecords = new ArrayList<>();
         for (final Map.Entry<FireflyId, Double> entry : values.entrySet()) {
-            final Key recordKey = getKey(this.db, this.db.VERTEX_AERO_SET, entry.getKey());
+            final Key recordKey = FireflyRecord.getKey(this.db, this.db.VERTEX_AERO_SET, entry.getKey());
             final FireflyId vertexPropertyId = this.db.getIdFactory().generateId(this.graph, FireflyVertexProperty.class);
             final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
             final Object typeHint = getTypeHintOf(entry.getValue(), true);

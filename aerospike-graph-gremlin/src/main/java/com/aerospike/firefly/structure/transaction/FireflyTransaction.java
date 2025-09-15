@@ -19,16 +19,17 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
 
     private final FireflyGraph graph;
     private final boolean isTxnEnabled;
-    private final int timeout;
+    private final int DEFAULT_TIMEOUT;
     private final ThreadLocal<Txn> dbTxn = ThreadLocal.withInitial(() -> null);
     private final ThreadLocal<Boolean> inTxnState = ThreadLocal.withInitial(() -> false);
+    private final ThreadLocal<Long> txnTimeout = ThreadLocal.withInitial(() -> -1L);
     private final ThreadLocal<Queue<FireflyId>> edgeIdsToRecycle = ThreadLocal.withInitial(ArrayDeque::new);
 
     public FireflyTransaction(final FireflyGraph g) {
         super(g);
         this.graph = g;
         this.isTxnEnabled = g.getBaseGraph().TRANSACTION_ENABLED;
-        this.timeout = g.getBaseGraph().TRANSACTION_TIMEOUT;
+        this.DEFAULT_TIMEOUT = g.getBaseGraph().TRANSACTION_TIMEOUT;
     }
 
     @Override
@@ -40,7 +41,11 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
                 this.graph.fireflySummaryUpdater.abortSummaryForTxn(oldTxn);
             }
             final Txn txn = new Txn();
-            txn.setTimeout(timeout);
+            if (this.txnTimeout.get() != null && this.txnTimeout.get() > 0) {
+                txn.setTimeout(this.txnTimeout.get().intValue());
+            } else {
+                txn.setTimeout(DEFAULT_TIMEOUT);
+            }
             this.dbTxn.set(txn);
             this.edgeIdsToRecycle.get().clear();
         }
@@ -91,6 +96,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
     @Override
     public Transaction onClose(final Consumer<Transaction> consumer) {
         // Fixes wrong Exception in AbstractThreadLocalTransaction
+        this.txnTimeout.set(-1L); // Clear ThreadLocal timeout on close.
         closeConsumerInternal.set(Optional.ofNullable(consumer).orElseThrow(Transaction.Exceptions::onCloseBehaviorCannotBeNull));
         return this;
     }
@@ -103,7 +109,12 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
         }
     }
 
-    public void enterTransactionState() {
+    /**
+     * Indicate that the current thread is executing in a transaction context.
+     * @param timeout transaction timeout in milliseconds, -1 for no timeout.
+     */
+    public void enterTransactionState(final long timeout) {
+        this.txnTimeout.set(timeout);
         this.inTxnState.set(true);
     }
 

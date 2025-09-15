@@ -1,8 +1,10 @@
 package com.aerospike.firefly.structure.transaction;
 
 import com.aerospike.firefly.structure.FireflyGraph;
+import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
 import org.apache.tinkerpop.gremlin.process.traversal.Failure;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.TraversalStrategyProxy;
 import org.apache.tinkerpop.gremlin.server.Context;
 import org.apache.tinkerpop.gremlin.server.op.session.Session;
 import org.apache.tinkerpop.gremlin.server.op.session.SessionOpProcessor;
@@ -22,6 +24,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.TRANSACTION_TIMEOUT;
 import static org.apache.tinkerpop.gremlin.process.traversal.GraphOp.TX_COMMIT;
 import static org.apache.tinkerpop.gremlin.process.traversal.GraphOp.TX_ROLLBACK;
 
@@ -32,11 +35,53 @@ public class FireflyTransactionOpProcessor extends SessionOpProcessor {
         super();
     }
 
+    /**
+     * Get the timeout from the context if it exists.
+     *
+     * @param ctx The context.
+     * @return The timeout in milliseconds, or -1 if not set.
+     */
+    private long getTimeout(final Context ctx) {
+        if (ctx.getGremlinArgument() == null || !(ctx.getGremlinArgument() instanceof Bytecode)) {
+            return -1;
+        }
+        final Bytecode bytecode = (Bytecode) ctx.getGremlinArgument();
+        if (bytecode.getSourceInstructions() == null) {
+            return -1;
+        }
+        for (final Bytecode.Instruction instruction : bytecode.getSourceInstructions()) {
+            if (!instruction.getOperator().contains("withStrategies")) {
+                continue;
+            }
+            final Object[] args = instruction.getArguments();
+            for (final Object arg : args) {
+                if (!(arg instanceof TraversalStrategyProxy)) {
+                    return -1;
+                }
+                final TraversalStrategyProxy<?> tsp = (TraversalStrategyProxy<?>) arg;
+                final Configuration config = tsp.getConfiguration();
+                if (!config.containsKey(TRANSACTION_TIMEOUT) || config.getProperty(TRANSACTION_TIMEOUT) == null) {
+                    return -1;
+                }
+                try {
+                    return config.getLong(TRANSACTION_TIMEOUT, -1L);
+                } catch (final Exception e) {
+                    // Should never happen if we got to this point, but log it just in case.
+                    LOG.warn(String.format("Could not parse '%s' (%s) please contact support.",
+                            TRANSACTION_TIMEOUT, config.getProperty(TRANSACTION_TIMEOUT)), e);
+                    return -1;
+                }
+            }
+        }
+        return -1;
+    }
+
     @Override
     protected void beforeProcessing(final Graph graph, final Context ctx) {
         LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("beforeProcessing on Thread: {}");
+        final long timeout = getTimeout(ctx);
         if (graph != null) {
-            ((FireflyGraph) graph).enterTransactionState();
+            ((FireflyGraph) graph).enterTransactionState(timeout);
         }
         super.beforeProcessing(graph, ctx);
     }
@@ -77,7 +122,7 @@ public class FireflyTransactionOpProcessor extends SessionOpProcessor {
                 // there is no timeout on a commit/rollback
                 submitToGremlinExecutor(context, 0, session, new FutureTask<>(() -> {
                     try {
-                        ((FireflyGraph) graph).enterTransactionState();
+                        ((FireflyGraph) graph).enterTransactionState(-1L);
                         if (graph.tx().isOpen()) {
                             if (commit)
                                 graph.tx().commit();

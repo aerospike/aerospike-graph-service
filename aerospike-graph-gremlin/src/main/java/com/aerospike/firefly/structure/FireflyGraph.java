@@ -1297,12 +1297,16 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return this.transaction;
     }
 
-    public void enterTransactionState() {
+    /**
+     * Enter transaction state for the current thread.
+     * @param timeout Timeout in milliseconds, or -1 for no timeout.
+     */
+    public void enterTransactionState(final long timeout) {
         if (!this.getBaseGraph().TRANSACTION_ENABLED) {
             throw new TxNotEnabledException(this.getBaseGraph().GRAPH_ID);
         }
         LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("enterTransactionState on Thread: {}");
-        this.transaction.enterTransactionState();
+        this.transaction.enterTransactionState(timeout);
     }
 
     public void exitTransactionState() {

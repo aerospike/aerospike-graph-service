@@ -875,7 +875,6 @@ public class AerospikeConnection implements AutoCloseable {
             public static final String SETS = "sets";
             public static final String NS = "ns";
             public static final String OBJECTS = "objects";
-            public static final String SINDEX = "sindex";
             public static final String SINDEX_LIST = "sindex-list";
             public static final String FEATURE_KEY = "feature-key";
             public static final String INDEXNAME = "indexname";
@@ -949,11 +948,11 @@ public class AerospikeConnection implements AutoCloseable {
             final IAerospikeClient client = db.client;
             final String namespace = db.namespace;
             // Using client.getNodes()[0] is okay here since indexes exist across all nodes.
-            LOG.debug("Info.request: {}", Keys.SINDEX);
+            LOG.debug("Info.request: {}", Keys.SINDEX_LIST);
             try {
                 final InfoPolicy infoPolicy = new InfoPolicy();
                 db.setInfoPolicy(infoPolicy);
-                final String infoResponse = Info.request(infoPolicy, client.getNodes()[0], Keys.SINDEX);
+                final String infoResponse = Info.request(infoPolicy, client.getNodes()[0], Keys.SINDEX_LIST);
                 return parseRaw(infoResponse).stream()
                         .filter(m -> m.get(Keys.NS).equals(namespace))
                         .map(m -> (Map.Entry<String, String>)
@@ -996,8 +995,8 @@ public class AerospikeConnection implements AutoCloseable {
                 final InfoPolicy infoPolicy = new InfoPolicy();
                 db.setInfoPolicy(infoPolicy);
                 for (final Node node : db.client.getNodes()) {
-                    LOG.debug("Info.request: {}", Keys.SINDEX);
-                    final String infoResponse = Info.request(infoPolicy, node, Keys.SINDEX);
+                    LOG.debug("Info.request: {}", Keys.SINDEX_LIST);
+                    final String infoResponse = Info.request(infoPolicy, node, Keys.SINDEX_LIST);
                     final List<Map.Entry<String, String>> raw = parseRaw(infoResponse).stream()
                             .filter(m -> m.get(Keys.NS).equals(namespace))
                             .filter(m -> m.get("state").equals("RW"))

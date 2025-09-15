@@ -36,4 +36,8 @@ public interface FireflyProgram extends VertexProgram<TraverserSet<Object>> {
     default boolean validPostProcessSteps() {
         return true;
     }
+
+    void setJobId(final String jobId);
+    void initDB();
+    void cleanUpDB();
 }

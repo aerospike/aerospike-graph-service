@@ -88,6 +88,8 @@ public final class ConfigurationHelper {
         public static final String PHAT_EDGE_SIZE = "aerospike.graph.phat.edge.size";
         public static final String MOVEMENT_BARRIER_SIZE = "aerospike.graph.movement.barrier.size";
         public static final String VERTEX_PROPERTY_INDEXES = "aerospike.graph.index.vertex.properties";
+        public static final String VERTEX_PROPERTY_STRING_INDEXES = "aerospike.graph.index.vertex.properties.string";
+        public static final String VERTEX_PROPERTY_NUMERIC_INDEXES = "aerospike.graph.index.vertex.properties.numeric";
         public static final String EDGE_PROPERTY_INDEXES = "aerospike.graph.index.edge.properties";
         public static final String GRAPH_ID = "aerospike.graph.id";
         public static final String TRAVERSAL_NAME = "aerospike.graph.traversal";
@@ -117,6 +119,7 @@ public final class ConfigurationHelper {
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
         public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.index.update.frequency";
         public static final String CARDINALITY_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.cardinality.update.frequency";
+        public static final String SUPERNODES_TRAVERSED_COUNTER_ENABLED = "aerospike.graph.supernodes-traversed-counter.enabled";
         public static final String ENABLE_FAST_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.enabled";
         public static final String ENABLE_READ_THROUGH_CACHE = "aerospike.graph.strategy.cache.read.through.enabled";
         public static final String ENABLE_PREFETCH_STRATEGY = "aerospike.graph.strategy.prefetch.enabled";
@@ -191,6 +194,7 @@ public final class ConfigurationHelper {
         public static final String BULK_LOADER_FLAG = "aerospike.graph.bulk.loading.enabled";
         public static final String BULK_LOADER_INITIALIZER_FLAG = "aerospike.graph.bulk.loading.initializer.enabled";
         public static final String USAGE_STATS_UPDATE_INTERVAL = "aerospike.graph.usage.update.interval";
+        public static final String SCAN_QUERY_ALLOWED = "aerospike.graph.scan.query.enabled";
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
@@ -325,7 +329,9 @@ public final class ConfigurationHelper {
             BULK_LOAD_RECOVERY_EDGE_SET(Pair.of((byte) 20, "BL_RECOVERY_E")),
             BULK_LOAD_RECOVERY_SUPERNODE_SET(Pair.of((byte) 21, "BL_RECOVERY_SN")),
             BULK_LOAD_RECOVERY_STATE_SET(Pair.of((byte) 22, "BL_RECOVERY_S")),
-            OLAP_SET(Pair.of((byte) 23, "OLAP"));
+            OLAP_TEMP_SET(Pair.of((byte) 23, "OLAP_TEMP")),
+            OLAP_ALGORITHM_TEMP_SET(Pair.of((byte) 24, "OLAP_ALGORITHM_TEMP")),
+            OLAP_JOB_SET(Pair.of((byte) 25, "OLAP_JOBS")),;
 
             private final Pair value;
 
@@ -363,7 +369,7 @@ public final class ConfigurationHelper {
         put(Keys.AEROSPIKE_COMPRESS, "false");
         put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
         put(Keys.PAGINATION_PAGE_SIZE, "0");
-        put(Keys.PAGINATION_PAGE_SIZE_PER_NODE, "20");
+        put(Keys.PAGINATION_PAGE_SIZE_PER_NODE, "200");
         put(Keys.PAGINATION_PAGE_MAX_WAIT, "60000");
         put(Keys.PAGINATION_SHUTDOWN_WAIT, "0");
         put(Keys.OLAP_PAGINATION_WORKERS, String.valueOf(Runtime.getRuntime().availableProcessors()));
@@ -383,6 +389,7 @@ public final class ConfigurationHelper {
         put(Keys.OLAP_ENABLED, "false");
         put(Keys.ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, "true");
+        put(Keys.SUPERNODES_TRAVERSED_COUNTER_ENABLED, "true");
         put(Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, "true");
@@ -410,6 +417,8 @@ public final class ConfigurationHelper {
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
         put(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, "4");
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
+        put(Keys.VERTEX_PROPERTY_STRING_INDEXES, "");
+        put(Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, "");
         put(Keys.EDGE_PROPERTY_INDEXES, "");
         put(Keys.PHAT_EDGE_SIZE, "10");
         put(Keys.MOVEMENT_BARRIER_SIZE, "1000");
@@ -479,6 +488,7 @@ public final class ConfigurationHelper {
         put(Keys.QUERY_TRACING_LOG_PORT, "9411");
         put(Keys.QUERY_TRACING_LOG_THRESHOLD, "-1");
         put(Keys.QUERY_TRACING_SAMPLE_PERCENT, "100");
+        put(Keys.SCAN_QUERY_ALLOWED, "true");
     }};
 
     private static final Map<Object, String> WARMUP_VALUES = new HashMap<>() {{

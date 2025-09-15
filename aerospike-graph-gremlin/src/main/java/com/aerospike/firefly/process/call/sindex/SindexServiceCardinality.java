@@ -42,7 +42,7 @@ public class SindexServiceCardinality<I, R> extends SindexServiceBase<I, R> {
 
     @Override
     protected R execute(final Map params) {
-        return (R) Admin.index.getIndexCardinality(graph);
+        return (R) Admin.INDEX.getIndexCardinality(graph);
     }
 
     @Override

@@ -64,7 +64,13 @@ public class FireflyTransactionOpProcessor extends SessionOpProcessor {
                     return -1;
                 }
                 try {
-                    return config.getLong(TRANSACTION_TIMEOUT, -1L);
+                    final Long timeout = config.getLong(TRANSACTION_TIMEOUT, -1L);
+                    if (timeout < 0) {
+                        LOG.warn(String.format("'%s' must be a value greater than 0. Falling back to default configured Aerospike Graph Service timeout value.",
+                                TRANSACTION_TIMEOUT));
+                        return -1;
+                    }
+                    return timeout;
                 } catch (final Exception e) {
                     // Should never happen if we got to this point, but log it just in case.
                     LOG.warn(String.format("Could not parse '%s' (%s) please contact support.",
@@ -122,6 +128,7 @@ public class FireflyTransactionOpProcessor extends SessionOpProcessor {
                 // there is no timeout on a commit/rollback
                 submitToGremlinExecutor(context, 0, session, new FutureTask<>(() -> {
                     try {
+                        // When this is called it doesn't seem to be relevant to initialization of Aerospike Txn so skip calculating the timeout
                         ((FireflyGraph) graph).enterTransactionState(-1L);
                         if (graph.tx().isOpen()) {
                             if (commit)

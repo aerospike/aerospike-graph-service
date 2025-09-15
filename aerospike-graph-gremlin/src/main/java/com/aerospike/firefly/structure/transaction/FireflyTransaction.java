@@ -19,7 +19,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
 
     private final FireflyGraph graph;
     private final boolean isTxnEnabled;
-    private final int DEFAULT_TIMEOUT;
+    private final int defaultTimeout;
     private final ThreadLocal<Txn> dbTxn = ThreadLocal.withInitial(() -> null);
     private final ThreadLocal<Boolean> inTxnState = ThreadLocal.withInitial(() -> false);
     private final ThreadLocal<Long> txnTimeout = ThreadLocal.withInitial(() -> -1L);
@@ -29,7 +29,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
         super(g);
         this.graph = g;
         this.isTxnEnabled = g.getBaseGraph().TRANSACTION_ENABLED;
-        this.DEFAULT_TIMEOUT = g.getBaseGraph().TRANSACTION_TIMEOUT;
+        this.defaultTimeout = g.getBaseGraph().TRANSACTION_TIMEOUT;
     }
 
     @Override
@@ -41,10 +41,10 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
                 this.graph.fireflySummaryUpdater.abortSummaryForTxn(oldTxn);
             }
             final Txn txn = new Txn();
-            if (this.txnTimeout.get() != null && this.txnTimeout.get() > 0) {
+            if (this.txnTimeout.get() != -1L) {
                 txn.setTimeout(this.txnTimeout.get().intValue());
             } else {
-                txn.setTimeout(DEFAULT_TIMEOUT);
+                txn.setTimeout(this.defaultTimeout);
             }
             this.dbTxn.set(txn);
             this.edgeIdsToRecycle.get().clear();
@@ -63,6 +63,8 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
                 }
             } catch (final Exception e) {
                 throw new TransactionException("Exception occurred when commiting transaction.", e);
+            } finally {
+                this.txnTimeout.remove();
             }
         }
     }
@@ -79,6 +81,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
                 throw new TransactionException("Exception occurred during transaction rollback.", e);
             } finally {
                 this.edgeIdsToRecycle.get().clear();
+                this.txnTimeout.remove();
             }
         }
     }
@@ -96,7 +99,6 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
     @Override
     public Transaction onClose(final Consumer<Transaction> consumer) {
         // Fixes wrong Exception in AbstractThreadLocalTransaction
-        this.txnTimeout.set(-1L); // Clear ThreadLocal timeout on close.
         closeConsumerInternal.set(Optional.ofNullable(consumer).orElseThrow(Transaction.Exceptions::onCloseBehaviorCannotBeNull));
         return this;
     }
@@ -111,7 +113,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
 
     /**
      * Indicate that the current thread is executing in a transaction context.
-     * @param timeout transaction timeout in milliseconds, -1 for no timeout.
+     * @param timeout transaction timeout in milliseconds. -1 to use FireflyGraph's configured default timeout.
      */
     public void enterTransactionState(final long timeout) {
         this.txnTimeout.set(timeout);

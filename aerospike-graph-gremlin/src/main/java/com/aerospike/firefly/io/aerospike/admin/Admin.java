@@ -110,30 +110,21 @@ public class Admin {
             return (I) cardinalityMap;
         }
 
-        public I createVertexPropertyIndex(final FireflyGraph firefly, final String key) {
-            // TODO GRAPH-1671
+        public I createVertexPropertyIndex(final FireflyGraph firefly, final String key, final IndexType indexType) {
             firefly.createIndexes(FireflyVertex.class,
                     firefly.getBaseGraph().VERTEX_PROPERTY_DATA_BIN,
                     firefly.getBaseGraph().getVpIndexPrefix(),
                     List.of(key),
-                    STRING,
+                    indexType,
                     true);
-            firefly.createIndexes(FireflyVertex.class,
-                    firefly.getBaseGraph().VERTEX_PROPERTY_DATA_BIN,
-                    firefly.getBaseGraph().getVpIndexPrefix(),
-                    List.of(key),
-                    NUMERIC,
-                    true);
-            return (I) ("Vertex index creation of property key '" + key + "' in progress.");
+            return (I) ("Vertex index creation of type '" + indexType + "' on property key '" + key + "' in progress.");
         }
 
-        public I dropVertexPropertyIndex(final FireflyGraph firefly, final String key) {
+        public I dropVertexPropertyIndex(final FireflyGraph firefly, final String key, final IndexType indexType) {
             final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
             firefly.getBaseGraph().dropIndexBackground(set,
-                    String.format("%s_%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key, STRING));
-            firefly.getBaseGraph().dropIndexBackground(set,
-                    String.format("%s_%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key, NUMERIC));
-            return (I) ("Vertex index of property key '" + key + "' dropped.");
+                    String.format("%s_%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key, indexType));
+            return (I) ("Vertex index of type '" + indexType + "' on property key '" + key + "' dropped.");
         }
 
         private static List<String> getExistingIndexes(final FireflyGraph firefly) {

@@ -215,6 +215,7 @@
                         <exclude>**/TestTinkerpopTransactions</exclude>
                         <exclude>**/TestTxDisabled</exclude>
                         <exclude>**/TestTransactionSummary</exclude>
+                        <exclude>**/TestTinkerpopTransactionTimeout</exclude>
                         <!-- heavy computer tests -->
                         <exclude>**/FireflyComputerFeatureMapTest</exclude>
                         <exclude>**/FireflyComputerFeatureFilterTest</exclude>

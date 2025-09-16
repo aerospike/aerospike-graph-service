@@ -113,7 +113,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
 
     /**
      * Indicate that the current thread is executing in a transaction context.
-     * @param timeout transaction timeout in milliseconds. -1 to use FireflyGraph's configured default timeout.
+     * @param timeout transaction timeout in seconds. -1 to use FireflyGraph's configured default timeout.
      */
     public void enterTransactionState(final long timeout) {
         this.txnTimeout.set(timeout);

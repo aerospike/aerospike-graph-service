@@ -5,6 +5,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
 import org.apache.tinkerpop.gremlin.process.traversal.Failure;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.TraversalStrategyProxy;
+import org.apache.tinkerpop.gremlin.process.traversal.util.BytecodeHelper;
 import org.apache.tinkerpop.gremlin.server.Context;
 import org.apache.tinkerpop.gremlin.server.op.session.Session;
 import org.apache.tinkerpop.gremlin.server.op.session.SessionOpProcessor;
@@ -18,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Future;
@@ -39,32 +41,19 @@ public class FireflyTransactionOpProcessor extends SessionOpProcessor {
      * Get the timeout from the context if it exists.
      *
      * @param ctx The context.
-     * @return The timeout in milliseconds, or -1 if not set.
+     * @return The timeout in seconds, or -1 if not set.
      */
-    private long getTimeout(final Context ctx) {
+    private long getTransactionTimeout(final Context ctx) {
         if (ctx.getGremlinArgument() == null || !(ctx.getGremlinArgument() instanceof Bytecode)) {
             return -1;
         }
         final Bytecode bytecode = (Bytecode) ctx.getGremlinArgument();
-        if (bytecode.getSourceInstructions() == null) {
-            return -1;
-        }
-        for (final Bytecode.Instruction instruction : bytecode.getSourceInstructions()) {
-            if (!instruction.getOperator().contains("withStrategies")) {
-                continue;
-            }
-            final Object[] args = instruction.getArguments();
-            for (final Object arg : args) {
-                if (!(arg instanceof TraversalStrategyProxy)) {
-                    return -1;
-                }
-                final TraversalStrategyProxy<?> tsp = (TraversalStrategyProxy<?>) arg;
-                final Configuration config = tsp.getConfiguration();
-                if (!config.containsKey(TRANSACTION_TIMEOUT) || config.getProperty(TRANSACTION_TIMEOUT) == null) {
-                    return -1;
-                }
+        final Iterator<TraversalStrategyProxy> traversalStrategyProxyIterator = BytecodeHelper.findStrategies(bytecode, TraversalStrategyProxy.class);
+        while (traversalStrategyProxyIterator.hasNext()) {
+            final Configuration config = traversalStrategyProxyIterator.next().getConfiguration();
+            if (config.containsKey(TRANSACTION_TIMEOUT)) {
                 try {
-                    final Long timeout = config.getLong(TRANSACTION_TIMEOUT, -1L);
+                    final long timeout = config.getLong(TRANSACTION_TIMEOUT, -1L);
                     if (timeout < 0) {
                         LOG.warn(String.format("'%s' must be a value greater than 0. Falling back to default configured Aerospike Graph Service timeout value.",
                                 TRANSACTION_TIMEOUT));
@@ -85,7 +74,7 @@ public class FireflyTransactionOpProcessor extends SessionOpProcessor {
     @Override
     protected void beforeProcessing(final Graph graph, final Context ctx) {
         LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("beforeProcessing on Thread: {}");
-        final long timeout = getTimeout(ctx);
+        final long timeout = getTransactionTimeout(ctx);
         if (graph != null) {
             ((FireflyGraph) graph).enterTransactionState(timeout);
         }

@@ -1299,7 +1299,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     /**
      * Enter transaction state for the current thread.
-     * @param timeout Timeout in milliseconds, or -1 for no timeout.
+     * @param timeout Timeout in seconds. -1 to use FireflyGraph's configured default timeout.
      */
     public void enterTransactionState(final long timeout) {
         if (!this.getBaseGraph().TRANSACTION_ENABLED) {

@@ -17,7 +17,7 @@ import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.TRANSACTION_TIMEOUT;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
-public class TestTinkerPopTransactionTimeout {
+public class TestTinkerpopTransactionTimeout {
     private static GraphTraversalSource g;
     private static DriverRemoteConnection connection;
     private static FireflyServer server;
@@ -30,7 +30,7 @@ public class TestTinkerPopTransactionTimeout {
         }
         server = FireflyServer.start(new String[] {"../conf/transaction-timeout/firefly-gremlin-server-txn-timeout.yaml"});
         try {
-            // Wait for server to start so log isnt spammed with reconnection attempts.
+            // Wait for server to start so log isn't spammed with reconnection attempts.
             Thread.sleep(1000);
         } catch (InterruptedException e) {
         }
@@ -51,7 +51,6 @@ public class TestTinkerPopTransactionTimeout {
                 server.stop().join();
             } catch (final Exception ignored) {}
         }
-
 
         // Clear again b/c of configs.
         try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {

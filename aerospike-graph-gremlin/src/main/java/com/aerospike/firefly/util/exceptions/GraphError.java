@@ -6,6 +6,8 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import static com.aerospike.client.ResultCode.ASYNC_QUEUE_FULL;
@@ -150,8 +152,21 @@ public enum GraphError {
         // Client
         ERROR_MESSAGES.put(GRAPH_NO_MORE_CONNECTIONS.code, "There are no more available connections. Consider increasing the maximum allowable amount via the '" +
                 MAX_CONNECTIONS_PER_NODE + "' configuration key or contact support if problem persists.");
+    }
 
-        // TODO GRAPH-1307: Add more error messages
+    private static final Set<Integer> TXN_ERROR_CODES = new HashSet<>();
+    static {
+        TXN_ERROR_CODES.add(ResultCode.MRT_ABORTED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_ALREADY_LOCKED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_BLOCKED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_COMMITTED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_EXPIRED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_MONITOR_EXISTS);
+        TXN_ERROR_CODES.add(ResultCode.MRT_TOO_MANY_WRITES);
+        TXN_ERROR_CODES.add(ResultCode.MRT_VERSION_MISMATCH);
+        TXN_ERROR_CODES.add(ResultCode.TXN_ALREADY_ABORTED);
+        TXN_ERROR_CODES.add(ResultCode.TXN_ALREADY_COMMITTED);
+        TXN_ERROR_CODES.add(ResultCode.TXN_FAILED);
     }
 
     static String getMessage(final AerospikeException e) {
@@ -184,6 +199,10 @@ public enum GraphError {
             throw new IllegalArgumentException("Designated graph errors should always have a message");
         }
         return errorMessage;
+    }
+
+    public static boolean isTxnRelatedError(final int errorCode) {
+        return TXN_ERROR_CODES.contains(errorCode);
     }
 
     // A dumb hack because we lose exception context and don't know if it is checked or unchecked, so need to use this.

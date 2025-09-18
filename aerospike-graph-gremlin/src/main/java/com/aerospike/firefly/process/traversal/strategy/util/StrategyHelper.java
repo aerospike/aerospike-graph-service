@@ -52,7 +52,7 @@ public class StrategyHelper {
 
     public static boolean areEdgesRequired(final Traversal.Admin<?, ?> traversal, final List<Step> steps, final int startIndex) {
         if (traversal.isRoot()) {
-            return areEdgesRequired(steps, startIndex);
+            return areEdgesRequired(steps, startIndex < 0 ? 0 : startIndex);
         } else {
             // steps after parent can use in/out edges
             final Step parentStep = traversal.getParent().asStep();

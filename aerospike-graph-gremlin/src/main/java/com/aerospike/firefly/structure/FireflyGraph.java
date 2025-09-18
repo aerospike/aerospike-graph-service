@@ -1150,6 +1150,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public GraphComputer compute() throws IllegalArgumentException {
+        // path to olap jars
         Arrays.stream(System.getProperty("java.class.path").split(":")).forEach(s -> {
             if (s.contains("olap")) {
                 System.out.println(s);

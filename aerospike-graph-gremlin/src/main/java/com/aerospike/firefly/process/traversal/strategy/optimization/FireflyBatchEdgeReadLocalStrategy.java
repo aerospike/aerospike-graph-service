@@ -2,7 +2,6 @@ package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.computer.util.ComputerHelper;
 import com.aerospike.firefly.process.traversal.step.computer.FireflyBatchEdgeReadStepLocal;
-import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -34,8 +33,6 @@ public class FireflyBatchEdgeReadLocalStrategy extends FireflyStrategyBase {
 
     @Override
     protected void doApply(final Traversal.Admin<?, ?> traversal) {
-        final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
-
         if (!ComputerHelper.onGraphComputer(traversal))
             return;
 

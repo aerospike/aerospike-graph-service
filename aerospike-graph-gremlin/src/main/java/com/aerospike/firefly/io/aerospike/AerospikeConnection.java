@@ -876,7 +876,6 @@ public class AerospikeConnection implements AutoCloseable {
             public static final String NS = "ns";
             public static final String OBJECTS = "objects";
             public static final String SINDEX = "sindex";
-            public static final String SINDEX_LIST = "sindex-list";
             public static final String FEATURE_KEY = "feature-key";
             public static final String INDEXNAME = "indexname";
             public static final String RESULT = "result";

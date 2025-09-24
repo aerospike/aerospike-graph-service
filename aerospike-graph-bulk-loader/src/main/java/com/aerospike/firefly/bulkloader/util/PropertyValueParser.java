@@ -38,8 +38,14 @@ public class PropertyValueParser {
         if (value.equals(this.nullValue)) {
             return null;
         }
-
-        return Boolean.parseBoolean(value);
+        final String sanitizedBooleanString = value.strip().toLowerCase();
+        if ("true".equals(sanitizedBooleanString)) {
+            return true;
+        } else if ("false".equals(sanitizedBooleanString)) {
+            return false;
+        } else {
+            throw new RuntimeException("Could not parse the value '" + value + "' into a boolean.");
+        }
     }
 
     public String parseString(final String value) {

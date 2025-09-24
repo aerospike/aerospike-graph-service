@@ -51,6 +51,10 @@ public class LocalGraphComputerView {
         this.graphFilter = graphFilter;
     }
 
+    public GraphFilter getGraphFilter() {
+        return graphFilter;
+    }
+
     public <V> Property<V> addProperty(final FireflyVertex vertex, final String key, final V value) {
         final Object lock = lockMap.computeIfAbsent(vertex, k -> new Object());
         synchronized (lock) {

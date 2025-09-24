@@ -142,11 +142,11 @@ public class ProgramHelper {
         return vertexIds;
     }
 
-    public static Long getVertexIdCount(final Vertex vertex, final String propertyName, final Direction direction) {
+    public static Long getVertexIdCount(final Vertex vertex, final String propertyName, final Direction direction, final String[] edgeLabels) {
         if (vertex instanceof DetachedVertex) {
             return vertex.<Long>property(propertyName).value();
         }
 
-        return ((FireflyVertex) vertex).getEdgeCount(direction);
+        return ((FireflyVertex) vertex).getEdgeCount(direction, edgeLabels);
     }
 }

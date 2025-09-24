@@ -61,14 +61,11 @@ public class ConnectedComponentProgram extends AlgorithmProgram {
     }
 
     private void init(final FireflyGraph graph) {
-        final Traversal.Admin t = graph.traversal().V().asAdmin();
-        t.setStrategies(TraversalStrategies.GlobalCache.getStrategies(graph.getClass()).clone());
         this.optionsStrategy = OptionsStrategy.create(configuration);
-        t.getStrategies().addStrategies(optionsStrategy);
-        this.graphTraversal = new PureTraversal(t);
+        setTraversal(graph);
 
         this.columnName = ConnectedComponentCodec.COMPONENT_COL;
-        this.codec = new ConnectedComponentCodec(t, this.property);
+        this.codec = new ConnectedComponentCodec(this.graphTraversal.get(), this.property);
         this.graph = graph;
         this.db = new DistributedAerospikeConnection(graph, true);
     }

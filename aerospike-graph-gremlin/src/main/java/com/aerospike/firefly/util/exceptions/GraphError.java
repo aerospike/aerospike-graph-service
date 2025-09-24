@@ -6,6 +6,8 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import static com.aerospike.client.ResultCode.ASYNC_QUEUE_FULL;
@@ -81,7 +83,8 @@ public enum GraphError {
     OUT_OF_MEMORY(ResultCode.SERVER_MEM_ERROR),
     RECORD_TX_BLOCKED(ResultCode.MRT_BLOCKED),
     TX_VERSION_MISMATCH(ResultCode.MRT_VERSION_MISMATCH),
-    TX_RECORD_LIMIT_EXCEEDED(ResultCode.MRT_TOO_MANY_WRITES);
+    TX_RECORD_LIMIT_EXCEEDED(ResultCode.MRT_TOO_MANY_WRITES),
+    TX_TIMEOUT(ResultCode.MRT_EXPIRED);
 
     public final int code;
 
@@ -144,12 +147,26 @@ public enum GraphError {
         ERROR_MESSAGES.put(RECORD_TX_BLOCKED.code, "The current transaction attempted to access a record currently blocked by a different transaction.");
         ERROR_MESSAGES.put(TX_VERSION_MISMATCH.code, "A transaction failed because the record was modified by another transaction after it was read. Retry the transaction.");
         ERROR_MESSAGES.put(TX_RECORD_LIMIT_EXCEEDED.code, "Transactions only support up to 4096 records. Consider splitting up the transaction or reducing the amount of elements within the transaction.");
+		ERROR_MESSAGES.put(TX_TIMEOUT.code, "Transaction has timed out. Please refer to documentation on configuring transaction timeouts or contact support if the problem persists.");
 
         // Client
         ERROR_MESSAGES.put(GRAPH_NO_MORE_CONNECTIONS.code, "There are no more available connections. Consider increasing the maximum allowable amount via the '" +
                 MAX_CONNECTIONS_PER_NODE + "' configuration key or contact support if problem persists.");
+    }
 
-        // TODO GRAPH-1307: Add more error messages
+    private static final Set<Integer> TXN_ERROR_CODES = new HashSet<>();
+    static {
+        TXN_ERROR_CODES.add(ResultCode.MRT_ABORTED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_ALREADY_LOCKED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_BLOCKED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_COMMITTED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_EXPIRED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_MONITOR_EXISTS);
+        TXN_ERROR_CODES.add(ResultCode.MRT_TOO_MANY_WRITES);
+        TXN_ERROR_CODES.add(ResultCode.MRT_VERSION_MISMATCH);
+        TXN_ERROR_CODES.add(ResultCode.TXN_ALREADY_ABORTED);
+        TXN_ERROR_CODES.add(ResultCode.TXN_ALREADY_COMMITTED);
+        TXN_ERROR_CODES.add(ResultCode.TXN_FAILED);
     }
 
     static String getMessage(final AerospikeException e) {
@@ -182,6 +199,10 @@ public enum GraphError {
             throw new IllegalArgumentException("Designated graph errors should always have a message");
         }
         return errorMessage;
+    }
+
+    public static boolean isTxnRelatedError(final int errorCode) {
+        return TXN_ERROR_CODES.contains(errorCode);
     }
 
     // A dumb hack because we lose exception context and don't know if it is checked or unchecked, so need to use this.

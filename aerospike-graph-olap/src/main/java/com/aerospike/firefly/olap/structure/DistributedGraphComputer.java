@@ -16,6 +16,7 @@ import com.aerospike.firefly.olap.service.JobListService;
 import com.aerospike.firefly.olap.structure.job.Job;
 import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
+import com.aerospike.firefly.process.traversal.step.util.HasContainerHelper;
 import com.aerospike.firefly.process.traversal.strategy.verification.FireflyComputerVerificationStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.FireflyHelper;
@@ -26,6 +27,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.functions;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.tinkerpop.gremlin.process.computer.ComputerResult;
@@ -40,6 +42,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.CallStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.ComputerVerificationStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
@@ -321,7 +324,8 @@ public class DistributedGraphComputer implements GraphComputer {
 
         // Get the result graph and persist state to use for the computation.
         this.resultGraph = GraphComputerHelper.getResultGraphState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.resultGraph));
-        this.persist = GraphComputerHelper.getPersistState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.persist));
+        // this.persist = GraphComputerHelper.getPersistState(Optional.ofNullable(this.vertexProgram), Optional.ofNullable(this.persist));
+        this.persist = Persist.NOTHING; // For now, we don't support persisting anything.
 
         // TODO: Maybe smarter check.
         // Ensure requested workers are not larger than supported workers.
@@ -391,6 +395,9 @@ public class DistributedGraphComputer implements GraphComputer {
         DistributedConfigHelper configHelper = null;
 
         try {
+            // init view. Computable properties ignored for now (this.vertexProgram.getVertexComputeKeys())
+            FireflyHelper.createGraphComputerView(this.graph, this.graphFilter, Collections.emptySet());
+
             configHelper = generateConfigHelper();
             System.out.println("Configuration: " + Arrays.toString(spark.sparkContext().getConf().getAll()));
 
@@ -418,6 +425,11 @@ public class DistributedGraphComputer implements GraphComputer {
             final FireflyGraphStep graphStep = (FireflyGraphStep) firstStep;
             if (graphStep.returnsEdge()) {
                 LOGGER.warn("Edges do not support secondary indexes, you may experience poor performance.");
+            } else {
+                final List<HasContainer> graphFilterHasContainers = HasContainerHelper.getVertexFilter(this.graph);
+                if (graphFilterHasContainers != null) {
+                    graphFilterHasContainers.forEach(graphStep::addHasContainer);
+                }
             }
             System.out.println("===== " + graphStep + " " + (graphStep.returnsVertex() ? "vertex" : "edge")
                     + " ===== " + pureTraversal.asAdmin().getSteps());
@@ -510,7 +522,7 @@ public class DistributedGraphComputer implements GraphComputer {
 
                 if (!skipResults) {
                     final Dataset<Row> resultsTemp = magicSwap(
-                            df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(true)));
+                            df.filter(functions.col(HALTED_COL).equalTo(true)));
 
                     // Filter out halted vertices.
                     if (results == null) {
@@ -521,7 +533,7 @@ public class DistributedGraphComputer implements GraphComputer {
                 }
 
                 // Filter out vertices that are not halted.
-                df = magicSwap(df.filter(org.apache.spark.sql.functions.col(HALTED_COL).equalTo(false)));
+                df = magicSwap(df.filter(functions.col(HALTED_COL).equalTo(false)));
 
                 // TODO: Ultimately probably don't want to do isEmpty() check here b/c we could have a query that pulls more data from graph later and
                 // we could screw it up.

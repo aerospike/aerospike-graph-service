@@ -443,14 +443,16 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         return getCachedIds(direction, labels).stream().map(id -> ((FireflyIdComposite) id).getAdjacentId()).collect(Collectors.toList());
     }
 
-    public List<byte[]> getConvertedVertexIds(final Direction direction) {
-        final List<FireflyId> cachedIds = getCachedIds(direction, Collections.emptySet());
+    public List<byte[]> getConvertedVertexIds(final Direction direction, final String[] edgeLabels) {
+        final Set<String> labels = edgeLabels == null ? Collections.emptySet() : Arrays.stream(edgeLabels).collect(Collectors.toSet());
+
+        final List<FireflyId> cachedIds = getCachedIds(direction, labels);
         final List<byte[]> data = cachedIds.stream()
                 .map(id -> Crypto.computeDigest(db.VERTEX_AERO_SET, Value.get(((FireflyIdComposite)id).getAdjacentUserId())))
                 .collect(Collectors.toList());
         cachedIds.clear();
         if (isEdgeCacheOverflowed) {
-            Iterator<FireflyId> ids = getSupernodeVertexIds(direction, Collections.emptySet());
+            Iterator<FireflyId> ids = getSupernodeVertexIds(direction, labels);
             ids.forEachRemaining(id -> data.add(id.getKeyHash()));
         }
         return data;

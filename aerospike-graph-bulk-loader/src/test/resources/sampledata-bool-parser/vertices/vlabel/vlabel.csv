@@ -1,0 +1,7 @@
+~id,~label,foo:boolean,bar:string
+1,vlabel,true,blue
+2,vlabel,tRuE,black
+3,vlabel,   tRuE ,white
+4,vlabel,false   ,green
+5,vlabel,         false,red
+6,vlabel,faallssee,orange

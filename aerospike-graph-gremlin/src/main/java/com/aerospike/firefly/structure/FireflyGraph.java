@@ -1150,6 +1150,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public GraphComputer compute() throws IllegalArgumentException {
+        // path to olap jars
         Arrays.stream(System.getProperty("java.class.path").split(":")).forEach(s -> {
             if (s.contains("olap")) {
                 System.out.println(s);
@@ -1297,12 +1298,16 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return this.transaction;
     }
 
-    public void enterTransactionState() {
+    /**
+     * Enter transaction state for the current thread.
+     * @param timeout Timeout in seconds. -1 to use FireflyGraph's configured default timeout.
+     */
+    public void enterTransactionState(final long timeout) {
         if (!this.getBaseGraph().TRANSACTION_ENABLED) {
             throw new TxNotEnabledException(this.getBaseGraph().GRAPH_ID);
         }
         LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("enterTransactionState on Thread: {}");
-        this.transaction.enterTransactionState();
+        this.transaction.enterTransactionState(timeout);
     }
 
     public void exitTransactionState() {

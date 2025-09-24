@@ -1,0 +1,7 @@
+~id,~label,~from,~to,foo:boolean,bar:string
+1,elabel,1,2,true,blue
+2,elabel,3,4,tRuE,black
+3,elabel,1,5,   tRuE ,white
+4,elabel,2,4,false   ,green
+5,elabel,3,2,         false,red
+6,elabel,2,1,faallssee,orange

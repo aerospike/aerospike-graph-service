@@ -8,12 +8,13 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;
 import org.junit.Test;
+
 import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
 
-public class TestMetadataConfigDefaultDumpCall extends AbstractFireflySuite {
+public class TestMetadataConfigCallSteps extends AbstractFireflySuite {
 
     @Override
     protected boolean clearData() {
@@ -60,9 +61,11 @@ public class TestMetadataConfigDefaultDumpCall extends AbstractFireflySuite {
 
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
-            Map<String, Map<String, Object>> result = (Map<String, Map<String, Object>>) g.call("aerospike.graph.admin.metadata.config").next();
+            Map<String, Map<String, Object>> result = (Map<String, Map<String, Object>>)
+                    g.call("aerospike.graph.admin.metadata.config").with("MODE", "delta").next();
             Assert.assertEquals(6, result.get("Graph Properties").size());
-            Assert.assertEquals("30000", result.get("Graph Properties").get(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE));
+            Assert.assertEquals("30000", result.get("Graph Properties")
+                    .get(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE));
             Assert.assertNotNull(result.get("Gremlin Server Configuration"));
             Assert.assertEquals("4000", result.get("Graph Properties").get("aerospike.graph.http.port"));
             Assert.assertEquals("test", result.get("Graph Properties").get("aerospike.client.namespace"));
@@ -84,6 +87,8 @@ public class TestMetadataConfigDefaultDumpCall extends AbstractFireflySuite {
         final GraphTraversalSource g = graph.traversal();
         g.V().drop().iterate();
         Thread.sleep(100);
+        Assert.assertThrows(IllegalArgumentException.class,
+                () -> g.call("aerospike.graph.admin.metadata.config").next());
         Assert.assertThrows(IllegalArgumentException.class,
                 () -> g.call("aerospike.graph.admin.metadata.config")
                         .with("Bombo").next());

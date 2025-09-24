@@ -16,10 +16,31 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
     public static final String GREMLIN_SERVER_CONFIG = "Gremlin Server Configuration";
     public static final String GRAPH_PROPERTIES = "Graph Properties";
     public static final String KEY = "MODE";
-    public static final String DEFAULTS = "full";
+    public static final String VALUE = "full";
 
     public MetadataServiceConfig(final FireflyGraph graph) {
         super(graph);
+    }
+
+    public static boolean isSensitive(final String key) {
+        String lowerCaseKey = key.toLowerCase();
+        return lowerCaseKey.contains("password") || lowerCaseKey.contains("secret") || lowerCaseKey.contains("token") || lowerCaseKey.contains("passkey");
+    }
+
+    private static String serializeFile(final String file) {
+        final StringBuilder sb = new StringBuilder();
+        try (final BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (sb.length() != 0) {
+                    sb.append("\n");
+                }
+                sb.append(line);
+            }
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
+        }
+        return sb.toString();
     }
 
     @Override
@@ -36,13 +57,13 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
                         "\t\tg.call(\"%s\").with(\"%s\", \"%s\").next();\n" +
                         "\t\t or \n" +
                         "\t\tg.call(\"%s\").next();\n" +
-                        getName(), KEY, DEFAULTS, params,
-                getName(), KEY, DEFAULTS);
+                        getName(), KEY, VALUE, params,
+                getName(), KEY, VALUE);
     }
 
     @Override
     protected boolean sanitize(final Map params) {
-        return params.isEmpty() || (params.size() == 1 && params.containsKey(KEY) && params.get(KEY).equals(DEFAULTS));
+        return params.isEmpty() || (params.size() == 1 && params.containsKey(KEY) && params.get(KEY).equals(VALUE));
     }
 
     @Override
@@ -51,7 +72,7 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
         final Configuration configuration = graph.configuration();
         final Map<String, Object> configurationMap = new HashMap<>();
 
-        if (params.containsKey(KEY) && params.get(KEY).equals(DEFAULTS)) {
+        if (params.containsKey(KEY) && params.get(KEY).equals(VALUE)) {
             Map<Object, String> defaults = ConfigurationHelper.getDefaultConfigMap();
             for (final Map.Entry<Object, String> entry : defaults.entrySet()) {
                 String key = entry.getKey().toString();
@@ -87,27 +108,6 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
         }
 
         return (R) completeConfig;
-    }
-
-    public static boolean isSensitive(final String key) {
-        String lowerCaseKey = key.toLowerCase();
-        return lowerCaseKey.contains("password") || lowerCaseKey.contains("secret") || lowerCaseKey.contains("token") ||  lowerCaseKey.contains("passkey");
-    }
-
-    private static String serializeFile(final String file) {
-        final StringBuilder sb = new StringBuilder();
-        try (final BufferedReader br = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                if (sb.length() != 0) {
-                    sb.append("\n");
-                }
-                sb.append(line);
-            }
-        } catch (final IOException e) {
-            throw new RuntimeException(e);
-        }
-        return sb.toString();
     }
 
     @Override

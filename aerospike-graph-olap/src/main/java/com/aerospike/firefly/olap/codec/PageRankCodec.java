@@ -18,6 +18,7 @@ import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertexProper
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static com.aerospike.firefly.olap.codec.RowCodec.HALTED_COL;
 import static com.aerospike.firefly.olap.codec.RowCodecHelper.getId;
@@ -32,11 +33,15 @@ public class PageRankCodec implements Codec {
     public static final String PAGERANK_COL = "~pagerank";
 
     private final String property;
+    private final Direction direction;
+    private final String[] edgeLabels;
     private final TraverserGenerator traverserGenerator;
 
-    public PageRankCodec(final Traversal traversal, final String property) {
+    public PageRankCodec(final Traversal traversal, final String property, final Direction direction, final String[] edgeLabels) {
         this.traverserGenerator = traversal.asAdmin().getTraverserGenerator();
         this.property = property;
+        this.direction = direction;
+        this.edgeLabels = edgeLabels;
     }
 
     @Override
@@ -102,15 +107,15 @@ public class PageRankCodec implements Codec {
         return this.traverserGenerator;
     }
 
-    public static List<byte[]> getInVertexIds(final Vertex vertex) {
+    public List<byte[]> getInVertexIds(final Vertex vertex) {
         if (vertex instanceof DetachedVertex) {
             return (List<byte[]>) vertex.property(IN_VERTICES).value();
         }
 
-        return ((FireflyVertex) vertex).getConvertedVertexIds(Direction.IN);
+        return ((FireflyVertex) vertex).getConvertedVertexIds(direction, edgeLabels);
     }
 
-    public static Long getOutVertexCount(final Vertex vertex) {
-        return getVertexIdCount(vertex, OUT_VERTEX_COUNT, Direction.OUT);
+    public Long getOutVertexCount(final Vertex vertex) {
+        return getVertexIdCount(vertex, OUT_VERTEX_COUNT, direction.opposite(), edgeLabels);
     }
 }

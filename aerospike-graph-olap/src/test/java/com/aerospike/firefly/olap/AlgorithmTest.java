@@ -5,12 +5,15 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.process.computer.Computer;
 import org.apache.tinkerpop.gremlin.process.computer.clustering.connected.ConnectedComponentVertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.clustering.peerpressure.PeerPressureVertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.ranking.pagerank.PageRankVertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.PageRank;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.PeerPressure;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -24,9 +27,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.Order.desc;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.values;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.valueMap;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -63,6 +65,157 @@ public class AlgorithmTest {
             // verify saved data
             final Map<Object, Object> savedV1 = graph.traversal().V(1).elementMap().next();
             assertEquals(0.113755d, (Double) savedV1.get(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+        }
+    }
+
+    @Test
+    public void testPageRankWithEdgeFilterByDirection() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            final List<Vertex> output = graph.traversal()
+                    .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .V().pageRank()
+                    .with(PageRank.edges, __.inE())
+                    .toList();
+
+            assertEquals(6L, output.size());
+
+            final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
+            //precision is PageRankProgram.epsilon
+            assertEquals(0.380829d, v1.value(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+
+            // verify saved data
+            final Map<Object, Object> savedV1 = graph.traversal().V(1).elementMap().next();
+            assertEquals(0.380829d, (Double) savedV1.get(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+        }
+    }
+
+    @Test
+    public void testPageRankWithEdgeFilterByLabel() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            final List<Vertex> output = graph.traversal()
+                    .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .V().pageRank()
+                    .with(PageRank.edges, __.outE("knows"))
+                    .toList();
+
+            assertEquals(6L, output.size());
+
+            final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
+            //precision is PageRankProgram.epsilon
+            assertEquals(0.145985d, v1.value(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+
+            // verify saved data
+            final Map<Object, Object> savedV1 = graph.traversal().V(1).elementMap().next();
+            assertEquals(0.145985d, (Double) savedV1.get(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+        }
+    }
+
+    @Test
+    public void testPageRankWithEdgeFilterBy2Labels() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            // should be same result as for all labels, because all edges are either knows or created
+            final List<Vertex> output = graph.traversal()
+                    .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .V().pageRank()
+                    .with(PageRank.edges, __.outE("knows", "created"))
+                    .toList();
+
+            assertEquals(6L, output.size());
+
+            final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
+            //precision is PageRankProgram.epsilon
+            assertEquals(0.113755d, v1.value(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+
+            // verify saved data
+            final Map<Object, Object> savedV1 = graph.traversal().V(1).elementMap().next();
+            assertEquals(0.113755d, (Double) savedV1.get(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+        }
+    }
+
+    @Test
+    public void testPageRankWithEdgeFilterWithEmptyResult() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            final List<Vertex> output = graph.traversal()
+                    .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .V().pageRank()
+                    .with(PageRank.edges, __.outE("foo")) // no such edge label
+                    .toList();
+
+            assertEquals(6L, output.size());
+
+            // all vertices should have same PageRank value 1/6 = 0.166666
+            output.stream().forEach(v -> assertEquals(0.166666d, v.value(PageRankVertexProgram.PAGE_RANK), 0.00001d));
+        }
+    }
+
+    @Test
+    public void testPageRankWithEdgeAndVertexFilter() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+            waitForSummaryUpdate(graph);
+
+            final List<Vertex> output = graph.traversal()
+                    .withComputer(Computer.compute().vertices(__.hasLabel("person")))
+                    .with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .V().pageRank()
+                    .with(PageRank.edges, __.outE("knows"))
+                    .toList();
+
+            // should be 4 vertices with label "person", id 1 2 4 6
+            assertEquals(4L, output.size());
+
+            final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
+            assertEquals(0.206185d, v1.value(PageRankVertexProgram.PAGE_RANK), 0.00001d);
+        }
+    }
+
+    @Test
+    public void testPageRankWithEdgeFilterValidation() {
+        final List<GraphTraversal> edgeFilters = List.of(
+                __.out(), __.out().outE(), __.identity(), __.E(), __.outE().has("foo", "bar"));
+
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            for (final GraphTraversal edgeFilter : edgeFilters) {
+                try {
+                    final List<Vertex> output = graph.traversal()
+                            .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                            .with("aerospike.graph.analytics.temp.write.disabled", true)
+                            .V().pageRank()
+                            .with(PageRank.edges, edgeFilter)
+                            .toList();
+                    fail("should throw an exception");
+                } catch (final IllegalStateException e) {
+                    assertEquals("The edge traversal for the PageRankProgram must have only single inE()/outE()/bothE() step.",
+                            e.getMessage());
+                }
+            }
         }
     }
 
@@ -547,19 +700,12 @@ public class AlgorithmTest {
             GraphHelper.cloneElements(tg, graph);
             waitForSummaryUpdate(graph);
 
-            final var output = graph.traversal().withComputer()
+            final var output = graph.traversal()
+                    .withComputer(Computer.compute().vertices(__.hasLabel("person")).edges(__.outE("knows")))
                     // .with("aerospike.graph.analytics.debug.df", "true")
-                    .with("aerospike.graph.analytics.unfiltered.algorithm.enabled", true)
-                    .V().pageRank()
-                    .with(PageRank.propertyName, "score")
-                    .project("vertex", "pagerank")
-                    .by(identity())
-                    .by(values("score"))
-                    .order().by(select("pagerank"), desc)
-                    .limit(5)
-                    .toList();
+                    .V().out().elementMap().toList();
 
-            System.out.println(output);
+            output.forEach(System.out::println);
         }
     }
 }

@@ -127,7 +127,7 @@ public class TestFireflySindexCallSteps {
                         with("element_type", "vertex").next();
             }
             final List<String> sindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
-            Assert.assertEquals(Set.of("nameB", "nameC", "vertex.~label"), new HashSet<>(sindexes));
+            Assert.assertEquals(Set.of("nameB:STRING", "nameB:NUMERIC", "nameC:STRING", "nameC:NUMERIC", "~vertex:LABEL"), new HashSet<>(sindexes));
         }
     }
 
@@ -173,7 +173,7 @@ public class TestFireflySindexCallSteps {
                         with("element_type", "vertex").next();
             }
             final Map<String, Long> cardinality = (Map<String, Long>) g.call("aerospike.graph.admin.index.cardinality").next();
-            Assert.assertTrue(cardinality.get("nameA") > 0);
+            Assert.assertTrue(cardinality.get("nameA:STRING") > 0);
         }
     }
 
@@ -210,7 +210,7 @@ public class TestFireflySindexCallSteps {
                         with("property_key", "~label").
                         with("element_type", "vertex").next();
             }
-            Assert.assertEquals(Set.of("nameA", "vertex.~label"), new HashSet<>(((List<String>) g.call("aerospike.graph.admin.index.list").next())));
+            Assert.assertEquals(Set.of("nameA:NUMERIC", "~vertex:LABEL", "nameA:STRING"), new HashSet<>(((List<String>) g.call("aerospike.graph.admin.index.list").next())));
             g.call("aerospike.graph.admin.index.drop").
                     with("property_key", "nameA").
                     with("element_type", "vertex").next();

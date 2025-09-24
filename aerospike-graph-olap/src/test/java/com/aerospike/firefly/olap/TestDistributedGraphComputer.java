@@ -12,6 +12,7 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.process.computer.Computer;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -41,6 +42,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 public class TestDistributedGraphComputer {
     private Configuration config;
@@ -49,6 +51,23 @@ public class TestDistributedGraphComputer {
     public void beforeEach() {
         config = ConfigurationHelper.loadFromFile(Tokens.INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
+    }
+
+    @Test
+    public void testGraphFilterByVertexLabel() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            final List<Map<Object, Object>> output = graph.traversal()
+                    .withComputer(Computer.compute().vertices(__.hasLabel("person")))
+                    .V().out().elementMap().toList();
+
+            // result should only contain vertices 2 and 4
+            assertEquals(2, output.size());
+            output.stream().map(m -> m.get(T.id)).forEach(id -> assertTrue(id.equals(2) || id.equals(4)));
+        }
     }
 
     @Test

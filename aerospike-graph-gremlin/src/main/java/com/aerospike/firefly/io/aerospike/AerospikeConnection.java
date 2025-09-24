@@ -2,6 +2,7 @@ package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
+import com.aerospike.client.BatchRead;
 import com.aerospike.client.BatchRecord;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Host;
@@ -29,7 +30,6 @@ import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
-import com.aerospike.client.listener.RecordListener;
 import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.policy.AuthMode;
 import com.aerospike.client.policy.BatchPolicy;
@@ -67,6 +67,7 @@ import com.aerospike.firefly.util.config.FireflyConfiguration;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.AerospikeMrtNotSupportedException;
 import com.aerospike.firefly.util.exceptions.GraphError;
+import com.aerospike.firefly.util.exceptions.SindexAlreadyExistsException;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
@@ -231,6 +232,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final String TTL_VERTEX_INDEX_NAME;
     public final String TTL_EDGE_INDEX_NAME;
     public final int TTL_PURGE_INTERVAL_SECONDS;
+    public final boolean SUPERNODES_TRAVERSED_COUNTER_ENABLED;
     public final boolean SUPERNODE_TRAVERSAL_LOG_WARNING;
     public final boolean REDACT_SCRIPT_LITERALS_ENABLED;
     public long lastQueryMissCount = 0; // For testing
@@ -315,6 +317,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final List<String> vertexPropertyBins = new ArrayList<>();
 
     public final String QUERY_IMPL;
+    public final boolean SCAN_QUERY_ALLOWED;
 
     // Tinkerpop transactions
     private FireflyTransaction transaction = null;
@@ -531,6 +534,7 @@ public class AerospikeConnection implements AutoCloseable {
         INDEX_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf);
         TTL_PURGE_INTERVAL_SECONDS = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.TTL_PURGE_INTERVAL_SECONDS, conf);
         SUPERNODE_TRAVERSAL_LOG_WARNING = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUPERNODE_TRAVERSAL_LOG_WARNING, conf);
+        SUPERNODES_TRAVERSED_COUNTER_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUPERNODES_TRAVERSED_COUNTER_ENABLED, conf);
         REDACT_SCRIPT_LITERALS_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.REDACT_SCRIPT_LITERALS_ENABLED, conf);
 
         TEST_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.TEST_SET.name(), conf);
@@ -626,6 +630,7 @@ public class AerospikeConnection implements AutoCloseable {
         PROMETHEUS_RENAME_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.PROMETHEUS_RENAME, conf);
 
         QUERY_IMPL = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.QUERY_IMPL, conf);
+        SCAN_QUERY_ALLOWED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, conf);
 
         bulkLoaderFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf);
         bulkLoaderInitializerFlag = ConfigurationHelper.getOrDefaultBool(BULK_LOADER_INITIALIZER_FLAG, conf);
@@ -871,7 +876,6 @@ public class AerospikeConnection implements AutoCloseable {
             public static final String NS = "ns";
             public static final String OBJECTS = "objects";
             public static final String SINDEX = "sindex";
-            public static final String SINDEX_LIST = "sindex-list";
             public static final String FEATURE_KEY = "feature-key";
             public static final String INDEXNAME = "indexname";
             public static final String RESULT = "result";
@@ -1739,43 +1743,51 @@ public class AerospikeConnection implements AutoCloseable {
      * @param operations Read operations
      * @return Array of Record
      */
-    private Record[] batchRead(final Key[] keys, final BatchPolicy policy, final Operation[] operations, final FireflyCache cache) {
+    private Record[] batchRead(final Key[] keys, final BatchPolicy policy, final FireflyCache cache, final Operation... operations) {
         final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
         configureReadPolicy(batchPolicy);
         try {
-            return (cache != null) ? cache.read(keys, batchPolicy, operations) : client.get(batchPolicy, keys, operations);
+            if (cache != null) {
+                return cache.read(keys, batchPolicy, operations);
+            } else {
+                final List<BatchRecord> batchRecords = convertKeysForBatchRead(keys, operations);
+                final Record[] records = new Record[batchRecords.size()];
+                if (!this.client.operate(batchPolicy, batchRecords) && batchPolicy.txn != null) {
+                    for (int i = 0; i < batchRecords.size(); i++) {
+                        final BatchRecord batchRecord = batchRecords.get(i);
+                        if (GraphError.isTxnRelatedError(batchRecord.resultCode)) {
+                            final AerospikeException e = new AerospikeException(batchRecord.resultCode);
+                            LOG.error("Error: AerospikeException in read {}", e.getMessage());
+                            throw fromAerospikeException(e);
+                        }
+                        records[i] = batchRecord.record;
+                    }
+                } else {
+                    for (int i = 0; i < batchRecords.size(); i++) {
+                        records[i] = batchRecords.get(i).record;
+                    }
+                }
+                return records;
+            }
         } catch (final AerospikeException e) {
             LOG.error("Error: AerospikeException in read {}", e.getMessage());
             throw fromAerospikeException(e);
         }
     }
 
-    /**
-     * Perform a batch Aerospike read for a group of keys
-     *
-     * @param keys   Array of Key to return records for
-     * @param policy BatchPolicy to use
-     * @return Array of Record
-     */
-    private Record[] batchRead(final Key[] keys, final BatchPolicy policy, final FireflyCache cache) {
-        final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
-        configureReadPolicy(batchPolicy);
-        try {
-            return (cache != null) ? cache.read(keys, batchPolicy) : client.get(batchPolicy, keys);
-        } catch (final AerospikeException e) {
-            LOG.error("Error: AerospikeException in read {}", e.getMessage());
-            throw fromAerospikeException(e);
+    private static List<BatchRecord> convertKeysForBatchRead(final Key[] keys, final Operation... operations) {
+        final boolean readAllBins = operations.length == 0;
+        final List<BatchRecord> records = new ArrayList<>();
+        if (readAllBins) {
+            for (final Key key : keys) {
+                records.add(new BatchRead(key, true));
+            }
+        } else {
+            for (final Key key : keys) {
+                records.add(new BatchRead(key, operations));
+            }
         }
-    }
-
-    public void readWithListener(final RecordListener listener, final Policy policy, final Key key) {
-        final Policy readPolicy = policy == null ? new Policy() : policy;
-        configureReadPolicy(readPolicy);
-        try {
-            this.client.get(this.eventLoops.next(), listener, policy, key);
-        } catch (final AerospikeException e) {
-            throw fromAerospikeException(e);
-        }
+        return records;
     }
 
     /**
@@ -1821,29 +1833,28 @@ public class AerospikeConnection implements AutoCloseable {
      * @param operations Read operations
      * @return Array of Record
      */
-    Record[] skipCacheRead(final Key[] keys, final BatchPolicy policy, Operation[] operations) {
+    Record[] skipCacheRead(final Key[] keys, final BatchPolicy policy, final Operation... operations) {
         final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
         configureReadPolicy(batchPolicy);
         try {
-            return client.get(batchPolicy, keys, operations);
-        } catch (final AerospikeException e) {
-            throw fromAerospikeException(e);
-        }
-    }
-
-    /**
-     * Perform a batch Aerospike read for a group of keys and bypass the transaction cache. Should only be called by
-     * the cache.
-     *
-     * @param keys   Array of Key to return records for
-     * @param policy BatchPolicy to use
-     * @return Array of Record
-     */
-    Record[] skipCacheRead(final Key[] keys, final BatchPolicy policy) {
-        final BatchPolicy batchPolicy = policy == null ? new BatchPolicy() : policy;
-        configureReadPolicy(batchPolicy);
-        try {
-            return client.get(batchPolicy, keys);
+            final List<BatchRecord> batchRecords = convertKeysForBatchRead(keys, operations);
+            final Record[] records = new Record[batchRecords.size()];
+            if (!this.client.operate(batchPolicy, batchRecords) && batchPolicy.txn != null) {
+                for (int i = 0; i < batchRecords.size(); i++) {
+                    final BatchRecord batchRecord = batchRecords.get(i);
+                    if (GraphError.isTxnRelatedError(batchRecord.resultCode)) {
+                        final AerospikeException e = new AerospikeException(batchRecord.resultCode);
+                        LOG.error("Error: AerospikeException in read {}", e.getMessage());
+                        throw fromAerospikeException(e);
+                    }
+                    records[i] = batchRecord.record;
+                }
+            } else {
+                for (int i = 0; i < batchRecords.size(); i++) {
+                    records[i] = batchRecords.get(i).record;
+                }
+            }
+            return records;
         } catch (final AerospikeException e) {
             throw fromAerospikeException(e);
         }
@@ -1858,8 +1869,7 @@ public class AerospikeConnection implements AutoCloseable {
             // Default batch read used by read.
             final BatchPolicy batchReadPolicy = new BatchPolicy();
             batchReadPolicy.filterExp = filterExp;
-            return operations.length == 0 ? this.batchRead(keys, batchReadPolicy, cache) :
-                    this.batchRead(keys, batchReadPolicy, operations, cache);
+            return this.batchRead(keys, batchReadPolicy, cache, operations);
         } else {
             final WritePolicy policy = new WritePolicy();
             policy.filterExp = filterExp;
@@ -2456,7 +2466,7 @@ public class AerospikeConnection implements AutoCloseable {
 
         if (existingIndexes.contains(indexName)) {
             if (errorOnDuplicate) {
-                throw new RuntimeException("Index " + indexName + " already exists");
+                throw new SindexAlreadyExistsException(indexName);
             } else {
                 LOG.debug("Index {} already exists", indexName);
                 return;

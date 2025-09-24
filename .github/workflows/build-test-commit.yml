@@ -621,6 +621,7 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTransactionSummary --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
           sleep 10
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestTinkerpopTransactionTimeout --no-transfer-progress
       - name: Test Multi Node AGS Transactions
         run: |
           echo "Running multi node transaction test"

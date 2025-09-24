@@ -1,7 +1,6 @@
 package com.aerospike.firefly.process.traversal.step.computer;
 
-import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
-import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
+import com.aerospike.firefly.process.traversal.step.util.HasContainerContainer;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -26,13 +25,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
 
 public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
-    private final List<HasContainer> fireflyHasContainers;
-    private final List<HasContainer> aerospikeHasContainers;
+    private final HasContainerContainer hasContainerContainer;
 
     private transient final Map<FireflyId, FireflyVertex> cache = new HashMap<>();
     private transient final List<FireflyId> inputCache =new ArrayList<>();
@@ -46,18 +43,7 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
         super(traversal);
         this.areEdgesRequired = areEdgesRequired;
         this.labels = new HashSet<>(labels);
-        if (hasContainers != null) {
-            final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
-                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) traversal.getGraph().get(), Vertex.class, hasContainers);
-            // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
-            //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
-            //  matter what.
-            fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
-            aerospikeHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
-        } else {
-            fireflyHasContainers = List.of();
-            aerospikeHasContainers = List.of();
-        }
+        this.hasContainerContainer = new HasContainerContainer(hasContainers);
     }
 
     @Override
@@ -99,7 +85,7 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
                 } else {
                     result = outVertex != null && !ElementHelper.areEqual(vertex, outVertex) ? outVertex : inVertex;
                 }
-                if (fireflyTestAll(result, fireflyHasContainers))
+                if (fireflyTestAll(result, hasContainerContainer.getFireflyHasContainers()))
                     return FireflyCloseableIteratorUtils.of(result);
                 return Collections.emptyIterator();
             }
@@ -109,12 +95,15 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
 
     private void precompute() {
         if (inputCache.isEmpty()) return;
+
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
+        hasContainerContainer.init(graph);
+
         final List<FireflyId> chunk = new ArrayList<>();
         for (final FireflyId id : inputCache) {
             chunk.add(id);
             if (chunk.size() == graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
-                final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, chunk, null, areEdgesRequired);
+                final List<FireflyVertex> vertices = graph.readVertices(hasContainerContainer.getAerospikeHasContainers(), chunk, null, areEdgesRequired);
                 for (final FireflyVertex vertex : vertices) {
                     cache.put(vertex.id, vertex);
                 }
@@ -122,7 +111,7 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
             }
         }
         if (!chunk.isEmpty()) {
-            final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, chunk, null, areEdgesRequired);
+            final List<FireflyVertex> vertices = graph.readVertices(hasContainerContainer.getAerospikeHasContainers(), chunk, null, areEdgesRequired);
             for (final FireflyVertex vertex : vertices) {
                 cache.put(vertex.id, vertex);
             }

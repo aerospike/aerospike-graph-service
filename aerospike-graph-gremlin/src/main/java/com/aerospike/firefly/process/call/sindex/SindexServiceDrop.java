@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.call.sindex;
 
+import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.aerospike.admin.Admin;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
@@ -15,6 +16,12 @@ import java.util.Map;
  */
 public class SindexServiceDrop<I, R> extends SindexServiceBase<I, R> {
     private static final Logger LOG = LoggerFactory.getLogger(SindexServiceDrop.class);
+    private static final Map<String, String> PARAMS = new HashMap<>();
+    static {
+        PARAMS.put(ELEMENT_TYPE, "The type of element to drop the index on. Only 'vertex' is currently supported.");
+        PARAMS.put(PROPERTY_KEY, "The property key to drop the index on. '~label' can be used to drop an index on labels.");
+        PARAMS.put(INDEX_TYPE, "Optional parameter and not supported for labels. The type of index to drop on the property key. Value must be 'string' or 'numeric'. If not specified both types are dropped.");
+    }
 
     public SindexServiceDrop(final FireflyGraph firefly) {
         super(firefly);
@@ -27,34 +34,46 @@ public class SindexServiceDrop<I, R> extends SindexServiceBase<I, R> {
 
     @Override
     public Map<String, String> describeParams() {
-        // No parameters.
-        final Map<String, String> parameters = new HashMap<>();
-        parameters.put(ELEMENT_TYPE, "The type of element to drop the index on. Only 'vertex' is currently supported.");
-        parameters.put(PROPERTY_KEY, "The property key to drop the index on. '~label' can be used to drop an index on labels.");
-        return parameters;
+        return PARAMS;
     }
 
     @Override
     protected String usage(final Map params) {
         return String.format("Illegal arguments provided to %s.\n" +
-                        "\tExpected '" + ELEMENT_TYPE + "' and '" + PROPERTY_KEY + "' parameters provided.\n" +
-                        "\tNote, only 'vertex' is currently supported for '" + ELEMENT_TYPE + "'.\n" +
+                        "\tRequired parameters: '" + ELEMENT_TYPE + "', '" + PROPERTY_KEY + "'.\n" +
+                        "\tOptional parameters: '" + INDEX_TYPE + "'.\n" +
+                        "\tNote: Only 'vertex' is currently supported for '" + ELEMENT_TYPE + "'.\n" +
                         "\tProvided arguments: %s.\n" +
                         "\tExamples of correct usage:\n" +
                         "\t\tg.call(\"%s\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"~label\").next();\n" +
-                        "\t\tg.call(\"%s\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"name\").next();",
-                getName(), params,getName(), getName());
+                        "\t\tg.call(\"%s\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"name\").next();\n" +
+                        "\t\tg.call(\"%s\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"age\").with(\"" + INDEX_TYPE + "\", \"numeric\").next();",
+                getName(), params,getName(), getName(), getName());
     }
 
     @Override
     protected boolean sanitize(final Map params) {
-        // Should be no parameters.
-        if (params.size() != 2 || !params.containsKey(ELEMENT_TYPE) || !params.containsKey(PROPERTY_KEY)) {
+        if (params.size() < 2 || params.size() > 3) {
             return false;
-        } else if (!params.get(ELEMENT_TYPE).equals("vertex")) {
+        }
+        if (!params.containsKey(ELEMENT_TYPE) || !params.containsKey(PROPERTY_KEY)) {
             return false;
-        } else if (!(params.get(PROPERTY_KEY) instanceof String)) {
+        }
+        if (params.size() == 3 && !params.containsKey(INDEX_TYPE)) {
             return false;
+        }
+        if (!params.get(ELEMENT_TYPE).equals("vertex") || !(params.get(PROPERTY_KEY) instanceof String)) {
+            return false;
+        }
+        if (params.containsKey(INDEX_TYPE)) {
+            final Object indexType = params.get(INDEX_TYPE);
+            if (!(indexType instanceof String)) {
+                return false;
+            }
+            final String loweredIndexType = ((String) indexType).toLowerCase();
+            if (!INDEX_TYPE_LOOKUP.containsKey(loweredIndexType)) {
+                return false;
+            }
         }
         return true;
     }
@@ -65,8 +84,14 @@ public class SindexServiceDrop<I, R> extends SindexServiceBase<I, R> {
             try {
                 if (params.get(PROPERTY_KEY).equals("~label")) {
                     return (R) Admin.INDEX.dropVertexLabelIndex(graph);
+                } else if (params.containsKey(INDEX_TYPE)) {
+                    final IndexType indexType = INDEX_TYPE_LOOKUP.get(((String) params.get(INDEX_TYPE)).toLowerCase());
+                    return (R) Admin.INDEX.dropVertexPropertyIndex(graph, (String) params.get(PROPERTY_KEY), indexType);
                 } else {
-                    return (R) Admin.INDEX.dropVertexPropertyIndex(graph, (String) params.get(PROPERTY_KEY));
+                    for (final IndexType indexType : INDEX_TYPE_LOOKUP.values()) {
+                        Admin.INDEX.dropVertexPropertyIndex(graph, (String) params.get(PROPERTY_KEY), indexType);
+                    }
+                    return (R) ("Vertex index of property key '" + params.get(PROPERTY_KEY) + "' dropped.");
                 }
             } finally {
                 try {

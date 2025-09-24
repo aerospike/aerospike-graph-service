@@ -23,6 +23,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -41,16 +42,38 @@ import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.BAD_ENTRY_
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DUPLICATE_VERTEX_ID_COUNT_EXCEEDED;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.getConfig;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
-public abstract class TestSparkBulkLoaderBase {
+public class TestSparkBulkLoader {
     // Directories are relative to firefly/firefly-spark-bulk-loader
     private static final String PROVIDED_ID_PROPERTY_NAME = "testIdName";
     private static final String[] DEFAULT_PARAMS = {"-validate_input_data", "-verify_output_data"};
     protected FireflyGraph graph = null;
     static private final String EDGEID_TEST_DIRECTORIES = "src/test/resources/conf/packed/temp";
     static private final String BASE_PROPERTIES = "src/test/resources/conf/base.properties";
+
+    static private final String DEFAULT_CONFIG = "src/test/resources/conf/packed/config.properties";
+    static private final String KEEP_ID_AS_PROPERTY_CONFIG = "src/test/resources/conf/packed/keep-provided-id-as-property.properties";
+    static private final String DEFAULT_CONFIG_ARTIFICIAL_SUPERNODE = "src/test/resources/conf/packed/config-artificial-supernode.properties";
+    static private final String KEEP_ID_AS_PROPERTY_CONFIG_ARTIFICIAL_SUPERNODE = "src/test/resources/conf/packed/keep-provided-id-as-property-artificial-supernode.properties";
+    static private final String PREFLIGHT_CHECK_EDGE = "src/test/resources/conf/packed/preflight-check-edge.properties";
+    static private final String PREFLIGHT_CHECK_VERTEX = "src/test/resources/conf/packed/preflight-check-vertex.properties";
+    static private final String BAD_ENTRIES = "src/test/resources/conf/packed/bad-entries.properties";
+    static private final String NO_ID_EDGES = "src/test/resources/conf/packed/no-id-edges.properties";
+    static private final String NO_ID_EDGES_KEEP_AS_PROPERTY_OFF = "src/test/resources/conf/packed/no-id-edges-keep-as-property-off.properties";
+    static private final String DUPLICATE_VERTEX_ID = "src/test/resources/conf/packed/duplicate-vertex-id.properties";
+    static private final String DUPLICATE_EDGE_ID = "src/test/resources/conf/packed/duplicate-edge-id.properties";
+    static private final String S3_FILESYSTEM = "src/test/resources/conf/packed/filesystem-s3.properties";
+    static private final String GCS_FILESYSTEM = "src/test/resources/conf/packed/filesystem-gcs.properties";
+    static private final String FAILING_CLIENT = "src/test/resources/conf/packed/failing-client.properties";
+    static private final String DETACHED_EDGES = "src/test/resources/conf/packed/detached-edges.properties";
+    static private final String SAMPLE_SUPERNODE = "src/test/resources/conf/packed/config-sampling-supernodes.properties";
+    static private final String SAMPLE_SUPERNODE_TOO_HIGH = "src/test/resources/conf/packed/config-sampling-supernodes-too-high.properties";
+    static private final String SAMPLE_SUPERNODE_TOO_LOW = "src/test/resources/conf/packed/config-sampling-supernodes-too-low.properties";
+    static private final String DATETIME_PROPERTIES = "src/test/resources/conf/packed/config-datetime.properties";
+    static private final String BOOLEAN_PROPERTIES = "src/test/resources/conf/packed/bool-parser.properties";
 
     @Before
     public void beforeEach() {
@@ -85,46 +108,89 @@ public abstract class TestSparkBulkLoaderBase {
         }
     }
 
+    protected Configuration getTestConfig() {
+        return getConfig(Path.of(DEFAULT_CONFIG));
+    }
 
-    protected abstract Configuration getTestConfig();
+    protected String getDefaultConfig() {
+        return DEFAULT_CONFIG;
+    }
 
-    protected abstract String getDefaultConfig();
+    protected String getKeepIdAsPropertyTrueConfig() {
+        return KEEP_ID_AS_PROPERTY_CONFIG;
+    }
 
-    protected abstract String getKeepIdAsPropertyTrueConfig();
+    protected String getDefaultConfigArtificialSupernode() {
+        return DEFAULT_CONFIG_ARTIFICIAL_SUPERNODE;
+    }
 
-    protected abstract String getDefaultConfigArtificialSupernode();
+    protected String getKeepIdAsPropertyTrueConfigArtificialSupernode() {
+        return KEEP_ID_AS_PROPERTY_CONFIG_ARTIFICIAL_SUPERNODE;
+    }
 
-    protected abstract String getKeepIdAsPropertyTrueConfigArtificialSupernode();
+    protected String getPreflightCheckEdge() {
+        return PREFLIGHT_CHECK_EDGE;
+    }
 
-    protected abstract String getPreflightCheckVertex();
+    protected String getBadEntries() {
+        return BAD_ENTRIES;
+    }
 
-    protected abstract String getPreflightCheckEdge();
+    protected String getPreflightCheckVertex() {
+        return PREFLIGHT_CHECK_VERTEX;
+    }
 
-    protected abstract String getBadEntries();
+    protected String getNoIdEdges() {
+        return NO_ID_EDGES;
+    }
 
-    protected abstract String getNoIdEdges();
+    protected String getNoIdEdgesKeepIdAsPropertyOff() {
+        return NO_ID_EDGES_KEEP_AS_PROPERTY_OFF;
+    }
 
-    protected abstract String getNoIdEdgesKeepIdAsPropertyOff();
+    protected String getDuplicateVertexId() {
+        return DUPLICATE_VERTEX_ID;
+    }
 
-    protected abstract String getDuplicateVertexId();
+    protected String getDuplicateEdgeId() {
+        return DUPLICATE_EDGE_ID;
+    }
 
-    protected abstract String getDuplicateEdgeId();
+    protected String getS3FileSystem() {
+        return S3_FILESYSTEM;
+    }
 
-    protected abstract String getS3FileSystem();
+    protected String getGcsFileSystem() {
+        return GCS_FILESYSTEM;
+    }
 
-    protected abstract String getGcsFileSystem();
+    protected String getFailingClient() {
+        return FAILING_CLIENT;
+    }
 
-    protected abstract String getFailingClient();
+    protected String getHasBadEdges() {
+        return DETACHED_EDGES;
+    }
 
-    protected abstract String getHasBadEdges();
+    protected String getSamplingSupernode() {
+        return SAMPLE_SUPERNODE;
+    }
 
-    protected abstract String getSamplingSupernode();
+    protected String getSamplingSupernodeTooHigh() {
+        return SAMPLE_SUPERNODE_TOO_HIGH;
+    }
 
-    protected abstract String getSamplingSupernodeTooHigh();
+    protected String getSamplingSupernodeTooLow() {
+        return SAMPLE_SUPERNODE_TOO_LOW;
+    }
 
-    protected abstract String getSamplingSupernodeTooLow();
+    protected String getDateTimeProperties() {
+        return DATETIME_PROPERTIES;
+    }
 
-    protected abstract String getDateTimeProperties();
+    protected String getBooleanParseProperties() {
+        return BOOLEAN_PROPERTIES;
+    }
 
     @Test
     public void testDataAccuracy() {
@@ -260,6 +326,11 @@ public abstract class TestSparkBulkLoaderBase {
     }
 
     @Test
+    public void testBooleanPropertyValue() {
+
+    }
+
+    @Test
     public void testNoIdEdgesKeepAsProperty() {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getNoIdEdges()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
@@ -384,6 +455,20 @@ public abstract class TestSparkBulkLoaderBase {
         actual = g.V("2").values("offsetDateTimes").toList();
         actualNormalized = actual.stream().map(Object::toString).collect(Collectors.toList());
         assertThat(actualNormalized, containsInAnyOrder(expectedODTs.stream().map(Object::toString).toArray()));
+    }
+
+    @Test
+    public void testBooleanParsing() {
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getBooleanParseProperties()}, DEFAULT_PARAMS));
+        final GraphTraversalSource g = graph.traversal();
+        waitForBulkLoad(g);
+
+        Assert.assertEquals(5, (long) g.V().count().next());
+        Assert.assertEquals(3, (long) g.V().has("foo", true).count().next());
+        Assert.assertEquals(2, (long) g.V().has("foo", false).count().next());
+        Assert.assertEquals(5, (long) g.E().count().next());
+        Assert.assertEquals(3, (long) g.E().has("foo", true).count().next());
+        Assert.assertEquals(2, (long) g.E().has("foo", false).count().next());
     }
 
     @Ignore("TODO GRAPH-888: NPE caused by org.codehaus.groovy.reflection.ReflectionUtils.VM_PLUGIN is null on CI machine")

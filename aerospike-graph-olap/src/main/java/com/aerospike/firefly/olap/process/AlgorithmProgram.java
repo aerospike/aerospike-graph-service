@@ -16,6 +16,7 @@ import org.apache.tinkerpop.gremlin.process.computer.VertexComputeKey;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.ValueTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
@@ -223,6 +224,13 @@ public abstract class AlgorithmProgram implements FireflyProgram {
     @Override
     public PureTraversal<?, ?> getTraversal() {
         return graphTraversal;
+    }
+
+    protected void setTraversal(final FireflyGraph graph) {
+        final Traversal.Admin t = graph.traversal().V().asAdmin();
+        t.setStrategies(TraversalStrategies.GlobalCache.getStrategies(graph.getClass()).clone());
+        t.getStrategies().addStrategies(optionsStrategy);
+        this.graphTraversal = new PureTraversal(t);
     }
 
     @Override

@@ -28,7 +28,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
@@ -46,8 +45,6 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
     private List<String> properties = null;
     private final Long evaluationTimeout;
     private RunType runType;
-    // todo: implement as hasContainers?
-    private Predicate idFilter;
 
     enum RunType {
         UNKNOWN,
@@ -176,10 +173,9 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             iterators.add(iterator);
             return iterator;
         } else if (this.ids.length > 0) {
-            final Object[] filteredIds = this.idFilter == null ? this.ids : Arrays.stream(this.ids).filter(this.idFilter).toArray();
             iterator = aerospikeSideHasContainers.isEmpty() ?
-                    getElements.getUnfiltered(filteredIds) :
-                    getElements.getFiltered(aerospikeSideHasContainers, filteredIds);
+                    getElements.getUnfiltered(this.ids) :
+                    getElements.getFiltered(aerospikeSideHasContainers, this.ids);
             iterator = this.hasContainerCheckedIterator(iterator, fireflySideHasContainers);
             iterators.add(iterator);
             return iterator;
@@ -252,11 +248,6 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         }
         iterators.add(iterator);
         return iterator;
-    }
-
-    public void setPartitionFilter(final Predicate idFilter) {
-        this.idFilter = idFilter;
-        this.setIteratorSupplier(() -> (Vertex.class.isAssignableFrom(this.returnClass) ? (Iterator<E>) this.vertices() : (Iterator<E>) this.edges()));
     }
 
     /**
@@ -448,8 +439,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
     public String toString() {
         if (this.hasContainers.isEmpty()) {
             return StringFactory.stepString(this, this.returnClass.getSimpleName().toLowerCase(), this.runType, Arrays.toString(this.ids));
-        }
-        else {
+        } else {
             return (null == this.ids || 0 == this.ids.length) ?
                     StringFactory.stepString(this, this.returnClass.getSimpleName().toLowerCase(), this.runType, this.hasContainers) :
                     StringFactory.stepString(this, this.returnClass.getSimpleName().toLowerCase(), this.runType, Arrays.toString(this.ids), this.hasContainers);

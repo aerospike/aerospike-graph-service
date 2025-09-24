@@ -22,12 +22,10 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-
 public class ReadThroughRecordCache extends FireflyCache {
     private final AtomicLong hitCounter = new AtomicLong(0);
     private final AtomicLong missCounter = new AtomicLong(0);
@@ -119,16 +117,11 @@ public class ReadThroughRecordCache extends FireflyCache {
     }
 
     @Override
-    public Record[] read(final Key[] keys, final BatchPolicy policy) {
-        return readBatchInternal(keys, policy, null);
-    }
-
-    @Override
-    public Record[] read(final Key[] keys, final BatchPolicy policy, final Operation[] operations) {
+    public Record[] read(final Key[] keys, final BatchPolicy policy, final Operation... operations) {
         return readBatchInternal(keys, policy, operations);
     }
 
-    private Record[] readBatchInternal(final Key[] keys, final BatchPolicy policy, final Operation[] operations) {
+    private Record[] readBatchInternal(final Key[] keys, final BatchPolicy policy, final Operation... operations) {
         final List<Key> allKeys = List.of(keys);
         final Map<Key, Record> results = new HashMap<>(cache.getAllPresent(new HashSet<>(allKeys)));
         final List<Key> missingKeys = allKeys.stream()
@@ -146,9 +139,7 @@ public class ReadThroughRecordCache extends FireflyCache {
                     .collect(Collectors.toList());
 
             // Execute batch read. subList ids are read from the database.
-            final Record[] fetchedRecords = (operations == null)
-                    ? db.skipCacheRead(subList.toArray(new Key[0]), policy)
-                    : db.skipCacheRead(subList.toArray(new Key[0]), policy, operations);
+            final Record[] fetchedRecords = db.skipCacheRead(subList.toArray(new Key[0]), policy, operations);
 
             for (int j = 0; j < fetchedRecords.length; j++) {
                 final Key key = subList.get(j);

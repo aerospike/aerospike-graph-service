@@ -3,6 +3,7 @@ package com.aerospike.firefly.process.traversal.step.computer;
 import com.aerospike.firefly.process.computer.VertexProgramConfig;
 import org.apache.commons.configuration2.BaseConfiguration;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.computer.Computer;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.TraversalVertexProgramStep;
@@ -83,6 +84,11 @@ public class VertexProgramProxyStep extends VertexProgramStep implements Travers
     @Override
     public Set<TraverserRequirement> getRequirements() {
         return programStep.getRequirements();
+    }
+
+    @Override
+    public Computer getComputer() {
+        return programStep.getComputer();
     }
 
     @Override

@@ -24,9 +24,7 @@ public abstract class FireflyCache {
 
     abstract public Record read(final WritePolicy policy, final Key key, final Operation[] operations);
 
-    abstract public Record[] read(final Key[] keys, final BatchPolicy policy);
-
-    abstract public Record[] read(final Key[] keys, final BatchPolicy policy, final Operation[] operations);
+    abstract public Record[] read(final Key[] keys, final BatchPolicy policy, final Operation... operations);
 
     abstract public void write(final WritePolicy writePolicy, final Key key, final Bin... bins);
 

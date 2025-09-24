@@ -75,13 +75,10 @@ public class PeerPressureProgram extends AlgorithmProgram {
     }
 
     private void init(final FireflyGraph graph) {
-        final Traversal.Admin t = graph.traversal().V().asAdmin();
-        t.setStrategies(TraversalStrategies.GlobalCache.getStrategies(graph.getClass()).clone());
-        t.getStrategies().addStrategies(optionsStrategy);
-        this.graphTraversal = new PureTraversal(t);
+        setTraversal(graph);
 
         this.columnName = PeerPressureCodec.PEER_PRESSURE_COL;
-        this.codec = new PeerPressureCodec(t, this.property);
+        this.codec = new PeerPressureCodec(this.graphTraversal.get(), this.property);
         this.graph = graph;
         this.db = new DistributedAerospikeConnection(graph, true);
     }

@@ -4,6 +4,7 @@ import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -209,6 +210,28 @@ public class TestTinkerpopTransactions {
     }
 
     @Test
+    public void testBatchReadBlockedByOtherTx() {
+        for (int i = 10; i < 50; i++) {
+            g.addV("vertex").property(T.id, (long) i).id().iterate();
+        }
+        final GraphTraversalSource gtx = g.tx().begin();
+        final GraphTraversalSource gtx2 = g.tx().begin();
+        gtx.addV("foo").iterate();
+        gtx2.addV("foo").iterate();
+        gtx.V(11, 22, 33, 44).property("owningTxn", "gtx").iterate();
+        try {
+            gtx2.V(10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+                    33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49).property("owningTxn", "gtx2").iterate();
+            Assert.fail("Accessing a blocked record from a different transaction should fail.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e.getMessage().contains("Error code 120"));
+        } finally {
+            gtx.tx().rollback();
+            gtx2.tx().rollback();
+        }
+    }
+
+    @Test
     public void testTraversalAfterRollback() {
         Assert.assertEquals(0, (long) g.V().count().next());
         final GraphTraversalSource gtx = g.tx().begin();
@@ -398,6 +421,7 @@ public class TestTinkerpopTransactions {
             Assert.assertTrue(e.getMessage().contains(GraphError.getMessage(GraphError.TX_RECORD_LIMIT_EXCEEDED)));
         }
     }
+
     private void dropEAndCatchTransactionConflict(final GraphTraversalSource g, final List<String> ids,
                                                   final AtomicInteger dropCounter, final Random rng) {
         final int indexToRemove = rng.nextInt(ids.size());

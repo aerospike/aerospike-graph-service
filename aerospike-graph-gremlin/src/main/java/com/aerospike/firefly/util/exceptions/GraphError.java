@@ -6,6 +6,8 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import static com.aerospike.client.ResultCode.ASYNC_QUEUE_FULL;
@@ -74,13 +76,15 @@ public enum GraphError {
     TX_NOT_ENABLED(1122),
     PARALLELIZE_IN_TX(1123),
     SCAN_NOT_ALLOWED(1124),
+    SINDEX_ALREADY_EXISTS(1125),
 	
     ELEMENT_NOT_FOUND(ResultCode.KEY_NOT_FOUND_ERROR),
     RECORD_SIZE_EXCEEDED(ResultCode.RECORD_TOO_BIG),
     OUT_OF_MEMORY(ResultCode.SERVER_MEM_ERROR),
     RECORD_TX_BLOCKED(ResultCode.MRT_BLOCKED),
     TX_VERSION_MISMATCH(ResultCode.MRT_VERSION_MISMATCH),
-    TX_RECORD_LIMIT_EXCEEDED(ResultCode.MRT_TOO_MANY_WRITES);
+    TX_RECORD_LIMIT_EXCEEDED(ResultCode.MRT_TOO_MANY_WRITES),
+    TX_TIMEOUT(ResultCode.MRT_EXPIRED);
 
     public final int code;
 
@@ -122,7 +126,7 @@ public enum GraphError {
         ERROR_MESSAGES.put(NO_ACTIVE_NODES.code, "No active server nodes found in cluster.");
         ERROR_MESSAGES.put(DROP_INDEX_UNAUTHORIZED.code, "Failed to drop index due to role violation. Please check the permissions of the role assigned.");
         ERROR_MESSAGES.put(DATA_MODEL_VERSION_MISMATCH.code, "The on-disk data model version '%s' is not compatible with the AGS version '%s' being used. To fix this, either use Aerospike Graph '%s', use a new namespace, or start with flag `" + CLEAR_ON_VERSION_INCOMPATIBILITY + "` which will delete the old data and allow using the new model.");
-        ERROR_MESSAGES.put(SINDEX_RECENTLY_DROPPED.code, "This query is temporarily unavailable due to the index it utilizes%s being recently dropped. Please wait %s seconds and try again.");
+        ERROR_MESSAGES.put(SINDEX_RECENTLY_DROPPED.code, "This query is temporarily unavailable due to the index it utilizes '%s' being recently dropped. Please wait %s seconds and try again.");
         ERROR_MESSAGES.put(TTL_ILLEGAL_ARGUMENT.code, "Invalid value for TTL provided. Provided input [%s] of type %s must be numeric instead.");
         ERROR_MESSAGES.put(THREAD_LIMIT_EXCEEDED.code, "AGS has reached the server’s current query-thread limit. " +
                 "Please raise the query-threads-limit setting or reduce concurrent queries and try again.");
@@ -132,6 +136,7 @@ public enum GraphError {
         ERROR_MESSAGES.put(TX_NOT_ENABLED.code, "Transactions are not enabled for the '%s' graph. To use transactions, configure the '" + TRANSACTION_ENABLED_FLAG + "' setting.");
         ERROR_MESSAGES.put(PARALLELIZE_IN_TX.code, "The '" + ConfigurationHelper.TraversalOptions.PARALLELIZE + "' parameter is not allowed for traversals within a transaction.");
         ERROR_MESSAGES.put(SCAN_NOT_ALLOWED.code, "Scan queries are not permitted. Please create an index for the query or configure the '" + SCAN_QUERY_ALLOWED + "' setting to 'true'.");
+        ERROR_MESSAGES.put(SINDEX_ALREADY_EXISTS.code, "The following indexes could not be created because they already exist: [%s].");
 
         // Server
         ERROR_MESSAGES.put(ELEMENT_NOT_FOUND.code, "Element was dropped and no longer exists.");
@@ -142,12 +147,26 @@ public enum GraphError {
         ERROR_MESSAGES.put(RECORD_TX_BLOCKED.code, "The current transaction attempted to access a record currently blocked by a different transaction.");
         ERROR_MESSAGES.put(TX_VERSION_MISMATCH.code, "A transaction failed because the record was modified by another transaction after it was read. Retry the transaction.");
         ERROR_MESSAGES.put(TX_RECORD_LIMIT_EXCEEDED.code, "Transactions only support up to 4096 records. Consider splitting up the transaction or reducing the amount of elements within the transaction.");
+		ERROR_MESSAGES.put(TX_TIMEOUT.code, "Transaction has timed out. Please refer to documentation on configuring transaction timeouts or contact support if the problem persists.");
 
         // Client
         ERROR_MESSAGES.put(GRAPH_NO_MORE_CONNECTIONS.code, "There are no more available connections. Consider increasing the maximum allowable amount via the '" +
                 MAX_CONNECTIONS_PER_NODE + "' configuration key or contact support if problem persists.");
+    }
 
-        // TODO GRAPH-1307: Add more error messages
+    private static final Set<Integer> TXN_ERROR_CODES = new HashSet<>();
+    static {
+        TXN_ERROR_CODES.add(ResultCode.MRT_ABORTED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_ALREADY_LOCKED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_BLOCKED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_COMMITTED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_EXPIRED);
+        TXN_ERROR_CODES.add(ResultCode.MRT_MONITOR_EXISTS);
+        TXN_ERROR_CODES.add(ResultCode.MRT_TOO_MANY_WRITES);
+        TXN_ERROR_CODES.add(ResultCode.MRT_VERSION_MISMATCH);
+        TXN_ERROR_CODES.add(ResultCode.TXN_ALREADY_ABORTED);
+        TXN_ERROR_CODES.add(ResultCode.TXN_ALREADY_COMMITTED);
+        TXN_ERROR_CODES.add(ResultCode.TXN_FAILED);
     }
 
     static String getMessage(final AerospikeException e) {
@@ -180,6 +199,10 @@ public enum GraphError {
             throw new IllegalArgumentException("Designated graph errors should always have a message");
         }
         return errorMessage;
+    }
+
+    public static boolean isTxnRelatedError(final int errorCode) {
+        return TXN_ERROR_CODES.contains(errorCode);
     }
 
     // A dumb hack because we lose exception context and don't know if it is checked or unchecked, so need to use this.

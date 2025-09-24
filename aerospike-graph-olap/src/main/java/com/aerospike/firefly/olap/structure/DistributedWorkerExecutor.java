@@ -17,6 +17,7 @@ import com.aerospike.firefly.olap.process.traversal.step.SparkOperation;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.TaskContext;
@@ -29,6 +30,7 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.encoders.RowEncoder;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -133,6 +135,8 @@ public class DistributedWorkerExecutor {
                     + memory.getIteration() + "; in df " + iteration, LOGGER);
         }
 
+        final GraphFilter graphFilter = FireflyHelper.getGraphComputerView(rootGraph).getGraphFilter();
+
         return df.mapPartitions((MapPartitionsFunction<Row, Row>) itty -> {
             String limitStepKey = null;
             TaskLogger.instance.setDebugging(configHelper.isDebugDf());
@@ -146,6 +150,7 @@ public class DistributedWorkerExecutor {
             try (final FireflyGraph graph = FireflyGraph.open(configHelper.getFireflyConfig())) {
                 graph.logInfo = TaskLogger.instance;
                 memory.setGraph(graph);
+                FireflyHelper.createGraphComputerView(graph, graphFilter, Collections.emptySet());
 
                 TimeLog.reset();
 

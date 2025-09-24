@@ -17,12 +17,13 @@ import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.MemoryComputeKey;
 import org.apache.tinkerpop.gremlin.process.computer.ranking.pagerank.PageRankVertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.Operator;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalUtil;
-import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -44,7 +45,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.aerospike.firefly.olap.codec.PageRankCodec.getOutVertexCount;
 import static com.aerospike.firefly.process.computer.VertexProgramConfig.TRAVERSAL_VERTEX_PROGRAM_STEP;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
@@ -76,7 +76,7 @@ public class PageRankProgram extends AlgorithmProgram {
     // VOTE_TO_SAVE_RESULTS - end of computation on this worker, time to save results. Next iteration will be VOTE_TO_HALT.
     private static final String VOTE_TO_SAVE_RESULTS = "gremlin.traversalVertexProgram.voteToSaveResults";
 
-    // todo: not implemented
+    // default is __.outE()
     private PureTraversal<Vertex, Edge> edgeTraversal = null;
     private PureTraversal<Vertex, ? extends Number> initialRankTraversal = null;
 
@@ -96,13 +96,10 @@ public class PageRankProgram extends AlgorithmProgram {
     }
 
     private void init(final FireflyGraph graph) {
-        final Traversal.Admin t = graph.traversal().V().asAdmin();
-        t.setStrategies(TraversalStrategies.GlobalCache.getStrategies(graph.getClass()).clone());
-        t.getStrategies().addStrategies(optionsStrategy);
-        this.graphTraversal = new PureTraversal(t);
+        setTraversal(graph);
 
         this.columnName = PageRankCodec.PAGERANK_COL;
-        this.codec = new PageRankCodec(t, this.property);
+        this.codec = new PageRankCodec(this.graphTraversal.get(), this.property, getEdgeTraversalStep().getDirection().opposite(), getEdgeTraversalStep().getEdgeLabels());
         this.graph = graph;
         this.db = new DistributedAerospikeConnection(graph, true);
     }
@@ -242,15 +239,21 @@ public class PageRankProgram extends AlgorithmProgram {
         TimeLog.complete("PageRankProgram.writeRemainderAndClear");
     }
 
+    private VertexStep getEdgeTraversalStep() {
+        final List<Step> steps = edgeTraversal.get().getSteps();
+        return (VertexStep) steps.get(0);
+    }
+
     @Override
     protected DetachedVertex buildDetached(final Vertex vertex) {
         if (vertex instanceof DetachedVertex)
             return (DetachedVertex) vertex;
 
         TimeLog.complete("PageRankProgram.buildDetached");
-        final List<byte[]> inVertices = ((FireflyVertex)vertex).getConvertedVertexIds(Direction.IN);
+
+        final List<byte[]> inVertices = ((PageRankCodec) codec).getInVertexIds(vertex);
         TimeLog.complete("PageRankProgram.getInVIds");
-        final Long outVertexCount = getOutVertexCount(vertex);
+        final Long outVertexCount = ((PageRankCodec) codec).getOutVertexCount(vertex);
         TimeLog.complete("PageRankProgram.getOutVCount");
 
         final DetachedVertexProperty inVertexProperty = new DetachedVertexProperty(null, IN_VERTICES, inVertices, null);
@@ -298,9 +301,10 @@ public class PageRankProgram extends AlgorithmProgram {
     public void loadState(final Graph graph, final Configuration configuration) {
         if (configuration.containsKey(INITIAL_RANK_TRAVERSAL))
             this.initialRankTraversal = PureTraversal.loadState(configuration, INITIAL_RANK_TRAVERSAL, graph);
-        if (configuration.containsKey(EDGE_TRAVERSAL)) {
-            this.edgeTraversal = PureTraversal.loadState(configuration, EDGE_TRAVERSAL, graph);
-        }
+
+        this.edgeTraversal = PureTraversal.loadState(configuration, EDGE_TRAVERSAL, graph);
+        validateEdgeTraversal();
+
         this.alpha = configuration.getDouble(ALPHA, this.alpha);
         this.epsilon = configuration.getDouble(EPSILON, this.epsilon);
         this.maxIterations = configuration.getInt(MAX_ITERATIONS, 20);
@@ -327,8 +331,7 @@ public class PageRankProgram extends AlgorithmProgram {
         configuration.setProperty(EPSILON, this.epsilon);
         configuration.setProperty(PROPERTY, property);
         configuration.setProperty(MAX_ITERATIONS, this.maxIterations);
-        if (null != this.edgeTraversal)
-            this.edgeTraversal.storeState(configuration, EDGE_TRAVERSAL);
+        this.edgeTraversal.storeState(configuration, EDGE_TRAVERSAL);
         if (null != this.initialRankTraversal)
             this.initialRankTraversal.storeState(configuration, INITIAL_RANK_TRAVERSAL);
         if (null != this.vertexProgramTraversal)
@@ -343,5 +346,16 @@ public class PageRankProgram extends AlgorithmProgram {
     @Override
     public String toString() {
         return StringFactory.vertexProgramString(this, "alpha=" + this.alpha + ", epsilon=" + this.epsilon + ", iterations=" + this.maxIterations);
+    }
+
+    private void validateEdgeTraversal() {
+        // should never happen, as Tinkerpop PageRankVertexProgram set a default
+        if (null == this.edgeTraversal) {
+            throw new IllegalStateException("The edge traversal for the PageRankProgram was not set.");
+        }
+        final List<Step> steps = this.edgeTraversal.get().getSteps();
+        if (steps.size() != 1 || !(steps.get(0) instanceof VertexStep) || !((VertexStep) steps.get(0)).returnsEdge()) {
+            throw new IllegalStateException("The edge traversal for the PageRankProgram must have only single inE()/outE()/bothE() step.");
+        }
     }
 }

@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,8 +48,8 @@ public class SchemaManager {
     private static final Set<Integer> KEY_EXISTS_CODE = Set.of(ResultCode.KEY_EXISTS_ERROR);
     private static final Set<Integer> ELEMENT_NOT_FOUND_CODE = Set.of(GraphError.ELEMENT_NOT_FOUND.code);
 
-    static private final Long DUMMY_SCHEMA_LONG = -100L;
-    static private final MapPolicy SCHEMA_MAP_POLICY = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.CREATE_ONLY);
+    private static final Long DUMMY_SCHEMA_LONG = -100L;
+    private static final MapPolicy SCHEMA_MAP_POLICY = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.CREATE_ONLY);
 
     private final AerospikeConnection db;;
     private final Key vertexLabelsKey;
@@ -58,10 +59,15 @@ public class SchemaManager {
     private final Key edgePropertiesKey;
 
     private final BiMap<String, Long> vertexLabels;
+    private final ThreadLocal<Set<String>> missingVertexLabels = ThreadLocal.withInitial(HashSet::new);
     private final BiMap<String, Long> vertexProperties;
+    private final ThreadLocal<Set<String>> missingVertexProperties = ThreadLocal.withInitial(HashSet::new);
     private final BiMap<String, Long> vpProperties;
+    private final ThreadLocal<Set<String>> missingVpProperties = ThreadLocal.withInitial(HashSet::new);
     private final BiMap<String, Long> edgeLabels;
+    private final ThreadLocal<Set<String>> missingEdgeLabels = ThreadLocal.withInitial(HashSet::new);
     private final BiMap<String, Long> edgeProperties;
+    private final ThreadLocal<Set<String>> missingEdgeProperties = ThreadLocal.withInitial(HashSet::new);
 
     private final Map<Key, AtomicBoolean> initializedMap = new HashMap<>();
     private final Map<Key, String> readableNames = new HashMap();
@@ -114,7 +120,10 @@ public class SchemaManager {
             if (this.vertexLabels.containsKey(label)) {
                 return this.vertexLabels.get(label);
             } else {
-                updateVertexLabels(null);
+                if (!missingVertexLabels.get().contains(label)) {
+                    updateVertexLabels(null);
+                    missingVertexLabels.get().add(label);
+                }
             }
             final Long schemaValue = this.vertexLabels.get(label);
             return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
@@ -153,7 +162,10 @@ public class SchemaManager {
             if (this.vertexProperties.containsKey(propertyKey)) {
                 return this.vertexProperties.get(propertyKey);
             } else {
-                updateVertexProperties(null);
+                if (!missingVertexProperties.get().contains(propertyKey)) {
+                    updateVertexProperties(null);
+                    missingVertexProperties.get().add(propertyKey);
+                }
             }
             final Long schemaValue = this.vertexProperties.get(propertyKey);
             return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
@@ -213,7 +225,10 @@ public class SchemaManager {
             if (this.vpProperties.containsKey(propertyKey)) {
                 return this.vpProperties.get(propertyKey);
             } else {
-                updateVpProperties(null);
+                if (!missingVpProperties.get().contains(propertyKey)) {
+                    updateVpProperties(null);
+                    missingVpProperties.get().add(propertyKey);
+                }
             }
             final Long schemaValue = this.vpProperties.get(propertyKey);
             return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
@@ -282,7 +297,10 @@ public class SchemaManager {
             if (this.edgeLabels.containsKey(label)) {
                 return this.edgeLabels.get(label);
             } else {
-                updateEdgeLabels(null);
+                if (!missingEdgeLabels.get().contains(label)) {
+                    updateEdgeLabels(null);
+                    missingEdgeLabels.get().add(label);
+                }
             }
             final Long schemaValue = this.edgeLabels.get(label);
             return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
@@ -321,7 +339,10 @@ public class SchemaManager {
             if (this.edgeProperties.containsKey(propertyKey)) {
                 return this.edgeProperties.get(propertyKey);
             } else {
-                updateEdgeProperties(null);
+                if (!missingEdgeProperties.get().contains(propertyKey)) {
+                    updateEdgeProperties(null);
+                    missingEdgeProperties.get().add(propertyKey);
+                }
             }
             final Long schemaValue = this.edgeProperties.get(propertyKey);
             return schemaValue == null ? DUMMY_SCHEMA_LONG : schemaValue;
@@ -365,6 +386,14 @@ public class SchemaManager {
         updateVpProperties(null);
         updateEdgeLabels(null);
         updateEdgeProperties(null);
+    }
+
+    public void resetThreadLocals() {
+        this.missingVertexProperties.get().clear();
+        this.missingVertexLabels.get().clear();
+        this.missingVpProperties.get().clear();
+        this.missingEdgeLabels.get().clear();
+        this.missingEdgeProperties.get().clear();
     }
 
     public void clearAll() {

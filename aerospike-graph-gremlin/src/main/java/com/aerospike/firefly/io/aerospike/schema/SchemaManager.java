@@ -122,7 +122,9 @@ public class SchemaManager {
             } else {
                 if (!missingVertexLabels.get().contains(label)) {
                     updateVertexLabels(null);
-                    missingVertexLabels.get().add(label);
+                    if (vertexLabels.get(label) == null) {
+                        missingVertexLabels.get().add(label);
+                    }
                 }
             }
             final Long schemaValue = this.vertexLabels.get(label);
@@ -164,7 +166,9 @@ public class SchemaManager {
             } else {
                 if (!missingVertexProperties.get().contains(propertyKey)) {
                     updateVertexProperties(null);
-                    missingVertexProperties.get().add(propertyKey);
+                    if (vertexProperties.get(propertyKey) == null) {
+                        missingVertexProperties.get().add(propertyKey);
+                    }
                 }
             }
             final Long schemaValue = this.vertexProperties.get(propertyKey);
@@ -227,7 +231,9 @@ public class SchemaManager {
             } else {
                 if (!missingVpProperties.get().contains(propertyKey)) {
                     updateVpProperties(null);
-                    missingVpProperties.get().add(propertyKey);
+                    if (vpProperties.get(propertyKey) == null) {
+                        missingVpProperties.get().add(propertyKey);
+                    }
                 }
             }
             final Long schemaValue = this.vpProperties.get(propertyKey);
@@ -299,7 +305,9 @@ public class SchemaManager {
             } else {
                 if (!missingEdgeLabels.get().contains(label)) {
                     updateEdgeLabels(null);
-                    missingEdgeLabels.get().add(label);
+                    if (edgeLabels.get(label) == null) {
+                        missingEdgeLabels.get().add(label);
+                    }
                 }
             }
             final Long schemaValue = this.edgeLabels.get(label);
@@ -341,7 +349,9 @@ public class SchemaManager {
             } else {
                 if (!missingEdgeProperties.get().contains(propertyKey)) {
                     updateEdgeProperties(null);
-                    missingEdgeProperties.get().add(propertyKey);
+                    if (edgeProperties.get(propertyKey) == null) {
+                        missingEdgeProperties.get().add(propertyKey);
+                    }
                 }
             }
             final Long schemaValue = this.edgeProperties.get(propertyKey);

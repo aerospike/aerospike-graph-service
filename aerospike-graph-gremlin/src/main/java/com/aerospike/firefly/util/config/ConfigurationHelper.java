@@ -415,7 +415,7 @@ public final class ConfigurationHelper {
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "0");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE_PER_NODE, "20");
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
-        put(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, "4");
+        put(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, "1");
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
         put(Keys.VERTEX_PROPERTY_STRING_INDEXES, "");
         put(Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, "");

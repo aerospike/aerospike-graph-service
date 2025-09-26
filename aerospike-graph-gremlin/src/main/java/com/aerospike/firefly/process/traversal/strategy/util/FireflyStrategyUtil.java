@@ -16,6 +16,7 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGrap
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyMergeStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyOtherVBatchReadStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyReadThroughCacheStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflySchemaResetStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyVertexEdgeLocalCountStrategy;
 import com.aerospike.firefly.process.traversal.strategy.profile.FireflyQueryTracingStrategy;
@@ -49,6 +50,7 @@ public class FireflyStrategyUtil {
         // Steps that are generally applicable to most all traversals.
         FIREFLY_STRATEGIES.add(new FireflyGraphStepStrategy());
         FIREFLY_STRATEGIES.add(new FireflyReadThroughCacheStrategy());
+        FIREFLY_STRATEGIES.add(new FireflySchemaResetStrategy());
 
         // This step places an out.count() or in.count() step, therefore must happen between composite id and batch read.
         FIREFLY_STRATEGIES.add(new FireflyVertexEdgeLocalCountStrategy());

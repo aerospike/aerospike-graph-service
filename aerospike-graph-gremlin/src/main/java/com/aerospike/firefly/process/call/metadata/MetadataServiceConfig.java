@@ -15,7 +15,7 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
 
     public static final String GREMLIN_SERVER_CONFIG = "Gremlin Server Configuration";
     public static final String GRAPH_PROPERTIES = "Graph Properties";
-    private static final String KEY = "MODE";
+    private static final String KEY = "mode";
     private static final String MODE_FULL = "full";
     private static final String MODE_DELTA = "delta";
 
@@ -57,17 +57,23 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
                         "\tExpected no arguments or argument key '%s' with value of '%s' or '%s'.\n" +
                         "\tProvided argument: '%s'.\n" +
                         "\tExamples of correct usage:\n" +
+                        "\t\tg.call(\"%s\").next();\n" +
                         "\t\tg.call(\"%s\").with(\"%s\", \"%s\").next();\n" +
                         "\t\t or \n" +
                         "\t\tg.call(\"%s\").with(\"%s\", \"%s\").next();\n",
-                getName(), KEY, MODE_FULL, MODE_DELTA, params,
+                getName(), KEY, MODE_FULL, MODE_DELTA, params, getName(),
                 getName(), KEY, MODE_DELTA, getName(), KEY, MODE_FULL);
     }
 
     @Override
     protected boolean sanitize(final Map params) {
-        return params.size() == 1 && params.containsKey(KEY) &&
-                (params.get(KEY).equals(MODE_FULL) || params.get(KEY).equals(MODE_DELTA));
+        if (params.isEmpty()) return true;
+
+        if (params.size() != 1) return false;
+
+        if (!params.containsKey(KEY)) return false;
+
+        return params.get(KEY).equals(MODE_FULL) || params.get(KEY).equals(MODE_DELTA);
     }
 
     @Override
@@ -76,7 +82,7 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
         final Configuration configuration = graph.configuration();
         final Map<String, Object> configurationMap = new HashMap<>();
 
-        if (params.containsValue(MODE_FULL)) {
+        if (!params.isEmpty() && params.containsValue(MODE_FULL)) {
             final Map<Object, String> defaults = ConfigurationHelper.getDefaultConfigMap();
             for (final Map.Entry<Object, String> entry : defaults.entrySet()) {
                 final String key = entry.getKey().toString();

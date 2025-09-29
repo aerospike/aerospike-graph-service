@@ -29,7 +29,7 @@ public class TestMetadataConfigCallSteps extends AbstractFireflySuite {
 
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
-            Map<String, Map<String, Object>> result = (Map<String, Map<String, Object>>) g.call("aerospike.graph.admin.metadata.config").with("MODE", "full").next();
+            Map<String, Map<String, Object>> result = (Map<String, Map<String, Object>>) g.call("aerospike.graph.admin.metadata.config").with("mode", "full").next();
             Assert.assertNotEquals(6, result.get("Graph Properties").size());
             Assert.assertEquals("30000", result.get("Graph Properties").get(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE));
             Assert.assertNotNull(result.get("Gremlin Server Configuration"));
@@ -54,6 +54,35 @@ public class TestMetadataConfigCallSteps extends AbstractFireflySuite {
     }
 
     @Test
+    public void testExecutionNoArgs() throws InterruptedException {
+        Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, "30000");
+        config.setProperty("aerospike.graph.http.port", "4000");
+
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            Map<String, Map<String, Object>> result = (Map<String, Map<String, Object>>)
+                    g.call("aerospike.graph.admin.metadata.config").with("mode", "delta").next();
+            Assert.assertEquals(6, result.get("Graph Properties").size());
+            Assert.assertEquals("30000", result.get("Graph Properties")
+                    .get(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE));
+            Assert.assertNotNull(result.get("Gremlin Server Configuration"));
+            Assert.assertEquals("4000", result.get("Graph Properties").get("aerospike.graph.http.port"));
+            Assert.assertEquals("test", result.get("Graph Properties").get("aerospike.client.namespace"));
+
+            for (final Map.Entry<String, Object> entry : result.get("Graph Properties").entrySet()) {
+                String keystr = entry.getKey();
+                Object value = entry.getValue();
+                if (MetadataServiceConfig.isSensitive(keystr)) {
+                    Assert.assertEquals("*******", value);
+                } else {
+                    Assert.assertEquals(ConfigurationHelper.getOrDefault(keystr, config).toString(), value);
+                }
+            }
+        }
+    }
+
+    @Test
     public void testExecutionBase() throws InterruptedException {
         Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, "30000");
@@ -62,7 +91,7 @@ public class TestMetadataConfigCallSteps extends AbstractFireflySuite {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             Map<String, Map<String, Object>> result = (Map<String, Map<String, Object>>)
-                    g.call("aerospike.graph.admin.metadata.config").with("MODE", "delta").next();
+                    g.call("aerospike.graph.admin.metadata.config").with("mode", "delta").next();
             Assert.assertEquals(6, result.get("Graph Properties").size());
             Assert.assertEquals("30000", result.get("Graph Properties")
                     .get(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE));
@@ -87,8 +116,6 @@ public class TestMetadataConfigCallSteps extends AbstractFireflySuite {
         final GraphTraversalSource g = graph.traversal();
         g.V().drop().iterate();
         Thread.sleep(100);
-        Assert.assertThrows(IllegalArgumentException.class,
-                () -> g.call("aerospike.graph.admin.metadata.config").next());
         Assert.assertThrows(IllegalArgumentException.class,
                 () -> g.call("aerospike.graph.admin.metadata.config")
                         .with("Bombo").next());

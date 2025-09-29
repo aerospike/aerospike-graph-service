@@ -67,13 +67,15 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
 
     @Override
     protected boolean sanitize(final Map params) {
-        if (params.isEmpty()) return true;
-
-        if (params.size() != 1) return false;
-
-        if (!params.containsKey(KEY)) return false;
-
-        return params.get(KEY).equals(MODE_FULL) || params.get(KEY).equals(MODE_DELTA);
+        if (params.isEmpty()) {
+            return true;
+        } else if (params.size() != 1) {
+            return false;
+        } else if (!params.containsKey(KEY)) {
+            return false;
+        } else {
+            return params.get(KEY).equals(MODE_FULL) || params.get(KEY).equals(MODE_DELTA);
+        }
     }
 
     @Override

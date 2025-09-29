@@ -9,6 +9,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -95,7 +96,7 @@ public class BackwardsCompatibilityTest {
 
         // Try adding different types of properties.
         g2.V(lyndon.id()).property("isDope", true).iterate();
-        g2.V(simon.id()).property("isDope", "true").property("foo", List.of("baz")).iterate();
+        g2.V(simon.id()).property("isDope", "true").property(VertexProperty.Cardinality.list, "foo", "baz").iterate();
         g2.V(grant.id()).property("isDope", 1).iterate();
         g2.V(joe.id()).property("isDope", 1.0).iterate();
         g2.V(rahul.id()).property("isDope", 1.0).iterate();
@@ -103,7 +104,7 @@ public class BackwardsCompatibilityTest {
 
         // Create some edges from lyndon to everyone.
         g2.addE("knows").from(lyndon).to(simon).property("foo", "bar").iterate();
-        g2.addE("knows").from(lyndon).to(grant).property("foo", false).property("foo", List.of("baz")).iterate();
+        g2.addE("knows").from(lyndon).to(grant).property("foo", false).property("foo", "baz").iterate();
         g2.addE("knows").from(lyndon).to(joe).property("foo", 25).iterate();
         g2.addE("knows").from(lyndon).to(rahul).property("foo", 25.0).iterate();
         g2.addE("knows").from(lyndon).to(ishaan).property("foo", 25.0).iterate();
@@ -111,7 +112,7 @@ public class BackwardsCompatibilityTest {
         // Create an edge from simon to everyone.
         g2.addE("knows").from(simon).to(lyndon).property("foo", 25L).iterate();
         g2.addE("knows").from(simon).to(grant).iterate();
-        g2.addE("knows").from(simon).to(joe).property("foo", List.of("baz")).iterate();
+        g2.addE("knows").from(simon).to(joe).property("foo", "baz").iterate();
         g2.addE("knows").from(simon).to(rahul).iterate();
         g2.addE("knows").from(simon).to(ishaan).iterate();
 

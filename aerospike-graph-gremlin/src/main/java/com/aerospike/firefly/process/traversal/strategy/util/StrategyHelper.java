@@ -9,6 +9,7 @@ import com.aerospike.firefly.process.traversal.step.FireflyOtherVBatchReadStep;
 import com.aerospike.firefly.process.traversal.step.computer.FireflyBatchEdgeReadStepLocal;
 import com.aerospike.firefly.process.traversal.step.computer.FireflyBatchVertexReadStepLocal;
 import com.aerospike.firefly.process.traversal.step.computer.FireflyOtherVBatchReadStepLocal;
+import com.aerospike.firefly.process.traversal.step.map.FireflyAdjacentVertexIdStep;
 import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalLocalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -101,7 +102,8 @@ public class StrategyHelper {
                 || step instanceof FireflyBatchEdgeReadSampleLimitStep
                 || step instanceof FireflyOtherVBatchReadStep
                 || step instanceof FireflyOtherVBatchReadStepLocal
-                || step instanceof FireflyEdgeToVertexBatchReadStep;
+                || step instanceof FireflyEdgeToVertexBatchReadStep
+                || step instanceof FireflyAdjacentVertexIdStep;
     }
 
     public static boolean isPropertyStep(final Step step) {

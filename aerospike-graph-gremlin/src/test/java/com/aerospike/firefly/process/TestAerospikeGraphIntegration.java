@@ -119,8 +119,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     private static final int STRING_LENGTH = 1000;
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static final Random RANDOM = new Random();
-    private static final int MAX_SIZE = 10 * 1000;
-    private static final int PROPERTY_COUNT = 1020;
     private static final String RANDOM_STRING;
 
     static {
@@ -130,6 +128,21 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             stringBuilder.append(CHARACTERS.charAt(idx));
         }
         RANDOM_STRING = stringBuilder.toString();
+    }
+
+    @Test
+    public void testDoubleOutWithId() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            final List output = graph.traversal().V().limit(10).out().out().limit(5).id().toList();
+
+            assertEquals(2, output.size());
+            assertTrue(output.contains(5L));
+            assertTrue(output.contains(3L));
+        }
     }
 
     @Test

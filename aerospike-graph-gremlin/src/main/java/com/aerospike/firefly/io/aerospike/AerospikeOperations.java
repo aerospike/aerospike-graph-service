@@ -71,6 +71,7 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -558,59 +559,11 @@ public class AerospikeOperations {
                                                      final String key,
                                                      final V value,
                                                      final Map<Long, List<Object>> properties) {
-        if (value == null) {
-            if (cardinality != VertexProperty.Cardinality.single) {
-                // This should never happen.
-                throw new IllegalArgumentException("Null Vertex Property values are invalid when Cardinality is single. Please contact support.");
-            }
-            writeCardinalitySingleNullProperty(vertex, key);
-            return VertexProperty.empty();
-        }
         final Key recordKey = getKey(this.db, this.db.VERTEX_AERO_SET, vertex.id);
-        final FireflyId vertexPropertyId = this.db.getIdFactory().generateId(this.graph, FireflyVertexProperty.class);
-        final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
-        final Long schemaVpKey = this.db.schemaManager.getVertexPropertyWrite(key);
-        final Object typeHint = getTypeHintOf(value, true);
-        final Object verifiedValue = validateAndConvertVertexPropertyValue(value);
-
         final List<Operation> operations = new ArrayList<>();
-        final Operation writeVpData;
-        final Operation writeVpTypeHint;
-        final Operation writeVpProperties;
 
-        final MapPolicy treeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-        final MapPolicy hashMapPolicy = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.DEFAULT);
-        final ListPolicy listPolicy = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.DEFAULT);
-        if (cardinality.equals(VertexProperty.Cardinality.single)) {
-            final List<Long> idInList = new ArrayList<>(1);
-            idInList.add(vpIdKey);
-            final Map<Object, List<Long>> valueToIdList = new HashMap<>();
-            valueToIdList.put(verifiedValue, idInList);
-            writeVpData = MapOperation.put(treeMapPolicy, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(schemaVpKey), Value.get(valueToIdList));
-            final Map<Long, Object> idToTypeHint = new HashMap<>();
-            idToTypeHint.put(vpIdKey, typeHint);
-            writeVpTypeHint = MapOperation.put(hashMapPolicy, this.db.VERTEX_PROPERTY_TH_BIN, Value.get(schemaVpKey), Value.get(idToTypeHint));
-            final Map<Long, Map<Long, List<Object>>> idToProperties = new HashMap<>();
-            idToProperties.put(vpIdKey, properties);
-            writeVpProperties = MapOperation.put(hashMapPolicy, this.db.VP_PROPERTY_BIN, Value.get(schemaVpKey), Value.get(idToProperties));
-        } else if (cardinality.equals(VertexProperty.Cardinality.list)) {
-            writeVpData = ListOperation.append(listPolicy, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(vpIdKey),
-                    CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(verifiedValue), MapOrder.UNORDERED));
-            writeVpTypeHint = MapOperation.put(hashMapPolicy, this.db.VERTEX_PROPERTY_TH_BIN, Value.get(vpIdKey),
-                    Value.get(typeHint), CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.UNORDERED));
-            writeVpProperties = MapOperation.put(hashMapPolicy, this.db.VP_PROPERTY_BIN, Value.get(vpIdKey),
-                    Value.get(properties), CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.UNORDERED));
-        } else if (cardinality.equals(VertexProperty.Cardinality.set)) {
-            // TODO: Implement this when we support set cardinality. Right now, this should never happen.
-            throw new NotImplementedException("Cardinality.set is not yet supported.");
-        } else {
-            // This should never happen.
-            throw new IllegalArgumentException("Cardinality of Vertex Property was not single, list, or set. Please contact support.");
-        }
-
-        operations.add(writeVpData);
-        operations.add(writeVpTypeHint);
-        operations.add(writeVpProperties);
+        final FireflyId vertexPropertyId =
+                appendWriteVertexPropertyOps(operations, cardinality, key, value, properties);
         appendGetVertexPropertyBinOps(operations);
 
         final WritePolicy writePolicy = new WritePolicy();
@@ -626,9 +579,14 @@ public class AerospikeOperations {
 
             // Update this FireflyVertex in JVM cache
             vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties);
-            graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(vertex.label(), Set.of(key),
-                    graph.tx().getCurrentTxn());
-            return new FireflyVertexProperty<>(graph, vertexPropertyId, vertex, key, value, properties);
+            if (vertexPropertyId == null) {
+                // If vertexPropertyId is null it means it was a Cardinality single value null property (removal)
+                 return VertexProperty.empty();
+            } else {
+                graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(vertex.label(), Set.of(key),
+                        graph.tx().getCurrentTxn());
+                return new FireflyVertexProperty<>(graph, vertexPropertyId, vertex, key, value, properties);
+            }
         } catch (final AerospikeGraphRecordSizeExceededException e) {
             final VertexRecordSizeExceededException sizeExceededException =
                     fromAddingVertexProperty((AerospikeException) e.getCause(), this.db,
@@ -638,25 +596,111 @@ public class AerospikeOperations {
         }
     }
 
-    private void writeCardinalitySingleNullProperty(final FireflyVertex vertex, final String key) {
-        final Key recordKey = getKey(this.db, this.db.VERTEX_AERO_SET, vertex.id);
-        final Long schemaKey = db.schemaManager.getVertexPropertyRead(key);
+    public void batchWriteVertexProperties(final FireflyVertex vertex,
+                                           final List<VertexProperty.Cardinality> cardinalities,
+                                           final List<String> keys,
+                                           final List<Object> values) {
         final List<Operation> operations = new ArrayList<>();
-
-        final Operation removeVpKey = MapOperation.removeByKey(this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(schemaKey), MapReturnType.NONE);
-        operations.add(removeVpKey);
-        final Operation removeTypeHintKey = MapOperation.removeByKey(this.db.VERTEX_PROPERTY_TH_BIN, Value.get(schemaKey), MapReturnType.NONE);
-        operations.add(removeTypeHintKey);
-        final Operation removeVpPropertiesKey = MapOperation.removeByKey(this.db.VP_PROPERTY_BIN, Value.get(schemaKey), MapReturnType.NONE);
-        operations.add(removeVpPropertiesKey);
-
+        final Set<String> writtenKeys = new HashSet<>();
+        final int propertyCount = cardinalities.size();
+        for (int i = 0; i < propertyCount; i++) {
+            final FireflyId vertexPropertyId = appendWriteVertexPropertyOps(operations, cardinalities.get(i),
+                    keys.get(i), values.get(i), Collections.emptyMap());
+            if (vertexPropertyId != null) {
+                writtenKeys.add(keys.get(i));
+            }
+        }
         appendGetVertexPropertyBinOps(operations);
 
-        final Record result = this.db.writeOperate(null, recordKey, operations.toArray(new Operation[]{}));
-        final Map<Long, HashMap<Object, List<Long>>> vertexProperties = (Map<Long, HashMap<Object, List<Long>>>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_DATA_BIN, 1);
-        final Map<Long, Map<Long, Object>> vpTypeHints = (Map<Long, Map<Long, Object>>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_TH_BIN, 1);
-        final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties = (Map<Long, Map<Long, Map<Long, List<Object>>>>) getValueAtIndex(result, this.db.VP_PROPERTY_BIN, 1);
-        vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties);
+        final Key recordKey = getKey(this.db, this.db.VERTEX_AERO_SET, vertex.id);
+        final WritePolicy writePolicy = new WritePolicy();
+        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+        try {
+            final Record result = this.db.writeOperate(writePolicy, recordKey, operations.toArray(new Operation[0]));
+            final Map<Long, HashMap<Object, List<Long>>> vertexProperties =
+                    (Map<Long, HashMap<Object, List<Long>>>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_DATA_BIN, propertyCount);
+            final Map<Long, Map<Long, Object>> vpTypeHints =
+                    (Map<Long, Map<Long, Object>>) getValueAtIndex(result, this.db.VERTEX_PROPERTY_TH_BIN, propertyCount);
+            final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties =
+                    (Map<Long, Map<Long, Map<Long, List<Object>>>>) getValueAtIndex(result, this.db.VP_PROPERTY_BIN, propertyCount);
+
+            // Update this FireflyVertex in JVM cache
+            vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties);
+            graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(vertex.label(), writtenKeys,
+                    graph.tx().getCurrentTxn());
+        } catch (final AerospikeGraphRecordSizeExceededException e) {
+            final VertexRecordSizeExceededException sizeExceededException =
+                    fromAddingVertexProperty((AerospikeException) e.getCause(), this.db,
+                            getRelevantVertexBins(this.db, recordKey), vertex.id, String.join(", ", writtenKeys));
+            LOG.error(sizeExceededException.getMessage());
+            throw sizeExceededException;
+        }
+    }
+
+    private FireflyId appendWriteVertexPropertyOps(final List<Operation> operations,
+                                                   final VertexProperty.Cardinality cardinality,
+                                                   final String key,
+                                                   final Object value,
+                                                   final Map<Long, List<Object>> properties) {
+        if (value == null) {
+            if (cardinality != VertexProperty.Cardinality.single) {
+                // This should never happen.
+                throw new IllegalArgumentException("Null Vertex Property values are invalid when Cardinality is single. Please contact support.");
+            }
+            final Long schemaKey = db.schemaManager.getVertexPropertyRead(key);
+            final Operation removeVpKey = MapOperation.removeByKey(this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(schemaKey), MapReturnType.NONE);
+            operations.add(removeVpKey);
+            final Operation removeTypeHintKey = MapOperation.removeByKey(this.db.VERTEX_PROPERTY_TH_BIN, Value.get(schemaKey), MapReturnType.NONE);
+            operations.add(removeTypeHintKey);
+            final Operation removeVpPropertiesKey = MapOperation.removeByKey(this.db.VP_PROPERTY_BIN, Value.get(schemaKey), MapReturnType.NONE);
+            operations.add(removeVpPropertiesKey);
+            return null;
+        } else {
+            final FireflyId vertexPropertyId = this.db.getIdFactory().generateId(this.graph, FireflyVertexProperty.class);
+            final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
+            final Long schemaVpKey = this.db.schemaManager.getVertexPropertyWrite(key);
+            final Object typeHint = getTypeHintOf(value, true);
+            final Object verifiedValue = validateAndConvertVertexPropertyValue(value);
+
+            final Operation writeVpData;
+            final Operation writeVpTypeHint;
+            final Operation writeVpProperties;
+
+            final MapPolicy treeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
+            final MapPolicy hashMapPolicy = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.DEFAULT);
+            final ListPolicy listPolicy = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.DEFAULT);
+            if (cardinality.equals(VertexProperty.Cardinality.single)) {
+                final List<Long> idInList = new ArrayList<>(1);
+                idInList.add(vpIdKey);
+                final Map<Object, List<Long>> valueToIdList = new HashMap<>();
+                valueToIdList.put(verifiedValue, idInList);
+                writeVpData = MapOperation.put(treeMapPolicy, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(schemaVpKey), Value.get(valueToIdList));
+                final Map<Long, Object> idToTypeHint = new HashMap<>();
+                idToTypeHint.put(vpIdKey, typeHint);
+                writeVpTypeHint = MapOperation.put(hashMapPolicy, this.db.VERTEX_PROPERTY_TH_BIN, Value.get(schemaVpKey), Value.get(idToTypeHint));
+                final Map<Long, Map<Long, List<Object>>> idToProperties = new HashMap<>();
+                idToProperties.put(vpIdKey, properties);
+                writeVpProperties = MapOperation.put(hashMapPolicy, this.db.VP_PROPERTY_BIN, Value.get(schemaVpKey), Value.get(idToProperties));
+            } else if (cardinality.equals(VertexProperty.Cardinality.list)) {
+                writeVpData = ListOperation.append(listPolicy, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(vpIdKey),
+                        CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(verifiedValue), MapOrder.UNORDERED));
+                writeVpTypeHint = MapOperation.put(hashMapPolicy, this.db.VERTEX_PROPERTY_TH_BIN, Value.get(vpIdKey),
+                        Value.get(typeHint), CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.UNORDERED));
+                writeVpProperties = MapOperation.put(hashMapPolicy, this.db.VP_PROPERTY_BIN, Value.get(vpIdKey),
+                        Value.get(properties), CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.UNORDERED));
+            } else if (cardinality.equals(VertexProperty.Cardinality.set)) {
+                // TODO: Implement this when we support set cardinality. Right now, this should never happen.
+                throw new NotImplementedException("Cardinality.set is not yet supported.");
+            } else {
+                // This should never happen.
+                throw new IllegalArgumentException("Cardinality of Vertex Property was not single, list, or set. Please contact support.");
+            }
+
+            operations.add(writeVpData);
+            operations.add(writeVpTypeHint);
+            operations.add(writeVpProperties);
+            return vertexPropertyId;
+        }
     }
 
     private void appendGetVertexPropertyBinOps(final List<Operation> operations) {

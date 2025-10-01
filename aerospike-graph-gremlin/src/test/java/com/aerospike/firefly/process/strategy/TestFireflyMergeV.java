@@ -6,9 +6,11 @@ import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.util.CollectionUtil;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -21,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
-public class TestMergeVConcurrent {
+public class TestFireflyMergeV {
 
     static FireflyGraph SETUP_GRAPH;
 
@@ -37,8 +39,13 @@ public class TestMergeVConcurrent {
         SETUP_GRAPH.close();
     }
 
+    @Before
+    public void beforeEach() {
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
+    }
+
     @Test
-    public void testMergeVId() throws InterruptedException {
+    public void testConcurrentMergeVOnId() throws InterruptedException {
         final GraphTraversalSource g = SETUP_GRAPH.traversal();
         int threadCount = 16;
         for (int j = 0; j < 100; j++) {
@@ -77,5 +84,61 @@ public class TestMergeVConcurrent {
             }
             Assert.assertFalse(failed.get());
         }
+    }
+
+    @Test
+    public void testMismatchedSearchWithExistingId() {
+        final GraphTraversalSource g = SETUP_GRAPH.traversal();
+        g.addV("foo").property(T.id, 777).property("bar", 123).next();
+        Assert.assertTrue(g.V(777).hasNext());
+        try {
+            g.mergeV(Map.of(T.id, 777, T.label, "baz")).iterate();
+            Assert.fail("Should fail with inability to create existing id");
+        } catch (final IllegalArgumentException e) {
+            Assert.assertTrue(e.getMessage().contains("Vertex with id already exists:"));
+        }
+        try {
+            g.mergeV(Map.of(T.id, 777, "bar", 456)).iterate();
+            Assert.fail("Should fail with inability to create existing id");
+        } catch (final IllegalArgumentException e) {
+            Assert.assertTrue(e.getMessage().contains("Vertex with id already exists:"));
+        }
+    }
+
+    @Test
+    public void testOnMatchMultiProperties() {
+        final GraphTraversalSource g = SETUP_GRAPH.traversal();
+        g.addV("foo")
+                .property(T.id, 777)
+                .property("one", 1)
+                .property("two", 2)
+                .property("three", 3).next();
+        Assert.assertTrue(g.V(777).hasNext());
+        g.mergeV(Map.of(T.id, 777))
+                .option(Merge.onMatch, Map.of(
+                        "one", VertexProperty.Cardinality.list("one"),
+                        "two", "two",
+                        "three", VertexProperty.Cardinality.single("three")
+                )).iterate();
+        Assert.assertEquals(4, (long) g.V(777).properties().count().next());
+        Assert.assertArrayEquals(new Object[]{1, "one"}, g.V(777).properties("one").value().toList().toArray());
+        Assert.assertEquals("two", g.V(777).properties("two").value().next());
+        Assert.assertEquals("three", g.V(777).properties("three").value().next());
+    }
+
+    @Test
+    public void testOnCreateEccentricParams() {
+        final GraphTraversalSource g = SETUP_GRAPH.traversal();
+        g.mergeV(Map.of(T.id, 777))
+                .option(Merge.onCreate, Map.of(
+                        "one", VertexProperty.Cardinality.list("one"),
+                        "two", VertexProperty.Cardinality.set("two"),
+                        "three", VertexProperty.Cardinality.single("three")
+                )).iterate();
+        Assert.assertEquals(3, (long) g.V(777).properties().count().next());
+        Assert.assertArrayEquals(new Object[]{"one", "two", "three"}, g.V(777).properties().key().toList().toArray());
+        Assert.assertEquals("one", g.V(777).properties("one").value().next());
+        Assert.assertEquals("two", g.V(777).properties("two").value().next());
+        Assert.assertEquals("three", g.V(777).properties("three").value().next());
     }
 }

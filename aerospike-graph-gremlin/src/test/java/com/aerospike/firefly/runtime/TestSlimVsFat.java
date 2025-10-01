@@ -110,7 +110,6 @@ public class TestSlimVsFat {
         final DriverRemoteConnection connection = DriverRemoteConnection.using("localhost", 8182);
         final GraphTraversalSource g = traversal().withRemote(connection);
         final List<Object> list = g.call("--list").toList();
-
         Assert.assertEquals(new HashSet<>(EXPECTED_CALL_STEPS_SLIM), new HashSet<>(list));
     }
 

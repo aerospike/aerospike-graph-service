@@ -150,13 +150,16 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> {
             } catch (final IllegalArgumentException e) {
                 if (e.getMessage().contains("Vertex with id already exists:")) {
                     // T.id will always exist in the onCreateMap if we get this exception case
-                    final Object id = onCreateMap.get(T.id);
+                    final Iterator<Vertex> vertexWithId = graph.vertices(onCreateMap.get(T.id));
                     vertices = searchVertices(mergeMap);
                     // If the search can't find any matches after failing to create a Vertex with the id, don't retry
                     // to prevent an infinite loop.
-                    if (!vertices.hasNext() && graph.vertices(id).hasNext()) {
+                    if (!vertices.hasNext() && vertexWithId.hasNext()) {
+                        CloseableIterator.closeIterator(vertexWithId);
+                        CloseableIterator.closeIterator(vertices);
                         throw e;
                     }
+                    CloseableIterator.closeIterator(vertexWithId);
                 } else {
                     throw e;
                 }

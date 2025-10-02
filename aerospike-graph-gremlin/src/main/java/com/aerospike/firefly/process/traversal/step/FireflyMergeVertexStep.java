@@ -1,15 +1,18 @@
 package com.aerospike.firefly.process.traversal.step;
 
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAuthenticationStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.CardinalityValueTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.ConstantTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.IdentityTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeVertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.EventUtil;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -46,6 +49,11 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> {
     public FireflyMergeVertexStep(final Traversal.Admin traversal, final boolean isStart,
                                   final Traversal.Admin<S, Map> mergeTraversal) {
         super(traversal, isStart, mergeTraversal.asAdmin());
+    }
+
+    @Override
+    protected GraphTraversal searchVerticesTraversal(final Graph graph, final Object id) {
+        return id != null ? graph.traversal().withoutStrategies(FireflyAuthenticationStrategy.class).V(id) : graph.traversal().withoutStrategies(FireflyAuthenticationStrategy.class).V();
     }
 
     @Override
@@ -146,7 +154,7 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> {
                     vertices = searchVertices(mergeMap);
                     // If the search can't find any matches after failing to create a Vertex with the id, don't retry
                     // to prevent an infinite loop.
-                    if (!vertices.hasNext() && graph.traversal().V(id).hasNext()) {
+                    if (!vertices.hasNext() && graph.vertices(id).hasNext()) {
                         throw e;
                     }
                 } else {

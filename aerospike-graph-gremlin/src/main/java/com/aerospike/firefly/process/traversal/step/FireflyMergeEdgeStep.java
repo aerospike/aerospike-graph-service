@@ -13,6 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAuthenticationStrategy;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -181,7 +182,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         if (edgeId != null) {
 
             // g.E(eid).hasLabel(label).where(outV().hasId(fromId)).where(inV().hasId(toId));
-            t = graph.traversal().E(edgeId);
+            t = graph.traversal().withoutStrategies(FireflyAuthenticationStrategy.class).E(edgeId);
             if (edgeLabel != null)
                 t = t.hasLabel(edgeLabel);
             if (fromId != null)
@@ -194,7 +195,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         } else if (fromId != null) {
 
             // g.V(fromId).outE(label).where(inV().hasId(toId));
-            t = graph.traversal().V(fromId);
+            t = graph.traversal().withoutStrategies(FireflyAuthenticationStrategy.class).V(fromId);
             if (edgeLabel != null)
                 t = t.outE(edgeLabel);
             else
@@ -203,7 +204,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         } else if (toId != null) {
 
             // g.V(toId).inE(edgeLabel);
-            t = graph.traversal().V(toId);
+            t = graph.traversal().withoutStrategies(FireflyAuthenticationStrategy.class).V(toId);
             if (edgeLabel != null)
                 t = t.inE(edgeLabel);
             else
@@ -212,7 +213,7 @@ public class FireflyMergeEdgeStep<S> extends MergeStep<S, Edge, Object> {
         } else {
 
             // g.E().hasLabel(label)
-            t = graph.traversal().E();
+            t = graph.traversal().withoutStrategies(FireflyAuthenticationStrategy.class).E();
             if (edgeLabel != null)
                 t = t.hasLabel(edgeLabel);
 

@@ -657,6 +657,47 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         return vertexProperty;
     }
 
+    public void batchWriteMergeVProperties(final List<VertexProperty.Cardinality> cardinalities,
+                                           final List<String> propertyKeys,
+                                           final List<Object> propertyValues) {
+        final List<VertexProperty.Cardinality> validCardinalities = new ArrayList<>();
+        final List<String> validatedKeys = new ArrayList<>();
+        final List<Object> validatedValues = new ArrayList<>();
+        for (int i = 0; i < cardinalities.size(); i++) {
+            final VertexProperty.Cardinality cardinality = cardinalities.get(i);
+            final String key = propertyKeys.get(i);
+            final Object value = propertyValues.get(i);
+            if (cardinality.equals(VertexProperty.Cardinality.set)) {
+                throw new AerospikeGraphException(GraphError.SET_CARDINALITY_NOT_SUPPORTED);
+            } else if (SUPERNODE_PROPERTY_KEY.equals(key)) {
+                graph.aerospikeOperations.setCacheDisabled(this);
+            } else if (TTL_PROPERTY_KEY.equals(key)) {
+                if (!db.TTL_ENABLED_FLAG) {
+                    throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
+                } else if (value == null) {
+                    continue;
+                } else if (Number.class.isAssignableFrom(value.getClass())) {
+                    graph.aerospikeOperations.setTtl(this, ((Number) value).longValue());
+                } else {
+                    throw new TtlArgumentException(value);
+                }
+            } else {
+                ElementHelper.validateProperty(key, value);
+                if (null == value && VertexProperty.Cardinality.single != cardinality) {
+                    // If cardinality isn't single and the value is null it's a no-op
+                    continue;
+                } else {
+                    validCardinalities.add(cardinality);
+                    validatedKeys.add(key);
+                    validatedValues.add(value);
+                }
+            }
+        }
+        if (!validCardinalities.isEmpty()) {
+            graph.aerospikeOperations.batchWriteVertexProperties(this, validCardinalities, validatedKeys, validatedValues);
+        }
+    }
+
     @Override
     public Set<String> keys() {
         return FireflyHelper.inComputerMode((FireflyGraph) graph()) ?

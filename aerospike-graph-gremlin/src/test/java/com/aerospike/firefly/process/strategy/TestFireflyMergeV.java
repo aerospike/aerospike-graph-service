@@ -15,7 +15,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -121,7 +123,11 @@ public class TestFireflyMergeV {
                         "three", VertexProperty.Cardinality.single("three")
                 )).iterate();
         Assert.assertEquals(4, (long) g.V(777).properties().count().next());
-        Assert.assertArrayEquals(new Object[]{1, "one"}, g.V(777).properties("one").value().toList().toArray());
+        final Set<Object> expected = new HashSet<>();
+        expected.add("one");
+        expected.add(1);
+        g.V(777).properties("one").value().forEachRemaining(expected::remove);
+        Assert.assertTrue(expected.isEmpty());
         Assert.assertEquals("two", g.V(777).properties("two").value().next());
         Assert.assertEquals("three", g.V(777).properties("three").value().next());
     }
@@ -136,7 +142,12 @@ public class TestFireflyMergeV {
                         "three", VertexProperty.Cardinality.single("three")
                 )).iterate();
         Assert.assertEquals(3, (long) g.V(777).properties().count().next());
-        Assert.assertArrayEquals(new Object[]{"one", "two", "three"}, g.V(777).properties().key().toList().toArray());
+        final Set<Object> expected = new HashSet<>();
+        expected.add("one");
+        expected.add("two");
+        expected.add("three");
+        g.V(777).properties().key().forEachRemaining(expected::remove);
+        Assert.assertTrue(expected.isEmpty());
         Assert.assertEquals("one", g.V(777).properties("one").value().next());
         Assert.assertEquals("two", g.V(777).properties("two").value().next());
         Assert.assertEquals("three", g.V(777).properties("three").value().next());

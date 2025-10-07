@@ -1,18 +1,18 @@
 package com.aerospike.firefly.process.traversal.step;
 
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAuthenticationStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.util.TimeoutHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.CardinalityValueTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.ConstantTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.IdentityTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeVertexStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.EventUtil;
-import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -26,9 +26,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
+import static com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep.searchVerticesOptimally;
 import static com.aerospike.firefly.structure.FireflyGraph.BULK_LOAD_VERTEX_ADD_KEY;
 
 public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> {
+    long evaluationTimeout;
 
     public FireflyMergeVertexStep(final MergeVertexStep step) {
         this(step.getTraversal(), step.isStart(), step.getMergeTraversal());
@@ -36,6 +38,7 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> {
         if (step.getOnCreateTraversal() != null) this.addChildOption(Merge.onCreate, step.getOnCreateTraversal());
         if (step.getCallbackRegistry() != null) this.callbackRegistry = step.getCallbackRegistry();
         step.getLabels().forEach(label -> addLabel((String) label));
+        this.evaluationTimeout = TimeoutHelper.calculate(step.getTraversal());
     }
 
     public FireflyMergeVertexStep(final Traversal.Admin traversal, final boolean isStart) {
@@ -52,8 +55,35 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> {
     }
 
     @Override
-    protected GraphTraversal searchVerticesTraversal(final Graph graph, final Object id) {
-        return id != null ? graph.traversal().withoutStrategies(FireflyAuthenticationStrategy.class).V(id) : graph.traversal().withoutStrategies(FireflyAuthenticationStrategy.class).V();
+    protected CloseableIterator<Vertex> searchVertices(final Map search) {
+        if (search == null) {
+            return CloseableIterator.empty();
+        }
+
+        final FireflyGraph graph = (FireflyGraph) getGraph();
+        final List<String> requiredProperties = new ArrayList<>();
+        final List<HasContainer> hasContainers = new ArrayList<>();
+        if (search.containsKey(T.label)) {
+            final HasContainer labelHasContainer = new HasContainer(T.label.getAccessor(), P.eq(search.get(T.label)));
+            hasContainers.add(labelHasContainer);
+        }
+
+        for (final Object entry : search.entrySet()) {
+            final Map.Entry<Object, Object> searchPair = (Map.Entry<Object, Object>) entry;
+            if (searchPair.getKey() instanceof String) {
+                final String stringKey = (String) searchPair.getKey();
+                requiredProperties.add(stringKey);
+                final HasContainer propertyHasContainer = new HasContainer(stringKey, P.eq(searchPair.getValue()));
+                hasContainers.add(propertyHasContainer);
+            }
+        }
+
+        // Box in array here since Vertex search function can batch read multiple IDs.
+        final Object[] id = search.containsKey(T.id) ? new Object[]{search.get(T.id)} : new Object[0];
+
+        final Iterator<Vertex> vertexSearch = searchVerticesOptimally(graph, hasContainers, requiredProperties,
+                this.evaluationTimeout, id);
+        return CloseableIterator.of(vertexSearch);
     }
 
     @Override

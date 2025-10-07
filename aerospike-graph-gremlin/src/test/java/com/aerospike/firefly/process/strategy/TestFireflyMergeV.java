@@ -152,4 +152,15 @@ public class TestFireflyMergeV {
         Assert.assertEquals("two", g.V(777).properties("two").value().next());
         Assert.assertEquals("three", g.V(777).properties("three").value().next());
     }
+
+    @Test
+    public void testMultiplePropertyMatch() {
+        final GraphTraversalSource g = SETUP_GRAPH.traversal();
+        for (int i = 0; i < 3; i++) {
+            g.mergeV(Map.of("name", "Valentyn", "age", 12)).iterate();
+        }
+        Assert.assertEquals(1, (long) g.V().count().next());
+        Assert.assertEquals("Valentyn", g.V().properties("name").value().next());
+        Assert.assertEquals(12, g.V().properties("age").value().next());
+    }
 }

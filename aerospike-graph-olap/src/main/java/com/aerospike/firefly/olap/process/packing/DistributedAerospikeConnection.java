@@ -14,12 +14,15 @@ import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.ListOrder;
 import com.aerospike.client.cdt.ListPolicy;
+import com.aerospike.client.cdt.ListWriteFlags;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.exp.Exp;
+import com.aerospike.client.exp.ExpOperation;
+import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.BatchPolicy;
@@ -41,6 +44,7 @@ import com.aerospike.firefly.olap.structure.job.Job;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import org.javatuples.Pair;
@@ -53,14 +57,27 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
+import static com.aerospike.firefly.olap.process.ConnectedComponentProgram.VertexStatus;
 import static com.aerospike.firefly.util.FireflyHelper.validateAndConvertVertexPropertyValue;
 
 public class DistributedAerospikeConnection {
     private static final Logger LOG = LoggerFactory.getLogger(DistributedAerospikeConnection.class);
+
+    private static final Set<Integer> RETRYABLE_CODES = Set.of(
+            ResultCode.DEVICE_OVERLOAD,
+            ResultCode.KEY_BUSY,
+            ResultCode.QUERY_TIMEOUT,
+            ResultCode.TIMEOUT,
+            ResultCode.NO_MORE_CONNECTIONS,
+            ResultCode.INVALID_NODE_ERROR,
+            ResultCode.BATCH_FAILED
+    );
+
     private final FireflyGraph graph;
     private final AerospikeConnection db;
     private final String namespace;
@@ -477,8 +494,164 @@ public class DistributedAerospikeConnection {
         return pairs;
     }
 
+    //////////////////// Connected component V2
+    // one-character bin names to reduce storage
+    private static final String RECORD_ID_BIN = "r";
+    private static final String OTHER_RECORD_IDS_BIN = "o";
+    private static final String MERGED_BIN = "m";
+    private static final String GROUP_ID_BIN = "g";
+    private static final String VERTEX_STATUS_BIN = "v";
+    public static final int WRITE_PAGE_SIZE = 100;
+
+    public void writeVertex(final String vertexId) {
+        final Key key = new Key(namespace, tempSet, vertexId);
+
+        db.checkedPut(null, key, new Bin(VERTEX_STATUS_BIN, VertexStatus.UNVISITED.ordinal()));
+    }
+
+    // return status and current recordId
+    public Pair<VertexStatus, String> visitVertex(final String vertexId,
+                                                  final String recordId,
+                                                  final VertexStatus newStatus) {
+        final Key key = new Key(namespace, tempSet, vertexId);
+
+        final Operation readRecordIdOp = Operation.get(RECORD_ID_BIN);
+        final Operation readStatusOp = Operation.get(VERTEX_STATUS_BIN);
+        final Operation writeOp = ExpOperation.write(RECORD_ID_BIN, Exp.build(Exp.val(recordId)),
+                ExpWriteFlags.CREATE_ONLY | ExpWriteFlags.POLICY_NO_FAIL);
+
+        final Expression updateStatusExp = Exp.build(
+                Exp.cond(
+                        Exp.eq(Exp.intBin(VERTEX_STATUS_BIN), Exp.val(VertexStatus.UNVISITED.ordinal())),
+                        Exp.val(newStatus.ordinal()),
+                        Exp.intBin(VERTEX_STATUS_BIN)
+                )
+        );
+        final Operation writeStatusOp = newStatus == VertexStatus.COMPLETED
+                // always allow setting to complete
+                ? Operation.put(new Bin(VERTEX_STATUS_BIN, VertexStatus.COMPLETED.ordinal()))
+                // visited can be set only if current status is unvisited
+                : ExpOperation.write(VERTEX_STATUS_BIN, updateStatusExp, ExpWriteFlags.DEFAULT);
+
+        final Record record = (Record) tryWithBackoff(() -> db.read(key, null,
+                new Operation[]{readRecordIdOp, readStatusOp, writeOp, writeStatusOp}));
+
+        return Pair.with(VertexStatus.values()[((Long) record.getList(VERTEX_STATUS_BIN).get(0)).intValue()],
+                (String) record.getList(RECORD_ID_BIN).get(0));
+    }
+
+    public void markCompleted(final List<String> vertexIds) {
+        if (vertexIds.isEmpty()) {
+            return;
+        }
+
+        final BatchWritePolicy writePolicy = new BatchWritePolicy();
+        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+
+        final Operation opSetCompleted = Operation.put(new Bin(VERTEX_STATUS_BIN, VertexStatus.COMPLETED.ordinal()));
+
+        final List<BatchRecord> batchRecords = vertexIds.stream()
+                .map(vertexId -> new BatchWrite(writePolicy, new Key(namespace, tempSet, vertexId), new Operation[]{opSetCompleted}))
+                .collect(Collectors.toList());
+
+        writeWithPaging(batchRecords);
+    }
+
+    public Map<Object, String> readVertexGroupRecordId(final List<Object> vertexIds) {
+        final Key[] keys = vertexIds.stream().map(id -> new Key(namespace, tempSet, id.toString())).toArray(Key[]::new);
+        final Record[] records = db.dynamicBatchRead(keys, null, null);
+
+        final Map<Object, String> result = new HashMap<>();
+        for (int i = 0; i < vertexIds.size(); i++) {
+            // record should always exist
+            result.put(vertexIds.get(i), records[i].getString(RECORD_ID_BIN));
+        }
+        return result;
+    }
+
+    public void createGroup(final String recordId, final String groupId) {
+        final Key key = new Key(namespace, tempSet, recordId);
+
+        db.checkedPut(null, key, new Bin(GROUP_ID_BIN, groupId));
+    }
+
+    public void linkGroups(final Set<String> recordIds, final String otherRecordId) {
+        if (recordIds.isEmpty()) {
+            return;
+        }
+
+        final ListPolicy listPolicy = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL);
+        final Operation opLink = ListOperation.append(listPolicy, OTHER_RECORD_IDS_BIN, Value.get(otherRecordId));
+        final BatchWritePolicy writePolicy = new BatchWritePolicy();
+        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+
+        final List<BatchRecord> batchRecords = recordIds.stream()
+                .map(recordId -> new BatchWrite(writePolicy, new Key(namespace, tempSet, recordId), new Operation[]{opLink}))
+                .collect(Collectors.toList());
+
+        // link back
+        final Operation opLinkBack = ListOperation.appendItems(listPolicy, OTHER_RECORD_IDS_BIN,
+                recordIds.stream().map(Value::get).collect(Collectors.toList()));
+        batchRecords.add(new BatchWrite(writePolicy, new Key(namespace, tempSet, otherRecordId), new Operation[]{opLinkBack}));
+
+        writeWithPaging(batchRecords);
+    }
+
+    public void finalizeGroups(final Set<String> recordIds, final String groupId) {
+        final BatchWritePolicy writePolicy = new BatchWritePolicy();
+        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+
+        final Operation opSetMerged = Operation.put(new Bin(MERGED_BIN, Value.get(true)));
+        final Operation opSetGroup = Operation.put(new Bin(GROUP_ID_BIN, Value.get(groupId)));
+
+        final List<BatchRecord> batchRecords = recordIds.stream()
+                .map(recordId -> new BatchWrite(writePolicy, new Key(namespace, tempSet, recordId), new Operation[]{opSetMerged, opSetGroup}))
+                .collect(Collectors.toList());
+
+        writeWithPaging(batchRecords);
+    }
+
+    public Pair<String, List<String>> readGroup(final String recordId) {
+        final Key key = new Key(namespace, tempSet, recordId);
+
+        final Record record = db.read(key, null);
+        if (record.getBoolean(MERGED_BIN)) {
+            return Pair.with(record.getString(GROUP_ID_BIN), null);
+        }
+
+        return Pair.with(record.getString(GROUP_ID_BIN), (List<String>) record.getList(OTHER_RECORD_IDS_BIN));
+    }
+
+    // to be used in tests only
+    public Pair<String, List<String>> readGroupDirty(final String recordId) {
+        final Key key = new Key(namespace, tempSet, recordId);
+
+        final Record record = db.read(key, null);
+
+        return Pair.with(record.getString(GROUP_ID_BIN), (List<String>) record.getList(OTHER_RECORD_IDS_BIN));
+    }
+
+    public List<Pair<String, List<String>>> readGroups(final Set<String> recordIds) {
+        final Key[] keys = recordIds.stream().map(id -> new Key(namespace, tempSet, id)).toArray(Key[]::new);
+
+        final Record[] records = db.dynamicBatchRead(keys, null, null);
+
+        final List<Pair<String, List<String>>> result = new ArrayList<>(recordIds.size());
+        for (int i = 0; i < recordIds.size(); i++) {
+            // record should always exist
+            if (records[i].getBoolean(MERGED_BIN)) {
+                result.add(Pair.with(records[i].getString(GROUP_ID_BIN), null));
+            } else {
+                result.add(Pair.with(records[i].getString(GROUP_ID_BIN), (List<String>) records[i].getList(OTHER_RECORD_IDS_BIN)));
+            }
+        }
+
+        return result;
+    }
+
+
     // save pageRank results as properties
-    public void setProperty(final Map<FireflyId, Double> values, final String propertyName) {
+    public void setProperty(final Map<FireflyId, Object> values, final String propertyName) {
         if (values.isEmpty()) {
             return;
         }
@@ -491,7 +664,7 @@ public class DistributedAerospikeConnection {
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
 
         final List<BatchRecord> batchRecords = new ArrayList<>();
-        for (final Map.Entry<FireflyId, Double> entry : values.entrySet()) {
+        for (final Map.Entry<FireflyId, Object> entry : values.entrySet()) {
             final Key recordKey = FireflyRecord.getKey(this.db, this.db.VERTEX_AERO_SET, entry.getKey());
             final FireflyId vertexPropertyId = this.db.getIdFactory().generateId(this.graph, FireflyVertexProperty.class);
             final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
@@ -518,18 +691,22 @@ public class DistributedAerospikeConnection {
         writeWithBackoff(batchRecords);
     }
 
-    private void writeWithBackoff(final List<BatchRecord> batchRecords) {
-        final BatchPolicy policy = new BatchPolicy();
-        policy.setMaxConcurrentThreads(2);
+    @FunctionalInterface
+    interface AerospikeOperation {
+        Object execute();
+    }
 
+    private Object tryWithBackoff(AerospikeOperation operation) {
         int backoff = 1;
         int backoffCount = 10;
         while (backoffCount-- > 0) {
             try {
-                db.batchOperate(policy, batchRecords);
-                break;
-            } catch (final AerospikeException e) {
-                if (e.getResultCode() == ResultCode.DEVICE_OVERLOAD) {
+                return operation.execute();
+            } catch (final AerospikeException | AerospikeGraphException e) {
+                final int errorCode = e instanceof AerospikeException
+                        ? ((AerospikeException) e).getResultCode()
+                        : ((AerospikeGraphException) e).errorCode;
+                if (RETRYABLE_CODES.contains(errorCode)) {
                     try {
                         Thread.sleep(backoff * 1000L);
                     } catch (final InterruptedException ignored) {
@@ -543,10 +720,27 @@ public class DistributedAerospikeConnection {
                         backoff = 10;
                     }
                 } else {
-                    throw new RuntimeException("Failed to write intermediate results after exponentially backing off 10 times.", e);
+                    throw new RuntimeException("Failed to write after exponentially backing off 10 times.", e);
                 }
             }
         }
+        return null;
+    }
+
+    private void writeWithPaging(final List<BatchRecord> batchRecords) {
+        for (int i = 0; i < batchRecords.size(); i += WRITE_PAGE_SIZE) {
+            final int end = Math.min(batchRecords.size(), i + WRITE_PAGE_SIZE);
+            writeWithBackoff(batchRecords.subList(i, end));
+        }
+    }
+
+    private void writeWithBackoff(final List<BatchRecord> batchRecords) {
+        tryWithBackoff(() -> {
+            final BatchPolicy policy = new BatchPolicy();
+            policy.setMaxConcurrentThreads(2);
+            db.batchOperate(policy, batchRecords);
+            return null;
+        });
     }
 
     // jobs methods

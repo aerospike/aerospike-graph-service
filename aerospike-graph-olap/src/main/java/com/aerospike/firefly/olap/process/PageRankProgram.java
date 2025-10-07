@@ -10,21 +10,15 @@ import com.aerospike.firefly.olap.structure.MutableDetachedVertexProperty;
 import com.aerospike.firefly.process.computer.VertexProgramConfig;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.BaseConfiguration;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.MemoryComputeKey;
 import org.apache.tinkerpop.gremlin.process.computer.ranking.pagerank.PageRankVertexProgram;
 import org.apache.tinkerpop.gremlin.process.traversal.Operator;
-import org.apache.tinkerpop.gremlin.process.traversal.Step;
-import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalUtil;
-import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -38,20 +32,18 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection.WRITE_PAGE_SIZE;
 import static com.aerospike.firefly.process.computer.VertexProgramConfig.TRAVERSAL_VERTEX_PROGRAM_STEP;
 import static org.apache.tinkerpop.gremlin.process.computer.traversal.TraversalVertexProgram.HALTED_TRAVERSERS;
 
 public class PageRankProgram extends AlgorithmProgram {
     private static final Logger LOGGER = LoggerFactory.getLogger(PageRankProgram.class);
-
-    private static final int BULK_WRITE_SIZE = 100;
 
     // config constants, same as in TinkerPop
     private static final String ALPHA = "gremlin.pageRankVertexProgram.alpha";
@@ -72,12 +64,6 @@ public class PageRankProgram extends AlgorithmProgram {
     private static final String TELEPORTATION_ENERGY = AerospikeComputeKey.createDouble("teleportationEnergy", true);
     private static final String CONVERGENCE_ERROR = AerospikeComputeKey.createDouble("convergenceError", true);
 
-    // VOTE_TO_HALT - end of program on this worker.
-    // VOTE_TO_SAVE_RESULTS - end of computation on this worker, time to save results. Next iteration will be VOTE_TO_HALT.
-    private static final String VOTE_TO_SAVE_RESULTS = "gremlin.traversalVertexProgram.voteToSaveResults";
-
-    // default is __.outE()
-    private PureTraversal<Vertex, Edge> edgeTraversal = null;
     private PureTraversal<Vertex, ? extends Number> initialRankTraversal = null;
 
     private double alpha = 0.85d;
@@ -96,11 +82,10 @@ public class PageRankProgram extends AlgorithmProgram {
     }
 
     private void init(final FireflyGraph graph) {
-        setTraversal(graph);
-
         this.columnName = PageRankCodec.PAGERANK_COL;
-        this.codec = new PageRankCodec(this.graphTraversal.get(), this.property, getEdgeTraversalStep().getDirection().opposite(), getEdgeTraversalStep().getEdgeLabels());
         this.graph = graph;
+        setTraversal();
+        this.codec = new PageRankCodec(this.graphTraversal.get(), this.property, getEdgeTraversalStep().getDirection().opposite(), getEdgeTraversalStep().getEdgeLabels());
         this.db = new DistributedAerospikeConnection(graph, true);
     }
 
@@ -111,26 +96,10 @@ public class PageRankProgram extends AlgorithmProgram {
 
         TimeLog.complete("PageRankProgram.start");
         if (memory.<Boolean>get(VOTE_TO_SAVE_RESULTS)) {
-            final Map<FireflyId, Double> valuesToWrite = new HashMap<>();
-
-            job.getStarts().forEach(traverser -> {
-                final DetachedVertex vertex = (DetachedVertex) traverser.get();
-                valuesToWrite.put(graph.getIdFactory().createVertexId(vertex.id()), vertex.<Double>property(property).value());
-                if (valuesToWrite.size() >= BULK_WRITE_SIZE) {
-                    db.setProperty(valuesToWrite, property);
-                    valuesToWrite.clear();
-                }
-            });
-            // write leftovers for last BatchJob
-            db.setProperty(valuesToWrite, property);
-            valuesToWrite.clear();
-
-            // results might be filtered and returned
-            job.pass();
+            saveResultAsProperty(job);
             TimeLog.complete("PageRankProgram.results saved to db");
             return;
         }
-
 
         if (1 == memory.getIteration()) {
             memory.add(VERTEX_COUNT, (long) job.getStarts().size());
@@ -222,7 +191,7 @@ public class PageRankProgram extends AlgorithmProgram {
                 memory.add(TELEPORTATION_ENERGY, pageRank);
             else {
                 writeBatch.add(Pair.with(id, pageRank / outVertexCount));
-                if (writeBatch.size() >= BULK_WRITE_SIZE) {
+                if (writeBatch.size() >= WRITE_PAGE_SIZE) {
                     db.setPackedAccumulatorDouble(writeBatch, memory.getIteration());
                     writeBatch.clear();
                 }
@@ -237,11 +206,6 @@ public class PageRankProgram extends AlgorithmProgram {
 
         job.pass();
         TimeLog.complete("PageRankProgram.writeRemainderAndClear");
-    }
-
-    private VertexStep getEdgeTraversalStep() {
-        final List<Step> steps = edgeTraversal.get().getSteps();
-        return (VertexStep) steps.get(0);
     }
 
     @Override
@@ -348,14 +312,5 @@ public class PageRankProgram extends AlgorithmProgram {
         return StringFactory.vertexProgramString(this, "alpha=" + this.alpha + ", epsilon=" + this.epsilon + ", iterations=" + this.maxIterations);
     }
 
-    private void validateEdgeTraversal() {
-        // should never happen, as Tinkerpop PageRankVertexProgram set a default
-        if (null == this.edgeTraversal) {
-            throw new IllegalStateException("The edge traversal for the PageRankProgram was not set.");
-        }
-        final List<Step> steps = this.edgeTraversal.get().getSteps();
-        if (steps.size() != 1 || !(steps.get(0) instanceof VertexStep) || !((VertexStep) steps.get(0)).returnsEdge()) {
-            throw new IllegalStateException("The edge traversal for the PageRankProgram must have only single inE()/outE()/bothE() step.");
-        }
-    }
+
 }

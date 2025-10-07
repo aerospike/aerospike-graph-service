@@ -6,6 +6,7 @@ import com.aerospike.firefly.olap.helper.TaskLogger;
 import com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
@@ -22,10 +23,12 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.OrderGlobalStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.process.traversal.util.PureTraversal;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.javatuples.Pair;
@@ -45,6 +48,7 @@ import static com.aerospike.firefly.olap.codec.Codec.ELEMENT_ID_COL;
 import static com.aerospike.firefly.olap.helper.ProgramHelper.executeVertexProgram;
 import static com.aerospike.firefly.olap.helper.ProgramHelper.getStartStep;
 import static com.aerospike.firefly.olap.helper.ProgramHelper.removeTemporaryProperties;
+import static com.aerospike.firefly.olap.process.packing.DistributedAerospikeConnection.WRITE_PAGE_SIZE;
 import static org.apache.tinkerpop.gremlin.process.traversal.Traverser.Admin.HALT;
 
 public abstract class AlgorithmProgram implements FireflyProgram {
@@ -52,6 +56,10 @@ public abstract class AlgorithmProgram implements FireflyProgram {
     private static final Logger LOGGER = LoggerFactory.getLogger(AlgorithmProgram.class);
 
     public static final String START_STEP = "gremlin.algorithmProgram.startStep";
+
+    // VOTE_TO_HALT - end of program on this worker.
+    // VOTE_TO_SAVE_RESULTS - end of computation on this worker, time to save results. Next iteration will be VOTE_TO_HALT.
+    protected static final String VOTE_TO_SAVE_RESULTS = "gremlin.algorithmProgram.voteToSaveResults";
 
     private static final Map<String, BiFunction<Column, Number, Column>> predicateToSpark = new HashMap<>() {{
         put("eq", Column::equalTo);
@@ -62,6 +70,8 @@ public abstract class AlgorithmProgram implements FireflyProgram {
         put("lte", Column::leq);
     }};
 
+    // default is __.outE()
+    protected PureTraversal<Vertex, Edge> edgeTraversal = null;
     protected PureTraversal<Vertex, Vertex> graphTraversal;
     protected PureTraversal<Vertex, ?> vertexProgramTraversal;
     protected String property;
@@ -129,6 +139,24 @@ public abstract class AlgorithmProgram implements FireflyProgram {
         return false;
     }
 
+    protected void saveResultAsProperty(final BatchJob job) {
+        final Map<FireflyId, Object> valuesToWrite = new HashMap<>();
+
+        job.getStarts().forEach(traverser -> {
+            final DetachedVertex vertex = (DetachedVertex) traverser.get();
+            valuesToWrite.put(graph.getIdFactory().createVertexId(vertex.id()), vertex.property(property).value());
+            if (valuesToWrite.size() >= WRITE_PAGE_SIZE) {
+                db.setProperty(valuesToWrite, property);
+                valuesToWrite.clear();
+            }
+        });
+        // write leftovers for last BatchJob
+        db.setProperty(valuesToWrite, property);
+        valuesToWrite.clear();
+
+        // results might be filtered and returned
+        job.pass();
+    }
 
     @Override
     public void storeState(final Configuration configuration) {
@@ -226,7 +254,7 @@ public abstract class AlgorithmProgram implements FireflyProgram {
         return graphTraversal;
     }
 
-    protected void setTraversal(final FireflyGraph graph) {
+    protected void setTraversal() {
         final Traversal.Admin t = graph.traversal().V().asAdmin();
         t.setStrategies(TraversalStrategies.GlobalCache.getStrategies(graph.getClass()).clone());
         t.getStrategies().addStrategies(optionsStrategy);
@@ -300,6 +328,22 @@ public abstract class AlgorithmProgram implements FireflyProgram {
         if (truncateOlapTempSetAfterExecution) {
             db.truncateOlapTempSet();
             System.out.println("Aerospike work set truncated by job " + jobId);
+        }
+    }
+
+    protected VertexStep getEdgeTraversalStep() {
+        final List<Step> steps = edgeTraversal.get().getSteps();
+        return (VertexStep) steps.get(0);
+    }
+
+    protected void validateEdgeTraversal() {
+        // should never happen, as Tinkerpop PageRankVertexProgram set a default
+        if (null == this.edgeTraversal) {
+            throw new IllegalStateException("The edge traversal was not set.");
+        }
+        final List<Step> steps = this.edgeTraversal.get().getSteps();
+        if (steps.size() != 1 || !(steps.get(0) instanceof VertexStep) || !((VertexStep) steps.get(0)).returnsEdge()) {
+            throw new IllegalStateException("The edge traversal must have only single inE()/outE()/bothE() step.");
         }
     }
 }

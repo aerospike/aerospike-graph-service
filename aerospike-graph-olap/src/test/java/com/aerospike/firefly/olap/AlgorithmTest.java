@@ -9,6 +9,7 @@ import org.apache.tinkerpop.gremlin.process.computer.Computer;
 import org.apache.tinkerpop.gremlin.process.computer.clustering.connected.ConnectedComponentVertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.clustering.peerpressure.PeerPressureVertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.ranking.pagerank.PageRankVertexProgram;
+import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.ConnectedComponent;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.PageRank;
 import org.apache.tinkerpop.gremlin.process.computer.traversal.step.map.PeerPressure;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -27,10 +28,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.Order.desc;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.valueMap;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.bothE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -212,7 +213,7 @@ public class AlgorithmTest {
                             .toList();
                     fail("should throw an exception");
                 } catch (final IllegalStateException e) {
-                    assertEquals("The edge traversal for the PageRankProgram must have only single inE()/outE()/bothE() step.",
+                    assertEquals("The edge traversal must have only single inE()/outE()/bothE() step.",
                             e.getMessage());
                 }
             }
@@ -518,6 +519,8 @@ public class AlgorithmTest {
         }
     }
 
+    ///////////////////// ConnectedComponents tests ///////////////////////
+
     @Test
     public void testConnectedComponents() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
@@ -541,9 +544,115 @@ public class AlgorithmTest {
             final Vertex v5 = output.stream().filter(v -> v.id().equals(5)).findFirst().get();
             final Vertex v6 = output.stream().filter(v -> v.id().equals(6)).findFirst().get();
             //v1 and v5 are in same group, v6 separate because I removed edge connected v6 to other
-            assertEquals(v1.id().toString(), v1.value(ConnectedComponentVertexProgram.COMPONENT));
-            assertEquals(v1.id().toString(), v5.value(ConnectedComponentVertexProgram.COMPONENT));
+            assertEquals(v5.<String>value(ConnectedComponentVertexProgram.COMPONENT), v1.<String>value(ConnectedComponentVertexProgram.COMPONENT));
             assertEquals(v6.id().toString(), v6.value(ConnectedComponentVertexProgram.COMPONENT));
+
+            // verify saved data
+            final Map<Object, Object> savedV1 = graph.traversal().V(1).elementMap().next();
+            final Map<Object, Object> savedV2 = graph.traversal().V(2).elementMap().next();
+            assertEquals(savedV2.get(ConnectedComponentVertexProgram.COMPONENT), savedV1.get(ConnectedComponentVertexProgram.COMPONENT));
+            final Map<Object, Object> savedV6 = graph.traversal().V(6).elementMap().next();
+            assertEquals(v6.id().toString(), savedV6.get(ConnectedComponentVertexProgram.COMPONENT));
+        }
+    }
+
+    @Test
+    public void testConnectedComponentsWithoutSavingResults() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            graph.traversal().V(6).outE().drop().iterate();
+            waitForSummaryUpdate(graph);
+
+            final List<Vertex> output = graph.traversal()
+                    .withComputer().with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
+                    .with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    .V().connectedComponent().with("gremlin.connectedComponentVertexProgram.saveResults", false)
+                    .toList();
+
+            // correct result returned, but not saved
+            assertEquals(6L, output.size());
+            final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
+            final Vertex v3 = output.stream().filter(v -> v.id().equals(3)).findFirst().get();
+            assertEquals(v3.<String>value(ConnectedComponentVertexProgram.COMPONENT), v1.<String>value(ConnectedComponentVertexProgram.COMPONENT));
+
+            final Map<Object, Object> savedV1 = graph.traversal().V(1).elementMap().next();
+            assertFalse(savedV1.containsKey(ConnectedComponentVertexProgram.COMPONENT));
+        }
+    }
+
+    @Test
+    public void testConnectedComponentsWithVertexFilter() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            waitForSummaryUpdate(graph);
+
+            final List<Vertex> output = graph.traversal()
+                    .withComputer(Computer.compute().vertices(__.hasLabel("person")))
+                    .with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
+                    .V().connectedComponent()
+                    .toList();
+
+            assertEquals(4L, output.size());
+
+            final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
+            final Vertex v2 = output.stream().filter(v -> v.id().equals(2)).findFirst().get();
+            final Vertex v6 = output.stream().filter(v -> v.id().equals(6)).findFirst().get();
+            //v1 and v5 are in same group, v6 separate because I removed edge connected v6 to other
+            assertEquals(v2.<String>value(ConnectedComponentVertexProgram.COMPONENT), v1.<String>value(ConnectedComponentVertexProgram.COMPONENT));
+            assertEquals(v6.id().toString(), v6.value(ConnectedComponentVertexProgram.COMPONENT));
+
+            // verify saved data
+            final Map<Object, Object> savedV1 = graph.traversal().V(1).elementMap().next();
+            final Map<Object, Object> savedV2 = graph.traversal().V(2).elementMap().next();
+            assertEquals(savedV2.get(ConnectedComponentVertexProgram.COMPONENT), savedV1.get(ConnectedComponentVertexProgram.COMPONENT));
+            // v3 is not "person", so should not have component property saved
+            final Map<Object, Object> savedV3 = graph.traversal().V(3).elementMap().next();
+            assertNull(savedV3.get(ConnectedComponentVertexProgram.COMPONENT));
+            final Map<Object, Object> savedV6 = graph.traversal().V(6).elementMap().next();
+            assertEquals(v6.id().toString(), savedV6.get(ConnectedComponentVertexProgram.COMPONENT));
+        }
+    }
+
+    @Test
+    public void testConnectedComponentsWithEdgeFilter() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+            final Graph tg = TinkerFactory.createModern();
+            GraphHelper.cloneElements(tg, graph);
+
+            waitForSummaryUpdate(graph);
+
+            final List<Vertex> output = graph.traversal().withComputer()
+                    .with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
+                    .V().connectedComponent().with(ConnectedComponent.edges, bothE("knows"))
+                    .toList();
+
+            assertEquals(6L, output.size());
+
+            final Vertex v1 = output.stream().filter(v -> v.id().equals(1)).findFirst().get();
+            final Vertex v2 = output.stream().filter(v -> v.id().equals(2)).findFirst().get();
+            final Vertex v6 = output.stream().filter(v -> v.id().equals(6)).findFirst().get();
+            //v1 and v2 are in same group, v6 separate because I removed edge connected v6 to other
+            assertEquals(v2.<String>value(ConnectedComponentVertexProgram.COMPONENT), v1.<String>value(ConnectedComponentVertexProgram.COMPONENT));
+            assertEquals(v6.id().toString(), v6.value(ConnectedComponentVertexProgram.COMPONENT));
+
+            // verify saved data
+            final Map<Object, Object> savedV1 = graph.traversal().V(1).elementMap().next();
+            final Map<Object, Object> savedV2 = graph.traversal().V(2).elementMap().next();
+            assertEquals(savedV1.get(ConnectedComponentVertexProgram.COMPONENT), savedV2.get(ConnectedComponentVertexProgram.COMPONENT));
+            final Map<Object, Object> savedV6 = graph.traversal().V(6).elementMap().next();
+            assertEquals(v6.id().toString(), savedV6.get(ConnectedComponentVertexProgram.COMPONENT));
         }
     }
 
@@ -570,8 +679,7 @@ public class AlgorithmTest {
             final Map v5 = output.stream().filter(v -> v.get(T.id).equals(5)).findFirst().get();
             final Map v6 = output.stream().filter(v -> v.get(T.id).equals(6)).findFirst().get();
             //v1 and v5 are in same group, v6 separate because I removed edge connected v6 to other
-            assertEquals(v1.get(T.id).toString(), v1.get(ConnectedComponentVertexProgram.COMPONENT));
-            assertEquals(v1.get(T.id).toString(), v5.get(ConnectedComponentVertexProgram.COMPONENT));
+            assertEquals(v5.get(ConnectedComponentVertexProgram.COMPONENT), v1.get(ConnectedComponentVertexProgram.COMPONENT));
             assertEquals(v6.get(T.id).toString(), v6.get(ConnectedComponentVertexProgram.COMPONENT));
         }
     }
@@ -601,6 +709,73 @@ public class AlgorithmTest {
             assertEquals(v6.get(T.id).toString(), v6.get(ConnectedComponentVertexProgram.COMPONENT));
         }
     }
+
+    @Test
+    public void testConnectedComponentsInScale() {
+        final long start = System.currentTimeMillis();
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.traversal().V().drop().iterate();
+
+            final int vertexCount = 100_000;
+            for (int i = 0; i < vertexCount; i++) {
+                graph.addVertex(T.id, i);
+            }
+
+            // first case, all vertices connected to single vertex
+            final Vertex center = graph.vertices(0).next();
+            for (int i = 1; i < vertexCount / 2; i++) {
+                center.addEdge("knows", graph.vertices(i).next());
+            }
+
+            // second case, chain of connected vertices
+            for (int i = vertexCount / 2; i < vertexCount; i++) {
+                if (i == vertexCount / 2) {
+                    // last connected to first
+                    graph.vertices(i).next().addEdge("eats", graph.vertices(vertexCount - 1).next());
+                } else {
+                    graph.vertices(i).next().addEdge("eats", graph.vertices(i - 1).next());
+                }
+            }
+
+            System.out.println("Edges done");
+
+            waitForSummaryUpdate(graph);
+
+            final List<Vertex> output = graph.traversal()
+                    .with("evaluationTimeout", 60000)
+                    .withComputer().with(QueryParameters.ALLOW_UNFILTERED_ALGORITHM, true)
+                    .with("aerospike.graph.analytics.temp.write.disabled", true)
+                    .with("aerospike.graph.analytics.persist", "MEMORY_ONLY")
+                    .V().connectedComponent().with("gremlin.connectedComponentVertexProgram.workSetSize", 1_000)
+                    .order().by(ConnectedComponentVertexProgram.COMPONENT)
+                    .toList();
+
+            assertEquals(vertexCount, output.size());
+
+            // verify that there are 2 groups only
+            String group1 = null, group2 = null;
+            for (final Vertex vertex : output) {
+                final String group = vertex.value(ConnectedComponentVertexProgram.COMPONENT);
+                if ((int) vertex.id() < vertexCount / 2) {
+                    if (group1 == null) {
+                        group1 = group;
+                    } else {
+                        assertEquals(group1, group);
+                    }
+                } else {
+                    if (group2 == null) {
+                        group2 = group;
+                    } else {
+                        assertEquals("Not equal:" + vertex.id(), group2, group);
+                    }
+                }
+            }
+        }
+
+        System.out.println("total time: " + (System.currentTimeMillis() - start));
+    }
+
+    ///////////////////// PeerPressure tests ///////////////////////
 
     @Test
     public void testPeerPressureWithFilterById() {
@@ -703,8 +878,9 @@ public class AlgorithmTest {
             final var output = graph.traversal()
                     .withComputer(Computer.compute().vertices(__.hasLabel("person")).edges(__.outE("knows")))
                     // .with("aerospike.graph.analytics.debug.df", "true")
-                    .V().out().elementMap().toList();
+                    .V().toList();
 
+            System.out.println("result:");
             output.forEach(System.out::println);
         }
     }

@@ -4,7 +4,6 @@ import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyEdge;
-import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.TimeoutHelper;
@@ -128,68 +127,45 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
 
         // Grab all Vertices for iterator.
-        final Iterator<? extends Vertex> iterator = vertices(
-                graph,
-                graph.getBaseGraph().VERTEX_AERO_SET,
-                graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN,
-                FireflyVertex.class,
-                new FireflyGraph.GetElements<Vertex>() {
-                    @Override
-                    public Iterator<Vertex> getFiltered(final List<HasContainer> hasContainers, final Object... ids) {
-                        return graph.vertices(hasContainers, properties, ids);
-                    }
-
-                    @Override
-                    public Iterator<Vertex> getUnfiltered(final Object... ids) {
-                        return graph.vertices(properties, ids);
-                    }
-                },
-                graph::vertexFromRecord);
+        final Iterator<Vertex> iterator = searchVerticesOptimally(graph, this.hasContainers, this.properties, this.evaluationTimeout, this.ids);
 
         // Return base iterator.
+        this.iterators.add(iterator);
         return iterator;
     }
 
-    /**
-     * This private helper function is no longer used for anything but vertices, but can be lightly modified to restore
-     * its original function of being used for any scalar record element types if needed in the future.
-     */
-    private <R extends Element> Iterator<R> vertices(final FireflyGraph graph,
-                                                     final String setName,
-                                                     final String binName,
-                                                     final Class<? extends FireflyElement> elementClass,
-                                                     final FireflyGraph.GetElements<R> getElements,
-                                                     final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
-        Iterator<R> iterator;
-        final List<HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, returnClass, hasContainers);
-        final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
+    public static Iterator<Vertex> searchVerticesOptimally(final FireflyGraph graph,
+                                                           final List<HasContainer> hasContainers,
+                                                           final List<String> requiredProperties,
+                                                           final long evaluationTimeout,
+                                                           final Object... vertexIds) {
+        final List<HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper
+                .getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, hasContainers);
+        final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper
+                .getAerospikeHasContainers(sortedHasContainers);
         // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
         //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
         //  matter what.
-        final List<HasContainer> fireflySideHasContainers = sortedHasContainers.stream().map(a -> a.hasContainer).collect(Collectors.toList());
+        final List<HasContainer> fireflySideHasContainers = sortedHasContainers.stream().map(containerWithCardinality ->
+                containerWithCardinality.hasContainer).collect(Collectors.toList());
+        Iterator<Vertex> iterator;
 
-        if (null == this.ids) {
-            iterator = Collections.emptyIterator();
-            iterators.add(iterator);
-            return iterator;
-        } else if (this.ids.length > 0) {
-            iterator = aerospikeSideHasContainers.isEmpty() ?
-                    getElements.getUnfiltered(this.ids) :
-                    getElements.getFiltered(aerospikeSideHasContainers, this.ids);
-            iterator = this.hasContainerCheckedIterator(iterator, fireflySideHasContainers);
-            iterators.add(iterator);
+        if (vertexIds == null) {
+            return Collections.emptyIterator();
+        } else if (vertexIds.length > 0) {
+            iterator = graph.vertices(aerospikeSideHasContainers, requiredProperties, vertexIds);
+            iterator = hasContainerCheckedIterator(iterator, fireflySideHasContainers);
             return iterator;
         }
 
-        // If there are HasContainers that can be pushed to aerospike, grab first item (this is highest cardinality based on sorting).
+        // If there are HasContainers that can be pushed to Aerospike, grab the first item (this is the highest cardinality based on sorting).
         final HasContainer topContainer = aerospikeSideHasContainers.isEmpty() ? null : aerospikeSideHasContainers.get(0);
 
         if (topContainer == null || topContainer.getKey() == null ||
                 (topContainer.getKey().startsWith("~") && !topContainer.getKey().equals("~label"))) {
             // If index container is null or key is null or if key starts with ~ but is not ~label, then get graph.vertices().
-            iterator = getElements.getUnfiltered();
-            iterator = this.hasContainerCheckedIterator(iterator, hasContainers);
-            iterators.add(iterator);
+            iterator = graph.vertices();
+            iterator = hasContainerCheckedIterator(iterator, hasContainers);
             return iterator;
         } else if (topContainer.getKey().equals("~label") ||
                 Number.class.isAssignableFrom(topContainer.getValue().getClass()) ||
@@ -201,36 +177,34 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
 
             // Find index.
             final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo =
-                    graph.fireflyIndexMetadata.getPropertyIndexInfo(elementClass, topContainer.getKey(), topContainer.getValue());
+                    graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, topContainer.getKey(), topContainer.getValue());
 
             // If we have index, query it, otherwise we need to scan (or error out).
             if (propertyIndexInfo.isPresent()) {
                 iterator = graph.graphQuery.queryVertexSIndex(propertyIndexInfo.get(),
                         topContainer.getPredicate(),
-                        transformKeyRecord,
+                        graph::vertexFromRecord,
                         aerospikeSideHasContainers,
                         evaluationTimeout);
             } else {
                 LOG.debug("No index found for key {} and value {}, running scan", topContainer.getKey(), topContainer.getValue());
                 iterator = graph.graphQuery.scanSet(
                         topContainer.getKey(),
-                        setName,
-                        topContainer.getKey().equals("~label") ? graph.getBaseGraph().LABEL_BIN : binName,
+                        graph.getBaseGraph().VERTEX_AERO_SET,
+                        topContainer.getKey().equals("~label") ? graph.getBaseGraph().LABEL_BIN : graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN,
                         topContainer.getPredicate(),
-                        transformKeyRecord,
+                        graph::vertexFromRecord,
                         aerospikeSideHasContainers,
-                        elementClass,
+                        FireflyVertex.class,
                         true,
                         evaluationTimeout);
             }
             // fireflySideHasContainers.add(new HasContainer(T.id.getAccessor(), idFilter));
             // Need to wrap iterator in hasContainerCheckedIterator() to apply hasContainers that could not be pushed down to Aerospike.
-            iterator = this.hasContainerCheckedIterator(iterator, fireflySideHasContainers);
-            iterators.add(iterator);
+            iterator = hasContainerCheckedIterator(iterator, fireflySideHasContainers);
             return iterator;
         } else {
             iterator = Collections.emptyIterator();
-            iterators.add(iterator);
             return iterator;
         }
     }
@@ -355,59 +329,8 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         }
     }
 
-    static class HasContainerIteratorIterator<E extends Element> implements Iterator<E>, AutoCloseable {
-        private final Iterator<Iterator<E>> i;
-        private final List<HasContainer> hasContainers;
-        private HasContainerIterator<E> currentIterator;
-
-        public HasContainerIteratorIterator(final Iterator<Iterator<E>> iterator, final List<HasContainer> hasContainers) {
-            this.i = iterator;
-            this.hasContainers = hasContainers;
-            if (iterator.hasNext()) {
-                this.currentIterator = new HasContainerIterator<>(iterator.next(), hasContainers);
-            } else {
-                this.currentIterator = new HasContainerIterator<>(Collections.emptyIterator(), hasContainers);
-            }
-        }
-
-        @Override
-        public boolean hasNext() {
-            if (this.currentIterator.hasNext()) {
-                return true;
-            } else {
-                if (this.i.hasNext()) {
-                    this.currentIterator = new HasContainerIterator<>(this.i.next(), this.hasContainers);
-                    return this.hasNext();
-                } else {
-                    return false;
-                }
-            }
-        }
-
-        @Override
-        public E next() {
-            if (this.hasNext()) {
-                return this.currentIterator.next();
-            } else {
-                throw FastNoSuchElementException.instance();
-            }
-        }
-
-        @Override
-        public void close() {
-            CloseableIterator.closeIterator(this.currentIterator);
-            while (this.i.hasNext()) {
-                CloseableIterator.closeIterator(this.i.next());
-            }
-        }
-    }
-
-    private <E extends Element> Iterator<E> hasContainerCheckedIterator(final Iterator<E> iterator, final List<HasContainer> minimalHasContainers) {
+    static private <E extends Element> Iterator<E> hasContainerCheckedIterator(final Iterator<E> iterator, final List<HasContainer> minimalHasContainers) {
         return new HasContainerIterator<>(iterator, minimalHasContainers);
-    }
-
-    private <E extends Element> Iterator<E> hasContainerCheckedIteratorIterator(final Iterator<Iterator<E>> iterator, final List<HasContainer> minimalHasContainers) {
-        return new HasContainerIteratorIterator<>(iterator, minimalHasContainers);
     }
 
     @Override

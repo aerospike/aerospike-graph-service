@@ -1182,10 +1182,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }).collect(Collectors.toList());
     }
 
-    public Iterator<Vertex> vertices(final List<String> requiredProperties, final Object... vertexIdsOrVertices) {
-        return vertices(List.of(), requiredProperties, vertexIdsOrVertices);
-    }
-
     @Override
     public Iterator<Vertex> vertices(final Object... vertexIdsOrVertices) {
         final Iterator<Vertex> iterator = vertices(List.of(), null, vertexIdsOrVertices);
@@ -1238,12 +1234,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public interface TransformKeyRecord<E> {
         E transform(final KeyRecord keyRecord);
-    }
-
-    public interface GetElements<E extends Element> {
-        Iterator<E> getFiltered(final List<HasContainer> hasContainers, final Object... ids);
-
-        Iterator<E> getUnfiltered(final Object... ids);
     }
 
     public void createIndexes(final Class<? extends FireflyElement> elementClass,

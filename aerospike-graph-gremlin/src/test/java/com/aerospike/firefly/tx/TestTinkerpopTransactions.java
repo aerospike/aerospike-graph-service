@@ -1,8 +1,14 @@
 package com.aerospike.firefly.tx;
 
+import com.aerospike.client.Record;
+import com.aerospike.client.query.KeyRecord;
+import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -13,12 +19,17 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.exceptions.GraphError.QUERY_IN_TRANSACTION;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 import static org.junit.Assert.assertEquals;
@@ -419,6 +430,98 @@ public class TestTinkerpopTransactions {
         } catch (final Exception e) {
             gtx.tx().rollback();
             Assert.assertTrue(e.getMessage().contains(GraphError.getMessage(GraphError.TX_RECORD_LIMIT_EXCEEDED)));
+        }
+    }
+
+    @Test
+    public void testPhatEdgeFillFactor() throws InterruptedException {
+        final int vertexCount = 1000;
+        for (long i = 0; i < vertexCount; i++) {
+            g.addV().property(T.id, i).iterate();
+        }
+
+        final Random rng = new Random();
+        final AtomicInteger writtenEdgeCount = new AtomicInteger();
+        final AtomicInteger idCounter = new AtomicInteger(vertexCount);
+        final List<Thread> threads = new ArrayList<>();
+        final AtomicInteger edgeWriteException = new AtomicInteger();
+        final AtomicInteger edgePropertyException = new AtomicInteger();
+        for (int i = 0; i < 8; i++) {
+            final Thread edgeThread = new Thread(() -> {
+                while (writtenEdgeCount.get() < 500000) {
+                    GraphTraversalSource gtx = g.tx().begin();
+                    try {
+                        gtx.addE("e").from(__.V(rng.nextInt(idCounter.get()))).to(__.V(rng.nextInt(idCounter.get()))).property("foo", rng.nextInt(1000)).iterate();
+                        gtx.addE("e").from(__.V(rng.nextInt(idCounter.get()))).to(__.V(rng.nextInt(idCounter.get()))).property("foo", rng.nextInt(1000)).iterate();
+                        gtx.addE("e").from(__.V(rng.nextInt(idCounter.get()))).to(__.V(rng.nextInt(idCounter.get()))).property("foo", rng.nextInt(1000)).iterate();
+                        gtx.tx().commit();
+                        writtenEdgeCount.addAndGet(3);
+                    } catch (final Exception e) {
+                        gtx.tx().rollback();
+                        // This assertion sucks but can't do much about it using a DRC
+                        final boolean isTxnError = e.getCause().getMessage().toLowerCase().contains("transaction");
+                        Assert.assertTrue(isTxnError);
+                        edgeWriteException.incrementAndGet();
+                    }
+                }
+            });
+            final Thread edgePropertyThread = new Thread(() -> {
+                while (writtenEdgeCount.get() < 500000) {
+                    int id1 = rng.nextInt(idCounter.get());
+                    int id2 = rng.nextInt(idCounter.get());
+                    int id3 = rng.nextInt(idCounter.get());
+                    try {
+                        g.V(id1, id2, id3).local(__.outE().limit(1).property("foo", rng.nextInt(1000))).iterate();
+                    } catch (final Exception e) {
+                        // This assertion sucks but can't do much about it using a DRC
+                        final boolean isTxnError = e.getCause().getMessage().toLowerCase().contains("transaction");
+                        Assert.assertTrue(isTxnError);
+                        edgePropertyException.incrementAndGet();
+                    }
+                }
+            });
+            threads.add(edgeThread);
+            threads.add(edgePropertyThread);
+        }
+        for (final Thread t : threads) {
+            t.start();
+        }
+        for (final Thread t: threads) {
+            t.join();
+        }
+        Assert.assertTrue(edgeWriteException.get() > 0);
+        Assert.assertTrue(edgePropertyException.get() > 0);
+
+        try (final FireflyGraph firefly = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+            final AtomicLong totalRecordCount = new AtomicLong();
+            final AtomicLong packedRecordCount = new AtomicLong();
+            final AtomicLong halfPackRecordCount = new AtomicLong();
+            final AtomicLong sparsePackRecordCount = new AtomicLong();
+            final Iterator<KeyRecord> edgeKeyRecords = firefly.graphQuery.scanSet(null,
+                    firefly.getBaseGraph().EDGE_AERO_SET, null, null, (it) -> it,
+                    Collections.emptyList(), FireflyEdge.class, true, firefly.settings().evaluationTimeout);
+            while (edgeKeyRecords.hasNext()) {
+                final Record edgeRecord = edgeKeyRecords.next().record;
+                totalRecordCount.incrementAndGet();
+                if (edgeRecord == null) {
+                    continue;
+                }
+                final int edgeCount = ((Map<Object, ?>) edgeRecord.getMap(firefly.getBaseGraph().EDGE_DATA_BIN)).keySet().size();
+                if (edgeCount == 10) {
+                    packedRecordCount.incrementAndGet();
+                } else if (edgeCount > 5) {
+                    halfPackRecordCount.incrementAndGet();
+                } else {
+                    sparsePackRecordCount.incrementAndGet();
+                }
+            }
+            System.out.println("Total Edge record count: " + totalRecordCount.get());
+            System.out.println("Packed Edge record count: " + packedRecordCount.get());
+            System.out.println("Half-packed Edge record count: " + halfPackRecordCount.get());
+            System.out.println("Sparse-packed record count: " + sparsePackRecordCount.get());
+            Assert.assertTrue(100 * packedRecordCount.get() / totalRecordCount.get() > 75);
+            Assert.assertTrue(100 * halfPackRecordCount.get() / totalRecordCount.get() <= 25);
+            Assert.assertTrue(100 * sparsePackRecordCount.get() / totalRecordCount.get() <= 2);
         }
     }
 

@@ -64,6 +64,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
             } catch (final Exception e) {
                 throw new TransactionException("Exception occurred when commiting transaction.", e);
             } finally {
+                this.graph.getIdFactory().recycleCurrentPack();
                 this.txnTimeout.remove();
             }
         }
@@ -80,6 +81,7 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
                 this.dbTxn.remove();
                 throw new TransactionException("Exception occurred during transaction rollback.", e);
             } finally {
+                this.graph.getIdFactory().recycleCurrentPack();
                 this.edgeIdsToRecycle.get().clear();
                 this.txnTimeout.remove();
             }

@@ -1693,7 +1693,9 @@ public class AerospikeConnection implements AutoCloseable {
         try {
             return (cache != null) ? cache.read(readPolicy, key) : client.get(readPolicy, key);
         } catch (final AerospikeException e) {
-            LOG.error("Error: AerospikeException in read {}", e.getMessage());
+            if (!GraphError.isTxnRelatedError(e.getResultCode())) {
+                LOG.error("Error: AerospikeException in read {}", e.getMessage());
+            }
             throw fromAerospikeException(e);
         }
     }
@@ -1730,7 +1732,9 @@ public class AerospikeConnection implements AutoCloseable {
         try {
             return (cache != null) ? cache.read(writePolicy, key, operations) : client.operate(writePolicy, key, operations);
         } catch (final AerospikeException e) {
-            LOG.error("Error: AerospikeException in read {}", e.getMessage());
+            if (!GraphError.isTxnRelatedError(e.getResultCode())) {
+                LOG.error("Error: AerospikeException in read {}", e.getMessage());
+            }
             throw fromAerospikeException(e);
         }
     }
@@ -1770,7 +1774,9 @@ public class AerospikeConnection implements AutoCloseable {
                 return records;
             }
         } catch (final AerospikeException e) {
-            LOG.error("Error: AerospikeException in read {}", e.getMessage());
+            if (!GraphError.isTxnRelatedError(e.getResultCode())) {
+                LOG.error("Error: AerospikeException in read {}", e.getMessage());
+            }
             throw fromAerospikeException(e);
         }
     }
@@ -1894,9 +1900,22 @@ public class AerospikeConnection implements AutoCloseable {
                     LOG.error("Error: Exception in read {}", e.getMessage());
                     throw new TraversalInterruptedException();
                 } catch (final ExecutionException e) {
-                    // Should never happen.
-                    LOG.error("Error: Exception in read {}", e.getMessage());
-                    throw new RuntimeException(e);
+                    if (e.getCause() instanceof AerospikeException) {
+                        final AerospikeException cause = (AerospikeException) e.getCause();
+                        if (!GraphError.isTxnRelatedError(cause.getResultCode())) {
+                            LOG.error("Error: Exception in read {}", e.getMessage());
+                        }
+                        throw fromAerospikeException(cause);
+                    } else if (e.getCause() instanceof AerospikeGraphException) {
+                        final AerospikeGraphException cause = (AerospikeGraphException) e.getCause();
+                        if (!GraphError.isTxnRelatedError(cause.errorCode)) {
+                            LOG.error("Error: Exception in read {}", e.getMessage());
+                        }
+                        throw cause;
+                    } else {
+                        LOG.error("Error: Exception in read {}", e.getMessage());
+                        throw new RuntimeException(e);
+                    }
                 }
             }
             return results;
@@ -2511,7 +2530,7 @@ public class AerospikeConnection implements AutoCloseable {
         } catch (final AerospikeException ae) {
             final AerospikeGraphException age = fromAerospikeException(ae);
             final boolean bulkLoading = conf.getBoolean(ConfigurationHelper.Keys.BULK_LOADER_FLAG, false);
-            if (!bulkLoading && !suppressLogging.contains(age.errorCode)) {
+            if (!bulkLoading && !suppressLogging.contains(age.errorCode) && !GraphError.isTxnRelatedError(ae.getResultCode())) {
                 LOG.error(age.getMessage());
             }
             throw age;

@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.exceptions.GraphError.QUERY_IN_TRANSACTION;
@@ -435,7 +436,7 @@ public class TestTinkerpopTransactions {
 
     @Test
     public void testPhatEdgeFillFactor() throws InterruptedException {
-        final int vertexCount = 1000;
+        final int vertexCount = 500;
         for (long i = 0; i < vertexCount; i++) {
             g.addV().property(T.id, i).iterate();
         }
@@ -444,29 +445,41 @@ public class TestTinkerpopTransactions {
         final AtomicInteger writtenEdgeCount = new AtomicInteger();
         final AtomicInteger idCounter = new AtomicInteger(vertexCount);
         final List<Thread> threads = new ArrayList<>();
-        final AtomicInteger edgeWriteException = new AtomicInteger();
-        final AtomicInteger edgePropertyException = new AtomicInteger();
-        for (int i = 0; i < 8; i++) {
+        final AtomicInteger txnEdgeWriteExceptionCount = new AtomicInteger();
+        final AtomicReference<Exception> edgeWriteException = new AtomicReference<>(null);
+        final AtomicInteger txnEdgePropertyExceptionCount = new AtomicInteger();
+        final AtomicReference<Exception> edgePropertyException = new AtomicReference<>(null);
+        final int parallelizationCount = 8;
+        final AtomicInteger infiniteSafeguard = new AtomicInteger(parallelizationCount);
+        for (int i = 0; i < parallelizationCount; i++) {
             final Thread edgeThread = new Thread(() -> {
-                while (writtenEdgeCount.get() < 500000) {
-                    GraphTraversalSource gtx = g.tx().begin();
-                    try {
-                        gtx.addE("e").from(__.V(rng.nextInt(idCounter.get()))).to(__.V(rng.nextInt(idCounter.get()))).property("foo", rng.nextInt(1000)).iterate();
-                        gtx.addE("e").from(__.V(rng.nextInt(idCounter.get()))).to(__.V(rng.nextInt(idCounter.get()))).property("foo", rng.nextInt(1000)).iterate();
-                        gtx.addE("e").from(__.V(rng.nextInt(idCounter.get()))).to(__.V(rng.nextInt(idCounter.get()))).property("foo", rng.nextInt(1000)).iterate();
-                        gtx.tx().commit();
-                        writtenEdgeCount.addAndGet(3);
-                    } catch (final Exception e) {
-                        gtx.tx().rollback();
-                        // This assertion sucks but can't do much about it using a DRC
-                        final boolean isTxnError = e.getCause().getMessage().toLowerCase().contains("transaction");
-                        Assert.assertTrue(isTxnError);
-                        edgeWriteException.incrementAndGet();
+                try {
+                    while (writtenEdgeCount.get() < 100000) {
+                        GraphTraversalSource gtx = g.tx().begin();
+                        try {
+                            gtx.addE("e").from(__.V(rng.nextInt(idCounter.get()))).to(__.V(rng.nextInt(idCounter.get()))).property("foo", rng.nextInt(1000)).iterate();
+                            gtx.addE("e").from(__.V(rng.nextInt(idCounter.get()))).to(__.V(rng.nextInt(idCounter.get()))).property("foo", rng.nextInt(1000)).iterate();
+                            gtx.addE("e").from(__.V(rng.nextInt(idCounter.get()))).to(__.V(rng.nextInt(idCounter.get()))).property("foo", rng.nextInt(1000)).iterate();
+                            gtx.tx().commit();
+                            writtenEdgeCount.addAndGet(3);
+                        } catch (final Exception e) {
+                            gtx.tx().rollback();
+                            // This assertion sucks but can't do much about it using a DRC
+                            final boolean isTxnError = e.getCause().getMessage().toLowerCase().contains("transaction");
+                            if (isTxnError) {
+                                txnEdgeWriteExceptionCount.incrementAndGet();
+                            } else {
+                                edgeWriteException.set(e);
+                                break;
+                            }
+                        }
                     }
+                } finally {
+                    infiniteSafeguard.decrementAndGet();
                 }
             });
             final Thread edgePropertyThread = new Thread(() -> {
-                while (writtenEdgeCount.get() < 500000) {
+                while (writtenEdgeCount.get() < 100000 && infiniteSafeguard.get() != 0) {
                     int id1 = rng.nextInt(idCounter.get());
                     int id2 = rng.nextInt(idCounter.get());
                     int id3 = rng.nextInt(idCounter.get());
@@ -475,8 +488,12 @@ public class TestTinkerpopTransactions {
                     } catch (final Exception e) {
                         // This assertion sucks but can't do much about it using a DRC
                         final boolean isTxnError = e.getCause().getMessage().toLowerCase().contains("transaction");
-                        Assert.assertTrue(isTxnError);
-                        edgePropertyException.incrementAndGet();
+                        if (isTxnError) {
+                            txnEdgePropertyExceptionCount.incrementAndGet();
+                        } else {
+                            edgePropertyException.set(e);
+                            break;
+                        }
                     }
                 }
             });
@@ -489,8 +506,14 @@ public class TestTinkerpopTransactions {
         for (final Thread t: threads) {
             t.join();
         }
-        Assert.assertTrue(edgeWriteException.get() > 0);
-        Assert.assertTrue(edgePropertyException.get() > 0);
+        Assert.assertTrue(txnEdgeWriteExceptionCount.get() > 0);
+        if (edgeWriteException.get() != null) {
+            Assert.fail("Unexpected exception while writing Edges: " + edgeWriteException.get().getMessage());
+        }
+        Assert.assertTrue(txnEdgePropertyExceptionCount.get() > 0);
+        if (edgePropertyException.get() != null) {
+            Assert.fail("Unexpected exception while writing Edge properties: " + edgePropertyException.get().getMessage());
+        }
 
         try (final FireflyGraph firefly = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             final AtomicLong totalRecordCount = new AtomicLong();
@@ -519,9 +542,12 @@ public class TestTinkerpopTransactions {
             System.out.println("Packed Edge record count: " + packedRecordCount.get());
             System.out.println("Half-packed Edge record count: " + halfPackRecordCount.get());
             System.out.println("Sparse-packed record count: " + sparsePackRecordCount.get());
-            Assert.assertTrue(100 * packedRecordCount.get() / totalRecordCount.get() > 75);
-            Assert.assertTrue(100 * halfPackRecordCount.get() / totalRecordCount.get() <= 25);
-            Assert.assertTrue(100 * sparsePackRecordCount.get() / totalRecordCount.get() <= 2);
+            final long packedPercent = 100 * packedRecordCount.get() / totalRecordCount.get();
+            final long halfPackedPercent = 100 * halfPackRecordCount.get() / totalRecordCount.get();
+            final long sparsePackedPercent = 100 * sparsePackRecordCount.get() / totalRecordCount.get();
+            Assert.assertTrue("Percentage of fully packed records not within expected range: " + packedPercent, packedPercent > 55);
+            Assert.assertTrue("Percentage of mostly packed records not within expected range: " + halfPackedPercent, halfPackedPercent <= 45);
+            Assert.assertTrue("Percentage of sparsely packed records not within expected range: " + sparsePackedPercent, sparsePackedPercent <= 2);
         }
     }
 

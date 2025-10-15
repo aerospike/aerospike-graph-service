@@ -1900,21 +1900,17 @@ public class AerospikeConnection implements AutoCloseable {
                     LOG.error("Error: Exception in read {}", e.getMessage());
                     throw new TraversalInterruptedException();
                 } catch (final ExecutionException e) {
-                    if (e.getCause() instanceof AerospikeException) {
-                        final AerospikeException cause = (AerospikeException) e.getCause();
-                        if (!GraphError.isTxnRelatedError(cause.getResultCode())) {
+                    final Throwable cause = e.getCause();
+                    if (cause instanceof AerospikeException || cause instanceof AerospikeGraphException) {
+                        final AerospikeGraphException age = cause instanceof AerospikeGraphException ?
+                                (AerospikeGraphException) cause : fromAerospikeException((AerospikeException) cause);
+                        if (!GraphError.isTxnRelatedError(age.errorCode)) {
                             LOG.error("Error: Exception in read {}", e.getMessage());
                         }
-                        throw fromAerospikeException(cause);
-                    } else if (e.getCause() instanceof AerospikeGraphException) {
-                        final AerospikeGraphException cause = (AerospikeGraphException) e.getCause();
-                        if (!GraphError.isTxnRelatedError(cause.errorCode)) {
-                            LOG.error("Error: Exception in read {}", e.getMessage());
-                        }
-                        throw cause;
+                        throw age;
                     } else {
-                        LOG.error("Error: Exception in read {}", e.getMessage());
-                        throw new RuntimeException(e);
+                        LOG.error("Error: Exception in read {}", cause.getMessage());
+                        throw new RuntimeException(cause);
                     }
                 }
             }

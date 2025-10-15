@@ -186,7 +186,6 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager
                             });
                         }
                     }
-                    // Make sure to clear here so that finalize doesn't release the Edge Record ID incorrectly
                     this.ids.clear();
                     this.idManager.inUseEdgeRecordIds.remove(this.edgeRecordId);
                 }
@@ -230,12 +229,5 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager
      */
     public Set<Long> getInUseEdgeRecordIds() {
         return new HashSet<>(this.inUseEdgeRecordIds);
-    }
-
-    /**
-     * Testing function
-     */
-    public int getCurrentPackCount() {
-        return this.edgePackIds.get().ids.size();
     }
 }

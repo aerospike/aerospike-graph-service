@@ -545,9 +545,9 @@ public class TestTinkerpopTransactions {
             final long packedPercent = 100 * packedRecordCount.get() / totalRecordCount.get();
             final long halfPackedPercent = 100 * halfPackRecordCount.get() / totalRecordCount.get();
             final long sparsePackedPercent = 100 * sparsePackRecordCount.get() / totalRecordCount.get();
-            Assert.assertTrue("Percentage of fully packed records not within expected range: " + packedPercent, packedPercent > 55);
-            Assert.assertTrue("Percentage of mostly packed records not within expected range: " + halfPackedPercent, halfPackedPercent <= 45);
-            Assert.assertTrue("Percentage of sparsely packed records not within expected range: " + sparsePackedPercent, sparsePackedPercent <= 2);
+            Assert.assertTrue("Percentage of fully packed records not within expected range: " + packedPercent, packedPercent > 96);
+            Assert.assertTrue("Percentage of mostly packed records not within expected range: " + halfPackedPercent, halfPackedPercent <= 3);
+            Assert.assertTrue("Percentage of sparsely packed records not within expected range: " + sparsePackedPercent, sparsePackedPercent <= 1);
         }
     }
 

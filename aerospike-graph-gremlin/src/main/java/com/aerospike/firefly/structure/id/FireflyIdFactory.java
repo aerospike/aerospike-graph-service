@@ -186,8 +186,8 @@ public class FireflyIdFactory {
         return this.edgeIdManager.getNextId(graph);
     }
 
-    public void recycleEdgeId(final FireflyId id, final FireflyGraph graph) {
-        this.edgeIdManager.recycleId(id, graph);
+    public void recycleEdgeId(final FireflyId id, final FireflyGraph graph, final boolean wasIdCommitted) {
+        this.edgeIdManager.recycleId(id, graph, wasIdCommitted);
     }
 
     public void recycleCurrentPack() {

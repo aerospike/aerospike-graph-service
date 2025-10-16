@@ -104,7 +104,7 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager
     }
 
     @Override
-    public void recycleId(final FireflyId id, final FireflyGraph graph) {
+    public void recycleId(final FireflyId id, final FireflyGraph graph, final boolean wasIdCommitted) {
         final long recycledId;
         final long recordId;
         if (id instanceof FireflyPhatEdgeId) {
@@ -115,7 +115,7 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager
             LOG.error(message);
             throw new IllegalArgumentException(message);
         }
-        if (this.edgeRecordIdToPackIds.size() >= bufferSize) {
+        if (this.edgeRecordIdToPackIds.size() >= bufferSize && !this.edgeRecordIdToPackIds.containsKey(recordId)) {
             LOG.debug("Recycled IDs buffer is full. Recycling ID {} will be dropped.", recycledId);
             return;
         }
@@ -123,7 +123,8 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager
             this.edgeRecordIdToPackIds.compute(recordId, (key, current) -> {
                 final EdgePackIds edgePackIds = Objects.requireNonNullElseGet(current,
                         () -> new EdgePackIds(this, recordId));
-                edgePackIds.add(getRecycledId(graph, recycledId));
+                final byte[] recycledIdBytes = wasIdCommitted ? getRecycledId(graph, recycledId) : longToBytes(recycledId);
+                edgePackIds.add(recycledIdBytes);
                 return edgePackIds;
             });
         }
@@ -172,7 +173,8 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager
             @Override
             public void run() {
                 if (!this.ids.isEmpty()) {
-                    if (this.idManager.edgeRecordIdToPackIds.size() >= this.idManager.bufferSize) {
+                    if (this.idManager.edgeRecordIdToPackIds.size() >= this.idManager.bufferSize &&
+                            !this.idManager.edgeRecordIdToPackIds.containsKey(this.edgeRecordId)) {
                         LOG.debug("Recycled IDs buffer is full. Dropping {} recycling IDs.", this.ids.size());
                     } else {
                         synchronized (this.idManager.edgeRecordIdToPackIds) {

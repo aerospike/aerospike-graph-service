@@ -23,7 +23,8 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
     private final ThreadLocal<Txn> dbTxn = ThreadLocal.withInitial(() -> null);
     private final ThreadLocal<Boolean> inTxnState = ThreadLocal.withInitial(() -> false);
     private final ThreadLocal<Long> txnTimeout = ThreadLocal.withInitial(() -> -1L);
-    private final ThreadLocal<Queue<FireflyId>> edgeIdsToRecycle = ThreadLocal.withInitial(ArrayDeque::new);
+    private final ThreadLocal<Queue<FireflyId>> committedEdgeIdsToRecycle = ThreadLocal.withInitial(ArrayDeque::new);
+    private final ThreadLocal<Queue<FireflyId>> uncommittedEdgeIdsToRecycle = ThreadLocal.withInitial(ArrayDeque::new);
 
     public FireflyTransaction(final FireflyGraph g) {
         super(g);
@@ -47,7 +48,8 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
                 txn.setTimeout(this.defaultTimeout);
             }
             this.dbTxn.set(txn);
-            this.edgeIdsToRecycle.get().clear();
+            this.committedEdgeIdsToRecycle.get().clear();
+            this.uncommittedEdgeIdsToRecycle.get().clear();
         }
     }
 
@@ -57,15 +59,14 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
             try {
                 LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("doCommit invoked on Thread: {}");
                 this.graph.getBaseGraph().commit(this.graph, this.dbTxn.get());
-                final Queue<FireflyId> idsToRecycle = this.edgeIdsToRecycle.get();
+                final Queue<FireflyId> idsToRecycle = this.committedEdgeIdsToRecycle.get();
                 while (!idsToRecycle.isEmpty()) {
-                    this.graph.getIdFactory().recycleEdgeId(idsToRecycle.poll(), graph);
+                    this.graph.getIdFactory().recycleEdgeId(idsToRecycle.poll(), graph, true);
                 }
             } catch (final Exception e) {
                 throw new TransactionException("Exception occurred when commiting transaction.", e);
             } finally {
-                this.graph.getIdFactory().recycleCurrentPack();
-                this.txnTimeout.remove();
+                afterTxn();
             }
         }
     }
@@ -76,16 +77,25 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
             try {
                 LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("doRollback invoked on Thread: {}");
                 this.graph.getBaseGraph().rollback(this.graph, this.dbTxn.get());
+                final Queue<FireflyId> idsToRecycle = this.uncommittedEdgeIdsToRecycle.get();
+                while (!idsToRecycle.isEmpty()) {
+                    this.graph.getIdFactory().recycleEdgeId(idsToRecycle.poll(), graph, false);
+                }
             } catch (final Exception e) {
                 // Reset the txn since a failed rollback should still reset the state to allow new txns.
                 this.dbTxn.remove();
                 throw new TransactionException("Exception occurred during transaction rollback.", e);
             } finally {
-                this.graph.getIdFactory().recycleCurrentPack();
-                this.edgeIdsToRecycle.get().clear();
-                this.txnTimeout.remove();
+                afterTxn();
             }
         }
+    }
+
+    private void afterTxn() {
+        this.graph.getIdFactory().recycleCurrentPack();
+        this.uncommittedEdgeIdsToRecycle.get().clear();
+        this.committedEdgeIdsToRecycle.get().clear();
+        this.txnTimeout.remove();
     }
 
     @Override
@@ -126,8 +136,12 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
         this.inTxnState.set(false);
     }
 
-    public void addIdToRecycle(final FireflyId edgeId) {
-        this.edgeIdsToRecycle.get().add(edgeId);
+    public void stageCommittedIdForRecycling(final FireflyId edgeId) {
+        this.committedEdgeIdsToRecycle.get().add(edgeId);
+    }
+
+    public void stageUncommittedIdForRecycling(final FireflyId edgeId) {
+        this.uncommittedEdgeIdsToRecycle.get().add(edgeId);
     }
 
     private boolean isInTxnState() {

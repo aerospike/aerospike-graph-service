@@ -48,7 +48,11 @@ public class RecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager {
     }
 
     @Override
-    public void recycleId(final FireflyId id, final FireflyGraph graph) {
+    public void recycleId(final FireflyId id, final FireflyGraph graph, final boolean wasIdCommitted) {
+        if (!wasIdCommitted) {
+            // This should never happen
+            throw new IllegalStateException("Attempted to recycle an uncommitted ID. Please contact support.");
+        }
         final long recycledId;
         if (id instanceof FireflyPhatEdgeId) {
             recycledId = ((FireflyPhatEdgeId) id).getPackingId();

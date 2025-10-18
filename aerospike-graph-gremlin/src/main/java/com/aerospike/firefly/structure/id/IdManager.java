@@ -19,5 +19,5 @@ public interface IdManager<T> {
      *
      * @param id    id to recycle
      */
-    void recycleId(final FireflyId id, final FireflyGraph graph);
+    void recycleId(final FireflyId id, final FireflyGraph graph, final boolean wasIdCommitted);
 }

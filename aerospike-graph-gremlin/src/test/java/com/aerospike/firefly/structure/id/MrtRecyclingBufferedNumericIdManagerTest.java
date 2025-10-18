@@ -106,7 +106,7 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
         }
 
         while (!idsToRecycle.isEmpty()) {
-            ID_MANAGER.recycleId(idsToRecycle.poll(), GRAPH);
+            ID_MANAGER.recycleId(idsToRecycle.poll(), GRAPH, true);
             for (int i = 0; i < GRAPH.getBaseGraph().PHAT_EDGE_SIZE * 2; i++) {
                 final FireflyPhatEdgeId id = getId(GRAPH);
                 recycledPackIds.remove(id.getPackingId());
@@ -174,13 +174,13 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
             FireflyPhatEdgeId id = getId(GRAPH);
             Long storageId = (Long) id.getStorageId();
             recycleStorageId.set(storageId);
-            ID_MANAGER.recycleId(id, GRAPH);
+            ID_MANAGER.recycleId(id, GRAPH, true);
             id = getId(GRAPH);
             storageId = (Long) id.getStorageId();
             if (!storageId.equals(recycleStorageId.get())) {
                 internalAssertFailure.set(true);
             }
-            ID_MANAGER.recycleId(id, GRAPH);
+            ID_MANAGER.recycleId(id, GRAPH, true);
             while (!breakBoolean.get()) {
                 try {
                     Thread.sleep(100);

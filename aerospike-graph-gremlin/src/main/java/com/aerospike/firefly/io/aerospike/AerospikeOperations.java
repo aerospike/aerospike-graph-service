@@ -955,14 +955,15 @@ public class AerospikeOperations {
                                  final List<Map.Entry<String, Object>> properties,
                                  final FireflyVertex inVertex,
                                  final FireflyVertex outVertex) {
-        FireflyEdgeId edgeId = (FireflyEdgeId) graph.getIdFactory().generateId(graph, FireflyEdge.class);
-        final Txn txn = getOrCreateTxn();
+        FireflyEdgeId edgeId = (FireflyEdgeId) this.graph.getIdFactory().generateId(this.graph, FireflyEdge.class);
+        final FireflyTxn fireflyTxn = getOrCreateFireflyTxn();
 
-        if (graph.tx().getCurrentTxn() != null || txn != null) {
+        if (this.graph.tx().getCurrentTxn() != null || fireflyTxn != null) {
             try {
                 // In Txn mode, write the Edge first so we can handle transaction collisions. Txn also ensures either
                 // all or no writes go commit so the ordering doesn't matter.
-                // Note: txn being null is expected. tx() txn is injected at a higher level that overwrites.
+                // Note: txn being null is allowed. tx() txn is injected at a higher level that overwrites.
+                final Txn txn = fireflyTxn == null ? null : fireflyTxn.aerospikeTxn;
                 FireflyEdge edge = null;
                 while (edge == null) {
                     try {
@@ -970,19 +971,25 @@ public class AerospikeOperations {
                                 !inVertex.isEdgeCacheOverflowed(), !outVertex.isEdgeCacheOverflowed(), txn);
                     } catch (final AerospikeGraphException e) {
                         if (e.errorCode == GraphError.RECORD_TX_BLOCKED.code) {
-                            graph.getIdFactory().recycleEdgeId(edgeId, graph);
-                            edgeId = graph.getIdFactory().generateNonRecycledEdgeId(graph);
+                            this.graph.getIdFactory().recycleEdgeId(edgeId, this.graph, false);
+                            edgeId = this.graph.getIdFactory().generateNonRecycledEdgeId(this.graph);
                             LOG.info("A transaction collision occurred when writing a new Edge. Changing target record and retrying.");
                         } else {
                             throw e;
                         }
                     }
                 }
-
+                if (this.graph.tx().getCurrentTxn() != null) {
+                    // Tinkerpop transaction
+                    this.graph.tx().stageUncommittedIdForRecycling(edge.id);
+                } else {
+                    // MRT transaction
+                    fireflyTxn.stageUncommittedIdForRecycling(edge.id);
+                }
                 writeEdgeToVertex(inVertex, Direction.IN, graph.getIdFactory().createCompositeEdgeId(edgeId, outVertex.id), label, txn);
                 writeEdgeToVertex(outVertex, Direction.OUT, graph.getIdFactory().createCompositeEdgeId(edgeId, inVertex.id), label, txn);
 
-                db.commit(graph, txn);
+                commit(fireflyTxn);
 
                 if (db.IS_AUDIT_LOG_ENABLED) {
                     // Edge id is byte buffer so not useful.
@@ -990,7 +997,7 @@ public class AerospikeOperations {
                 }
                 return edge;
             } catch (final RuntimeException e) {
-                db.rollback(graph, txn);
+                rollback(fireflyTxn);
                 throw e;
             }
         } else {
@@ -1433,14 +1440,14 @@ public class AerospikeOperations {
                 if (edgeData instanceof List || edgeData instanceof Map) {
                     if (this.graph.tx().getCurrentTxn() != null) {
                         // Tinkerpop transaction
-                        this.graph.tx().addIdToRecycle(edge.id);
+                        this.graph.tx().stageCommittedIdForRecycling(edge.id);
                         graph.fireflySummaryUpdater.addEdgeRemoveToQueue(edge.label(), this.graph.tx().getCurrentTxn());
                     } else if (innerTxn != null) {
                         // MRT transaction
-                        innerTxn.addIdToRecycle(edge.id);
+                        innerTxn.stageCommittedIdForRecycling(edge.id);
                         graph.fireflySummaryUpdater.addEdgeRemoveToQueue(edge.label(), innerTxn.aerospikeTxn);
                     } else {
-                        graph.getIdFactory().recycleEdgeId(edge.id, graph);
+                        graph.getIdFactory().recycleEdgeId(edge.id, graph, true);
                         graph.fireflySummaryUpdater.addEdgeRemoveToQueue(edge.label(), null);
                     }
                 } else if (edgeData != null) {

@@ -22,7 +22,7 @@ abstract public class RecyclingEdgeIdManager implements IdManager<byte[]> {
 
     abstract protected byte[] getNewId(final FireflyGraph graph);
 
-    abstract public void recycleId(final FireflyId id, final FireflyGraph graph);
+    abstract public void recycleId(final FireflyId id, final FireflyGraph graph, final boolean wasIdCommitted);
 
     static public byte[] longToBytes(final long x) {
         final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);

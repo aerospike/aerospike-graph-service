@@ -186,8 +186,17 @@ public class FireflyIdFactory {
         return this.edgeIdManager.getNextId(graph);
     }
 
-    public void recycleEdgeId(final FireflyId id, final FireflyGraph graph) {
-        this.edgeIdManager.recycleId(id, graph);
+    public void recycleEdgeId(final FireflyId id, final FireflyGraph graph, final boolean wasIdCommitted) {
+        this.edgeIdManager.recycleId(id, graph, wasIdCommitted);
+    }
+
+    public void recycleCurrentPack() {
+        if (this.edgeIdManager instanceof MrtRecyclingBufferedNumericIdManager) {
+            ((MrtRecyclingBufferedNumericIdManager) this.edgeIdManager).recycleCurrentPack();
+        } else {
+            // This should never happen.
+            throw new IllegalStateException("Attempted to recycle Edge record pack ID. Please contact support.");
+        }
     }
 
     public FireflyEdgeId generateNonRecycledEdgeId(final FireflyGraph graph) {

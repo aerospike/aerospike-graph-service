@@ -13,16 +13,22 @@ import java.util.Set;
 public class FireflyTxn {
     private final FireflyGraph graph;
     public final Txn aerospikeTxn;
-    private final Set<FireflyId> recycledEdgeIds;
+    private final Set<FireflyId> committedEdgeIdsToRecycle;
+    private final Set<FireflyId> uncommittedEdgeIdsToRecycle;
 
     public FireflyTxn(final FireflyGraph graph, final Txn txn) {
         this.graph = graph;
         this.aerospikeTxn = txn;
-        this.recycledEdgeIds = new HashSet<>();
+        this.committedEdgeIdsToRecycle = new HashSet<>();
+        this.uncommittedEdgeIdsToRecycle = new HashSet<>();
     }
 
-    public void addIdToRecycle(final FireflyId id) {
-        this.recycledEdgeIds.add(id);
+    public void stageCommittedIdForRecycling(final FireflyId id) {
+        this.committedEdgeIdsToRecycle.add(id);
+    }
+
+    public void stageUncommittedIdForRecycling(final FireflyId id) {
+        this.uncommittedEdgeIdsToRecycle.add(id);
     }
 
     private void commit() {
@@ -30,13 +36,20 @@ public class FireflyTxn {
         processPostCommit();
     }
 
-    private void rollback() {
-        this.graph.getBaseGraph().rollback(this.graph, this.aerospikeTxn);
+    private void processPostCommit() {
+        for (final FireflyId id : committedEdgeIdsToRecycle) {
+            this.graph.getIdFactory().recycleEdgeId(id, this.graph, true);
+        }
     }
 
-    private void processPostCommit() {
-        for (final FireflyId id : recycledEdgeIds) {
-            this.graph.getIdFactory().recycleEdgeId(id, this.graph);
+    private void rollback() {
+        this.graph.getBaseGraph().rollback(this.graph, this.aerospikeTxn);
+        processPostRollback();
+    }
+
+    private void processPostRollback() {
+        for (final FireflyId id : uncommittedEdgeIdsToRecycle) {
+            this.graph.getIdFactory().recycleEdgeId(id, this.graph, false);
         }
     }
 

@@ -72,47 +72,42 @@
             <version>1.21</version>
             <scope>test</scope>
         </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-IOAIRLIFT-7164637 in spark-core_2.12@3.4.3-->
-        <dependency>
-            <groupId>io.airlift</groupId>
-            <artifactId>aircompressor</artifactId>
-            <version>0.27</version>
-        </dependency>
         <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-IONETTY-8707739 in zookeeper@3.8.4 -->
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>
             <version>${netty.version}</version>
         </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEZOOKEEPER-5961102 in spark-core_2.12@3.4.3 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEZOOKEEPER-5961102 in spark-core_2.12@3.4.4 -->
         <dependency>
             <groupId>org.apache.zookeeper</groupId>
             <artifactId>zookeeper</artifactId>
-            <version>3.8.4</version>
+            <version>3.8.5</version>
         </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6254296 in spark-core_2.12@3.4.3 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEIVY-5847858 in spark-core_2.12@3.4.4 -->
         <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-compress</artifactId>
-            <version>1.26.2</version>
+            <groupId>org.apache.ivy</groupId>
+            <artifactId>ivy</artifactId>
+            <version>2.5.3</version>
         </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-7569538 in avro@1.11.4 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-IOAIRLIFT-7164637 in spark-core_2.12@3.4.4-->
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>aircompressor</artifactId>
+            <version>0.27</version>
+        </dependency>
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-10500754 in avro@1.11.5 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-7569538 in avro@1.11.5 -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
             <version>2.15.4</version>
         </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEAVRO-8161188 in spark-core_2.12@3.4.3 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEAVRO-8161188 in spark-core_2.12@3.4.4 -->
         <dependency>
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>
-            <version>1.11.4</version>
-        </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEIVY-5847858 in spark-core_2.12@3.4.3 -->
-        <dependency>
-            <groupId>org.apache.ivy</groupId>
-            <artifactId>ivy</artifactId>
-            <version>2.5.2</version>
+            <version>1.11.5</version>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
@@ -191,7 +186,7 @@
             <version>hadoop3-2.2.25</version>
             <classifier>shaded</classifier>
         </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGCODEHAUSJETTISON-3168085 in spark-hadoop-cloud_2.12@3.4.3 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGCODEHAUSJETTISON-3168085 in spark-hadoop-cloud_2.12@3.4.4 -->
         <dependency>
             <groupId>org.codehaus.jettison</groupId>
             <artifactId>jettison</artifactId>

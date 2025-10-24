@@ -59,6 +59,7 @@ import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.PluginUtil;
 import com.aerospike.firefly.util.concurrency.FireflyRecordLockHandler;
 import com.aerospike.firefly.util.exceptions.TxNotEnabledException;
+import com.aerospike.firefly.util.exceptions.VertexAlreadyExistsFailure;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
@@ -79,10 +80,12 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.service.ServiceRegistry;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
 import org.apache.tinkerpop.gremlin.util.CollectionUtil;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,6 +97,7 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -1061,8 +1065,77 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return features;
     }
 
+    private Optional<Vertex> returnVertexIfEquivalent(final FireflyId id, final String label, final List<Map.Entry<String, Object>> properties) {
+        try {
+            final FireflyVertex v = readVertex(id);
+            if (v != null) {
+                // Check that all properties match.
+                if (!v.label().equals(label)) {
+                    return Optional.empty();
+                }
+
+                int count = 0;
+                for (final Map.Entry<String, Object> entry : properties) {
+                    if (entry.getKey().startsWith("~") || entry.getKey().startsWith("___")) {
+                        // Skip special internal properties.
+                        continue;
+                    }
+
+                    // If there is a property mismatch, then the key already existing is not valid.
+                    count++;
+                    final Iterator<VertexProperty<Object>> ps = v.properties(entry.getKey());
+                    if (!ps.hasNext()) {
+                        return Optional.empty();
+                    }
+                    final VertexProperty<Object> p = ps.next();
+                    if (!p.value().equals(entry.getValue()) || ps.hasNext()) {
+                        return Optional.empty();
+                    }
+                }
+
+                // Unskipped property count must match actual property count if they are equivalent.
+                if (IteratorUtils.count(v.properties()) != count) {
+                    return Optional.empty();
+                }
+
+                // Check the edge caches for edges.
+                if (!v.inEdgeIds.isEmpty() || !v.outEdgeIds.isEmpty()) {
+                    // If the edge caches contain anything, then the key already existing is not valid.
+                    return Optional.empty();
+                }
+                final Map.Entry<String, Object> supernodeFlag = properties.stream().filter(entry -> entry.getKey().equals(SUPERNODE_PROPERTY_KEY)).findFirst().orElse(null);
+                if (!v.isEdgeCacheOverflowed) {
+                    // A vertex must be a supernode if this was set, but not the other way around.
+                    if (supernodeFlag != null) {
+                        // A vertex must be a supernode if this is true, but not the other way around.
+                        if ((supernodeFlag.getValue() instanceof Boolean) && (boolean) supernodeFlag.getValue()) {
+                            return Optional.empty();
+                        }
+                    }
+                } else {
+                    // No choice but to pull the index.
+                    for (final Direction direction : List.of(Direction.IN, Direction.OUT)) {
+                        try (final CloseableIterator<FireflyId> edgeIdItty
+                                     = CloseableIterator.of(v.getSupernodeEdgeIds(direction, Collections.emptySet(), Collections.emptyList()))) {
+                            if (edgeIdItty.hasNext()) {
+                                return Optional.empty();
+                            }
+                        }
+                    }
+                }
+                return Optional.of(v);
+            } else {
+                // Tried to read it back and it isn't there. Could be a concurrent delete.
+                return Optional.empty();
+            }
+        } catch (final AerospikeGraphException age) {
+            // This is such a bad scenario, just throw the error back to the user.
+            throw new VertexAlreadyExistsFailure(age.getMessage());
+        }
+    }
+
     @Override
-    public Vertex addVertex(Object... keyValues) {
+    public Vertex addVertex(final Object... keyValues) {
         // Validate key value pairs are valid for TinkerPop.
         ElementHelper.legalPropertyKeyValueArray(keyValues);
 
@@ -1072,29 +1145,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 keyValues);
 
         // Create a new id or use the provided user-supplied id (if present and supported).
-        FireflyId idValue = null;
         final Optional<Object> id = ElementHelper.getIdValue(keyValues);
-        if (id.isEmpty()) {
-            idValue = getIdFactory().generateId(this, FireflyVertex.class);
-            Vertex v = null;
-            while (v == null) {
-                try {
-                    v = writeVertex(idValue, label, properties);
-                } catch (final AerospikeGraphException e) {
-                    if (e.errorCode == ResultCode.KEY_EXISTS_ERROR) {
-                        idValue = getIdFactory().generateId(this, FireflyVertex.class);
-                    } else {
-                        throw e;
-                    }
-                }
-            }
-            if (db.IS_AUDIT_LOG_ENABLED) {
-                LOG.info("[{}] created vertex with id: {}", USER.get(), idValue.getUserId());
-            }
-            return v;
-        } else {
+        final boolean isUserSuppliedId = id.isPresent();
+        FireflyId idValue = isUserSuppliedId ? getIdFactory().createVertexId(id.get()) : getIdFactory().generateId(this, FireflyVertex.class);
+        while (true) {
             try {
-                idValue = getIdFactory().createVertexId(id.get());
                 final Vertex v = writeVertex(idValue, label, properties);
                 if (db.IS_AUDIT_LOG_ENABLED) {
                     LOG.info("[{}] created vertex with id: {}", USER.get(), idValue.getUserId());
@@ -1102,7 +1157,35 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 return v;
             } catch (final AerospikeGraphException e) {
                 if (e.errorCode == ResultCode.KEY_EXISTS_ERROR) {
-                    throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.getUserId());
+                    if (!(e.getCause() instanceof AerospikeException)) {
+                        // This should never happen.
+                        throw e;
+                    }
+
+                    final AerospikeException ae = (AerospikeException) e.getCause();
+                    // We got a straightforward ID collision.
+                    if (!ae.getInDoubt()) {
+                        if (isUserSuppliedId) {
+                            throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.getUserId());
+                        } else {
+                            // Retry with next ID.
+                            idValue = getIdFactory().generateId(this, FireflyVertex.class);
+                            continue;
+                        }
+                    }
+
+                    // The ID collision could have been caused by the client retrying, so we do our best to check.
+                    final Optional<Vertex> equivalentVertex = returnVertexIfEquivalent(idValue, label, properties);
+                    if (equivalentVertex.isPresent()) {
+                        return equivalentVertex.get();
+                    } else {
+                        if (isUserSuppliedId) {
+                            // User-supplied ID and it already exists but is not equivalent.
+                            throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.getUserId());
+                        } else {
+                            idValue = getIdFactory().generateId(this, FireflyVertex.class);
+                        }
+                    }
                 } else {
                     throw e;
                 }

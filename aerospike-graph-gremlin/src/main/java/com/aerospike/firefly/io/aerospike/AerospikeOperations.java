@@ -668,7 +668,8 @@ public class AerospikeOperations {
 
             final MapPolicy treeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
             final MapPolicy hashMapPolicy = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.DEFAULT);
-            final ListPolicy listPolicy = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.DEFAULT);
+            final ListPolicy preventDuplicates = new ListPolicy(ListOrder.UNORDERED,
+                    ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL | ListWriteFlags.PARTIAL);
             if (cardinality.equals(VertexProperty.Cardinality.single)) {
                 final List<Long> idInList = new ArrayList<>(1);
                 idInList.add(vpIdKey);
@@ -682,7 +683,7 @@ public class AerospikeOperations {
                 idToProperties.put(vpIdKey, properties);
                 writeVpProperties = MapOperation.put(hashMapPolicy, this.db.VP_PROPERTY_BIN, Value.get(schemaVpKey), Value.get(idToProperties));
             } else if (cardinality.equals(VertexProperty.Cardinality.list)) {
-                writeVpData = ListOperation.append(listPolicy, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(vpIdKey),
+                writeVpData = ListOperation.append(preventDuplicates, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(vpIdKey),
                         CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(verifiedValue), MapOrder.UNORDERED));
                 writeVpTypeHint = MapOperation.put(hashMapPolicy, this.db.VERTEX_PROPERTY_TH_BIN, Value.get(vpIdKey),
                         Value.get(typeHint), CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.UNORDERED));

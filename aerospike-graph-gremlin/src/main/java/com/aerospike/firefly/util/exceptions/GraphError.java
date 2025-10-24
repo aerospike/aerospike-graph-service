@@ -77,7 +77,8 @@ public enum GraphError {
     PARALLELIZE_IN_TX(1123),
     SCAN_NOT_ALLOWED(1124),
     SINDEX_ALREADY_EXISTS(1125),
-	
+    WRITE_VERTEX_DOUBLE_FAILURE(1126),
+
     ELEMENT_NOT_FOUND(ResultCode.KEY_NOT_FOUND_ERROR),
     RECORD_SIZE_EXCEEDED(ResultCode.RECORD_TOO_BIG),
     OUT_OF_MEMORY(ResultCode.SERVER_MEM_ERROR),
@@ -137,6 +138,9 @@ public enum GraphError {
         ERROR_MESSAGES.put(PARALLELIZE_IN_TX.code, "The '" + ConfigurationHelper.TraversalOptions.PARALLELIZE + "' parameter is not allowed for traversals within a transaction.");
         ERROR_MESSAGES.put(SCAN_NOT_ALLOWED.code, "Scan queries are not permitted. Please create an index for the query or configure the '" + SCAN_QUERY_ALLOWED + "' setting to 'true'.");
         ERROR_MESSAGES.put(SINDEX_ALREADY_EXISTS.code, "The following indexes could not be created because they already exist: [%s].");
+        ERROR_MESSAGES.put(WRITE_VERTEX_DOUBLE_FAILURE.code, "Error handling instability when writing Vertex. A Vertex " +
+                "with the specified ID may have been written, but was unable to validate due to read exception [%s]. " +
+                "Please contact support if the issue persists.");
 
         // Server
         ERROR_MESSAGES.put(ELEMENT_NOT_FOUND.code, "Element was dropped and no longer exists.");

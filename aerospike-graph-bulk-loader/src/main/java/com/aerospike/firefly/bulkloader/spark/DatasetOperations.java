@@ -82,6 +82,7 @@ public class DatasetOperations implements Serializable {
         for (final String csv : csvPaths) {
             final Dataset<Row> dataset = spark.read()
                     .option("header", "true")
+                    .option("enforceSchema", "false") // headshot
                     .option("recursiveFileLookup", "true").csv(csv)
                     .select(input_file_name().as(FILENAME_COLUMN), col("*"));
             testHeaders(requiredHeaders, csv, dataset);

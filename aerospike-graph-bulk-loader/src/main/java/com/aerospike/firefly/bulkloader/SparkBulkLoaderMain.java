@@ -10,6 +10,7 @@ import com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceErrors;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.spark.SparkException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,6 +99,13 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             if (!output.equals(BULK_LOAD_SUCCESS)) {
                 LOGGER.warn(output);
             }
+        } catch (final Exception e) {
+            if (e instanceof SparkException && e.getCause() instanceof IllegalArgumentException
+                    && e.getCause().getMessage().startsWith("CSV header does not conform to the schema.")) {
+                throw new RuntimeException("Elements of different types should be in separate folders.\n\n"
+                        + e.getCause().getMessage());
+            }
+            throw e;
         } finally {
             cleanup(stateMachine, uuid);
         }
@@ -120,8 +128,15 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
                         }
                     }
                 } catch (final Exception e) {
-                    LOGGER.error("L2 bulk load failed", e);
-                    state = new SparkBulkLoaderStateError(stateMachine, e);
+                    Exception ex = e;
+                    if (e instanceof SparkException && e.getCause() instanceof IllegalArgumentException
+                            && e.getCause().getMessage().startsWith("CSV header does not conform to the schema.")) {
+                        ex = new RuntimeException("Elements of different types should be in separate folders.\n\n"
+                                + e.getCause().getMessage());
+                    }
+
+                    LOGGER.error("L2 bulk load failed", ex);
+                    state = new SparkBulkLoaderStateError(stateMachine, ex);
                 }
                 stateMachine.progressBar.printProgress();
             } finally {
@@ -131,7 +146,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
                 executor.shutdown();
             }
         });
-    };
+    }
 
     private void cleanup(final SparkBulkLoaderStateMachine stateMachine, final String uuid) {
         if (stateMachine != null) {

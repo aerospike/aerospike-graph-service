@@ -65,22 +65,31 @@ public class FireflyIdFactory {
         }
 
         if (convertedId instanceof String) {
-            try {
-                // Tinkerpop treats Strings that are Long-parsable as a Long, but still need to retain their status as a String.
-                final long stringIdAsLong = Long.parseLong((String) convertedId);
-                return FireflyIdPoly.fromObject(stringIdAsLong, convertedId.getClass(), this.db.VERTEX_AERO_SET);
-            } catch (final NumberFormatException e) {
-                // Do nothing - ID is a String
+            String strId = (String) convertedId;
+            if (isAllDigits(strId)) {
+                long stringIdAsLong = Long.parseLong(strId, 0, strId.length(), 10);
+                return FireflyIdPoly.fromObject(stringIdAsLong, String.class, this.db.VERTEX_AERO_SET);
             }
         }
 
-        final Class idClass = convertedId.getClass();
+        final Class<?> idClass = convertedId.getClass();
         if (!VERTEX_ID_TYPE_TO_HINT.containsKey(idClass)) {
             LOG.error("Invalid id type for vertex: {}.", idClass);
             throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
         }
 
         return FireflyIdPoly.fromObject(convertedId, this.db.VERTEX_AERO_SET);
+    }
+
+    private static boolean isAllDigits(String s) {
+        int len = s.length();
+        if (len == 0) return false;
+        int i = (s.charAt(0) == '-') ? 1 : 0;
+        for (; i < len; i++) {
+            char c = s.charAt(i);
+            if (c < '0' || c > '9') return false;
+        }
+        return true;
     }
 
     /**
@@ -145,8 +154,9 @@ public class FireflyIdFactory {
 
     /**
      * Create a composite id from an edge and a vertex id
-     * @param edgeId            the edge id
-     * @param adjacentVertex    the adjacent vertex id
+     *
+     * @param edgeId         the edge id
+     * @param adjacentVertex the adjacent vertex id
      * @return a FireflyIdComposite representing an edge and an adjacent Vertex
      */
     public FireflyIdComposite createCompositeEdgeId(final FireflyEdgeId edgeId, final FireflyId adjacentVertex) {
@@ -155,7 +165,8 @@ public class FireflyIdFactory {
 
     /**
      * Create a composite id from a List
-     * @param compositeIdArray  the List that forms a FireflyIdComposite
+     *
+     * @param compositeIdArray the List that forms a FireflyIdComposite
      * @return a FireflyIdComposite representing an edge and an adjacent Vertex
      */
     public FireflyIdComposite createCompositeEdgeId(final List<Object> compositeIdArray) {
@@ -206,9 +217,8 @@ public class FireflyIdFactory {
     public void convertMapToLazyIdsInPlace(final Map<String, ?> fireflyObjectIds,
                                            final FireflyGraph graph,
                                            final Class<? extends LazyIdTransform> type) {
-        // Code below complains without the supression and cast to <String, Object>.
-        @SuppressWarnings("unchecked")
-        final Map<String, Object> fireflyObjectIdsMap = (Map) fireflyObjectIds;
+        // Code below complains without the suppression and cast to <String, Object>.
+        @SuppressWarnings("unchecked") final Map<String, Object> fireflyObjectIdsMap = (Map<String, Object>) fireflyObjectIds;
         if (fireflyObjectIdsMap == null) {
             return;
         }

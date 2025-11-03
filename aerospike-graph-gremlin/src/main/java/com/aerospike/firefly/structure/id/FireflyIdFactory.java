@@ -65,9 +65,9 @@ public class FireflyIdFactory {
         }
 
         if (convertedId instanceof String) {
-            String strId = (String) convertedId;
+            final String strId = (String) convertedId;
             if (isAllDigits(strId)) {
-                long stringIdAsLong = Long.parseLong(strId, 0, strId.length(), 10);
+                final long stringIdAsLong = Long.parseLong(strId, 0, strId.length(), 10);
                 return FireflyIdPoly.fromObject(stringIdAsLong, String.class, this.db.VERTEX_AERO_SET);
             }
         }

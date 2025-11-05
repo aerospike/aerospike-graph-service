@@ -578,30 +578,28 @@ public final class ConfigurationHelper {
         }
 
         Object valueRaw = traversalOptions.get(key);
+        int value;
 
-        if (valueRaw instanceof Integer || valueRaw instanceof Long) {
-            if (valueRaw instanceof Long) {
-                valueRaw = ((Long) valueRaw).intValue();
+        if (valueRaw instanceof Integer) {
+            value = (int) valueRaw;
+        } else if (valueRaw instanceof Long) {
+            value = ((Long) valueRaw).intValue();
+        } else {
+            try {
+                value = Integer.parseInt(valueRaw.toString());
+            } catch (final NumberFormatException e) {
+                throw new ConfigurationRuntimeException("Invalid value for " + key +
+                        " option. Must be an integer or integer string. " +
+                        valueRaw + " is of type " + valueRaw.getClass().getName());
             }
-            final int value = (int) valueRaw;
-            if (value < min) {
-                throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be greater than " + min + ". " + value + " is less than " + min + ".");
-            } else if (value > max) {
-                throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be less than " + max + ". " + value + " is greater than " + max + ".");
-            }
-            return Optional.of(value);
         }
-        final int value;
-        try {
-            value = Integer.parseInt(valueRaw.toString());
-            if (value < min) {
-                throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be greater than " + min + ". " + value + " is less than " + min + ".");
-            } else if (value > max) {
-                throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be less than " + max + ". " + value + " is greater than " + max + ".");
-            }
-        } catch (final NumberFormatException e) {
+
+        if (value < min || value > max) {
+            String bound = (value < min)
+                    ? "greater than or equal to " + min
+                    : "less than or equal to " + max;
             throw new ConfigurationRuntimeException("Invalid value for " + key +
-                    " option. Must be an integer or integer string. " + valueRaw + " is of type " + valueRaw.getClass().getName());
+                    " option. Must be " + bound + ". Got " + value + ".");
         }
         return Optional.of(value);
     }

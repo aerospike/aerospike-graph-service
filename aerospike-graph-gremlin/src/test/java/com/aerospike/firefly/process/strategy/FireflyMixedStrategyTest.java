@@ -3,6 +3,7 @@ package com.aerospike.firefly.process.strategy;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadSampleLimitStep;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchVertexReadSampleLimitStep;
+import com.aerospike.firefly.process.traversal.step.FireflyHasIdVertexStep;
 import com.aerospike.firefly.process.traversal.step.FireflyOtherVBatchReadStep;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchVertexReadStep;
 import com.aerospike.firefly.process.traversal.step.FireflyEdgeToVertexBatchReadStep;
@@ -928,8 +929,8 @@ public class FireflyMixedStrategyTest {
         final Traversal.Admin traversal = graph.traversal().V().in().hasId("test").in().
                 in().hasId("test").in().hasId("test").asAdmin();
         traversal.applyStrategies();
-        listClassCompare(traversal.getSteps(), List.of(FireflyGraphStep.class, FireflyBatchVertexReadStep.class,
-                FireflyBatchVertexReadStep.class, FireflyBatchVertexReadStep.class, FireflyBatchVertexReadStep.class));
+        listClassCompare(traversal.getSteps(), List.of(FireflyGraphStep.class, FireflyHasIdVertexStep.class,
+                FireflyBatchVertexReadStep.class, FireflyHasIdVertexStep.class, FireflyHasIdVertexStep.class));
     }
 
     @Test
@@ -937,8 +938,8 @@ public class FireflyMixedStrategyTest {
         final Traversal.Admin traversal = graph.traversal().V().out().hasId("test").out().
                 out().hasId("test").out().hasId("test").asAdmin();
         traversal.applyStrategies();
-        listClassCompare(traversal.getSteps(), List.of(FireflyGraphStep.class, FireflyBatchVertexReadStep.class,
-                FireflyBatchVertexReadStep.class, FireflyBatchVertexReadStep.class, FireflyBatchVertexReadStep.class));
+        listClassCompare(traversal.getSteps(), List.of(FireflyGraphStep.class, FireflyHasIdVertexStep.class,
+                FireflyBatchVertexReadStep.class, FireflyHasIdVertexStep.class, FireflyHasIdVertexStep.class));
     }
 
     @Test
@@ -946,8 +947,8 @@ public class FireflyMixedStrategyTest {
         final Traversal.Admin traversal = graph.traversal().V().both().hasId("test").both().
                 both().hasId("test").both().hasId("test").asAdmin();
         traversal.applyStrategies();
-        listClassCompare(traversal.getSteps(), List.of(FireflyGraphStep.class, FireflyBatchVertexReadStep.class,
-                FireflyBatchVertexReadStep.class, FireflyBatchVertexReadStep.class, FireflyBatchVertexReadStep.class));
+        listClassCompare(traversal.getSteps(), List.of(FireflyGraphStep.class, FireflyHasIdVertexStep.class,
+                FireflyBatchVertexReadStep.class, FireflyHasIdVertexStep.class, FireflyHasIdVertexStep.class));
     }
 
     @Test
@@ -1009,8 +1010,8 @@ public class FireflyMixedStrategyTest {
         final Traversal.Admin traversal = graph.traversal().V().in().hasId("test").as("a").in().
                 in().hasId("test").as("b").in().hasId("test").as("c").asAdmin();
         traversal.applyStrategies();
-        listClassCompare(traversal.getSteps(), List.of(FireflyGraphStep.class, FireflyBatchVertexReadStep.class,
-                FireflyBatchVertexReadStep.class, FireflyBatchVertexReadStep.class, FireflyBatchVertexReadStep.class));
+        listClassCompare(traversal.getSteps(), List.of(FireflyGraphStep.class, FireflyHasIdVertexStep.class,
+                FireflyBatchVertexReadStep.class, FireflyHasIdVertexStep.class, FireflyHasIdVertexStep.class));
     }
 
     @Test
@@ -1018,8 +1019,8 @@ public class FireflyMixedStrategyTest {
         final Traversal.Admin traversal = graph.traversal().V().out().hasId("test").as("a").out().
                 out().hasId("test").as("b").out().hasId("test").as("c").asAdmin();
         traversal.applyStrategies();
-        listClassCompare(traversal.getSteps(), List.of(FireflyGraphStep.class, FireflyBatchVertexReadStep.class,
-                FireflyBatchVertexReadStep.class, FireflyBatchVertexReadStep.class, FireflyBatchVertexReadStep.class));
+        listClassCompare(traversal.getSteps(), List.of(FireflyGraphStep.class, FireflyHasIdVertexStep.class,
+                FireflyBatchVertexReadStep.class, FireflyHasIdVertexStep.class, FireflyHasIdVertexStep.class));
     }
 
     @Test
@@ -1027,8 +1028,8 @@ public class FireflyMixedStrategyTest {
         final Traversal.Admin traversal = graph.traversal().V().both().hasId("test").as("a").both().
                 both().hasId("test").as("b").both().hasId("test").as("c").asAdmin();
         traversal.applyStrategies();
-        listClassCompare(traversal.getSteps(), List.of(FireflyGraphStep.class, FireflyBatchVertexReadStep.class,
-                FireflyBatchVertexReadStep.class, FireflyBatchVertexReadStep.class, FireflyBatchVertexReadStep.class));
+        listClassCompare(traversal.getSteps(), List.of(FireflyGraphStep.class, FireflyHasIdVertexStep.class,
+                FireflyBatchVertexReadStep.class, FireflyHasIdVertexStep.class, FireflyHasIdVertexStep.class));
     }
 
     @Test

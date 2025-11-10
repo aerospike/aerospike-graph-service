@@ -25,7 +25,7 @@ public class FireflyBatchVertexReadStrategyTests {
     private static FireflyGraph graph;
 
     @BeforeClass
-    public static void setUp() throws Exception {
+    public static void setUp() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         graph = FireflyGraph.open(config);
     }
@@ -104,15 +104,14 @@ public class FireflyBatchVertexReadStrategyTests {
     private void assertReadProperties(final GraphTraversal t, final List<String> expected) {
         t.asAdmin().applyStrategies();
         final List<Step> steps = t.asAdmin().getSteps();
-        FireflyBatchVertexReadStep step = null;
+        FireflyBatchVertexReadStep step;
         for (final Step s : steps) {
             if (s instanceof FireflyBatchVertexReadStep) {
                 step = (FireflyBatchVertexReadStep) s;
+                assertNotNull(step);
+                assertEquals(expected, step.getProperties());
                 break;
             }
         }
-
-        assertNotNull(step);
-        assertEquals(expected, step.getProperties());
     }
 }

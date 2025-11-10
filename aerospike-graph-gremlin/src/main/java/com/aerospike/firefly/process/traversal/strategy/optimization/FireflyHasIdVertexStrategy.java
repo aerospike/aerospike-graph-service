@@ -25,28 +25,36 @@ public class FireflyHasIdVertexStrategy extends FireflyStrategyBase {
         if (steps.size() < 2) return;
 
         for (int i = 1; i < steps.size(); i++) {
-            final Step<?, ?> currentStep = steps.get(i);
+            final Step<?, ?> current = steps.get(i);
+            if (!(current instanceof HasStep)) continue;
 
-            if (currentStep instanceof HasStep && steps.get(i - 1) instanceof VertexStep) {
-                final HasStep<?> hasStep = (HasStep<?>) currentStep;
-                final VertexStep<?> vertexStep = (VertexStep<?>) steps.get(i - 1);
+            final Step<?, ?> prev = steps.get(i - 1);
+            if (!(prev instanceof VertexStep)) continue;
 
-                if (!vertexStep.returnsVertex()) continue;
-                if (!isIdOnlyFilter(hasStep)) continue;
+            final HasStep<?> has = (HasStep<?>) current;
+            final VertexStep<?> vertexStep = (VertexStep<?>) prev;
 
-                TraversalHelper.replaceStep(
-                        hasStep,
-                        new FireflyHasIdVertexStep<>(
-                                traversal,
-                                vertexStep.getDirection(),
-                                vertexStep.getEdgeLabels(),
-                                hasStep.getHasContainers()
-                        ),
-                        traversal
-                );
+            // Must return vertices (skip outE/inE/bothE)
+            if (!vertexStep.returnsVertex()) continue;
 
-                traversal.removeStep(vertexStep);
-            }
+            // Skip if the input to VertexStep are edges
+            final Step<?, ?> input = vertexStep.getPreviousStep();
+            if (input instanceof VertexStep && ((VertexStep<?>) input).returnsEdge()) continue;
+
+            // Only optimize hasId()
+            if (!isIdOnlyFilter(has)) continue;
+
+            TraversalHelper.replaceStep(
+                    has,
+                    new FireflyHasIdVertexStep<>(
+                            traversal,
+                            vertexStep.getDirection(),
+                            vertexStep.getEdgeLabels(),
+                            has.getHasContainers()
+                    ),
+                    traversal
+            );
+            traversal.removeStep(vertexStep);
         }
     }
 

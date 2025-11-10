@@ -290,6 +290,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY;
     public final boolean ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY;
     public final boolean ENABLE_CACHED_ADJACENT_ID_STRATEGY;
+    public final boolean ENABLE_FAST_HASID_VERTEX_STRATEGY;
 
     // MergeEdge fields
     public final int MERGE_EDGE_EVAL_TIMEOUT;
@@ -477,6 +478,7 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf);
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf);
         ENABLE_BATCHED_REPEAT_STEP_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf);
+        ENABLE_FAST_HASID_VERTEX_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_FAST_HASID_VERTEX_STRATEGY, conf);
         final boolean adjacentIdEnabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, conf);
 
         if (adjacentIdEnabled && !ENABLE_COMPOSITE_ID_STRATEGY) {

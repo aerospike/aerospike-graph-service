@@ -138,7 +138,7 @@ public final class ConfigurationHelper {
         public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
         public static final String ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = "aerospike.graph.strategy.local.fast.count.embedded.enabled";
         public static final String ENABLE_BATCHED_REPEAT_STEP_STRATEGY = "aerospike.graph.strategy.batched.repeat.step.enabled";
-        public static final String ENABLE_FAST_HASID_VERTEX_STRATEGY = "aerospike.graph.strategy.fast.hasid.vertex.enabled";
+        public static final String ENABLE_FAST_HASID_VERTEX_FILTER_STRATEGY = "aerospike.graph.strategy.fast.hasid.vertex.filter.enabled";
         public static final String GLOBAL_EDGE_CACHE_ENABLED = "aerospike.graph.global.edge.cache.enabled";
         public static final String CLEAR_ON_VERSION_INCOMPATIBILITY = "aerospike.graph.clear-on-version-incompatibility.enabled";
 
@@ -394,7 +394,7 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, "true");
-        put(Keys.ENABLE_FAST_HASID_VERTEX_STRATEGY, "true");
+        put(Keys.ENABLE_FAST_HASID_VERTEX_FILTER_STRATEGY, "true");
         put(Keys.AEROSPIKE_PORT, "3000");
         put(Keys.AEROSPIKE_TIMEOUT, "2000");
         put(Keys.WRITE_SOCKET_TIMEOUT, "500");

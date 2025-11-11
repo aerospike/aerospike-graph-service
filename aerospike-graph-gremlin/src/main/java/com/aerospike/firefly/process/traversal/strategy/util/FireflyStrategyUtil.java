@@ -13,7 +13,7 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyElem
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyHasIdVertexStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyHasIdVertexFilterStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyMergeStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyOtherVBatchReadStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyReadThroughCacheStrategy;
@@ -57,7 +57,7 @@ public class FireflyStrategyUtil {
         FIREFLY_STRATEGIES.add(new FireflyVertexEdgeLocalCountStrategy());
 
         // Steps that replace specific internal steps.
-        FIREFLY_STRATEGIES.add(new FireflyHasIdVertexStrategy());
+        FIREFLY_STRATEGIES.add(new FireflyHasIdVertexFilterStrategy());
         FIREFLY_STRATEGIES.add(new FireflyMergeStepStrategy());
         FIREFLY_STRATEGIES.add(new FireflyBatchVertexReadStrategy());
         FIREFLY_STRATEGIES.add(new FireflyBatchVertexReadLocalStrategy());

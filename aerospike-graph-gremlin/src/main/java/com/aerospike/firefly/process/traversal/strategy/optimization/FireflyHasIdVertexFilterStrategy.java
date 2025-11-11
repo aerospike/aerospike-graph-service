@@ -1,6 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.traversal.step.FireflyHasIdVertexStep;
+import com.aerospike.firefly.process.traversal.step.FireflyHasIdVertexFilterStep;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -12,18 +12,20 @@ import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.util.List;
 
-public class FireflyHasIdVertexStrategy extends FireflyStrategyBase {
+public class FireflyHasIdVertexFilterStrategy extends FireflyStrategyBase {
 
     @Override
     public String getStrategyEnabledKey() {
-        return ConfigurationHelper.Keys.ENABLE_FAST_HASID_VERTEX_STRATEGY;
+        return ConfigurationHelper.Keys.ENABLE_FAST_HASID_VERTEX_FILTER_STRATEGY;
     }
 
     @Override
     protected void doApply(final Traversal.Admin<?, ?> traversal) {
-        final List<Step> steps = traversal.getSteps();
-        if (steps.size() < 2) return;
+        // Only optimize nested traversals (e.g. inside where(), not(), etc.)
+        // Optimizing root traversals (e.g. g.V(1).bothE().otherV().hasId(2)) risks breaking traversal semantics
+        if (traversal.isRoot()) return;
 
+        final List<Step> steps = traversal.getSteps();
         for (int i = 1; i < steps.size(); i++) {
             final Step<?, ?> current = steps.get(i);
             if (!(current instanceof HasStep)) continue;
@@ -31,26 +33,20 @@ public class FireflyHasIdVertexStrategy extends FireflyStrategyBase {
             final Step<?, ?> prev = steps.get(i - 1);
             if (!(prev instanceof VertexStep)) continue;
 
-            final HasStep<?> has = (HasStep<?>) current;
             final VertexStep<?> vertexStep = (VertexStep<?>) prev;
-
-            // Must return vertices (skip outE/inE/bothE)
             if (!vertexStep.returnsVertex()) continue;
 
-            // Skip if the input to VertexStep are edges
-            final Step<?, ?> input = vertexStep.getPreviousStep();
-            if (input instanceof VertexStep && ((VertexStep<?>) input).returnsEdge()) continue;
+            final HasStep<?> hasStep = (HasStep<?>) current;
+            if (!isIdOnlyFilter(hasStep)) continue;
 
-            // Only optimize hasId()
-            if (!isIdOnlyFilter(has)) continue;
-
+            // Replace and remove old step
             TraversalHelper.replaceStep(
-                    has,
-                    new FireflyHasIdVertexStep<>(
+                    hasStep,
+                    new FireflyHasIdVertexFilterStep<>(
                             traversal,
                             vertexStep.getDirection(),
                             vertexStep.getEdgeLabels(),
-                            has.getHasContainers()
+                            hasStep.getHasContainers()
                     ),
                     traversal
             );

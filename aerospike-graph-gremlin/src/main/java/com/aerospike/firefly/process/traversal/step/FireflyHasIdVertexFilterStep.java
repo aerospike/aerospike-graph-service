@@ -9,7 +9,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.AbstractStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -19,29 +19,19 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
-public class FireflyHasIdVertexStep<S> extends AbstractStep<S, S> {
+public class FireflyHasIdVertexFilterStep<S> extends AbstractStep<S, S> {
     private final Direction direction;
     private final Set<String> edgeLabels;
-    private final Set<Object> targetIds;
+    private final List<HasContainer> hasContainers;
 
-    public FireflyHasIdVertexStep(final Traversal.Admin<?, ?> traversal,
-                                  final Direction direction,
-                                  final String[] edgeLabels,
-                                  final List<HasContainer> hasContainers) {
+    public FireflyHasIdVertexFilterStep(final Traversal.Admin<?, ?> traversal,
+                                        final Direction direction,
+                                        final String[] edgeLabels,
+                                        final List<HasContainer> hasContainers) {
         super(traversal);
         this.direction = direction;
         this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
-        this.targetIds = extractTargetIds(hasContainers);
-    }
-
-    private static Set<Object> extractTargetIds(final List<HasContainer> hasContainers) {
-        final Set<Object> ids = new HashSet<>();
-        for (HasContainer hc : hasContainers) {
-            if (hc.getKey().equals(T.id.getAccessor())) {
-                ids.add(hc.getValue());
-            }
-        }
-        return ids;
+        this.hasContainers = hasContainers;
     }
 
     @Override
@@ -56,18 +46,21 @@ public class FireflyHasIdVertexStep<S> extends AbstractStep<S, S> {
             } else if (element instanceof ComputerGraph.ComputerVertex) {
                 vertex = (FireflyVertex) ((ComputerGraph.ComputerVertex) element).getBaseVertex();
             } else {
-                continue; // skip non-vertex traversers
+                continue; // Skip non-vertex traversers
             }
 
             final Iterator<FireflyId> neighborIds =
                     vertex.getVertexIdsFromVertex(direction, edgeLabels);
+
             while (neighborIds.hasNext()) {
                 final FireflyId neighborId = neighborIds.next();
-                if (targetIds.contains(neighborId.getUserId())) {
+                final ReferenceVertex ref = new ReferenceVertex(neighborId.getUserId());
+
+                if (hasContainers.stream().allMatch(hc -> hc.test(ref))) {
                     return traverser;
                 }
             }
-            // No matches, move to next traverser
+            // Otherwise, skip this traverser
         }
     }
 

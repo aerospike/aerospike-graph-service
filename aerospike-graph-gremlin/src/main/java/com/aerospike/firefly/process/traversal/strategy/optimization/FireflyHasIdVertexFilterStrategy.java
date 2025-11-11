@@ -21,9 +21,14 @@ public class FireflyHasIdVertexFilterStrategy extends FireflyStrategyBase {
 
     @Override
     protected void doApply(final Traversal.Admin<?, ?> traversal) {
-        // Only optimize nested traversals (e.g. inside where(), not(), etc.)
-        // Optimizing root traversals (e.g. g.V(1).bothE().otherV().hasId(2)) risks breaking traversal semantics
-        if (traversal.isRoot()) return;
+        // Apply only inside filter parents, skip root and non-filter parents (map/local/etc.) they can violate
+        // traversal semantics.
+        final Step<?,?> parent = traversal.getParent() == null ? null : traversal.getParent().asStep();
+        if (!(parent instanceof org.apache.tinkerpop.gremlin.process.traversal.step.filter.TraversalFilterStep
+                || parent instanceof org.apache.tinkerpop.gremlin.process.traversal.step.filter.WhereTraversalStep
+                || parent instanceof org.apache.tinkerpop.gremlin.process.traversal.step.filter.NotStep)) {
+            return;
+        }
 
         final List<Step> steps = traversal.getSteps();
         for (int i = 1; i < steps.size(); i++) {

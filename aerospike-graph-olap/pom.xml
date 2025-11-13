@@ -189,22 +189,22 @@
             <artifactId>aws-java-sdk-kms</artifactId>
             <version>${awssdk.version}</version>
         </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMGOOGLEPROTOBUF-8055227 in gcs-connector@hadoop3-2.2.25 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMGOOGLEPROTOBUF-8055227 in gcs-connector@hadoop3-2.2.29 -->
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>3.25.6</version>
+            <version>3.25.8</version>
         </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMGOOGLEPROTOBUF-8055228 in gcs-connector@hadoop3-2.2.25 -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-IOGRPC-13786834 in gcs-connector@hadoop3-2.2.29 -->
         <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java-util</artifactId>
-            <version>3.25.6</version>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <version>1.76.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.cloud.bigdataoss</groupId>
             <artifactId>gcs-connector</artifactId>
-            <version>hadoop3-2.2.25</version>
+            <version>hadoop3-2.2.29</version>
             <classifier>shaded</classifier>
         </dependency>
         <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGCODEHAUSJETTISON-3168085 in spark-hadoop-cloud_2.12@3.4.4 -->

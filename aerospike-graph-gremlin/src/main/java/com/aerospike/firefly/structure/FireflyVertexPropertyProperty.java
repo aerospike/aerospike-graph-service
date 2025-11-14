@@ -45,12 +45,12 @@ public class FireflyVertexPropertyProperty<V> extends FireflyProperty<V> {
     @Override
     public void remove() {
         final AerospikeConnection db = this.graph.getBaseGraph();
-        final Key opKey = getKey(db, db.VERTEX_AERO_SET, ((FireflyVertex) vertexProperty.element()).id);
+        final Key opKey = getKey(db, db.getConfig().vertexAeroSet, ((FireflyVertex) vertexProperty.element()).id);
         final Long schemaVertexPropertyKey = db.schemaManager.getVertexPropertyRead(vertexProperty.key);
         final Long vertexPropertyId = (Long) vertexProperty.id.getStorageId();
         final Long schemaPropertyKey = db.schemaManager.getVpPropertyRead(this.key());
 
-        final Operation removeProperty = MapOperation.removeByKey(db.VP_PROPERTY_BIN, Value.get(schemaPropertyKey),
+        final Operation removeProperty = MapOperation.removeByKey(db.getConfig().vpPropertyBin, Value.get(schemaPropertyKey),
                 MapReturnType.NONE,
                 CTX.mapKey(Value.get(schemaVertexPropertyKey)), CTX.mapKey(Value.get(vertexPropertyId)));
 

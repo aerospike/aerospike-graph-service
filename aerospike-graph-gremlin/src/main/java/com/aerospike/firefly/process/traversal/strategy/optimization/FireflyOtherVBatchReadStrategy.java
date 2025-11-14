@@ -33,7 +33,7 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
     protected void doApply(final Traversal.Admin<?, ?> traversal) {
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
 
-        if (!graph.getBaseGraph().ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY) {
+        if (!graph.getBaseGraph().getConfig().enableBatchVertexReadOtherVStrategy) {
             return;
         }
 
@@ -69,7 +69,7 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
                     labels = hasStep.getLabels();
                     traversal.removeStep(steps.get(index + 1));
                 } else if (steps.get(index + 1) instanceof RangeGlobalStep) {
-                    if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY) {
+                    if (!graph.getBaseGraph().getConfig().enableBatchEdgeReadLimitStrategy) {
                         break;
                     }
                     final long low = ((RangeGlobalStep<?>) steps.get(index + 1)).getLowRange();
@@ -100,7 +100,7 @@ public class FireflyOtherVBatchReadStrategy extends FireflyStrategyBase {
                         traversal,
                         hasContainers,
                         labels,
-                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
+                        graph.getBaseGraph().getConfig().movementBarrierSize,
                         areEdgesRequired,
                         limitSize);
             }

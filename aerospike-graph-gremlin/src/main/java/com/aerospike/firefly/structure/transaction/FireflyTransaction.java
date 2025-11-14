@@ -29,8 +29,8 @@ public class FireflyTransaction extends AbstractThreadLocalTransaction {
     public FireflyTransaction(final FireflyGraph g) {
         super(g);
         this.graph = g;
-        this.isTxnEnabled = g.getBaseGraph().TRANSACTION_ENABLED;
-        this.defaultTimeout = g.getBaseGraph().TRANSACTION_TIMEOUT;
+        this.isTxnEnabled = g.getBaseGraph().getConfig().transactionEnabled;
+        this.defaultTimeout = g.getBaseGraph().getConfig().transactionTimeout;
     }
 
     @Override

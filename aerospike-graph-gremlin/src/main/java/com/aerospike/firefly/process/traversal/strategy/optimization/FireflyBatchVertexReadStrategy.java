@@ -19,7 +19,6 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.areEdgesRequired;
 import static com.aerospike.firefly.process.traversal.strategy.util.StrategyHelper.getPropertyKeys;
@@ -145,7 +144,7 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                     labels = hasStep.getLabels();
                     traversal.removeStep(hasStep);
                 } else if (steps.get(index) instanceof SampleGlobalStep) {
-                    if (!graph.getBaseGraph().ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY) {
+                    if (!graph.getBaseGraph().getConfig().enableCompositeIdSamplingStrategy) {
                         break;
                     }
                     // If there's has containers (g.V().out().has( ...).limit(X)) then don't push down the limit.
@@ -192,7 +191,7 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                         // Already grabbed this, still looping to see if a HasStep is present, but we found this instead.
                         break;
                     }
-                    if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY) {
+                    if (!graph.getBaseGraph().getConfig().enableBatchEdgeReadLimitStrategy) {
                         break;
                     }
                     final long low = ((RangeGlobalStep<?>) steps.get(index)).getLowRange();
@@ -219,7 +218,7 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                         labels,
                         sampleSize,
                         limitSize,
-                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
+                        graph.getBaseGraph().getConfig().movementBarrierSize,
                         propertyKeys,
                         areEdgesRequired));
             } else {
@@ -229,7 +228,7 @@ public class FireflyBatchVertexReadStrategy extends FireflyStrategyBase {
                         vertexStep.getEdgeLabels(),
                         labels,
                         hasContainers,
-                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
+                        graph.getBaseGraph().getConfig().movementBarrierSize,
                         propertyKeys,
                         areEdgesRequired,
                         limitSize));

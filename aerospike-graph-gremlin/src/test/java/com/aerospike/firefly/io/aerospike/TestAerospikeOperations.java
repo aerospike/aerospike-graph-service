@@ -133,11 +133,14 @@ public class TestAerospikeOperations {
         doNothing().when(schemaManager).populateEdgePropertyStringMapToSchemaMap(any(), any());
         when(schemaManager.getEdgeLabelWrite(any())).thenReturn(0L);
 
+        final AerospikeConnectionConfig config = mock(AerospikeConnectionConfig.class);
+        setFieldValue(AerospikeConnectionConfig.class, config, "edgeCacheDisabledBin", "edgeCacheDisabledBin");
+        setFieldValue(AerospikeConnectionConfig.class, config, "mrtEnabled", true);
+        setFieldValue(AerospikeConnectionConfig.class, config, "mrtTimeout", 1234);
+
         final AerospikeConnection connection = mock(AerospikeConnection.class);
-        setFieldValue(AerospikeConnection.class, connection, "EDGE_CACHE_DISABLED_BIN", "EDGE_CACHE_DISABLED_BIN");
-        setFieldValue(AerospikeConnection.class, connection, "MRT_ENABLED", true);
-        setFieldValue(AerospikeConnection.class, connection, "MRT_TIMEOUT", 1234);
         setFieldValue(AerospikeConnection.class, connection, "schemaManager", schemaManager);
+        when(connection.getConfig()).thenReturn(config);
         final FireflyIdFactory fireflyIdFactory = mock(FireflyIdFactory.class);
         when(fireflyIdFactory.createCompositeEdgeId(edgeId, inVertexId)).thenReturn(compositeIdIn);
         when(fireflyIdFactory.createCompositeEdgeId(edgeId, outVertexId)).thenReturn(compositeIdOut);
@@ -149,11 +152,11 @@ public class TestAerospikeOperations {
         final List<WritePolicy> writePolicy = new ArrayList<>();
         doAnswer(invocation -> {
             writePolicy.add(invocation.getArgument(0));
-            return new Record(Map.of("EDGE_CACHE_DISABLED_BIN", List.of(true, false)), 0, 0);
+            return new Record(Map.of("edgeCacheDisabledBin", List.of(true, false)), 0, 0);
         }).when(connection).writeOperate(any(WritePolicy.class), any(Key.class), any(Set.class), any(Boolean.class), any(Operation.class));
         doAnswer(invocation -> {
             writePolicy.add(invocation.getArgument(0));
-            return new Record(Map.of("EDGE_CACHE_DISABLED_BIN", List.of(true, false)), 0, 0);
+            return new Record(Map.of("edgeCacheDisabledBin", List.of(true, false)), 0, 0);
         }).when(connection).writeOperate(any(WritePolicy.class), any(Key.class),any(Operation.class));
 
         final List<Txn> txn = new ArrayList<>();

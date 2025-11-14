@@ -41,8 +41,8 @@ public class FireflyTtlHandler implements Closeable {
 
     public FireflyTtlHandler(final FireflyGraph graph) {
         this.graph = graph;
-        this.isTtlEnabled = graph.getBaseGraph().TTL_ENABLED_FLAG && !graph.bulkLoaderFlag && !graph.getBaseGraph().WARMUP_MODE;
-        this.ttlPurgeIntervalMillis = graph.getBaseGraph().TTL_PURGE_INTERVAL_SECONDS * 1000;
+        this.isTtlEnabled = graph.getBaseGraph().getConfig().ttlEnabledFlag && !graph.bulkLoaderFlag && !graph.getBaseGraph().getConfig().warmupMode;
+        this.ttlPurgeIntervalMillis = graph.getBaseGraph().getConfig().ttlPurgeIntervalSeconds * 1000;
         this.thisRunTime = new AtomicLong();
         if (this.isTtlEnabled) {
             this.scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -90,7 +90,7 @@ public class FireflyTtlHandler implements Closeable {
                     cleanUpPurgeCount[1] + " expired Edges.");
         } else {
             LOG.warn("The latest TTL purge had " + normalPurgeCount[0] + " expired Vertices and " + normalPurgeCount[1] +
-                    " expired Edges which took longer than the configured time of " + graph.getBaseGraph().TTL_PURGE_INTERVAL_SECONDS +
+                    " expired Edges which took longer than the configured time of " + graph.getBaseGraph().getConfig().ttlPurgeIntervalSeconds +
                     " seconds to remove. Upcoming expiring elements' removal may be delayed.");
         }
         this.scheduler.schedule(this::startPurge, getMillisToNextRun(), TimeUnit.MILLISECONDS);
@@ -107,8 +107,8 @@ public class FireflyTtlHandler implements Closeable {
         final AerospikeConnection db = this.graph.getBaseGraph();
         long removalCount = 0;
         try {
-            final Iterator<KeyRecord> vertexRecordsToDelete = graph.graphQuery.querySIndex(db.VERTEX_AERO_SET,
-                    db.TTL_VERTEX_INDEX_NAME, Filter.range(db.TTL_BIN, startTime, endTime), QUERY_POLICY);
+            final Iterator<KeyRecord> vertexRecordsToDelete = graph.graphQuery.querySIndex(db.getConfig().vertexAeroSet,
+                    db.getConfig().ttlVertexIndexName, Filter.range(db.getConfig().ttlBin, startTime, endTime), QUERY_POLICY);
             while (vertexRecordsToDelete.hasNext()) {
                 final KeyRecord vertexRecord = vertexRecordsToDelete.next();
                 final FireflyVertex vertex = this.graph.vertexFromRecord(vertexRecord);
@@ -134,14 +134,14 @@ public class FireflyTtlHandler implements Closeable {
         final AerospikeConnection db = this.graph.getBaseGraph();
         long removalCount = 0;
         try {
-            final Iterator<KeyRecord> edgesToDelete = graph.graphQuery.querySIndex(db.EDGE_AERO_SET,
-                    db.TTL_EDGE_INDEX_NAME, Filter.range(db.TTL_BIN, IndexCollectionType.MAPVALUES, startTime, endTime),
+            final Iterator<KeyRecord> edgesToDelete = graph.graphQuery.querySIndex(db.getConfig().edgeAeroSet,
+                    db.getConfig().ttlEdgeIndexName, Filter.range(db.getConfig().ttlBin, IndexCollectionType.MAPVALUES, startTime, endTime),
                     QUERY_POLICY);
             long currentEdgeDeleteTime = System.currentTimeMillis();
             while (edgesToDelete.hasNext()) {
                 final Record record = edgesToDelete.next().record;
                 final FireflyEdgeRecord edgeRecord = new FireflyEdgeRecord(record, graph.getBaseGraph());
-                final Map<?, Long> edgeTtls = (Map<?, Long>) record.getMap(db.TTL_BIN);
+                final Map<?, Long> edgeTtls = (Map<?, Long>) record.getMap(db.getConfig().ttlBin);
                 for (final Map.Entry<?, Long> edgeTtl : edgeTtls.entrySet()) {
                     final long expiryTime = edgeTtl.getValue();
                     // Need this check since phat edge TTL bin map can contain entries outside of index range

@@ -67,7 +67,7 @@ public class FireflyEdgeToVertexBatchReadStrategy extends FireflyStrategyBase {
                     labels = hasStep.getLabels();
                     traversal.removeStep(steps.get(index + 1));
                 } else if (steps.get(index + 1) instanceof RangeGlobalStep) {
-                    if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY) {
+                    if (!graph.getBaseGraph().getConfig().enableBatchEdgeReadLimitStrategy) {
                         break;
                     }
                     final long low = ((RangeGlobalStep<?>) steps.get(index + 1)).getLowRange();
@@ -91,7 +91,7 @@ public class FireflyEdgeToVertexBatchReadStrategy extends FireflyStrategyBase {
                     ((EdgeVertexStep) original).getDirection(),
                     hasContainers,
                     labels,
-                    graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
+                    graph.getBaseGraph().getConfig().movementBarrierSize,
                     areEdgesRequired,
                     limitSize);
 

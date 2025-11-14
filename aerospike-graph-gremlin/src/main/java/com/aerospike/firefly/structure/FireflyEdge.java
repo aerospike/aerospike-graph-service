@@ -165,7 +165,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
         // Handle TTL.
         if (TTL_PROPERTY_KEY.equals(key)) {
-            if (!db.TTL_ENABLED_FLAG) {
+            if (!db.getConfig().ttlEnabledFlag) {
                 throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
             }
             if (value == null) {

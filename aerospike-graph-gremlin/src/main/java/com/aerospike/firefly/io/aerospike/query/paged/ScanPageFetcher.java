@@ -53,7 +53,7 @@ public class ScanPageFetcher<E extends Element> extends PageFetcher<E> {
             return null;
         };
         this.startTime = System.currentTimeMillis();
-        if (!graph.getBaseGraph().SCAN_QUERY_ALLOWED) {
+        if (!graph.getBaseGraph().getConfig().scanQueryAllowed) {
             throw new AerospikeGraphException(GraphError.SCAN_NOT_ALLOWED);
         }
     }
@@ -97,7 +97,7 @@ public class ScanPageFetcher<E extends Element> extends PageFetcher<E> {
             pageQueue.put(new Page(listener.paginationIterator));
             while (!done.get()) {
                 // Monitor max wait to write to pagination queue.
-                boolean succeeded = latch.await(graph.getBaseGraph().PAGINATION_PAGE_MAX_WAIT, TimeUnit.MILLISECONDS);
+                boolean succeeded = latch.await(graph.getBaseGraph().getConfig().paginationPageMaxWait, TimeUnit.MILLISECONDS);
                 if (!succeeded) {
                     listener.error("Failed to scan page: Timed out waiting for scan to complete.");
                     break;

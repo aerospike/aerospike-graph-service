@@ -1102,17 +1102,17 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         List<Edge> el = new ArrayList<>();
         assertEquals(3, FireflyCloseableIteratorUtils.count(graph.vertices(va.id(), vb.id(), vc.id())));
         assertEquals(3, FireflyCloseableIteratorUtils.count(graph.edges(eab.id(), eac.id(), ebc.id())));
-        IntStream.range(0, db.AEROSPIKE_BATCH_READ_SIZE + 3).forEach(i -> {
+        IntStream.range(0, db.getConfig().aerospikeBatchReadSize + 3).forEach(i -> {
             Vertex v = graph.addVertex();
             vl.add(v);
             el.add(va.addEdge("test", v));
         });
         Object[] vertexIdArray = new Vertex[vl.size()];
         vl.toArray(vertexIdArray);
-        assertEquals(db.AEROSPIKE_BATCH_READ_SIZE + 3, FireflyCloseableIteratorUtils.count(graph.vertices(vertexIdArray)));
+        assertEquals(db.getConfig().aerospikeBatchReadSize + 3, FireflyCloseableIteratorUtils.count(graph.vertices(vertexIdArray)));
         Object[] edgeIdArray = new Edge[el.size()];
         el.toArray(edgeIdArray);
-        assertEquals(db.AEROSPIKE_BATCH_READ_SIZE + 3, FireflyCloseableIteratorUtils.count(graph.edges(edgeIdArray)));
+        assertEquals(db.getConfig().aerospikeBatchReadSize + 3, FireflyCloseableIteratorUtils.count(graph.edges(edgeIdArray)));
     }
 
     @Test

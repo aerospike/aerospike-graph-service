@@ -84,13 +84,13 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
         final long supernodeCount = g.V()
-                .filter(__.bothE().count().is(P.gt(graph.getBaseGraph().ON_RECORD_ID_LIMIT)))
+                .filter(__.bothE().count().is(P.gt(graph.getBaseGraph().getConfig().onRecordIdLimit)))
                 .count()
                 .next();
         final Map<Object, Object> vertexLabels = g.V().group().by(__.label()).by(__.count()).next();
         final Map<Object, Object> edgeLabels = g.E().group().by(__.label()).by(__.count()).next();
         final Map<Object, Object> supernodeLabels = g.V()
-                .filter(__.outE().count().is(P.gt(graph.getBaseGraph().ON_RECORD_ID_LIMIT)))
+                .filter(__.outE().count().is(P.gt(graph.getBaseGraph().getConfig().onRecordIdLimit)))
                 .group()
                 .by(__.label())
                 .by(__.count()).next();
@@ -215,13 +215,13 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
         final long supernodeCount = g.V()
-                .filter(__.bothE().count().is(P.gt(graph.getBaseGraph().ON_RECORD_ID_LIMIT)))
+                .filter(__.bothE().count().is(P.gt(graph.getBaseGraph().getConfig().onRecordIdLimit)))
                 .count()
                 .next();
         final Map<Object, Object> vertexLabels = g.V().group().by(__.label()).by(__.count()).next();
         final Map<Object, Object> edgeLabels = g.E().group().by(__.label()).by(__.count()).next();
         final Map<Object, Object> supernodeLabels = g.V()
-                .filter(__.outE().count().is(P.gt(graph.getBaseGraph().ON_RECORD_ID_LIMIT)))
+                .filter(__.outE().count().is(P.gt(graph.getBaseGraph().getConfig().onRecordIdLimit)))
                 .group()
                 .by(__.label())
                 .by(__.count()).next();
@@ -288,7 +288,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
         final long supernodeCount = g.V()
-                .filter(__.bothE().count().is(P.gt(graph.getBaseGraph().ON_RECORD_ID_LIMIT)))
+                .filter(__.bothE().count().is(P.gt(graph.getBaseGraph().getConfig().onRecordIdLimit)))
                 .count()
                 .next();
 
@@ -350,14 +350,14 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
         final long supernodeCount = g.V()
-                .filter(__.bothE().count().is(P.gt(graph.getBaseGraph().ON_RECORD_ID_LIMIT)))
+                .filter(__.bothE().count().is(P.gt(graph.getBaseGraph().getConfig().onRecordIdLimit)))
                 .count()
                 .next();
 
         final Map<Object, Object> vertexLabels = g.V().group().by(__.label()).by(__.count()).next();
         final Map<Object, Object> edgeLabels = g.E().group().by(__.label()).by(__.count()).next();
         final Map<Object, Object> supernodeLabels = g.V()
-                .filter(__.bothE().count().is(P.gt(graph.getBaseGraph().ON_RECORD_ID_LIMIT)))
+                .filter(__.bothE().count().is(P.gt(graph.getBaseGraph().getConfig().onRecordIdLimit)))
                 .group()
                 .by(__.label())
                 .by(__.count())

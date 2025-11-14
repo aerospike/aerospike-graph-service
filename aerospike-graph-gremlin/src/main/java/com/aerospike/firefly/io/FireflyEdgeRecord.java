@@ -54,24 +54,25 @@ public class FireflyEdgeRecord {
     public FireflyEdgeRecord(final Record phatEdgeRecord, final AerospikeConnection db) {
         this.edgeRecord = phatEdgeRecord;
         this.db = db;
-        this.labels = new HashMap<>(db.PHAT_EDGE_SIZE);
-        this.inVs = new HashMap<>(db.PHAT_EDGE_SIZE);
-        this.outVs = new HashMap<>(db.PHAT_EDGE_SIZE);
-        this.properties = new HashMap<>(db.PHAT_EDGE_SIZE);
-        this.typeHints = new HashMap<>(db.PHAT_EDGE_SIZE);
-        this.isOutSupernodes = new HashMap<>(db.PHAT_EDGE_SIZE);
-        this.isInSupernodes = new HashMap<>(db.PHAT_EDGE_SIZE);
-        this.edgeData = new HashMap<>(db.PHAT_EDGE_SIZE);
-        this.edgeIdToInVHashIdKey = new HashMap<>(db.PHAT_EDGE_SIZE);
-        this.edgeIdToOutVHashIdKey = new HashMap<>(db.PHAT_EDGE_SIZE);
-        this.scannedInVHashIds = new HashSet<>(db.PHAT_EDGE_SIZE);
-        this.scannedOutVHashIds = new HashSet<>(db.PHAT_EDGE_SIZE);
+        // todo: GRAPH-1730
+        this.labels = new HashMap<>(db.getConfig().phatEdgeSize);
+        this.inVs = new HashMap<>(db.getConfig().phatEdgeSize);
+        this.outVs = new HashMap<>(db.getConfig().phatEdgeSize);
+        this.properties = new HashMap<>(db.getConfig().phatEdgeSize);
+        this.typeHints = new HashMap<>(db.getConfig().phatEdgeSize);
+        this.isOutSupernodes = new HashMap<>(db.getConfig().phatEdgeSize);
+        this.isInSupernodes = new HashMap<>(db.getConfig().phatEdgeSize);
+        this.edgeData = new HashMap<>(db.getConfig().phatEdgeSize);
+        this.edgeIdToInVHashIdKey = new HashMap<>(db.getConfig().phatEdgeSize);
+        this.edgeIdToOutVHashIdKey = new HashMap<>(db.getConfig().phatEdgeSize);
+        this.scannedInVHashIds = new HashSet<>(db.getConfig().phatEdgeSize);
+        this.scannedOutVHashIds = new HashSet<>(db.getConfig().phatEdgeSize);
     }
 
     public synchronized List<Object> getEdgeData(final FireflyEdgeId edgeId) {
         final Long uniqueEdgeId = edgeId.getUniqueId();
         if (!this.edgeData.containsKey(uniqueEdgeId)) {
-            final Map<ByteBuffer, Object> edgeDataMap = (Map<ByteBuffer, Object>) edgeRecord.getMap(db.EDGE_DATA_BIN);
+            final Map<ByteBuffer, Object> edgeDataMap = (Map<ByteBuffer, Object>) edgeRecord.getMap(db.getConfig().edgeDataBin);
             final Object edgeDataValue = edgeDataMap.get(edgeId.getEdgeIdBytes());
             if (edgeDataValue == null) {
                 // Edge is not in this record.
@@ -131,17 +132,17 @@ public class FireflyEdgeRecord {
         } else {
             if (direction == Direction.OUT) {
                 adjacentPosition = IN_V_POSITION;
-                supernodeDataMapBinName = this.db.SUPERNODES_OUT_BIN;
+                supernodeDataMapBinName = this.db.getConfig().supernodesOutBin;
                 edgeUniqueIdToVHashIdKey = this.edgeIdToOutVHashIdKey;
             } else {
                 adjacentPosition = OUT_V_POSITION;
-                supernodeDataMapBinName = this.db.SUPERNODES_IN_BIN;
+                supernodeDataMapBinName = this.db.getConfig().supernodesInBin;
                 edgeUniqueIdToVHashIdKey = this.edgeIdToInVHashIdKey;
             }
         }
 
         final List<FireflyEdgeId> attachedEdgeIds = new ArrayList<>();
-        final Map<ByteBuffer, Object> edgeDataMap = (Map<ByteBuffer, Object>) edgeRecord.getMap(db.EDGE_DATA_BIN);
+        final Map<ByteBuffer, Object> edgeDataMap = (Map<ByteBuffer, Object>) edgeRecord.getMap(db.getConfig().edgeDataBin);
         for (final Map.Entry<ByteBuffer, Object> edgeByteIdToData : edgeDataMap.entrySet()) {
             final FireflyEdgeId edgeId = this.db.getIdFactory().createEdgeId(edgeByteIdToData.getKey());
             if (edgeByteIdToData.getValue() instanceof Map) {
@@ -181,17 +182,17 @@ public class FireflyEdgeRecord {
     private void flattenSupernodeEdgeData(final FireflyEdgeId edgeId) {
         boolean found = false;
         if (this.edgeIdToOutVHashIdKey.containsKey(edgeId.getUniqueId())) {
-            final Map<String, Object> supernodeDataMap = (Map<String, Object>) edgeRecord.getMap(this.db.SUPERNODES_OUT_BIN);
+            final Map<String, Object> supernodeDataMap = (Map<String, Object>) edgeRecord.getMap(this.db.getConfig().supernodesOutBin);
             found = flattenSupernodeDataFromVHashId(edgeId.getUniqueId(),
                     this.edgeIdToOutVHashIdKey.get(edgeId.getUniqueId()),
                     supernodeDataMap, Direction.OUT, false);
         } else if (this.edgeIdToInVHashIdKey.containsKey(edgeId.getUniqueId())) {
-            final Map<String, Object> supernodeDataMap = (Map<String, Object>) edgeRecord.getMap(this.db.SUPERNODES_IN_BIN);
+            final Map<String, Object> supernodeDataMap = (Map<String, Object>) edgeRecord.getMap(this.db.getConfig().supernodesInBin);
             found = flattenSupernodeDataFromVHashId(edgeId.getUniqueId(),
                     this.edgeIdToInVHashIdKey.get(edgeId.getUniqueId()),
                     supernodeDataMap, Direction.IN, false);
         } else {
-            final Map<String, Object> supernodeOutDataMap = (Map<String, Object>) edgeRecord.getMap(db.SUPERNODES_OUT_BIN);
+            final Map<String, Object> supernodeOutDataMap = (Map<String, Object>) edgeRecord.getMap(db.getConfig().supernodesOutBin);
             if (supernodeOutDataMap != null) {
                 for (final String vertexHashId : supernodeOutDataMap.keySet()) {
                     found = flattenSupernodeDataFromVHashId(edgeId.getUniqueId(), vertexHashId, supernodeOutDataMap,
@@ -201,7 +202,7 @@ public class FireflyEdgeRecord {
                     }
                 }
             }
-            final Map<String, Object> supernodeInDataMap = (Map<String, Object>) edgeRecord.getMap(db.SUPERNODES_IN_BIN);
+            final Map<String, Object> supernodeInDataMap = (Map<String, Object>) edgeRecord.getMap(db.getConfig().supernodesInBin);
             if (supernodeInDataMap != null) {
                 for (final String vertexHashId : supernodeInDataMap.keySet()) {
                     found = flattenSupernodeDataFromVHashId(edgeId.getUniqueId(), vertexHashId, supernodeInDataMap,
@@ -228,7 +229,7 @@ public class FireflyEdgeRecord {
         final Long schemaAdjacentIdKey = this.db.schemaManager.getEdgePropertyRead(EDGE_SUPERNODE_ADJACENT_ID_KEY);
         final String adjacentBinName;
         if (direction == Direction.OUT) {
-            adjacentBinName = this.db.SUPERNODES_IN_BIN;
+            adjacentBinName = this.db.getConfig().supernodesInBin;
             if (scanSupernodeIds && this.scannedOutVHashIds.contains(vertexHashId)) {
                 // We've already looked in this Vertex ID to map out Edge ID <-> IN/OUT supernode Vertex ID
                 return false;
@@ -236,7 +237,7 @@ public class FireflyEdgeRecord {
                 this.scannedOutVHashIds.add(vertexHashId);
             }
         } else {
-            adjacentBinName = this.db.SUPERNODES_OUT_BIN;
+            adjacentBinName = this.db.getConfig().supernodesOutBin;
             if (scanSupernodeIds && this.scannedInVHashIds.contains(vertexHashId)) {
                 // We've already looked in this Vertex ID to map out Edge ID <-> IN/OUT supernode Vertex ID
                 return false;

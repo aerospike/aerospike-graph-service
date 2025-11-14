@@ -37,7 +37,7 @@ public class PIIterator {
                     row.getInt(row.fieldIndex(RowCodec.ID_TYPEHINT_COL)));
             ffids.add(graphStep.returnsVertex() ? graph.getIdFactory().createVertexId(id) : graph.getIdFactory().createEdgeId(id));
         }
-        final List<List<FireflyId>> partitionedFfidList = Lists.partition(ffids, graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE);
+        final List<List<FireflyId>> partitionedFfidList = Lists.partition(ffids, graph.getBaseGraph().getConfig().aerospikeBatchReadSize);
         final List<Traverser> traversers = new ArrayList<>();
         if (graphStep.returnsVertex()) {
             for (final List<FireflyId> ffidList : partitionedFfidList) {

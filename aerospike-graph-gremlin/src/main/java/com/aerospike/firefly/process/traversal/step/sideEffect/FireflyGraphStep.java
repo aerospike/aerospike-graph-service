@@ -190,8 +190,8 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                 LOG.debug("No index found for key {} and value {}, running scan", topContainer.getKey(), topContainer.getValue());
                 iterator = graph.graphQuery.scanSet(
                         topContainer.getKey(),
-                        graph.getBaseGraph().VERTEX_AERO_SET,
-                        topContainer.getKey().equals("~label") ? graph.getBaseGraph().LABEL_BIN : graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN,
+                        graph.getBaseGraph().getConfig().vertexAeroSet,
+                        topContainer.getKey().equals("~label") ? graph.getBaseGraph().getConfig().labelBin : graph.getBaseGraph().getConfig().vertexPropertyDataBin,
                         topContainer.getPredicate(),
                         graph::vertexFromRecord,
                         aerospikeSideHasContainers,

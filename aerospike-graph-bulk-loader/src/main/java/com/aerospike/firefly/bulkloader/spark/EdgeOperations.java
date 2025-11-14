@@ -154,7 +154,7 @@ public class EdgeOperations implements Serializable {
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
                 final long allowedDetachedEdges = this.config.getOrDefaultInt(ALLOWED_BAD_EDGES_COUNT);
                 graph.fireflySummaryUpdater.startEdgePartition(partitionId);
-                LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
+                LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().getConfig().globalEdgeCacheEnabledFlag));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
                 final List<Tuple3<FireflyId, Object, Object>> edgeToFromIdList = new ArrayList<>();
@@ -431,7 +431,7 @@ public class EdgeOperations implements Serializable {
         return input.mapPartitionsToPair(iterator -> {
             final List<Tuple2<Object, Long>> results = new ArrayList<>();
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
-                final int bufferSize = graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE;
+                final int bufferSize = graph.getBaseGraph().getConfig().aerospikeBatchReadSize;
                 graph.fireflySummaryUpdater.startSupernodePartition(TaskContext.getPartitionId());
                 final Map<Object, Long> idToEdgeCount = new ConcurrentHashMap<>();
                 while (iterator.hasNext()) {

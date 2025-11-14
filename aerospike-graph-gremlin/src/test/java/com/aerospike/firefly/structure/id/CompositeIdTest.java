@@ -28,13 +28,13 @@ public class CompositeIdTest extends AbstractFireflySuite {
         final Vertex bar = g.addV("bar").next();
         final Edge baz = g.addE("baz").from(foo).to(bar).next();
 
-        final Record fooRecord = db.read(new Key(db.getNamespace(), db.VERTEX_AERO_SET, (Long) foo.id()), null);
-        final Map<String, List<Object>> fooOutEdges = (Map<String, List<Object>>) fooRecord.getMap(db.OUT_EDGES_BIN);
-        final Map<String, List<Object>> fooInEdges = (Map<String, List<Object>>) fooRecord.getMap(db.IN_EDGES_BIN);
+        final Record fooRecord = db.read(new Key(db.getNamespace(), db.getConfig().vertexAeroSet, (Long) foo.id()), null);
+        final Map<String, List<Object>> fooOutEdges = (Map<String, List<Object>>) fooRecord.getMap(db.getConfig().outEdgesBin);
+        final Map<String, List<Object>> fooInEdges = (Map<String, List<Object>>) fooRecord.getMap(db.getConfig().inEdgesBin);
 
-        final Record barRecord = db.read(new Key(db.getNamespace(), db.VERTEX_AERO_SET, (Long) bar.id()), null);
-        final Map<String, List<Object>> barOutEdges = (Map<String, List<Object>>) barRecord.getMap(db.OUT_EDGES_BIN);
-        final Map<String, List<Object>> barInEdges = (Map<String, List<Object>>) barRecord.getMap(db.IN_EDGES_BIN);
+        final Record barRecord = db.read(new Key(db.getNamespace(), db.getConfig().vertexAeroSet, (Long) bar.id()), null);
+        final Map<String, List<Object>> barOutEdges = (Map<String, List<Object>>) barRecord.getMap(db.getConfig().outEdgesBin);
+        final Map<String, List<Object>> barInEdges = (Map<String, List<Object>>) barRecord.getMap(db.getConfig().inEdgesBin);
 
         Assert.assertTrue(fooInEdges.isEmpty());
         Assert.assertTrue(barOutEdges.isEmpty());

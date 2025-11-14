@@ -58,7 +58,7 @@ public class Admin {
 
             final boolean vertexLabelIndex = firefly.fireflyCardinalityMetadata.getVertexLabelIndexExists();
             try {
-                if (vertexLabelIndex && getIndexStatus(firefly, firefly.getBaseGraph().V_LABEL_INDEX_NAME).get("percent_complete") == 100L) {
+                if (vertexLabelIndex && getIndexStatus(firefly, firefly.getBaseGraph().getConfig().vLabelIndexName).get("percent_complete") == 100L) {
                     validVertexPropertyIndexes.add(VERTEX_LABEL_TOKEN);
                 }
             } catch (final IllegalStateException ignored) {
@@ -112,7 +112,7 @@ public class Admin {
 
         public I createVertexPropertyIndex(final FireflyGraph firefly, final String key, final IndexType indexType) {
             firefly.createIndexes(FireflyVertex.class,
-                    firefly.getBaseGraph().VERTEX_PROPERTY_DATA_BIN,
+                    firefly.getBaseGraph().getConfig().vertexPropertyDataBin,
                     firefly.getBaseGraph().getVpIndexPrefix(),
                     List.of(key),
                     indexType,
@@ -138,8 +138,8 @@ public class Admin {
             final List<String> existingIndexes = getExistingIndexes(firefly);
             firefly.getBaseGraph().createIndexBackground(existingIndexes,
                     set,
-                    firefly.getBaseGraph().V_LABEL_INDEX_NAME,
-                    firefly.getBaseGraph().LABEL_BIN,
+                    firefly.getBaseGraph().getConfig().vLabelIndexName,
+                    firefly.getBaseGraph().getConfig().labelBin,
                     IndexType.NUMERIC,
                     IndexCollectionType.DEFAULT,
                     true);
@@ -148,13 +148,13 @@ public class Admin {
 
         public I dropVertexLabelIndex(final FireflyGraph firefly) {
             final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
-            firefly.getBaseGraph().dropIndexBackground(set, firefly.getBaseGraph().V_LABEL_INDEX_NAME);
+            firefly.getBaseGraph().dropIndexBackground(set, firefly.getBaseGraph().getConfig().vLabelIndexName);
             return (I) "Vertex label index dropped.";
         }
 
         public I getStatusVertexLabelIndex(final FireflyGraph firefly) {
             try {
-                return (I) getIndexStatus(firefly, firefly.getBaseGraph().V_LABEL_INDEX_NAME);
+                return (I) getIndexStatus(firefly, firefly.getBaseGraph().getConfig().vLabelIndexName);
             } catch (final IllegalStateException e) {
                 throw new IllegalStateException("No index found on vertex label.");
             }

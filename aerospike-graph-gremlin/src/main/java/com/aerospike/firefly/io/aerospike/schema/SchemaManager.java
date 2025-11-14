@@ -51,7 +51,7 @@ public class SchemaManager {
     private static final Long DUMMY_SCHEMA_LONG = -100L;
     private static final MapPolicy SCHEMA_MAP_POLICY = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.CREATE_ONLY);
 
-    private final AerospikeConnection db;;
+    private final AerospikeConnection db;
     private final Key vertexLabelsKey;
     private final Key vertexPropertiesKey;
     private final Key vpPropertiesKey;
@@ -74,11 +74,11 @@ public class SchemaManager {
 
     public SchemaManager(final AerospikeConnection db) {
         this.db = db;
-        this.vertexLabelsKey = new Key(db.namespace, db.SCHEMA_SET, VERTEX_LABEL_SCHEMA);
-        this.vertexPropertiesKey = new Key(db.namespace, db.SCHEMA_SET, VERTEX_PROPERTY_SCHEMA);
-        this.vpPropertiesKey = new Key(db.namespace, db.SCHEMA_SET, VERTEX_PROPERTY_PROPERTY_SCHEMA);
-        this.edgeLabelsKey = new Key(db.namespace, db.SCHEMA_SET, EDGE_LABEL_SCHEMA);
-        this.edgePropertiesKey = new Key(db.namespace, db.SCHEMA_SET, EDGE_PROPERTY_SCHEMA);
+        this.vertexLabelsKey = new Key(db.getConfig().namespace, db.getConfig().schemaSet, VERTEX_LABEL_SCHEMA);
+        this.vertexPropertiesKey = new Key(db.getConfig().namespace, db.getConfig().schemaSet, VERTEX_PROPERTY_SCHEMA);
+        this.vpPropertiesKey = new Key(db.getConfig().namespace, db.getConfig().schemaSet, VERTEX_PROPERTY_PROPERTY_SCHEMA);
+        this.edgeLabelsKey = new Key(db.getConfig().namespace, db.getConfig().schemaSet, EDGE_LABEL_SCHEMA);
+        this.edgePropertiesKey = new Key(db.getConfig().namespace, db.getConfig().schemaSet, EDGE_PROPERTY_SCHEMA);
 
         this.vertexLabels = HashBiMap.create();
         this.vertexProperties = HashBiMap.create();
@@ -459,21 +459,21 @@ public class SchemaManager {
         final List<Operation> operations = new ArrayList<>();
         if (schemaKey != null) {
             final Expression incrementCounter = Exp.build(Exp.cond(
-                    Exp.not(MapExp.getByKey(MapReturnType.EXISTS, Exp.Type.BOOL, Exp.val(schemaKey), Exp.mapBin(this.db.SCHEMA_BIN))),
-                    Exp.add(Exp.bin(this.db.COUNTER_BIN, Exp.Type.INT), Exp.val(1)),
+                    Exp.not(MapExp.getByKey(MapReturnType.EXISTS, Exp.Type.BOOL, Exp.val(schemaKey), Exp.mapBin(this.db.getConfig().schemaBin))),
+                    Exp.add(Exp.bin(this.db.getConfig().counterBin, Exp.Type.INT), Exp.val(1)),
                     Exp.unknown()
             ));
-            final Operation incrementCounterOp = ExpOperation.write(this.db.COUNTER_BIN, incrementCounter, ExpWriteFlags.EVAL_NO_FAIL);
+            final Operation incrementCounterOp = ExpOperation.write(this.db.getConfig().counterBin, incrementCounter, ExpWriteFlags.EVAL_NO_FAIL);
             operations.add(incrementCounterOp);
             final Expression addSchemaPair = Exp.build(Exp.cond(
-                    Exp.not(MapExp.getByKey(MapReturnType.EXISTS, Exp.Type.BOOL, Exp.val(schemaKey), Exp.mapBin(this.db.SCHEMA_BIN))),
-                    MapExp.put(SCHEMA_MAP_POLICY, Exp.val(schemaKey), Exp.sub(Exp.bin(this.db.COUNTER_BIN, Exp.Type.INT), Exp.val(1)), Exp.mapBin(this.db.SCHEMA_BIN)),
+                    Exp.not(MapExp.getByKey(MapReturnType.EXISTS, Exp.Type.BOOL, Exp.val(schemaKey), Exp.mapBin(this.db.getConfig().schemaBin))),
+                    MapExp.put(SCHEMA_MAP_POLICY, Exp.val(schemaKey), Exp.sub(Exp.bin(this.db.getConfig().counterBin, Exp.Type.INT), Exp.val(1)), Exp.mapBin(this.db.getConfig().schemaBin)),
                     Exp.unknown()
             ));
-            final Operation addSchemaPairOp = ExpOperation.write(this.db.SCHEMA_BIN, addSchemaPair, ExpWriteFlags.EVAL_NO_FAIL);
+            final Operation addSchemaPairOp = ExpOperation.write(this.db.getConfig().schemaBin, addSchemaPair, ExpWriteFlags.EVAL_NO_FAIL);
             operations.add(addSchemaPairOp);
         }
-        final Operation readSchema = Operation.get(this.db.SCHEMA_BIN);
+        final Operation readSchema = Operation.get(this.db.getConfig().schemaBin);
         operations.add(readSchema);
 
         try {
@@ -485,7 +485,7 @@ public class SchemaManager {
                 updateSchemaMap(schemaKey, recordKey, schemaMap);
                 return;
             }
-            final Object schemaResult = record.getValue(this.db.SCHEMA_BIN);
+            final Object schemaResult = record.getValue(this.db.getConfig().schemaBin);
             final Map<String, Long> latestSchema;
             if (schemaResult instanceof Map) {
                 // This was a read-only operation
@@ -528,8 +528,8 @@ public class SchemaManager {
                     initialSchemaValue = -32;
                 }
                 final Map<String, Long> initialMap = new HashMap<>();
-                final Operation initializeSchemaValue = Operation.put(new Bin(this.db.COUNTER_BIN, initialSchemaValue));
-                final Operation initializeSchemaMap = Operation.put(new Bin(this.db.SCHEMA_BIN, initialMap));
+                final Operation initializeSchemaValue = Operation.put(new Bin(this.db.getConfig().counterBin, initialSchemaValue));
+                final Operation initializeSchemaMap = Operation.put(new Bin(this.db.getConfig().schemaBin, initialMap));
                 LOG.info("Initializing {} schema data.", this.readableNames.get(recordKey));
                 this.db.writeOperate(policy, recordKey, KEY_EXISTS_CODE, true, initializeSchemaMap, initializeSchemaValue);
             } catch (final AerospikeGraphException e) {

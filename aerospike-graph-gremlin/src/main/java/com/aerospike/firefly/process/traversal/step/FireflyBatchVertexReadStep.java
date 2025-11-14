@@ -149,7 +149,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                 if (!fireflyVertexMap.containsKey(id))
                     uniqueIds.add(id);
             }
-            if (uniqueIds.size() > graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+            if (uniqueIds.size() > graph.getBaseGraph().getConfig().aerospikeBatchReadSize) {
                 final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
                 batchReadFutures.add(executorService.submit(() -> {
                             final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, areEdgesRequired);
@@ -187,7 +187,7 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                                 uniqueIds.add(id);
                         }
                         duplicateIdMap.putIfAbsent(entry.getKey(), idsList);
-                        if (uniqueIds.size() > graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+                        if (uniqueIds.size() > graph.getBaseGraph().getConfig().aerospikeBatchReadSize) {
                             final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
                             batchReadFutures.add(executorService.submit(() -> {
                                         final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, areEdgesRequired);
@@ -301,8 +301,8 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
             // Create composite id info with this value and the appropriate traverser to the info list.
             fireflyCompositeIdStepInfos.add(new FireflyBatchReadHelper.ReadStepInfo<>(traverser, fireflyIdList.size() - previousSize));
             // If we reach or exceed batch size then execute so we don't use too much memory at any given point. Also drain if list size gets very big.
-            if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
-                    fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+            if (uniqueIdSet.size() >= graph.getBaseGraph().getConfig().aerospikeBatchReadSize ||
+                    fireflyIdList.size() >= 5 * graph.getBaseGraph().getConfig().aerospikeBatchReadSize) {
                 // Drain data to output.
                 runningTotal += FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                         fireflyVertexMap, fireflyCompositeIdStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, requiredProperties, areEdgesRequired);

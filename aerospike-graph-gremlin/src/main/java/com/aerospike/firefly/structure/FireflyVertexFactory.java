@@ -56,25 +56,25 @@ public class FireflyVertexFactory {
 
         // Get ID and Label for Vertex.
         final FireflyId id = graph.getIdFactory().createVertexIdFromRecord(keyRecord);
-        final String label = graph.getBaseGraph().schemaManager.getVertexLabelString(record.getLong(db.LABEL_BIN));
+        final String label = graph.getBaseGraph().schemaManager.getVertexLabelString(record.getLong(db.getConfig().labelBin));
 
         // Get cache state.
-        final boolean edgeCacheOverflowed = record.getBoolean(db.EDGE_CACHE_DISABLED_BIN);
+        final boolean edgeCacheOverflowed = record.getBoolean(db.getConfig().edgeCacheDisabledBin);
 
         // Get inEdgeIds and outEdgeIds.
-        final Map<String, List<Object>> inEdgeIds = (Map) record.getMap(db.IN_EDGES_BIN);
+        final Map<String, List<Object>> inEdgeIds = (Map) record.getMap(db.getConfig().inEdgesBin);
         graph.getIdFactory().convertMapToLazyIdsInPlace(inEdgeIds, graph, LazyEdgeCacheIdTransform.class);
-        final Map<String, List<Object>> outEdgeIds = (Map) record.getMap(db.OUT_EDGES_BIN);
+        final Map<String, List<Object>> outEdgeIds = (Map) record.getMap(db.getConfig().outEdgesBin);
         graph.getIdFactory().convertMapToLazyIdsInPlace(outEdgeIds, graph, LazyEdgeCacheIdTransform.class);
         final Map<String, List<LazyIdTransform>> fireflyInEdgeIds = (Map) inEdgeIds;
         final Map<String, List<LazyIdTransform>> fireflyOutEdgeIds = (Map) outEdgeIds;
 
         // Get Vertex Properties and VP Properties
         final Map<Long, HashMap<Object, List<Long>>> vertexProperties =
-                (Map<Long, HashMap<Object, List<Long>>>) record.getMap(db.VERTEX_PROPERTY_DATA_BIN);
+                (Map<Long, HashMap<Object, List<Long>>>) record.getMap(db.getConfig().vertexPropertyDataBin);
         final Map<Long, Map<Long, Object>> vpTypeHints =
-                (Map<Long, Map<Long, Object>>) record.getMap(db.VERTEX_PROPERTY_TH_BIN);
-        final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties = (Map) record.getMap(db.VP_PROPERTY_BIN);
+                (Map<Long, Map<Long, Object>>) record.getMap(db.getConfig().vertexPropertyTHBin);
+        final Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties = (Map) record.getMap(db.getConfig().vpPropertyBin);
 
         return create(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds,
                 vertexProperties, vpTypeHints, vpProperties, edgeCacheOverflowed);

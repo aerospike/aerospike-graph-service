@@ -80,7 +80,7 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
         this.rows = rows;
         this.startStep = startStep;
         this.traversal = traversal;
-        this.pageQueue = new LinkedBlockingQueue<>(graph.getBaseGraph().PAGINATION_PAGE_QUEUE_SIZE);
+        this.pageQueue = new LinkedBlockingQueue<>(graph.getBaseGraph().getConfig().paginationPageQueueSize);
         this.inputVertexId = inputVertexId;
         this.vertexStep = vertexStep;
         this.currentEdges = new ArrayList<>();
@@ -146,7 +146,7 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
                         if (direction == Direction.BOTH) {
                             throw new IllegalStateException("Error, cannot run this optimization on 'both'.");
                         }
-                        final String indexName = direction == Direction.OUT ? db.E_OUT_INDEX_NAME : db.E_IN_INDEX_NAME;
+                        final String indexName = direction == Direction.OUT ? db.getConfig().eOutIndexName : db.getConfig().eInIndexName;
                         final QueryPolicy queryPolicy = new QueryPolicy();
                         queryPolicy.sendKey = true;
                         queryPolicy.includeBinData = true;
@@ -158,10 +158,10 @@ public class PIStepIterator implements CloseableIterator<Traverser> {
                         pageFetcher = new PartitionedSindexPageFetcher<>(
                                 graph,
                                 queryPolicy,
-                                db.EDGE_AERO_SET,
+                                db.getConfig().edgeAeroSet,
                                 graph.getBaseGraph().getNamespace(),
-                                Filter.contains(direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN, IndexCollectionType.MAPKEYS, keyHashString),
-                                graph.getBaseGraph().PAGINATION_PAGE_SIZE,
+                                Filter.contains(direction == Direction.OUT ? db.getConfig().supernodesOutBin : db.getConfig().supernodesInBin, IndexCollectionType.MAPKEYS, keyHashString),
+                                graph.getBaseGraph().getConfig().paginationPageSize,
                                 graph::vertexFromRecord,
                                 indexName,
                                 partitionFilter,

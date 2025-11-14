@@ -407,7 +407,7 @@ public class FireflyBatchReadHelper {
         // emit since the data is gone.
 
         // Do not execute if batching repeat disabled or if the parent is not a RepeatStep.
-        if (!(traversal.getParent() instanceof RepeatStep) || !graph.getBaseGraph().ENABLE_BATCHED_REPEAT_STEP_STRATEGY) {
+        if (!(traversal.getParent() instanceof RepeatStep) || !graph.getBaseGraph().getConfig().enableBatchedRepeatStepStrategy) {
             return;
         }
 

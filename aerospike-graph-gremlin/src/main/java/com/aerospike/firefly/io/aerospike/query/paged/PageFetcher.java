@@ -48,7 +48,7 @@ public abstract class PageFetcher<E> {
                     t.setDaemon(true);
                     return t;
                 }),
-                new LinkedBlockingQueue<>(graph.getBaseGraph().PAGINATION_PAGE_QUEUE_SIZE)
+                new LinkedBlockingQueue<>(graph.getBaseGraph().getConfig().paginationPageQueueSize)
         );
     }
 
@@ -248,7 +248,7 @@ public abstract class PageFetcher<E> {
                     } else {
                         displayName = "";
                     }
-                    throw new SindexRecentlyDroppedException(displayName, graph.getBaseGraph().INDEX_METADATA_UPDATE_FREQUENCY / 1000);
+                    throw new SindexRecentlyDroppedException(displayName, graph.getBaseGraph().getConfig().indexMetadataUpdateFrequency / 1000);
                 }
                 if (!NO_ERROR.equals(errorMessage)) {
                     if (error instanceof AerospikeGraphException) {
@@ -279,9 +279,9 @@ public abstract class PageFetcher<E> {
                     }
                 });
                 shutdown();
-                if (graph.getBaseGraph().PAGINATION_SHUTDOWN_WAIT != 0) {
+                if (graph.getBaseGraph().getConfig().paginationShutdownWait != 0) {
                     try {
-                        if (!readLoopExecutorService.awaitTermination(graph.getBaseGraph().PAGINATION_SHUTDOWN_WAIT,
+                        if (!readLoopExecutorService.awaitTermination(graph.getBaseGraph().getConfig().paginationShutdownWait,
                                 java.util.concurrent.TimeUnit.MILLISECONDS)) {
                             readLoopExecutorService.shutdownNow();
                         }

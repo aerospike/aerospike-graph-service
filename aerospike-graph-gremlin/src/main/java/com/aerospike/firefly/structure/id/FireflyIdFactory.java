@@ -47,13 +47,15 @@ public class FireflyIdFactory {
 
     public FireflyIdFactory(final AerospikeConnection db) {
         this.db = db;
-        this.vertexIdManager = new DecrementingNumericIdManager(VERTEX_ID_COUNTER, db.VERTEX_ID_BUFFER_SIZE);
-        if (db.MRT_ENABLED || db.TRANSACTION_ENABLED) {
-            this.edgeIdManager = new MrtRecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, db.EDGE_ID_RECYCLE_BUFFER_SIZE, db.PHAT_EDGE_SIZE);
+        this.vertexIdManager = new DecrementingNumericIdManager(VERTEX_ID_COUNTER, db.getConfig().vertexIdBufferSize);
+        if (db.getConfig().mrtEnabled || db.getConfig().transactionEnabled) {
+            this.edgeIdManager = new MrtRecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER,
+                    db.getConfig().edgeIdBufferSize, db.getConfig().edgeIdRecycleBufferSize, db.getConfig().phatEdgeSize);
         } else {
-            this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, db.EDGE_ID_RECYCLE_BUFFER_SIZE);
+            this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER,
+                    db.getConfig().edgeIdBufferSize, db.getConfig().edgeIdRecycleBufferSize);
         }
-        this.vertexPropertyIdManager = new DecrementingNumericIdManager(VERTEX_PROPERTY_ID_COUNTER, db.PROPERTY_ID_BUFFER_SIZE);
+        this.vertexPropertyIdManager = new DecrementingNumericIdManager(VERTEX_PROPERTY_ID_COUNTER, db.getConfig().propertyIdBufferSize);
     }
 
     public FireflyId createVertexId(final Object id) {
@@ -68,7 +70,7 @@ public class FireflyIdFactory {
             final String strId = (String) convertedId;
             if (isAllDigits(strId)) {
                 final long stringIdAsLong = Long.parseLong(strId, 0, strId.length(), 10);
-                return FireflyIdPoly.fromObject(stringIdAsLong, String.class, this.db.VERTEX_AERO_SET);
+                return FireflyIdPoly.fromObject(stringIdAsLong, String.class, this.db.getConfig().vertexAeroSet);
             }
         }
 
@@ -78,7 +80,7 @@ public class FireflyIdFactory {
             throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
         }
 
-        return FireflyIdPoly.fromObject(convertedId, this.db.VERTEX_AERO_SET);
+        return FireflyIdPoly.fromObject(convertedId, this.db.getConfig().vertexAeroSet);
     }
 
     private static boolean isAllDigits(String s) {
@@ -101,13 +103,13 @@ public class FireflyIdFactory {
      */
     public FireflyId createVertexIdFromRecord(final KeyRecord record) {
         final Object userId;
-        if (record.record.getValue(db.USER_KEY_BIN) != null) {
-            userId = record.record.getValue(db.USER_KEY_BIN);
+        if (record.record.getValue(db.getConfig().userKeyBin) != null) {
+            userId = record.record.getValue(db.getConfig().userKeyBin);
         } else {
             // This should never happen since Vertex records should always have user id stored.
             throw new RuntimeException("Vertex record did not contain a user key.");
         }
-        final long typeHint = record.record.getLong(db.ID_TYPE_BIN);
+        final long typeHint = record.record.getLong(db.getConfig().idTypeBin);
         if (HINT_TO_TYPE.containsKey(typeHint)) {
             return FireflyIdPoly.fromObject(userId, HINT_TO_TYPE.get(typeHint), db.setFromElementType(FireflyVertex.class));
         } else {
@@ -117,20 +119,20 @@ public class FireflyIdFactory {
     }
 
     public FireflyId createVertexIdFromHash(final String hash) {
-        return FireflyIdPoly.fromHashString(hash, db.VERTEX_AERO_SET);
+        return FireflyIdPoly.fromHashString(hash, db.getConfig().vertexAeroSet);
     }
 
     public FireflyId createVertexIdFromHash(final byte[] hash) {
-        return FireflyIdPoly.fromHash(hash, db.VERTEX_AERO_SET);
+        return FireflyIdPoly.fromHash(hash, db.getConfig().vertexAeroSet);
     }
 
     public FireflyPhatEdgeId createEdgeId(final Object id) {
         if (id instanceof ByteBuffer) {
-            return FireflyPhatEdgeId.fromByteBuffer((ByteBuffer) id, db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
+            return FireflyPhatEdgeId.fromByteBuffer((ByteBuffer) id, db.getConfig().phatEdgeSize, db.getConfig().edgeAeroSet);
         } else if (byte[].class.isAssignableFrom(id.getClass())) {
-            return FireflyPhatEdgeId.fromByteArray((byte[]) id, db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
+            return FireflyPhatEdgeId.fromByteArray((byte[]) id, db.getConfig().phatEdgeSize, db.getConfig().edgeAeroSet);
         } else if (id instanceof String) {
-            return FireflyPhatEdgeId.fromBase64String((String) id, db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
+            return FireflyPhatEdgeId.fromBase64String((String) id, db.getConfig().phatEdgeSize, db.getConfig().edgeAeroSet);
         } else {
             throw new IllegalArgumentException("Invalid id for edge: '" + id + "'. Id type must be ByteBuffer, byte[], or base64 encoded String.");
         }
@@ -148,7 +150,7 @@ public class FireflyIdFactory {
     }
 
     public FireflyId createGraphVariableId(final Object id) {
-        final String set = db.GRAPH_VARIABLES_SET;
+        final String set = db.getConfig().graphVariablesSet;
         return FireflyIdPoly.fromObject(id, set);
     }
 
@@ -255,7 +257,7 @@ public class FireflyIdFactory {
 
     // For testing purposes only
     public FireflyId getTestId(final Object id) {
-        return FireflyIdPoly.fromObject(id, db.TEST_SET);
+        return FireflyIdPoly.fromObject(id, db.getConfig().testSet);
     }
 
     // For testing purposes only

@@ -1,7 +1,6 @@
 package com.aerospike.firefly.util.concurrency;
 
 import com.aerospike.client.Key;
-import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
@@ -56,10 +55,10 @@ public class FireflyRecordLockHandler {
 
     public FireflyRecordLockHandler(final AerospikeConnection db) {
         this.db = db;
-        this.lockTtl = db.MERGE_EDGE_TTL;
-        this.lockTimeout = db.MERGE_EDGE_EVAL_TIMEOUT;
-        this.lockPollIntervalMillis = db.MERGE_EDGE_POLL_INTERVAL;
-        this.starvationProtectionEnabled = db.MERGE_EDGE_STARVATION_PROTECTION;
+        this.lockTtl = db.getConfig().mergeEdgeTtl;
+        this.lockTimeout = db.getConfig().mergeEdgeEvalTimeout;
+        this.lockPollIntervalMillis = db.getConfig().mergeEdgePollInterval;
+        this.starvationProtectionEnabled = db.getConfig().mergeEdgeStarvationProtection;
     }
 
     /**

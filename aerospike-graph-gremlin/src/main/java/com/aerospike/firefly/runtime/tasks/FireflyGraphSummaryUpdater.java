@@ -148,19 +148,19 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             MAX_CONCURRENT_TXN_COUNT = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());
         }
         this.db = db;
-        this.VP_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, VP_PROPERTY_PREFIX + SUMMARY_PROPERTY_BIN);
-        this.EP_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, EP_PROPERTY_PREFIX + SUMMARY_PROPERTY_BIN);
-        this.V_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, V_SUMMARY_RECORD);
-        this.E_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, E_SUMMARY_RECORD);
-        this.S_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, S_SUMMARY_RECORD);
-        if (db.SUMMARY_ENABLED_FLAG) {
+        this.VP_SUMMARY_KEY = new Key(db.getNamespace(), db.getConfig().summarySet, VP_PROPERTY_PREFIX + SUMMARY_PROPERTY_BIN);
+        this.EP_SUMMARY_KEY = new Key(db.getNamespace(), db.getConfig().summarySet, EP_PROPERTY_PREFIX + SUMMARY_PROPERTY_BIN);
+        this.V_SUMMARY_KEY = new Key(db.getNamespace(), db.getConfig().summarySet, V_SUMMARY_RECORD);
+        this.E_SUMMARY_KEY = new Key(db.getNamespace(), db.getConfig().summarySet, E_SUMMARY_RECORD);
+        this.S_SUMMARY_KEY = new Key(db.getNamespace(), db.getConfig().summarySet, S_SUMMARY_RECORD);
+        if (db.getConfig().summaryEnabledFlag) {
             synchronized (EXECUTOR_SERVICE) {
                 if (RUNNING_COUNT.addAndGet(1) == 1) {
                     EXITED.set(false);
                     SHUTDOWN.set(false);
                     EXECUTOR_SERVICE.submit(getUpdateRunnable());
                 }
-                final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(db, db.SUMMARY_SET);
+                final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(db, db.getConfig().summarySet);
                 for (final String index : setIndex) {
                     if (!"ok".equals(index)) {
                         LOG.error("Error creating set index: {}", index);
@@ -197,7 +197,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param txn        The transaction that this operation occurred within.
      */
     public void addVertexWriteToQueue(final String label, final Set<String> properties, final Txn txn) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -224,7 +224,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param properties The properties of the vertex to update.
      */
     public void stageVertexWriteToQueue(final String label, final Set<String> properties, final int partitionId) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -242,7 +242,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param label      The label of the vertex to update.
      */
     public void stageVertexMergeToQueue(final String label, final int partitionId) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -259,7 +259,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param txn   The transaction that this operation occurred within.
      */
     public void addVertexRemoveToQueue(final String label, final Txn txn) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -283,7 +283,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param txn           The transaction that this operation occurred within.
      */
     public void addEdgeWriteToQueue(final String label, final Set<String> properties, final Txn txn) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -310,7 +310,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param properties The properties of the edge to update.
      */
     public void stageEdgeWriteToQueue(final String label, final Set<String> properties, final int partitionId) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -329,7 +329,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param txn   The transaction that this operation occurred within.
      */
     public void addSupernodeWriteToQueue(final String label, final Txn txn) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -351,7 +351,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param label The label of the supernode to update.
      */
     public void stageSupernodeWriteToQueue(final String label, final int partitionId) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -368,7 +368,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param txn   The transaction that this operation occurred within.
      */
     public void addSupernodeRemoveToQueue(final String label, final Txn txn) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -385,7 +385,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void startVertexPartition(final int partitionId) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -395,7 +395,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void startMergeVertexPartition(final int partitionId) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -405,7 +405,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void completeVertexPartition(final int partitionId) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -427,7 +427,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void startEdgePartition(final int partitionId) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
         // Need to kill what is in Aerospike because this is from a failed partition if it exists.
@@ -436,7 +436,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void completeEdgePartition(final int partitionId) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -458,7 +458,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void startSupernodePartition(final int partitionId) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -468,7 +468,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void completeSupernodePartition(final int partitionId) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -490,19 +490,19 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     private Key getEdgePartitionKey(final int partitionId) {
-        return new Key(db.getNamespace(), db.SUMMARY_SET, EP_PROPERTY_PREFIX + "PART_" + partitionId);
+        return new Key(db.getNamespace(), db.getConfig().summarySet, EP_PROPERTY_PREFIX + "PART_" + partitionId);
     }
 
     private Key getVertexPartitionKey(final int partitionId) {
-        return new Key(db.getNamespace(), db.SUMMARY_SET, VP_PROPERTY_PREFIX + "PART_" + partitionId);
+        return new Key(db.getNamespace(), db.getConfig().summarySet, VP_PROPERTY_PREFIX + "PART_" + partitionId);
     }
 
     private Key getMergeVertexPartitionKey(final int partitionId) {
-        return new Key(db.getNamespace(), db.SUMMARY_SET, VP_PROPERTY_PREFIX + "MERGEV_" + partitionId);
+        return new Key(db.getNamespace(), db.getConfig().summarySet, VP_PROPERTY_PREFIX + "MERGEV_" + partitionId);
     }
 
     private Key getSupernodePartitionKey(final int partitionId) {
-        return new Key(db.getNamespace(), db.SUMMARY_SET, SP_PROPERTY_PREFIX + "PART_" + partitionId);
+        return new Key(db.getNamespace(), db.getConfig().summarySet, SP_PROPERTY_PREFIX + "PART_" + partitionId);
     }
 
     private Map<String, Long> getPartitionCounts(final Key key) {
@@ -521,7 +521,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param label The label of the vertex or edge to update.
      */
     public void addEdgeRemoveToQueue(final String label, final Txn txn) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -544,7 +544,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param properties The properties of the vertex to update.
      */
     public void addVertexPropertiesWriteToQueue(final String label, final Set<String> properties, final Txn txn) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -567,7 +567,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param properties The properties of the edge to update.
      */
     public void addEdgePropertiesWriteToQueue(final String label, final Set<String> properties, final Txn txn) {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -649,7 +649,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
     @Override
     public void close() {
-        if (!db.SUMMARY_ENABLED_FLAG) {
+        if (!db.getConfig().summaryEnabledFlag) {
             return;
         }
 
@@ -1206,7 +1206,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         // If bulk loader is running, get staged partition counts and insert.
         Optional<Map<String, FireflyPropertiesAndCount>> mergeVertexMetadata = Optional.empty();
         if (isBulkLoaderRunning) {
-            final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+            final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.getConfig().summarySet);
             final Map<String, Long> mergeVertexPartitionCounts = getMergeVertexPartitionCounts(partitionRecords);
             if (!mergeVertexPartitionCounts.isEmpty()) {
                 mergeVertexMetadata = Optional.of(new HashMap<>());
@@ -1255,16 +1255,16 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     private void printGraphSummaryTicker() {
-        if (!db.SUMMARY_TICKER_ENABLED_FLAG) {
+        if (!db.getConfig().summaryTickerEnabledFlag) {
             return;
         }
 
-        if (lastTickerOutputTime.get() + db.SUMMARY_TICKER_INTERVAL_MS > System.currentTimeMillis()) {
+        if (lastTickerOutputTime.get() + db.getConfig().summaryTickerIntervalMs > System.currentTimeMillis()) {
             return;
         }
 
         final FireflyElementMetadata fireflyElementMetadata = getFireflyStatistics();
-        LOG.info("Graph summary ticker for " + db.GRAPH_ID + ":\n" + PRETTY_PRINT_FORMAT_LOG,
+        LOG.info("Graph summary ticker for " + db.getConfig().graphId + ":\n" + PRETTY_PRINT_FORMAT_LOG,
                 fireflyElementMetadata.totalVertexCount(),
                 fireflyElementMetadata.vertexCountByLabel(),
                 fireflyElementMetadata.vertexPropertiesByLabel(),
@@ -1288,9 +1288,9 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                         // This is okay for now since this is a failing edge case and the code within is fast, but
                         // may need to add more complex logic to synchronize on unique graph names in the future.
                         synchronized (LAST_SUMMARY_TICKER_EXCEPTION) {
-                            final AerospikeGraphException lastException = LAST_SUMMARY_TICKER_EXCEPTION.get(this.db.GRAPH_ID);
+                            final AerospikeGraphException lastException = LAST_SUMMARY_TICKER_EXCEPTION.get(this.db.getConfig().graphId);
                             if (lastException == null || lastException.errorCode != e.errorCode) {
-                                LAST_SUMMARY_TICKER_EXCEPTION.put(this.db.GRAPH_ID, e);
+                                LAST_SUMMARY_TICKER_EXCEPTION.put(this.db.getConfig().graphId, e);
                                 LOG.warn("Failed to print graph summary ticker.", e);
                             }
                         }
@@ -1418,7 +1418,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void clearVertexPartitionData() {
-        final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+        final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.getConfig().summarySet);
         for (final KeyRecord keyRecord : partitionRecords) {
             if (keyRecord.key.userKey.toString().startsWith(VP_PROPERTY_PREFIX + "PART_"))
                 db.delete(keyRecord.key, null);
@@ -1426,7 +1426,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void clearMergeVertexPartitionData() {
-        final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+        final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.getConfig().summarySet);
         for (final KeyRecord keyRecord : partitionRecords) {
             if (keyRecord.key.userKey.toString().startsWith(VP_PROPERTY_PREFIX + "MERGEV_"))
                 db.delete(keyRecord.key, null);
@@ -1434,7 +1434,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void clearEdgePartitionData() {
-        final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+        final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.getConfig().summarySet);
         for (final KeyRecord keyRecord : partitionRecords) {
             if (keyRecord.key.userKey.toString().startsWith(EP_PROPERTY_PREFIX + "PART_"))
                 db.delete(keyRecord.key, null);
@@ -1442,7 +1442,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     public void clearSupernodePartitionData() {
-        final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.SUMMARY_SET);
+        final Queue<KeyRecord> partitionRecords = getPartitionRecords(db.getConfig().summarySet);
         for (final KeyRecord keyRecord : partitionRecords) {
             if (keyRecord.key.userKey.toString().startsWith(SP_PROPERTY_PREFIX + "PART_"))
                 db.delete(keyRecord.key, null);

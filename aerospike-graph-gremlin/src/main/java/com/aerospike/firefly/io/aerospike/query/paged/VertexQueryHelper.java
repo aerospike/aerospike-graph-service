@@ -68,19 +68,19 @@ public class VertexQueryHelper {
      */
     public static Filter predicateToFilter(final AerospikeConnection db, final P<?> predicate, final FireflyIndexMetadata.IndexInfo indexInfo) {
         final String name;
-        if (db.LABEL_BIN.equals(indexInfo.key)) {
-            name = db.LABEL_BIN;
-        } else if (indexInfo.setName.equals(db.VERTEX_AERO_SET)) {
-            name = db.VERTEX_PROPERTY_DATA_BIN;
+        if (db.getConfig().labelBin.equals(indexInfo.key)) {
+            name = db.getConfig().labelBin;
+        } else if (indexInfo.setName.equals(db.getConfig().vertexAeroSet)) {
+            name = db.getConfig().vertexPropertyDataBin;
         } else {
             throw new IllegalArgumentException(
                     "Cannot create filter for index with unknown set name: " + indexInfo.setName + " and key " + indexInfo.key);
         }
 
-        final IndexCollectionType type = db.LABEL_BIN.equals(indexInfo.key) ?
+        final IndexCollectionType type = db.getConfig().labelBin.equals(indexInfo.key) ?
                 IndexCollectionType.DEFAULT : IndexCollectionType.MAPKEYS;
         final Object value = predicate.getValue();
-        if (db.LABEL_BIN.equals(indexInfo.key)) {
+        if (db.getConfig().labelBin.equals(indexInfo.key)) {
             return Filter.contains(name, type, db.schemaManager.getVertexLabelRead(((String) value)));
         }
         final Long schemaKey = db.schemaManager.getVertexPropertyRead(indexInfo.key);
@@ -101,8 +101,8 @@ public class VertexQueryHelper {
                                             final String mapKey,
                                             final P<?> predicate) {
         // If the bin is the label bin, we can make a very simple predicate.
-        if (db.LABEL_BIN.equals(binName)) {
-            return Exp.eq(Exp.intBin(db.LABEL_BIN), Exp.val(db.schemaManager.getVertexLabelRead((String) predicate.getValue())));
+        if (db.getConfig().labelBin.equals(binName)) {
+            return Exp.eq(Exp.intBin(db.getConfig().labelBin), Exp.val(db.schemaManager.getVertexLabelRead((String) predicate.getValue())));
         }
 
         if (predicate.getBiPredicate().equals(Compare.eq)) {
@@ -150,18 +150,18 @@ public class VertexQueryHelper {
     }
 
     public static Expression hasContainerListToExpression(final AerospikeConnection db, final List<HasContainer> hasContainers) {
-        if (hasContainers.isEmpty() && !db.TTL_ENABLED_FLAG) {
+        if (hasContainers.isEmpty() && !db.getConfig().ttlEnabledFlag) {
             return null;
         }
         final List<Exp> exps = new ArrayList<>();
-        if (db.TTL_ENABLED_FLAG) {
+        if (db.getConfig().ttlEnabledFlag) {
             final Exp ttlExp = getVertexTtlExp(db);
             exps.add(ttlExp);
         }
 
         for (final HasContainer h : hasContainers) {
             final Exp expFromPredicate = predicateToExpression(db,
-                    h.getKey().equals("~label") ? db.LABEL_BIN : db.VERTEX_PROPERTY_DATA_BIN,
+                    h.getKey().equals("~label") ? db.getConfig().labelBin : db.getConfig().vertexPropertyDataBin,
                     h.getKey(), h.getPredicate());
             exps.add(expFromPredicate);
         }
@@ -174,13 +174,13 @@ public class VertexQueryHelper {
             throw new IllegalArgumentException("Cannot push predicates down to: " + clazz);
         }
         final List<Exp> exps = new ArrayList<>();
-        if (db.TTL_ENABLED_FLAG) {
+        if (db.getConfig().ttlEnabledFlag) {
             final Exp ttlExp = getVertexTtlExp(db);
             exps.add(ttlExp);
         }
         for (final HasContainer h : hasContainers) {
             final Exp expFromPredicate = predicateToExpression(db,
-                    h.getKey().equals("~label") ? db.LABEL_BIN : db.VERTEX_PROPERTY_DATA_BIN,
+                    h.getKey().equals("~label") ? db.getConfig().labelBin : db.getConfig().vertexPropertyDataBin,
                     h.getKey(), h.getPredicate());
             exps.add(expFromPredicate);
         }
@@ -189,9 +189,9 @@ public class VertexQueryHelper {
 
     private static Exp getVertexTtlExp(final AerospikeConnection db) {
         return Exp.or(
-                Exp.gt(Exp.intBin(db.TTL_BIN), Exp.val(System.currentTimeMillis())),
+                Exp.gt(Exp.intBin(db.getConfig().ttlBin), Exp.val(System.currentTimeMillis())),
                 Exp.not(
-                        Exp.binExists(db.TTL_BIN)
+                        Exp.binExists(db.getConfig().ttlBin)
                 )
         );
     }

@@ -47,7 +47,7 @@ public class ProgressBar extends TimerTask {
     public void close() {
         synchronized (ProgressBar.class) {
             if (this.graph != null) {
-                FireflyGraphSummaryUpdater.clearSummaryTickerException(this.graph.getBaseGraph().GRAPH_ID);
+                FireflyGraphSummaryUpdater.clearSummaryTickerException(this.graph.getBaseGraph().getConfig().graphId);
                 this.graph.close();
                 this.graph = null;
             }
@@ -446,7 +446,7 @@ public class ProgressBar extends TimerTask {
             } catch (final AerospikeGraphException ae) {
                 if (this.lastException == null || ae.errorCode != this.lastException.errorCode) {
                     this.lastException = ae;
-                    final AerospikeGraphException summaryUpdaterFailure = FireflyGraphSummaryUpdater.getLastSummaryTickerException(graph.getBaseGraph().GRAPH_ID);
+                    final AerospikeGraphException summaryUpdaterFailure = FireflyGraphSummaryUpdater.getLastSummaryTickerException(graph.getBaseGraph().getConfig().graphId);
                     if (summaryUpdaterFailure == null || ae.errorCode != summaryUpdaterFailure.errorCode) {
                         LOGGER.error("Error occurred when grabbing metadata information for progress bar: ", ae);
                     }

@@ -42,29 +42,29 @@ public class ReadThroughRecordCache extends FireflyCache {
             int size = 5;
 
             // Simple weight function.
-            if (record.bins.containsKey(db.OUT_EDGES_BIN)) {
+            if (record.bins.containsKey(db.getConfig().outEdgesBin)) {
                 // Add 1 to weight for every out edge.
-                size += getEdgeCountOnVertexRecord((Map<String, List<?>>) record.getMap(db.OUT_EDGES_BIN));
+                size += getEdgeCountOnVertexRecord((Map<String, List<?>>) record.getMap(db.getConfig().outEdgesBin));
             }
 
-            if (record.bins.containsKey(db.IN_EDGES_BIN)) {
+            if (record.bins.containsKey(db.getConfig().inEdgesBin)) {
                 // Add 1 to weight for every in edge.
-                size += getEdgeCountOnVertexRecord((Map<String, List<?>>) record.getMap(db.IN_EDGES_BIN));
+                size += getEdgeCountOnVertexRecord((Map<String, List<?>>) record.getMap(db.getConfig().inEdgesBin));
             }
 
-            if (record.bins.containsKey(db.PROPERTIES_BIN)) {
+            if (record.bins.containsKey(db.getConfig().propertiesBin)) {
                 // Add 3 to weight for every property.
-                size += 3 * record.getMap(db.PROPERTIES_BIN).size();
+                size += 3 * record.getMap(db.getConfig().propertiesBin).size();
             }
 
-            if (record.bins.containsKey(db.VP_PROPERTY_BIN)) {
+            if (record.bins.containsKey(db.getConfig().vpPropertyBin)) {
                 // Add 3 to weight for every vertex property property.
-                size += 3 * record.getMap(db.VP_PROPERTY_BIN).size();
+                size += 3 * record.getMap(db.getConfig().vpPropertyBin).size();
             }
 
-            if (record.bins.containsKey(db.VERTEX_PROPERTY_TH_BIN)) {
+            if (record.bins.containsKey(db.getConfig().vertexPropertyTHBin)) {
                 // Add 3 to weight for every vertex property.
-                size += 3 * record.getMap(db.VERTEX_PROPERTY_TH_BIN).size();
+                size += 3 * record.getMap(db.getConfig().vertexPropertyTHBin).size();
             }
 
             return size;
@@ -83,7 +83,7 @@ public class ReadThroughRecordCache extends FireflyCache {
         super(uuid);
         this.db = db;
         cache = Caffeine.newBuilder().
-                maximumWeight(db.FIREFLY_READ_THROUGH_CACHE_WEIGHT).
+                maximumWeight(db.getConfig().fireflyReadThroughCacheWeight).
                 recordStats().
                 weigher(new Weigher()).
                 build();
@@ -131,11 +131,11 @@ public class ReadThroughRecordCache extends FireflyCache {
         final Set<Key> missingKeySet = new HashSet<>(missingKeys);
 
         // Batch reading in Aerospike is capped based on settings in the server.
-        for (int i = 0; i < missingKeySet.size(); i += db.AEROSPIKE_BATCH_READ_SIZE) {
+        for (int i = 0; i < missingKeySet.size(); i += db.getConfig().aerospikeBatchReadSize) {
             // Generate sub list using current index and batch size.
             final List<Key> subList = missingKeySet.stream()
                     .skip(i)
-                    .limit(db.AEROSPIKE_BATCH_READ_SIZE)
+                    .limit(db.getConfig().aerospikeBatchReadSize)
                     .collect(Collectors.toList());
 
             // Execute batch read. subList ids are read from the database.

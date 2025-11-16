@@ -136,6 +136,7 @@ public class AerospikeConnectionConfig {
     public final boolean enableBatchEdgeReadSamplingStrategy;
     public final boolean enableBatchEdgeReadLimitStrategy;
     public final boolean enableCachedAdjacentIdStrategy;
+    public final boolean enableFastHasIdVertexFilterStrategy;
 
     // MergeEdge fields
     public final int mergeEdgeEvalTimeout;
@@ -219,6 +220,7 @@ public class AerospikeConnectionConfig {
         enableBatchVertexReadOtherVStrategy = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCH_VERTEX_READ_OTHERV_STRATEGY, conf);
         enableBatchEdgeToVertexReadStrategy = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_TO_VERTEX_READ_STRATEGY, conf);
         enableBatchEdgeReadLimitStrategy = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY, conf);
+        enableFastHasIdVertexFilterStrategy = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_FAST_HASID_VERTEX_FILTER_STRATEGY, conf);
         enableEmbeddedGraphCountStrategy = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf);
         enableEmbeddedVertexEdgeLocalCountStrategy = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf);
         enableBatchedRepeatStepStrategy = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf);

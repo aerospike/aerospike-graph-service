@@ -521,7 +521,7 @@ public class TestTinkerpopTransactions {
             final AtomicLong halfPackRecordCount = new AtomicLong();
             final AtomicLong sparsePackRecordCount = new AtomicLong();
             final Iterator<KeyRecord> edgeKeyRecords = firefly.graphQuery.scanSet(null,
-                    firefly.getBaseGraph().EDGE_AERO_SET, null, null, (it) -> it,
+                    firefly.getBaseGraph().getConfig().edgeAeroSet, null, null, (it) -> it,
                     Collections.emptyList(), FireflyEdge.class, true, firefly.settings().evaluationTimeout);
             while (edgeKeyRecords.hasNext()) {
                 final Record edgeRecord = edgeKeyRecords.next().record;
@@ -529,7 +529,7 @@ public class TestTinkerpopTransactions {
                 if (edgeRecord == null) {
                     continue;
                 }
-                final int edgeCount = ((Map<Object, ?>) edgeRecord.getMap(firefly.getBaseGraph().EDGE_DATA_BIN)).keySet().size();
+                final int edgeCount = ((Map<Object, ?>) edgeRecord.getMap(firefly.getBaseGraph().getConfig().edgeDataBin)).keySet().size();
                 if (edgeCount == 10) {
                     packedRecordCount.incrementAndGet();
                 } else if (edgeCount > 5) {

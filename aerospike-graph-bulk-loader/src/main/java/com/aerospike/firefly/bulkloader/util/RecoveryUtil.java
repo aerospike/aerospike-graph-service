@@ -49,10 +49,10 @@ public class RecoveryUtil {
             final AerospikeConnection db = graph.getBaseGraph();
             final InfoPolicy infoPolicy = new InfoPolicy();
             db.setInfoPolicy(infoPolicy);
-            db.truncate(infoPolicy, db.BULK_LOAD_RECOVERY_VERTEX_SET, null);
-            db.truncate(infoPolicy, db.BULK_LOAD_RECOVERY_EDGE_SET, null);
-            db.truncate(infoPolicy, db.BULK_LOAD_RECOVERY_SUPERNODE_SET, null);
-            db.truncate(infoPolicy, db.BULK_LOAD_RECOVERY_STATE_SET, null);
+            db.truncate(infoPolicy, db.getConfig().bulkLoadRecoveryVertexSet, null);
+            db.truncate(infoPolicy, db.getConfig().bulkLoadRecoveryEdgeSet, null);
+            db.truncate(infoPolicy, db.getConfig().bulkLoadRecoverySupernodeSet, null);
+            db.truncate(infoPolicy, db.getConfig().bulkLoadRecoveryStateSet, null);
             graph.fireflySummaryUpdater.clearVertexPartitionData();
             graph.fireflySummaryUpdater.clearEdgePartitionData();
             graph.fireflySummaryUpdater.clearSupernodePartitionData();
@@ -63,11 +63,11 @@ public class RecoveryUtil {
 
     public static void writePartitionComplete(final AerospikeConnection db, final int partitionId, final String set) {
         final String keyId = String.valueOf(partitionId / 100);
-        final Key key = new Key(db.namespace, set, Value.get(keyId));
+        final Key key = new Key(db.getConfig().namespace, set, Value.get(keyId));
 
         final ListPolicy createListOnlyPolicy = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL);
-        final Operation createOp = ListOperation.create(db.BULK_LOAD_RECOVERY_BIN, ListOrder.UNORDERED, false);
-        final Operation updateOp = ListOperation.append(createListOnlyPolicy, db.BULK_LOAD_RECOVERY_BIN, Value.get(partitionId));
+        final Operation createOp = ListOperation.create(db.getConfig().bulkLoadRecoveryBin, ListOrder.UNORDERED, false);
+        final Operation updateOp = ListOperation.append(createListOnlyPolicy, db.getConfig().bulkLoadRecoveryBin, Value.get(partitionId));
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
 
@@ -76,18 +76,18 @@ public class RecoveryUtil {
 
     public static void writeVertexPartitionComplete(final AerospikeConnection db, final int partitionId) {
         // write complete vertex partition id to aerospike
-        writePartitionComplete(db, partitionId, db.BULK_LOAD_RECOVERY_VERTEX_SET);
+        writePartitionComplete(db, partitionId, db.getConfig().bulkLoadRecoveryVertexSet);
     }
 
     public static void writeEdgePartitionComplete(final AerospikeConnection db, final int partitionId) {
         // write complete edge partition id to aerospike
-        writePartitionComplete(db, partitionId, db.BULK_LOAD_RECOVERY_EDGE_SET);
+        writePartitionComplete(db, partitionId, db.getConfig().bulkLoadRecoveryEdgeSet);
     }
 
     public static void writeSupernodeList(final AerospikeConnection db, final Set<Object> supernodes) {
         // Create policy and configure.
         final ListPolicy createListOnlyPolicy = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL);
-        final Operation createOp = ListOperation.create(db.BULK_LOAD_RECOVERY_BIN, ListOrder.UNORDERED, false);
+        final Operation createOp = ListOperation.create(db.getConfig().bulkLoadRecoveryBin, ListOrder.UNORDERED, false);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
 
@@ -96,12 +96,12 @@ public class RecoveryUtil {
         for (int i = 0; i < supernodeArray.length; i += 1000) {
             final Object[] supernodeBatch = new Object[Math.min(1000, supernodeArray.length - i)];
             System.arraycopy(supernodeArray, i, supernodeBatch, 0, supernodeBatch.length);
-            final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_SUPERNODE_SET, Value.get(i / 1000));
+            final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoverySupernodeSet, Value.get(i / 1000));
             List<Value> values = new ArrayList<>();
             for (Object supernode : supernodeBatch) {
                 values.add(Value.get(supernode));
             }
-            final Operation updateOp = ListOperation.appendItems(createListOnlyPolicy, db.BULK_LOAD_RECOVERY_BIN, values);
+            final Operation updateOp = ListOperation.appendItems(createListOnlyPolicy, db.getConfig().bulkLoadRecoveryBin, values);
             retryWriteOperation(db, createOp, writePolicy, key, updateOp);
         }
     }
@@ -125,8 +125,8 @@ public class RecoveryUtil {
 
     public static void updateState(final AerospikeConnection db, final RecoveryState state) {
         // Create policy and configure.
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "state");
-        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, state.name());
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "state");
+        final Bin bin = new Bin(db.getConfig().bulkLoadRecoveryBin, state.name());
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
@@ -134,8 +134,8 @@ public class RecoveryUtil {
     }
 
     public static void writeTempEdgeDirectory(final AerospikeConnection db, final String tempDirectory) {
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "temp_edge_directory");
-        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, tempDirectory);
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "temp_edge_directory");
+        final Bin bin = new Bin(db.getConfig().bulkLoadRecoveryBin, tempDirectory);
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
@@ -143,8 +143,8 @@ public class RecoveryUtil {
     }
 
     public static void writeTempVertexDirectory(final AerospikeConnection db, final String tempDirectory) {
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "temp_vertex_directory");
-        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, tempDirectory);
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "temp_vertex_directory");
+        final Bin bin = new Bin(db.getConfig().bulkLoadRecoveryBin, tempDirectory);
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
@@ -152,34 +152,34 @@ public class RecoveryUtil {
     }
 
     public static String recoverTempEdgeDirectory(final AerospikeConnection db) {
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "temp_edge_directory");
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "temp_edge_directory");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
         final Record r = retryReadOperation(db, key, readPolicy);
-        return r == null ? null : r.getString(db.BULK_LOAD_RECOVERY_BIN);
+        return r == null ? null : r.getString(db.getConfig().bulkLoadRecoveryBin);
     }
 
     public static String recoverTempVertexDirectory(final AerospikeConnection db) {
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "temp_vertex_directory");
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "temp_vertex_directory");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
         final Record r = retryReadOperation(db, key, readPolicy);
-        return r == null ? null : r.getString(db.BULK_LOAD_RECOVERY_BIN);
+        return r == null ? null : r.getString(db.getConfig().bulkLoadRecoveryBin);
     }
 
     public static boolean recoverIsIncrementalLoad(final AerospikeConnection db) {
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "incremental_load");
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "incremental_load");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
         final Record r = retryReadOperation(db, key, readPolicy);
         // Default false if the record does not exist.
-        return r == null ? false : r.getBoolean(db.BULK_LOAD_RECOVERY_BIN);
+        return r == null ? false : r.getBoolean(db.getConfig().bulkLoadRecoveryBin);
     }
 
     public static void writeIsIncrementalLoad(final AerospikeConnection db, final boolean isIncrementalLoad) {
         // Create policy and configure.
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "incremental_load");
-        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, isIncrementalLoad);
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "incremental_load");
+        final Bin bin = new Bin(db.getConfig().bulkLoadRecoveryBin, isIncrementalLoad);
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
@@ -187,18 +187,18 @@ public class RecoveryUtil {
     }
 
     public static long recoverIncrementalLoadVertexStartCount(final AerospikeConnection db) {
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "incremental_load_vertex_count");
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "incremental_load_vertex_count");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
         final Record r = retryReadOperation(db, key, readPolicy);
         // Default false if the record does not exist.
-        return r == null ? 0 : r.getLong(db.BULK_LOAD_RECOVERY_BIN);
+        return r == null ? 0 : r.getLong(db.getConfig().bulkLoadRecoveryBin);
     }
 
     public static void writeIncrementalLoadVertexStartCount(final AerospikeConnection db, final long isIncrementalLoad) {
         // Create policy and configure.
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "incremental_load_vertex_count");
-        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, isIncrementalLoad);
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "incremental_load_vertex_count");
+        final Bin bin = new Bin(db.getConfig().bulkLoadRecoveryBin, isIncrementalLoad);
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
@@ -206,17 +206,17 @@ public class RecoveryUtil {
     }
 
     public static long recoverIncrementalLoadEdgeStartCount(final AerospikeConnection db) {
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "incremental_load_edge_count");
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "incremental_load_edge_count");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
         final Record r = retryReadOperation(db, key, readPolicy);
-        return r == null ? 0 : r.getLong(db.BULK_LOAD_RECOVERY_BIN);
+        return r == null ? 0 : r.getLong(db.getConfig().bulkLoadRecoveryBin);
     }
 
     public static void writeIncrementalLoadEdgeStartCount(final AerospikeConnection db, final long edgeCount) {
         // Create policy and configure.
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "incremental_load_edge_count");
-        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, edgeCount);
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "incremental_load_edge_count");
+        final Bin bin = new Bin(db.getConfig().bulkLoadRecoveryBin, edgeCount);
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
@@ -225,8 +225,8 @@ public class RecoveryUtil {
 
     public static void updateVertexRecovery(final AerospikeConnection db, final int partitionCount) {
         // Create policy and configure.
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex_partition_count");
-        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, partitionCount);
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "vertex_partition_count");
+        final Bin bin = new Bin(db.getConfig().bulkLoadRecoveryBin, partitionCount);
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
@@ -235,8 +235,8 @@ public class RecoveryUtil {
 
     public static void updateEdgeRecovery(final AerospikeConnection db, final int partition_count) {
         // Create policy and configure.
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "edge_partition_count");
-        final Bin bin = new Bin(db.BULK_LOAD_RECOVERY_BIN, partition_count);
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "edge_partition_count");
+        final Bin bin = new Bin(db.getConfig().bulkLoadRecoveryBin, partition_count);
         final Operation operation = Operation.put(bin);
         final WritePolicy writePolicy = new WritePolicy();
         db.configureWritePolicy(writePolicy);
@@ -279,19 +279,19 @@ public class RecoveryUtil {
     }
 
     private static String recoverState(final AerospikeConnection db) {
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "state");
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "state");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
         final Record r = retryReadOperation(db, key, readPolicy);
-        return r == null ? null : r.getString(db.BULK_LOAD_RECOVERY_BIN);
+        return r == null ? null : r.getString(db.getConfig().bulkLoadRecoveryBin);
     }
 
     public static int recoverVertexPartitionCount(final AerospikeConnection db) {
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "vertex_partition_count");
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "vertex_partition_count");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
         final Record r = retryReadOperation(db, key, readPolicy);
-        return r == null ? -1 : r.getInt(db.BULK_LOAD_RECOVERY_BIN);
+        return r == null ? -1 : r.getInt(db.getConfig().bulkLoadRecoveryBin);
     }
 
     public static String getEdgeRecoveryDirectory(final String tempDirectory, final String separator) {
@@ -311,20 +311,20 @@ public class RecoveryUtil {
     }
 
     public static int recoverEdgePartitionCount(final AerospikeConnection db) {
-        final Key key = new Key(db.namespace, db.BULK_LOAD_RECOVERY_STATE_SET, "edge_partition_count");
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadRecoveryStateSet, "edge_partition_count");
         final Policy readPolicy = new Policy();
         db.configureReadPolicy(readPolicy);
         final Record r = retryReadOperation(db, key, readPolicy);
-        return r == null ? -1 : r.getInt(db.BULK_LOAD_RECOVERY_BIN);
+        return r == null ? -1 : r.getInt(db.getConfig().bulkLoadRecoveryBin);
     }
 
     public static RecoveryInfo recover(final AerospikeConnection db) {
         final ScanPolicy scanPolicy = new ScanPolicy();
         db.configureScanPolicy(scanPolicy);
         final RecoveryRecordSequenceListener listener = new RecoveryRecordSequenceListener(db);
-        recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_VERTEX_SET, RecoveryRecordSequenceListener.RecoveryMode.VERTEX);
-        recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_EDGE_SET, RecoveryRecordSequenceListener.RecoveryMode.EDGE);
-        recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_SUPERNODE_SET, RecoveryRecordSequenceListener.RecoveryMode.SUPERNODE);
+        recoverPartitions(listener, db, scanPolicy, db.getConfig().bulkLoadRecoveryVertexSet, RecoveryRecordSequenceListener.RecoveryMode.VERTEX);
+        recoverPartitions(listener, db, scanPolicy, db.getConfig().bulkLoadRecoveryEdgeSet, RecoveryRecordSequenceListener.RecoveryMode.EDGE);
+        recoverPartitions(listener, db, scanPolicy, db.getConfig().bulkLoadRecoverySupernodeSet, RecoveryRecordSequenceListener.RecoveryMode.SUPERNODE);
         return new RecoveryInfo(
                 listener.getVertexPartitions(),
                 listener.getEdgePartitions(),
@@ -343,7 +343,7 @@ public class RecoveryUtil {
         final ScanPolicy scanPolicy = new ScanPolicy();
         db.configureScanPolicy(scanPolicy);
         final RecoveryRecordSequenceListener listener = new RecoveryRecordSequenceListener(db);
-        recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_VERTEX_SET, RecoveryRecordSequenceListener.RecoveryMode.VERTEX);
+        recoverPartitions(listener, db, scanPolicy, db.getConfig().bulkLoadRecoveryVertexSet, RecoveryRecordSequenceListener.RecoveryMode.VERTEX);
         return listener.vertexPartitions;
     }
 
@@ -351,7 +351,7 @@ public class RecoveryUtil {
         final ScanPolicy scanPolicy = new ScanPolicy();
         db.configureScanPolicy(scanPolicy);
         final RecoveryRecordSequenceListener listener = new RecoveryRecordSequenceListener(db);
-        recoverPartitions(listener, db, scanPolicy, db.BULK_LOAD_RECOVERY_EDGE_SET, RecoveryRecordSequenceListener.RecoveryMode.EDGE);
+        recoverPartitions(listener, db, scanPolicy, db.getConfig().bulkLoadRecoveryEdgeSet, RecoveryRecordSequenceListener.RecoveryMode.EDGE);
         return listener.edgePartitions;
     }
 
@@ -379,13 +379,13 @@ public class RecoveryUtil {
         @Override
         public void onRecord(final Key key, final Record record) throws AerospikeException {
             if (RecoveryMode.VERTEX.equals(mode)) {
-                final Set<Long> partitionIds = (Set) ((List) record.bins.get(db.BULK_LOAD_RECOVERY_BIN)).stream().collect(Collectors.toSet());
+                final Set<Long> partitionIds = (Set) ((List) record.bins.get(db.getConfig().bulkLoadRecoveryBin)).stream().collect(Collectors.toSet());
                 vertexPartitions.addAll(partitionIds);
             } else if (RecoveryMode.EDGE.equals(mode)) {
-                final Set<Long> partitionIds = (Set) ((List) record.bins.get(db.BULK_LOAD_RECOVERY_BIN)).stream().collect(Collectors.toSet());
+                final Set<Long> partitionIds = (Set) ((List) record.bins.get(db.getConfig().bulkLoadRecoveryBin)).stream().collect(Collectors.toSet());
                 edgePartitions.addAll(partitionIds);
             } else if (RecoveryMode.SUPERNODE.equals(mode)) {
-                final Set<Object> partitionIds = (Set) ((List) record.bins.get(db.BULK_LOAD_RECOVERY_BIN)).stream().collect(Collectors.toSet());
+                final Set<Object> partitionIds = (Set) ((List) record.bins.get(db.getConfig().bulkLoadRecoveryBin)).stream().collect(Collectors.toSet());
                 supernodes.addAll(partitionIds);
             } else {
                 failed = true;

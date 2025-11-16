@@ -1,11 +1,8 @@
 package com.aerospike.firefly.runtime.tasks;
 
-import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
-import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
-import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +38,7 @@ public class FireflyUsageStats {
 
     private void init(final AerospikeConnection connection) {
         if (connection.shouldCreateIndexes()) {
-            final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(connection, connection.USAGE_STATS_SET);
+            final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(connection, connection.getConfig().usageStatsSet);
             for (final String index : setIndex) {
                 if (!"ok".equals(index)) {
                     LOG.error("Error creating set index: {}", index);
@@ -55,8 +52,8 @@ public class FireflyUsageStats {
         // Note, on initialization the task is run with extra write info,
         // so delay can be set to USAGE_STATS_UPDATE_INTERVAL.
         taskTimer.scheduleAtFixedRate(task,
-                connection.USAGE_STATS_UPDATE_INTERVAL,
-                connection.USAGE_STATS_UPDATE_INTERVAL);
+                connection.getConfig().usageStatsUpdateInterval,
+                connection.getConfig().usageStatsUpdateInterval);
     }
 
 
@@ -118,13 +115,13 @@ public class FireflyUsageStats {
 
         public FireflyUsageStatsTask(final AerospikeConnection connection) {
             this.connection = connection;
-            key = new Key(connection.getNamespace(), connection.USAGE_STATS_SET, uuid.toString());
+            key = new Key(connection.getNamespace(), connection.getConfig().usageStatsSet, uuid.toString());
             map.put("uuid", uuid.toString());
             map.put("vcpus", Runtime.getRuntime().availableProcessors());
             map.put("memory-gb", Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024));
             map.put("epoch-ms-start", Instant.now().toEpochMilli());
             map.put("epoch-ms-final", Instant.now().toEpochMilli());
-            final Bin bin = new Bin(connection.USAGE_STATS_BIN, map);
+            final Bin bin = new Bin(connection.getConfig().usageStatsBin, map);
             connection.checkedPut(null, key, bin);
         }
 
@@ -133,7 +130,7 @@ public class FireflyUsageStats {
             try {
                 // Each unique node will have a unique UUID that is their record key.
                 map.put("epoch-ms-final", Instant.now().toEpochMilli());
-                final Bin bin = new Bin(connection.USAGE_STATS_BIN, map);
+                final Bin bin = new Bin(connection.getConfig().usageStatsBin, map);
                 connection.writeOperate(null, key, Operation.put(bin));
                 errorPrinted = false;
             } catch (final Exception ex) {
@@ -146,8 +143,8 @@ public class FireflyUsageStats {
         public List<Map<String, Object>> getAllUsageStats() {
             final Queue<Map<String, Object>> usageStatsList = new ConcurrentLinkedQueue<>();
             try {
-                this.connection.scanAll(null, connection.USAGE_STATS_SET, (key, record) -> {
-                    final Map<String, Object> originalMap = (Map<String, Object>) record.getMap(connection.USAGE_STATS_BIN);
+                this.connection.scanAll(null, connection.getConfig().usageStatsSet, (key, record) -> {
+                    final Map<String, Object> originalMap = (Map<String, Object>) record.getMap(connection.getConfig().usageStatsBin);
                     final Long epochDelta = (Long) originalMap.get("epoch-ms-final") - (Long) originalMap.get("epoch-ms-start");
                     if (epochDelta > 60 * 60 * 1000) {
                         originalMap.put("epoch-delta-hrs", epochDelta / (60 * 60 * 1000));

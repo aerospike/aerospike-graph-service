@@ -108,7 +108,7 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
             final Vertex v1 = g.addV("one").next();
             final Vertex v2 = g.addV("two").next();
             // Ensure use sizing greater than the edge pack size to ensure not just current edge pack is refilled
-            final int testSize = (graph.getBaseGraph().PHAT_EDGE_SIZE * 2) + 2;
+            final int testSize = (graph.getBaseGraph().getConfig().phatEdgeSize * 2) + 2;
             // Automatic ID generation is decrementing so start with the highest value to ensure sequential packing IDs
             long highestId = Long.MIN_VALUE;
             final Set<String> originalEdgeIds = new HashSet<>();

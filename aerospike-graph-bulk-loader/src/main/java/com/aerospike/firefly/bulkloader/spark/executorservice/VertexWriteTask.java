@@ -46,7 +46,7 @@ public class VertexWriteTask {
         this.fireflyRow = fireflyRow;
         this.metadataRow = metadataRow;
         this.supernodes = supernodes;
-        this.edgeCacheEnabled = this.graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG;
+        this.edgeCacheEnabled = this.graph.getBaseGraph().getConfig().globalEdgeCacheEnabledFlag;
         sparkVertex = SparkFireflyVertex.createVertex(this.fireflyRow, this.nullValue);
         fireflyId = sparkVertex.getFireflyId(this.graph.getBaseGraph());
         this.partitionId = partitionId;

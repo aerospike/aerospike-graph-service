@@ -61,7 +61,7 @@ public class EdgeQueryHelper {
         if (labels.isEmpty()) {
             return null;
         } else {
-            final String binName = direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN;
+            final String binName = direction == Direction.OUT ? db.getConfig().supernodesOutBin : db.getConfig().supernodesInBin;
             final List<Exp> allLabelExp = new ArrayList<>();
             for (final String label : labels) {
                 final Long schemaLabelKey = db.schemaManager.getEdgePropertyRead(EDGE_SUPERNODE_LABEL_KEY);
@@ -89,9 +89,9 @@ public class EdgeQueryHelper {
         final Long schemaAdjacentIdKey = db.schemaManager.getEdgePropertyRead(EDGE_SUPERNODE_ADJACENT_ID_KEY);
         final String binName;
         if (direction == Direction.IN) {
-            binName = db.SUPERNODES_IN_BIN;
+            binName = db.getConfig().supernodesInBin;
         } else if (direction == Direction.OUT) {
-            binName = db.SUPERNODES_OUT_BIN;
+            binName = db.getConfig().supernodesOutBin;
         } else {
             // This should never happen.
             throw new IllegalArgumentException("Adjacency pushdown filter for adjacent Vertex ID can not be invoked with Direction BOTH.");
@@ -130,7 +130,7 @@ public class EdgeQueryHelper {
                                               final FireflyId vertexId, final String propertyKey,
                                               final P<?> predicate) {
         // Build expression for nested Phat Edge properties.
-        final String binName = direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN;
+        final String binName = direction == Direction.OUT ? db.getConfig().supernodesOutBin : db.getConfig().supernodesInBin;
         final Long schemaPropertyKey = db.schemaManager.getEdgePropertyRead(propertyKey);
         final Object value = predicate.getValue();
         if (predicate.getBiPredicate().equals(Contains.within)) {
@@ -191,7 +191,7 @@ public class EdgeQueryHelper {
     private static Exp phatEdgeCompoundPredicateToExp(final AerospikeConnection db, final Direction direction,
                                                       final FireflyId vertexId,
                                                       final Map.Entry<String, List<Long>> compoundHasContainer) {
-        final String binName = direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN;
+        final String binName = direction == Direction.OUT ? db.getConfig().supernodesOutBin : db.getConfig().supernodesInBin;
         final Long schemaCompoundPropertyKey = db.schemaManager.getEdgePropertyRead(compoundHasContainer.getKey());
         return MapExp.getByValueRange(MapReturnType.EXISTS, Exp.val(compoundHasContainer.getValue().get(0)),
                 Exp.val(compoundHasContainer.getValue().get(1)), Exp.mapBin(binName),

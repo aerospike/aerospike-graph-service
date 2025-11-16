@@ -422,8 +422,8 @@ public class TestAdjacencySindexFilters {
             Assert.assertEquals(0, Iterators.size(v4.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasv1v2))));
             Assert.assertEquals(1, Iterators.size(v4.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasv3v4))));
             Record record = v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, Collections.emptyList()).next().record;
-            Map<Object, Map<Long, Map<Long, Object>>> supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_IN_BIN);
-            Map<Object, Map<Long, Map<Long, Object>>> supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_OUT_BIN);
+            Map<Object, Map<Long, Map<Long, Object>>> supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().getConfig().supernodesInBin);
+            Map<Object, Map<Long, Map<Long, Object>>> supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().getConfig().supernodesOutBin);
             Assert.assertTrue(supernodeOutMap.containsKey(v1.id.getKeyHashString()));
             Assert.assertTrue(supernodeInMap.containsKey(v2.id.getKeyHashString()));
             Assert.assertTrue(supernodeOutMap.containsKey(v3.id.getKeyHashString()));
@@ -452,8 +452,8 @@ public class TestAdjacencySindexFilters {
             Assert.assertEquals(0, Iterators.size(v4.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasv1v2))));
             Assert.assertEquals(1, Iterators.size(v4.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasv3v4))));
             record = v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, Collections.emptyList()).next().record;
-            supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_IN_BIN);
-            supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_OUT_BIN);
+            supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().getConfig().supernodesInBin);
+            supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().getConfig().supernodesOutBin);
             Assert.assertTrue(supernodeOutMap.containsKey(v1.id.getKeyHashString()));
             Assert.assertTrue(supernodeInMap.containsKey(v2.id.getKeyHashString()));
             Assert.assertTrue(supernodeOutMap.containsKey(v3.id.getKeyHashString()));
@@ -482,8 +482,8 @@ public class TestAdjacencySindexFilters {
             Assert.assertEquals(0, Iterators.size(v4.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasv1v2))));
             Assert.assertEquals(0, Iterators.size(v4.getEdgeKeyRecordsByIndex(Direction.IN, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, List.of(hasv3v4))));
             record = v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, Collections.emptyList()).next().record;
-            supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_IN_BIN);
-            supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_OUT_BIN);
+            supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().getConfig().supernodesInBin);
+            supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().getConfig().supernodesOutBin);
             Assert.assertTrue(supernodeOutMap.containsKey(v1.id.getKeyHashString()));
             Assert.assertTrue(supernodeInMap.containsKey(v2.id.getKeyHashString()));
             Assert.assertFalse(supernodeOutMap.containsKey(v3.id.getKeyHashString()));
@@ -519,8 +519,8 @@ public class TestAdjacencySindexFilters {
             final Long culpritPropertyKey = phatFirefly.getBaseGraph().schemaManager.getEdgePropertyRead("culprit");
 
             Record record = v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, Collections.emptyList()).next().record;
-            Map<Object, Map<Long, Map<Long, Object>>> supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_OUT_BIN);
-            Map<Object, Map<Long, Map<Long, Object>>> supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_IN_BIN);
+            Map<Object, Map<Long, Map<Long, Object>>> supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().getConfig().supernodesOutBin);
+            Map<Object, Map<Long, Map<Long, Object>>> supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().getConfig().supernodesInBin);
             Assert.assertTrue(supernodeOutMap.containsKey(v1.id.getKeyHashString()));
             Assert.assertTrue(supernodeInMap.containsKey(v2.id.getKeyHashString()));
             Assert.assertEquals(4, supernodeOutMap.get(v1.id.getKeyHashString()).size());
@@ -535,8 +535,8 @@ public class TestAdjacencySindexFilters {
             // See that removal on the original e1 handle deletes the "culprit" property
             e1.remove();
             record = v1.getEdgeKeyRecordsByIndex(Direction.OUT, Collections.emptySet(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID, Collections.emptyList()).next().record;
-            supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_OUT_BIN);
-            supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().SUPERNODES_IN_BIN);
+            supernodeOutMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().getConfig().supernodesOutBin);
+            supernodeInMap = (Map<Object, Map<Long, Map<Long, Object>>>) record.getMap(phatFirefly.getBaseGraph().getConfig().supernodesInBin);
             Assert.assertTrue(supernodeOutMap.containsKey(v1.id.getKeyHashString()));
             Assert.assertTrue(supernodeInMap.containsKey(v2.id.getKeyHashString()));
             Assert.assertEquals(3, supernodeOutMap.get(v1.id.getKeyHashString()).size());

@@ -799,7 +799,8 @@ public class TestDistributedGraphComputer {
     @Test
     public void testConfig() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            System.out.println("Config: " + AerospikeConnection.InfoOps.getMaxParallelSindexes(graph.getBaseGraph(), graph.getBaseGraph().namespace));
+            System.out.println("Config: " + AerospikeConnection.InfoOps.getMaxParallelSindexes(graph.getBaseGraph(),
+                    graph.getBaseGraph().getConfig().namespace));
         }
 
     }
@@ -840,7 +841,7 @@ public class TestDistributedGraphComputer {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             List<FireflyIndexMetadata.IndexInfo> indexes = graph.fireflyIndexMetadata.getPropertyIndexInfos();
             Assert.assertEquals(1, indexes.size());
-            Assert.assertEquals(graph.getBaseGraph().V_LABEL_INDEX_NAME, indexes.get(0).indexName);
+            Assert.assertEquals(graph.getBaseGraph().getConfig().vLabelIndexName, indexes.get(0).indexName);
             graph.traversal().V().drop().iterate();
             final Graph tg = TinkerFactory.createModern();
             GraphHelper.cloneElements(tg, graph);
@@ -864,7 +865,7 @@ public class TestDistributedGraphComputer {
                 }
             }
             Assert.assertEquals(1, indexes.size());
-            Assert.assertEquals(graph.getBaseGraph().V_LABEL_INDEX_NAME, indexes.get(0).indexName);
+            Assert.assertEquals(graph.getBaseGraph().getConfig().vLabelIndexName, indexes.get(0).indexName);
         }
     }
 

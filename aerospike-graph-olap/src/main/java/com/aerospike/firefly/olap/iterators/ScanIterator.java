@@ -14,7 +14,6 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyEdgeFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.util.TimeoutHelper;
 import org.apache.spark.sql.Row;
@@ -78,7 +77,7 @@ public class ScanIterator implements CloseableIterator<Traverser> {
         this.traversal = traversal;
         this.graphStep = graphStep;
         this.expression = expression;
-        pageQueue = new LinkedBlockingQueue<>(graph.getBaseGraph().PAGINATION_PAGE_QUEUE_SIZE);
+        pageQueue = new LinkedBlockingQueue<>(graph.getBaseGraph().getConfig().paginationPageQueueSize);
     }
 
     @Override
@@ -123,9 +122,9 @@ public class ScanIterator implements CloseableIterator<Traverser> {
                         pageFetcher = new ScanPageFetcher<>(
                                 graph,
                                 policy,
-                                graphStep.returnsVertex() ? graph.getBaseGraph().VERTEX_AERO_SET : graph.getBaseGraph().EDGE_AERO_SET,
+                                graphStep.returnsVertex() ? graph.getBaseGraph().getConfig().vertexAeroSet : graph.getBaseGraph().getConfig().edgeAeroSet,
                                 null,
-                                graph.getBaseGraph().PAGINATION_PAGE_SIZE,
+                                graph.getBaseGraph().getConfig().paginationPageSize,
                                 null,
                                 partitionFilter,
                                 Executors.newSingleThreadExecutor(),
@@ -196,7 +195,7 @@ public class ScanIterator implements CloseableIterator<Traverser> {
             if (edgeIterator == null || !edgeIterator.hasNext()) {
                 verifyPageHasNext();
                 final KeyRecord keyRecord = page.keyRecords.next();
-                final Map<ByteBuffer, Object> edgeData = (Map<ByteBuffer, Object>) keyRecord.record.getMap(graph.getBaseGraph().EDGE_DATA_BIN);
+                final Map<ByteBuffer, Object> edgeData = (Map<ByteBuffer, Object>) keyRecord.record.getMap(graph.getBaseGraph().getConfig().edgeDataBin);
                 edgeIterator = edgeData.keySet().iterator();
                 edgeRecord = new FireflyEdgeRecord(keyRecord.record, this.graph.getBaseGraph());
             }

@@ -120,7 +120,7 @@ public class FireflyBatchElementMapStep extends CollectingBarrierStep<Element> i
                     vertexIdsToRead.add(edge.inVertexId());
                 }
 
-                if (vertexIdsToRead.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+                if (vertexIdsToRead.size() >= graph.getBaseGraph().getConfig().aerospikeBatchReadSize) {
                     graph.readVertices(Collections.emptyList(), vertexIdsToRead, Collections.emptyList(), false)
                             .forEach(v -> cache.put(v.id, Pair.with(v.id(), v.label())));
                     vertexIdsToRead.clear();

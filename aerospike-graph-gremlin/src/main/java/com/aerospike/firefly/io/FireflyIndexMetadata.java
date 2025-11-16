@@ -11,9 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
@@ -48,11 +46,11 @@ public class FireflyIndexMetadata implements FireflyMetadata {
             indexInfos.clear();
             for (final String indexName : indexes) {
                 // If it is the vertex or edge label index, insert it.
-                if (db.V_LABEL_INDEX_NAME.equals(indexName)) {
-                    indexInfos.add(new IndexInfo(db.V_LABEL_INDEX_NAME, db.LABEL_BIN, NUMERIC, db.VERTEX_AERO_SET));
+                if (db.getConfig().vLabelIndexName.equals(indexName)) {
+                    indexInfos.add(new IndexInfo(db.getConfig().vLabelIndexName, db.getConfig().labelBin, NUMERIC, db.getConfig().vertexAeroSet));
                     continue;
-                } else if (db.E_LABEL_INDEX_NAME.equals(indexName)) {
-                    indexInfos.add(new IndexInfo(db.E_LABEL_INDEX_NAME, db.LABEL_BIN, STRING, db.EDGE_AERO_SET));
+                } else if (db.getConfig().eLabelIndexName.equals(indexName)) {
+                    indexInfos.add(new IndexInfo(db.getConfig().eLabelIndexName, db.getConfig().labelBin, STRING, db.getConfig().edgeAeroSet));
                     continue;
                 }
 
@@ -60,10 +58,10 @@ public class FireflyIndexMetadata implements FireflyMetadata {
                 String propertyName;
                 final String setName;
                 if (indexName.startsWith(db.getVpIndexPrefix())) {
-                    setName = db.VERTEX_AERO_SET;
+                    setName = db.getConfig().vertexAeroSet;
                     propertyName = indexName.substring((db.getVpIndexPrefix() + "_").length());
                 } else if (indexName.startsWith(db.getEpIndexPrefix())) {
-                    setName = db.EDGE_AERO_SET;
+                    setName = db.getConfig().edgeAeroSet;
                     propertyName = indexName.substring((db.getEpIndexPrefix() + "_").length());
                 } else {
                     // Not a property index.
@@ -107,7 +105,7 @@ public class FireflyIndexMetadata implements FireflyMetadata {
         final List<IndexInfo> indexInfosList = getPropertyIndexInfos();
         for (final IndexInfo indexInfo : indexInfosList) {
             if (FireflyVertex.class.isAssignableFrom(elementClass)) {
-                if (indexInfo.setName.equals(db.V_LABEL_INDEX_NAME) || indexInfo.setName.equals(db.VERTEX_AERO_SET)) {
+                if (indexInfo.setName.equals(db.getConfig().vLabelIndexName) || indexInfo.setName.equals(db.getConfig().vertexAeroSet)) {
                     if (indexInfo.key.equals(key)) {
                         if (Number.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(NUMERIC)) {
                             // If value is number, index type must also be numeric.
@@ -116,15 +114,15 @@ public class FireflyIndexMetadata implements FireflyMetadata {
                             // If value is string, index type must also be string.
                             return Optional.of(indexInfo);
                         }
-                    } else if (db.LABEL_BIN.equals(indexInfo.key) && "~label".equals(key)) {
+                    } else if (db.getConfig().labelBin.equals(indexInfo.key) && "~label".equals(key)) {
                         if (String.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(NUMERIC)) {
                             return Optional.of(indexInfo);
                         }
                     }
                 }
             } else if (FireflyEdge.class.isAssignableFrom(elementClass)) {
-                if (indexInfo.setName.equals(db.E_LABEL_INDEX_NAME) || indexInfo.setName.equals(db.EDGE_AERO_SET)) {
-                    if (indexInfo.key.equals(key) || (db.LABEL_BIN.equals(indexInfo.key) && "~label".equals(key))) {
+                if (indexInfo.setName.equals(db.getConfig().eLabelIndexName) || indexInfo.setName.equals(db.getConfig().edgeAeroSet)) {
+                    if (indexInfo.key.equals(key) || (db.getConfig().labelBin.equals(indexInfo.key) && "~label".equals(key))) {
                         if (Number.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(NUMERIC)) {
                             // If value is number, index type must also be numeric.
                             return Optional.of(indexInfo);

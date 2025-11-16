@@ -49,7 +49,7 @@ public class PerformanceTest {
             for (int i = 1; i < 6; i++) {
                 final long start = Instant.now().toEpochMilli();
 
-                // with("aerospike.graph.olap.debug.df", "true")
+                // with("aerospike.graph.analytics.debug.df", "true")
                 final GraphTraversalSource seed = g.with("evaluationTimeout", 900 * 1000)
                         .with("aerospike.client.batch.read.size", 5000)
                         .with("aerospike.graph.pagination.page.size", 5000)
@@ -72,7 +72,7 @@ public class PerformanceTest {
             for (int i = 2; i < 6; i++) {
                 final long start = Instant.now().toEpochMilli();
 
-                // with("aerospike.graph.olap.debug.df", "true")
+                // with("aerospike.graph.analytics.debug.df", "true")
                 final GraphTraversalSource seed = g.with("evaluationTimeout", 600 * 1000)
                         .with("aerospike.client.batch.read.size", 5000)
                         .with("aerospike.graph.pagination.page.size", 5000)
@@ -94,7 +94,7 @@ public class PerformanceTest {
         try (GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using("127.0.0.1", 8182))) {
             final long start = Instant.now().toEpochMilli();
 
-            // with("aerospike.graph.olap.debug.df", "true")
+            // with("aerospike.graph.analytics.debug.df", "true")
             final List result = g.with("evaluationTimeout", 900 * 1000)
                     .with("aerospike.client.batch.read.size", 5000)
                     .with("aerospike.graph.pagination.page.size", 5000)

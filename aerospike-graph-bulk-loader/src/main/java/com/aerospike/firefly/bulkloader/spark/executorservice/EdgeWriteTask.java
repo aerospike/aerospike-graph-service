@@ -67,7 +67,7 @@ public class EdgeWriteTask {
         this.vertexInEdgeMap = vertexInEdgeMap;
         this.fireflyRow = rowForFirefly;
         this.fireflyMetadataRow = fireflyMetadataRow;
-        this.edgeCacheEnabled = this.graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG;
+        this.edgeCacheEnabled = this.graph.getBaseGraph().getConfig().globalEdgeCacheEnabledFlag;
         sparkEdge = SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId,
                 providedIdPropertyName, nullValue, graph, false,
                 EdgeOperations.getEdgeIdSupplied(fireflyMetadataRow, usePersistedEdgeId));

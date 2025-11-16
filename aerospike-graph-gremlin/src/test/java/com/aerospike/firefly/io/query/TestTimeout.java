@@ -2,6 +2,7 @@ package com.aerospike.firefly.io.query;
 
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnectionConfig;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -50,6 +51,7 @@ public class TestTimeout {
 
     private long getUsedTimeoutFromScan(Function<GraphTraversalSource, GraphTraversal> traversalFunc) throws NoSuchFieldException, IllegalAccessException {
         final AerospikeConnection connection = mock(AerospikeConnection.class);
+        final AerospikeConnectionConfig config = mock(AerospikeConnectionConfig.class);
 
         final FireflyGraph graph = mock(FireflyGraph.class);
         setFieldValue(FireflyGraph.class, graph, "fireflyIndexMetadata", new FireflyIndexMetadata(connection));
@@ -73,6 +75,7 @@ public class TestTimeout {
                 any(boolean.class),
                 any(Long.class));
 
+        when(connection.getConfig()).thenReturn(config);
         when(graph.settings()).thenReturn(settings);
         when(graph.getBaseGraph()).thenReturn(connection);
         setFieldValue(FireflyGraph.class, graph, "graphQuery", graphQuery);

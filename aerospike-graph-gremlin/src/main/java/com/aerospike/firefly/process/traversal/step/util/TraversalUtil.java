@@ -36,11 +36,11 @@ public class TraversalUtil {
         if (!vertex.isEdgeCacheOverflowed()) {
             return;
         }
-        if (graph.getBaseGraph().SUPERNODES_TRAVERSED_COUNTER_ENABLED) {
+        if (graph.getBaseGraph().getConfig().supernodesTraversedCounterEnabled) {
             graph.incrementSupernodesTraversed();
         }
-        if (graph.getBaseGraph().SUPERNODE_TRAVERSAL_LOG_WARNING) {
-            final String traversalString = toStringScript(traversal, graph.getBaseGraph().REDACT_SCRIPT_LITERALS_ENABLED);
+        if (graph.getBaseGraph().getConfig().supernodeTraversalLogWarning) {
+            final String traversalString = toStringScript(traversal, graph.getBaseGraph().getConfig().redactScriptLiteralsEnabled);
             if (!TRAVERSAL_LOG_CACHE.contains(traversalString)) {
                 final String message = "The traversal, \"" + traversalString +
                         "\", walks over the Edges of an existing supernode in the Graph which may cause unexpected performance.\n" +

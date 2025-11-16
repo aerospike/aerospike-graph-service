@@ -1,6 +1,5 @@
 package com.aerospike.firefly.process.call.bulkload;
 
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
@@ -121,10 +120,10 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                 // only need when customer provide custom config
                 final Configuration config = ConfigurationHelper.loadFromFile((String) mutableParams.get(CONFIG_DIRECTORY_KEY));
                 final String configGraphId = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.GRAPH_ID, config);
-                if (!graph.getBaseGraph().GRAPH_ID.equals(configGraphId)) {
+                if (!graph.getBaseGraph().getConfig().graphId.equals(configGraphId)) {
                     throw new IllegalStateException("Error, attempting to load graph id '"
                             + configGraphId
-                            + "' through call step on graph id '" + graph.getBaseGraph().GRAPH_ID + "'.");
+                            + "' through call step on graph id '" + graph.getBaseGraph().getConfig().graphId + "'.");
                 }
             } catch (final IllegalStateException e) {
                 throw e;

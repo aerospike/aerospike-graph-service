@@ -84,7 +84,7 @@ public class HttpServer {
         router = Router.router(vertx);
 
         // Add a handler for the metrics endpoint - this picks up the default registry.
-        router.get(prometheusPath).handler(new FireflyMetricRewriter(graph.getBaseGraph().PROMETHEUS_RENAME_ENABLED));
+        router.get(prometheusPath).handler(new FireflyMetricRewriter(graph.getBaseGraph().getConfig().prometheusRenameEnabled));
 
         // Bootstrap http server with request handler on provided port.
         vertxHttpServer = vertx.createHttpServer();
@@ -118,7 +118,7 @@ public class HttpServer {
             init(graph);
         }
 
-        LOG.info("Configuring HttpServer for graph {}.", graph.getBaseGraph().GRAPH_ID);
+        LOG.info("Configuring HttpServer for graph {}.", graph.getBaseGraph().getConfig().graphId);
 
         final Configuration configuration = graph.configuration();
         String healthcheckPath =
@@ -143,7 +143,7 @@ public class HttpServer {
         };
 
         router.get(healthcheckPath).handler(handler);
-        router.get("/" + graph.getBaseGraph().GRAPH_ID + healthcheckPath).handler(handler);
+        router.get("/" + graph.getBaseGraph().getConfig().graphId + healthcheckPath).handler(handler);
 
         graph.getAdminServiceRegistry().appendHandlers(router);
     }

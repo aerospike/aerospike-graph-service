@@ -34,9 +34,9 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
     static public void beforeAll() throws NoSuchFieldException, IllegalAccessException {
         GRAPH = FireflyGraph.open(CONFIG);
         final AerospikeConnection db = GRAPH.getBaseGraph();
-        final Field mrtEnabled = db.getClass().getDeclaredField("MRT_ENABLED");
+        final Field mrtEnabled = db.getConfig().getClass().getDeclaredField("mrtEnabled");
         mrtEnabled.setAccessible(true);
-        mrtEnabled.set(db, true);
+        mrtEnabled.set(db.getConfig(), true);
         ID_MANAGER = (MrtRecyclingBufferedNumericIdManager) new FireflyIdFactory(db).getEdgeIdManager();
     }
 
@@ -74,7 +74,7 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
                         lastIdSeenCount = 1;
                     } else {
                         lastIdSeenCount++;
-                        if (lastIdSeenCount > GRAPH.getBaseGraph().PHAT_EDGE_SIZE) {
+                        if (lastIdSeenCount > GRAPH.getBaseGraph().getConfig().phatEdgeSize) {
                             failure.set("The ID manager generated the same storage ID more than the phat edge size.");
                             return;
                         }
@@ -99,7 +99,7 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
     public void testIdRecycling() {
         final Set<Long> recycledPackIds = ConcurrentHashMap.newKeySet();
         final Queue<FireflyId> idsToRecycle = new ArrayDeque<>();
-        for (int i = 0; i < GRAPH.getBaseGraph().PHAT_EDGE_SIZE; i++) {
+        for (int i = 0; i < GRAPH.getBaseGraph().getConfig().phatEdgeSize; i++) {
             final FireflyPhatEdgeId id = getId(GRAPH);
             idsToRecycle.add(id);
             recycledPackIds.add(id.getPackingId());
@@ -107,7 +107,7 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
 
         while (!idsToRecycle.isEmpty()) {
             ID_MANAGER.recycleId(idsToRecycle.poll(), GRAPH, true);
-            for (int i = 0; i < GRAPH.getBaseGraph().PHAT_EDGE_SIZE * 2; i++) {
+            for (int i = 0; i < GRAPH.getBaseGraph().getConfig().phatEdgeSize * 2; i++) {
                 final FireflyPhatEdgeId id = getId(GRAPH);
                 recycledPackIds.remove(id.getPackingId());
             }
@@ -156,13 +156,13 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
         Assert.assertTrue(ID_MANAGER.getInUseEdgeRecordIds().contains(storageId));
         Assert.assertFalse(ID_MANAGER.getRecycledPackIds().containsKey(storageId));
         final FireflyPhatEdgeId newId = FireflyPhatEdgeId.fromByteArray(ID_MANAGER.getNewId(GRAPH),
-                GRAPH.getBaseGraph().PHAT_EDGE_SIZE, GRAPH.getBaseGraph().EDGE_AERO_SET);
+                GRAPH.getBaseGraph().getConfig().phatEdgeSize, GRAPH.getBaseGraph().getConfig().edgeAeroSet);
         final Long newStorageId = (Long) newId.getStorageId();
         Assert.assertNotEquals(storageId, newStorageId);
         Assert.assertFalse(ID_MANAGER.getInUseEdgeRecordIds().contains(storageId));
         Assert.assertTrue(ID_MANAGER.getInUseEdgeRecordIds().contains(newStorageId));
         Assert.assertTrue(ID_MANAGER.getRecycledPackIds().containsKey(storageId));
-        Assert.assertEquals(GRAPH.getBaseGraph().PHAT_EDGE_SIZE - 1, ID_MANAGER.getRecycledPackIds().get(storageId).size());
+        Assert.assertEquals(GRAPH.getBaseGraph().getConfig().phatEdgeSize - 1, ID_MANAGER.getRecycledPackIds().get(storageId).size());
     }
 
     @Test
@@ -275,7 +275,7 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
             for (final Long storageId : cleanedIds) {
                 Assert.assertFalse(inUseRecordIds.contains(storageId));
                 Assert.assertTrue(recyclingPacks.containsKey(storageId));
-                Assert.assertEquals(GRAPH.getBaseGraph().PHAT_EDGE_SIZE - 1, recyclingPacks.get(storageId).size());
+                Assert.assertEquals(GRAPH.getBaseGraph().getConfig().phatEdgeSize - 1, recyclingPacks.get(storageId).size());
             }
         } else {
             final Set<Long> inUseRecordIds = ID_MANAGER.getInUseEdgeRecordIds();
@@ -283,13 +283,13 @@ public class MrtRecyclingBufferedNumericIdManagerTest {
             for (final Long storageId : storageIdsUsed) {
                 Assert.assertFalse(inUseRecordIds.contains(storageId));
                 Assert.assertTrue(recyclingPacks.containsKey(storageId));
-                Assert.assertEquals(GRAPH.getBaseGraph().PHAT_EDGE_SIZE - 1, recyclingPacks.get(storageId).size());
+                Assert.assertEquals(GRAPH.getBaseGraph().getConfig().phatEdgeSize - 1, recyclingPacks.get(storageId).size());
             }
         }
     }
 
     private FireflyPhatEdgeId getId(final FireflyGraph graph) {
-        return FireflyPhatEdgeId.fromByteArray(ID_MANAGER.getNextId(graph), graph.getBaseGraph().PHAT_EDGE_SIZE,
-                graph.getBaseGraph().EDGE_AERO_SET);
+        return FireflyPhatEdgeId.fromByteArray(ID_MANAGER.getNextId(graph), graph.getBaseGraph().getConfig().phatEdgeSize,
+                graph.getBaseGraph().getConfig().edgeAeroSet);
     }
 }

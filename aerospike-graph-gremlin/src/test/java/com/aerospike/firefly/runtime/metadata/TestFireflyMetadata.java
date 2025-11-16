@@ -110,8 +110,8 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
         final FireflyIndexMetadata.IndexInfo index1InfoLong = graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index1", 1L).get();
         final FireflyIndexMetadata.IndexInfo index1InfoString = graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index1", "1").get();
 
-        db.dropIndex(db.VERTEX_AERO_SET, index1InfoLong.indexName);
-        db.dropIndex(db.VERTEX_AERO_SET, index1InfoString.indexName);
+        db.dropIndex(db.getConfig().vertexAeroSet, index1InfoLong.indexName);
+        db.dropIndex(db.getConfig().vertexAeroSet, index1InfoString.indexName);
 
         // Check for 'index1' (should be removed), 'index2', and 'index3'. Need to check for both string and numeric existence.
         Thread.sleep(10);
@@ -129,10 +129,10 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
         final FireflyIndexMetadata.IndexInfo index3InfoLong = graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index3", 1L).get();
         final FireflyIndexMetadata.IndexInfo index3InfoString = graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "index3", "1").get();
 
-        db.dropIndex(db.VERTEX_AERO_SET, index2InfoLong.indexName);
-        db.dropIndex(db.VERTEX_AERO_SET, index2InfoString.indexName);
-        db.dropIndex(db.VERTEX_AERO_SET, index3InfoLong.indexName);
-        db.dropIndex(db.VERTEX_AERO_SET, index3InfoString.indexName);
+        db.dropIndex(db.getConfig().vertexAeroSet, index2InfoLong.indexName);
+        db.dropIndex(db.getConfig().vertexAeroSet, index2InfoString.indexName);
+        db.dropIndex(db.getConfig().vertexAeroSet, index3InfoLong.indexName);
+        db.dropIndex(db.getConfig().vertexAeroSet, index3InfoString.indexName);
 
         // Verify all indexes are removed.
         Thread.sleep(10);

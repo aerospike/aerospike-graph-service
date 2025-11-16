@@ -110,7 +110,7 @@ public class DistributedAerospikeConnection {
         this.packedElementCount = packedElementCount;
         this.packSize = packSize;
 
-        this.jobSet = graph.getBaseGraph().OLAP_JOB_SET;
+        this.jobSet = graph.getBaseGraph().getConfig().olapJobSet;
 
         createIndexes();
     }
@@ -121,14 +121,14 @@ public class DistributedAerospikeConnection {
                                           final long packSize,
                                           final boolean isAlgorithm) {
         this(graph, graph.getBaseGraph().getNamespace(),
-                isAlgorithm ? graph.getBaseGraph().OLAP_ALGORITHM_TEMP_SET : graph.getBaseGraph().OLAP_TEMP_SET, jobId, isAlgorithm, packedElementCount, packSize);
+                isAlgorithm ? graph.getBaseGraph().getConfig().olapAlgorithmTempSet : graph.getBaseGraph().getConfig().olapTempSet, jobId, isAlgorithm, packedElementCount, packSize);
     }
 
     public DistributedAerospikeConnection(final FireflyGraph graph,
                                           final long packedElementCount,
                                           final long packSize,
                                           final boolean isAlgorithm) {
-        this(graph, graph.getBaseGraph().getNamespace(), graph.getBaseGraph().OLAP_ALGORITHM_TEMP_SET, null, isAlgorithm, packedElementCount, packSize);
+        this(graph, graph.getBaseGraph().getNamespace(), graph.getBaseGraph().getConfig().olapAlgorithmTempSet, null, isAlgorithm, packedElementCount, packSize);
 
         if (!isAlgorithm) {
             throw new IllegalArgumentException("jobId is required, use different constructor");
@@ -149,7 +149,7 @@ public class DistributedAerospikeConnection {
                         .map(Map.Entry::getKey).collect(Collectors.toList());
 
         // Create index on job state if not exists.
-        db.createIndex(existingIndexes, jobSet, db.GRAPH_ID + "_job_state_IDX", "state", IndexType.STRING, IndexCollectionType.DEFAULT);
+        db.createIndex(existingIndexes, jobSet, db.getConfig().graphId + "_job_state_IDX", "state", IndexType.STRING, IndexCollectionType.DEFAULT);
         createSetIndex(jobSet);
     }
 
@@ -322,7 +322,7 @@ public class DistributedAerospikeConnection {
         }
 
         final String binName = bin + "_" + iteration;
-        final int chunkSize = db.PAGINATION_PAGE_SIZE;
+        final int chunkSize = db.getConfig().paginationPageSize;
         final Map<ByteArrayWrapper, Double> result = new HashMap<>();
         for (int i = 0; i < vertexIds.size(); i += chunkSize) {
             final int end = Math.min(vertexIds.size(), i + chunkSize);
@@ -665,7 +665,7 @@ public class DistributedAerospikeConnection {
 
         final List<BatchRecord> batchRecords = new ArrayList<>();
         for (final Map.Entry<FireflyId, Object> entry : values.entrySet()) {
-            final Key recordKey = FireflyRecord.getKey(this.db, this.db.VERTEX_AERO_SET, entry.getKey());
+            final Key recordKey = FireflyRecord.getKey(this.db, this.db.getConfig().vertexAeroSet, entry.getKey());
             final FireflyId vertexPropertyId = this.db.getIdFactory().generateId(this.graph, FireflyVertexProperty.class);
             final Long vpIdKey = (Long) vertexPropertyId.getStorageId();
             final Object typeHint = getTypeHintOf(entry.getValue(), true);
@@ -675,15 +675,15 @@ public class DistributedAerospikeConnection {
             idInList.add(vpIdKey);
             final Map<Object, List<Long>> valueToIdList = new HashMap<>();
             valueToIdList.put(verifiedValue, idInList);
-            final Operation writeVpData = MapOperation.put(treeMapPolicy, this.db.VERTEX_PROPERTY_DATA_BIN, Value.get(schemaVpKey), Value.get(valueToIdList));
+            final Operation writeVpData = MapOperation.put(treeMapPolicy, this.db.getConfig().vertexPropertyDataBin, Value.get(schemaVpKey), Value.get(valueToIdList));
 
             final Map<Long, Object> idToTypeHint = new HashMap<>();
             idToTypeHint.put(vpIdKey, typeHint);
-            final Operation writeVpTypeHint = MapOperation.put(hashMapPolicy, this.db.VERTEX_PROPERTY_TH_BIN, Value.get(schemaVpKey), Value.get(idToTypeHint));
+            final Operation writeVpTypeHint = MapOperation.put(hashMapPolicy, this.db.getConfig().vertexPropertyTHBin, Value.get(schemaVpKey), Value.get(idToTypeHint));
 
             final Map<Long, Map<Long, List<Object>>> idToProperties = new HashMap<>();
             idToProperties.put(vpIdKey, Collections.emptyMap());
-            final Operation writeVpProperties = MapOperation.put(hashMapPolicy, this.db.VP_PROPERTY_BIN, Value.get(schemaVpKey), Value.get(idToProperties));
+            final Operation writeVpProperties = MapOperation.put(hashMapPolicy, this.db.getConfig().vpPropertyBin, Value.get(schemaVpKey), Value.get(idToProperties));
 
             batchRecords.add(new BatchWrite(writePolicy, recordKey, new Operation[]{writeVpData, writeVpTypeHint, writeVpProperties}));
         }

@@ -30,10 +30,10 @@ public class TestConfigurationIntegration {
         config.setProperty(ConfigurationHelper.Keys.DEBUG_MODE_FLAG, "false");
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final AerospikeConnection a = fireflyGraph.getBaseGraph();
-            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET.getValue().numeric, a.VERTEX_AERO_SET);
-            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.EDGE_AERO_SET.getValue().numeric, a.EDGE_AERO_SET);
-            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.IN_VP_SET.getValue().numeric, a.IN_VP_SET);
-            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.OUT_VP_SET.getValue().numeric, a.OUT_VP_SET);
+            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET.getValue().numeric, a.getConfig().vertexAeroSet);
+            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.EDGE_AERO_SET.getValue().numeric, a.getConfig().edgeAeroSet);
+            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.IN_VP_SET.getValue().numeric, a.getConfig().inVpSet);
+            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.OUT_VP_SET.getValue().numeric, a.getConfig().outVpSet);
         }
     }
 
@@ -58,10 +58,10 @@ public class TestConfigurationIntegration {
         config.setProperty(ConfigurationHelper.Keys.DEBUG_MODE_FLAG, "true");
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final AerospikeConnection a = fireflyGraph.getBaseGraph();
-            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET.getValue().english, a.VERTEX_AERO_SET);
-            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.EDGE_AERO_SET.getValue().english, a.EDGE_AERO_SET);
-            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.IN_VP_SET.getValue().english, a.IN_VP_SET);
-            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.OUT_VP_SET.getValue().english, a.OUT_VP_SET);
+            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET.getValue().english, a.getConfig().vertexAeroSet);
+            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.EDGE_AERO_SET.getValue().english, a.getConfig().edgeAeroSet);
+            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.IN_VP_SET.getValue().english, a.getConfig().inVpSet);
+            assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.OUT_VP_SET.getValue().english, a.getConfig().outVpSet);
         }
     }
 
@@ -99,7 +99,7 @@ public class TestConfigurationIntegration {
         conf.setProperty("aeroSpike.grAph.strAtegy.meRge.edGe.poLl.intErval", "7531");
         conf.setProperty("AEROSPIKE.client.POLICY.write.TOTALTIMEOUT", "1357");
         try (final FireflyGraph graph = FireflyGraph.open(conf)) {
-            Assert.assertEquals(7531, graph.getBaseGraph().MERGE_EDGE_POLL_INTERVAL);
+            Assert.assertEquals(7531, graph.getBaseGraph().getConfig().mergeEdgePollInterval);
             WritePolicy policy = new WritePolicy();
             graph.getBaseGraph().configureWritePolicy(policy);
             Assert.assertEquals(1357, policy.totalTimeout);

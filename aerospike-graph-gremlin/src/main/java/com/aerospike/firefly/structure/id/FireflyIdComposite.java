@@ -53,7 +53,7 @@ public class FireflyIdComposite implements FireflyEdgeId {
             if (this.id.size() == 3) {
                 System.arraycopy(longToBytes((long)this.id.get(2)), 0, id, 8, 8);
             }
-            edgeId = FireflyPhatEdgeId.fromByteArray(id, db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
+            edgeId = FireflyPhatEdgeId.fromByteArray(id, db.getConfig().phatEdgeSize, db.getConfig().edgeAeroSet);
         }
         return (FireflyPhatEdgeId) edgeId;
     }

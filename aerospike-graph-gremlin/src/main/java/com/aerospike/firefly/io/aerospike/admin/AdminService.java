@@ -70,7 +70,7 @@ public abstract class AdminService<I, R> implements Service.ServiceFactory<I, R>
     }
 
     public String getPath() {
-        final String graphPrefix = "/" + graph.getBaseGraph().GRAPH_ID;
+        final String graphPrefix = "/" + graph.getBaseGraph().getConfig().graphId;
 
         if (getAdminNamespace() != null) {
             return graphPrefix + "/admin/" + getAdminNamespace() + "/" + getAdminServiceName();
@@ -117,7 +117,7 @@ public abstract class AdminService<I, R> implements Service.ServiceFactory<I, R>
     }
 
     private boolean validateAdminContext(final ServiceCallContext ctx, final Map params) {
-        if (!graph.getBaseGraph().AUTHENTICATION_ENABLED) {
+        if (!graph.getBaseGraph().getConfig().authenticationEnabled) {
             return true;
         }
 
@@ -128,7 +128,7 @@ public abstract class AdminService<I, R> implements Service.ServiceFactory<I, R>
         }
         user = userContext.getUsername();
 
-        final ROLE role = userContext.getRole(graph.getBaseGraph().GRAPH_ID);
+        final ROLE role = userContext.getRole(graph.getBaseGraph().getConfig().graphId);
         if (role == null) {
             // This can happen.
             throw AerospikeGraphAuthException.userDoesNotHaveValidRole();
@@ -167,7 +167,7 @@ public abstract class AdminService<I, R> implements Service.ServiceFactory<I, R>
                 throw new IllegalStateException("Graph has not completed initialization.");
             }
 
-            if (graph.getBaseGraph().AUTHENTICATION_ENABLED) {
+            if (graph.getBaseGraph().getConfig().authenticationEnabled) {
                 final MultiMap map = routerContext.request().headers();
                 if (!map.contains("Authorization")) {
                     routerContext.fail(UNAUTHORIZED_CODE, new IllegalArgumentException("Authorization header is missing."));
@@ -194,7 +194,7 @@ public abstract class AdminService<I, R> implements Service.ServiceFactory<I, R>
                     }
 
                     final JWTAuthenticator.JWTAuthenticatedUser jwtUser = (JWTAuthenticator.JWTAuthenticatedUser) authenticatedUser;
-                    final ROLE role = jwtUser.getRole(graph.getBaseGraph().GRAPH_ID);
+                    final ROLE role = jwtUser.getRole(graph.getBaseGraph().getConfig().graphId);
                     final ROLE requiredRole = getRequiredRole();
 
                     if (role == null) {

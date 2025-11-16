@@ -28,7 +28,7 @@ public class PropertyInsertionBenchmark {
         this.edgePackSize = edgePackSize;
         this.reportingGroupSize = reportingGroupSize;
 
-        final int phatEdgeSize = ((FireflyGraph) g.getGraph()).getBaseGraph().PHAT_EDGE_SIZE;
+        final int phatEdgeSize = ((FireflyGraph) g.getGraph()).getBaseGraph().getConfig().phatEdgeSize;
         if (this.edgePackSize > phatEdgeSize) {
             throw new IllegalArgumentException("Benchmark results are invalid if edgePackSize is greater than PHAT_EDGE_SIZE of graph: " + phatEdgeSize);
         }

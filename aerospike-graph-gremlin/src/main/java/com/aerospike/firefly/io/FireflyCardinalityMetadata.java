@@ -47,13 +47,16 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
         // Get current list of numeric and string indexes.
         final List<FireflyIndexMetadata.IndexInfo> indexes = indexMetadata.getPropertyIndexInfos();
         final List<FireflyIndexMetadata.IndexInfo> vertexLabelIndexes = indexes.stream().
-                filter(index -> index.indexType == IndexType.NUMERIC && db.LABEL_BIN.equals(index.key) && index.indexName.equals(db.V_LABEL_INDEX_NAME))
+                filter(index -> index.indexType == IndexType.NUMERIC && db.getConfig().labelBin.equals(index.key)
+                        && index.indexName.equals(db.getConfig().vLabelIndexName))
                 .collect(Collectors.toList());
         final List<FireflyIndexMetadata.IndexInfo> edgeLabelIndexes = Collections.emptyList();
         final List<FireflyIndexMetadata.IndexInfo> vertexStringIndexes = indexes.stream().
-                filter(index -> index.setName.equals(db.VERTEX_AERO_SET) && index.indexType == IndexType.STRING && !db.LABEL_BIN.equals(index.key)).collect(Collectors.toList());
+                filter(index -> index.setName.equals(db.getConfig().vertexAeroSet) && index.indexType == IndexType.STRING
+                        && !db.getConfig().labelBin.equals(index.key)).collect(Collectors.toList());
         final List<FireflyIndexMetadata.IndexInfo> vertexNumericIndexes = indexes.stream().
-                filter(index -> index.setName.equals(db.VERTEX_AERO_SET) && index.indexType == IndexType.NUMERIC && !db.LABEL_BIN.equals(index.key)).collect(Collectors.toList());
+                filter(index -> index.setName.equals(db.getConfig().vertexAeroSet) && index.indexType == IndexType.NUMERIC
+                        && !db.getConfig().labelBin.equals(index.key)).collect(Collectors.toList());
         final List<FireflyIndexMetadata.IndexInfo> edgeStringIndexes = Collections.emptyList();
         final List<FireflyIndexMetadata.IndexInfo> edgeNumericIndexes = Collections.emptyList();
 

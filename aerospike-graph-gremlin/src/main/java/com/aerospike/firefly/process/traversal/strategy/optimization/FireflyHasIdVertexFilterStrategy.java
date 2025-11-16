@@ -10,8 +10,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.T;
 
-import java.util.List;
-
 public class FireflyHasIdVertexFilterStrategy extends FireflyStrategyBase {
 
     @Override
@@ -21,42 +19,45 @@ public class FireflyHasIdVertexFilterStrategy extends FireflyStrategyBase {
 
     @Override
     protected void doApply(final Traversal.Admin<?, ?> traversal) {
-        // Apply only inside filter parents, skip root and non-filter parents (map/local/etc.) they can violate
-        // traversal semantics.
-        final Step<?,?> parent = traversal.getParent() == null ? null : traversal.getParent().asStep();
+        // Only optimize the simple 2-step pattern: VertexStep → HasStep
+        if (traversal.getSteps().size() != 2) {
+            return;
+        }
+
+        // Only allowed under filter parents
+        final Step<?, ?> parent = traversal.getParent() == null ? null : traversal.getParent().asStep();
         if (!(parent instanceof org.apache.tinkerpop.gremlin.process.traversal.step.filter.TraversalFilterStep
                 || parent instanceof org.apache.tinkerpop.gremlin.process.traversal.step.filter.WhereTraversalStep
                 || parent instanceof org.apache.tinkerpop.gremlin.process.traversal.step.filter.NotStep)) {
             return;
         }
 
-        final List<Step> steps = traversal.getSteps();
-        for (int i = 1; i < steps.size(); i++) {
-            final Step<?, ?> current = steps.get(i);
-            if (!(current instanceof HasStep)) continue;
+        // Extract the only two steps
+        final Step<?, ?> prev = traversal.getSteps().get(0);
+        final Step<?, ?> current = traversal.getSteps().get(1);
 
-            final Step<?, ?> prev = steps.get(i - 1);
-            if (!(prev instanceof VertexStep)) continue;
+        // Pattern must be VertexStep → HasStep
+        if (!(prev instanceof VertexStep)) return;
+        if (!(current instanceof HasStep)) return;
 
-            final VertexStep<?> vertexStep = (VertexStep<?>) prev;
-            if (!vertexStep.returnsVertex()) continue;
+        final VertexStep<?> vertexStep = (VertexStep<?>) prev;
+        if (!vertexStep.returnsVertex()) return;
 
-            final HasStep<?> hasStep = (HasStep<?>) current;
-            if (!isIdOnlyFilter(hasStep)) continue;
+        final HasStep<?> hasStep = (HasStep<?>) current;
+        if (!isIdOnlyFilter(hasStep)) return;
 
-            // Replace and remove old step
-            TraversalHelper.replaceStep(
-                    hasStep,
-                    new FireflyHasIdVertexFilterStep<>(
-                            traversal,
-                            vertexStep.getDirection(),
-                            vertexStep.getEdgeLabels(),
-                            hasStep.getHasContainers()
-                    ),
-                    traversal
-            );
-            traversal.removeStep(vertexStep);
-        }
+        // Replace with optimized step and remove old step
+        TraversalHelper.replaceStep(
+                hasStep,
+                new FireflyHasIdVertexFilterStep<>(
+                        traversal,
+                        vertexStep.getDirection(),
+                        vertexStep.getEdgeLabels(),
+                        hasStep.getHasContainers()
+                ),
+                traversal
+        );
+        traversal.removeStep(vertexStep);
     }
 
     private boolean isIdOnlyFilter(final HasStep<?> hasStep) {

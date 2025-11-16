@@ -595,11 +595,9 @@ public final class ConfigurationHelper {
         }
 
         if (value < min || value > max) {
-            String bound = (value < min)
-                    ? "greater than or equal to " + min
-                    : "less than or equal to " + max;
             throw new ConfigurationRuntimeException("Invalid value for " + key +
-                    " option. Must be " + bound + ". Got " + value + ".");
+                    " option. Must be greater than " + (min - 1) + " and less than (max + 1)." +
+                    " Got " + value + ".");
         }
         return Optional.of(value);
     }

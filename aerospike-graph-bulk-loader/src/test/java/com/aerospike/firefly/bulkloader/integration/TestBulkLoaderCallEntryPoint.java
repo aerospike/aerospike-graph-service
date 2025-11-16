@@ -649,9 +649,9 @@ public class TestBulkLoaderCallEntryPoint {
                             "src/test/resources/conf/packed/config-incremental-new-supernode-initial.properties").iterate();
             waitForBulkLoad(g);
             FireflyVertex supernode = (FireflyVertex) g.V("supernode").next();
-            Key supernodeKey = getKey(fireflyGraph.getBaseGraph(), fireflyGraph.getBaseGraph().VERTEX_AERO_SET, supernode.id);
+            Key supernodeKey = getKey(fireflyGraph.getBaseGraph(), fireflyGraph.getBaseGraph().getConfig().vertexAeroSet, supernode.id);
             Record r = fireflyGraph.getBaseGraph().read(supernodeKey, null);
-            Map<String, List<Object>> edgeCache = (Map) r.getMap(fireflyGraph.getBaseGraph().OUT_EDGES_BIN);
+            Map<String, List<Object>> edgeCache = (Map) r.getMap(fireflyGraph.getBaseGraph().getConfig().outEdgesBin);
             Assert.assertEquals(1, edgeCache.size());
             Assert.assertEquals(1, edgeCache.get("edge").size());
 
@@ -663,12 +663,12 @@ public class TestBulkLoaderCallEntryPoint {
                             "src/test/resources/conf/packed/config-incremental-new-supernode-incremental.properties").iterate();
             waitForBulkLoad(g);
             supernode = (FireflyVertex) g.V("supernode").next();
-            supernodeKey = getKey(fireflyGraph.getBaseGraph(), fireflyGraph.getBaseGraph().VERTEX_AERO_SET, supernode.id);
+            supernodeKey = getKey(fireflyGraph.getBaseGraph(), fireflyGraph.getBaseGraph().getConfig().vertexAeroSet, supernode.id);
             r = fireflyGraph.getBaseGraph().read(supernodeKey, null);
-            edgeCache = (Map) r.getMap(fireflyGraph.getBaseGraph().OUT_EDGES_BIN);
+            edgeCache = (Map) r.getMap(fireflyGraph.getBaseGraph().getConfig().outEdgesBin);
             Assert.assertEquals(1, edgeCache.size());
             Assert.assertEquals(1, edgeCache.get("edge").size());
-            Assert.assertTrue(g.V("supernode").out().count().next() > fireflyGraph.getBaseGraph().ON_RECORD_ID_LIMIT);
+            Assert.assertTrue(g.V("supernode").out().count().next() > fireflyGraph.getBaseGraph().getConfig().onRecordIdLimit);
         }
     }
 
@@ -760,11 +760,11 @@ public class TestBulkLoaderCallEntryPoint {
                             "src/test/resources/conf/packed/config-incremental-old-supernode-initial.properties").iterate();
             waitForBulkLoad(g);
             FireflyVertex supernode = (FireflyVertex) g.V("supernode").next();
-            Key supernodeKey = getKey(fireflyGraph.getBaseGraph(), fireflyGraph.getBaseGraph().VERTEX_AERO_SET, supernode.id);
+            Key supernodeKey = getKey(fireflyGraph.getBaseGraph(), fireflyGraph.getBaseGraph().getConfig().vertexAeroSet, supernode.id);
             Record r = fireflyGraph.getBaseGraph().read(supernodeKey, null);
-            Map<String, List<Object>> edgeCache = (Map) r.getMap(fireflyGraph.getBaseGraph().OUT_EDGES_BIN);
+            Map<String, List<Object>> edgeCache = (Map) r.getMap(fireflyGraph.getBaseGraph().getConfig().outEdgesBin);
             Assert.assertEquals(0, edgeCache.size());
-            Assert.assertTrue(g.V("supernode").out().count().next() > fireflyGraph.getBaseGraph().ON_RECORD_ID_LIMIT);
+            Assert.assertTrue(g.V("supernode").out().count().next() > fireflyGraph.getBaseGraph().getConfig().onRecordIdLimit);
             final Long supernodeOutCount = g.V("supernode").out().count().next();
 
             // Only change we expect is that there is now an additional edge on the supernode.
@@ -775,9 +775,9 @@ public class TestBulkLoaderCallEntryPoint {
                             "src/test/resources/conf/packed/config-incremental-old-supernode-incremental.properties").iterate();
             waitForBulkLoad(g);
             FireflyVertex supernode2 = (FireflyVertex) g.V("supernode").next();
-            Key supernodeKey2 = getKey(fireflyGraph.getBaseGraph(), fireflyGraph.getBaseGraph().VERTEX_AERO_SET, supernode2.id);
+            Key supernodeKey2 = getKey(fireflyGraph.getBaseGraph(), fireflyGraph.getBaseGraph().getConfig().vertexAeroSet, supernode2.id);
             Record r2 = fireflyGraph.getBaseGraph().read(supernodeKey2, null);
-            Map<String, List<Object>> edgeCache2 = (Map) r2.getMap(fireflyGraph.getBaseGraph().OUT_EDGES_BIN);
+            Map<String, List<Object>> edgeCache2 = (Map) r2.getMap(fireflyGraph.getBaseGraph().getConfig().outEdgesBin);
             Assert.assertEquals(0, edgeCache2.size());
             Assert.assertEquals(supernodeOutCount + 1, g.V("supernode").out().count().next().longValue());
         }

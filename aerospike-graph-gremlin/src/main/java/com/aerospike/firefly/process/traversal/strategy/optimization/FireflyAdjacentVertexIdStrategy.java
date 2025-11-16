@@ -29,7 +29,7 @@ public class FireflyAdjacentVertexIdStrategy extends FireflyStrategyBase {
 
     @Override
     protected boolean isEnabled(final FireflyGraph graph) {
-        return graph.getBaseGraph().ENABLE_CACHED_ADJACENT_ID_STRATEGY;
+        return graph.getBaseGraph().getConfig().enableCachedAdjacentIdStrategy;
     }
 
     @Override

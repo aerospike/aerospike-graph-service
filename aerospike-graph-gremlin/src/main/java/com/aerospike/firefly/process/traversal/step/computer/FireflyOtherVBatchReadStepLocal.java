@@ -102,7 +102,7 @@ public class FireflyOtherVBatchReadStepLocal extends FlatMapStep<Edge, Vertex> {
         final List<FireflyId> chunk = new ArrayList<>();
         for (final FireflyId id : inputCache) {
             chunk.add(id);
-            if (chunk.size() == graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+            if (chunk.size() == graph.getBaseGraph().getConfig().aerospikeBatchReadSize) {
                 final List<FireflyVertex> vertices = graph.readVertices(hasContainerContainer.getAerospikeHasContainers(), chunk, null, areEdgesRequired);
                 for (final FireflyVertex vertex : vertices) {
                     cache.put(vertex.id, vertex);

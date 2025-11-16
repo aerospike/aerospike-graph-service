@@ -4,7 +4,6 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Assert;
@@ -36,7 +35,7 @@ public class TestMRTSupported {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().count().iterate();
             // should be default supernode limit for test config
-            assertEquals(6553, graph.getBaseGraph().ON_RECORD_ID_LIMIT);
+            assertEquals(6553, graph.getBaseGraph().getConfig().onRecordIdLimit);
         }
         assertFalse(exited);
 
@@ -45,7 +44,7 @@ public class TestMRTSupported {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().count().iterate();
             // supernode limit should be more strict
-            assertEquals(1023, graph.getBaseGraph().ON_RECORD_ID_LIMIT);
+            assertEquals(1023, graph.getBaseGraph().getConfig().onRecordIdLimit);
         }
         assertFalse(exited);
     }

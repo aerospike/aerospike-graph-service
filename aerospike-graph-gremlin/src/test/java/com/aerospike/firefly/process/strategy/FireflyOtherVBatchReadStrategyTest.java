@@ -1,6 +1,6 @@
 package com.aerospike.firefly.process.strategy;
 
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnectionConfig;
 import com.aerospike.firefly.process.traversal.step.FireflyOtherVBatchReadStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
@@ -50,9 +50,9 @@ public class FireflyOtherVBatchReadStrategyTest {
     public void batchReadingTest() throws NoSuchFieldException, IllegalAccessException {
         final var g = graph.traversal();
 
-        final Field field = AerospikeConnection.class.getDeclaredField("MOVEMENT_BARRIER_SIZE");
+        final Field field = AerospikeConnectionConfig.class.getDeclaredField("movementBarrierSize");
         field.setAccessible(true);
-        field.set(graph.getBaseGraph(), 2);
+        field.set(graph.getBaseGraph().getConfig(), 2);
 
         g.V().drop().iterate();
         var v0 = g.addV("test").property(T.id, 100).next();

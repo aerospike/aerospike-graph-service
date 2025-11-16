@@ -34,7 +34,7 @@ public class FireflyMergeStepStrategy extends FireflyStrategyBase {
         for (final MergeEdgeStep originalMergeEdgeStep : TraversalHelper.getStepsOfClass(MergeEdgeStep.class, traversal)) {
             // If we cannot run mergeE queries (expiration disabled), we should error early.
             final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
-            if (!graph.getBaseGraph().EXPIRATION_ENABLED) {
+            if (!graph.getBaseGraph().getConfig().expirationEnabled) {
                 throw new AerospikeGraphException(GraphError.NSUP_DISABLED);
             }
             final FireflyMergeEdgeStep fireflyMergeEdgeStep = new FireflyMergeEdgeStep(originalMergeEdgeStep);

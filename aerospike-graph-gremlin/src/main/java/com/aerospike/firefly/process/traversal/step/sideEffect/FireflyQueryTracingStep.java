@@ -70,7 +70,7 @@ public class FireflyQueryTracingStep<S> extends SideEffectStep<S>
             final FireflyGraph graph = (FireflyGraph) this.traversal.getGraph().get();
             graph.exportQuery(getTraversalMetricsFromSideEffects(),
                     "FireflyProfileSideEffectStep",
-                    toStringScript(traversal, graph.getBaseGraph().REDACT_SCRIPT_LITERALS_ENABLED));
+                    toStringScript(traversal, graph.getBaseGraph().getConfig().redactScriptLiteralsEnabled));
         }
     }
 

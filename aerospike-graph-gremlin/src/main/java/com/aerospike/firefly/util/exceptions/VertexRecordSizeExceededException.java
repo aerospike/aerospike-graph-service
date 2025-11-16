@@ -68,10 +68,10 @@ public class VertexRecordSizeExceededException extends AerospikeGraphRecordSizeE
     }
 
     public static Record getRelevantVertexBins(final AerospikeConnection db, final Key key) {
-        final Operation getInEdges = Operation.get(db.IN_EDGES_BIN);
-        final Operation getOutEdges = Operation.get(db.OUT_EDGES_BIN);
-        final Operation getVpCount = Operation.get(db.VERTEX_PROPERTY_TH_BIN);
-        final Operation getVpProperties = Operation.get(db.VP_PROPERTY_BIN);
+        final Operation getInEdges = Operation.get(db.getConfig().inEdgesBin);
+        final Operation getOutEdges = Operation.get(db.getConfig().outEdgesBin);
+        final Operation getVpCount = Operation.get(db.getConfig().vertexPropertyTHBin);
+        final Operation getVpProperties = Operation.get(db.getConfig().vpPropertyBin);
         return db.readOperate(null, key, getInEdges, getOutEdges, getVpCount, getVpProperties);
     }
 
@@ -95,10 +95,10 @@ public class VertexRecordSizeExceededException extends AerospikeGraphRecordSizeE
         private final long vpPropertyCount;
 
         private VertexRecordMetrics(final Record record, final AerospikeConnection db) {
-            this.inEdgeCount = getCountFromNestedList((Map) record.getMap(db.IN_EDGES_BIN));
-            this.outEdgeCount = getCountFromNestedList((Map) record.getMap(db.OUT_EDGES_BIN));
-            this.vertexPropertyCount = getCountFromNestedMap((Map) record.getMap(db.VERTEX_PROPERTY_TH_BIN));
-            this.vpPropertyCount = getCountFromNestedNestedMap((Map) record.getMap(db.VP_PROPERTY_BIN));
+            this.inEdgeCount = getCountFromNestedList((Map) record.getMap(db.getConfig().inEdgesBin));
+            this.outEdgeCount = getCountFromNestedList((Map) record.getMap(db.getConfig().outEdgesBin));
+            this.vertexPropertyCount = getCountFromNestedMap((Map) record.getMap(db.getConfig().vertexPropertyTHBin));
+            this.vpPropertyCount = getCountFromNestedNestedMap((Map) record.getMap(db.getConfig().vpPropertyBin));
         }
 
         private long getCountFromNestedList(final Map<?, List<?>> nestedList) {

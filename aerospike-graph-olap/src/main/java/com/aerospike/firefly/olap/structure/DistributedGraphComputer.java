@@ -462,7 +462,7 @@ public class DistributedGraphComputer implements GraphComputer {
             memory.broadcastMemory(new JavaSparkContext(spark.sparkContext()));
             memory.incrIteration();
 
-            final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().namespace) - 4; // Leave some room.
+            final int maxParallelSindexes = AerospikeConnection.InfoOps.getMaxParallelSindexes(this.graph.getBaseGraph(), this.graph.getBaseGraph().getConfig().namespace) - 4; // Leave some room.
             final int workerCount = Math.max(1, workers - 1);
             if (configHelper.getPartitions().isEmpty() && (maxParallelSindexes < workerCount)) {
                 LOGGER.warn("Aerospike database configured to support only {} parallel queries, but worker count is {}. This may lead to performance issues. Consider configuring 'query-threads-limit' and 'single-query-threads'.", maxParallelSindexes, workerCount);

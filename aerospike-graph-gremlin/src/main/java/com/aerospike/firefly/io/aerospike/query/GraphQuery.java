@@ -81,10 +81,10 @@ public class GraphQuery {
             final HasContainer container = hasContainers.remove(0);
             predicate = container.getPredicate();
             if ("~label".equals(container.getKey())) {
-                binName = graph.getBaseGraph().LABEL_BIN;
+                binName = graph.getBaseGraph().getConfig().labelBin;
                 mapKey = null;
             } else {
-                binName = graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN;
+                binName = graph.getBaseGraph().getConfig().vertexPropertyDataBin;
                 mapKey = container.getKey();
             }
         } else {
@@ -94,11 +94,11 @@ public class GraphQuery {
         }
 
         if (FireflyVertex.class.isAssignableFrom(clazz)) {
-            return scanSet(mapKey, db.VERTEX_AERO_SET, binName, predicate, graph::vertexIdFromRecord,
+            return scanSet(mapKey, db.getConfig().vertexAeroSet, binName, predicate, graph::vertexIdFromRecord,
                     hasContainers, clazz, true, evaluationTimeout);
         } else if (FireflyEdge.class.isAssignableFrom(clazz)) {
             return new FireflyPhatEdgeIdIterator(scanSet(
-                    mapKey, db.EDGE_AERO_SET, binName, predicate, (it) -> it,
+                    mapKey, db.getConfig().edgeAeroSet, binName, predicate, (it) -> it,
                     hasContainers, clazz, true, evaluationTimeout), db);
         } else {
             throw new IllegalArgumentException("Cannot scan all element ids for unknown class: " + clazz);
@@ -134,11 +134,11 @@ public class GraphQuery {
         policy.setTimeout(evaluationTimeout.intValue());
         // Build expression using predicate.
         if (predicate != null) {
-            if (!setName.equals(db.VERTEX_AERO_SET)) {
+            if (!setName.equals(db.getConfig().vertexAeroSet)) {
                 throw new UnsupportedOperationException("Cannot push predicates down to edges, please contact support.");
             }
             final Exp exp = VertexQueryHelper.predicateToExpression(db, binName, mapKey, predicate);
-            if (hasContainers.isEmpty() && !db.TTL_ENABLED_FLAG) {
+            if (hasContainers.isEmpty() && !db.getConfig().ttlEnabledFlag) {
                 policy.filterExp = Exp.build(exp);
             } else {
                 final Exp[] exps = VertexQueryHelper.hasContainerListToExpArray(db, hasContainers, clazz);
@@ -149,7 +149,7 @@ public class GraphQuery {
             }
         }
 
-        final PageFetcher<E> pageFetcher = new ScanPageFetcher(graph, policy, setName, db.PAGINATION_PAGE_SIZE, mapKey, transform);
+        final PageFetcher<E> pageFetcher = new ScanPageFetcher(graph, policy, setName, db.getConfig().paginationPageSize, mapKey, transform);
         return pageFetcher.startQuery();
     }
 
@@ -163,7 +163,7 @@ public class GraphQuery {
                                        final QueryPolicy policy,
                                        final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
         final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(
-                graph, policy, setName, db.getNamespace(), filter, db.PAGINATION_PAGE_SIZE, transformKeyRecord, indexName);
+                graph, policy, setName, db.getNamespace(), filter, db.getConfig().paginationPageSize, transformKeyRecord, indexName);
         return pageFetcher.startQuery();
     }
 
@@ -229,11 +229,11 @@ public class GraphQuery {
 
         final List<Key> keysToRead = idsToRead.stream().
                 map(id -> graph.getIdFactory().createVertexId(id)).
-                map(vertexId -> getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, vertexId)).
+                map(vertexId -> getKey(graph.getBaseGraph(), graph.getBaseGraph().getConfig().vertexAeroSet, vertexId)).
                 collect(Collectors.toList());
 
         final PageFetcher<E> pageFetcher = new BatchReadPageFetcher<>(
-                graph, db.PAGINATION_PAGE_SIZE, expression, transformKeyRecord, keysToRead, evaluationTimeout);
+                graph, db.getConfig().paginationPageSize, expression, transformKeyRecord, keysToRead, evaluationTimeout);
         return pageFetcher.startQueryDirect();
     }
 
@@ -248,10 +248,10 @@ public class GraphQuery {
             final HasContainer container = hasContainers.remove(0);
             predicate = container.getPredicate();
             if ("~label".equals(container.getKey())) {
-                binName = graph.getBaseGraph().LABEL_BIN;
+                binName = graph.getBaseGraph().getConfig().labelBin;
                 mapKey = null;
             } else {
-                binName = graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN;
+                binName = graph.getBaseGraph().getConfig().vertexPropertyDataBin;
                 mapKey = container.getKey();
             }
         } else {
@@ -260,7 +260,7 @@ public class GraphQuery {
             mapKey = null;
         }
 
-        return scanSetPagesBlocking(mapKey, db.VERTEX_AERO_SET, binName, predicate, graph::vertexFromRecord,
+        return scanSetPagesBlocking(mapKey, db.getConfig().vertexAeroSet, binName, predicate, graph::vertexFromRecord,
                 hasContainers, FireflyVertex.class, true, evaluationTimeout);
     }
 
@@ -312,23 +312,23 @@ public class GraphQuery {
                     policy.setTimeout(evaluationTimeout.intValue());
                     // Need to wrap with has container check
                     // If we have a property index, we can use it and read sindex pages.
-                    return indexSetPagesBlocking(db.VERTEX_AERO_SET, propertyIndexInfo.get().indexName,
+                    return indexSetPagesBlocking(db.getConfig().vertexAeroSet, propertyIndexInfo.get().indexName,
                             VertexQueryHelper.predicateToFilter(db, topContainer.getPredicate(), propertyIndexInfo.get()),
                             policy, graph::vertexIdFromRecord);
                 }
 
                 predicate = topContainer.getPredicate();
                 if ("~label".equals(topContainer.getKey())) {
-                    binName = graph.getBaseGraph().LABEL_BIN;
+                    binName = graph.getBaseGraph().getConfig().labelBin;
                 } else {
-                    binName = graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN;
+                    binName = graph.getBaseGraph().getConfig().vertexPropertyDataBin;
                     mapKey = topContainer.getKey();
                 }
             }
         }
 
         // to scan.
-        return scanSetPagesBlocking(mapKey, db.VERTEX_AERO_SET, binName, predicate, graph::vertexIdFromRecord,
+        return scanSetPagesBlocking(mapKey, db.getConfig().vertexAeroSet, binName, predicate, graph::vertexIdFromRecord,
                 hasContainers, FireflyVertex.class, true, evaluationTimeout);
     }
 
@@ -342,7 +342,7 @@ public class GraphQuery {
 
         // Build expression using predicate.
         if (predicate != null) {
-            if (!setName.equals(db.VERTEX_AERO_SET)) {
+            if (!setName.equals(db.getConfig().vertexAeroSet)) {
                 throw new UnsupportedOperationException("Cannot push predicates down to edges for blocking scan, please contact support.");
             }
             final Exp exp = VertexQueryHelper.predicateToExpression(db, binName, mapKey, predicate);
@@ -361,7 +361,7 @@ public class GraphQuery {
             db.getScanHitCounter().increment(mapKey);
         }
 
-        final PageFetcher pageFetcher = new ScanPageFetcher(graph, policy, setName, db.PAGINATION_PAGE_SIZE, mapKey, transform);
+        final PageFetcher pageFetcher = new ScanPageFetcher(graph, policy, setName, db.getConfig().paginationPageSize, mapKey, transform);
         return pageFetcher.startQueryDirect();
     }
 
@@ -372,7 +372,7 @@ public class GraphQuery {
                                                                      final QueryPolicy policy,
                                                                      final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
         final int partitions = 4096; // Always 4096 in Aerospike. Like the speed of light, this is constant.
-        final ExecutorService readLoopExecutorService = Executors.newFixedThreadPool(db.OLAP_PAGINATION_WORKERS, r -> {
+        final ExecutorService readLoopExecutorService = Executors.newFixedThreadPool(db.getConfig().olapPaginationWorkers, r -> {
             final Thread t = new Thread(r);
             t.setName("Aerospike-Graph-Partition-Worker-" + t.getId());
             t.setDaemon(true);
@@ -381,13 +381,13 @@ public class GraphQuery {
         final LinkedBlockingQueue<PageFetcher.Page> pageQueue = new LinkedBlockingQueue<>();
         final Object lock = new Object();
         final List<AtomicBoolean> allCompleted = new ArrayList<>();
-        final List<Range> ranges = Range.splitPartitions(partitions, db.OLAP_PAGINATION_WORKERS);
+        final List<Range> ranges = Range.splitPartitions(partitions, db.getConfig().olapPaginationWorkers);
         for (final Range range : ranges) {
             final PartitionFilter partitionFilter = PartitionFilter.range(range.start, range.count);
             final PageFetcher<E> pageFetcher = new PartitionedSindexPageFetcher<>(
-                    graph, policy, setName, db.getNamespace(), filter, db.PAGINATION_PAGE_SIZE, transformKeyRecord, indexName,
+                    graph, policy, setName, db.getNamespace(), filter, db.getConfig().paginationPageSize, transformKeyRecord, indexName,
                     partitionFilter,readLoopExecutorService ,
-                    pageQueue, lock, allCompleted, db.OLAP_PAGINATION_WORKERS);
+                    pageQueue, lock, allCompleted, db.getConfig().olapPaginationWorkers);
 
             // Intentionally not using return value here.
             pageFetcher.startQueryDirect();

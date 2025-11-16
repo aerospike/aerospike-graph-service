@@ -531,7 +531,7 @@ public class TestProperties {
     @Test
     public void testVpRemovalDataModel() {
         final GraphTraversalSource g = graph.traversal();
-        final Key vertexRecordKey = new Key(graph.getBaseGraph().namespace, graph.getBaseGraph().VERTEX_AERO_SET, 123);
+        final Key vertexRecordKey = new Key(graph.getBaseGraph().getConfig().namespace, graph.getBaseGraph().getConfig().vertexAeroSet, 123);
         Record vertexRecord;
         Map<Long, Map<Object, List<?>>> vpData;
         Map<Long, Map<Long, Long>> vpTypeHint;
@@ -543,9 +543,9 @@ public class TestProperties {
         // Remove an unique property key and value
         g.V().hasLabel("test").properties("key2").drop().iterate();
         vertexRecord = graph.getBaseGraph().read(vertexRecordKey, null);
-        vpData = (Map<Long, Map<Object, List<?>>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN);
-        vpTypeHint = (Map<Long, Map<Long, Long>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_TH_BIN);
-        vpProperties = (Map<Long, Map<Long, Map<Long, List<?>>>>) vertexRecord.getMap(graph.getBaseGraph().VP_PROPERTY_BIN);
+        vpData = (Map<Long, Map<Object, List<?>>>) vertexRecord.getMap(graph.getBaseGraph().getConfig().vertexPropertyDataBin);
+        vpTypeHint = (Map<Long, Map<Long, Long>>) vertexRecord.getMap(graph.getBaseGraph().getConfig().vertexPropertyTHBin);
+        vpProperties = (Map<Long, Map<Long, Map<Long, List<?>>>>) vertexRecord.getMap(graph.getBaseGraph().getConfig().vpPropertyBin);
         Assert.assertEquals(1, vpData.size());
         Assert.assertEquals(1, vpTypeHint.size());
         Assert.assertEquals(1, vpProperties.size());
@@ -567,9 +567,9 @@ public class TestProperties {
             }
         }
         vertexRecord = graph.getBaseGraph().read(vertexRecordKey, null);
-        vpData = (Map<Long, Map<Object, List<?>>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN);
-        vpTypeHint = (Map<Long, Map<Long, Long>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_TH_BIN);
-        vpProperties = (Map<Long, Map<Long, Map<Long, List<?>>>>) vertexRecord.getMap(graph.getBaseGraph().VP_PROPERTY_BIN);
+        vpData = (Map<Long, Map<Object, List<?>>>) vertexRecord.getMap(graph.getBaseGraph().getConfig().vertexPropertyDataBin);
+        vpTypeHint = (Map<Long, Map<Long, Long>>) vertexRecord.getMap(graph.getBaseGraph().getConfig().vertexPropertyTHBin);
+        vpProperties = (Map<Long, Map<Long, Map<Long, List<?>>>>) vertexRecord.getMap(graph.getBaseGraph().getConfig().vpPropertyBin);
         Assert.assertEquals(2, vpData.size());
         Assert.assertEquals(2, vpTypeHint.size());
         Assert.assertEquals(2, vpProperties.size());
@@ -598,9 +598,9 @@ public class TestProperties {
             }
         }
         vertexRecord = graph.getBaseGraph().read(vertexRecordKey, null);
-        vpData = (Map<Long, Map<Object, List<?>>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN);
-        vpTypeHint = (Map<Long, Map<Long, Long>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_TH_BIN);
-        vpProperties = (Map<Long, Map<Long, Map<Long, List<?>>>>) vertexRecord.getMap(graph.getBaseGraph().VP_PROPERTY_BIN);
+        vpData = (Map<Long, Map<Object, List<?>>>) vertexRecord.getMap(graph.getBaseGraph().getConfig().vertexPropertyDataBin);
+        vpTypeHint = (Map<Long, Map<Long, Long>>) vertexRecord.getMap(graph.getBaseGraph().getConfig().vertexPropertyTHBin);
+        vpProperties = (Map<Long, Map<Long, Map<Long, List<?>>>>) vertexRecord.getMap(graph.getBaseGraph().getConfig().vpPropertyBin);
         Assert.assertEquals(2, vpData.size());
         Assert.assertEquals(2, vpTypeHint.size());
         Assert.assertEquals(2, vpProperties.size());
@@ -620,9 +620,9 @@ public class TestProperties {
         // Remove all properties
         t = g.V().hasLabel("test").properties().drop().iterate();
         vertexRecord = graph.getBaseGraph().read(vertexRecordKey, null);
-        vpData = (Map<Long, Map<Object, List<?>>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_DATA_BIN);
-        vpTypeHint = (Map<Long, Map<Long, Long>>) vertexRecord.getMap(graph.getBaseGraph().VERTEX_PROPERTY_TH_BIN);
-        vpProperties = (Map<Long, Map<Long, Map<Long, List<?>>>>) vertexRecord.getMap(graph.getBaseGraph().VP_PROPERTY_BIN);
+        vpData = (Map<Long, Map<Object, List<?>>>) vertexRecord.getMap(graph.getBaseGraph().getConfig().vertexPropertyDataBin);
+        vpTypeHint = (Map<Long, Map<Long, Long>>) vertexRecord.getMap(graph.getBaseGraph().getConfig().vertexPropertyTHBin);
+        vpProperties = (Map<Long, Map<Long, Map<Long, List<?>>>>) vertexRecord.getMap(graph.getBaseGraph().getConfig().vpPropertyBin);
         Assert.assertEquals(0, vpData.size());
         Assert.assertEquals(0, vpTypeHint.size());
         Assert.assertEquals(0, vpProperties.size());

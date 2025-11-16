@@ -95,8 +95,8 @@ public abstract class VertexBatchReadStep extends CollectingBarrierStep<Edge> im
 
             fireflyBatchEdgeReadStepInfos.add(new FireflyBatchReadHelper.ReadStepInfo<>(traverser, fireflyIdList.size() - previousSize));
 
-            if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
-                    fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+            if (uniqueIdSet.size() >= graph.getBaseGraph().getConfig().aerospikeBatchReadSize ||
+                    fireflyIdList.size() >= 5 * graph.getBaseGraph().getConfig().aerospikeBatchReadSize) {
                 runningTotal += FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
                         fireflyVertexMap, fireflyBatchEdgeReadStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readVertices, null, areEdgesRequired);
                 if (limit != -1 && runningTotal >= limit) {

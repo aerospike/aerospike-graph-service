@@ -72,7 +72,7 @@ public class IndexIterator implements CloseableIterator<Traverser> {
         this.startStep = startStep;
         this.codec = codec;
         this.traversal = traversal;
-        this.pageQueue = new LinkedBlockingQueue<>(graph.getBaseGraph().PAGINATION_PAGE_QUEUE_SIZE);
+        this.pageQueue = new LinkedBlockingQueue<>(graph.getBaseGraph().getConfig().paginationPageQueueSize);
         graph.logMessage("IndexIterator created with " + rows.size() + " rows.", LOGGER);
     }
 
@@ -114,7 +114,7 @@ public class IndexIterator implements CloseableIterator<Traverser> {
                                 indexInfo.setName,
                                 graph.getBaseGraph().getNamespace(),
                                 filter,
-                                graph.getBaseGraph().PAGINATION_PAGE_SIZE,
+                                graph.getBaseGraph().getConfig().paginationPageSize,
                                 graph::vertexFromRecord,
                                 indexInfo.indexName,
                                 partitionFilter,

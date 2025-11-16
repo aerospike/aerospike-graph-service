@@ -28,7 +28,7 @@ public class FireflyDropStep extends AbstractStep {
         if (!isDone.getAndSet(true)) {
             final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
             graph.getBaseGraph().dropDatabase(graph, false);
-            if (graph.getBaseGraph().IS_AUDIT_LOG_ENABLED) {
+            if (graph.getBaseGraph().getConfig().isAuditLogEnabled) {
                 LOGGER.info("[{}] Dropped entire database.", graph.getUser());
             }
         }

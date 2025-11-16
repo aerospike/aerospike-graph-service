@@ -103,8 +103,8 @@ public class FireflyBatchVertexReadStepLocal extends VertexStep<Vertex> implemen
             fireflyCompositeIdStepInfos.add(new FireflyBatchReadHelper.ReadStepInfo<>(traverser, fireflyIdList.size() - previousSize));
 
             // If we reach or exceed batch size then execute so we don't use too much memory at any given point. Also drain if list size gets very big.
-            if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
-                    fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+            if (uniqueIdSet.size() >= graph.getBaseGraph().getConfig().aerospikeBatchReadSize ||
+                    fireflyIdList.size() >= 5 * graph.getBaseGraph().getConfig().aerospikeBatchReadSize) {
                 // Drain data to output.
                 FireflyBatchReadHelper.drainDataToCache(fireflyIdList, uniqueIdSet,
                         fireflyVertexMap, fireflyCompositeIdStepInfos, hasContainerContainer.getAerospikeHasContainers(),

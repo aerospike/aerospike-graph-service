@@ -328,12 +328,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 // Default to single.
                 vpCardinality = VertexProperty.Cardinality.single;
             }
-            this.features = new FireflyFeatures(vpCardinality, this.db.TRANSACTION_ENABLED);
+            this.features = new FireflyFeatures(vpCardinality, this.db.getConfig().transactionEnabled);
 
             // Create index metadata background task that will populate indexes for the named graph on the fly.
             fireflyIndexMetadata = new FireflyIndexMetadata(db);
             final TimerTask indexMetadataTimerTask = new FireflyMetadataTask(fireflyIndexMetadata);
-            fireflyIndexMetadataTask.schedule(indexMetadataTimerTask, 0, db.INDEX_METADATA_UPDATE_FREQUENCY);
+            fireflyIndexMetadataTask.schedule(indexMetadataTimerTask, 0, db.getConfig().indexMetadataUpdateFrequency);
 
             // If bulk loading, only create indexes for the first bulk loader graph initialization. Otherwise they spam 1000's of times.
             if (db.shouldCreateIndexes()) {
@@ -345,7 +345,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 combinedStringVpIndexes.addAll(vertexPropertyStringIndexes);
                 final Set<String> combinedNumericVpIndexes = new HashSet<>(vertexPropertyIndexes);
                 combinedNumericVpIndexes.addAll(vertexPropertyNumericIndexes);
-                createVertexPropertyIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_DATA_BIN, db.getVpIndexPrefix(),
+                createVertexPropertyIndexes(FireflyVertex.class, db.getConfig().vertexPropertyDataBin, db.getVpIndexPrefix(),
                         combinedStringVpIndexes, combinedNumericVpIndexes);
 
                 // Grab user defined edge property indexes from the configuration and create them.
@@ -360,10 +360,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             this.ttlHandler = new FireflyTtlHandler(this);
 
             // Create cardinality metadata background task that will populate cardinality for the named graph on the fly.
-            fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX_NAME, db.E_LABEL_INDEX_NAME, fireflyIndexMetadata);
+            fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.getConfig().vLabelIndexName, db.getConfig().eLabelIndexName, fireflyIndexMetadata);
             final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
 
-            fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
+            fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.getConfig().cardinalityMetadataUpdateFrequency);
             fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
             fireflyRecordLockHandler = new FireflyRecordLockHandler(db);
             supernodesTraversedCounterUtil = SupernodesTraversedCounterUtil.getInstance();
@@ -379,7 +379,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             this.transaction = new FireflyTransaction(this);
             this.db.setTransaction(this.transaction);
 
-            if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && !db.getOlapFlag()) {
+            if (!db.getConfig().warmupMode && !db.getBulkLoaderFlag() && !db.getOlapFlag()) {
                 // Create usage statistics background task. Only one per server
                 if (usageStats == null) {
                     synchronized (this) {
@@ -405,7 +405,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                     final int queryTracingSamplePercent = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_SAMPLE_PERCENT, conf);
                     final String queryTracingLogHost = ConfigurationHelper.getOrDefaultString(QUERY_TRACING_LOG_HOST, conf);
                     final int queryTracingLogPort = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_LOG_PORT, conf);
-                    this.zipkinExporter = OpenTelemetryZipkinExporter.create(db.GRAPH_ID, queryTracingLogHost,
+                    this.zipkinExporter = OpenTelemetryZipkinExporter.create(db.getConfig().graphId, queryTracingLogHost,
                             queryTracingLogPort, queryTracingMinMillis, queryTracingSamplePercent);
                 }
             }
@@ -626,8 +626,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         if (supernodeFlag != null) {
             properties.remove(supernodeFlag);
         }
-        final boolean isEdgeCacheOverflowed = !this.db.GLOBAL_EDGE_CACHE_ENABLED_FLAG ||
-                this.db.ON_RECORD_ID_LIMIT <= 0 || supernodeFlag != null;
+        final boolean isEdgeCacheOverflowed = !this.db.getConfig().globalEdgeCacheEnabledFlag ||
+                this.db.getConfig().onRecordIdLimit <= 0 || supernodeFlag != null;
         return aerospikeOperations.writeVertex(idValue, label, properties, true, isEdgeCacheOverflowed);
     }
 
@@ -708,8 +708,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public void writeDuplicateVertexId(final Object vertexId, final long count) {
         final FireflyId id = getIdFactory().createVertexId(vertexId);
-        final Key key = new Key(db.namespace, db.BULK_LOAD_DUPLICATE_VID_SET, Value.get(id.getStorageId()));
-        final Bin addBin = new Bin(db.COUNTER_BIN, count);
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadDuplicateVidSet, Value.get(id.getStorageId()));
+        final Bin addBin = new Bin(db.getConfig().counterBin, count);
         final WritePolicy policy = new WritePolicy();
         policy.sendKey = true;
         policy.recordExistsAction = RecordExistsAction.UPDATE;
@@ -723,18 +723,18 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public Iterator<Map<String, Object>> readDuplicateVertexIdErrors() {
-        return this.graphQuery.scanSet(null, db.BULK_LOAD_DUPLICATE_VID_SET, null, null, keyRecord -> {
+        return this.graphQuery.scanSet(null, db.getConfig().bulkLoadDuplicateVidSet, null, null, keyRecord -> {
             final Map<String, Object> errorInfo = new HashMap<>();
             errorInfo.put("id", keyRecord.key.userKey.getObject());
-            errorInfo.put("count", keyRecord.record.getLong(db.COUNTER_BIN));
+            errorInfo.put("count", keyRecord.record.getLong(db.getConfig().counterBin));
             return errorInfo;
         }, settings().evaluationTimeout);
     }
 
     public void writeBadEntry(final String row, final String fileName) {
-        final Key key = new Key(db.namespace, db.BULK_LOAD_BAD_ENTRY_SET, Value.get(UUID.randomUUID().toString()));
-        final Bin rowBin = new Bin(db.BL_ROW_BIN, row);
-        final Bin fileBin = new Bin(db.BL_FILE_BIN, fileName);
+        final Key key = new Key(db.getConfig().namespace, db.getConfig().bulkLoadBadEntrySet, Value.get(UUID.randomUUID().toString()));
+        final Bin rowBin = new Bin(db.getConfig().blRowBin, row);
+        final Bin fileBin = new Bin(db.getConfig().blFileBin, fileName);
         final WritePolicy policy = new WritePolicy();
         policy.recordExistsAction = RecordExistsAction.UPDATE;
         try {
@@ -747,19 +747,19 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public Iterator<Map<String, String>> readBadEntryErrors() {
-        return this.graphQuery.scanSet(null, db.BULK_LOAD_BAD_ENTRY_SET, null, null, keyRecord -> {
+        return this.graphQuery.scanSet(null, db.getConfig().bulkLoadBadEntrySet, null, null, keyRecord -> {
             final Map<String, String> errorInfo = new HashMap<>();
-            errorInfo.put("row", keyRecord.record.getString(db.BL_ROW_BIN));
-            errorInfo.put("file", keyRecord.record.getString(db.BL_FILE_BIN));
+            errorInfo.put("row", keyRecord.record.getString(db.getConfig().blRowBin));
+            errorInfo.put("file", keyRecord.record.getString(db.getConfig().blFileBin));
             return errorInfo;
         }, settings().evaluationTimeout);
     }
 
     public Iterator<Map<String, Object>> readBadEdgeErrors() {
-        return this.graphQuery.scanSet(null, db.BULK_LOAD_BAD_EDGE_SET, null, null, keyRecord -> {
+        return this.graphQuery.scanSet(null, db.getConfig().bulkLoadBadEdgeSet, null, null, keyRecord -> {
             final Map<String, Object> errorInfo = new HashMap<>();
             errorInfo.put("bad-vertex-id", keyRecord.key.userKey.getObject());
-            errorInfo.put("count", keyRecord.record.getLong(db.COUNTER_BIN));
+            errorInfo.put("count", keyRecord.record.getLong(db.getConfig().counterBin));
             return errorInfo;
         }, settings().evaluationTimeout);
     }
@@ -775,10 +775,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public void bulkWriteEdgesToVertexCache(final FireflyId vertexId, final Direction direction,
                                             final List<Value> edgeIds, final String edgeLabel) {
         // Get the key.
-        final Key key = FireflyRecord.getKey(db, this.db.VERTEX_AERO_SET, vertexId);
+        final Key key = FireflyRecord.getKey(db, this.db.getConfig().vertexAeroSet, vertexId);
 
         // Get direction and counter keys. Direction must be IN or OUT.
-        final String directionBinName = direction == Direction.IN ? this.db.IN_EDGES_BIN : this.db.OUT_EDGES_BIN;
+        final String directionBinName = direction == Direction.IN ? this.db.getConfig().inEdgesBin : this.db.getConfig().outEdgesBin;
 
         // Create the operations.
         final ListPolicy preventDuplicates = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL | ListWriteFlags.PARTIAL);
@@ -818,7 +818,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                                             final List<String> requiredProperties,
                                             final boolean areEdgesRequired) {
         final ReadInfo readInfo = ReadInfo.create().
-                set(db.VERTEX_AERO_SET).
+                set(db.getConfig().vertexAeroSet).
                 ids(idValues).
                 reqProps(requiredProperties).
                 exp(hasContainers, db, FireflyVertex.class).
@@ -863,7 +863,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
 
         // All ids have same packing id, so just use 0.
-        final Key key = getKey(db, db.EDGE_AERO_SET, getIdFactory().createEdgeId(edgeIds.get(0)));
+        final Key key = getKey(db, db.getConfig().edgeAeroSet, getIdFactory().createEdgeId(edgeIds.get(0)));
         try {
             getBaseGraph().writeOperate(null, key, operations.toArray(new Operation[0]));
         } catch (final AerospikeGraphException e) {
@@ -923,12 +923,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHintsDisk));
 
             // Create Operation for writing Edge data.
-            final Operation createIndividualEdgeMap = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN,
+            final Operation createIndividualEdgeMap = MapOperation.put(edgeMapPolicy, db.getConfig().edgeDataBin,
                     Value.get(edgeId), Value.get(edgeData));
             operations.add(createIndividualEdgeMap);
         } else {
             // If the Edge is attached to a supernode, rest of the data has to exist elsewhere so store only type hint
-            final Operation createEdgeToTypeHint = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN, Value.get(edgeId),
+            final Operation createEdgeToTypeHint = MapOperation.put(edgeMapPolicy, db.getConfig().edgeDataBin, Value.get(edgeId),
                     Value.get(typeHintsDisk));
             operations.add(createEdgeToTypeHint);
         }
@@ -946,7 +946,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final List<Operation> operationList = new ArrayList<>();
         generateWriteEdgeOperations(edgeId, label, properties, inVertexId, outVertexId, inVSupernode, outVSupernode, operationList);
         final WritePolicy writePolicy = new WritePolicy();
-        final Key key = getKey(db, db.EDGE_AERO_SET, getIdFactory().createEdgeId(edgeId));
+        final Key key = getKey(db, db.getConfig().edgeAeroSet, getIdFactory().createEdgeId(edgeId));
         try {
             db.writeOperate(writePolicy, key, operationList.toArray(new Operation[0]));
         } catch (final AerospikeGraphException e) {
@@ -983,10 +983,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
      */
     public Set<String> readGraphVariableKeys() {
         final FireflyRecord fireflyRecord = FireflyRecord.read(db,
-                db.GRAPH_VARIABLES_SET,
-                idFactory.createGraphVariableId(db.GRAPH_VARIABLES_REC_KEY));
+                db.getConfig().graphVariablesSet,
+                idFactory.createGraphVariableId(db.getConfig().graphVariablesRecKey));
         if (fireflyRecord == null) return new HashSet<>();
-        final Map<String, ?> m = (Map<String, ?>) fireflyRecord.record().getMap(db.GRAPH_VARIABLES_BIN);
+        final Map<String, ?> m = (Map<String, ?>) fireflyRecord.record().getMap(db.getConfig().graphVariablesBin);
         return m.keySet();
     }
 
@@ -998,12 +998,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
      * @param <V>   Graph variable value type
      */
     public <V> void writeGraphVariable(final String key, final V value) {
-        db.writeTypeHintedGraphVariable(db.GRAPH_VARIABLES_SET,
-                db.getIdFactory().createGraphVariableId(db.GRAPH_VARIABLES_REC_KEY),
-                db.GRAPH_VARIABLES_BIN,
+        db.writeTypeHintedGraphVariable(db.getConfig().graphVariablesSet,
+                db.getIdFactory().createGraphVariableId(db.getConfig().graphVariablesRecKey),
+                db.getConfig().graphVariablesBin,
                 key,
                 value,
-                db.TYPE_HINTS_BIN);
+                db.getConfig().typeHintsBin);
     }
 
     /**
@@ -1018,11 +1018,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             return (V) this.configuration();
         }
         return db.readTypeHintedValueFromMap(
-                db.GRAPH_VARIABLES_SET,
-                db.getIdFactory().createGraphVariableId(db.GRAPH_VARIABLES_REC_KEY),
-                db.GRAPH_VARIABLES_BIN,
+                db.getConfig().graphVariablesSet,
+                db.getIdFactory().createGraphVariableId(db.getConfig().graphVariablesRecKey),
+                db.getConfig().graphVariablesBin,
                 key,
-                db.TYPE_HINTS_BIN);
+                db.getConfig().typeHintsBin);
     }
 
     /**
@@ -1032,11 +1032,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
      */
     public void removeGraphVariable(final String key) {
         db.removeTypeHintedValueFromMap(
-                db.GRAPH_VARIABLES_SET,
-                db.getIdFactory().createGraphVariableId(db.GRAPH_VARIABLES_REC_KEY),
-                db.GRAPH_VARIABLES_BIN,
+                db.getConfig().graphVariablesSet,
+                db.getIdFactory().createGraphVariableId(db.getConfig().graphVariablesRecKey),
+                db.getConfig().graphVariablesBin,
                 key,
-                db.TYPE_HINTS_BIN);
+                db.getConfig().typeHintsBin);
     }
 
     public long getVertexCount(final List<HasContainer> hasContainers, final Long evaluationTimeout) {
@@ -1151,7 +1151,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         while (true) {
             try {
                 final Vertex v = writeVertex(idValue, label, properties);
-                if (db.IS_AUDIT_LOG_ENABLED) {
+                if (db.getConfig().isAuditLogEnabled) {
                     LOG.info("[{}] created vertex with id: {}", USER.get(), idValue.getUserId());
                 }
                 return v;
@@ -1376,8 +1376,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
      * @param timeout Timeout in seconds. -1 to use FireflyGraph's configured default timeout.
      */
     public void enterTransactionState(final long timeout) {
-        if (!this.getBaseGraph().TRANSACTION_ENABLED) {
-            throw new TxNotEnabledException(this.getBaseGraph().GRAPH_ID);
+        if (!this.getBaseGraph().getConfig().transactionEnabled) {
+            throw new TxNotEnabledException(this.getBaseGraph().getConfig().graphId);
         }
         LOG.atDebug().addArgument(() -> Thread.currentThread().getId()).log("enterTransactionState on Thread: {}");
         this.transaction.enterTransactionState(timeout);
@@ -1396,7 +1396,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 return;
             }
 
-            LOG.info("Closing FireflyGraph {}.", getBaseGraph().GRAPH_ID);
+            LOG.info("Closing FireflyGraph {}.", getBaseGraph().getConfig().graphId);
 
             this.fireflyCardinalityMetadataTask.cancel();
             this.fireflyIndexMetadataTask.cancel();
@@ -1404,7 +1404,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 this.fireflySummaryUpdater.close();
             }
 
-            if (!db.WARMUP_MODE && !db.getBulkLoaderFlag() && !db.getOlapFlag() && this.usageStats != null) {
+            if (!db.getConfig().warmupMode && !db.getBulkLoaderFlag() && !db.getOlapFlag() && this.usageStats != null) {
                 synchronized (this) {
                     if (this.usageStats != null) {
                         this.usageStats.close();
@@ -1432,7 +1432,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             this.db.close();
         } finally {
             // Restore log level if this was a warmup graph.
-            if (this.db.WARMUP_MODE) {
+            if (this.db.getConfig().warmupMode) {
                 ConfigurationHelper.restoreLogLevel(this.configuration);
             }
         }

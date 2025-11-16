@@ -448,7 +448,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
         final List<FireflyId> cachedIds = getCachedIds(direction, labels);
         final List<byte[]> data = cachedIds.stream()
-                .map(id -> Crypto.computeDigest(db.VERTEX_AERO_SET, Value.get(((FireflyIdComposite)id).getAdjacentUserId())))
+                .map(id -> Crypto.computeDigest(db.getConfig().vertexAeroSet, Value.get(((FireflyIdComposite)id).getAdjacentUserId())))
                 .collect(Collectors.toList());
         cachedIds.clear();
         if (isEdgeCacheOverflowed) {
@@ -604,7 +604,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
         // Handle TTL.
         if (TTL_PROPERTY_KEY.equals(key)) {
-            if (!db.TTL_ENABLED_FLAG) {
+            if (!db.getConfig().ttlEnabledFlag) {
                 throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
             }
             if (value == null) {
@@ -672,7 +672,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             } else if (SUPERNODE_PROPERTY_KEY.equals(key)) {
                 graph.aerospikeOperations.setCacheDisabled(this);
             } else if (TTL_PROPERTY_KEY.equals(key)) {
-                if (!db.TTL_ENABLED_FLAG) {
+                if (!db.getConfig().ttlEnabledFlag) {
                     throw new AerospikeGraphException(GraphError.TTL_NOT_ENABLED);
                 } else if (value == null) {
                     continue;

@@ -24,10 +24,10 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
         FireflyVertex v = (FireflyVertex) g.addV("test").next();
 
         // Validate vertex supernode flag is not set.
-        final Key key = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v.id);
+        final Key key = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().getConfig().vertexAeroSet, v.id);
         Record r = graph.getBaseGraph().read(key, null);
         Assert.assertFalse(v.isEdgeCacheOverflowed());
-        Assert.assertFalse(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
+        Assert.assertFalse(r.getBoolean(db.getConfig().edgeCacheDisabledBin));
 
         // Set supernode flag and grab vertex.
         v = (FireflyVertex) g.V(v.id()).property("~supernode", true).next();
@@ -35,7 +35,7 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
         // Validate cache overflowed flag is set.
         Assert.assertTrue(v.isEdgeCacheOverflowed());
         r = graph.getBaseGraph().read(key, null);
-        Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
+        Assert.assertTrue(r.getBoolean(db.getConfig().edgeCacheDisabledBin));
 
         // Grab vertex through id.
         v = (FireflyVertex) g.V(v.id()).next();
@@ -43,7 +43,7 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
         // Validate cache overflowed flag is set.
         Assert.assertTrue(v.isEdgeCacheOverflowed());
         r = graph.getBaseGraph().read(key, null);
-        Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
+        Assert.assertTrue(r.getBoolean(db.getConfig().edgeCacheDisabledBin));
     }
 
     @Test
@@ -54,16 +54,16 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
         FireflyVertex v = (FireflyVertex) g.addV("test").property("~supernode", true).next();
 
         // Validate vertex supernode flag is set.
-        final Key key = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v.id);
+        final Key key = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().getConfig().vertexAeroSet, v.id);
         Record r = graph.getBaseGraph().read(key, null);
         Assert.assertTrue(v.isEdgeCacheOverflowed());
-        Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
+        Assert.assertTrue(r.getBoolean(db.getConfig().edgeCacheDisabledBin));
 
         v = (FireflyVertex) g.V().hasLabel("test").next();
 
         // Validate vertex supernode flag is set.
         r = graph.getBaseGraph().read(key, null);
         Assert.assertTrue(v.isEdgeCacheOverflowed());
-        Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
+        Assert.assertTrue(r.getBoolean(db.getConfig().edgeCacheDisabledBin));
     }
 }

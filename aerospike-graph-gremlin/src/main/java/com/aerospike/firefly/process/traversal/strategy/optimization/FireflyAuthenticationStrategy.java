@@ -75,7 +75,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
         final List<CallStep> callSteps = new ArrayList<>();
         CallStep adminStep = null;
-        if (!graph.getBaseGraph().AUTHENTICATION_ENABLED) {
+        if (!graph.getBaseGraph().getConfig().authenticationEnabled) {
             for (final Step step : traversal.getSteps()) {
                 if (!(step instanceof CallStep)) {
                     continue;
@@ -126,7 +126,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                 throw AerospikeGraphAuthException.userNotFoundInParameters();
             }
             final String username = (String) params.get("name").get(0);
-            final ROLE role = getRole(params.get("role").get(0), graph.getBaseGraph().GRAPH_ID);
+            final ROLE role = getRole(params.get("role").get(0), graph.getBaseGraph().getConfig().graphId);
             final Map allRoles = params.get("role").get(0) instanceof Map ? (Map) params.get("role").get(0) : null;
             userClaims.set(new UserClaims(username, role, allRoles));
             adminStep = callStep;
@@ -150,7 +150,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
             // Admin steps are call steps. These have internal auth checks.
             if (hasMutateStep.get()) {
                 if (!role.equals(ROLE.READ_WRITE) && !role.equals(ROLE.ADMIN)) {
-                    if (graph.getBaseGraph().IS_AUDIT_LOG_ENABLED) {
+                    if (graph.getBaseGraph().getConfig().isAuditLogEnabled) {
                         // The clone doesn't take the reserved step.
                         final Traversal copy = traversal.clone();
                         final List<Bytecode.Instruction> instructions = copy.asAdmin().getBytecode().getStepInstructions();
@@ -169,7 +169,7 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
                         }
                         toRemove.forEach(instructions::remove);
                         LOG.info("[{}] - " + " Insufficient permissions to execute mutating step. Query: '{}'.", userClaims.get().getUsername(),
-                                TraversalUtil.toStringScript(copy.asAdmin(), graph.getBaseGraph().REDACT_SCRIPT_LITERALS_ENABLED));
+                                TraversalUtil.toStringScript(copy.asAdmin(), graph.getBaseGraph().getConfig().redactScriptLiteralsEnabled));
                     }
                     throw AerospikeGraphAuthException.userDoesNotHaveWriteAccess();
                 }

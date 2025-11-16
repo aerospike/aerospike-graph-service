@@ -38,7 +38,7 @@ public class FireflyElementMapStrategy extends FireflyStrategyBase {
             traversal.addStep(index,
                     new FireflyBatchElementMapStep(traversal,
                             elementMapStep.getLabels(),
-                            graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
+                            graph.getBaseGraph().getConfig().movementBarrierSize,
                             elementMapStep.getPropertyKeys()));
         }
     }

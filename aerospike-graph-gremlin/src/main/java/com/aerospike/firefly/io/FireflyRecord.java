@@ -105,7 +105,7 @@ public class FireflyRecord {
         final FireflyId toVId = graph.getIdFactory().createVertexId(toV);
         final byte[] compoundKeyHash = ArrayUtils.addAll(fromVId.getKeyHash(), toVId.getKeyHash());
         final AerospikeConnection db = graph.getBaseGraph();
-        return new Key(db.getNamespace(), db.GRAPH_METADATA_SET, Value.get(compoundKeyHash));
+        return new Key(db.getNamespace(), db.getConfig().graphMetadataSet, Value.get(compoundKeyHash));
     }
 
     public static FireflyRecord read(final AerospikeConnection db, final String set, final FireflyId id) {
@@ -128,9 +128,9 @@ public class FireflyRecord {
         final Set<FireflyId> uniqueIds = new HashSet<>(readInfo.ids);
 
         // Batch reading in Aerospike is capped based on settings in the server.
-        for (int i = 0; i < uniqueIds.size(); i += db.AEROSPIKE_BATCH_READ_SIZE) {
+        for (int i = 0; i < uniqueIds.size(); i += db.getConfig().aerospikeBatchReadSize) {
             // Generate sub list using current index and batch size.
-            final List<FireflyId> subList = uniqueIds.stream().skip(i).limit(db.AEROSPIKE_BATCH_READ_SIZE).collect(Collectors.toList());
+            final List<FireflyId> subList = uniqueIds.stream().skip(i).limit(db.getConfig().aerospikeBatchReadSize).collect(Collectors.toList());
 
             // Execute batch read. subList ids are read from the database.
             executeBatchRead(db, readInfo, idToRecord, subList);
@@ -154,12 +154,12 @@ public class FireflyRecord {
             records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), db.transactionCache.get());
         } else {
             final List<Operation> operations = new ArrayList<>();
-            db.vertexMiscBins.forEach(bin -> operations.add(Operation.get(bin)));
+            db.getConfig().vertexMiscBins.forEach(bin -> operations.add(Operation.get(bin)));
             if (readInfo.areEdgesRequired) {
-                db.vertexEdgeBins.forEach(bin -> operations.add(Operation.get(bin)));
+                db.getConfig().vertexEdgeBins.forEach(bin -> operations.add(Operation.get(bin)));
             }
             if (readInfo.requiredProperties == null) {
-                db.vertexPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
+                db.getConfig().vertexPropertyBins.forEach(bin -> operations.add(Operation.get(bin)));
                 // read without cache because no edges (see line 152)
                 records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
             } else if (!readInfo.requiredProperties.isEmpty()) {
@@ -168,7 +168,7 @@ public class FireflyRecord {
                     final Long schemaPropertyKey = db.schemaManager.getVertexPropertyRead(propertyKey);
                     return Value.get(schemaPropertyKey);
                 }).collect(Collectors.toList());
-                db.vertexPropertyBins.forEach(bin -> operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP)));
+                db.getConfig().vertexPropertyBins.forEach(bin -> operations.add(MapOperation.getByKeyList(bin, properties, MapReturnType.UNORDERED_MAP)));
                 records = db.dynamicBatchRead(readInfo, keyList.toArray(Key[]::new), null, operations.toArray(Operation[]::new));
             } else {
                 records = readInfo.areEdgesRequired
@@ -215,7 +215,7 @@ public class FireflyRecord {
         // Deduplicate the phat edge ids.
         for (final FireflyId edgeId : uniqueIds) {
             if (!edgeStorageIdToKey.containsKey(edgeId.getStorageId())) {
-                edgeStorageIdToKey.put((long) edgeId.getStorageId(), getKey(db, db.EDGE_AERO_SET, edgeId));
+                edgeStorageIdToKey.put((long) edgeId.getStorageId(), getKey(db, db.getConfig().edgeAeroSet, edgeId));
             }
         }
         final Collection<Key> keys = edgeStorageIdToKey.values();
@@ -223,9 +223,9 @@ public class FireflyRecord {
         // Map of phat Edge IDs to their respective FireflyRecord.
         final Map<Long, FireflyEdgeRecord> phatEdgeStorageIdToRecord = new HashMap<>();
 
-        for (int i = 0; i < keys.size(); i += db.AEROSPIKE_BATCH_READ_SIZE) {
+        for (int i = 0; i < keys.size(); i += db.getConfig().aerospikeBatchReadSize) {
             // Generate sub list using current index and batch size.
-            final List<Key> subKeys = keys.stream().skip(i).limit(db.AEROSPIKE_BATCH_READ_SIZE).collect(Collectors.toList());
+            final List<Key> subKeys = keys.stream().skip(i).limit(db.getConfig().aerospikeBatchReadSize).collect(Collectors.toList());
 
             // Execute batch read. subList ids are read from the database.
             executeBatchReadPhatEdges(db, phatEdgeStorageIdToRecord, subKeys);

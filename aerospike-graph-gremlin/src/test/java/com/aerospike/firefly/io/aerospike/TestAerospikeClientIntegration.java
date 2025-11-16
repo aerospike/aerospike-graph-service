@@ -91,8 +91,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final Operation bin1Op = Operation.put(bin1);
         final Operation bin2Op = Operation.put(bin2);
         final Operation bin3Op = Operation.put(bin3);
-        db.writeOperate(null, getKey(db, db.TEST_SET, db.getIdFactory().getTestId(id)), bin1Op, bin2Op, bin3Op);
-        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, db.getIdFactory().getTestId(id))).record().getInt("age"), 32);
+        db.writeOperate(null, getKey(db, db.getConfig().testSet, db.getIdFactory().getTestId(id)), bin1Op, bin2Op, bin3Op);
+        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.getConfig().testSet, db.getIdFactory().getTestId(id))).record().getInt("age"), 32);
     }
 
     @Test
@@ -104,11 +104,11 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final Operation bin1Op = Operation.put(bin1);
         final Operation bin2Op = Operation.put(bin2);
         final Operation bin3Op = Operation.put(bin3);
-        db.writeOperate(null, getKey(db, db.TEST_SET, id), bin1Op, bin2Op, bin3Op);
+        db.writeOperate(null, getKey(db, db.getConfig().testSet, id), bin1Op, bin2Op, bin3Op);
         final Policy policy = new Policy();
-        assertNotEquals(null, db.read(getKey(db, db.TEST_SET, id), policy));
-        db.delete(getKey(db, db.TEST_SET, id), null);
-        assertNull(db.read(getKey(db, db.TEST_SET, id), policy));
+        assertNotEquals(null, db.read(getKey(db, db.getConfig().testSet, id), policy));
+        db.delete(getKey(db, db.getConfig().testSet, id), null);
+        assertNull(db.read(getKey(db, db.getConfig().testSet, id), policy));
     }
 
     @Test
@@ -152,8 +152,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     @Test
     public void testCreateDropIndex() {
         String binName = "aBin";
-        db.createIndex(new ArrayList<>(), db.TEST_SET, "testIndex", binName, IndexType.STRING, IndexCollectionType.LIST);
-        db.dropIndex(db.TEST_SET, "testIndex");
+        db.createIndex(new ArrayList<>(), db.getConfig().testSet, "testIndex", binName, IndexType.STRING, IndexCollectionType.LIST);
+        db.dropIndex(db.getConfig().testSet, "testIndex");
     }
 
     private long countQueryResults(final Statement stmt) {
@@ -185,16 +185,16 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final String stringIndex = "stringIndex";
         final String numberIndex = "numberIndex";
         final Iterator<Map<String, Object>> choices = Iterables.cycle(aMap, bMap, cMap, oneMap).iterator();
-        db.createIndex(new ArrayList<>(), db.TEST_SET, stringIndex, binName, IndexType.STRING, IndexCollectionType.MAPVALUES);
-        db.createIndex(new ArrayList<>(), db.TEST_SET, numberIndex, binName, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+        db.createIndex(new ArrayList<>(), db.getConfig().testSet, stringIndex, binName, IndexType.STRING, IndexCollectionType.MAPVALUES);
+        db.createIndex(new ArrayList<>(), db.getConfig().testSet, numberIndex, binName, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
 
         IntStream.range(0, 100).forEach(i -> {
-            final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
+            final Key key = new Key(db.getNamespace(), db.getConfig().testSet, i);
             db.checkedPut(null, key, new Bin(binName, choices.next()));
         });
         final Statement stringQuery = new Statement();
         stringQuery.setNamespace(db.getNamespace());
-        stringQuery.setSetName(db.TEST_SET);
+        stringQuery.setSetName(db.getConfig().testSet);
         stringQuery.setFilter(Filter.contains(binName, IndexCollectionType.MAPVALUES, "a"));
         stringQuery.setIndexName(stringIndex);
 
@@ -203,14 +203,14 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
         final Statement numberQuery = new Statement();
         numberQuery.setNamespace(db.getNamespace());
-        numberQuery.setSetName(db.TEST_SET);
+        numberQuery.setSetName(db.getConfig().testSet);
         numberQuery.setFilter(Filter.contains(binName, IndexCollectionType.MAPVALUES, 1));
         numberQuery.setIndexName(numberIndex);
         long numberCount = countQueryResults(numberQuery);
         assertEquals(25, numberCount);
 
-        db.dropIndex(db.TEST_SET, numberIndex);
-        db.dropIndex(db.TEST_SET, stringIndex);
+        db.dropIndex(db.getConfig().testSet, numberIndex);
+        db.dropIndex(db.getConfig().testSet, stringIndex);
 
     }
 
@@ -218,17 +218,17 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     public void testWriteReadUsingIndex() {
         final String binName = "age";
         final String testIndex = "testIndex";
-        db.createIndex(new ArrayList<>(), db.TEST_SET, testIndex, binName, IndexType.NUMERIC, IndexCollectionType.DEFAULT);
+        db.createIndex(new ArrayList<>(), db.getConfig().testSet, testIndex, binName, IndexType.NUMERIC, IndexCollectionType.DEFAULT);
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin3 = new Bin("greeting", "Hello World!");
         IntStream.range(0, 100).forEach(i -> {
-            final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
+            final Key key = new Key(db.getNamespace(), db.getConfig().testSet, i);
             db.checkedPut(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
         });
 
         Statement stmt = new Statement();
         stmt.setNamespace(db.getNamespace());
-        stmt.setSetName(db.TEST_SET);
+        stmt.setSetName(db.getConfig().testSet);
         stmt.setFilter(Filter.range("age", 34, 99));
         QueryPolicy p = new QueryPolicy();
         AerospikeConnection.FireflyRecordSet rs = db.query(null, stmt);
@@ -239,7 +239,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             i.next();
         }
         System.out.println(count);
-        db.dropIndex(db.TEST_SET, "testIndex");
+        db.dropIndex(db.getConfig().testSet, "testIndex");
     }
 
     @Ignore
@@ -251,11 +251,11 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Bin bin3 = new Bin("greeting", "Hello World!");
         int NUMBER_OF_RECORDS = 100;
         IntStream.range(0, NUMBER_OF_RECORDS).forEach(i -> {
-            final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
+            final Key key = new Key(db.getNamespace(), db.getConfig().testSet, i);
             db.checkedPut(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
         });
 
-        String infoQuery = "sets/" + db.getNamespace() + "/" + db.TEST_SET;
+        String infoQuery = "sets/" + db.getNamespace() + "/" + db.getConfig().testSet;
         String infoResponse = AerospikeConnection.InfoOps.singleNodeInfoRequest(db, infoQuery);
         Long reportedObjectCount = Arrays.stream(infoResponse.split(":"))
                 .filter(str -> str.startsWith("objects"))
@@ -272,13 +272,13 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
         IntStream.range(0, 100).forEach(i -> {
-            final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
+            final Key key = new Key(db.getNamespace(), db.getConfig().testSet, i);
             db.checkedPut(null, key, bin1, bin2, bin3);
         });
 
         PerfUtil.Results results = PerfUtil.runTestBatch(100, () -> {
             ThreadLocalRandom tlr = ThreadLocalRandom.current();
-            final Key key = new Key(db.getNamespace(), db.TEST_SET, tlr.nextInt(0, 100));
+            final Key key = new Key(db.getNamespace(), db.getConfig().testSet, tlr.nextInt(0, 100));
             final Record data = db.read(key, null);
             assert data.getLong("age") == 32;
         });
@@ -376,7 +376,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             // ID_MGR_SET  id manager set and G_META graph metadata are not removed by removing all vertices
             Set<String> x = AerospikeConnection.InfoOps.getNonEmptySetList(db);
             // todo: double check about USAGE_STATS_SET
-            assertEquals(Set.of(db.GRAPH_METADATA_SET, db.ID_MANAGER_SET, db.SUMMARY_SET, db.SCHEMA_SET), x);
+            assertEquals(Set.of(db.getConfig().graphMetadataSet, db.getConfig().idManagerSet, db.getConfig().summarySet, db.getConfig().schemaSet), x);
 
             assertEquals(4, x.size());
 
@@ -398,9 +398,9 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void shouldReadBatchRecords() {
-        Key aKey = new Key(db.getNamespace(), db.TEST_SET, "aKey");
-        Key bKey = new Key(db.getNamespace(), db.TEST_SET, "bKey");
-        Key cKey = new Key(db.getNamespace(), db.TEST_SET, "cKey");
+        Key aKey = new Key(db.getNamespace(), db.getConfig().testSet, "aKey");
+        Key bKey = new Key(db.getNamespace(), db.getConfig().testSet, "bKey");
+        Key cKey = new Key(db.getNamespace(), db.getConfig().testSet, "cKey");
         db.writeOperate(null, aKey, Operation.put(new Bin("bin", 1)));
         db.writeOperate(null, bKey, Operation.put(new Bin("bin", 1)));
         db.writeOperate(null, cKey, Operation.put(new Bin("bin", 1)));
@@ -497,13 +497,13 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         FireflyVertex va = (FireflyVertex) graph.addVertex(T.id, "A");
         FireflyVertex vb = (FireflyVertex) graph.addVertex(T.id, "B");
 
-        Key keyaObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(va.id()));
-        Key keybObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(vb.id()));
+        Key keyaObj = new Key(db.getNamespace(), db.getConfig().vertexAeroSet, Value.get(va.id()));
+        Key keybObj = new Key(db.getNamespace(), db.getConfig().vertexAeroSet, Value.get(vb.id()));
         final Record[] records = db.dynamicBatchRead(new Key[]{keyaObj, keybObj}, null, null);
         assertEquals(2, records.length);
 
-        Key keyaHash = new Key(db.getNamespace(), va.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL);
-        Key keybHash = new Key(db.getNamespace(), vb.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL);
+        Key keyaHash = new Key(db.getNamespace(), va.id.getKeyHash(), db.getConfig().vertexAeroSet, Value.NULL);
+        Key keybHash = new Key(db.getNamespace(), vb.id.getKeyHash(), db.getConfig().vertexAeroSet, Value.NULL);
         final Record[] hashRecords = db.dynamicBatchRead(new Key[]{keyaHash, keybHash}, null, null);
         assertEquals(2, hashRecords.length);
     }
@@ -531,11 +531,11 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         //  write-block-size=128k
         final Configuration configuration = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final AerospikeConnection db = AerospikeConnection.connect(configuration)) {
-            Assert.assertEquals(6553, db.ON_RECORD_ID_LIMIT);
+            Assert.assertEquals(6553, db.getConfig().onRecordIdLimit);
         }
         configuration.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), "2000");
         try (final AerospikeConnection db = AerospikeConnection.connect(configuration)) {
-            Assert.assertEquals(2000, db.ON_RECORD_ID_LIMIT);
+            Assert.assertEquals(2000, db.getConfig().onRecordIdLimit);
         }
     }
 }

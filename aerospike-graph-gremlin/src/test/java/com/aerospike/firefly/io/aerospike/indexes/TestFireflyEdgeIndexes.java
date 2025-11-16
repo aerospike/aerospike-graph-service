@@ -122,8 +122,8 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
             final Optional<FireflyIndexMetadata.IndexInfo> locationIndex = getPropertyIndexInfo(fireflyGraph, "location", "Canada");
             assertFalse(locationIndex.isPresent());
 
-            final String setfrom = db.EDGE_AERO_SET;
-            final String binfrom = db.PROPERTIES_BIN;
+            final String setfrom = db.getConfig().edgeAeroSet;
+            final String binfrom = db.getConfig().propertiesBin;
 
 //            final Iterator<Edge> edgeIteratorFromString = fireflyGraphQuery.create(graph).getPagedScan("from", setfrom, binfrom, P.eq("BitQuill"), fireflyGraph::edgeFromRecord);
 //            Assert.assertTrue(edgeIteratorFromString.hasNext());
@@ -166,12 +166,12 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
                     fireflyGraph.getBaseGraph());
             Map.Entry<String, String> edgeLabelIndex = null;
             for (final Map.Entry<String, String> index : indices) {
-                if (index.getKey().equals(fireflyGraph.getBaseGraph().E_LABEL_INDEX_NAME)) {
+                if (index.getKey().equals(fireflyGraph.getBaseGraph().getConfig().eLabelIndexName)) {
                     edgeLabelIndex = index;
                 }
             }
             Assert.assertNotNull(edgeLabelIndex);
-            Assert.assertEquals(edgeLabelIndex.getValue(), (fireflyGraph.getBaseGraph().EDGE_AERO_SET));
+            Assert.assertEquals(edgeLabelIndex.getValue(), (fireflyGraph.getBaseGraph().getConfig().edgeAeroSet));
 
 //            final Iterator<FireflyEdge> edges = fireflyGraphQuery.create(graph).getPagedScan(null, db.EDGE_AERO_SET, AerospikeConnection.LABEL, P.eq("owns"), graph::edgeFromRecord);
 //            Assert.assertTrue(edges.hasNext());
@@ -193,7 +193,7 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
             final List<Map.Entry<String, String>> indices = AerospikeConnection.InfoOps.listExistingIndexes(
                     fireflyGraph.getBaseGraph());
             for (final Map.Entry<String, String> index : indices) {
-                if (index.getKey().equals(fireflyGraph.getBaseGraph().E_LABEL_INDEX_NAME)) {
+                if (index.getKey().equals(fireflyGraph.getBaseGraph().getConfig().eLabelIndexName)) {
                     Assert.fail("Vertex label index found when it should have been disabled.");
                 }
             }

@@ -83,8 +83,8 @@ public class WarmupUtil {
         final List<Object> createdIds = cloneElements(TinkerFactory.createModern(), graph);
         final Object[] createdIdAry = createdIds.toArray(new Object[0]);
         if (ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.LOG_WARMUP_SETS, conf)) {
-            System.out.println("Warmup Vertex Set: " + graph.getBaseGraph().VERTEX_AERO_SET);
-            System.out.println("Warmup Edge Set: " + graph.getBaseGraph().EDGE_AERO_SET);
+            System.out.println("Warmup Vertex Set: " + graph.getBaseGraph().getConfig().vertexAeroSet);
+            System.out.println("Warmup Edge Set: " + graph.getBaseGraph().getConfig().edgeAeroSet);
         }
 
         g.V(createdIdAry).has("name", "CANT COME DOWN").outE().inV().count().iterate();

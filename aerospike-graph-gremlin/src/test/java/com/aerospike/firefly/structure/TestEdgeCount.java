@@ -26,7 +26,7 @@ public class TestEdgeCount extends AbstractFireflySuite {
     @Test
     public void testSupernodeEdgeCount() {
         // Ensure that the number of connections is high enough to be considered a supernode.
-        final long numOfConnections = Math.max(10000, graph.getBaseGraph().ON_RECORD_ID_LIMIT + 100);
+        final long numOfConnections = Math.max(10000, graph.getBaseGraph().getConfig().onRecordIdLimit + 100);
         edgeCountTest(numOfConnections);
     }
 

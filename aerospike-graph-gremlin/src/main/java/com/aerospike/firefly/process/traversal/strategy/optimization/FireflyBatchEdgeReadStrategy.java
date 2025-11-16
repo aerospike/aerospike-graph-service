@@ -136,7 +136,7 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                     traversal.removeStep(steps.get(index));
                     adjustedIdContainers = containers;
                 } else if (steps.get(index) instanceof SampleGlobalStep) {
-                    if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY) {
+                    if (!graph.getBaseGraph().getConfig().enableBatchEdgeReadSamplingStrategy) {
                         break;
                     }
                     try {
@@ -181,7 +181,7 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                         // Already grabbed this, still looping to see if a HasStep is present, but we found this instead.
                         break;
                     }
-                    if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY) {
+                    if (!graph.getBaseGraph().getConfig().enableBatchEdgeReadLimitStrategy) {
                         break;
                     }
 
@@ -215,7 +215,7 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                         labels,
                         sampleSize,
                         limitSize,
-                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE));
+                        graph.getBaseGraph().getConfig().movementBarrierSize));
             } else {
                 traversal.addStep(index, new FireflyBatchEdgeReadStep(
                         traversal,
@@ -224,7 +224,7 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                         labels,
                         hasContainers,
                         adjustedIdContainers,
-                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE,
+                        graph.getBaseGraph().getConfig().movementBarrierSize,
                         limitSize));
                 if (sampleSize != -1) {
                     // If we have a sample size, we need to add a limit step after the batch edge read step.

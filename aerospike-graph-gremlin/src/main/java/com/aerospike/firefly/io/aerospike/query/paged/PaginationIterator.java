@@ -40,7 +40,7 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
                 }
             }
             try {
-                boolean succeeded = latch.await(Math.min(timeout, graph.getBaseGraph().PAGINATION_PAGE_MAX_WAIT), TimeUnit.MILLISECONDS);
+                boolean succeeded = latch.await(Math.min(timeout, graph.getBaseGraph().getConfig().paginationPageMaxWait), TimeUnit.MILLISECONDS);
                 if (!succeeded) {
                     throw new RuntimeException("Timeout waiting for more records in PaginationIterator. " +
                             "State: " + isClosed + " " + queue.isEmpty() + ".");

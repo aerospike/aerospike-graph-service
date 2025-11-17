@@ -5,6 +5,7 @@ import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchVertexReadSampleLimitStep;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchVertexReadStep;
 import com.aerospike.firefly.process.traversal.step.FireflyEdgeToVertexBatchReadStep;
+import com.aerospike.firefly.process.traversal.step.FireflyHasIdVertexFilterStep;
 import com.aerospike.firefly.process.traversal.step.FireflyOtherVBatchReadStep;
 import com.aerospike.firefly.process.traversal.step.computer.FireflyBatchEdgeReadStepLocal;
 import com.aerospike.firefly.process.traversal.step.computer.FireflyBatchVertexReadStepLocal;
@@ -103,7 +104,8 @@ public class StrategyHelper {
                 || step instanceof FireflyOtherVBatchReadStep
                 || step instanceof FireflyOtherVBatchReadStepLocal
                 || step instanceof FireflyEdgeToVertexBatchReadStep
-                || step instanceof FireflyAdjacentVertexIdStep;
+                || step instanceof FireflyAdjacentVertexIdStep
+                || step instanceof FireflyHasIdVertexFilterStep;
     }
 
     public static boolean isPropertyStep(final Step step) {

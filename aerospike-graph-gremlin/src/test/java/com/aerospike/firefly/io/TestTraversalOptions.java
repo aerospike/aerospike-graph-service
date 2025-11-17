@@ -4,7 +4,12 @@ import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -15,6 +20,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class TestTraversalOptions extends AbstractFireflySuite {
 
@@ -97,7 +103,7 @@ public class TestTraversalOptions extends AbstractFireflySuite {
     }
 
     @Test
-    public void testFunctionalCorrectness() throws InterruptedException {
+    public void testFunctionalCorrectness() {
         final GraphTraversalSource g = graph.traversal();
         g.V().drop().iterate();
         List<Vertex> vertices = new ArrayList<>();
@@ -160,6 +166,33 @@ public class TestTraversalOptions extends AbstractFireflySuite {
         Assert.assertEquals(eresult.size(), eresult2.size());
         Assert.assertEquals(eresult.size(), eresult4.size());
         Assert.assertEquals(eresult.size(), eresult16.size());
+    }
+
+    @Test
+    public void testTraversalOptionsInChildTraversal() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        GraphTraversalSource g = graph.traversal();
+        g = g.with("PARALLELIZE", 1);
+
+        // Root traversal that owns a child
+        GraphTraversal.Admin<?, ?> root = g.V().filter(__.out()).asAdmin();
+
+        // Extract the real child traversal from the parent step
+        TraversalParent parent = (TraversalParent) root.getSteps().stream()
+                .filter(TraversalParent.class::isInstance)
+                .findFirst().orElseThrow();
+        Traversal.Admin<?, ?> child = parent.getLocalChildren().get(0);
+
+        // Verify that the child has no options but the root does
+        Assert.assertFalse(child.getStrategies().getStrategy(OptionsStrategy.class)
+                .map(os -> os.getOptions().containsKey("PARALLELIZE")).orElse(false));
+        Assert.assertTrue(root.getStrategies().getStrategy(OptionsStrategy.class)
+                .map(os -> os.getOptions().containsKey("PARALLELIZE")).orElse(false));
+
+        // Verify that PARALLELIZE=1 is taken from the root
+        Optional<Integer> opt = ConfigurationHelper.getTraversalOptionInteger("PARALLELIZE", child, 0, 8);
+        Assert.assertTrue(opt.isPresent());
+        Assert.assertEquals(1, opt.get().intValue());
     }
 
     @Override

@@ -560,39 +560,48 @@ public final class ConfigurationHelper {
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.SUMMARY_TICKER_INTERVAL_MS, 1000);
     }
 
-    public static Optional<Integer> getTraversalOptionInteger(final String key, final Traversal.Admin traversal,
+    public static Optional<Integer> getTraversalOptionInteger(final String key, final Traversal.Admin<?, ?> traversal,
                                                               final int min, final int max) {
-        final Map<String, Object> traversalOptions = new HashMap<>();
-        traversal.getStrategies().getStrategy(OptionsStrategy.class).ifPresent(optionsStrategy -> traversalOptions.putAll(optionsStrategy.getOptions()));
-        if (traversalOptions.containsKey(key)) {
-            Object valueRaw = traversalOptions.get(key);
-            if (valueRaw instanceof Integer || valueRaw instanceof Long) {
-                if (valueRaw instanceof Long) {
-                    valueRaw = ((Long) valueRaw).intValue();
-                }
-                final int value = (int) valueRaw;
-                if (value < min) {
-                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be greater than " + min + ". " + value + " is less than " + min + ".");
-                } else if (value > max) {
-                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be less than " + max + ". " + value + " is greater than " + max + ".");
-                }
-                return Optional.of(value);
-            }
-            final int value;
+        // Climb to root traversal
+        Traversal.Admin<?, ?> t = traversal;
+        while (!t.isRoot()) {
+            t = t.getParent().asStep().getTraversal();
+        }
+
+        final Optional<OptionsStrategy> strategyOpt = t.getStrategies().getStrategy(OptionsStrategy.class);
+
+        if (strategyOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        final Map<String, Object> traversalOptions = strategyOpt.get().getOptions();
+        if (!traversalOptions.containsKey(key)) {
+            return Optional.empty();
+        }
+
+        Object valueRaw = traversalOptions.get(key);
+        int value;
+
+        if (valueRaw instanceof Integer) {
+            value = (int) valueRaw;
+        } else if (valueRaw instanceof Long) {
+            value = ((Long) valueRaw).intValue();
+        } else {
             try {
                 value = Integer.parseInt(valueRaw.toString());
-                if (value < min) {
-                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be greater than " + min + ". " + value + " is less than " + min + ".");
-                } else if (value > max) {
-                    throw new ConfigurationRuntimeException("Invalid value for " + key + " option. Must be less than " + max + ". " + value + " is greater than " + max + ".");
-                }
             } catch (final NumberFormatException e) {
                 throw new ConfigurationRuntimeException("Invalid value for " + key +
-                        " option. Must be an integer or integer string. " + valueRaw + " is of type " + valueRaw.getClass().getName());
+                        " option. Must be an integer or integer string. " +
+                        valueRaw + " is of type " + valueRaw.getClass().getName());
             }
-            return Optional.of(value);
         }
-        return Optional.empty();
+
+        if (value < min || value > max) {
+            throw new ConfigurationRuntimeException("Invalid value for " + key +
+                    " option. Must be greater than " + (min - 1) + " and less than (max + 1)." +
+                    " Got " + value + ".");
+        }
+        return Optional.of(value);
     }
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {

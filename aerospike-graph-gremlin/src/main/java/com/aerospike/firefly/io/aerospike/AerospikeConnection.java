@@ -2566,11 +2566,15 @@ public class AerospikeConnection implements AutoCloseable {
                         // Make at least 1 thread available for the threaded executor service, just so it's not empty.
                         final int threadCount = threadPoolSize * ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, conf);
                         THREADED_EXECUTOR_SERVICE = Executors.newFixedThreadPool(Math.max(threadCount, 1));
-                    } catch (Exception e) {
+                    } catch (final RuntimeException e) {
                         EVENT_LOOPS.close();
-                        if (CLIENT != null) CLIENT.close();
-                        if (THREADED_EXECUTOR_SERVICE != null) THREADED_EXECUTOR_SERVICE.shutdownNow();
-                        throw new RuntimeException(e);
+                        if (CLIENT != null) {
+                            CLIENT.close();
+                        };
+                        if (THREADED_EXECUTOR_SERVICE != null) {
+                            THREADED_EXECUTOR_SERVICE.shutdownNow();
+                        }
+                        throw e;
                     }
                 }
                 OPEN_COUNT.incrementAndGet();

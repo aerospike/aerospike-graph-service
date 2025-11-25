@@ -2558,13 +2558,24 @@ public class AerospikeConnection implements AutoCloseable {
                     final int delayQueueSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.DELAY_QUEUE_SIZE, conf);
 
                     EVENT_LOOPS = initializeEventLoops(eventLoopType, eventLoopCount, commandsPerEventLoop, delayQueueSize);
-                    final int threadPoolSize = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());
-                    final ClientPolicy clientPolicy = setupClientPolicy(conf, threadPoolSize, EVENT_LOOPS);
-                    CLIENT = setupDefaultClient(conf, clientPolicy);
+                    try {
+                        final int threadPoolSize = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());
+                        final ClientPolicy clientPolicy = setupClientPolicy(conf, threadPoolSize, EVENT_LOOPS);
+                        CLIENT = setupDefaultClient(conf, clientPolicy);
 
-                    // Make at least 1 thread available for the threaded executor service, just so it's not empty.
-                    final int threadCount = threadPoolSize * ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, conf);
-                    THREADED_EXECUTOR_SERVICE = Executors.newFixedThreadPool(Math.max(threadCount, 1));
+                        // Make at least 1 thread available for the threaded executor service, just so it's not empty.
+                        final int threadCount = threadPoolSize * ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, conf);
+                        THREADED_EXECUTOR_SERVICE = Executors.newFixedThreadPool(Math.max(threadCount, 1));
+                    } catch (final RuntimeException e) {
+                        EVENT_LOOPS.close();
+                        if (CLIENT != null) {
+                            CLIENT.close();
+                        };
+                        if (THREADED_EXECUTOR_SERVICE != null) {
+                            THREADED_EXECUTOR_SERVICE.shutdownNow();
+                        }
+                        throw e;
+                    }
                 }
                 OPEN_COUNT.incrementAndGet();
                 return INSTANCE;

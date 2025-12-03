@@ -71,6 +71,7 @@ import com.aerospike.firefly.util.exceptions.SindexAlreadyExistsException;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.server.Settings;
@@ -119,6 +120,7 @@ import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
+import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.CONFIG_RESET;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.getOrDefaultString;
 import static com.aerospike.firefly.util.exceptions.AerospikeGraphException.fromAerospikeException;
 
@@ -133,7 +135,7 @@ public class AerospikeConnection implements AutoCloseable {
     private final EventLoops eventLoops;
     private final ExecutorService threadedReadExecutor;
     public final Configuration conf;
-    private final AerospikeConnectionConfig config;
+    private AerospikeConnectionConfig config;
 
     public static final AtomicLong instanceCounter = new AtomicLong(0);
 
@@ -148,6 +150,10 @@ public class AerospikeConnection implements AutoCloseable {
     public static final String DATA_MODEL_NAME = "DATA_MODEL_NAME";
     public static final String DATA_MODEL_VER = "DATA_MODEL_VER";
     public static final String DATA_MODEL_CONF = "DATA_MODEL_CONF";
+
+    public static final String CONFIG_KEY = "CONFIG_KEY";
+    public static final String CONFIG_VERSION_BIN = "CONFIG_VERSION";
+    public static final String CONFIG_MAP_BIN = "CONFIG_MAP";
 
     public final ThreadLocal<FireflyCache> transactionCache = new ThreadLocal<>();
     public final ThreadLocal<FireflyCache> emptyPropsTransactionCache = new ThreadLocal<>();
@@ -280,6 +286,12 @@ public class AerospikeConnection implements AutoCloseable {
         this.config = new AerospikeConnectionConfig(conf, client);
         this.config.validate(this);
 
+        if (ConfigurationHelper.getOrDefaultBool(CONFIG_RESET, conf)) {
+            resetConfiguration();
+        } else {
+            refreshConfiguration();
+        }
+
         // Actions must go after all setters are initialized
         initializeIdSet();
         schemaManager = new SchemaManager(this);
@@ -289,6 +301,58 @@ public class AerospikeConnection implements AutoCloseable {
         // require idFactory to run
         if (this.config.mrtEnabled || this.config.transactionEnabled) {
             validateMrtSupport();
+        }
+    }
+
+    //////////////////////////////////////////
+    // Dynamic configuration methods
+    //////////////////////////////////////////
+    private final Object configLock = new Object();
+
+    public void resetConfiguration() {
+        synchronized (configLock) {
+            final Key key = new Key(config.namespace, config.graphMetadataSet, CONFIG_KEY);
+            client.delete(null, key);
+        }
+    }
+
+    public void updateConfiguration(final Map<String, Object> updatedProperties) {
+        synchronized (configLock) {
+            // try to apply configuration for validation
+            this.config.update(new MapConfiguration(updatedProperties), this.client, this.config.version + 1);
+
+            final Map<Value, Value> asMap = updatedProperties.entrySet()
+                    .stream()
+                    .collect(Collectors.toMap(
+                            entry -> Value.get(entry.getKey()),
+                            entry -> Value.get(entry.getValue())));
+
+            final Key key = new Key(config.namespace, config.graphMetadataSet, CONFIG_KEY);
+
+            final Operation incrementVersion = Operation.add(new Bin(CONFIG_VERSION_BIN, 1));
+            final Operation updateConfig = MapOperation.putItems(MapPolicy.Default, CONFIG_MAP_BIN, asMap);
+            final Operation readVersion = Operation.get(CONFIG_VERSION_BIN);
+            final Operation readConfig = Operation.get(CONFIG_MAP_BIN);
+
+            final Record updatedRecord = this.writeOperate(null, key, Collections.emptySet(), true, incrementVersion, updateConfig, readVersion, readConfig);
+            // version might be changed by other AGS instance
+            final Map<String, Object> newConfig = (Map<String, Object>) updatedRecord.getList(CONFIG_MAP_BIN).get(1);
+            this.config = this.config.update(new MapConfiguration(newConfig), this.client, ((Long) updatedRecord.getList(CONFIG_VERSION_BIN).get(1)).intValue());
+        }
+    }
+
+    public void refreshConfiguration() {
+        synchronized (configLock) {
+            final Key key = new Key(config.namespace, config.graphMetadataSet, CONFIG_KEY);
+            final Record record = read(key, null);
+
+            // no saved config or nothing changed
+            if (record == null || record.getInt(CONFIG_VERSION_BIN) <= config.version) {
+                return;
+            }
+
+            final Map<String, Object> newConfig = (Map<String, Object>) record.getMap(CONFIG_MAP_BIN);
+            this.config = this.config.update(new MapConfiguration(newConfig), this.client, record.getInt(CONFIG_VERSION_BIN));
         }
     }
 
@@ -2452,7 +2516,9 @@ public class AerospikeConnection implements AutoCloseable {
         this.transaction = transaction;
     }
 
-    public AerospikeConnectionConfig getConfig() { return config; }
+    public AerospikeConnectionConfig getConfig() {
+        return config;
+    }
 
     @Override
     public final String toString() {

@@ -37,6 +37,7 @@ public class TestFireflyBasicCall {
                     "aerospike.graph.admin.reserved.info",
                     "aerospike.graph.admin.metadata.version",
                     "aerospike.graph.admin.metadata.config",
+                    "aerospike.graph.admin.metadata.set-config",
                     "aerospike.graph.admin.rbac-jwt.issue-token",
                     "aerospike.graph.admin.query.abort"
             ), new HashSet<>(normalOutput));
@@ -64,6 +65,7 @@ public class TestFireflyBasicCall {
                     case "{\"name\":\"get-bulk-load-error-count\"":
                     case "{\"name\":\"aerospike.graph.admin.metadata.version\"":
                     case "{\"name\":\"aerospike.graph.admin.metadata.config\"":
+                    case "{\"name\":\"aerospike.graph.admin.metadata.set-config\"":
                         if (infoPieces.size() > 1) {
                             Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                             Assert.assertEquals(infoPieces.get(2), "\"params\":{}}");

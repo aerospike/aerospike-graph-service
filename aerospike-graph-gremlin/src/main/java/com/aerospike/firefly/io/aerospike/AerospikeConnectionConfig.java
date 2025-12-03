@@ -1,16 +1,20 @@
 package com.aerospike.firefly.io.aerospike;
 
-import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.IAerospikeClient;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
-import com.aerospike.firefly.util.config.FireflyConfiguration;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.GraphError;
+import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
@@ -20,11 +24,22 @@ import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.TRANSAC
 public class AerospikeConnectionConfig {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnectionConfig.class);
 
-    private final FireflyConfiguration conf;
+    public int version;
+    private final MapConfiguration conf;
 
     public final List<String> vertexMiscBins = new ArrayList<>();
     public final List<String> vertexEdgeBins = new ArrayList<>();
     public final List<String> vertexPropertyBins = new ArrayList<>();
+
+    public static final Set<String> mutableKeys = new HashSet<>() {{
+        add("aerospike.client.policy.*");
+        add("aerospike.client.batch.read.*");
+        add("aerospike.graph.pagination.*");
+        add("aerospike.client.scan.max.wait");
+        add("aerospike.client.batch-threshold.per-node");
+        add("aerospike.graph.movement.barrier.size");
+        add("aerospike.client.infoPolicy.timeout");
+    }};
 
     public final String namespace;
     public final String graphId;
@@ -87,6 +102,8 @@ public class AerospikeConnectionConfig {
     public final String userSuppliedIdCacheSet;
     public final long cardinalityMetadataUpdateFrequency;
     public final long indexMetadataUpdateFrequency;
+    public final boolean configUpdateEnabled;
+    public final long configUpdateFrequency;
     public final String supernodesInBin;
     public final String supernodesOutBin;
     public final String blRowBin;
@@ -176,6 +193,7 @@ public class AerospikeConnectionConfig {
     public final int scanSocketTimeout;
     public final int scanConnectTimeout;
     public final int scanTimeoutDelay;
+    public final int scanMaxWait;
     public final int queryTotalTimeout;
     public final int querySocketTimeout;
     public final int queryConnectTimeout;
@@ -193,8 +211,16 @@ public class AerospikeConnectionConfig {
     public final boolean bulkLoaderInitializerFlag;
     public final boolean olapEnabledFlag;
 
-    public AerospikeConnectionConfig(final FireflyConfiguration conf,
-                                     final AerospikeClient client) {
+    public AerospikeConnectionConfig(final MapConfiguration conf,
+                                     final IAerospikeClient client) {
+        this(conf, client, 0);
+    }
+
+    public AerospikeConnectionConfig(final MapConfiguration conf,
+                                     final IAerospikeClient client,
+                                     final int version) {
+        this.conf = conf;
+        this.version = version;
 
         this.namespace = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf);
 
@@ -224,7 +250,7 @@ public class AerospikeConnectionConfig {
         enableEmbeddedGraphCountStrategy = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf);
         enableEmbeddedVertexEdgeLocalCountStrategy = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf);
         enableBatchedRepeatStepStrategy = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf);
-        this.conf = conf;
+
         final boolean adjacentIdEnabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_CACHED_ADJACENT_ID_STRATEGY, conf);
 
         if (adjacentIdEnabled && !enableCompositeIdStrategy) {
@@ -252,6 +278,8 @@ public class AerospikeConnectionConfig {
 
         cardinalityMetadataUpdateFrequency = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf);
         indexMetadataUpdateFrequency = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf);
+        configUpdateFrequency = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CONFIG_UPDATE_FREQUENCY, conf);
+        configUpdateEnabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.CONFIG_UPDATE_ENABLED, conf);
         ttlPurgeIntervalSeconds = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.TTL_PURGE_INTERVAL_SECONDS, conf);
         supernodeTraversalLogWarning = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUPERNODE_TRAVERSAL_LOG_WARNING, conf);
         supernodesTraversedCounterEnabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUPERNODES_TRAVERSED_COUNTER_ENABLED, conf);
@@ -351,6 +379,7 @@ public class AerospikeConnectionConfig {
         scanSocketTimeout = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_SOCKET_TIMEOUT, conf);
         scanConnectTimeout = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_CONNECT_TIMEOUT, conf);
         scanTimeoutDelay = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_TIMEOUT_DELAY, conf);
+        scanMaxWait = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_MAX_WAIT, conf);
         queryTotalTimeout = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.QUERY_TOTAL_TIMEOUT, conf);
         querySocketTimeout = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.QUERY_SOCKET_TIMEOUT, conf);
         queryConnectTimeout = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.QUERY_CONNECT_TIMEOUT, conf);
@@ -396,6 +425,10 @@ public class AerospikeConnectionConfig {
         vertexPropertyBins.add(vpPropertyBin);
     }
 
+    public MapConfiguration getRawConfig() {
+        return conf;
+    }
+
     public void validate(final AerospikeConnection connection) {
         // Verify that the namespace is not using a default-ttl.
         if (AerospikeConnection.InfoOps.getIsAerospikeTTLEnabled(connection, namespace)) {
@@ -437,5 +470,31 @@ public class AerospikeConnectionConfig {
         }
         LOG.info("{} configured to {}.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, onRecordIdLimit);
         this.onRecordIdLimit = onRecordIdLimit;
+    }
+
+    private boolean isMutableKey(final String key) {
+        for (final String k : mutableKeys) {
+            if (k.equals(key) || (k.endsWith("*") && key.startsWith(k.substring(0, k.length() - 1)))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public AerospikeConnectionConfig update(final MapConfiguration conf, final IAerospikeClient client, final int version) {
+        final Map<String, Object> current = this.conf.getMap();
+        final Map<String, Object> updated = conf.getMap();
+
+        for (final String key : updated.keySet()) {
+            if (!Objects.equals(current.get(key), updated.get(key)) && !isMutableKey(key)) {
+                throw new IllegalArgumentException("Immutable option " + key + " can't be changed.");
+            }
+            this.conf.setProperty(key, updated.get(key));
+        }
+
+        this.version = version;
+
+        return new AerospikeConnectionConfig(this.conf, client);
     }
 }

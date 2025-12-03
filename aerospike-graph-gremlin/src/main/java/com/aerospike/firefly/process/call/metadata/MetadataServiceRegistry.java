@@ -14,7 +14,8 @@ public class MetadataServiceRegistry extends ServiceRegistryBase {
                 new MetadataServiceConfig<>(graph),
                 new MetadataServiceVersion<>(graph),
                 new MetadataServiceUsageDeprecated<>(graph),
-                new MetadataServiceSummaryDeprecated<>(graph)
+                new MetadataServiceSummaryDeprecated<>(graph),
+                new MetadataServiceSetConfig<>(graph)
         );
 
         services.forEach(graph.getServiceRegistry()::registerService);

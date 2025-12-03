@@ -37,6 +37,7 @@ import com.aerospike.firefly.process.computer.local.LocalGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
 import com.aerospike.firefly.process.traversal.strategy.util.FireflyStrategyUtil;
 import com.aerospike.firefly.runtime.HttpServer;
+import com.aerospike.firefly.runtime.tasks.FireflyConfigurationTask;
 import com.aerospike.firefly.runtime.zipkin.OpenTelemetryZipkinExporter;
 import com.aerospike.firefly.structure.transaction.FireflyTransaction;
 import com.aerospike.firefly.structure.util.LogInfo;
@@ -246,6 +247,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final Timer fireflyIndexMetadataTask = new Timer(true);
+    private Timer configurationWatcherTask;
     private final FireflyFeatures features;
     private final Configuration configuration;
     public static String VP_INDEX_PREFIX = "VP";
@@ -407,6 +409,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                     final int queryTracingLogPort = ConfigurationHelper.getOrDefaultInt(QUERY_TRACING_LOG_PORT, conf);
                     this.zipkinExporter = OpenTelemetryZipkinExporter.create(db.getConfig().graphId, queryTracingLogHost,
                             queryTracingLogPort, queryTracingMinMillis, queryTracingSamplePercent);
+                }
+
+                if (db.getConfig().configUpdateEnabled) {
+                    final FireflyConfigurationTask fireflyConfigurationTask = new FireflyConfigurationTask(db);
+                    configurationWatcherTask = new Timer(true);
+                    // start with delay
+                    configurationWatcherTask.schedule(fireflyConfigurationTask, db.getConfig().configUpdateFrequency, db.getConfig().configUpdateFrequency);
                 }
             }
         } catch (final Exception e) {
@@ -1373,6 +1382,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     /**
      * Enter transaction state for the current thread.
+     *
      * @param timeout Timeout in seconds. -1 to use FireflyGraph's configured default timeout.
      */
     public void enterTransactionState(final long timeout) {
@@ -1402,6 +1412,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             this.fireflyIndexMetadataTask.cancel();
             if (this.fireflySummaryUpdater != null) {
                 this.fireflySummaryUpdater.close();
+            }
+
+            if (this.configurationWatcherTask != null) {
+                this.configurationWatcherTask.cancel();
             }
 
             if (!db.getConfig().warmupMode && !db.getBulkLoaderFlag() && !db.getOlapFlag() && this.usageStats != null) {
@@ -1462,7 +1476,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return this.serviceRegistry;
     }
 
-    public static String getGitCommitHash(){
+    public static String getGitCommitHash() {
         final Properties gitProperties = new Properties();
         try (InputStream in = Thread.currentThread()
                 .getContextClassLoader()

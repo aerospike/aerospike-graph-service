@@ -25,7 +25,7 @@ public class MetadataServiceVersion<I, R> extends MetadataServiceBase<I, R> {
                         "\tProvided arguments: '%s'.\n" +
                         "\tExample of correct usage:\n" +
                         "\t\tg.call(\"%s\").next();\n",
-                getName(), params);
+                getName(), params, getName());
     }
 
     @Override

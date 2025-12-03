@@ -1,6 +1,5 @@
 package com.aerospike.firefly.process.call.metadata;
 
-import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.text.ParseException;
@@ -12,7 +11,6 @@ import java.util.Map;
 
 public class MetadataServiceUsage<I, R> extends MetadataServiceBase<I, R> {
     public static final Long MILLISECONDS_TO_HOURS = 1000 * 60 * 60L;
-    public static final Long HOURS_TO_YEARS = 24 * 365L;
     private static final String PATTERN = "yyyy-MM-dd";
 
     public MetadataServiceUsage(final FireflyGraph graph) {

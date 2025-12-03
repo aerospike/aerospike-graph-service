@@ -58,9 +58,10 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
 
     /**
      * create new ConcurrentScanRecordSequenceListener
-     * @param db AerospikeConnection instance
+     *
+     * @param db          AerospikeConnection instance
      * @param scanMonitor Aerospike scanMonitor
-     * @param scanId scanId
+     * @param scanId      scanId
      * @return new ConcurrentScanRecordSequenceListener
      */
     public static ConcurrentScanRecordSequenceListener create(final AerospikeConnection db,
@@ -70,9 +71,7 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
             db.getScanHitCounter().setScanTimings(scanId, start, stop);
             return null;
         };
-        return new ConcurrentScanRecordSequenceListener(scanMonitor,
-                ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.SCAN_MAX_WAIT, db.conf),
-                metricsCallback);
+        return new ConcurrentScanRecordSequenceListener(scanMonitor, db.getConfig().scanMaxWait, metricsCallback);
     }
 
     /**

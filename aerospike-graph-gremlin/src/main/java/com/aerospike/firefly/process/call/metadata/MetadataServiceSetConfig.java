@@ -1,0 +1,48 @@
+package com.aerospike.firefly.process.call.metadata;
+
+import com.aerospike.firefly.structure.FireflyGraph;
+
+import java.util.Map;
+
+public class MetadataServiceSetConfig<I, R> extends MetadataServiceBase<I, R> {
+
+    public MetadataServiceSetConfig(final FireflyGraph graph) {
+        super(graph);
+    }
+
+    @Override
+    protected String getAdminServiceName() {
+        return "set-config";
+    }
+
+    @Override
+    protected String usage(final Map params) {
+        return String.format("Illegal arguments provided to '%s'.\n" +
+                        "\tExpected non-empty arguments map.'.\n" +
+                        "\tExamples of correct usage:\n" +
+                        "\t\tg.call(\"%s\").with(\"aerospike.client.policy.write.socketTimeout\", \"10000\").next();\n",
+                getName());
+    }
+
+    @Override
+    protected boolean sanitize(final Map params) {
+        return !params.isEmpty();
+    }
+
+    @Override
+    protected R execute(final Map params) {
+        graph.getBaseGraph().updateConfiguration(params);
+
+        return (R) ("Successfully updated configuration " + params + ".");
+    }
+
+    @Override
+    public Map<String, String> describeParams() {
+        return Map.of();
+    }
+
+    @Override
+    protected void auditLog(final Map params) {
+        LOGGER.info("[{}] - {} - Changed graph configuration: ", getUser(), getName(), params);
+    }
+}

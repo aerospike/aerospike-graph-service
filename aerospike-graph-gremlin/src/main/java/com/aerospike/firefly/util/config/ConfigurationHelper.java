@@ -100,6 +100,9 @@ public final class ConfigurationHelper {
         public static final String MRT_TIMEOUT = "aerospike.graph.mrt.timeout";
         public static final String TRANSACTION_ENABLED_FLAG = "aerospike.graph.tx.enabled";
         public static final String TRANSACTION_TIMEOUT = "aerospike.graph.tx.timeout";
+        public static final String CONFIG_UPDATE_ENABLED = "aerospike.graph.config.update.enabled";
+        public static final String CONFIG_UPDATE_FREQUENCY = "aerospike.graph.config.update.frequency";
+        public static final String CONFIG_RESET = "aerospike.graph.config.reset";
 
         // Mainly for testing since tinkerpop doesnt force cardinality.
         public static final String VERTEX_PROPERTY_CARDINALITY = "aerospike.graph.vertex.property.cardinality";
@@ -179,10 +182,10 @@ public final class ConfigurationHelper {
         public static final String PAGINATION_PAGE_SIZE_PER_NODE = "aerospike.graph.pagination.page.size.per-node";
         public static final String PAGINATION_PAGE_MAX_WAIT = "aerospike.graph.pagination.max.wait";
         public static final String PAGINATION_SHUTDOWN_WAIT = "aerospike.graph.pagination.shutdown.wait";
-        public static final String OLAP_PAGINATION_WORKERS = "aerospike.graph.analytics.pagination.index.workers";
-        public static final String OLAP_WORKERS = "aerospike.graph.analytics.workers";
 
         // OLAP configuration flags.
+        public static final String OLAP_PAGINATION_WORKERS = "aerospike.graph.analytics.pagination.index.workers";
+        public static final String OLAP_WORKERS = "aerospike.graph.analytics.workers";
         public static final String OLAP_ENABLED = "aerospike.graph.analytics.enabled";
 
         // Internal-only configurations
@@ -437,6 +440,9 @@ public final class ConfigurationHelper {
         put(Keys.SUMMARY_TICKER_ENABLED_FLAG, "true");
         put(Keys.SUMMARY_TICKER_INTERVAL_MS, "60000");
         put(Keys.SUMMARY_ENABLED_FLAG, "true");
+        put(Keys.CONFIG_UPDATE_ENABLED, "false");
+        put(Keys.CONFIG_UPDATE_FREQUENCY, "5000"); // update config every 5 seconds
+        put(Keys.CONFIG_RESET, "false");
         put(Keys.BULK_LOADER_FLAG, "false");
         put(Keys.BULK_LOADER_INITIALIZER_FLAG, "false");
         put(Keys.MAX_ERROR_RATE, "100");

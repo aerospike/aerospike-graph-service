@@ -81,7 +81,7 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
     @Override
     protected R execute(final Map params) {
         final Map<String, Object> completeConfig = new HashMap<>();
-        final Configuration configuration = graph.configuration();
+        final Configuration configuration = graph.getBaseGraph().getConfig().getRawConfig();
         final Map<String, Object> configurationMap = new HashMap<>();
 
         if (!params.isEmpty() && params.containsValue(MODE_FULL)) {

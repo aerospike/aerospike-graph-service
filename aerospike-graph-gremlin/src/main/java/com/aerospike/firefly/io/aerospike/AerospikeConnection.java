@@ -1136,24 +1136,18 @@ public class AerospikeConnection implements AutoCloseable {
         throw new UnsupportedOperationException("Element not supported " + type.getName());
     }
 
-    /**
-     * If the value parameter is scalar, return the numeric id of the on disk type if value is an Integer - else null.
-     * If the value parameter is an ArrayList, return an ArrayList containing the indices at which the values within the
-     * parameter ArrayList is an Integer. Returns null if the ArrayList contained no Integer values.
-     *
-     * @param value Object to get type hint ID of
-     * @return Type hint value or null
-     */
     public static Object getTypeHintOf(final Object value) {
         return getTypeHintOf(value, false);
     }
 
     /**
-     * If the value parameter is scalar, return the numeric id of the on disk type if value is an Integer - else null.
-     * If the value parameter is an ArrayList, return an ArrayList containing the indices at which the values within the
-     * parameter ArrayList is an Integer. Returns null if the ArrayList contained no Integer values.
+     * If the value parameter is scalar, return the associated type hint of the value.
+     * If the value parameter type maintains the same type when serialized to and from Aerospike DB, return null.
+     * If the value parameter is an ArrayList, return a Map of the indices to the type hint of the value at the index.
+     * If all values in an ArrayList parameter maintain type when serialized to and from Aerospike DB, return null.
      *
-     * @param value Object to get type hint ID of
+     * @param value             Object to get type hint ID of
+     * @param isVertexProperty  Is value for a Vertex Property, which may require type hinting due to storage strategies
      * @return Type hint value or null
      */
     public static Object getTypeHintOf(final Object value, final boolean isVertexProperty) {
@@ -1161,7 +1155,7 @@ public class AerospikeConnection implements AutoCloseable {
         if (!SUPPORTED_VALUE_TYPES.containsKey(clazz)) {
             throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(value);
         } else if (SUPPORTED_VALUE_TYPES.get(clazz).equals(SUPPORTED_VALUE_TYPES.get(ArrayList.class))) {
-            // Values within a list for our supported types are stored on disk as expected except for Integers and Dats
+            // Values within a list for our supported types are stored on disk as expected except for Integers and Dates
             // which get stored as a Long. We need to keep track of which indexes within the list were inputted as
             // Integers to properly cast them back upon a read.
             final Map<Long, Long> indicesAndTypeHints = new HashMap<>();

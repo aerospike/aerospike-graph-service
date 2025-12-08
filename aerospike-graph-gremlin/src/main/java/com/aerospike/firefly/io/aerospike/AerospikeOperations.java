@@ -59,7 +59,6 @@ import com.aerospike.firefly.util.exceptions.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.util.exceptions.GraphError;
 import com.aerospike.firefly.util.exceptions.TtlArgumentException;
 import com.aerospike.firefly.util.exceptions.VertexRecordSizeExceededException;
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Property;
@@ -543,6 +542,49 @@ public class AerospikeOperations {
         return new FireflyVertexPropertyProperty<>(graph, vertexProperty, propertyKey, propertyValue);
     }
 
+    public void appendVpProperties(final FireflyVertexProperty vertexProperty,
+                                   final Map<Long, List<Object>> properties) {
+        final Key opKey = getKey(db, db.getConfig().vertexAeroSet, vertexProperty.vertexId);
+        final Long schemaVpKey = db.schemaManager.getVertexPropertyWrite(vertexProperty.key());
+        final Long vpId = (Long) vertexProperty.id.getStorageId();
+
+        final Map<Value, Value> propertiesValueMap = new HashMap<>();
+        properties.forEach((propertyKey, propertyValue) -> {
+            propertiesValueMap.put(Value.get(propertyKey), Value.get(propertyValue));
+        });
+
+        final MapPolicy policy = new MapPolicy(MapOrder.UNORDERED, MapWriteFlags.DEFAULT);
+        final Operation writeValuesOp = MapOperation.putItems(policy, db.getConfig().vpPropertyBin, propertiesValueMap,
+                CTX.mapKey(Value.get(schemaVpKey)), CTX.mapKey(Value.get(vpId)));
+
+        final WritePolicy writePolicy = new WritePolicy();
+        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+        try {
+            db.writeOperate(writePolicy, opKey,writeValuesOp);
+        } catch (final AerospikeGraphRecordSizeExceededException rtbe) {
+            if (properties.isEmpty()) {
+                // This should never happen
+                throw new IllegalStateException("Attempted to write empty VP Property and exceeded record size. Please contact support.");
+            }
+            // This will basically almost never happen in practice, so just return the first key as the source of error.
+            final String propertyKeyString = this.db.schemaManager.getVpPropertyString(properties.keySet().iterator().next());
+            final VertexRecordSizeExceededException sizeExceededException =
+                    fromAddingVpProperty((AerospikeException) rtbe.getCause(), db, getRelevantVertexBins(db, opKey),
+                            vertexProperty.vertexId, vertexProperty.key(), propertyKeyString);
+            LOG.error(sizeExceededException.getMessage());
+            throw sizeExceededException;
+        } catch (final AerospikeGraphException ae) {
+            if (ae.errorCode == ResultCode.OP_NOT_APPLICABLE) {
+                // Special logic to handle when Vertex Property has been removed from the Vertex since in this case
+                // the key is the Vertex key due to Vertex Properties being packed and thus the key still exists.
+                LOG.error("Vertex Property with ID {} no longer exists.", vertexProperty.id());
+                throw new AerospikeGraphElementNotFoundException();
+            } else {
+                throw ae;
+            }
+        }
+    }
+
     /**
      * Write Vertex Property to Vertex.
      *
@@ -581,12 +623,20 @@ public class AerospikeOperations {
             vertex.updateVertexPropertyJVMCache(vertexProperties, vpTypeHints, vpProperties);
             if (vertexPropertyId == null) {
                 // If vertexPropertyId is null it means it was a Cardinality single value null property (removal)
-                 return VertexProperty.empty();
-            } else {
-                graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(vertex.label(), Set.of(key),
-                        graph.tx().getCurrentTxn());
-                return new FireflyVertexProperty<>(graph, vertexPropertyId, vertex, key, value, properties);
+                return VertexProperty.empty();
+            } else if (cardinality.equals(VertexProperty.Cardinality.set)) {
+                // If Cardinality.set we need to check if the new VP was added to the set (value didn't exist already)
+                final VertexProperty<V> matchedProperty = vertex.postCardinalitySetPropertyWrite(key, value, properties,
+                        vertexPropertyId);
+                // If the matched property doesn't have the same ID it means it previously existed in the set so skip
+                // updating the summary
+                if (!matchedProperty.id().equals(vertexPropertyId.getUserId())) {
+                    return matchedProperty;
+                }
             }
+            graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(vertex.label(), Set.of(key),
+                    graph.tx().getCurrentTxn());
+            return new FireflyVertexProperty<>(graph, vertexPropertyId, vertex, key, value, properties);
         } catch (final AerospikeGraphRecordSizeExceededException e) {
             final VertexRecordSizeExceededException sizeExceededException =
                     fromAddingVertexProperty((AerospikeException) e.getCause(), this.db,
@@ -690,16 +740,68 @@ public class AerospikeOperations {
                 writeVpProperties = MapOperation.put(hashMapPolicy, this.db.getConfig().vpPropertyBin, Value.get(vpIdKey),
                         Value.get(properties), CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.UNORDERED));
             } else if (cardinality.equals(VertexProperty.Cardinality.set)) {
-                // TODO: Implement this when we support set cardinality. Right now, this should never happen.
-                throw new NotImplementedException("Cardinality.set is not yet supported.");
+                final Expression writeVpPropertiesExp = Exp.build(Exp.cond(
+                        Exp.not(MapExp.getByKey(MapReturnType.EXISTS, Exp.Type.BOOL, Exp.val(schemaVpKey),
+                                Exp.mapBin(this.db.getConfig().vertexPropertyDataBin))),
+                        MapExp.put(hashMapPolicy, getExpVal(vpIdKey), Exp.val(properties),
+                                Exp.mapBin(this.db.getConfig().vpPropertyBin),
+                                CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.UNORDERED)),
+                        Exp.not(MapExp.getByKey(MapReturnType.EXISTS, Exp.Type.BOOL, getExpVal(verifiedValue),
+                                Exp.mapBin(this.db.getConfig().vertexPropertyDataBin),
+                                CTX.mapKey(Value.get(schemaVpKey)))),
+                        MapExp.put(hashMapPolicy, getExpVal(vpIdKey), Exp.val(properties),
+                                Exp.mapBin(this.db.getConfig().vpPropertyBin),
+                                CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.UNORDERED)),
+                        Exp.unknown()
+                ));
+                writeVpProperties = ExpOperation.write(this.db.getConfig().vpPropertyBin, writeVpPropertiesExp, ExpWriteFlags.EVAL_NO_FAIL);
+                final Expression writeTypeHintExp = Exp.build(Exp.cond(
+                        Exp.not(MapExp.getByKey(MapReturnType.EXISTS, Exp.Type.BOOL, Exp.val(schemaVpKey),
+                                Exp.mapBin(this.db.getConfig().vertexPropertyDataBin))),
+                        MapExp.put(hashMapPolicy, getExpVal(vpIdKey), getExpVal(typeHint),
+                                Exp.mapBin(this.db.getConfig().vertexPropertyTHBin),
+                                CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.UNORDERED)),
+                        Exp.not(MapExp.getByKey(MapReturnType.EXISTS, Exp.Type.BOOL, getExpVal(verifiedValue),
+                                Exp.mapBin(this.db.getConfig().vertexPropertyDataBin),
+                                CTX.mapKey(Value.get(schemaVpKey)))),
+                        MapExp.put(hashMapPolicy, getExpVal(vpIdKey), getExpVal(typeHint),
+                                Exp.mapBin(this.db.getConfig().vertexPropertyTHBin),
+                                CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.UNORDERED)),
+                        Exp.unknown()
+                ));
+                writeVpTypeHint = ExpOperation.write(this.db.getConfig().vertexPropertyTHBin, writeTypeHintExp, ExpWriteFlags.EVAL_NO_FAIL);
+                final List<Long> idInList = new ArrayList<>(1);
+                idInList.add(vpIdKey);
+                final Expression writeVpDataExp = Exp.build(Exp.cond(
+                        Exp.not(MapExp.getByKey(MapReturnType.EXISTS, Exp.Type.BOOL, Exp.val(schemaVpKey),
+                                Exp.mapBin(this.db.getConfig().vertexPropertyDataBin))),
+                        MapExp.put(hashMapPolicy, getExpVal(verifiedValue), Exp.val(idInList),
+                                Exp.mapBin(this.db.getConfig().vertexPropertyDataBin),
+                                CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.KEY_ORDERED)),
+                        Exp.not(MapExp.getByKey(MapReturnType.EXISTS, Exp.Type.BOOL, getExpVal(verifiedValue),
+                                Exp.mapBin(this.db.getConfig().vertexPropertyDataBin),
+                                CTX.mapKey(Value.get(schemaVpKey)))),
+                        MapExp.put(hashMapPolicy, getExpVal(verifiedValue), Exp.val(idInList),
+                                Exp.mapBin(this.db.getConfig().vertexPropertyDataBin),
+                                CTX.mapKeyCreate(Value.get(schemaVpKey), MapOrder.KEY_ORDERED)),
+                        Exp.unknown()
+                ));
+                writeVpData = ExpOperation.write(this.db.getConfig().vertexPropertyDataBin, writeVpDataExp, ExpWriteFlags.EVAL_NO_FAIL);
             } else {
                 // This should never happen.
-                throw new IllegalArgumentException("Cardinality of Vertex Property was not single, list, or set. Please contact support.");
+                throw new IllegalArgumentException("Invalid Cardinality '" + cardinality + "' was provided. Please contact support.");
             }
 
-            operations.add(writeVpData);
-            operations.add(writeVpTypeHint);
-            operations.add(writeVpProperties);
+            if (cardinality.equals(VertexProperty.Cardinality.set)) {
+                // Write the VP data itself last when using Cardinality.set since we're using it to check uniqueness.
+                operations.add(writeVpProperties);
+                operations.add(writeVpTypeHint);
+                operations.add(writeVpData);
+            } else {
+                operations.add(writeVpData);
+                operations.add(writeVpTypeHint);
+                operations.add(writeVpProperties);
+            }
             return vertexPropertyId;
         }
     }
@@ -813,6 +915,9 @@ public class AerospikeOperations {
     }
 
     private Exp getExpVal(final Object value) {
+        if (value == null) {
+            return Exp.nil();
+        }
         final Class<?> valueClass = value.getClass();
         final Exp valueExp;
         if (Long.class.isAssignableFrom(valueClass)) {

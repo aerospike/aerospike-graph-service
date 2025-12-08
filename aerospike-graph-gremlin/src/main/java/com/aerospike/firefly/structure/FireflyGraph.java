@@ -216,14 +216,6 @@ import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.QUERY_T
         computers = {"ALL"}
 )
 
-// TODO: GRAPH-1565
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.structure.VertexPropertyTest$VertexPropertyAddition",
-        method = "shouldHandleSetVertexProperties",
-        reason = "Set cardinality is not supported.",
-        computers = {"ALL"}
-)
-
 // TODO: Should fix these tests in OLAP.
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupCountTest", method = "g_V_both_groupCountXaX_byXlabelX_asXbX_barrier_whereXselectXaX_selectXsoftwareX_isXgtX2XXX_selectXbX_name", reason = "Temporary, will fix.", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.SelectTest", method = "g_V_outXcreatedX_unionXasXinternaldataset_inXcreatedX_hasXname_markoX_selectXinternaldataset__asXinternaldataset_inXcreatedX_inXknowsX_hasXname_markoX_selectXinternaldatasetX_groupCount_byXnameX", reason = "Temporary, will fix.", computers = {"com.aerospike.firefly.process.computer.local.LocalGraphComputer"})

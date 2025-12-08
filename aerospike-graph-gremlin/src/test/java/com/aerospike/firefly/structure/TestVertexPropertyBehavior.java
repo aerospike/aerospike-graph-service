@@ -19,7 +19,6 @@ public class TestVertexPropertyBehavior extends AbstractFireflySuite {
         return true;
     }
 
-
     @Test
     public void verifyUpdateChangesId() {
         // Current behavior of firefly is that if you change a property value, it is effectively a new property

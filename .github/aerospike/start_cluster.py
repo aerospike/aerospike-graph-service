@@ -13,7 +13,7 @@ from docker.client import DockerClient
 
 def parse_cluster_cli():
     parser = argparse.ArgumentParser(description="run aerospike cluster")
-    parser.add_argument('--aerospike_version', type=str, default="ee-8.0.0.8_1", help="version of aerospike")
+    parser.add_argument('--aerospike_version', type=str, default="8.0", help="version of aerospike")
     parser.add_argument('--config_template', type=str, default="aerospike_base.conf.j2",
                         help="jinja config template name")
     parser.add_argument('--features_file', type=str, help="base64 encoded features file")
@@ -29,12 +29,11 @@ def parse_cluster_cli():
     assert cli.aerospike_version is not None
     assert cli.features_file is not None
 
-    aerospike_image = f"aerospike/aerospike-server-enterprise:{cli.aerospike_version}" if cli.sc else f"aerospike:{cli.aerospike_version}"
     return Box({"aerospike_version": cli.aerospike_version,
                 "config_template": cli.config_template,
                 "features_file": cli.features_file,
                 "repo_path": cli.repo_path,
-                "aerospike_image": aerospike_image,
+                "aerospike_image": f"aerospike/aerospike-server-enterprise:{cli.aerospike_version}",
                 "node_count": cli.node_count,
                 "debug": cli.debug,
                 "default_ttl": cli.default_ttl,
@@ -70,7 +69,7 @@ class ClusterManager:
         temp_dir = tempfile.mkdtemp("aerospike_config")
         mounts = get_mounts(config, temp_dir)
 
-        if not (config.aerospike_version.startswith("ee-7.") or config.aerospike_version.startswith("ee-8.")):
+        if config.aerospike_version.startswith("6."):
             legacy_memory_setting = "memory-size 3G"
         else:
             legacy_memory_setting = ""

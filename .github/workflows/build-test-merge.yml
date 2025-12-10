@@ -657,7 +657,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyServer  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyServer --no-transfer-progress
       - name: Publish Benchmark Results
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -711,7 +711,7 @@ jobs:
           sleep 30
           
           echo "Running benchmark"
-          mvn test -pl aerospike-graph-gremlin -Dtest=BenchmarkTestFlightsData  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=BenchmarkTestFlightsData --no-transfer-progress
       - name: Publish Benchmark Results
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -760,40 +760,40 @@ jobs:
       - name: Test Client Event Loop Configuration
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeClientConfigEventLoop  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeClientConfigEventLoop --no-transfer-progress
       - name: Test Small Memory Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap  -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
       - name: Test Stack Overflow Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestSupernodeStackOverflow  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestSupernodeStackOverflow --no-transfer-progress
       - name: Test Client Provider Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentClientProviderInstantiationTest -Dtest=TestAerospikeClientProviderConfiguration  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentClientProviderInstantiationTest -Dtest=TestAerospikeClientProviderConfiguration --no-transfer-progress
       - name: Test Query Abort Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=QueryServiceAbortTest  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=QueryServiceAbortTest --no-transfer-progress
       - name: Test Call Steps Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestAdminCallHttp  --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflySindexCallSteps  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAdminCallHttp --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflySindexCallSteps --no-transfer-progress
       - name: Test Compression Flag Docker Network
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeNetwork  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeNetwork --no-transfer-progress
       - name: Test Summary
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflySummaryCallTest  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflySummaryCallTest --no-transfer-progress
       - name: Test Concurrent Firefly Instance
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentFireflyInstanceTest  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentFireflyInstanceTest --no-transfer-progress
   test-firefly:
     name: Test Firefly
     timeout-minutes: 120
@@ -868,12 +868,6 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Login to JFrog 🐸
-        uses: docker/login-action@v1
-        with:
-          registry: aerospike.jfrog.io
-          username: ${{ secrets.JFROG_USERNAME }}
-          password: ${{ secrets.JFROG_PASSWORD }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
@@ -891,11 +885,11 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike_mrt.sh
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestMRTSupported  --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeOperations  --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMRTFeatureTest  --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxFeatureTest  --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxMRTFeatureTest  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestMRTSupported --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeOperations --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMRTFeatureTest --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxFeatureTest --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyTxMRTFeatureTest --no-transfer-progress
   test-tinkerpop-tx:
     name: Test Tinkerpop Transactions
     timeout-minutes: 30
@@ -906,12 +900,6 @@ jobs:
           fetch-depth: 0
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      - name: Login to JFrog 🐸
-        uses: docker/login-action@v1
-        with:
-          registry: aerospike.jfrog.io
-          username: ${{ secrets.JFROG_USERNAME }}
-          password: ${{ secrets.JFROG_PASSWORD }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
@@ -942,7 +930,7 @@ jobs:
 
           echo "Sleeping for 30 seconds while docker image starts"
           sleep 30
-
+          
           echo "Running Tinkerpop transactions test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTinkerpopTransactions --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTransactionSummary --no-transfer-progress
@@ -1254,7 +1242,7 @@ jobs:
         env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
-          bash -x scripts/start_aerospike.sh --aerospike_version ee-6.2.0.3
+          bash -x scripts/start_aerospike.sh --aerospike_version 6.2.0.3
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeVersionCheckTest  -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-invalid-feature-key:
     name: Test Aerospike Invalid Feature Key
@@ -1677,7 +1665,7 @@ jobs:
           sleep 30
 
           echo "Running benchmark"
-          mvn test -pl aerospike-graph-gremlin -Dtest=BenchmarkTestSyntheticinternaldataset  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=BenchmarkTestSyntheticinternaldataset --no-transfer-progress
       - name: Publish Benchmark internal dataset Results
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -1731,7 +1719,7 @@ jobs:
           sleep 30
 
           echo "Running benchmark"
-          mvn test -pl aerospike-graph-gremlin -Dtest=BenchmarkTestIdentifiesTraversal  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=BenchmarkTestIdentifiesTraversal --no-transfer-progress
       - name: Publish Benchmark Identifies Results
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -1787,7 +1775,7 @@ jobs:
           sleep 30
           
           echo "Running usage test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyUsageStatsCallMultiTest  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyUsageStatsCallMultiTest --no-transfer-progress
           
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
@@ -1811,7 +1799,7 @@ jobs:
           sleep 30
           
           echo "Running connection test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest --no-transfer-progress
           
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
@@ -1823,8 +1811,8 @@ jobs:
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
-          echo "Running benchmark"
-          mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest  --no-transfer-progress
+          echo "Running connection test"
+          mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
       - name: Test Firefly Docker Image with Security Enabled
         run: |
@@ -1834,7 +1822,7 @@ jobs:
           sleep 30
 
           echo "Running Security Test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=JwtAuthenticationDockerTest  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=JwtAuthenticationDockerTest --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
       - name: Test Firefly Docker Image with Default Prometheus
         run: |
@@ -1844,7 +1832,7 @@ jobs:
           sleep 30
 
           echo "Running Prometheus Test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=PrometheusExporterTest  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=PrometheusExporterTest --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
       - name: Test Firefly Docker Image Bulk Loader Call
         env:
@@ -1862,7 +1850,7 @@ jobs:
           echo "Sleeping for 30 seconds while docker image starts"
           sleep 30
           
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
       - name: Test Firefly Docker Image Merge Edge Step and Tx when Disabled
         run: |
@@ -1873,17 +1861,17 @@ jobs:
           echo "Sleeping for 30 seconds while docker image starts"
           sleep 30
           
-          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepRemoteTest  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepRemoteTest --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTxDisabled --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
       - name: Test Firefly Docker Image
         run: |
           echo "Running performance mode tests"
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestPerformanceModes  --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerJavaOptions  --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerConfigs  --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestSlimVsFat  --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerShutdown  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestPerformanceModes --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerJavaOptions --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerConfigs --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestSlimVsFat --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestDockerShutdown --no-transfer-progress
   test-tls-docker:
     name: Test TLS Docker
     timeout-minutes: 15
@@ -1924,7 +1912,7 @@ jobs:
           sleep 30
 
           echo "Running TLS test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestTLSIntegration  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestTLSIntegration --no-transfer-progress
 
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)
@@ -1955,7 +1943,7 @@ jobs:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike_default_ttl.sh
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeTTL  --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeTTL --no-transfer-progress
   snyk-test:
     name: Snyk Vulnerability Scan
     runs-on: ubuntu-latest

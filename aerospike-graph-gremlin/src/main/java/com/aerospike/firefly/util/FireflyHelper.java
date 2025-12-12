@@ -212,7 +212,7 @@ public final class FireflyHelper {
                 : value;
     }
 
-    public static Object typeCastPropertyValue(Object val) {
+    public static Object typeCastPropertyValue(final Object val) {
         if (val instanceof Integer) {
             return ((Integer) val).longValue();
         }

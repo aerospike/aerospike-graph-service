@@ -24,7 +24,6 @@ public abstract class FireflyWorldBase implements World {
     private static final String skipReasonOnCreate = "FireflyMergeEdgeStep always verify onCreate.";
     private static final String skipReasonErrorMessage = "Error message includes step name.";
     private static final String skipReasonMultiProperty = "Test does not assert correctly when default Vertex Property cardinality is not single.";
-    private static final String skipCardinalitySet = "Set is not supported."; // TODO GRAPH-1565: Support VertexProperty.Cardinality.set
 
     private static final List<Pair<String, String>> skip = new ArrayList<>() {{
         add(Pair.with("g_mergeEXlabel_knows_out_vadasX_optionXonCreate_created_YX_optionXonMatch_created_NX_exists_updated", skipReasonOnCreate));
@@ -32,15 +31,7 @@ public abstract class FireflyWorldBase implements World {
         add(Pair.with("g_V_mergeEXlabel_knows_out_marko_in_vadasX_optionXonMatch_sideEffectXpropertyXweight_0XX_constantXemptyXX", skipReasonErrorMessage));
         add(Pair.with("g_withSideEffectXm_age_19X_V_hasXperson_name_markoX_mergeVXselectXcXX_optionXonMatch_sideEffectXpropertiesXageX_dropX_selectXmXX_option", skipReasonErrorMessage));
         add(Pair.with("g_V_hasXperson_name_aliceX_propertyXsingle_age_unionXage_constantX1XX_sumX", skipReasonMultiProperty));
-
-        // TODO GRAPH-1565: Remove these from the skipped tests list
-        add(Pair.with("g_mergeVXname_aliceX_optionXonCreate_age_setX81XX", skipCardinalitySet));
-        add(Pair.with("g_mergeVXname_aliceX_optionXonCreate_age_singleX81X_age_81_setX", skipCardinalitySet));
-        add(Pair.with("g_mergeVXname_markoX_optionXonMatch_age_setX31XX", skipCardinalitySet));
-        add(Pair.with("g_mergeVXname_markoX_optionXonMatch_name_allen_age_setX31X_singleX", skipCardinalitySet));
-        add(Pair.with("g_V_hasXname_fooX_propertyXname_setXbarX_age_43X", skipCardinalitySet));
-        add(Pair.with("g_V_hasXname_fooX_propertyXset_name_bar_age_singleX43XX", skipCardinalitySet));
-        add(Pair.with("g_mergeVXname_markoX_optionXonMatch_age_setX33XX", skipCardinalitySet));
+        add(Pair.with("g_V_hasXname_fooX_propertyXname_setXbarX_age_43X", skipReasonMultiProperty));
     }};
 
     protected static Configuration getConfiguration(final String graphName, final boolean withMRT,

@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
@@ -583,10 +584,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                                           final String key,
                                           final V value,
                                           final Object... keyValues) {
-        if (cardinality.equals(VertexProperty.Cardinality.set)) {
-            throw new AerospikeGraphException(GraphError.SET_CARDINALITY_NOT_SUPPORTED);
-        }
-
         if (FireflyHelper.inComputerMode(this.graph)) {
             final VertexProperty<V> vertexProperty = (VertexProperty<V>) this.graph.graphComputerView.addProperty(this, key, value);
             ElementHelper.attachProperties(vertexProperty, keyValues);
@@ -667,9 +664,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             final VertexProperty.Cardinality cardinality = cardinalities.get(i);
             final String key = propertyKeys.get(i);
             final Object value = propertyValues.get(i);
-            if (cardinality.equals(VertexProperty.Cardinality.set)) {
-                throw new AerospikeGraphException(GraphError.SET_CARDINALITY_NOT_SUPPORTED);
-            } else if (SUPERNODE_PROPERTY_KEY.equals(key)) {
+            if (SUPERNODE_PROPERTY_KEY.equals(key)) {
                 graph.aerospikeOperations.setCacheDisabled(this);
             } else if (TTL_PROPERTY_KEY.equals(key)) {
                 if (!db.getConfig().ttlEnabledFlag) {
@@ -696,6 +691,54 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         if (!validCardinalities.isEmpty()) {
             graph.aerospikeOperations.batchWriteVertexProperties(this, validCardinalities, validatedKeys, validatedValues);
         }
+    }
+
+    /**
+     * Helper function to be invoked after writing a Vertex Property with Cardinality.set.
+     * This will determine whether a new Vertex Property was added and return the newly written Vertex Property if so
+     * or the pre-existing Vertex Property in the set.
+     *
+     * This also handles the unique behavior of appending Vertex Property Properties to the pre-existing Vertex Property
+     * in the set.
+     *
+     * @param key               The key of the Vertex Property
+     * @param value             The value of the Vertex Property
+     * @param properties        The key/value pairs of the Vertex Property Properties
+     * @param vertexPropertyId  The FireflyId used to write the Vertex Property
+     * @return                  The Vertex Property that now exists within the set
+     * @param <V>               The type of the value of the Vertex Property
+     */
+    public <V> VertexProperty<V> postCardinalitySetPropertyWrite(final String key,
+                                                                 final V value,
+                                                                 final Map<Long, List<Object>> properties,
+                                                                 final FireflyId vertexPropertyId) {
+        final Iterator<VertexProperty<V>> propertiesWithKey = this.properties(key);
+        final List<FireflyVertexProperty<V>> equalsMatchedProperties = new ArrayList<>();
+        final List<FireflyVertexProperty<V>> predicateMatchedProperties = new ArrayList<>();
+        final Predicate<V> predicate = P.eq(value);
+        while (propertiesWithKey.hasNext()) {
+            final FireflyVertexProperty<V> property = (FireflyVertexProperty<V>) propertiesWithKey.next();
+            if (property.id().equals(vertexPropertyId.getUserId())) {
+                // This means that a new Vertex Property and its properties was written so just return it
+                return property;
+            } else if (property.value().equals(value)) {
+                equalsMatchedProperties.add(property);
+            } else if (predicate.test(property.value())) {
+                predicateMatchedProperties.add(property);
+            }
+        }
+        final FireflyVertexProperty<V> matchedProperty;
+        if (!equalsMatchedProperties.isEmpty()) {
+            matchedProperty = equalsMatchedProperties.get(0);
+        } else if (!predicateMatchedProperties.isEmpty()) {
+            matchedProperty = predicateMatchedProperties.get(0);
+        } else {
+            // This is an unlikely to occur exception due to Dates being stored in epoch time which can match the set
+            // expression used.
+            throw new AerospikeGraphException(GraphError.SET_CARDINALITY_TYPE_CONFLICT);
+        }
+        matchedProperty.appendProperties(properties);
+        return matchedProperty;
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.aerospike.firefly.structure;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.FireflyHelper;
+import com.aerospike.firefly.util.exceptions.AerospikeGraphElementNotFoundException;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -138,6 +139,28 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
             }
         }
         return propertyList.iterator();
+    }
+
+    /**
+     * Special function for appending properties to this Vertex Property when it is returned as a pre-existing value
+     * when attempting to write using Cardinality.set and with Vertex Property Properties.
+     *
+     * @param properties Vertex Property Properties in on-disk format to add to this Vertex Property.
+     */
+    public void appendProperties(final Map<Long, List<Object>> properties) {
+        if (properties.isEmpty()) {
+            return;
+        }
+        try {
+            this.graph.aerospikeOperations.appendVpProperties(this, properties);
+        } catch (final AerospikeGraphElementNotFoundException e) {
+            // We catch and ignore this because it only happens if the VP that matched the Set was concurrently removed
+            // before we appended its properties as a separate write. In this case, we emulate the atomic behavior of
+            // the properties() step by updating it in JVM and returning it as if updating the VP properties was
+            // a success even though the VP was removed.
+            LOG.debug("Appending VP Properties to VP with key {} and ID {} failed due to concurrent removal.", this.key, this.id);
+        }
+        this.properties.putAll(properties);
     }
 
     @Override

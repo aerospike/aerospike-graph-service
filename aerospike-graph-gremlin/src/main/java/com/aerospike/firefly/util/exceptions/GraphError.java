@@ -69,7 +69,7 @@ public enum GraphError {
     SINDEX_RECENTLY_DROPPED(1115),
     TTL_ILLEGAL_ARGUMENT(1116),
     THREAD_LIMIT_EXCEEDED(1117),
-    SET_CARDINALITY_NOT_SUPPORTED(1118),
+    SET_CARDINALITY_TYPE_CONFLICT(1118),
     MRT_NOT_SUPPORTED(1119),
     NSUP_DISABLED(1120),
     QUERY_IN_TRANSACTION(1121),
@@ -131,7 +131,7 @@ public enum GraphError {
         ERROR_MESSAGES.put(TTL_ILLEGAL_ARGUMENT.code, "Invalid value for TTL provided. Provided input [%s] of type %s must be numeric instead.");
         ERROR_MESSAGES.put(THREAD_LIMIT_EXCEEDED.code, "AGS has reached the server’s current query-thread limit. " +
                 "Please raise the query-threads-limit setting or reduce concurrent queries and try again.");
-        ERROR_MESSAGES.put(SET_CARDINALITY_NOT_SUPPORTED.code, "Cardinality.set is not supported in Aerospike Graph. Use Cardinality.list or Cardinality.single.");
+        ERROR_MESSAGES.put(SET_CARDINALITY_TYPE_CONFLICT.code, "A value type conflict has occurred when using Cardinality.set. This is likely caused by mixing numeric and date values under the same key.");
         ERROR_MESSAGES.put(MRT_NOT_SUPPORTED.code, "Transactions require Aerospike database version 8 or newer with strong consistency mode enabled. Please verify that all nodes in the cluster are running a compatible version of Aerospike.");
         ERROR_MESSAGES.put(QUERY_IN_TRANSACTION.code, "Aerospike Graph Service does not support query traversals within a Transaction. If applicable, execute a traversal outside of the Transaction to grab the required Element IDs and apply a traversal directly to the IDs within the Transaction.");
         ERROR_MESSAGES.put(TX_NOT_ENABLED.code, "Transactions are not enabled for the '%s' graph. To use transactions, configure the '" + TRANSACTION_ENABLED_FLAG + "' setting.");

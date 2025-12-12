@@ -20,6 +20,7 @@ import org.junit.Test;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -1469,5 +1470,17 @@ public class TestVertexPropertyCardinality {
         } finally {
             running.set(false);
         }
+    }
+
+    @Test
+    public void g_V_hasXname_fooX_propertyXname_setXbarX_age_43X() {
+        g.addV().property(VertexProperty.Cardinality.single, "name", "foo").property("age", 42).iterate();
+        final Map<Object, Object> properties = Map.of("name", VertexProperty.Cardinality.set("bar"), "age", 43);
+        final List<?> verticesList = g.V().has("name", "foo").property(properties).toList();
+        Assert.assertEquals(1, verticesList.size());
+        Assert.assertEquals(1L, IteratorUtils.count(g.V().has("name", "foo")));
+        Assert.assertEquals(1L, IteratorUtils.count(g.V().has("name", "bar")));
+        Assert.assertEquals(1L, IteratorUtils.count(g.V().has("age", 43)));
+        Assert.assertEquals(0L, IteratorUtils.count(g.V().has("age", 42)));
     }
 }

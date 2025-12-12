@@ -15,11 +15,13 @@ import org.slf4j.LoggerFactory;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_CACHE_HEADER;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_CACHE_HEADER;
@@ -27,6 +29,7 @@ import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.
 public class SparkFireflyVertex extends SparkFireflyElement {
     private static final Logger LOG = LoggerFactory.getLogger(SparkFireflyVertex.class);
     private static final String DEFAULT_LABEL = "vertex";
+    private static final Set<String> VALID_CARDINALITIES = Set.of(SINGLE_CARDINALITY, LIST_CARDINALITY, SET_CARDINALITY);
     private final Map<String, List<List<Object>>> toEdgeCache;
     private final Map<String, List<List<Object>>> fromEdgeCache;
     private final Map<String, VertexProperty.Cardinality> cardinalityMap;
@@ -97,9 +100,9 @@ public class SparkFireflyVertex extends SparkFireflyElement {
 
             try {
                 final String value = row.getAs(header);
-                final Map.Entry<String, Object> property = generateProperty(header, value, nullValue);
-                if (property.getValue() instanceof List) {
-                    final List values = (List) property.getValue();
+                final Map.Entry<String, Object> property = generateProperty(header, value, nullValue, VALID_CARDINALITIES);
+                if (property.getValue() instanceof Collection) {
+                    final Collection values = (Collection) property.getValue();
                     for (final Object val : values) {
                         properties.add(new AbstractMap.SimpleEntry<>(property.getKey(), val));
                     }

@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class SparkFireflyEdge extends SparkFireflyElement {
     public static final String FROM_VERTEX_HEADER = "~from";
@@ -24,6 +25,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
     public static final String TO_VERTEX_CACHE_HEADER = "~to_cache";
     private static final Logger LOG = LoggerFactory.getLogger(SparkFireflyEdge.class);
     private static final String DEFAULT_LABEL = "edge";
+    private static final Set<String> VALID_CARDINALITIES = Set.of(SINGLE_CARDINALITY, LIST_CARDINALITY);
     private final Object fromVertexId;
     private final Object toVertexId;
 
@@ -68,7 +70,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
                 continue;
             }
             try {
-                final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header), nullValue);
+                final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header), nullValue, VALID_CARDINALITIES);
                 properties.add(property);
             } catch (final InvalidCsvHeaderException iche) {
                 LOG.error("Failed to generate Edge property for header '" + header + "' from value: " + row.getAs(header));
@@ -97,7 +99,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
             }
         }
         if (keepProvidedId && id != null) {
-            properties.add(generateProperty(providedIdPropertyName, id, nullValue));
+            properties.add(generateProperty(providedIdPropertyName, id, nullValue, VALID_CARDINALITIES));
         }
         return new SparkFireflyEdge(edgeId, label, PropertyValueParser.parseId(fromVertexId), PropertyValueParser.parseId(toVertexId), properties);
     }

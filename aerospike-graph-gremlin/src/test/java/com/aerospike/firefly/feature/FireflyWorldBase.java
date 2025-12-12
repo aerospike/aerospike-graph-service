@@ -31,6 +31,7 @@ public abstract class FireflyWorldBase implements World {
         add(Pair.with("g_V_mergeEXlabel_knows_out_marko_in_vadasX_optionXonMatch_sideEffectXpropertyXweight_0XX_constantXemptyXX", skipReasonErrorMessage));
         add(Pair.with("g_withSideEffectXm_age_19X_V_hasXperson_name_markoX_mergeVXselectXcXX_optionXonMatch_sideEffectXpropertiesXageX_dropX_selectXmXX_option", skipReasonErrorMessage));
         add(Pair.with("g_V_hasXperson_name_aliceX_propertyXsingle_age_unionXage_constantX1XX_sumX", skipReasonMultiProperty));
+        add(Pair.with("g_V_hasXname_fooX_propertyXname_setXbarX_age_43X", skipReasonMultiProperty));
     }};
 
     protected static Configuration getConfiguration(final String graphName, final boolean withMRT,

@@ -638,21 +638,45 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                                      final int partitionId,
                                      final Map<String, VertexProperty.Cardinality> vpCardinalities,
                                      final boolean isEdgeCacheOverflowed) {
+        final Map<Object, Object> onCreate = new HashMap<>();
+        final Map<Object, Object> onMatch = new HashMap<>();
+        final List<Map.Entry<String, Object>> listProperties = new ArrayList<>();
+        final List<Map.Entry<String, Object>> setProperties = new ArrayList<>();
+        onCreate.put(BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE, isEdgeCacheOverflowed);
+        onCreate.put(BULK_LOAD_VERTEX_ADD_KEY, partitionId);
+        onCreate.put(T.label, label);
+        // We can add one instance of each property key into the MergeV maps to leverage the strategy's optimizations.
+        for (final Map.Entry<String, Object> entry : properties) {
+            if (VertexProperty.Cardinality.list.equals(vpCardinalities.get(entry.getKey()))) {
+                // Use onMatch simply because it's a smaller map
+                if (!onMatch.containsKey(entry.getKey())) {
+                    onCreate.put(entry.getKey(), VertexProperty.Cardinality.list(entry.getValue()));
+                    onMatch.put(entry.getKey(), VertexProperty.Cardinality.list(entry.getValue()));
+                } else {
+                    listProperties.add(entry);
+                }
+            } else if (VertexProperty.Cardinality.set.equals(vpCardinalities.get(entry.getKey()))) {
+                if (!onMatch.containsKey(entry.getKey())) {
+                    onCreate.put(entry.getKey(), VertexProperty.Cardinality.set(entry.getValue()));
+                    onMatch.put(entry.getKey(), VertexProperty.Cardinality.set(entry.getValue()));
+                } else {
+                    setProperties.add(entry);
+                }
+            } else {
+                onCreate.put(entry.getKey(), entry.getValue());
+                onMatch.put(entry.getKey(), entry.getValue());
+            }
+        }
         int tryCount = 0;
         while (true) {
             try {
                 GraphTraversal t = traversal().mergeV(CollectionUtil.asMap(T.id, id))
-                        .option(Merge.onCreate,
-                                Map.of(
-                                        BULK_LOAD_VERTEX_ADD_KEY_IS_SUPERNODE, isEdgeCacheOverflowed,
-                                        BULK_LOAD_VERTEX_ADD_KEY, partitionId,
-                                        T.label, label));
-                for (final Map.Entry<String, Object> entry : properties) {
-                    if (VertexProperty.Cardinality.list.equals(vpCardinalities.get(entry.getKey()))) {
-                        t = t.property(VertexProperty.Cardinality.list, entry.getKey(), entry.getValue());
-                    } else {
-                        t = t.property(entry.getKey(), entry.getValue());
-                    }
+                        .option(Merge.onCreate, onCreate).option(Merge.onMatch, onMatch);
+                for (final Map.Entry<String, Object> entry : listProperties) {
+                    t = t.property(VertexProperty.Cardinality.list, entry.getKey(), entry.getValue());
+                }
+                for (final Map.Entry<String, Object> entry : setProperties) {
+                    t = t.property(VertexProperty.Cardinality.set, entry.getKey(), entry.getValue());
                 }
                 t.iterate();
                 break;

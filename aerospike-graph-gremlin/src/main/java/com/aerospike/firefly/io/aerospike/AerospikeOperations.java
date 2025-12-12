@@ -560,7 +560,8 @@ public class AerospikeOperations {
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            db.writeOperate(writePolicy, opKey,writeValuesOp);
+            db.writeOperate(writePolicy, opKey, Set.of(ResultCode.OP_NOT_APPLICABLE, ResultCode.KEY_NOT_FOUND_ERROR),
+                    false, writeValuesOp);
         } catch (final AerospikeGraphRecordSizeExceededException rtbe) {
             if (properties.isEmpty()) {
                 // This should never happen
@@ -629,7 +630,7 @@ public class AerospikeOperations {
                 final VertexProperty<V> matchedProperty = vertex.postCardinalitySetPropertyWrite(key, value, properties,
                         vertexPropertyId);
                 // If the matched property doesn't have the same ID it means it previously existed in the set so skip
-                // updating the summary
+                // updating the summary and return the existing property
                 if (!matchedProperty.id().equals(vertexPropertyId.getUserId())) {
                     return matchedProperty;
                 }

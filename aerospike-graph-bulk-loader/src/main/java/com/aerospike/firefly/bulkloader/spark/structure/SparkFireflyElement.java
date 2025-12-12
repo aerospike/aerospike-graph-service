@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 public abstract class SparkFireflyElement implements Serializable {
@@ -22,7 +23,6 @@ public abstract class SparkFireflyElement implements Serializable {
     protected static final String SINGLE_CARDINALITY = "single";
     protected static final String LIST_CARDINALITY = "list";
     protected static final String SET_CARDINALITY = "set";
-    private static final Set<String> VALID_CARDINALITIES = Set.of(SINGLE_CARDINALITY, LIST_CARDINALITY);
 
     private static final String LONG = "long";
     private static final String INT = "int";
@@ -69,16 +69,17 @@ public abstract class SparkFireflyElement implements Serializable {
 
     protected static Map.Entry<String, Object> generateProperty(final String header,
                                                                 final String value,
-                                                                final String nullValue) {
+                                                                final String nullValue,
+                                                                final Set<String> validCardinalities) {
         final PropertyValueParser parser = new PropertyValueParser(nullValue);
         final Map<String, String> propertyInfo = getPropertyInfoFromHeader(header);
         final String cardinality = propertyInfo.get(PROPERTY_INFO_CARDINALITY);
         final String type = propertyInfo.get(PROPERTY_INFO_TYPE);
         final String propertyName = propertyInfo.get(PROPERTY_INFO_NAME);
-        if (!VALID_CARDINALITIES.contains(cardinality)) {
+        if (!validCardinalities.contains(cardinality)) {
             throw new InvalidCsvHeaderException(
                     String.format("Invalid cardinality '%s' detected in property header '%s'. " +
-                                    "Cardinality must be of 'single' or 'list'.", cardinality, header)
+                            "Please refer to help documentation for supported cardinalities.", cardinality, header)
             );
         }
         if (!VALID_TYPES.contains(type)) {
@@ -93,65 +94,78 @@ public abstract class SparkFireflyElement implements Serializable {
                             "Property name must not be blank.", propertyName, header)
             );
         }
+        final boolean isSingle = cardinality.equals(SINGLE_CARDINALITY);
         final boolean isList = cardinality.equals(LIST_CARDINALITY);
+        final boolean isSet = cardinality.equals(SET_CARDINALITY);
+        Collector collector = null;
+        if (!isSingle) {
+            if (isList) {
+                collector = Collectors.toList();
+            } else if (isSet) {
+                collector = Collectors.toSet();
+            } else {
+                // This should never happen
+                throw new IllegalStateException("No valid collector found for non-single cardinality. Please contact support.");
+            }
+        }
         final Object propertyValue;
         switch (type) {
             case LONG:
-                if (isList) {
-                    final String[] values = value.split(MULTI_DELIMITER);
-                    propertyValue = Arrays.stream(values).map(parser::parseLong).collect(Collectors.toList());
-                } else {
+                if (isSingle) {
                     propertyValue = parser.parseLong(value);
+                } else {
+                    final String[] values = value.split(MULTI_DELIMITER);
+                    propertyValue = Arrays.stream(values).map(parser::parseLong).collect(collector);
                 }
                 break;
             case INT:
             case INTEGER:
-                if (isList) {
-                    final String[] values = value.split(MULTI_DELIMITER);
-                    propertyValue = Arrays.stream(values).map(parser::parseInt).collect(Collectors.toList());
-                } else {
+                if (isSingle) {
                     propertyValue = parser.parseInt(value);
+                } else {
+                    final String[] values = value.split(MULTI_DELIMITER);
+                    propertyValue = Arrays.stream(values).map(parser::parseInt).collect(collector);
                 }
                 break;
             case DOUBLE:
-                if (isList) {
-                    final String[] values = value.split(MULTI_DELIMITER);
-                    propertyValue = Arrays.stream(values).map(parser::parseDouble).collect(Collectors.toList());
-                } else {
+                if (isSingle) {
                     propertyValue = parser.parseDouble(value);
+                } else {
+                    final String[] values = value.split(MULTI_DELIMITER);
+                    propertyValue = Arrays.stream(values).map(parser::parseDouble).collect(collector);
                 }
                 break;
             case BOOL:
             case BOOLEAN:
-                if (isList) {
-                    final String[] values = value.split(MULTI_DELIMITER);
-                    propertyValue = Arrays.stream(values).map(parser::parseBoolean).collect(Collectors.toList());
-                } else {
+                if (isSingle) {
                     propertyValue = parser.parseBoolean(value);
+                } else {
+                    final String[] values = value.split(MULTI_DELIMITER);
+                    propertyValue = Arrays.stream(values).map(parser::parseBoolean).collect(collector);
                 }
                 break;
             case STRING:
-                if (isList) {
-                    final String[] values = value.split(MULTI_DELIMITER);
-                    propertyValue = Arrays.stream(values).map(parser::parseString).collect(Collectors.toList());
-                } else {
+                if (isSingle) {
                     propertyValue = parser.parseString(value);
+                } else {
+                    final String[] values = value.split(MULTI_DELIMITER);
+                    propertyValue = Arrays.stream(values).map(parser::parseString).collect(collector);
                 }
                 break;
             case DATE:
-                if (isList) {
-                    final String[] values = value.split(MULTI_DELIMITER);
-                    propertyValue = Arrays.stream(values).map(parser::parseDate).collect(Collectors.toList());
-                } else {
+                if (isSingle) {
                     propertyValue = parser.parseDate(value);
+                } else {
+                    final String[] values = value.split(MULTI_DELIMITER);
+                    propertyValue = Arrays.stream(values).map(parser::parseDate).collect(collector);
                 }
                 break;
             case OFFSETDATETIME:
-                if (isList) {
-                    final String[] values = value.split(MULTI_DELIMITER);
-                    propertyValue = Arrays.stream(values).map(parser::parseOffsetDateTime).collect(Collectors.toList());
-                } else {
+                if (isSingle) {
                     propertyValue = parser.parseOffsetDateTime(value);
+                } else {
+                    final String[] values = value.split(MULTI_DELIMITER);
+                    propertyValue = Arrays.stream(values).map(parser::parseOffsetDateTime).collect(collector);
                 }
                 break;
             default:

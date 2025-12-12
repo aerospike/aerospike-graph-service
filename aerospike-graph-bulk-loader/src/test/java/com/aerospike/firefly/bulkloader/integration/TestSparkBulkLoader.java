@@ -326,11 +326,6 @@ public class TestSparkBulkLoader {
     }
 
     @Test
-    public void testBooleanPropertyValue() {
-
-    }
-
-    @Test
     public void testNoIdEdgesKeepAsProperty() {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getNoIdEdges()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();

@@ -11,12 +11,14 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -695,10 +697,16 @@ public class TestBulkLoaderCallEntryPoint {
             testProperty(vertex, "test_multi_before_and_after", List.of("before", "and", "after"));
             testProperty(vertex, "test_multi_not_before_but_after", List.of("not;before;but;after"));
             testProperty(vertex, "test_multi_not_before_not_after", List.of("not;before;not;after"));
+            testProperty(vertex, "test_list_before_set_after", List.of("before", "and", "before"));
+            testProperty(vertex, "test_set_before_set_after", List.of("before", "and"));
+            testProperty(vertex, "test_nothing_before_set_after", List.of());
             testProperty(fireflyGraph, vertex.id(), "test_multi_before_not_after", List.of("before", "not", "after"));
             testProperty(fireflyGraph, vertex.id(), "test_multi_before_and_after", List.of("before", "and", "after"));
             testProperty(fireflyGraph, vertex.id(), "test_multi_not_before_but_after", List.of("not;before;but;after"));
             testProperty(fireflyGraph, vertex.id(), "test_multi_not_before_not_after", List.of("not;before;not;after"));
+            testProperty(fireflyGraph, vertex.id(), "test_list_before_set_after", List.of("before", "and", "before"));
+            testProperty(fireflyGraph, vertex.id(), "test_set_before_set_after", List.of("before", "and"));
+            testProperty(fireflyGraph, vertex.id(), "test_nothing_before_set_after", List.of());
             final FireflyEdge edge = (FireflyEdge) g.V().outE("knows").next();
             testProperty(edge, "test", Set.of("foo", "bar"));
 
@@ -720,10 +728,16 @@ public class TestBulkLoaderCallEntryPoint {
             testProperty(vertex2, "test_multi_before_and_after", List.of("before", "and", "after", "before", "baz"));
             testProperty(vertex2, "test_multi_not_before_but_after", List.of("not;before;but;after", "not", "before", "but", "after"));
             testProperty(vertex2, "test_multi_not_before_not_after", List.of("still;not"));
+            testProperty(vertex2, "test_list_before_set_after", List.of("before", "and", "before", "after"));
+            testProperty(vertex2, "test_set_before_set_after", List.of("before", "and", "after"));
+            testProperty(vertex2, "test_nothing_before_set_after", List.of("after", "and"));
             testProperty(fireflyGraph, vertex2.id(), "test_multi_before_not_after", List.of("present"));
             testProperty(fireflyGraph, vertex2.id(), "test_multi_before_and_after", List.of("before", "and", "after", "before", "baz"));
             testProperty(fireflyGraph, vertex2.id(), "test_multi_not_before_but_after", List.of("not;before;but;after", "not", "before", "but", "after"));
             testProperty(fireflyGraph, vertex2.id(), "test_multi_not_before_not_after", List.of("still;not"));
+            testProperty(fireflyGraph, vertex2.id(), "test_list_before_set_after", List.of("before", "and", "before", "after"));
+            testProperty(fireflyGraph, vertex2.id(), "test_set_before_set_after", List.of("before", "and", "after"));
+            testProperty(fireflyGraph, vertex2.id(), "test_nothing_before_set_after", List.of("after", "and"));
         }
     }
 
@@ -733,19 +747,55 @@ public class TestBulkLoaderCallEntryPoint {
         Assert.assertEquals(expectedValues, new HashSet<>(propertyValue));
     }
 
-    void testProperty(final FireflyVertex vertex, final String property, final List<String> expectedValues) {
-        final Iterator<VertexProperty<Object>> propertyIterator = vertex.properties(property);
-        final List<String> propertyList = new ArrayList<>();
-        propertyIterator.forEachRemaining(vp -> propertyList.add((String) vp.value()));
-        Assert.assertEquals(expectedValues.size(), propertyList.size());
-        Assert.assertEquals(new HashSet<>(expectedValues), new HashSet<>(propertyList));
+    void testProperty(final FireflyVertex vertex, final String propertyKey, final List<String> expectedValues) {
+        final Iterator<VertexProperty<Object>> propertyIterator = vertex.properties(propertyKey);
+        Assert.assertEquals(expectedValues.size(), IteratorUtils.count(vertex.properties(propertyKey)));
+        final Map<String, Integer> valueCounts = new HashMap<>();
+        for (final String expectedValue : expectedValues) {
+            valueCounts.compute(expectedValue, (k, v) -> v == null ? 1 : v + 1);
+        }
+        while (propertyIterator.hasNext()) {
+            final VertexProperty<Object> property = propertyIterator.next();
+            valueCounts.compute((String) property.value(), (k, v) -> {
+                if (v == null) {
+                    return Integer.MIN_VALUE;
+                } else {
+                    return v - 1;
+                }
+            });
+        }
+        for (final Map.Entry<String, Integer> entry : valueCounts.entrySet()) {
+            if (entry.getValue().equals(Integer.MIN_VALUE)) {
+                Assert.fail("Key " + entry.getKey() + " was found when not in expected set");
+            } else {
+                Assert.assertEquals("Key " + entry.getKey() + " was found an incorrect number of times", Integer.valueOf(0), entry.getValue());
+            }
+        }
     }
 
-    void testProperty(final FireflyGraph graph, final Object id, final String property, final List<String> expectedValues) {
-        final List<? extends Property<Object>> propertyList = graph.traversal().V(id).properties(property).toList();
-        final List<String> propertyValues = propertyList.stream().map(Property::value).map(Object::toString).collect(Collectors.toList());
-        Assert.assertEquals(expectedValues.size(), propertyValues.size());
-        Assert.assertEquals(new HashSet<>(expectedValues), new HashSet<>(propertyValues));
+    void testProperty(final FireflyGraph graph, final Object id, final String propertyKey, final List<String> expectedValues) {
+        final List<? extends Property<Object>> propertyList = graph.traversal().V(id).properties(propertyKey).toList();
+        Assert.assertEquals(expectedValues.size(), propertyList.size());
+        final Map<String, Integer> valueCounts = new HashMap<>();
+        for (final String expectedValue : expectedValues) {
+            valueCounts.compute(expectedValue, (k, v) -> v == null ? 1 : v + 1);
+        }
+        for (final Property<Object> property : propertyList) {
+            valueCounts.compute((String) property.value(), (k, v) -> {
+                if (v == null) {
+                    return Integer.MIN_VALUE;
+                } else {
+                    return v - 1;
+                }
+            });
+        }
+        for (final Map.Entry<String, Integer> entry : valueCounts.entrySet()) {
+            if (entry.getValue().equals(Integer.MIN_VALUE)) {
+                Assert.fail("Key " + entry.getKey() + " was found when not in expected set");
+            } else {
+                Assert.assertEquals("Key " + entry.getKey() + " was found an incorrect number of times", Integer.valueOf(0), entry.getValue());
+            }
+        }
     }
 
     @Test

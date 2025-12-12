@@ -114,22 +114,34 @@ public class TestFireflyMergeV {
                 .property(T.id, 777)
                 .property("one", 1)
                 .property("two", 2)
-                .property("three", 3).next();
+                .property("three", 3)
+                .property("four", 4)
+                .property("five", "five").next();
         Assert.assertTrue(g.V(777).hasNext());
         g.mergeV(Map.of(T.id, 777))
                 .option(Merge.onMatch, Map.of(
                         "one", VertexProperty.Cardinality.list("one"),
                         "two", "two",
-                        "three", VertexProperty.Cardinality.single("three")
+                        "three", VertexProperty.Cardinality.single("three"),
+                        "four", VertexProperty.Cardinality.set("four"),
+                        "five", VertexProperty.Cardinality.set("five"),
+                        "six", VertexProperty.Cardinality.set("six")
                 )).iterate();
-        Assert.assertEquals(4, (long) g.V(777).properties().count().next());
-        final Set<Object> expected = new HashSet<>();
-        expected.add("one");
-        expected.add(1);
-        g.V(777).properties("one").value().forEachRemaining(expected::remove);
-        Assert.assertTrue(expected.isEmpty());
+        Assert.assertEquals(8, (long) g.V(777).properties().count().next());
+        final Set<Object> expectedOne = new HashSet<>();
+        expectedOne.add("one");
+        expectedOne.add(1);
+        g.V(777).properties("one").value().forEachRemaining(expectedOne::remove);
+        Assert.assertTrue(expectedOne.isEmpty());
         Assert.assertEquals("two", g.V(777).properties("two").value().next());
         Assert.assertEquals("three", g.V(777).properties("three").value().next());
+        final Set<Object> expectedFour = new HashSet<>();
+        expectedFour.add("four");
+        expectedFour.add(4);
+        g.V(777).properties("four").value().forEachRemaining(expectedFour::remove);
+        Assert.assertTrue(expectedFour.isEmpty());
+        Assert.assertEquals("five", g.V(777).properties("five").value().next());
+        Assert.assertEquals("six", g.V(777).properties("six").value().next());
     }
 
     @Test

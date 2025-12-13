@@ -14,15 +14,20 @@ jobs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Start EC2 runner
         id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
+        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
@@ -37,15 +42,20 @@ jobs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Start EC2 runner
         id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
+        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
@@ -59,11 +69,16 @@ jobs:
     runs-on: ${{ needs.start-runner-l3-bulk-loader-pe.outputs.label }}
     needs: start-runner-l3-bulk-loader-pe
     steps:
-      - uses: actions/checkout@v3
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
           fetch-depth: 0
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
       - name: Install Packages
         run: |
           sudo apt -y update
@@ -83,23 +98,23 @@ jobs:
           echo "SHA_PATH=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)-pe" >> $GITHUB_ENV
       - name: Read Workflow Configuration from Properties File
         id: read_property
-        uses: christian-draeger/read-properties@1.1.1
+        uses: christian-draeger/read-properties@908f99d3334be3802ec7cb528395a69d19914e7b # 1.1.1
         with:
           path: benchmark.properties
           properties: 'data-size server-instances instance-type benchmark ssd-count storage-type'
       - name: Authorize gcloud CLI
-        uses: google-github-actions/auth@v1
+        uses: step-security/google-github-auth@f0e5c257a9534a30b5df12f43329c1eb7b85a5be # v3.0.0
         with:
           credentials_json: ${{ secrets.GCS_KEYFILE_B64 }}
       - name: Set Up gcloud CLI
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions/setup-gcloud@e30db14379863a8c79331b04a9969f4c1e225e0b # v1.1.1
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
         with:
           maven-version: 3.9.5
       - run: mkdir -p /home/runner && chmod -R 777 /home/runner
@@ -168,9 +183,14 @@ jobs:
     runs-on: ${{ needs.start-runner-l3-bulk-loader.outputs.label }}
     needs: start-runner-l3-bulk-loader
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - uses: actions/checkout@v3
+        uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
           fetch-depth: 0
       - name: Install Packages
@@ -197,23 +217,23 @@ jobs:
           echo "SHA_PATH=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)" >> $GITHUB_ENV
       - name: Read Workflow Configuration from Properties File
         id: read_property
-        uses: christian-draeger/read-properties@1.1.1
+        uses: christian-draeger/read-properties@908f99d3334be3802ec7cb528395a69d19914e7b # 1.1.1
         with:
           path: benchmark.properties
           properties: 'data-size server-instances instance-type benchmark ssd-count storage-type'
       - name: Authorize gcloud CLI
-        uses: google-github-actions/auth@v1
+        uses: step-security/google-github-auth@f0e5c257a9534a30b5df12f43329c1eb7b85a5be # v3.0.0
         with:
           credentials_json: ${{ secrets.GCS_KEYFILE_B64 }}
       - name: Set Up gcloud CLI
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions/setup-gcloud@e30db14379863a8c79331b04a9969f4c1e225e0b # v1.1.1
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
         with:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
+        uses: step-security/setup-maven@8b5f727904660c4b112d02624218c791126af325 # v5.0.0
         with:
           maven-version: 3.9.5
       - run: mkdir -p /home/runner && chmod -R 777 /home/runner
@@ -271,14 +291,14 @@ jobs:
           gcloud storage mv gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_config.properties
       - name: Upload L3 Bulk Loading Job Log to GCP
         if: success() || failure()
-        uses: google-github-actions/upload-cloud-storage@v1
+        uses: google-github-actions/upload-cloud-storage@e95a15f226403ed658d3e65f40205649f342ba2c # v1.0.3
         with:
           path: ${{ github.workspace }}/scripts/${{ env.YEAR }}
           destination: gha-ci-firefly-bulkloader/archive
           gzip: false
           process_gcloudignore: false
       - name: Publish L3 Runtime Results
-        uses: benchmark-action/github-action-benchmark@v1
+        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1.20.7
         with:
           name: Publish Benchmark Results
           tool: 'customSmallerIsBetter'
@@ -298,7 +318,7 @@ jobs:
           gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo cat ./firefly/aerospike-graph-gremlin/target/benchmark.json" > ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json
           gcloud storage cp ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/benchmark.json
       - name: Publish Benchmark Results
-        uses: benchmark-action/github-action-benchmark@v1
+        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1.20.7
         with:
           name: Publish Benchmark Results
           tool: 'customSmallerIsBetter'
@@ -343,14 +363,19 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
+        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
@@ -364,14 +389,19 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
+        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}

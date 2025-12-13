@@ -27,17 +27,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
       - name: Set up Cloud Authentication
         id: auth
-        uses: google-github-actions/auth@v1
+        uses: step-security/google-github-auth@f0e5c257a9534a30b5df12f43329c1eb7b85a5be # v3.0.0
         with:
           credentials_json: ${{ secrets.GOOGLE_DOCKER_REPO_SECRET }}
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions/setup-gcloud@e30db14379863a8c79331b04a9969f4c1e225e0b # v1.1.1
 
       - name: Login to Dockerhub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
@@ -51,11 +56,11 @@ jobs:
           echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $GITHUB_REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
 
         # For multiarch builds, we need to set up QEMU.
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7 # v2.2.0
 
       - name: Publish Container
         run: |

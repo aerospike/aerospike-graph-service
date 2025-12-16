@@ -20,8 +20,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
       - name: Login to GitHub Container Registry
         run: |
@@ -29,7 +34,7 @@ jobs:
           echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
       - name: Publish Container
         run: |
           # Install python_on_whales.
@@ -57,8 +62,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
       - name: Login to GitHub Container Registry
         run: |
@@ -66,7 +76,7 @@ jobs:
           echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
 
       - name: Publish Container
         run: |
@@ -95,8 +105,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
       - name: Login to GitHub Container Registry
         run: |
@@ -104,7 +119,7 @@ jobs:
           echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
 
       - name: Publish Container
         run: |
@@ -132,8 +147,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
       - name: Login to GitHub Container Registry
         run: |
@@ -141,7 +161,7 @@ jobs:
           echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
 
       - name: Publish Container
         run: |
@@ -170,8 +190,13 @@ jobs:
     needs: [publish-github-amd-slim,publish-github-arm-slim]
     steps:
 
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
       - name: Login to GitHub Container Registry
         run: |
@@ -179,7 +204,7 @@ jobs:
           echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
 
       - name: Publish Container
         run: |
@@ -209,8 +234,13 @@ jobs:
     needs: [publish-github-amd,publish-github-arm]
     steps:
 
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
       - name: Login to GitHub Container Registry
         run: |
@@ -218,7 +248,7 @@ jobs:
           echo ${{ secrets.QE_REGISTRY_PASSWORD }} | docker login $QE_DOCKER_REGISTRY --username $QE_DOCKER_USERNAME --password-stdin
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
 
       - name: Publish Container
         run: |

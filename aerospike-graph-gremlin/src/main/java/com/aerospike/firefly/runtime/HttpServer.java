@@ -21,6 +21,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.server.util.MetricManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.commons.lang3.time.DurationFormatUtils;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -135,12 +136,24 @@ public class HttpServer {
         }
 
         final Handler<RoutingContext> handler = routingContext -> {
-
+            /*
+                if (isHealthy) {
+                    routingContext.response().setStatusCode(HEALTHCHECK_SUCCESS_CODE).putHeader("content-type", "text/html").
+                            end(String.valueOf(List.of(Map.of("status", "true"))));
+                } else {
+                    routingContext.response().setStatusCode(HEALTHCHECK_ERROR_CODE).putHeader("content-type", "text/html").
+                            end(String.valueOf(List.of(Map.of("status", "false"))));
+                }
+            */
             final boolean isConnected = graph.getBaseGraph() != null && graph.getBaseGraph().getClusterIsConnected();
             final boolean isHealthy = !FireflyGraph.NEED_PREHEAT && isConnected;
 
             final long uptimeSeconds = (System.currentTimeMillis() - serverStartTime) / 1000;
-            final String uptimeFormatted = formatUptime(uptimeSeconds);
+            final String uptimeFormatted = DurationFormatUtils.formatDurationWords(
+                    uptimeSeconds * 1000L,
+                    true,
+                    true
+            );
 
             final JsonObject statusObject = new JsonObject()
                     .put("status", isHealthy ? "true" : "false")
@@ -158,53 +171,6 @@ public class HttpServer {
         router.get("/" + graph.getBaseGraph().getConfig().graphId + healthcheckPath).handler(handler);
 
         graph.getAdminServiceRegistry().appendHandlers(router);
-    }
-
-    /*
-        Turns long of seconds into format of "X Days, X Hours, X Minutes, X Seconds"
-    */
-    private static String formatUptime(final long totalSeconds) {
-        if (totalSeconds < 0) {
-            return "0 Seconds";
-        }
-
-        final long days = totalSeconds / 86400;
-        final long hours = (totalSeconds % 86400) / 3600;
-        final long minutes = (totalSeconds % 3600) / 60;
-        final long seconds = totalSeconds % 60;
-
-        final StringBuilder sb = new StringBuilder();
-        boolean hasPrevious = false;
-
-        if (days > 0) {
-            sb.append(days).append(days == 1 ? " Day" : " Days");
-            hasPrevious = true;
-        }
-
-        if (hours > 0) {
-            if (hasPrevious) {
-                sb.append(", ");
-            }
-            sb.append(hours).append(hours == 1 ? " Hour" : " Hours");
-            hasPrevious = true;
-        }
-
-        if (minutes > 0) {
-            if (hasPrevious) {
-                sb.append(", ");
-            }
-            sb.append(minutes).append(minutes == 1 ? " Minute" : " Minutes");
-            hasPrevious = true;
-        }
-
-        if (seconds > 0 || !hasPrevious) {
-            if (hasPrevious) {
-                sb.append(", ");
-            }
-            sb.append(seconds).append(seconds == 1 ? " Second" : " Seconds");
-        }
-
-        return sb.toString();
     }
 
     private static class FireflyMetricRewriter implements Handler<RoutingContext> {

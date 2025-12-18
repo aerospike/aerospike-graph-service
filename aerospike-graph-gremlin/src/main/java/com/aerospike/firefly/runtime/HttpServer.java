@@ -136,15 +136,6 @@ public class HttpServer {
         }
 
         final Handler<RoutingContext> handler = routingContext -> {
-            /*
-                if (isHealthy) {
-                    routingContext.response().setStatusCode(HEALTHCHECK_SUCCESS_CODE).putHeader("content-type", "text/html").
-                            end(String.valueOf(List.of(Map.of("status", "true"))));
-                } else {
-                    routingContext.response().setStatusCode(HEALTHCHECK_ERROR_CODE).putHeader("content-type", "text/html").
-                            end(String.valueOf(List.of(Map.of("status", "false"))));
-                }
-            */
             final boolean isConnected = graph.getBaseGraph() != null && graph.getBaseGraph().getClusterIsConnected();
             final boolean isHealthy = !FireflyGraph.NEED_PREHEAT && isConnected;
 

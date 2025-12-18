@@ -13,19 +13,19 @@ import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.server.util.MetricManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.commons.lang3.time.DurationFormatUtils;
 
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Enumeration;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -47,6 +47,7 @@ public class HttpServer {
     private io.vertx.core.http.HttpServer vertxHttpServer;
     private Router router;
     private static FireflyMetricCollector fireflyMetricCollector;
+    private static long serverStartTime;
 
     private static HttpServer INSTANCE;
 
@@ -66,6 +67,7 @@ public class HttpServer {
         final int port = portConfig == null ? DEFAULT_HTTP_PORT : Integer.parseInt(portConfig.toString());
         final String prometheusPath = Optional.ofNullable(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROMETHEUS_PATH, configuration)).orElse(DEFAULT_PROMETHEUS_PATH);
 
+        serverStartTime = System.currentTimeMillis();
         LOG.info("Starting HttpServer on port {}.", port);
 
         // register metrics only for first graph
@@ -133,13 +135,25 @@ public class HttpServer {
         }
 
         final Handler<RoutingContext> handler = routingContext -> {
-            if (!FireflyGraph.NEED_PREHEAT && graph.getBaseGraph() != null && graph.getBaseGraph().getClusterIsConnected()) {
-                routingContext.response().setStatusCode(HEALTHCHECK_SUCCESS_CODE).putHeader("content-type", "text/html").
-                        end(String.valueOf(List.of(Map.of("status", "true"))));
-            } else {
-                routingContext.response().setStatusCode(HEALTHCHECK_ERROR_CODE).putHeader("content-type", "text/html").
-                        end(String.valueOf(List.of(Map.of("status", "false"))));
-            }
+            final boolean isConnected = graph.getBaseGraph() != null && graph.getBaseGraph().getClusterIsConnected();
+            final boolean isHealthy = !FireflyGraph.NEED_PREHEAT && isConnected;
+
+            final long uptimeSeconds = (System.currentTimeMillis() - serverStartTime) / 1000;
+            final String uptimeFormatted = DurationFormatUtils.formatDurationWords(
+                    uptimeSeconds * 1000L,
+                    true,
+                    true
+            );
+
+            final JsonObject statusObject = new JsonObject()
+                    .put("status", isHealthy ? "true" : "false")
+                    .put("uptime", uptimeFormatted);
+            final int statusCode = isHealthy ? HEALTHCHECK_SUCCESS_CODE : HEALTHCHECK_ERROR_CODE;
+
+            routingContext.response()
+                    .setStatusCode(statusCode)
+                    .putHeader("content-type", "application/json")
+                    .end(statusObject.encode());
         };
 
         router.get(healthcheckPath).handler(handler);

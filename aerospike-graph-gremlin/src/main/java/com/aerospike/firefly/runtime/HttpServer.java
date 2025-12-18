@@ -13,7 +13,6 @@ import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -149,13 +148,12 @@ public class HttpServer {
             final JsonObject statusObject = new JsonObject()
                     .put("status", isHealthy ? "true" : "false")
                     .put("uptime", uptimeFormatted);
-            final JsonArray responseArray = new JsonArray().add(statusObject);
             final int statusCode = isHealthy ? HEALTHCHECK_SUCCESS_CODE : HEALTHCHECK_ERROR_CODE;
 
             routingContext.response()
                     .setStatusCode(statusCode)
                     .putHeader("content-type", "application/json")
-                    .end(responseArray.encode());
+                    .end(statusObject.encode());
         };
 
         router.get(healthcheckPath).handler(handler);

@@ -13,6 +13,8 @@ import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import org.apache.commons.configuration2.Configuration;
@@ -24,8 +26,6 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.Enumeration;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -47,6 +47,7 @@ public class HttpServer {
     private io.vertx.core.http.HttpServer vertxHttpServer;
     private Router router;
     private static FireflyMetricCollector fireflyMetricCollector;
+    private static long serverStartTime;
 
     private static HttpServer INSTANCE;
 
@@ -66,6 +67,7 @@ public class HttpServer {
         final int port = portConfig == null ? DEFAULT_HTTP_PORT : Integer.parseInt(portConfig.toString());
         final String prometheusPath = Optional.ofNullable(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROMETHEUS_PATH, configuration)).orElse(DEFAULT_PROMETHEUS_PATH);
 
+        serverStartTime = System.currentTimeMillis();
         LOG.info("Starting HttpServer on port {}.", port);
 
         // register metrics only for first graph
@@ -133,19 +135,76 @@ public class HttpServer {
         }
 
         final Handler<RoutingContext> handler = routingContext -> {
-            if (!FireflyGraph.NEED_PREHEAT && graph.getBaseGraph() != null && graph.getBaseGraph().getClusterIsConnected()) {
-                routingContext.response().setStatusCode(HEALTHCHECK_SUCCESS_CODE).putHeader("content-type", "text/html").
-                        end(String.valueOf(List.of(Map.of("status", "true"))));
-            } else {
-                routingContext.response().setStatusCode(HEALTHCHECK_ERROR_CODE).putHeader("content-type", "text/html").
-                        end(String.valueOf(List.of(Map.of("status", "false"))));
-            }
+
+            final boolean isConnected = graph.getBaseGraph() != null && graph.getBaseGraph().getClusterIsConnected();
+            final boolean isHealthy = !FireflyGraph.NEED_PREHEAT && isConnected;
+
+            final long uptimeSeconds = (System.currentTimeMillis() - serverStartTime) / 1000;
+            final String uptimeFormatted = formatUptime(uptimeSeconds);
+
+            final JsonObject statusObject = new JsonObject()
+                    .put("status", isHealthy ? "true" : "false")
+                    .put("uptime", uptimeFormatted);
+            final JsonArray responseArray = new JsonArray().add(statusObject);
+            final int statusCode = isHealthy ? HEALTHCHECK_SUCCESS_CODE : HEALTHCHECK_ERROR_CODE;
+
+            routingContext.response()
+                    .setStatusCode(statusCode)
+                    .putHeader("content-type", "application/json")
+                    .end(responseArray.encode());
         };
 
         router.get(healthcheckPath).handler(handler);
         router.get("/" + graph.getBaseGraph().getConfig().graphId + healthcheckPath).handler(handler);
 
         graph.getAdminServiceRegistry().appendHandlers(router);
+    }
+
+    /*
+        Turns long of seconds into format of "X Days, X Hours, X Minutes, X Seconds"
+    */
+    private static String formatUptime(final long totalSeconds) {
+        if (totalSeconds < 0) {
+            return "0 Seconds";
+        }
+
+        final long days = totalSeconds / 86400;
+        final long hours = (totalSeconds % 86400) / 3600;
+        final long minutes = (totalSeconds % 3600) / 60;
+        final long seconds = totalSeconds % 60;
+
+        final StringBuilder sb = new StringBuilder();
+        boolean hasPrevious = false;
+
+        if (days > 0) {
+            sb.append(days).append(days == 1 ? " Day" : " Days");
+            hasPrevious = true;
+        }
+
+        if (hours > 0) {
+            if (hasPrevious) {
+                sb.append(", ");
+            }
+            sb.append(hours).append(hours == 1 ? " Hour" : " Hours");
+            hasPrevious = true;
+        }
+
+        if (minutes > 0) {
+            if (hasPrevious) {
+                sb.append(", ");
+            }
+            sb.append(minutes).append(minutes == 1 ? " Minute" : " Minutes");
+            hasPrevious = true;
+        }
+
+        if (seconds > 0 || !hasPrevious) {
+            if (hasPrevious) {
+                sb.append(", ");
+            }
+            sb.append(seconds).append(seconds == 1 ? " Second" : " Seconds");
+        }
+
+        return sb.toString();
     }
 
     private static class FireflyMetricRewriter implements Handler<RoutingContext> {

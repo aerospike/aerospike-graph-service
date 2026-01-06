@@ -65,7 +65,7 @@ jobs:
         run: |
           echo "SHA_PATH=${{ steps.read_property.outputs.tag-hash }}" >> $GITHUB_ENV
       - name: Authorize gcloud CLI
-        uses: step-security/google-github-auth@f0e5c257a9534a30b5df12f43329c1eb7b85a5be # v3.0.0
+        uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.GCS_KEYFILE_B64 }}
       - name: Set Up gcloud CLI

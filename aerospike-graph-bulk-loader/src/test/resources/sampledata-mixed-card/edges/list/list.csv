@@ -1,0 +1,4 @@
+~id,~label,~from,~to,foo:string:list
+4,list,1,12,foo;bar
+5,list,2,11,foo;bar
+6,list,3,10,foo;bar

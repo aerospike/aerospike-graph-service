@@ -14,6 +14,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -74,6 +75,7 @@ public class TestSparkBulkLoader {
     static private final String SAMPLE_SUPERNODE_TOO_LOW = "src/test/resources/conf/packed/config-sampling-supernodes-too-low.properties";
     static private final String DATETIME_PROPERTIES = "src/test/resources/conf/packed/config-datetime.properties";
     static private final String BOOLEAN_PROPERTIES = "src/test/resources/conf/packed/bool-parser.properties";
+    static private final String MIXED_CARDINALITIES = "src/test/resources/conf/packed/mixed-card.properties";
 
     @Before
     public void beforeEach() {
@@ -191,6 +193,8 @@ public class TestSparkBulkLoader {
     protected String getBooleanParseProperties() {
         return BOOLEAN_PROPERTIES;
     }
+
+    protected String getMixedCardinalities() { return MIXED_CARDINALITIES; }
 
     @Test
     public void testDataAccuracy() {
@@ -709,6 +713,46 @@ public class TestSparkBulkLoader {
         } catch (final ConfigurationRuntimeException e) {
             Assert.assertEquals("A value for configuration key, \"aerospike.graphloader.temp-directory\", was not provided and is required.",
                     e.getMessage());
+        }
+    }
+
+    @Test
+    public void testMixedCardinalityHeaders() {
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getMixedCardinalities()}, DEFAULT_PARAMS));
+        final GraphTraversalSource g = graph.traversal();
+        waitForBulkLoad(g);
+        Assert.assertEquals(12, (long) g.V().count().next());
+        Assert.assertEquals(9, (long) g.E().count().next());
+        testMixedVertexCardinalityHeader(g, "single", 1);
+        testMixedVertexCardinalityHeader(g, "list", 3);
+        testMixedVertexCardinalityHeader(g, "set", 2);
+        testMixedVertexCardinalityHeader(g, "none", 1);
+        testMixedEdgeCardinalityHeader(g, "single");
+        testMixedEdgeCardinalityHeader(g, "list");
+        testMixedEdgeCardinalityHeader(g, "none");
+    }
+
+    private void testMixedVertexCardinalityHeader(final GraphTraversalSource g, final String label, final long count) {
+        final long vertexCount = g.V().hasLabel(label).count().next();
+        Assert.assertEquals(3, vertexCount);
+        var traversal = g.V().hasLabel(label);
+        while (traversal.hasNext()) {
+            final Vertex v = traversal.next();
+            Assert.assertEquals(count, IteratorUtils.count(v.properties()));
+        }
+    }
+
+    private void testMixedEdgeCardinalityHeader(final GraphTraversalSource g, final String label) {
+        final long edgeCount = g.E().hasLabel(label).count().next();
+        Assert.assertEquals(3, edgeCount);
+        var traversal = g.E().hasLabel(label);
+        while (traversal.hasNext()) {
+            final Edge e = traversal.next();
+            if (label.equals("list")) {
+                Assert.assertTrue(e.property("foo").value() instanceof List);
+            } else {
+                Assert.assertTrue(e.property("foo").value() instanceof String);
+            }
         }
     }
 

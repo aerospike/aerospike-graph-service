@@ -1,0 +1,4 @@
+~id,~label,~from,~to,foo:string
+7,none,7,6,foo;bar
+8,none,8,5,foo;bar
+9,none,9,4,foo;bar

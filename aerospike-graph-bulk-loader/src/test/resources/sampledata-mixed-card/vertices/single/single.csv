@@ -1,0 +1,4 @@
+~id,~label,foo:string:single
+1,single,bar;baz;bar
+2,single,bar;baz;bar
+3,single,bar;baz;bar

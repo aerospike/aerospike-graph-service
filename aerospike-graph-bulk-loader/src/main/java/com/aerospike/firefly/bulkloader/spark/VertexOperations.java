@@ -18,6 +18,7 @@ import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +27,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -231,27 +232,16 @@ public class VertexOperations implements Serializable {
         final List<Map.Entry<String, Object>> sparkVertexProperties = sparkVertex.getProperties();
         for (final Map.Entry<String, Object> property : sparkVertexProperties) {
             try {
-                // TODO: Handle null (when supported in Firefly) and cardinality.
-                boolean isList = property.getValue() instanceof List<?>;
-                if (isList) {
-                    final List<Object> propertyValues = new LinkedList<>((List<Object>) property.getValue());
-                    for (final Object vertexPropertyValue : (List<Object>) v.value(property.getKey())) {
-                        propertyValues.remove(vertexPropertyValue);
-                    }
-                    if (!propertyValues.isEmpty()) {
-                        throw new AssertionError("Validation failed: Property key "
-                                + property.getKey() + " on vertex with ID " + id
-                                + " did not match value " + property.getValue());
-                    }
-                } else {
-                    if (property.getValue() != null) {
-                        final Object vertexPropertyValue = v.value(property.getKey());
-                        if (!property.getValue().equals(vertexPropertyValue)) {
-                            throw new AssertionError("Validation failed: Property key "
-                                    + property.getKey() + " on vertex with ID " + id
-                                    + " did not match value " + property.getValue());
+                if (property.getValue() != null) {
+                    final Iterator<VertexProperty<Object>> properties = v.properties(property.getKey());
+                    while (properties.hasNext()) {
+                        if (properties.next().value().equals(property.getValue())) {
+                            return;
                         }
                     }
+                    throw new AssertionError("Validation failed: Property key "
+                            + property.getKey() + " on vertex with ID " + id
+                            + " did not match value " + property.getValue());
                 }
             } catch (final AssertionError ae) {
                 throw ae;
@@ -274,7 +264,7 @@ public class VertexOperations implements Serializable {
                 LOGGER.warn(ALLOWED_BAD_ENTRY_COUNT + " is set to a value greater than 0. Vertex verification cannot be performed and will be skipped.");
                 return;
             }
-            String taskName = "Verify Vertex";
+            final String taskName = "Verify Vertex";
             sampledVertexDataset.sparkSession().sparkContext().setJobGroup(taskName, "Verify Vertex task", true);
             verifyVertices(sampledVertexDataset);
             sampledVertexDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
@@ -287,7 +277,7 @@ public class VertexOperations implements Serializable {
                                   final boolean readOnly) {
         if (!this.config.hasAction(DISABLE_VERTEX_WRITE)) {
             final Instant startOfVertexWrite = Instant.now();
-            String taskName = "Vertex write";
+            final String taskName = "Vertex write";
             vertexDataSet.sparkSession().sparkContext().setJobGroup(taskName, "Vertex write task", true);
             writeVertices(vertexDataSet, supernodes, completedVertexPartitions, readOnly);
             vertexDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);

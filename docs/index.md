@@ -13,4 +13,5 @@ Technical
   - [Linked](data-layouts/LINKED.md)
   - [Packed]()
 - [Traversal Cache](TRAVERSAL_CACHE.md)
+- [Cache Management](CACHE_MANAGEMENT.md)
 - [ID management](ID_MANAGEMENT.md)

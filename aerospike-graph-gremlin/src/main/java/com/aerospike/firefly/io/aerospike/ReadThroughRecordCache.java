@@ -80,10 +80,14 @@ public class ReadThroughRecordCache extends FireflyCache {
     }
 
     public ReadThroughRecordCache(final AerospikeConnection db, final UUID uuid) {
+        this(db, uuid, db.getConfig().fireflyReadThroughCacheWeight);
+    }
+
+    public ReadThroughRecordCache(final AerospikeConnection db, final UUID uuid, final long cacheWeight) {
         super(uuid);
         this.db = db;
         cache = Caffeine.newBuilder().
-                maximumWeight(db.getConfig().fireflyReadThroughCacheWeight).
+                maximumWeight(cacheWeight).
                 recordStats().
                 weigher(new Weigher()).
                 build();
@@ -219,7 +223,7 @@ public class ReadThroughRecordCache extends FireflyCache {
     }
 
     /**
-     * @return Guava CacheStats
+     * @return Caffeine CacheStats
      */
     public CacheStats stats() {
         return cache.stats();
@@ -230,6 +234,7 @@ public class ReadThroughRecordCache extends FireflyCache {
      *
      * @return hit count
      */
+    @Override
     public long getHitCount() {
         return hitCounter.get();
     }
@@ -239,8 +244,52 @@ public class ReadThroughRecordCache extends FireflyCache {
      *
      * @return miss count
      */
+    @Override
     public long getMissCount() {
         return missCounter.get();
+    }
+
+    /**
+     * Returns the estimated number of entries in the cache.
+     *
+     * @return estimated entry count
+     */
+    @Override
+    public long getEstimatedEntryCount() {
+        return cache.estimatedSize();
+    }
+
+    /**
+     * Returns the weighted size of all entries in the cache.
+     * The weight is calculated based on the number of edges and properties per record.
+     *
+     * @return weighted size, or 0 if eviction policy is not available
+     */
+    @Override
+    public long getWeightedSize() {
+        return cache.policy().eviction()
+                .map(eviction -> eviction.weightedSize().orElse(0L))
+                .orElse(0L);
+    }
+
+    /**
+     * Returns an estimated memory usage of the cache in bytes.
+     * This is an approximation based on the weighted size.
+     * <p>
+     * The estimation uses approximately 200 bytes per weight unit, which accounts for:
+     * <ul>
+     *   <li>Key object overhead (~100 bytes)</li>
+     *   <li>Record object and bin map overhead (~50 bytes)</li>
+     *   <li>Average data per weight unit (~50 bytes)</li>
+     * </ul>
+     *
+     * @return estimated memory usage in bytes
+     */
+    @Override
+    public long getEstimatedMemoryUsageBytes() {
+        // Approximate bytes per weight unit
+        final long bytesPerWeightUnit = 200L;
+        return getWeightedSize() * bytesPerWeightUnit;
     }
 
     /**

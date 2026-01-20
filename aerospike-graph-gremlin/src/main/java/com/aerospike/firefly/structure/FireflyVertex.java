@@ -48,6 +48,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
+import static com.aerospike.firefly.io.aerospike.CacheManager.CacheMode.GLOBAL;
 import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
@@ -66,6 +67,10 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     protected Map<Long, Map<Long, Object>> vpTypeHints;
     protected Map<Long, Map<Long, Map<Long, List<Object>>>> vpProperties;
     protected boolean isEdgeCacheOverflowed;
+
+    // Cache for transformed edge IDs to avoid repeated object creation
+    // Key: "direction:label1,label2,..." (sorted labels for consistent key)
+    private volatile Map<String, List<FireflyId>> transformedEdgeIdCache;
 
     public FireflyVertex(final FireflyId fid,
                          final String label,
@@ -475,9 +480,36 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             return Collections.emptyIterator();
         }
 
-        // todo: add filtering for otherVertexIds (!!!)
-
         LOG.trace("Getting supernode edge ids from vertex {}.", id);
+
+        // Check if we can use the global supernode edge ID cache
+        // Only cache when: outputType is EDGE_ID, no hasContainers filters, no adjustedIdContainers
+        final boolean canUseCache = outputType == FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID
+                && (hasContainers == null || hasContainers.isEmpty())
+                && (adjustedIdContainers == null || adjustedIdContainers.isEmpty())
+                && direction != Direction.BOTH; // Cache per direction separately
+
+        if (canUseCache) {
+            // Try to get from cache
+            final List<FireflyId> cachedIds = db.cacheManager.getSupernodeEdgeIds(this.id, direction, labels);
+            if (cachedIds != null) {
+                LOG.trace("Supernode edge IDs cache hit for vertex {} direction {} labels {}", id, direction, labels);
+                return cachedIds.iterator();
+            }
+
+            // Cache miss - query secondary index, collect all IDs, cache them
+            LOG.trace("Supernode edge IDs cache miss for vertex {} direction {} labels {}", id, direction, labels);
+            final Iterator<FireflyId> iterator = getIdsFromVertexByIndex(direction, labels, outputType, hasContainers, adjustedIdContainers);
+            final List<FireflyId> edgeIds = new ArrayList<>();
+            iterator.forEachRemaining(edgeIds::add);
+
+            // Cache the result
+            db.cacheManager.putSupernodeEdgeIds(this.id, direction, labels, edgeIds);
+
+            return edgeIds.iterator();
+        }
+
+        // Cannot cache - fall back to direct query
         return getIdsFromVertexByIndex(direction, labels, outputType, hasContainers, adjustedIdContainers);
     }
 
@@ -495,7 +527,20 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     public List<FireflyId> getCachedIds(final Direction direction, final Set<String> labels) {
         LOG.trace("Getting cached adjacent vertex ids from vertex {}.", id);
-        // Get cached IDs
+
+        // Build cache key: "direction:label1,label2,..." (sorted for consistency)
+        final String cacheKey = buildEdgeIdCacheKey(direction, labels);
+
+        // Check if we have cached transformed IDs
+        if (transformedEdgeIdCache != null) {
+            final List<FireflyId> cached = transformedEdgeIdCache.get(cacheKey);
+            if (cached != null) {
+                LOG.trace("Returning cached transformed edge IDs for vertex {} key {}", id, cacheKey);
+                return new ArrayList<>(cached); // Return copy to prevent modification
+            }
+        }
+
+        // Transform and cache the IDs
         final List<FireflyId> cachedIds = new ArrayList<>();
         if (direction == Direction.OUT || direction == Direction.BOTH) {
             for (final String key : outEdgeIds.keySet()) {
@@ -511,7 +556,33 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 }
             }
         }
+
+        // Cache the result if global cache mode is enabled
+        if (db.cacheManager.getCacheMode() == GLOBAL) {
+            synchronized (this) {
+                if (transformedEdgeIdCache == null) {
+                    transformedEdgeIdCache = new HashMap<>();
+                }
+                // Store immutable copy
+                transformedEdgeIdCache.put(cacheKey, List.copyOf(cachedIds));
+            }
+            LOG.trace("Cached transformed edge IDs for vertex {} key {}: {} IDs", id, cacheKey, cachedIds.size());
+        }
+
         return cachedIds;
+    }
+
+    /**
+     * Build a cache key for transformed edge IDs.
+     * Format: "direction:label1,label2,..." with labels sorted alphabetically.
+     */
+    private String buildEdgeIdCacheKey(final Direction direction, final Set<String> labels) {
+        if (labels.isEmpty()) {
+            return direction.name() + ":*";
+        }
+        final List<String> sortedLabels = new ArrayList<>(labels);
+        Collections.sort(sortedLabels);
+        return direction.name() + ":" + String.join(",", sortedLabels);
     }
 
     /**

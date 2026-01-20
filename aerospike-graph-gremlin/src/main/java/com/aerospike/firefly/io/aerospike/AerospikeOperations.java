@@ -420,7 +420,7 @@ public class AerospikeOperations {
 
         CachedIterator(final FireflyGraph graph, final Iterator<KeyRecord> keyRecordIterator) {
             this.keyRecordIterator = keyRecordIterator;
-            this.cache = graph.getBaseGraph().transactionCache.get();
+            this.cache = graph.getBaseGraph().cacheManager.getTransactionCache();
         }
 
         @Override

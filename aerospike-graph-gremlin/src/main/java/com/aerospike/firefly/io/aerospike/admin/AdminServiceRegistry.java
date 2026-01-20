@@ -2,6 +2,7 @@ package com.aerospike.firefly.io.aerospike.admin;
 
 import com.aerospike.firefly.process.call.AdministrativeInfoService;
 import com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceRegistry;
+import com.aerospike.firefly.process.call.cache.CacheServiceRegistry;
 import com.aerospike.firefly.process.call.metadata.MetadataServiceRegistry;
 import com.aerospike.firefly.process.call.query.QueryServiceRegistry;
 import com.aerospike.firefly.process.call.rbac.JwtServiceRegistry;
@@ -17,6 +18,7 @@ public class AdminServiceRegistry {
     private final AdministrativeInfoService administrativeInfoService;
     private final JwtServiceRegistry jwtServiceRegistry;
     private final QueryServiceRegistry queryServiceRegistry;
+    private final CacheServiceRegistry cacheServiceRegistry;
 
     public AdminServiceRegistry(final FireflyGraph firefly) {
         sindexServiceRegistry = new SindexServiceRegistry(firefly);
@@ -25,6 +27,7 @@ public class AdminServiceRegistry {
         administrativeInfoService = new AdministrativeInfoService(firefly);
         jwtServiceRegistry = new JwtServiceRegistry(firefly);
         queryServiceRegistry = new QueryServiceRegistry(firefly);
+        cacheServiceRegistry = new CacheServiceRegistry(firefly);
     }
 
     public void appendHandlers(final Router router) {
@@ -33,5 +36,6 @@ public class AdminServiceRegistry {
         bulkLoaderServiceRegistry.routeServices(router);
         jwtServiceRegistry.routeServices(router);
         queryServiceRegistry.routeServices(router);
+        cacheServiceRegistry.routeServices(router);
     }
 }

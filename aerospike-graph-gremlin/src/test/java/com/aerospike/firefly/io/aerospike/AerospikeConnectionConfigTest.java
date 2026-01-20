@@ -6,6 +6,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.config.FireflyConfiguration;
 import org.apache.commons.configuration2.Configuration;
+import org.junit.AfterClass;
 import org.junit.Test;
 
 import java.util.Map;
@@ -20,6 +21,15 @@ public class AerospikeConnectionConfigTest {
 
     final static Configuration CLEAR_CONFIG = ConfigurationHelper.loadFromFile("../conf/aerospike-graph.properties");
     final static FireflyConfiguration FIREFLY_CONFIG = FireflyConfiguration.fromConfiguration(CLEAR_CONFIG);
+
+    @AfterClass
+    public static void resetConfigAfterAllTests() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.getBaseGraph().resetConfiguration();
+        }
+    }
 
     @Test
     public void updateConfigTest() {
@@ -43,6 +53,85 @@ public class AerospikeConnectionConfigTest {
         assertEquals("paged", updatedConfig.queryImpl);
         assertEquals(123, updatedConfig.writeSocketTimeout);
         assertEquals(1, config.version);
+    }
+
+    @Test
+    public void cacheModeConfigTest() {
+        final IAerospikeClient client = mock(IAerospikeClient.class);
+        when(client.getNodes()).thenReturn(new Node[3]);
+
+        // Test default cache mode (TRANSACTIONAL)
+        final AerospikeConnectionConfig defaultConfig = new AerospikeConnectionConfig(FIREFLY_CONFIG, client);
+        assertEquals("TRANSACTIONAL", defaultConfig.fireflyReadThroughCacheMode);
+
+        // Test GLOBAL cache mode
+        final FireflyConfiguration globalConfig = FireflyConfiguration.fromConfiguration(CLEAR_CONFIG);
+        globalConfig.setProperty(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_MODE, "GLOBAL");
+        final AerospikeConnectionConfig globalCacheConfig = new AerospikeConnectionConfig(globalConfig, client);
+        assertEquals("GLOBAL", globalCacheConfig.fireflyReadThroughCacheMode);
+
+        // Test lowercase input (should be normalized to uppercase)
+        final FireflyConfiguration lowercaseConfig = FireflyConfiguration.fromConfiguration(CLEAR_CONFIG);
+        lowercaseConfig.setProperty(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_MODE, "global");
+        final AerospikeConnectionConfig lowercaseCacheConfig = new AerospikeConnectionConfig(lowercaseConfig, client);
+        assertEquals("GLOBAL", lowercaseCacheConfig.fireflyReadThroughCacheMode);
+    }
+
+    @Test
+    public void cacheModeWithGraphTest() {
+        // Reset saved configuration first to ensure clean state
+        final Configuration resetConfig = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        resetConfig.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
+        try (final FireflyGraph resetGraph = FireflyGraph.open(resetConfig)) {
+            resetGraph.getBaseGraph().resetConfiguration();
+        }
+
+        // Test default cache mode (TRANSACTIONAL) with actual graph
+        final Configuration transactionalConfig = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        transactionalConfig.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
+
+        try (final FireflyGraph graph = FireflyGraph.open(transactionalConfig)) {
+            // Default should be TRANSACTIONAL (no saved config, using property file default)
+            assertEquals("TRANSACTIONAL", graph.getBaseGraph().getConfig().fireflyReadThroughCacheMode);
+            assertEquals(CacheManager.CacheMode.TRANSACTIONAL, graph.getBaseGraph().cacheManager.getCacheMode());
+        }
+
+        // Test GLOBAL cache mode with actual graph (set via property file)
+        final Configuration globalConfig = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        globalConfig.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
+        globalConfig.setProperty(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_MODE, "GLOBAL");
+
+        try (final FireflyGraph graph = FireflyGraph.open(globalConfig)) {
+            assertEquals("GLOBAL", graph.getBaseGraph().getConfig().fireflyReadThroughCacheMode);
+            assertEquals(CacheManager.CacheMode.GLOBAL, graph.getBaseGraph().cacheManager.getCacheMode());
+        }
+    }
+
+    @Test
+    public void cacheModeSharedConfigTest() {
+        // Two graphs using same database should have same cache mode
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
+
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.getBaseGraph().resetConfiguration();
+        }
+
+        try (final FireflyGraph graph1 = FireflyGraph.open(config);
+             final FireflyGraph graph2 = FireflyGraph.open(config)) {
+            // Both graphs should start with default TRANSACTIONAL mode
+            assertEquals(CacheManager.CacheMode.TRANSACTIONAL, graph1.getBaseGraph().cacheManager.getCacheMode());
+            assertEquals(CacheManager.CacheMode.TRANSACTIONAL, graph2.getBaseGraph().cacheManager.getCacheMode());
+
+            // graph1 switches to GLOBAL mode and persists the change
+            graph1.getBaseGraph().updateConfiguration(
+                    Map.of(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_MODE, "GLOBAL"));
+            assertEquals(CacheManager.CacheMode.GLOBAL, graph1.getBaseGraph().cacheManager.getCacheMode());
+
+            // graph2 refreshes configuration and should also switch to GLOBAL
+            graph2.getBaseGraph().refreshConfiguration();
+            assertEquals(CacheManager.CacheMode.GLOBAL, graph2.getBaseGraph().cacheManager.getCacheMode());
+        }
     }
 
     @Test

@@ -39,6 +39,7 @@ public class AerospikeConnectionConfig {
         add("aerospike.client.batch-threshold.per-node");
         add("aerospike.graph.movement.barrier.size");
         add("aerospike.client.infoPolicy.timeout");
+        add("aerospike.graph.cache.*");
     }};
 
     public final String namespace;
@@ -111,6 +112,7 @@ public class AerospikeConnectionConfig {
     public final boolean globalEdgeCacheEnabledFlag;
 
     public final long fireflyReadThroughCacheWeight;
+    public final String fireflyReadThroughCacheMode;
     public final int phatEdgeSize;
     public final int movementBarrierSize;
     public final boolean summaryTickerEnabledFlag;
@@ -342,6 +344,7 @@ public class AerospikeConnectionConfig {
         bulkLoadRecoveryBin = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.BL_RECOVERY_BIN.name(), conf);
 
         fireflyReadThroughCacheWeight = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf);
+        fireflyReadThroughCacheMode = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_MODE, conf).toUpperCase();
         phatEdgeSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PHAT_EDGE_SIZE, conf);
         movementBarrierSize = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MOVEMENT_BARRIER_SIZE, conf);
 

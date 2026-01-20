@@ -40,6 +40,29 @@ public abstract class FireflyCache {
 
     abstract public long getMissCount();
 
+    /**
+     * Returns the estimated number of entries in the cache.
+     *
+     * @return estimated entry count
+     */
+    abstract public long getEstimatedEntryCount();
+
+    /**
+     * Returns the weighted size of all entries in the cache.
+     * The weight is calculated based on the number of edges and properties per record.
+     *
+     * @return weighted size
+     */
+    abstract public long getWeightedSize();
+
+    /**
+     * Returns an estimated memory usage of the cache in bytes.
+     * This is an approximation based on the weighted size and average bytes per weight unit.
+     *
+     * @return estimated memory usage in bytes
+     */
+    abstract public long getEstimatedMemoryUsageBytes();
+
     @Override
     public String toString() {
         return "FireflyCache(" + uuid.toString() + ")";

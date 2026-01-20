@@ -120,6 +120,7 @@ public final class ConfigurationHelper {
         // Semi internal semi external configs
         public static final String AEROSPIKE_BATCH_PER_NODE_THRESHOLD = "aerospike.client.batch-threshold.per-node";
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
+        public static final String FIREFLY_READ_THROUGH_CACHE_MODE = "aerospike.graph.cache.mode";
         public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.index.update.frequency";
         public static final String CARDINALITY_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.cardinality.update.frequency";
         public static final String SUPERNODES_TRAVERSED_COUNTER_ENABLED = "aerospike.graph.supernodes-traversed-counter.enabled";
@@ -420,6 +421,7 @@ public final class ConfigurationHelper {
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "0");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE_PER_NODE, "20");
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
+        put(Keys.FIREFLY_READ_THROUGH_CACHE_MODE, "TRANSACTIONAL");
         put(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, "1");
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
         put(Keys.VERTEX_PROPERTY_STRING_INDEXES, "");

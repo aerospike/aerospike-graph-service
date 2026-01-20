@@ -39,12 +39,15 @@ public class TestFireflyBasicCall {
                     "aerospike.graph.admin.metadata.config",
                     "aerospike.graph.admin.metadata.set-config",
                     "aerospike.graph.admin.rbac-jwt.issue-token",
-                    "aerospike.graph.admin.query.abort"
+                    "aerospike.graph.admin.query.abort",
+                    "aerospike.graph.admin.cache.reset",
+                    "aerospike.graph.admin.cache.set_mode",
+                    "aerospike.graph.admin.cache.status"
             ), new HashSet<>(normalOutput));
 
             // The verbose output is a list of strings that looks like, note the innards of the list is straight up string:
             // [{"name":"aerospike.graph.admin.metadata.summary","type:[requirements]:":{"Start":[]},"params":{"pretty":"Pretty print the output."}}, {"name":"aerospike.graphloader.admin.bulk-load.load","type:[requirements]:":{"Start":[]},"params":{"See bulk loading documentation":"https://docs.aerospike.com/graph/usage/bulk-loader"}}]
-            for (final Object output: verboseOutput) {
+            for (final Object output : verboseOutput) {
                 final String outputString = (String) output;
                 final List<String> infoPieces = List.of(outputString.split(",")).stream().map(String::trim).collect(Collectors.toList());
 
@@ -75,8 +78,15 @@ public class TestFireflyBasicCall {
                     case "{\"name\":\"aerospike.graph.admin.index.list\"":
                     case "{\"name\":\"aerospike.graph.admin.index.cardinality\"":
                     case "{\"name\":\"aerospike.graph.admin.query.abort\"":
+                    case "{\"name\":\"aerospike.graph.admin.cache.reset\"":
+                    case "{\"name\":\"aerospike.graph.admin.cache.status\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{}}");
+                        break;
+                    case "{\"name\":\"aerospike.graph.admin.cache.set_mode\"":
+                        Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
+                        // set_mode has params for mode and cache_weight
+                        Assert.assertTrue(infoPieces.get(2).contains("\"params\":{"));
                         break;
                     case "{\"name\":\"aerospike.graph.admin.metadata.usage\"":
                     case "{\"name\":\"usage-stats\"":

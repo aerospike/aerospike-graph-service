@@ -111,6 +111,7 @@ public class MetadataServiceConfig<I, R> extends MetadataServiceBase<I, R> {
                 }
             }
         }
+
         completeConfig.put(GRAPH_PROPERTIES, configurationMap);
 
         try {

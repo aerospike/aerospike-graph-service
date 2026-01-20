@@ -16,6 +16,7 @@ aerospike-graph-gremlin/file:*
 
 #Visual Studio
 .vs
+.vscode
 
 # Log file
 *.log

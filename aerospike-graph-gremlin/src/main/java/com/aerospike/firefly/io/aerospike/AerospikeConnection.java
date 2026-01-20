@@ -155,8 +155,7 @@ public class AerospikeConnection implements AutoCloseable {
     public static final String CONFIG_VERSION_BIN = "CONFIG_VERSION";
     public static final String CONFIG_MAP_BIN = "CONFIG_MAP";
 
-    public final ThreadLocal<FireflyCache> transactionCache = new ThreadLocal<>();
-    public final ThreadLocal<FireflyCache> emptyPropsTransactionCache = new ThreadLocal<>();
+    public final CacheManager cacheManager = new CacheManager();
     public final ThreadLocal<ScanHitCounter> scanHitCounterThreadLocal = new ThreadLocal<>();
 
     public long lastQueryMissCount = 0; // For testing
@@ -216,7 +215,6 @@ public class AerospikeConnection implements AutoCloseable {
 
         try {
             aerospikeClient = new AerospikeClient(policy, hosts);
-
         } catch (final AerospikeException e) {
             LOG.error("Error connecting to Aerospike", e);
             throw fromAerospikeException(e);
@@ -292,6 +290,9 @@ public class AerospikeConnection implements AutoCloseable {
             refreshConfiguration();
         }
 
+        // Initialize cache mode from config (must be after config is loaded)
+        initializeCacheMode();
+
         // Actions must go after all setters are initialized
         initializeIdSet();
         schemaManager = new SchemaManager(this);
@@ -304,6 +305,25 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
+    /**
+     * Initialize cache mode from configuration.
+     * Validates and applies the configured cache mode (TRANSACTIONAL or GLOBAL).
+     */
+    private void initializeCacheMode() {
+        final String configuredMode = config.fireflyReadThroughCacheMode;
+        final long cacheWeight = config.fireflyReadThroughCacheWeight;
+
+        if ("GLOBAL".equals(configuredMode)) {
+            LOG.info("Initializing cache in GLOBAL mode with weight {} from configuration", cacheWeight);
+            cacheManager.setCacheMode(this, CacheManager.CacheMode.GLOBAL, cacheWeight);
+        } else if ("TRANSACTIONAL".equals(configuredMode)) {
+            LOG.info("Initializing cache in TRANSACTIONAL mode with weight {} from configuration", cacheWeight);
+            cacheManager.setCacheMode(this, CacheManager.CacheMode.TRANSACTIONAL, cacheWeight);
+        } else {
+            LOG.warn("Unknown cache mode '{}' in configuration, defaulting to TRANSACTIONAL. Valid values are: TRANSACTIONAL, GLOBAL", configuredMode);
+        }
+    }
+
     //////////////////////////////////////////
     // Dynamic configuration methods
     //////////////////////////////////////////
@@ -313,6 +333,9 @@ public class AerospikeConnection implements AutoCloseable {
         synchronized (configLock) {
             final Key key = new Key(config.namespace, config.graphMetadataSet, CONFIG_KEY);
             client.delete(null, key);
+
+            // Reset cache mode to default (TRANSACTIONAL)
+            cacheManager.setCacheMode(this, CacheManager.CacheMode.TRANSACTIONAL);
         }
     }
 
@@ -338,6 +361,9 @@ public class AerospikeConnection implements AutoCloseable {
             // version might be changed by other AGS instance
             final Map<String, Object> newConfig = (Map<String, Object>) updatedRecord.getList(CONFIG_MAP_BIN).get(1);
             this.config = this.config.update(new MapConfiguration(newConfig), this.client, ((Long) updatedRecord.getList(CONFIG_VERSION_BIN).get(1)).intValue());
+
+            // Apply cache mode changes if any
+            initializeCacheMode();
         }
     }
 
@@ -353,6 +379,9 @@ public class AerospikeConnection implements AutoCloseable {
 
             final Map<String, Object> newConfig = (Map<String, Object>) record.getMap(CONFIG_MAP_BIN);
             this.config = this.config.update(new MapConfiguration(newConfig), this.client, record.getInt(CONFIG_VERSION_BIN));
+
+            // Initialize cache mode from config
+            initializeCacheMode();
         }
     }
 
@@ -1671,14 +1700,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @return whether record existed on server before deletion
      */
     public boolean delete(final Key key, final Txn txn, final boolean txnOverride) {
-        final FireflyCache cache = transactionCache.get();
-        if (cache != null) {
-            cache.invalidate(key);
-        }
-        final FireflyCache noPropsCache = emptyPropsTransactionCache.get();
-        if (noPropsCache != null) {
-            noPropsCache.invalidate(key);
-        }
+        cacheManager.invalidate(key);
         final WritePolicy policy = new WritePolicy();
         policy.txn = txn;
         configureWritePolicy(policy);
@@ -2228,14 +2250,7 @@ public class AerospikeConnection implements AutoCloseable {
             policy.durableDelete = false;
         }
 
-        final FireflyCache cache = transactionCache.get();
-        final FireflyCache noPropsCache = emptyPropsTransactionCache.get();
-        if (cache != null) {
-            cache.invalidate(key);
-        }
-        if (noPropsCache != null) {
-            noPropsCache.invalidate(key);
-        }
+        cacheManager.invalidate(key);
 
         return operate(policy, key, suppressLogging, operations);
     }

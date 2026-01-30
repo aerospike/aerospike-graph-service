@@ -677,6 +677,23 @@ public class AerospikeConnection implements AutoCloseable {
             }
         }
 
+        public static List<String> disableSetIndex(final AerospikeConnection db, final String set) {
+            final IAerospikeClient client = db.client;
+            final String namespace = db.getConfig().namespace;
+            final String command = "set-config:context=namespace;id=" + namespace + ";set=" + set + ";enable-index=false";
+            final List<String> results = new ArrayList<>();
+            final InfoPolicy infoPolicy = new InfoPolicy();
+            db.setInfoPolicy(infoPolicy);
+            try {
+                for (final Node node : client.getNodes()) {
+                    results.add(Info.request(infoPolicy, node, command));
+                }
+                return results;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
         /**
          * Return list of usable indices in a list of map entries.
          *
@@ -1261,28 +1278,31 @@ public class AerospikeConnection implements AutoCloseable {
                     LOG.error("Error creating set index for metadata set: {}", index);
                 }
             }
-            setIndex = AerospikeConnection.InfoOps.createSetIndex(this, config.bulkLoadRecoveryVertexSet);
-            for (final String index : setIndex) {
-                if (!"ok".equals(index)) {
-                    LOG.error("Error creating set index for metadata set: {}", index);
+            // Need to double-check bulkLoaderFlag, so we only create when used by bulk loader.
+            if (config.bulkLoaderFlag) {
+                setIndex = AerospikeConnection.InfoOps.createSetIndex(this, config.bulkLoadRecoveryVertexSet);
+                for (final String index : setIndex) {
+                    if (!"ok".equals(index)) {
+                        LOG.error("Error creating set index for metadata set: {}", index);
+                    }
                 }
-            }
-            setIndex = AerospikeConnection.InfoOps.createSetIndex(this, config.bulkLoadRecoveryEdgeSet);
-            for (final String index : setIndex) {
-                if (!"ok".equals(index)) {
-                    LOG.error("Error creating set index for metadata set: {}", index);
+                setIndex = AerospikeConnection.InfoOps.createSetIndex(this, config.bulkLoadRecoveryEdgeSet);
+                for (final String index : setIndex) {
+                    if (!"ok".equals(index)) {
+                        LOG.error("Error creating set index for metadata set: {}", index);
+                    }
                 }
-            }
-            setIndex = AerospikeConnection.InfoOps.createSetIndex(this, config.bulkLoadBadEdgeSet);
-            for (final String index : setIndex) {
-                if (!"ok".equals(index)) {
-                    LOG.error("Error creating set index for metadata set: {}", index);
+                setIndex = AerospikeConnection.InfoOps.createSetIndex(this, config.bulkLoadBadEdgeSet);
+                for (final String index : setIndex) {
+                    if (!"ok".equals(index)) {
+                        LOG.error("Error creating set index for metadata set: {}", index);
+                    }
                 }
-            }
-            setIndex = AerospikeConnection.InfoOps.createSetIndex(this, config.bulkLoadRecoverySupernodeSet);
-            for (final String index : setIndex) {
-                if (!"ok".equals(index)) {
-                    LOG.error("Error creating set index for metadata set: {}", index);
+                setIndex = AerospikeConnection.InfoOps.createSetIndex(this, config.bulkLoadRecoverySupernodeSet);
+                for (final String index : setIndex) {
+                    if (!"ok".equals(index)) {
+                        LOG.error("Error creating set index for metadata set: {}", index);
+                    }
                 }
             }
 
@@ -1297,6 +1317,34 @@ public class AerospikeConnection implements AutoCloseable {
         if (config.eLabelIndexEnabledFlag) {
             // TODO GRAPH-438: Edge indexes.
             throw new RuntimeException("Edge indexes are not currently supported.");
+        }
+    }
+
+    public void disableBulkLoadSetIndexes() {
+        List<String> setIndex;
+        setIndex = AerospikeConnection.InfoOps.disableSetIndex(this, config.bulkLoadRecoveryVertexSet);
+        for (final String index : setIndex) {
+            if (!"ok".equals(index)) {
+                LOG.error("Error disabling set index for metadata set: {}", index);
+            }
+        }
+        setIndex = AerospikeConnection.InfoOps.disableSetIndex(this, config.bulkLoadRecoveryEdgeSet);
+        for (final String index : setIndex) {
+            if (!"ok".equals(index)) {
+                LOG.error("Error disabling set index for metadata set: {}", index);
+            }
+        }
+        setIndex = AerospikeConnection.InfoOps.disableSetIndex(this, config.bulkLoadBadEdgeSet);
+        for (final String index : setIndex) {
+            if (!"ok".equals(index)) {
+                LOG.error("Error disabling set index for metadata set: {}", index);
+            }
+        }
+        setIndex = AerospikeConnection.InfoOps.disableSetIndex(this, config.bulkLoadRecoverySupernodeSet);
+        for (final String index : setIndex) {
+            if (!"ok".equals(index)) {
+                LOG.error("Error disabling set index for metadata set: {}", index);
+            }
         }
     }
 

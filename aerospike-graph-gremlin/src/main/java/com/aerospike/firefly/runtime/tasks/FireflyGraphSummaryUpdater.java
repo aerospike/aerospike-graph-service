@@ -160,12 +160,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                     SHUTDOWN.set(false);
                     EXECUTOR_SERVICE.submit(getUpdateRunnable());
                 }
-                final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(db, db.getConfig().summarySet);
-                for (final String index : setIndex) {
-                    if (!"ok".equals(index)) {
-                        LOG.error("Error creating set index: {}", index);
-                    }
-                }
+                AerospikeConnection.InfoOps.createSetIndex(db, db.getConfig().summarySet);
             }
         }
     }

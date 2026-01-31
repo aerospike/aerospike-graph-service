@@ -18,6 +18,7 @@ public class SparkBulkLoaderStateCleanUp extends SparkBulkLoaderState {
         if (!sparkBulkLoaderStateMachine.readOnly) {
             sparkBulkLoaderStateMachine.edgeDataset.unpersist();
             RecoveryUtil.truncate(sparkBulkLoaderStateMachine.initializerGraph);
+            sparkBulkLoaderStateMachine.initializerGraph.getBaseGraph().disableBulkLoadSetIndexes();
         }
         if (sparkBulkLoaderStateMachine.incrementalLoad) {
             sparkBulkLoaderStateMachine.progressBar.latchMergeInfo();

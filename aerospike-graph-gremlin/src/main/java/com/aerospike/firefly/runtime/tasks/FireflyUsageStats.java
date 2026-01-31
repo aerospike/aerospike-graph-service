@@ -38,12 +38,7 @@ public class FireflyUsageStats {
 
     private void init(final AerospikeConnection connection) {
         if (connection.shouldCreateIndexes()) {
-            final List<String> setIndex = AerospikeConnection.InfoOps.createSetIndex(connection, connection.getConfig().usageStatsSet);
-            for (final String index : setIndex) {
-                if (!"ok".equals(index)) {
-                    LOG.error("Error creating set index: {}", index);
-                }
-            }
+            AerospikeConnection.InfoOps.createSetIndex(connection, connection.getConfig().usageStatsSet);
         }
 
         this.task = new FireflyUsageStatsTask(connection);

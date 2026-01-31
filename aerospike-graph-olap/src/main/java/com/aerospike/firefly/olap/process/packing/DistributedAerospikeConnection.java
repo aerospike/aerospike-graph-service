@@ -1,6 +1,5 @@
 package com.aerospike.firefly.olap.process.packing;
 
-
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.BatchRecord;
 import com.aerospike.client.BatchWrite;
@@ -150,17 +149,7 @@ public class DistributedAerospikeConnection {
 
         // Create index on job state if not exists.
         db.createIndex(existingIndexes, jobSet, db.getConfig().graphId + "_job_state_IDX", "state", IndexType.STRING, IndexCollectionType.DEFAULT);
-        createSetIndex(jobSet);
-    }
-
-    private void createSetIndex(final String setName) {
-        final List<String> results = AerospikeConnection.InfoOps.createSetIndex(db, setName);
-        for (final String result : results) {
-            if (!"ok".equals(result)) {
-                LOG.warn("Error creating set index {}: {}", setName, result);
-                break;
-            }
-        }
+        AerospikeConnection.InfoOps.createSetIndex(db, jobSet);
     }
 
     // Truncate OLAP set.

@@ -35,6 +35,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
+        env:
+          DOCKER_API_VERSION: "1.41"
       - name: Publish Container
         run: |
           # Install python_on_whales.
@@ -77,6 +79,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
+        env:
+          DOCKER_API_VERSION: "1.41"
 
       - name: Publish Container
         run: |
@@ -120,6 +124,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
+        env:
+          DOCKER_API_VERSION: "1.41"
 
       - name: Publish Container
         run: |
@@ -162,6 +168,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
+        env:
+          DOCKER_API_VERSION: "1.41"
 
       - name: Publish Container
         run: |
@@ -205,6 +213,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
+        env:
+          DOCKER_API_VERSION: "1.41"
 
       - name: Publish Container
         run: |
@@ -249,6 +259,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
+        env:
+          DOCKER_API_VERSION: "1.41"
 
       - name: Publish Container
         run: |

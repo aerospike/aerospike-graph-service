@@ -152,15 +152,12 @@ def build_docker(build_args, graph_jar, bulk_loader_jar, olap_jar):
                             build_args=docker_build_args,
                             build_contexts={},
                             file=docker_file,
-                            output={"type" : "oci"},
                             platforms=build_args.platforms,
                             load=not build_args.push, # Only load if not pushing. Cannot load multi-arch.
                             push=build_args.push,
                             tags=build_args.tags)
     except Exception as e:
-        if "OCI exporter is not supported for the docker driver" in str(e):
-            print("Failed to build. This is probably due to a missing dependency, try running " +\
-                  "'docker buildx create --use --driver docker-container' before running the script.")
+        print("Failed to build Docker image: {}".format(e))
         raise e
 
 

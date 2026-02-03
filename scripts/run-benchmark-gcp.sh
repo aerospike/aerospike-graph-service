@@ -11,9 +11,6 @@ pip3 install python_on_whales
 
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
-mkdir -p ~/.docker/cli-plugins
-curl -SL https://github.com/docker/buildx/releases/download/v0.18.0/buildx-v0.18.0.linux-amd64 -o ~/.docker/cli-plugins/docker-buildx
-chmod +x ~/.docker/cli-plugins/docker-buildx
 
 # Extract Firefly Repo
 sudo tar -zxvf firefly.tgz

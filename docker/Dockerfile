@@ -1,4 +1,4 @@
-FROM alpine:3.22 AS build
+FROM alpine:latest AS build
 
 # Set input arguments.
 ARG FIREFLY_GRAPH
@@ -29,7 +29,7 @@ WORKDIR /opt
 # For Windows users fix for line endings
 RUN dos2unix /opt/scripts/gremlin-server-docker.sh /opt/scripts/firefly-server.sh
 
-FROM alpine:3.22 AS main
+FROM alpine:latest AS main
 
 # Set environment variables.
 ENV CONF_DIR="/opt/conf"

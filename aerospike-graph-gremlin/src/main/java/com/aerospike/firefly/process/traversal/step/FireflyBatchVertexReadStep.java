@@ -39,6 +39,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.process.traversal.step.util.TraversalUtil.fireflyTestAll;
@@ -112,44 +113,57 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
             t.setDaemon(true);
             return t;
         });
-        final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
-        FireflyBatchReadHelper.pullFromLeft(traversal, graph, set, barrierSize);
+        try {
+            final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
+            FireflyBatchReadHelper.pullFromLeft(traversal, graph, set, barrierSize);
 
-        // Info is used to keep track of how many output items we assign for each input (executed in order).
-        final Map<FireflyId, FireflyVertex> fireflyVertexMap = new ConcurrentHashMap<>();
-        final Map<Element, List<FireflyId>> duplicateIdMap = new HashMap<>();
-        final Map<Element, Future<Iterator<FireflyId>>> futures = new HashMap<>();
-        final List<Pair<Element, Traverser.Admin<?>>> orderedElements = new ArrayList<>();
+            // Info is used to keep track of how many output items we assign for each input (executed in order).
+            final Map<FireflyId, FireflyVertex> fireflyVertexMap = new ConcurrentHashMap<>();
+            final Map<Element, List<FireflyId>> duplicateIdMap = new HashMap<>();
+            final Map<Element, Future<Iterator<FireflyId>>> futures = new HashMap<>();
+            final List<Pair<Element, Traverser.Admin<?>>> orderedElements = new ArrayList<>();
 
-        // Run through initial set, kick off indexes in background on supernodes and grab ids for batch reading.
-        while (!set.isEmpty()) {
-            // Get next input traverser and get the FireflyVertex form of it.
-            final Traverser.Admin<Vertex> traverser = set.remove();
-            final FireflyVertex vertex = (FireflyVertex) traverser.get();
-            orderedElements.add(new Pair<>(vertex, traverser));
+            // Run through initial set, kick off indexes in background on supernodes and grab ids for batch reading.
+            while (!set.isEmpty()) {
+                // Get next input traverser and get the FireflyVertex form of it.
+                final Traverser.Admin<Vertex> traverser = set.remove();
+                final FireflyVertex vertex = (FireflyVertex) traverser.get();
+                orderedElements.add(new Pair<>(vertex, traverser));
 
-            // Latch the size of the current id list.
-            if (vertex.isEdgeCacheOverflowed()) {
-                if (!futures.containsKey(vertex)) {
-                    futures.put(vertex, executorService.submit(() -> vertex.getVertexIdsFromVertex(direction, edgeLabels)));
-                }
-            } else {
-                if (!duplicateIdMap.containsKey(vertex) || duplicateIdMap.get(vertex) == null) {
-                    final List<FireflyId> ids = getFilteredIds(vertex);
-                    duplicateIdMap.put(vertex, ids);
+                // Latch the size of the current id list.
+                if (vertex.isEdgeCacheOverflowed()) {
+                    if (!futures.containsKey(vertex)) {
+                        futures.put(vertex, executorService.submit(() -> vertex.getVertexIdsFromVertex(direction, edgeLabels)));
+                    }
+                } else {
+                    if (!duplicateIdMap.containsKey(vertex) || duplicateIdMap.get(vertex) == null) {
+                        final List<FireflyId> ids = getFilteredIds(vertex);
+                        duplicateIdMap.put(vertex, ids);
+                    }
                 }
             }
-        }
 
-        // Run batch reads in background while indexes are running.
-        final Set<FireflyId> uniqueIds = new HashSet<>();
-        final List<Future<?>> batchReadFutures = new ArrayList<>();
-        for (final List<FireflyId> entry : duplicateIdMap.values()) {
-            for (final FireflyId id : entry) {
-                if (!fireflyVertexMap.containsKey(id))
-                    uniqueIds.add(id);
+            // Run batch reads in background while indexes are running.
+            final Set<FireflyId> uniqueIds = new HashSet<>();
+            final List<Future<?>> batchReadFutures = new ArrayList<>();
+            for (final List<FireflyId> entry : duplicateIdMap.values()) {
+                for (final FireflyId id : entry) {
+                    if (!fireflyVertexMap.containsKey(id))
+                        uniqueIds.add(id);
+                }
+                if (uniqueIds.size() > graph.getBaseGraph().getConfig().aerospikeBatchReadSize) {
+                    final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
+                    batchReadFutures.add(executorService.submit(() -> {
+                                final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, areEdgesRequired);
+                                for (final FireflyVertex vertex : vertices) {
+                                    fireflyVertexMap.put(vertex.id, vertex);
+                                }
+                            }
+                    ));
+                    uniqueIds.clear();
+                }
             }
-            if (uniqueIds.size() > graph.getBaseGraph().getConfig().aerospikeBatchReadSize) {
+            if (!uniqueIds.isEmpty()) {
                 final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
                 batchReadFutures.add(executorService.submit(() -> {
                             final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, areEdgesRequired);
@@ -158,92 +172,91 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
                             }
                         }
                 ));
-                uniqueIds.clear();
             }
-        }
-        if (!uniqueIds.isEmpty()) {
-            final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
-            batchReadFutures.add(executorService.submit(() -> {
-                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, areEdgesRequired);
-                        for (final FireflyVertex vertex : vertices) {
-                            fireflyVertexMap.put(vertex.id, vertex);
-                        }
-                    }
-            ));
-        }
 
-        while (!futures.isEmpty()) {
-            final Iterator<Map.Entry<Element, Future<Iterator<FireflyId>>>> iterator = futures.entrySet().iterator();
-            while (iterator.hasNext()) {
-                final Map.Entry<Element, Future<Iterator<FireflyId>>> entry = iterator.next();
-                if (entry.getValue().isDone()) {
-                    try {
-                        final Iterator<FireflyId> ids = entry.getValue().get();
-                        final List<FireflyId> idsList = new ArrayList<>();
-                        while (ids.hasNext()) {
-                            final FireflyId id = ids.next();
-                            idsList.add(id);
-                            if (!fireflyVertexMap.containsKey(id))
-                                uniqueIds.add(id);
-                        }
-                        duplicateIdMap.putIfAbsent(entry.getKey(), idsList);
-                        if (uniqueIds.size() > graph.getBaseGraph().getConfig().aerospikeBatchReadSize) {
-                            final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
-                            batchReadFutures.add(executorService.submit(() -> {
-                                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, areEdgesRequired);
-                                        for (final FireflyVertex vertex : vertices) {
-                                            fireflyVertexMap.putIfAbsent(vertex.id, vertex);
+            while (!futures.isEmpty()) {
+                final Iterator<Map.Entry<Element, Future<Iterator<FireflyId>>>> iterator = futures.entrySet().iterator();
+                while (iterator.hasNext()) {
+                    final Map.Entry<Element, Future<Iterator<FireflyId>>> entry = iterator.next();
+                    if (entry.getValue().isDone()) {
+                        try {
+                            final Iterator<FireflyId> ids = entry.getValue().get();
+                            final List<FireflyId> idsList = new ArrayList<>();
+                            while (ids.hasNext()) {
+                                final FireflyId id = ids.next();
+                                idsList.add(id);
+                                if (!fireflyVertexMap.containsKey(id))
+                                    uniqueIds.add(id);
+                            }
+                            duplicateIdMap.putIfAbsent(entry.getKey(), idsList);
+                            if (uniqueIds.size() > graph.getBaseGraph().getConfig().aerospikeBatchReadSize) {
+                                final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
+                                batchReadFutures.add(executorService.submit(() -> {
+                                            final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, areEdgesRequired);
+                                            for (final FireflyVertex vertex : vertices) {
+                                                fireflyVertexMap.putIfAbsent(vertex.id, vertex);
+                                            }
                                         }
-                                    }
-                            ));
-                            uniqueIds.clear();
+                                ));
+                                uniqueIds.clear();
+                            }
+                            iterator.remove();
+                        } catch (final InterruptedException e) {
+                            throw new TraversalInterruptedException();
+                        } catch (final ExecutionException e) {
+                            sneakyThrow(e);
                         }
-                        iterator.remove();
-                    } catch (final InterruptedException e) {
-                        throw new TraversalInterruptedException();
-                    } catch (final ExecutionException e) {
-                        sneakyThrow(e);
                     }
                 }
             }
-        }
-        if (!uniqueIds.isEmpty()) {
-            final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
-            batchReadFutures.add(executorService.submit(() -> {
-                        final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, areEdgesRequired);
-                        for (final FireflyVertex vertex : vertices) {
-                            fireflyVertexMap.put(vertex.id, vertex);
+            if (!uniqueIds.isEmpty()) {
+                final List<FireflyId> idsToRead = new ArrayList<>(uniqueIds);
+                batchReadFutures.add(executorService.submit(() -> {
+                            final List<FireflyVertex> vertices = graph.readVertices(aerospikeHasContainers, idsToRead, requiredProperties, areEdgesRequired);
+                            for (final FireflyVertex vertex : vertices) {
+                                fireflyVertexMap.put(vertex.id, vertex);
+                            }
                         }
-                    }
-            ));
-        }
-
-        // Wait for batch reads to finish before processing output.
-        try {
-            for (final Future<?> future : batchReadFutures) {
-                future.get();
+                ));
             }
-        } catch (final InterruptedException e) {
-            throw new TraversalInterruptedException();
-        } catch (final ExecutionException e) {
-            sneakyThrow(e);
-        }
 
-        // All the data is now in the fireflyVertexMap, process the output.
-        for (final Pair<Element, Traverser.Admin<?>> pair : orderedElements) {
-            final Element element = pair.getValue0();
-            final Traverser.Admin traverser = pair.getValue1();
-            final List<FireflyId> ids = duplicateIdMap.get(element);
-            final List<FireflyVertex> vertices = ids.stream().map(fireflyVertexMap::get).collect(Collectors.toList());
-            for (final FireflyVertex vertex : vertices) {
-                if (vertex != null && fireflyTestAll(vertex, fireflyHasContainers)) {
-                    set.add(traverser.split(vertex, this));
+            // Wait for batch reads to finish before processing output.
+            try {
+                for (final Future<?> future : batchReadFutures) {
+                    future.get();
+                }
+            } catch (final InterruptedException e) {
+                throw new TraversalInterruptedException();
+            } catch (final ExecutionException e) {
+                sneakyThrow(e);
+            }
+
+            // All the data is now in the fireflyVertexMap, process the output.
+            for (final Pair<Element, Traverser.Admin<?>> pair : orderedElements) {
+                final Element element = pair.getValue0();
+                final Traverser.Admin traverser = pair.getValue1();
+                final List<FireflyId> ids = duplicateIdMap.get(element);
+                final List<FireflyVertex> vertices = ids.stream().map(fireflyVertexMap::get).collect(Collectors.toList());
+                for (final FireflyVertex vertex : vertices) {
+                    if (vertex != null && fireflyTestAll(vertex, fireflyHasContainers)) {
+                        set.add(traverser.split(vertex, this));
+                    }
                 }
             }
-        }
 
-        if (set.isEmpty()) {
-            set.add(EmptyTraverser.instance());
+            if (set.isEmpty()) {
+                set.add(EmptyTraverser.instance());
+            }
+        } finally {
+            executorService.shutdown();
+            try {
+                if (!executorService.awaitTermination(1, TimeUnit.SECONDS)) {
+                    executorService.shutdownNow();
+                }
+            } catch (final InterruptedException e) {
+                executorService.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
         }
     }
 

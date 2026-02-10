@@ -3,3 +3,10 @@ target/
 docker/
 scripts/build-docker.sh
 scripts/build-docker.py
+
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/.pytest_cache/
+**/.mypy_cache/
+docker-runtime-scripts/tests/

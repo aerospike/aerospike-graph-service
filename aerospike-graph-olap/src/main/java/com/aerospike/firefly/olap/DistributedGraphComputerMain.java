@@ -86,7 +86,7 @@ public class DistributedGraphComputerMain {
             System.exit(1);
         }
 
-        final String pythonScriptPath = readJarFileWriteToTemp("scripts", "configure_aerospike_graph.py");
+        final String pythonScriptPath = readJarFileWriteToTemp("scripts/graph_config", "configure_aerospike_graph.py");
         final String serverYamlPath = readJarFileWriteToTemp("scripts", "flattened-default-gremlin-server.yaml");
         final String tempDirectory = System.getProperty("java.io.tmpdir") + File.separator + "aerospike-graph-olap" + File.separator;
         final String outputServerYaml = tempDirectory + "gremlin-server.yaml";

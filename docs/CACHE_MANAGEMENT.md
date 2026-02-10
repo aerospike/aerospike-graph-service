@@ -7,7 +7,9 @@ Aerospike Graph Service provides cache management services to control caching be
 The cache supports two modes:
 
 - **TRANSACTIONAL** (default): Thread-local caches that are reset on each new traversal. Best for typical OLTP workloads where each query should start fresh.
-- **GLOBAL**: Static caches shared across all threads and operations. Caches are not reset between traversals. Best for read-heavy workloads with repeated access to the same data.
+- **GLOBAL**: Caches shared across threads within a graph instance. Caches are not reset between traversals. Best for read-heavy workloads with repeated access to the same data.
+
+Each graph instance maintains its own caches. Switching cache modes on one graph does not affect caches in other graphs.
 
 ## Cache Weight
 
@@ -56,18 +58,18 @@ Changes the cache mode at runtime.
 
 ```gremlin
 // Switch to GLOBAL mode with default weight (20 MB)
-g.call("aerospike.graph.admin.cache.set_mode")
+g.call("aerospike.graph.admin.cache.set-mode")
   .with("mode", "GLOBAL")
   .next()
 
 // Switch to GLOBAL mode with custom weight (50 MB)
-g.call("aerospike.graph.admin.cache.set_mode")
+g.call("aerospike.graph.admin.cache.set-mode")
   .with("mode", "GLOBAL")
   .with("cache_weight", "50000000")
   .next()
 
 // Switch back to TRANSACTIONAL mode
-g.call("aerospike.graph.admin.cache.set_mode")
+g.call("aerospike.graph.admin.cache.set-mode")
   .with("mode", "TRANSACTIONAL")
   .next()
 ```
@@ -131,8 +133,8 @@ The cache services are also available via HTTP REST endpoints:
 | Endpoint | Description |
 |----------|-------------|
 | `GET /<graphId>/admin/cache/status` | Get cache status |
-| `GET /<graphId>/admin/cache/set_mode?mode=GLOBAL` | Set cache mode |
-| `GET /<graphId>/admin/cache/set_mode?mode=GLOBAL&cache_weight=50000000` | Set cache mode with custom weight |
+| `GET /<graphId>/admin/cache/set-mode?mode=GLOBAL` | Set cache mode |
+| `GET /<graphId>/admin/cache/set-mode?mode=GLOBAL&cache_weight=50000000` | Set cache mode with custom weight |
 | `GET /<graphId>/admin/cache/reset` | Reset cache |
 
 ## Use Cases
@@ -143,7 +145,7 @@ For applications with repeated reads of the same vertices/edges, GLOBAL mode can
 
 ```gremlin
 // Enable global caching with 50 MB cache
-g.call("aerospike.graph.admin.cache.set_mode")
+g.call("aerospike.graph.admin.cache.set-mode")
   .with("mode", "GLOBAL")
   .with("cache_weight", "50000000")
   .next()

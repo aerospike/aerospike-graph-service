@@ -107,17 +107,17 @@ public class CacheManager {
     private final ThreadLocal<FireflyCache> transactionalCache = new ThreadLocal<>();
     private final ThreadLocal<FireflyCache> transactionalEmptyPropsCache = new ThreadLocal<>();
 
-    // Static caches for GLOBAL mode
-    private static volatile FireflyCache globalCache;
-    private static volatile FireflyCache globalEmptyPropsCache;
+    // Caches for GLOBAL mode (per graph)
+    private volatile FireflyCache globalCache;
+    private volatile FireflyCache globalEmptyPropsCache;
 
     // Cache for supernode edge IDs (only used in GLOBAL mode)
     // Key: SupernodeEdgeCacheKey (vertexId + direction + labels)
     // Value: List of edge IDs from secondary index query
-    private static volatile Cache<SupernodeEdgeCacheKey, List<FireflyId>> globalSupernodeEdgeIdCache;
+    private volatile Cache<SupernodeEdgeCacheKey, List<FireflyId>> globalSupernodeEdgeIdCache;
 
     // Track total number of cached edge IDs for memory estimation
-    private static volatile long totalCachedSupernodeEdgeIds = 0;
+    private volatile long totalCachedSupernodeEdgeIds = 0;
 
     private CacheMode cacheMode = CacheMode.TRANSACTIONAL;
     private long cacheWeight = DEFAULT_TRANSACTIONAL_CACHE_WEIGHT;

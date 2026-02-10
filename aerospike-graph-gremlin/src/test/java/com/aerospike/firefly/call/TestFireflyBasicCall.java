@@ -41,7 +41,7 @@ public class TestFireflyBasicCall {
                     "aerospike.graph.admin.rbac-jwt.issue-token",
                     "aerospike.graph.admin.query.abort",
                     "aerospike.graph.admin.cache.reset",
-                    "aerospike.graph.admin.cache.set_mode",
+                    "aerospike.graph.admin.cache.set-mode",
                     "aerospike.graph.admin.cache.status"
             ), new HashSet<>(normalOutput));
 
@@ -83,7 +83,7 @@ public class TestFireflyBasicCall {
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{}}");
                         break;
-                    case "{\"name\":\"aerospike.graph.admin.cache.set_mode\"":
+                    case "{\"name\":\"aerospike.graph.admin.cache.set-mode\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         // set_mode has params for mode and cache_weight
                         Assert.assertTrue(infoPieces.get(2).contains("\"params\":{"));

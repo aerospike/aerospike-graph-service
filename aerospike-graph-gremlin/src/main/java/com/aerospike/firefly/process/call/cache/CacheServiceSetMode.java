@@ -13,7 +13,7 @@ import java.util.Map;
  * <p>
  * Usage:
  * <pre>
- * g.call("aerospike.graph.admin.cache.set_mode")
+ * g.call("aerospike.graph.admin.cache.set-mode")
  *   .with("mode", "GLOBAL")
  *   .with("cache_weight", "20000000")  // optional, default 1M for TRANSACTIONAL, 20M for GLOBAL
  *   .next();
@@ -33,7 +33,7 @@ public class CacheServiceSetMode<I, R> extends CacheServiceBase<I, R> {
 
     @Override
     protected String getAdminServiceName() {
-        return "set_mode";
+        return "set-mode";
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.call.cache;
 
 import com.aerospike.firefly.io.aerospike.CacheManager.CacheMode;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -57,7 +58,7 @@ public class CacheServiceTest extends AbstractFireflySuite {
         final GraphTraversalSource g = graph.traversal();
 
         // Use GLOBAL mode so cache persists between traversals
-        g.call("aerospike.graph.admin.cache.set_mode").with("mode", "GLOBAL").next();
+        g.call("aerospike.graph.admin.cache.set-mode").with("mode", "GLOBAL").next();
 
         // Populate data and execute traversal
         final Graph tg = TinkerFactory.createModern();
@@ -78,7 +79,7 @@ public class CacheServiceTest extends AbstractFireflySuite {
         final GraphTraversalSource g = graph.traversal();
 
         // Set mode to GLOBAL
-        final Map<String, Object> result = (Map<String, Object>) g.call("aerospike.graph.admin.cache.set_mode")
+        final Map<String, Object> result = (Map<String, Object>) g.call("aerospike.graph.admin.cache.set-mode")
                 .with("mode", "GLOBAL")
                 .next();
 
@@ -99,10 +100,10 @@ public class CacheServiceTest extends AbstractFireflySuite {
         final GraphTraversalSource g = graph.traversal();
 
         // First switch to GLOBAL
-        g.call("aerospike.graph.admin.cache.set_mode").with("mode", "GLOBAL").next();
+        g.call("aerospike.graph.admin.cache.set-mode").with("mode", "GLOBAL").next();
 
         // Then switch back to TRANSACTIONAL
-        final Map<String, Object> result = (Map<String, Object>) g.call("aerospike.graph.admin.cache.set_mode")
+        final Map<String, Object> result = (Map<String, Object>) g.call("aerospike.graph.admin.cache.set-mode")
                 .with("mode", "TRANSACTIONAL")
                 .next();
 
@@ -118,7 +119,7 @@ public class CacheServiceTest extends AbstractFireflySuite {
         final GraphTraversalSource g = graph.traversal();
 
         // Set mode to GLOBAL with custom weight (50 million)
-        final Map<String, Object> result = (Map<String, Object>) g.call("aerospike.graph.admin.cache.set_mode")
+        final Map<String, Object> result = (Map<String, Object>) g.call("aerospike.graph.admin.cache.set-mode")
                 .with("mode", "GLOBAL")
                 .with("cache_weight", "50000000")
                 .next();
@@ -139,16 +140,40 @@ public class CacheServiceTest extends AbstractFireflySuite {
         final GraphTraversalSource g = graph.traversal();
 
         // Test lowercase
-        Map<String, Object> result = (Map<String, Object>) g.call("aerospike.graph.admin.cache.set_mode")
+        Map<String, Object> result = (Map<String, Object>) g.call("aerospike.graph.admin.cache.set-mode")
                 .with("mode", "global")
                 .next();
         Assert.assertEquals("GLOBAL", result.get("current_mode"));
 
         // Test mixed case
-        result = (Map<String, Object>) g.call("aerospike.graph.admin.cache.set_mode")
+        result = (Map<String, Object>) g.call("aerospike.graph.admin.cache.set-mode")
                 .with("mode", "Transactional")
                 .next();
         Assert.assertEquals("TRANSACTIONAL", result.get("current_mode"));
+    }
+
+    @Test
+    public void testCacheModeChangeDoesNotAffectOtherGraphs() {
+        final GraphTraversalSource g1 = graph.traversal();
+
+        g1.call("aerospike.graph.admin.cache.set-mode").with("mode", "GLOBAL").next();
+
+        final Graph tg = TinkerFactory.createModern();
+        GraphHelper.cloneElements(tg, graph);
+        g1.V().toList();
+
+        final Map<String, Object> statusBefore = (Map<String, Object>) g1.call("aerospike.graph.admin.cache.status").next();
+        Assert.assertEquals("GLOBAL", statusBefore.get("mode"));
+        Assert.assertTrue("Global cache should have entries", (Long) statusBefore.get("estimated_entry_count") > 0);
+
+        try (FireflyGraph graph2 = FireflyGraph.open(config)) {
+            final GraphTraversalSource g2 = graph2.traversal();
+            g2.call("aerospike.graph.admin.cache.set-mode").with("mode", "TRANSACTIONAL").next();
+
+            final Map<String, Object> statusAfter = (Map<String, Object>) g1.call("aerospike.graph.admin.cache.status").next();
+            Assert.assertEquals("GLOBAL", statusAfter.get("mode"));
+            Assert.assertTrue("Global cache should remain populated", (Long) statusAfter.get("estimated_entry_count") > 0);
+        }
     }
 
     @Test
@@ -173,7 +198,7 @@ public class CacheServiceTest extends AbstractFireflySuite {
         final GraphTraversalSource g = graph.traversal();
 
         // Switch to GLOBAL mode
-        g.call("aerospike.graph.admin.cache.set_mode").with("mode", "GLOBAL").next();
+        g.call("aerospike.graph.admin.cache.set-mode").with("mode", "GLOBAL").next();
 
         // Populate cache
         final Graph tg = TinkerFactory.createModern();
@@ -200,7 +225,7 @@ public class CacheServiceTest extends AbstractFireflySuite {
         final GraphTraversalSource g = graph.traversal();
 
         // Switch to GLOBAL mode
-        g.call("aerospike.graph.admin.cache.set_mode").with("mode", "GLOBAL").next();
+        g.call("aerospike.graph.admin.cache.set-mode").with("mode", "GLOBAL").next();
 
         // Get status
         Map<String, Object> status = (Map<String, Object>) g.call("aerospike.graph.admin.cache.status").next();
@@ -223,7 +248,7 @@ public class CacheServiceTest extends AbstractFireflySuite {
     @Test(expected = IllegalArgumentException.class)
     public void testCacheServiceSetModeInvalidMode() {
         final GraphTraversalSource g = graph.traversal();
-        g.call("aerospike.graph.admin.cache.set_mode")
+        g.call("aerospike.graph.admin.cache.set-mode")
                 .with("mode", "INVALID")
                 .next();
     }
@@ -231,13 +256,13 @@ public class CacheServiceTest extends AbstractFireflySuite {
     @Test(expected = IllegalArgumentException.class)
     public void testCacheServiceSetModeMissingParameter() {
         final GraphTraversalSource g = graph.traversal();
-        g.call("aerospike.graph.admin.cache.set_mode").next();
+        g.call("aerospike.graph.admin.cache.set-mode").next();
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testCacheServiceSetModeInvalidWeight() {
         final GraphTraversalSource g = graph.traversal();
-        g.call("aerospike.graph.admin.cache.set_mode")
+        g.call("aerospike.graph.admin.cache.set-mode")
                 .with("mode", "GLOBAL")
                 .with("cache_weight", "not_a_number")
                 .next();
@@ -246,7 +271,7 @@ public class CacheServiceTest extends AbstractFireflySuite {
     @Test(expected = IllegalArgumentException.class)
     public void testCacheServiceSetModeNegativeWeight() {
         final GraphTraversalSource g = graph.traversal();
-        g.call("aerospike.graph.admin.cache.set_mode")
+        g.call("aerospike.graph.admin.cache.set-mode")
                 .with("mode", "GLOBAL")
                 .with("cache_weight", "-1")
                 .next();
@@ -277,7 +302,7 @@ public class CacheServiceTest extends AbstractFireflySuite {
         GraphHelper.cloneElements(tg, graph);
 
         // Switch to GLOBAL mode
-        g.call("aerospike.graph.admin.cache.set_mode").with("mode", "GLOBAL").next();
+        g.call("aerospike.graph.admin.cache.set-mode").with("mode", "GLOBAL").next();
 
         // First traversal
         g.V().has("name", "marko").out().local(__.out().count()).toList();
@@ -302,14 +327,14 @@ public class CacheServiceTest extends AbstractFireflySuite {
         GraphHelper.cloneElements(tg, graph);
 
         // Switch to GLOBAL mode and populate cache
-        g.call("aerospike.graph.admin.cache.set_mode").with("mode", "GLOBAL").next();
+        g.call("aerospike.graph.admin.cache.set-mode").with("mode", "GLOBAL").next();
         g.V().has("name", "marko").out().local(__.out().count()).toList();
 
         Map<String, Object> statusGlobal = (Map<String, Object>) g.call("aerospike.graph.admin.cache.status").next();
         Assert.assertTrue("Global cache should have entries", (Long) statusGlobal.get("estimated_entry_count") > 0);
 
         // Switch back to TRANSACTIONAL - cache should be cleared
-        g.call("aerospike.graph.admin.cache.set_mode").with("mode", "TRANSACTIONAL").next();
+        g.call("aerospike.graph.admin.cache.set-mode").with("mode", "TRANSACTIONAL").next();
         Map<String, Object> statusTxn = (Map<String, Object>) g.call("aerospike.graph.admin.cache.status").next();
         Assert.assertEquals("TRANSACTIONAL", statusTxn.get("mode"));
         // Transactional cache is not initialized yet, so count should be 0
@@ -325,7 +350,7 @@ public class CacheServiceTest extends AbstractFireflySuite {
         GraphHelper.cloneElements(tg, graph);
 
         // Switch to GLOBAL mode
-        g.call("aerospike.graph.admin.cache.set_mode").with("mode", "GLOBAL").next();
+        g.call("aerospike.graph.admin.cache.set-mode").with("mode", "GLOBAL").next();
 
         // Execute traversal that touches all vertices
         // g.V().both().both().path().count() traverses all vertices and produces 30 paths

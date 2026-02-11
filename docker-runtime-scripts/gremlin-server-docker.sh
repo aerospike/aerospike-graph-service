@@ -2,12 +2,14 @@
 
 # This is used by the Dockerfile. It is not intended to be run directly.
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Generate properties file and gremlin-server yaml file.
 # Inputs are: input_properties_file_path, input_yaml_file_path, output_properties_file_path, output_yaml_file_path, output_java_options_file_path.
 # Note, input_properties_file_path is the same as output_properties_file_path, we just override it as we complete the config.
 # Also we run this script regardless of whether or not the user supplied a custom file. This is because we want to get the memory
 # configurations from the environment variables.
-python3 scripts/configure_aerospike_graph.py "/opt/aerospike-graph/aerospike-graph.properties" \
+python3 "$SCRIPT_DIR/graph_config/configure_aerospike_graph.py" "/opt/aerospike-graph/aerospike-graph.properties" \
     "$CONF_DIR/flattened-default-gremlin-server.yaml" \
     "$OUTPUT_SERVER_YAML" \
     "$CONF_DIR" \
@@ -70,7 +72,7 @@ trap stop_server TERM
     export GREMLIN_SERVER_YAML_PATH=$OUTPUT_SERVER_YAML
   fi
 
-  scripts/firefly-server.sh $GREMLIN_SERVER_YAML_PATH
+  "$SCRIPT_DIR/firefly-server.sh" $GREMLIN_SERVER_YAML_PATH
 ) <&0 &
 child_pid=$!
 

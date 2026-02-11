@@ -1,5 +1,8 @@
 .github/
 target/
 docker/
-scripts/build-docker.sh
-scripts/build-docker.py
+
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/

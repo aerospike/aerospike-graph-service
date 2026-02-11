@@ -19,7 +19,9 @@ COPY ${BULKLOADER} /opt/bulk-loader.jar
 #COPY ${OLAP} /opt/olap.jar
 COPY conf/logback.xml ${CONF_DIR}/logback.xml
 COPY conf/docker-default/flattened-default-gremlin-server.yaml ${CONF_DIR}/flattened-default-gremlin-server.yaml
-COPY docker-runtime-scripts /opt/scripts
+COPY docker-runtime-scripts/gremlin-server-docker.sh /opt/scripts/gremlin-server-docker.sh
+COPY docker-runtime-scripts/firefly-server.sh /opt/scripts/firefly-server.sh
+COPY docker-runtime-scripts/graph_config/configure_aerospike_graph.py /opt/scripts/graph_config/configure_aerospike_graph.py
 COPY .git .git
 
 RUN apk del xz tar

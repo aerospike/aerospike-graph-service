@@ -303,7 +303,7 @@
             <resource>
                 <directory>${basedir}/../docker-runtime-scripts</directory>
                 <includes>
-                    <include>configure_aerospike_graph.py</include>
+                    <include>graph_config/configure_aerospike_graph.py</include>
                 </includes>
                 <targetPath>scripts</targetPath>
             </resource>

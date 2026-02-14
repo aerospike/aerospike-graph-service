@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
@@ -176,7 +177,8 @@ public class AerospikeConnectionConfig {
     public final boolean usageStatsSetIndexEnabled;
 
     public final String queryImpl;
-    public final boolean scanQueryAllowed;
+    private final boolean scanQueryAllowed;
+    private final ThreadLocal<Boolean> allowScanTraversalOption = ThreadLocal.withInitial(() -> null);
 
     public final boolean compress;
     public final int aerospikeMaxRetries;
@@ -363,7 +365,7 @@ public class AerospikeConnectionConfig {
         prometheusRenameEnabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.PROMETHEUS_RENAME, conf);
 
         queryImpl = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.QUERY_IMPL, conf);
-        scanQueryAllowed = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, conf);
+        scanQueryAllowed = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SCAN_QUERY_ENABLED, conf);
 
         compress = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AEROSPIKE_COMPRESS, conf);
         aerospikeMaxRetries = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_MAX_RETRIES, conf);
@@ -430,6 +432,28 @@ public class AerospikeConnectionConfig {
 
     public MapConfiguration getRawConfig() {
         return conf;
+    }
+
+    public boolean isScanQueryAllowed() {
+        if (this.olapEnabledFlag || this.bulkLoaderFlag || this.warmupMode) {
+            // Special runtime situations that scans should always allow.
+            return true;
+        }
+
+        final Boolean allowScanOption = this.allowScanTraversalOption.get();
+        if (allowScanOption != null) {
+            return allowScanOption;
+        } else {
+            return this.scanQueryAllowed;
+        }
+    }
+
+    public void setAllowScanTraversalOption(final Boolean allowScan) {
+        this.allowScanTraversalOption.set(allowScan);
+    }
+
+    public void clearAllowScanTraversalOption() {
+        this.allowScanTraversalOption.remove();
     }
 
     public void validate(final AerospikeConnection connection) {

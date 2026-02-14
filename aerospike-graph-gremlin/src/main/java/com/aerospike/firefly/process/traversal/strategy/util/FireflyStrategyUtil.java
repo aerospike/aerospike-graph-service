@@ -20,6 +20,7 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyRead
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflySchemaResetStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyVertexEdgeLocalCountStrategy;
+import com.aerospike.firefly.process.traversal.strategy.options.FireflyTraversalOptionsStrategy;
 import com.aerospike.firefly.process.traversal.strategy.profile.FireflyQueryTracingStrategy;
 import com.aerospike.firefly.process.traversal.strategy.profile.FireflyScanProfileStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
@@ -38,6 +39,9 @@ public class FireflyStrategyUtil {
     static {
         // Perform auth strategy before we mutate anything.
         FIREFLY_STRATEGIES.add(new FireflyAuthenticationStrategy());
+
+        // Apply relevant TraversalOptions to Firefly.
+        FIREFLY_STRATEGIES.add(new FireflyTraversalOptionsStrategy());
 
         // Steps that override the entire step list first.
         FIREFLY_STRATEGIES.add(new FireflyGraphDropStrategy());

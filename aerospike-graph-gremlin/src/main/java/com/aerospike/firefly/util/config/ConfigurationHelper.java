@@ -53,8 +53,11 @@ public final class ConfigurationHelper {
         add(Keys.ON_RECORD_ID_LIMIT);
     }};
 
+    private static final String SCAN_QUERY_ENABLED_TOKEN = "aerospike.graph.scan.enabled";
+
     public static class TraversalOptions {
         public static final String PARALLELIZE = "aerospike.graph.parallelize";
+        public static final String SCAN_QUERY_ENABLED = SCAN_QUERY_ENABLED_TOKEN;
     }
 
     public static class Keys {
@@ -103,6 +106,7 @@ public final class ConfigurationHelper {
         public static final String CONFIG_UPDATE_ENABLED = "aerospike.graph.config.update.enabled";
         public static final String CONFIG_UPDATE_FREQUENCY = "aerospike.graph.config.update.frequency";
         public static final String CONFIG_RESET = "aerospike.graph.config.reset";
+        public static final String SCAN_QUERY_ENABLED = SCAN_QUERY_ENABLED_TOKEN;
 
         // Mainly for testing since tinkerpop doesnt force cardinality.
         public static final String VERTEX_PROPERTY_CARDINALITY = "aerospike.graph.vertex.property.cardinality";
@@ -199,7 +203,6 @@ public final class ConfigurationHelper {
         public static final String BULK_LOADER_FLAG = "aerospike.graph.bulk.loading.enabled";
         public static final String BULK_LOADER_INITIALIZER_FLAG = "aerospike.graph.bulk.loading.initializer.enabled";
         public static final String USAGE_STATS_UPDATE_INTERVAL = "aerospike.graph.usage.update.interval";
-        public static final String SCAN_QUERY_ALLOWED = "aerospike.graph.scan.query.enabled";
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
@@ -498,7 +501,7 @@ public final class ConfigurationHelper {
         put(Keys.QUERY_TRACING_LOG_PORT, "9411");
         put(Keys.QUERY_TRACING_LOG_THRESHOLD, "-1");
         put(Keys.QUERY_TRACING_SAMPLE_PERCENT, "100");
-        put(Keys.SCAN_QUERY_ALLOWED, "true");
+        put(Keys.SCAN_QUERY_ENABLED, "true");
     }};
 
     private static final Map<Object, String> WARMUP_VALUES = new HashMap<>() {{
@@ -609,6 +612,52 @@ public final class ConfigurationHelper {
                     " option. Must be greater than " + (min - 1) + " and less than (max + 1)." +
                     " Got " + value + ".");
         }
+        return Optional.of(value);
+    }
+
+    public static Optional<Boolean> getTraversalOptionBoolean(final String key, final Traversal.Admin<?, ?> traversal,
+                                                              final boolean defaultWhenNoValue) {
+        // Climb to root traversal
+        Traversal.Admin<?, ?> t = traversal;
+        while (!t.isRoot()) {
+            t = t.getParent().asStep().getTraversal();
+        }
+
+        final Optional<OptionsStrategy> strategyOpt = t.getStrategies().getStrategy(OptionsStrategy.class);
+
+        if (strategyOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        final Map<String, Object> traversalOptions = strategyOpt.get().getOptions();
+        if (!traversalOptions.containsKey(key)) {
+            return Optional.empty();
+        }
+
+        Object valueRaw = traversalOptions.get(key);
+        Boolean value;
+
+        if (valueRaw == null) {
+            value = defaultWhenNoValue;
+        } else if (valueRaw instanceof Boolean) {
+            value = (Boolean) valueRaw;
+        } else if (valueRaw instanceof String) {
+            final String valueString = ((String) valueRaw).toLowerCase().strip();
+            if ("true".equals(valueString)) {
+                value = true;
+            } else if ("false".equals(valueString)) {
+                value = false;
+            } else {
+                throw new ConfigurationRuntimeException("Invalid value for " + key +
+                        " option. Must be a boolean or boolean string. " +
+                        valueRaw + " is of type " + valueRaw.getClass().getName());
+            }
+        } else {
+            throw new ConfigurationRuntimeException("Invalid value for " + key +
+                    " option. Must be a boolean or boolean string. " +
+                    valueRaw + " is of type " + valueRaw.getClass().getName());
+        }
+
         return Optional.of(value);
     }
 

@@ -114,7 +114,20 @@ class ClusterManager:
 
     def get_ctr_ip(self, ctr_id: str, docker_client: DockerClient) -> str:
         container = docker_client.containers.get(ctr_id)
-        x = container.attrs['NetworkSettings']['IPAddress']
+        container.reload()  # Ensure we have the latest attrs
+        network_settings = container.attrs['NetworkSettings']
+        
+        # Try the direct IPAddress first (default bridge network)
+        x = network_settings.get('IPAddress', '')
+        
+        # If empty, check in the Networks dict (user-defined networks or newer Docker)
+        if not x and 'Networks' in network_settings:
+            networks = network_settings['Networks']
+            for network_name, network_info in networks.items():
+                if network_info.get('IPAddress'):
+                    x = network_info['IPAddress']
+                    break
+        
         self.logger.info(f"container {ctr_id} ip: {x}")
         return x
 

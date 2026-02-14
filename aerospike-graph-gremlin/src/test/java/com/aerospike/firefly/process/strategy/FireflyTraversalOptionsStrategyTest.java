@@ -5,6 +5,7 @@ import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.exceptions.AerospikeGraphException;
 import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.AfterClass;
@@ -157,22 +158,65 @@ public class FireflyTraversalOptionsStrategyTest {
     }
 
     @Test
-    public void optionShouldAcceptStringValues() {
+    public void optionShouldAcceptStringTrue() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(SCAN_QUERY_ENABLED.toLowerCase(), "false");
 
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = graph.traversal();
-
-            // String "true" should work
             final List<Vertex> vertices = g.with(SCAN_OPTION_KEY, "true").V().toList();
             assertEquals(2, vertices.size());
+        }
+    }
 
-            // String "false" should fail
+    @Test
+    public void optionShouldAcceptStringFalse() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(SCAN_QUERY_ENABLED.toLowerCase(), "true");
+
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
             final AerospikeGraphException exception = assertThrows(AerospikeGraphException.class, () -> {
                 g.with(SCAN_OPTION_KEY, "false").V().toList();
             });
             assertEquals(GraphError.SCAN_NOT_ALLOWED.code, exception.errorCode);
+        }
+    }
+
+    @Test
+    public void optionKeyOnlyWithoutValue_shouldEnableScan() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(SCAN_QUERY_ENABLED.toLowerCase(), "false");
+
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+            // Just providing the key without a value should enable scans
+            final List<Vertex> vertices = g.with(SCAN_OPTION_KEY).V().toList();
+            assertEquals(2, vertices.size());
+        }
+    }
+
+    @Test
+    public void optionWithInvalidValue_shouldThrowException() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+
+            // Invalid string value should throw ConfigurationRuntimeException
+            assertThrows(ConfigurationRuntimeException.class, () -> {
+                g.with(SCAN_OPTION_KEY, "invalid").V().toList();
+            });
+
+            // Integer value should throw ConfigurationRuntimeException
+            assertThrows(ConfigurationRuntimeException.class, () -> {
+                g.with(SCAN_OPTION_KEY, 123).V().toList();
+            });
+
+            // Random object should throw ConfigurationRuntimeException
+            assertThrows(ConfigurationRuntimeException.class, () -> {
+                g.with(SCAN_OPTION_KEY, new Object()).V().toList();
+            });
         }
     }
 

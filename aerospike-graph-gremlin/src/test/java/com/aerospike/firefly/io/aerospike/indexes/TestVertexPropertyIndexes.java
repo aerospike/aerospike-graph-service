@@ -64,7 +64,7 @@ public class TestVertexPropertyIndexes {
     @Test
     public void sanityCheckTestingMethodWorks() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, "false");
+        config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ENABLED, "false");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final var g = graph.traversal();
             for (int i = 0; i < 10; i++) {
@@ -80,7 +80,7 @@ public class TestVertexPropertyIndexes {
     @Test
     public void testBasicIndexFilter() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, "false");
+        config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ENABLED, "false");
         config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_STRING_INDEXES, "string");
         config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, "numeric");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
@@ -100,7 +100,7 @@ public class TestVertexPropertyIndexes {
     @Test
     public void testCanFilterNumericOnStringIndexedKey() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, "false");
+        config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ENABLED, "false");
         config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_STRING_INDEXES, "string");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final var g = graph.traversal();
@@ -116,7 +116,7 @@ public class TestVertexPropertyIndexes {
                 Assert.assertEquals(GraphError.SCAN_NOT_ALLOWED.code, e.errorCode);
             }
         }
-        config.clearProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED);
+        config.clearProperty(ConfigurationHelper.Keys.SCAN_QUERY_ENABLED);
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final var g = graph.traversal();
             Assert.assertFalse(g.V().has("string", 25).toList().isEmpty());
@@ -126,7 +126,7 @@ public class TestVertexPropertyIndexes {
     @Test
     public void testCanFilterStringOnNumericIndexedKey() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, "false");
+        config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ENABLED, "false");
         config.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, "numeric");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final var g = graph.traversal();
@@ -142,7 +142,7 @@ public class TestVertexPropertyIndexes {
                 Assert.assertEquals(GraphError.SCAN_NOT_ALLOWED.code, e.errorCode);
             }
         }
-        config.clearProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED);
+        config.clearProperty(ConfigurationHelper.Keys.SCAN_QUERY_ENABLED);
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final var g = graph.traversal();
             Assert.assertFalse(g.V().has("numeric", "string25").toList().isEmpty());
@@ -152,7 +152,7 @@ public class TestVertexPropertyIndexes {
     @Test
     public void testSelectsHighestStringCardinalityProperly() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, "false");
+        config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ENABLED, "false");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final var g = graph.traversal();
             for (long i = 0; i < 50; i++) {
@@ -176,7 +176,7 @@ public class TestVertexPropertyIndexes {
     @Test
     public void testSelectsHighestNumericCardinalityProperly() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, "false");
+        config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ENABLED, "false");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final var g = graph.traversal();
             for (long i = 0; i < 50; i++) {
@@ -200,7 +200,7 @@ public class TestVertexPropertyIndexes {
     @Test
     public void testMultiPropertyMixedTypeCardinalitySelection() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ALLOWED, "false");
+        config.setProperty(ConfigurationHelper.Keys.SCAN_QUERY_ENABLED, "false");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final var g = graph.traversal();
             for (long i = 0; i < 50; i++) {

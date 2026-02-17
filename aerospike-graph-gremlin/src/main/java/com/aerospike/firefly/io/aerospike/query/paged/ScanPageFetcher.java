@@ -39,6 +39,9 @@ public class ScanPageFetcher<E extends Element> extends PageFetcher<E> {
                            final String mapKey,
                            final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
         super(graph, transformKeyRecord, null);
+        if (!graph.getBaseGraph().getConfig().isScanQueryAllowed()) {
+            throw new AerospikeGraphException(GraphError.SCAN_NOT_ALLOWED);
+        }
         graph.getBaseGraph().configureScanPolicy(policy);
         this.policy = policy;
         this.policy.maxRecords = maxPageSize;
@@ -53,9 +56,6 @@ public class ScanPageFetcher<E extends Element> extends PageFetcher<E> {
             return null;
         };
         this.startTime = System.currentTimeMillis();
-        if (!graph.getBaseGraph().getConfig().scanQueryAllowed) {
-            throw new AerospikeGraphException(GraphError.SCAN_NOT_ALLOWED);
-        }
     }
 
     public ScanPageFetcher(final FireflyGraph graph,
@@ -69,6 +69,9 @@ public class ScanPageFetcher<E extends Element> extends PageFetcher<E> {
                            final BlockingQueue<Page> pageQueue,
                            final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
         super(graph, transformKeyRecord, indexName, partitionFilter, readLoopExecutorService, pageQueue);
+        if (!graph.getBaseGraph().getConfig().isScanQueryAllowed()) {
+            throw new AerospikeGraphException(GraphError.SCAN_NOT_ALLOWED);
+        }
         graph.getBaseGraph().configureScanPolicy(policy);
         this.policy = policy;
         this.policy.maxRecords = maxPageSize;

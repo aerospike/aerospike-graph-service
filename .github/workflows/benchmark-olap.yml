@@ -159,8 +159,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
-        env:
-          DOCKER_API_VERSION: "1.41"
 
       - name: Latch Date and Time
         uses: Kaven-Universe/github-action-current-date-time@f2c12d90cff9c3e7b1f50430886e632fe31fcee1 # v1.4.0

@@ -73,8 +73,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
-        env:
-          DOCKER_API_VERSION: "1.41"
 
       - name: Download Jar Files
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -136,8 +134,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
-        env:
-          DOCKER_API_VERSION: "1.41"
 
       - name: Download Jar Files
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -199,8 +195,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
-        env:
-          DOCKER_API_VERSION: "1.41"
 
       - name: Download Jar Files
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -261,8 +255,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
-        env:
-          DOCKER_API_VERSION: "1.41"
 
       - name: Download Jar Files
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -323,8 +315,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
-        env:
-          DOCKER_API_VERSION: "1.41"
 
       - name: Download Jar Files
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -386,8 +376,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
-        env:
-          DOCKER_API_VERSION: "1.41"
 
       - name: Download Jar Files
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0

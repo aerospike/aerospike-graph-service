@@ -1,6 +1,10 @@
 aerospike-graph-gremlin/file:*
 #venv for python cluster runner
 .github/aerospike/venv
+
+# Python
+__pycache__/
+*.pyc
 #features file for ci
 .github/aerospike/features.conf
 

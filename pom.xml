@@ -214,6 +214,7 @@
                         <exclude>**/FireflyGraphSummaryUpdaterTest</exclude>
                         <exclude>**/TestTinkerpopTransactions</exclude>
                         <exclude>**/TestTxDisabled</exclude>
+                        <exclude>**/TestScanDisabledDocker</exclude>
                         <exclude>**/TestTransactionSummary</exclude>
                         <exclude>**/TestTinkerpopTransactionTimeout</exclude>
                         <!-- heavy computer tests -->

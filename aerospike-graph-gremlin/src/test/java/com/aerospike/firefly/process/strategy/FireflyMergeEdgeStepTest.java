@@ -205,14 +205,14 @@ public class FireflyMergeEdgeStepTest {
             thread.join();
         }
         int v1OutECount = 0;
-        GraphTraversal<?, Edge> t = g.V().hasLabel("v1").outE();
+        GraphTraversal<?, Edge> t = g.with(ConfigurationHelper.TraversalOptions.SCAN_QUERY_ENABLED).V().hasLabel("v1").outE();
         while (t.hasNext()) {
             final Edge e = t.next();
             v1OutECount++;
         }
         Assert.assertEquals(150, v1OutECount);
         int v2InECount = 0;
-        t = g.V().hasLabel("v2").inE();
+        t = g.with(ConfigurationHelper.TraversalOptions.SCAN_QUERY_ENABLED).V().hasLabel("v2").inE();
         while (t.hasNext()) {
             final Edge e = t.next();
             v2InECount++;
@@ -248,14 +248,14 @@ public class FireflyMergeEdgeStepTest {
             thread.join();
         }
         int v11OutECount = 0;
-        t = g.V().hasLabel("v11").outE();
+        t = g.with(ConfigurationHelper.TraversalOptions.SCAN_QUERY_ENABLED).V().hasLabel("v11").outE();
         while (t.hasNext()) {
             final Edge e = t.next();
             v11OutECount++;
         }
         Assert.assertEquals(100, v11OutECount);
         int v22InECount = 0;
-        t = g.V().hasLabel("v22").inE();
+        t = g.with(ConfigurationHelper.TraversalOptions.SCAN_QUERY_ENABLED).V().hasLabel("v22").inE();
         while (t.hasNext()) {
             final Edge e = t.next();
             v22InECount++;
@@ -272,9 +272,9 @@ public class FireflyMergeEdgeStepTest {
             verticesB.add(g.addV("B").property(String.valueOf(i), i).next());
         }
 
-        Assert.assertEquals(2000, (long) g.V().count().next());
-        Assert.assertEquals(0, (long) g.E().count().next());
-        Assert.assertEquals(0, (long) g.V(verticesA.get(0)).outE().count().next());
+        Assert.assertEquals(2000, (long) g.with(ConfigurationHelper.TraversalOptions.SCAN_QUERY_ENABLED).V().count().next());
+        Assert.assertEquals(0, (long) g.with(ConfigurationHelper.TraversalOptions.SCAN_QUERY_ENABLED).E().count().next());
+        Assert.assertEquals(0, (long) g.with(ConfigurationHelper.TraversalOptions.SCAN_QUERY_ENABLED).V(verticesA.get(0)).outE().count().next());
 
         final Thread t0 = new Thread(new MergeERunnable(g, verticesA, verticesB));
         final Thread t1 = new Thread(new MergeERunnable(g, verticesA, verticesB));
@@ -283,9 +283,9 @@ public class FireflyMergeEdgeStepTest {
         t0.join();
         t1.join();
 
-        Assert.assertEquals(1000, (long) g.E().count().next());
-        Assert.assertEquals(1000, (long) g.V(verticesA.get(0)).outE().count().next());
-        var traversal = g.V(verticesA.get(0)).outE();
+        Assert.assertEquals(1000, (long) g.with(ConfigurationHelper.TraversalOptions.SCAN_QUERY_ENABLED).E().count().next());
+        Assert.assertEquals(1000, (long) g.with(ConfigurationHelper.TraversalOptions.SCAN_QUERY_ENABLED).V(verticesA.get(0)).outE().count().next());
+        var traversal = g.with(ConfigurationHelper.TraversalOptions.SCAN_QUERY_ENABLED).V(verticesA.get(0)).outE();
         while (traversal.hasNext()) {
             final Edge e = traversal.next();
             Assert.assertEquals(3, e.property("created").value());

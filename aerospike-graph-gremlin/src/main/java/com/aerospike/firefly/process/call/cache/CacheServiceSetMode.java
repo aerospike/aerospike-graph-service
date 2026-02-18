@@ -15,7 +15,7 @@ import java.util.Map;
  * <pre>
  * g.call("aerospike.graph.admin.cache.set-mode")
  *   .with("mode", "GLOBAL")
- *   .with("cache_weight", "20000000")  // optional, default 1M for TRANSACTIONAL, 20M for GLOBAL
+ *   .with("cache_weight", "20000000")  // optional cache weight units; default 1M for TRANSACTIONAL, 20M for GLOBAL
  *   .next();
  * </pre>
  */
@@ -24,7 +24,7 @@ public class CacheServiceSetMode<I, R> extends CacheServiceBase<I, R> {
     private static final Map<String, String> PARAMS = new HashMap<>();
     static {
         PARAMS.put(MODE, "The cache mode to set. Valid values: 'TRANSACTIONAL' or 'GLOBAL'.");
-        PARAMS.put(CACHE_WEIGHT, "Optional. Cache size in bytes. Default: 1000000 for TRANSACTIONAL, 20000000 for GLOBAL.");
+        PARAMS.put(CACHE_WEIGHT, "Optional. Cache weight units (not raw bytes). Default: 1000000 for TRANSACTIONAL, 20000000 for GLOBAL.");
     }
 
     public CacheServiceSetMode(final FireflyGraph graph) {
@@ -45,7 +45,7 @@ public class CacheServiceSetMode<I, R> extends CacheServiceBase<I, R> {
     protected String usage(final Map params) {
         return String.format("Illegal arguments provided to %s.\n" +
                         "\tRequired parameter: '" + MODE + "' (TRANSACTIONAL or GLOBAL).\n" +
-                        "\tOptional parameter: '" + CACHE_WEIGHT + "' (long, default 1000000 for TRANSACTIONAL, 20000000 for GLOBAL).\n" +
+                        "\tOptional parameter: '" + CACHE_WEIGHT + "' (long weight units, default 1000000 for TRANSACTIONAL, 20000000 for GLOBAL).\n" +
                         "\tProvided arguments: %s.\n" +
                         "\tExamples of correct usage:\n" +
                         "\t\tg.call(\"%s\").with(\"" + MODE + "\", \"GLOBAL\").next();\n" +

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Manages caches for graph operations.
@@ -117,7 +118,7 @@ public class CacheManager {
     private volatile Cache<SupernodeEdgeCacheKey, List<FireflyId>> globalSupernodeEdgeIdCache;
 
     // Track total number of cached edge IDs for memory estimation
-    private volatile long totalCachedSupernodeEdgeIds = 0;
+    private final AtomicLong totalCachedSupernodeEdgeIds = new AtomicLong(0);
 
     private CacheMode cacheMode = CacheMode.TRANSACTIONAL;
     private long cacheWeight = DEFAULT_TRANSACTIONAL_CACHE_WEIGHT;
@@ -216,7 +217,7 @@ public class CacheManager {
         globalCache = null;
         globalEmptyPropsCache = null;
         globalSupernodeEdgeIdCache = null;
-        totalCachedSupernodeEdgeIds = 0;
+        totalCachedSupernodeEdgeIds.set(0);
     }
 
     private synchronized void initGlobalCache(final AerospikeConnection db, final long cacheWeight) {
@@ -227,7 +228,19 @@ public class CacheManager {
         globalSupernodeEdgeIdCache = Caffeine.newBuilder()
                 .maximumSize(cacheWeight)
                 .recordStats()
+                .removalListener((SupernodeEdgeCacheKey key, List<FireflyId> value, com.github.benmanes.caffeine.cache.RemovalCause cause) -> {
+                    if (value != null && !value.isEmpty()) {
+                        decrementCachedSupernodeEdgeIds(value.size());
+                    }
+                })
                 .build();
+    }
+
+    private void decrementCachedSupernodeEdgeIds(final int amount) {
+        if (amount <= 0) {
+            return;
+        }
+        totalCachedSupernodeEdgeIds.updateAndGet(current -> Math.max(0, current - amount));
     }
 
     /**
@@ -373,9 +386,10 @@ public class CacheManager {
             return 0;
         }
         final long entryCount = globalSupernodeEdgeIdCache.estimatedSize();
+        final long cachedEdgeIds = totalCachedSupernodeEdgeIds.get();
         // ~100 bytes per entry for key and list overhead
         // ~40 bytes per FireflyId (object header + byte[] hash + references)
-        return (entryCount * 100) + (totalCachedSupernodeEdgeIds * 40);
+        return (entryCount * 100) + (cachedEdgeIds * 40);
     }
 
     /**
@@ -384,7 +398,7 @@ public class CacheManager {
      * @return total cached edge ID count
      */
     public long getSupernodeEdgeCacheTotalEdgeIds() {
-        return totalCachedSupernodeEdgeIds;
+        return totalCachedSupernodeEdgeIds.get();
     }
 
     /**
@@ -475,8 +489,10 @@ public class CacheManager {
         }
         final SupernodeEdgeCacheKey key = new SupernodeEdgeCacheKey(vertexId, direction, labels);
         globalSupernodeEdgeIdCache.put(key, edgeIds);
-        // Track total edge IDs for memory estimation
-        totalCachedSupernodeEdgeIds += edgeIds.size();
+        // Track current edge IDs in cache; removals/replacements are handled via removalListener.
+        if (edgeIds != null && !edgeIds.isEmpty()) {
+            totalCachedSupernodeEdgeIds.addAndGet(edgeIds.size());
+        }
     }
 
     /**

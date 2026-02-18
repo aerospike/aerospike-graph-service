@@ -2,6 +2,14 @@
 
 Aerospike Graph Service provides cache management services to control caching behavior at runtime.
 
+## When To Use GLOBAL Cache
+
+GLOBAL cache mode is most appropriate when **all** of the following are true:
+
+1. Workloads are read-only, or read-write operations are independent enough that shared cached reads do not introduce correctness risks for your use case.
+2. The hot working set can fit in memory, so AGS instances should be sized with enough RAM to hold the cache effectively.
+3. Aerospike database access is the current performance bottleneck, and reducing backend reads is expected to improve end-to-end latency/throughput.
+
 ## Cache Modes
 
 The cache supports two modes:
@@ -13,10 +21,12 @@ Each graph instance maintains its own caches. Switching cache modes on one graph
 
 ## Cache Weight
 
-The `cache_weight` parameter specifies the cache size in bytes. This value is also persisted in the `aerospike.graph.cache.weight` configuration option.
+The `cache_weight` parameter specifies cache **weight units** (not raw bytes). This value is also persisted in the `aerospike.graph.cache.weight` configuration option.
 
-- Default for TRANSACTIONAL: 1,000,000 (1 MB)
-- Default for GLOBAL: 20,000,000 (20 MB)
+For record caches, one weight unit is approximately 200 bytes (used for estimation only). Actual memory depends on record shape and cache contents.
+
+- Default for TRANSACTIONAL: 1,000,000 weight units
+- Default for GLOBAL: 20,000,000 weight units
 
 ## Admin Services
 
@@ -30,9 +40,9 @@ g.call("aerospike.graph.admin.cache.status").next()
 
 Returns a Map with the following fields:
 - `mode`: Current cache mode (TRANSACTIONAL or GLOBAL)
-- `cache_weight`: Current cache weight in bytes
+- `cache_weight`: Current cache weight in weight units
 - `estimated_entry_count`: Approximate number of entries in cache
-- `weighted_size`: Total weighted size of cached entries
+- `weighted_size`: Total weighted size in weight units
 - `estimated_memory_bytes`: Estimated memory usage in bytes
 - `estimated_memory_formatted`: Human-readable memory usage (e.g., "1.5 MB")
 - `hit_count`: Number of cache hits
@@ -41,14 +51,14 @@ Returns a Map with the following fields:
 Example output:
 ```
 {
-    'mode': 'GLOBAL',
-    'cache_weight': 20000000,
-    'estimated_entry_count': 1523,
-    'weighted_size': 45690,
-    'estimated_memory_bytes': 9138000,
-    'estimated_memory_formatted': '8.7 MB',
-    'hit_count': 5432,
-    'miss_count': 1523
+    'mode': 'TRANSACTIONAL',
+    'cache_weight': 1000000,
+    'estimated_entry_count': 0,
+    'weighted_size': 0,
+    'estimated_memory_bytes': 0,
+    'estimated_memory_formatted': '0 B',
+    'hit_count': 0,
+    'miss_count': 0
 }
 ```
 
@@ -57,12 +67,12 @@ Example output:
 Changes the cache mode at runtime.
 
 ```gremlin
-// Switch to GLOBAL mode with default weight (20 MB)
+// Switch to GLOBAL mode with default weight (20000000)
 g.call("aerospike.graph.admin.cache.set-mode")
   .with("mode", "GLOBAL")
   .next()
 
-// Switch to GLOBAL mode with custom weight (50 MB)
+// Switch to GLOBAL mode with custom weight
 g.call("aerospike.graph.admin.cache.set-mode")
   .with("mode", "GLOBAL")
   .with("cache_weight", "50000000")
@@ -76,13 +86,13 @@ g.call("aerospike.graph.admin.cache.set-mode")
 
 Parameters:
 - `mode` (required): The cache mode to set. Valid values: `TRANSACTIONAL` or `GLOBAL` (case-insensitive)
-- `cache_weight` (optional): Cache size in bytes. Default: 1000000 for TRANSACTIONAL, 20000000 for GLOBAL
+- `cache_weight` (optional): Cache weight units (not raw bytes). Default: 1000000 for TRANSACTIONAL, 20000000 for GLOBAL
 
 Returns a Map with the following fields:
 - `status`: "success" if the operation completed
 - `previous_mode`: The cache mode before the change
 - `current_mode`: The new cache mode
-- `cache_weight`: The cache weight being used
+- `cache_weight`: The cache weight being used (weight units)
 
 Example output:
 ```
@@ -144,7 +154,7 @@ The cache services are also available via HTTP REST endpoints:
 For applications with repeated reads of the same vertices/edges, GLOBAL mode can significantly improve performance:
 
 ```gremlin
-// Enable global caching with 50 MB cache
+// Enable global caching
 g.call("aerospike.graph.admin.cache.set-mode")
   .with("mode", "GLOBAL")
   .with("cache_weight", "50000000")
@@ -165,10 +175,11 @@ g.call("aerospike.graph.admin.cache.status").next()
 ```
 
 If `estimated_entry_count` is consistently near the maximum or memory usage is high, consider increasing the `cache_weight`.
+If `weighted_size` is consistently near `cache_weight`, consider increasing `cache_weight`.
 
 ### Cache Invalidation
 
-When data changes externally or you need to ensure fresh reads:
+When data changes externally, or you need to ensure fresh reads:
 
 ```gremlin
 // Reset all caches

@@ -3,7 +3,6 @@ package com.aerospike.firefly.admin;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
@@ -148,6 +147,19 @@ public class TestAdminCallHttp {
             final byte[] bytes = con.getInputStream().readAllBytes();
             final String response = new String(bytes);
             return response;
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public String adminCacheStatus() {
+        try {
+            final URL url = new URL("http://localhost:9090/0/admin/cache/status");
+            final HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            final byte[] bytes = con.getInputStream().readAllBytes();
+            return new String(bytes);
         } catch (final Exception e) {
             throw new RuntimeException(e);
         }
@@ -443,8 +455,30 @@ public class TestAdminCallHttp {
             // Check value of graph service version
             final String graphServiceVersion = tree.get("Aerospike Graph Service version").asText();
             Assert.assertEquals(FireflyGraph.FIREFLY_VERSION, graphServiceVersion);
-        } catch (JsonMappingException e) {
+        } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    public void testCacheStatus() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty("aerospike.graph.http.port", 9090);
+
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final String status = adminCacheStatus();
+            Assert.assertTrue(status.startsWith("{"));
+            Assert.assertTrue(status.endsWith("}"));
+
+            final ObjectReader reader = new ObjectMapper().reader();
+            final JsonNode tree = reader.readTree(status);
+            Assert.assertTrue(tree.has("mode"));
+            Assert.assertTrue(tree.has("cache_weight"));
+            Assert.assertTrue(tree.has("estimated_entry_count"));
+            Assert.assertTrue(tree.has("weighted_size"));
+            Assert.assertTrue(tree.has("estimated_memory_bytes"));
+            Assert.assertTrue(tree.has("hit_count"));
+            Assert.assertTrue(tree.has("miss_count"));
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }

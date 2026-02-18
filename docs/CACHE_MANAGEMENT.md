@@ -2,6 +2,30 @@
 
 Aerospike Graph Service provides cache management services to control caching behavior at runtime.
 
+## Cache Coverage
+
+AGS cache stores Aerospike graph records that are read during traversal execution:
+
+- Vertex records
+- Edge records
+
+Query result sets are not cached as reusable "result cache" objects. Cache entries are record-level objects used by traversal execution.
+
+Record caching is split into two internal caches:
+
+- Full-record cache: records read with full properties.
+- Empty-properties cache: records read without properties (lightweight reads).
+
+In `TRANSACTIONAL` mode these are per request (`transactionalCache`, `transactionalEmptyPropsCache`).
+In `GLOBAL` mode these are process-shared per graph instance (`globalCache`, `globalEmptyPropsCache`).
+
+In `GLOBAL` mode, AGS also maintains a supernode edge-ID cache used by supernode traversals:
+
+- Key: `(vertexId, direction, labels)`
+- Value: `List<edgeId>`
+- Scope: GLOBAL mode only
+- Capacity control: bounded by `cache_weight` as cache entry count for this specific cache
+
 ## When To Use GLOBAL Cache
 
 GLOBAL cache mode is most appropriate when **all** of the following are true:
@@ -9,12 +33,13 @@ GLOBAL cache mode is most appropriate when **all** of the following are true:
 1. Workloads are read-only, or read-write operations are independent enough that shared cached reads do not introduce correctness risks for your use case.
 2. The hot working set can fit in memory, so AGS instances should be sized with enough RAM to hold the cache effectively.
 3. Aerospike database access is the current performance bottleneck, and reducing backend reads is expected to improve end-to-end latency/throughput.
+4. There is available RAM on AGS instances to allocate to process-level caching without putting memory pressure on other workloads.
 
 ## Cache Modes
 
 The cache supports two modes:
 
-- **TRANSACTIONAL** (default): Thread-local caches that are reset on each new traversal. Best for typical OLTP workloads where each query should start fresh.
+- **TRANSACTIONAL** (default): Thread-local caches that are reset on each new traversal. In AGS terms, this is effectively per request/query execution.
 - **GLOBAL**: Caches shared across threads within a graph instance. Caches are not reset between traversals. Best for read-heavy workloads with repeated access to the same data.
 
 Each graph instance maintains its own caches. Switching cache modes on one graph does not affect caches in other graphs.
@@ -24,9 +49,44 @@ Each graph instance maintains its own caches. Switching cache modes on one graph
 The `cache_weight` parameter specifies cache **weight units** (not raw bytes). This value is also persisted in the `aerospike.graph.cache.weight` configuration option.
 
 For record caches, one weight unit is approximately 200 bytes (used for estimation only). Actual memory depends on record shape and cache contents.
+`weighted_size` reports current consumed weight units. `cache_weight` is the configured limit in weight units.
+`estimated_memory_bytes` is derived from cache internals as an estimate and should be treated as directional, not exact heap accounting.
 
 - Default for TRANSACTIONAL: 1,000,000 weight units
 - Default for GLOBAL: 20,000,000 weight units
+
+## Write And Invalidation Semantics
+
+When writes are executed through AGS traversals, cache behavior differs by mode:
+
+- TRANSACTIONAL: cache is per request and reset per request, so stale carry-over risk is minimal.
+- GLOBAL: AGS does not provide strict global coherence guarantees across all write/read interleavings.
+
+If data changes outside AGS (another service writing to Aerospike), AGS does not automatically track those changes in any cache mode. Use `admin/cache/reset` when you need a hard refresh.
+
+## Runtime Persistence
+
+Cache mode and cache weight changes made via admin services are persisted in graph configuration and are retained across AGS restart.
+
+## Getting Started
+
+Recommended onboarding workflow:
+
+1. Start with default `TRANSACTIONAL` mode and default `cache_weight`.
+2. Measure baseline latency and backend load.
+3. Switch to `GLOBAL` only when all criteria from `When To Use GLOBAL Cache` are true.
+4. Observe `weighted_size`, `estimated_entry_count`, hit/miss counts, and memory estimates.
+5. Increase `cache_weight` only as needed.
+6. Use `reset` operationally when external writers may have changed hot data.
+
+## Configuration Keys
+
+Cache management keys to document in config reference:
+
+| Key | Default | Allowed values | Notes |
+|-----|---------|----------------|-------|
+| `aerospike.graph.cache.mode` | `TRANSACTIONAL` | `TRANSACTIONAL`, `GLOBAL` | Can be changed at runtime via admin service. |
+| `aerospike.graph.cache.weight` | `1000000` | Integer `>= 1` | Weight units, not bytes. Runtime changes persist. |
 
 ## Admin Services
 
@@ -41,7 +101,7 @@ g.call("aerospike.graph.admin.cache.status").next()
 Returns a Map with the following fields:
 - `mode`: Current cache mode (TRANSACTIONAL or GLOBAL)
 - `cache_weight`: Current cache weight in weight units
-- `estimated_entry_count`: Approximate number of entries in cache
+- `estimated_entry_count`: Approximate number of cached records (entries)
 - `weighted_size`: Total weighted size in weight units
 - `estimated_memory_bytes`: Estimated memory usage in bytes
 - `estimated_memory_formatted`: Human-readable memory usage (e.g., "1.5 MB")

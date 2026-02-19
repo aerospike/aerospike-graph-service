@@ -688,7 +688,7 @@ jobs:
           echo "Running docker image with transactions enabled"
           docker run -d -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
-            -e aerospike.graph.tx.enabled=true firefly
+            -e aerospike.graph.tx.enabled=true -e aerospike.graph.scan.enabled=true firefly
 
           echo "Sleeping for 30 seconds while docker image starts"
           sleep 30
@@ -1246,7 +1246,7 @@ jobs:
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
-      - name: Test Firefly Docker Image Merge Edge Step and Tx when Disabled
+      - name: Test Firefly Docker Runtime (Default Config)
         run: |
           docker run -d -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
@@ -1257,6 +1257,7 @@ jobs:
           
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepRemoteTest --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTxDisabled --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestScanDisabledDocker --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
       - name: Test Firefly Docker Image
         run: |
@@ -1306,7 +1307,7 @@ jobs:
           bash -x scripts/start_aerospike_tls.sh
 
           echo "Running docker image with SSL enabled on GLV<->Gremlin Server and TLS enabled on AGS<->Aerospike DB"
-          docker run -d -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-tls/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/aerospike-client-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/gremlin-server-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.key:/opt/aerospike-graph/gremlin-server-tls/aerospike.key firefly
+          docker run -d -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-tls/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/aerospike-client-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/gremlin-server-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.key:/opt/aerospike-graph/gremlin-server-tls/aerospike.key -e aerospike.graph.scan.enabled=true firefly
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 

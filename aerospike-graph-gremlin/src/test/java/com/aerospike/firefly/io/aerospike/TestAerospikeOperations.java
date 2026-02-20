@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.MRT_ENABLED_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.MRT_TIMEOUT;
@@ -83,9 +84,11 @@ public class TestAerospikeOperations {
 
             final FireflyEdgeId edgeId = (FireflyEdgeId) graph.getIdFactory().generateId(graph, FireflyEdge.class);
 
-            // lets start write in new thread, but latch is right before commit
+            final AtomicBoolean commitCompleted = new AtomicBoolean(false);
+            // let's start write in new thread, but latch is right before commit
             final Thread thread = new Thread(() -> {
               new FakeAerospikeOperations(graph).writeEdge(edgeId, "l1", List.of(), v, v, latchIn, latchOut);
+              commitCompleted.set(true);
             });
             thread.start();
 
@@ -98,9 +101,13 @@ public class TestAerospikeOperations {
 
             // now commit should do his work
             latchIn.countDown();
+            final long timeout = System.currentTimeMillis() + 5000;
+            while (!commitCompleted.get() && System.currentTimeMillis() < timeout) {
+                Thread.sleep(50);
+            }
             edges = g.E().hasLabel("l1").count().next();
             assertEquals(1, edges);
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
     }

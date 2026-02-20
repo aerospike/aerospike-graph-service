@@ -109,8 +109,17 @@ class ClusterManager:
         self.logger.info(output)
         return exit, output
 
-    def run_asinfo_tip(self, port, ctr_id: str, peer_ip: str, docker_client: DockerClient):
-        return self.run_asinfo_cmd(f"asinfo -p {port} -v tip:host={peer_ip};port=3002", ctr_id, docker_client)
+    def run_asinfo_tip(self, port, ctr_id: str, peer_ip: str, docker_client: DockerClient, retries: int = 5, delay: float = 2.0):
+        """Run tip command with retry logic to handle slow Aerospike startup."""
+        cmd = f"asinfo -p {port} -v tip:host={peer_ip};port=3002"
+        for attempt in range(retries):
+            exit_code, output = self.run_asinfo_cmd(cmd, ctr_id, docker_client)
+            if exit_code == 0:
+                return exit_code, output
+            if attempt < retries - 1:
+                self.logger.info(f"Tip command failed, retrying in {delay}s (attempt {attempt + 1}/{retries})")
+                time.sleep(delay)
+        return exit_code, output
 
     def get_ctr_ip(self, ctr_id: str, docker_client: DockerClient) -> str:
         container = docker_client.containers.get(ctr_id)
@@ -197,6 +206,11 @@ class ClusterManager:
             container_id = self.start_aerospike_node(i, config, docker_client)
             self.logger.info(f"started aerospike container {i} {container_id} {self.get_ctr_ip(container_id, docker_client)}")
             nodes.append(container_id)
+        
+        # Wait for Aerospike to initialize inside containers before running tip commands
+        self.logger.info("Waiting for Aerospike to initialize in containers...")
+        time.sleep(5)
+        
         for i in range(node_count):
             self.logger.info(f"tip container {nodes[i]} to peer with first container {nodes[0]}")
             self.run_asinfo_tip(f"30{i}0", nodes[i], self.get_ctr_ip(nodes[0], docker_client), docker_client)

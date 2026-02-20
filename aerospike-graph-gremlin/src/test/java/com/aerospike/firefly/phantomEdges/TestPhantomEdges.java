@@ -1,5 +1,6 @@
 package com.aerospike.firefly.phantomEdges;
 
+import com.aerospike.firefly.util.config.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;
@@ -22,9 +23,9 @@ public class TestPhantomEdges {
         final GraphTraversalSource g = traversal().withRemote(driverRemoteConnection);
 
         // Get total edges, edges from the left, and edges from the right.
-        final long outECount = g.with("evaluationTimeout", 30 * 60 * 1000).V().outE().count().next();
-        final long inECount = g.with("evaluationTimeout", 30 * 60 * 1000).V().inE().count().next();
-        final long eCount = g.with("evaluationTimeout", 30 * 60 * 1000).E().count().next();
+        final long outECount = g.with(ConfigurationHelper.TraversalOptions.SCAN_QUERY_ENABLED).with("evaluationTimeout", 30 * 60 * 1000).V().outE().count().next();
+        final long inECount = g.with(ConfigurationHelper.TraversalOptions.SCAN_QUERY_ENABLED).with("evaluationTimeout", 30 * 60 * 1000).V().inE().count().next();
+        final long eCount = g.with(ConfigurationHelper.TraversalOptions.SCAN_QUERY_ENABLED).with("evaluationTimeout", 30 * 60 * 1000).E().count().next();
 
         // Compare to expected value.
         Assert.assertEquals(14000000L, eCount);

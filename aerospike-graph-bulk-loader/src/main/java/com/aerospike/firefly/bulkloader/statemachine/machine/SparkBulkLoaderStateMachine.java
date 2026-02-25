@@ -353,7 +353,9 @@ public class SparkBulkLoaderStateMachine {
 
         try {
             Thread.sleep(exponentialTime);
-        } catch (final InterruptedException ignored) {
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
         }
     }
 }

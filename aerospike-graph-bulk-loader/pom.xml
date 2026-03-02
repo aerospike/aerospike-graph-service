@@ -348,6 +348,7 @@
                                         <exclude>META-INF/maven/org.eclipse.jetty/jetty-server/**</exclude>
                                         <exclude>META-INF/maven/dnsjava/dnsjava/**</exclude>
                                         <exclude>META-INF/maven/org.apache.hadoop/hadoop-hdfs-client/**</exclude>
+                                        <exclude>META-INF/maven/com.fasterxml.jackson.core/jackson-core/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.aerospike</groupId>
         <artifactId>firefly</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>3.2.0-SNAPSHOT</version>
     </parent>
     <artifactId>aerospike-graph-gremlin</artifactId>
     <name>Aerospike :: Graph</name>
@@ -52,6 +52,12 @@
             <scope>test</scope>
         </dependency>
         <!---VERTX -->
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-15365924 in vertx-core@4.5.25 -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>2.18.6</version>
+        </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>

@@ -133,10 +133,6 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, conf_dir, o
         if key != "graph" and no_graph_id_provided:
             merged_properties.append("aerospike.graph.id=" + key)
 
-        # default scan to disabled unless explicitly enabled
-        if not any(s.startswith("aerospike.graph.scan.enabled") for s in merged_properties):
-            merged_properties.append("aerospike.graph.scan.enabled=false")
-
         generate_properties(merged_properties, f"{conf_dir}/aerospike-graph-{key}.properties", auth_jwt_secret, auth_jwt_issuer)
 
     generate_java_options(output_java_options_file, java_options_max_heap, java_options_min_heap, f"{conf_dir}/tls")

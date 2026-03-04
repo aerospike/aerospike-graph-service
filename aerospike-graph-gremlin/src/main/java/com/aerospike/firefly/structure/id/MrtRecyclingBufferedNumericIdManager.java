@@ -83,7 +83,9 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager
 
     private synchronized void reserveNewEdgePackIds(final FireflyGraph graph) {
         Long packingId = this.packingIdManager.getNextId(graph);
+        final long originalPackingId = packingId;
         Long edgeRecordId = getPhatEdgeStorageId(packingId, this.packingSize);
+        final long originalRecordId = edgeRecordId;
         final EdgePackIds ids = new EdgePackIds(this, edgeRecordId);
         ids.add(longToBytes(packingId));
         // When this is 0 then packingId is the last ID before the next Edge pack so set the cutoff here
@@ -92,7 +94,7 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager
             edgeRecordId = getPhatEdgeStorageId(packingId, this.packingSize);
             if (!edgeRecordId.equals(ids.edgeRecordId)) {
                 // This should never happen.
-                final String error = "ID manager reserved IDs in multiple Edge record packs. Please contact support.";
+                final String error = "Current ID " + packingId + " that packs to "  + edgeRecordId + " does not match initial ID " + originalPackingId + " that packs to " + originalRecordId;
                 LOG.error(error);
                 throw new IllegalStateException(error);
             } else {

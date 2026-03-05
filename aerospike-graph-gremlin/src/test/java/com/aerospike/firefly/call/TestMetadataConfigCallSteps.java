@@ -132,5 +132,17 @@ public class TestMetadataConfigCallSteps extends AbstractFireflySuite {
                 () -> g.call("aerospike.graph.admin.metadata.config")
                         .with("mode", "monkeh").next());
     }
+
+    @Test
+    public void testSetConfigRequiresWithArgs() {
+        final GraphTraversalSource g = graph.traversal();
+
+        final IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class,
+                () -> g.call("aerospike.graph.admin.metadata.set-config").next());
+
+        Assert.assertTrue(ex.getMessage().contains(
+                "Illegal arguments provided to 'aerospike.graph.admin.metadata.set-config'."));
+        Assert.assertFalse(ex.getMessage().contains("Format specifier"));
+    }
 }
 

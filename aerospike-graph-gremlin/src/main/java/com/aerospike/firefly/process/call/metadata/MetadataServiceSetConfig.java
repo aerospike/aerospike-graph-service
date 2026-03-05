@@ -18,10 +18,10 @@ public class MetadataServiceSetConfig<I, R> extends MetadataServiceBase<I, R> {
     @Override
     protected String usage(final Map params) {
         return String.format("Illegal arguments provided to '%s'.\n" +
-                        "\tExpected non-empty arguments map.'.\n" +
+                        "\tExpected non-empty arguments map.\n" +
                         "\tExamples of correct usage:\n" +
                         "\t\tg.call(\"%s\").with(\"aerospike.client.policy.write.socketTimeout\", \"10000\").next();\n",
-                getName());
+                getName(), getName());
     }
 
     @Override

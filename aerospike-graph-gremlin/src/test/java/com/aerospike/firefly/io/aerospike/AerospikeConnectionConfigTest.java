@@ -268,10 +268,10 @@ public class AerospikeConnectionConfigTest {
 
             // first graph change config
             final String response = (String)graph.traversal().call("aerospike.graph.admin.metadata.set-config")
-                    .with(ConfigurationHelper.Keys.WRITE_SOCKET_TIMEOUT.toLowerCase(), "111")
+                    .with(ConfigurationHelper.Keys.WRITE_SOCKET_TIMEOUT, "111")
                     .with(ConfigurationHelper.Keys.WRITE_TOTAL_TIMEOUT.toLowerCase(), "3000").next();
 
-            assertEquals("Successfully updated configuration {aerospike.client.policy.write.totaltimeout=3000, aerospike.client.policy.write.sockettimeout=111}.",
+            assertEquals("Successfully updated configuration {aerospike.client.policy.write.totaltimeout=3000, aerospike.client.policy.write.socketTimeout=111}.",
                     response);
             assertEquals(111, graph.getBaseGraph().getConfig().writeSocketTimeout);
             assertEquals(999, graph.getBaseGraph().getConfig().readSocketTimeout);
@@ -284,7 +284,8 @@ public class AerospikeConnectionConfigTest {
 
             // and back ...
             graph2.traversal().call("aerospike.graph.admin.metadata.set-config")
-                    .with(ConfigurationHelper.Keys.WRITE_SOCKET_TIMEOUT.toLowerCase(), "222").iterate();
+                    .with(ConfigurationHelper.Keys.WRITE_SOCKET_TIMEOUT.toUpperCase(), "222").iterate();
+
             Thread.sleep(500);
             assertEquals(222, graph.getBaseGraph().getConfig().writeSocketTimeout);
             // other properties is not changed

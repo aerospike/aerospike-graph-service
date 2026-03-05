@@ -39,7 +39,7 @@ public class AerospikeConnectionConfig {
         add("aerospike.client.scan.max.wait");
         add("aerospike.client.batch-threshold.per-node");
         add("aerospike.graph.movement.barrier.size");
-        add("aerospike.client.infoPolicy.timeout");
+        add("aerospike.client.infopolicy.timeout");
         add("aerospike.graph.cache.*");
     }};
 
@@ -500,8 +500,9 @@ public class AerospikeConnectionConfig {
     }
 
     private boolean isMutableKey(final String key) {
+        final String lowerCaseKey = key.toLowerCase();
         for (final String k : mutableKeys) {
-            if (k.equals(key) || (k.endsWith("*") && key.startsWith(k.substring(0, k.length() - 1)))) {
+            if (k.equals(lowerCaseKey) || (k.endsWith("*") && lowerCaseKey.startsWith(k.substring(0, k.length() - 1)))) {
                 return true;
             }
         }

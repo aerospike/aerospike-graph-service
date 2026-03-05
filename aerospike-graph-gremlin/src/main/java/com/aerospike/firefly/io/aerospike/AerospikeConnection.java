@@ -341,10 +341,16 @@ public class AerospikeConnection implements AutoCloseable {
 
     public void updateConfiguration(final Map<String, Object> updatedProperties) {
         synchronized (configLock) {
-            // try to apply configuration for validation
-            this.config.update(new MapConfiguration(updatedProperties), this.client, this.config.version + 1);
+            final Map<String, Object> normalizedProperties = updatedProperties.entrySet()
+                    .stream()
+                    .collect(Collectors.toMap(
+                            entry -> entry.getKey().toLowerCase(),
+                            Map.Entry::getValue));
 
-            final Map<Value, Value> asMap = updatedProperties.entrySet()
+            // try to apply configuration for validation
+            this.config.update(new MapConfiguration(normalizedProperties), this.client, this.config.version + 1);
+
+            final Map<Value, Value> asMap = normalizedProperties.entrySet()
                     .stream()
                     .collect(Collectors.toMap(
                             entry -> Value.get(entry.getKey()),

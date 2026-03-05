@@ -14,4 +14,5 @@ Technical
   - [Packed]()
 - [Traversal Cache](TRAVERSAL_CACHE.md)
 - [Cache Management](CACHE_MANAGEMENT.md)
+- [Metadata Set Config](METADATA_SET_CONFIG.md)
 - [ID management](ID_MANAGEMENT.md)

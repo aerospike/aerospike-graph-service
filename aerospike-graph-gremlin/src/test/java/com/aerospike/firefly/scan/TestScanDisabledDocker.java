@@ -57,7 +57,7 @@ public class TestScanDisabledDocker {
                 Assert.fail("Scan operation should have failed when disabled by default.");
             } catch (Exception e) {
                 Assert.assertTrue("Expected SCAN_NOT_ALLOWED error, got: " + e.getMessage(),
-                        e.getMessage().contains("Scan queries are not enabled"));
+                        e.getMessage().contains("Scans are not enabled for this query"));
             }
         }
     }

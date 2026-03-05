@@ -11,15 +11,16 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class RecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager {
+public class RecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager<DecrementingNumericIdManager> {
     private static final Logger LOG = LoggerFactory.getLogger(RecyclingBufferedNumericIdManager.class);
     protected final ConcurrentLinkedQueue<Long> recycledIds = new ConcurrentLinkedQueue<>();
 
-    protected RecyclingBufferedNumericIdManager(final String uniqueIdCounterName,
-                                                final String packingIdCounterName,
+    protected RecyclingBufferedNumericIdManager(final String packingIdCounterName,
+                                                final String uniqueIdCounterName,
                                                 final long bufferSize,
                                                 final long recycleBufferSize) {
-        super(uniqueIdCounterName, packingIdCounterName, bufferSize, recycleBufferSize);
+        super(new DecrementingNumericIdManager(packingIdCounterName, bufferSize),
+                new IncrementingNumericIdManager(uniqueIdCounterName, recycleBufferSize), bufferSize);
     }
 
     @Override

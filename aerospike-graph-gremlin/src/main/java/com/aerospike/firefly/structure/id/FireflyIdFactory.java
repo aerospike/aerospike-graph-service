@@ -49,10 +49,10 @@ public class FireflyIdFactory {
         this.db = db;
         this.vertexIdManager = new DecrementingNumericIdManager(VERTEX_ID_COUNTER, db.getConfig().vertexIdBufferSize);
         if (db.getConfig().mrtEnabled || db.getConfig().transactionEnabled) {
-            this.edgeIdManager = new MrtRecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER,
+            this.edgeIdManager = new MrtRecyclingBufferedNumericIdManager(EDGE_PACKING_ID_COUNTER, EDGE_UNIQUE_ID_COUNTER,
                     db.getConfig().edgeIdBufferSize, db.getConfig().edgeIdRecycleBufferSize, db.getConfig().phatEdgeSize);
         } else {
-            this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_UNIQUE_ID_COUNTER, EDGE_PACKING_ID_COUNTER,
+            this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_PACKING_ID_COUNTER, EDGE_UNIQUE_ID_COUNTER,
                     db.getConfig().edgeIdBufferSize, db.getConfig().edgeIdRecycleBufferSize);
         }
         this.vertexPropertyIdManager = new DecrementingNumericIdManager(VERTEX_PROPERTY_ID_COUNTER, db.getConfig().propertyIdBufferSize);

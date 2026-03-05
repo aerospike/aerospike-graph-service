@@ -1686,4 +1686,67 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         this.printTraversalForm(traversal);
         assertEquals((Long) 0L, (Long) traversal.next());
     }
+
+    @Test
+    public void testConcurrentEdgeDeleteDuringOutELimitProperty() throws InterruptedException {
+        final int vertexCount = 100;
+        for (long i = 0; i < vertexCount; i++) {
+            g.addV("test").property(T.id, i).iterate();
+        }
+
+        final Random rng = new Random();
+        final AtomicBoolean stop = new AtomicBoolean(false);
+        final AtomicReference<Exception> failure = new AtomicReference<>(null);
+
+        final Thread writerThread = new Thread(() -> {
+            while (!stop.get() && failure.get() == null) {
+                int from = rng.nextInt(vertexCount);
+                int to = rng.nextInt(vertexCount);
+                g.addE("link").from(__.V((long) from)).to(__.V((long) to))
+                        .property("val", rng.nextInt(1000)).iterate();
+            }
+        });
+
+        final Thread deleterThread = new Thread(() -> {
+            while (!stop.get() && failure.get() == null) {
+                try {
+                    g.V((long) rng.nextInt(vertexCount)).outE().limit(10).drop().iterate();
+                } catch (final Exception ignored) {
+                }
+            }
+        });
+
+        final Thread readerThread = new Thread(() -> {
+            while (!stop.get() && failure.get() == null) {
+                try {
+                    long id1 = rng.nextInt(vertexCount);
+                    long id2 = rng.nextInt(vertexCount);
+                    long id3 = rng.nextInt(vertexCount);
+                    g.V(id1, id2, id3)
+                            .local(__.outE().limit(1).property("val", rng.nextInt(1000)))
+                            .iterate();
+                } catch (final Exception e) {
+                    final String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+                    if (!msg.contains("transaction") && !msg.contains("no longer exists")) {
+                        failure.set(e);
+                    }
+                }
+            }
+        });
+
+        writerThread.start();
+        deleterThread.start();
+        readerThread.start();
+
+        Thread.sleep(10_000);
+        stop.set(true);
+
+        writerThread.join(5000);
+        deleterThread.join(5000);
+        readerThread.join(5000);
+
+        if (failure.get() != null) {
+            Assert.fail("Race condition in outE().limit(1).property(): " + failure.get().getMessage());
+        }
+    }
 }

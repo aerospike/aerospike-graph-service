@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static com.aerospike.firefly.structure.id.FireflyPhatEdgeId.getPhatEdgeStorageId;
 
-public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager {
+public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager<MrtEdgePackingIdManager> {
     private static final Logger LOG = LoggerFactory.getLogger(MrtRecyclingBufferedNumericIdManager.class);
     private final int packingSize;
     private final ThreadLocal<EdgePackIds> edgePackIds;
@@ -31,7 +31,8 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager
     protected MrtRecyclingBufferedNumericIdManager(final String uniqueIdCounterName,
                                                    final String packingIdCounterName, final long bufferSize,
                                                    final long recycleBufferSize, final int packingSize) {
-        super(uniqueIdCounterName, packingIdCounterName, bufferSize, recycleBufferSize);
+        super(new MrtEdgePackingIdManager(packingIdCounterName, bufferSize),
+                new IncrementingNumericIdManager(uniqueIdCounterName, recycleBufferSize), bufferSize);
         this.packingSize = packingSize;
         this.edgePackIds = ThreadLocal.withInitial(() -> null);
     }
@@ -87,7 +88,7 @@ public class MrtRecyclingBufferedNumericIdManager extends RecyclingEdgeIdManager
         final EdgePackIds ids = new EdgePackIds(this, edgeRecordId);
         ids.add(longToBytes(packingId));
         // When this is 0 then packingId is the last ID before the next Edge pack so set the cutoff here
-        while (Math.floorMod(packingId, this.packingSize) != 0) {
+        while (this.packingIdManager.isIdBufferContinuous() && Math.floorMod(packingId, this.packingSize) != 0) {
             packingId = this.packingIdManager.getNextId(graph);
             edgeRecordId = getPhatEdgeStorageId(packingId, this.packingSize);
             if (!edgeRecordId.equals(ids.edgeRecordId)) {

@@ -5,6 +5,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class DecrementingNumericIdManager extends BufferedNumericIdManager {
+
     protected DecrementingNumericIdManager(final String counterName, final long bufferSize) {
         super(counterName, bufferSize);
     }

@@ -4,17 +4,16 @@ import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.nio.ByteBuffer;
 
-abstract public class RecyclingEdgeIdManager implements IdManager<byte[]> {
+abstract public class RecyclingEdgeIdManager<P extends BufferedNumericIdManager> implements IdManager<byte[]> {
     protected final long bufferSize;
-    protected final BufferedNumericIdManager packingIdManager;
+    protected final P packingIdManager;
     protected final BufferedNumericIdManager uniqueIdManager;
 
-    protected RecyclingEdgeIdManager(final String uniqueIdCounterName,
-                                     final String packingIdCounterName,
-                                     final long bufferSize,
-                                     final long recycleBufferSize) {
-        this.packingIdManager = new DecrementingNumericIdManager(packingIdCounterName, bufferSize);
-        this.uniqueIdManager = new IncrementingNumericIdManager(uniqueIdCounterName, recycleBufferSize);
+    protected RecyclingEdgeIdManager(final P packingIdManager,
+                                     final BufferedNumericIdManager uniqueIdManager,
+                                     final long bufferSize) {
+        this.packingIdManager = packingIdManager;
+        this.uniqueIdManager = uniqueIdManager;
         this.bufferSize = bufferSize;
     }
 

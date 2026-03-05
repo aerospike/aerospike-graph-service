@@ -104,12 +104,6 @@
             <artifactId>ivy</artifactId>
             <version>2.5.3</version>
         </dependency>
-        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-IOAIRLIFT-7164637 in spark-core_2.12@3.4.4-->
-        <dependency>
-            <groupId>io.airlift</groupId>
-            <artifactId>aircompressor</artifactId>
-            <version>0.27</version>
-        </dependency>
         <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-10500754 in avro@1.11.5 -->
         <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-7569538 in avro@1.11.5 -->
         <dependency>
@@ -182,6 +176,11 @@
                 <exclusion>
                     <groupId>org.apache.commons</groupId>
                     <artifactId>commons-configuration2</artifactId>
+                </exclusion>
+                <!-- CVE-2025-67721: no fix available for legacy artifact; ORC code path unused (Parquet only) -->
+                <exclusion>
+                    <groupId>io.airlift</groupId>
+                    <artifactId>aircompressor</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -381,6 +380,7 @@
                                 <excludes>
                                     <exclude>org.apache.tinkerpop:gremlin-test</exclude>
                                     <exclude>com.nimbusds:nimbus-jose-jwt</exclude>
+                                    <exclude>io.airlift:aircompressor</exclude>
                                 </excludes>
                             </artifactSet>
                             <!-- If we minimize the jar, we lose the google hadoop dependency we need for gcs. -->

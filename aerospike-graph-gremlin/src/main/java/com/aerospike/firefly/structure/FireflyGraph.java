@@ -51,6 +51,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
+import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeScanIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.util.FireflyTtlHandler;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
@@ -1316,28 +1317,21 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public Iterator<Edge> edges(final Object... edgeIds) {
-        final Iterator<Edge> iterator = edges(List.of(), edgeIds);
+        final Iterator<Edge> iterator;
+        if (edgeIds.length == 0) {
+            iterator = new FireflyPhatEdgeScanIterator(
+                    this.graphQuery.scanEdgeRecords(settings().evaluationTimeout), this);
+        } else {
+            final List<FireflyId> idList = getIds(Arrays.asList(edgeIds)).stream()
+                    .filter(Objects::nonNull)
+                    .map(id -> getIdFactory().createEdgeId(id))
+                    .collect(Collectors.toList());
+            iterator = (Iterator<Edge>) (Iterator<?>) aerospikeOperations.readEdges(idList).iterator();
+        }
         // TODO: GRAPH COMPUTER INTERCEPTION
         return FireflyHelper.inComputerMode(this) ?
                 FireflyCloseableIteratorUtils.filter(iterator, edge -> this.graphComputerView.legalEdge(edge.outVertex(), edge)) :
                 iterator;
-    }
-
-    private Iterator<Edge> edges(final List<HasContainer> filters, final Object... edgeIds) {
-        // Create edge iterator with graph and edge id iterator.
-        // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
-        if (edgeIds.length == 0) {
-            return new FireflyBatchElementIterator<>(this,
-                    this.graphQuery.scanEdgeIds(settings().evaluationTimeout), filters,
-                    this::readEdges, null);
-        }
-
-        final List<FireflyId> idList = getIds(Arrays.asList(edgeIds)).stream()
-                .filter(Objects::nonNull)
-                .map(id -> getIdFactory().createEdgeId(id))
-                .collect(Collectors.toList());
-
-        return aerospikeOperations.readEdges(idList).stream().map(fireflyEdge -> (Edge) fireflyEdge).iterator();
     }
 
     public interface TransformKeyRecord<E> {

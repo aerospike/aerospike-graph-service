@@ -7,6 +7,7 @@ import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
@@ -64,6 +65,11 @@ public class GraphQuery {
 
     public Iterator<FireflyId> scanEdgeIds(final Long evaluationTimeout) {
         return scanElementIds(FireflyEdge.class, List.of(), evaluationTimeout);
+    }
+
+    public Iterator<KeyRecord> scanEdgeRecords(final Long evaluationTimeout) {
+        return scanSet(null, db.getConfig().edgeAeroSet, null, null, (it) -> it,
+                List.of(), FireflyEdge.class, true, evaluationTimeout);
     }
 
     private Iterator<FireflyId> scanElementIds(final Class<? extends FireflyElement> clazz,

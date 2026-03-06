@@ -136,7 +136,7 @@ public enum GraphError {
         ERROR_MESSAGES.put(QUERY_IN_TRANSACTION.code, "Aerospike Graph Service does not support query traversals within a Transaction. If applicable, execute a traversal outside of the Transaction to grab the required Element IDs and apply a traversal directly to the IDs within the Transaction.");
         ERROR_MESSAGES.put(TX_NOT_ENABLED.code, "Transactions are not enabled for the '%s' graph. To use transactions, configure the '" + TRANSACTION_ENABLED_FLAG + "' setting.");
         ERROR_MESSAGES.put(PARALLELIZE_IN_TX.code, "The '" + ConfigurationHelper.TraversalOptions.PARALLELIZE + "' parameter is not allowed for traversals within a transaction.");
-        ERROR_MESSAGES.put(SCAN_NOT_ALLOWED.code, "Scans are not enabled for this query. Create an appropriate index, or utilize '" + SCAN_QUERY_ENABLED + "' as a setting or traversal parameter to proceed.");
+        ERROR_MESSAGES.put(SCAN_NOT_ALLOWED.code, "This query requires a scan, which is not enabled. Set '" + SCAN_QUERY_ENABLED + "' to 'true', use '.with(\"" + SCAN_QUERY_ENABLED + "\", true)' for this traversal, or create an appropriate index.");
         ERROR_MESSAGES.put(SINDEX_ALREADY_EXISTS.code, "The following indexes could not be created because they already exist: [%s].");
         ERROR_MESSAGES.put(WRITE_VERTEX_DOUBLE_FAILURE.code, "Error handling instability when writing Vertex. A Vertex " +
                 "with the specified ID may have been written, but was unable to validate due to read exception [%s]. " +

@@ -75,6 +75,7 @@
         <build-helper.version>3.3.0</build-helper.version>
         <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
         <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+        <snyk-maven-plugin.version>2.3.0</snyk-maven-plugin.version>
         <!-- SOURCE ENCODINGS -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -104,6 +105,19 @@
                 </directory>
             </testResource>
         </testResources>
+        <pluginManagement>
+            <plugins>
+                <!-- Default snyk config for all modules: skip by default -->
+                <plugin>
+                    <groupId>io.snyk</groupId>
+                    <artifactId>snyk-maven-plugin</artifactId>
+                    <version>${snyk-maven-plugin.version}</version>
+                    <configuration>
+                        <skip>true</skip>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>io.github.git-commit-id</groupId>
@@ -128,7 +142,7 @@
             <plugin>
                 <groupId>io.snyk</groupId>
                 <artifactId>snyk-maven-plugin</artifactId>
-                <version>2.3.0</version>
+                <version>${snyk-maven-plugin.version}</version>
                 <inherited>false</inherited>
                 <executions>
                     <execution>
@@ -136,9 +150,11 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <skip>false</skip>
                     <args>
                         <arg>--maven-aggregate-project</arg>
                         <arg>--severity-threshold=high</arg>
+                        <arg>--policy-path=${maven.multiModuleProjectDirectory}/.snyk</arg>
                     </args>
                 </configuration>
             </plugin>

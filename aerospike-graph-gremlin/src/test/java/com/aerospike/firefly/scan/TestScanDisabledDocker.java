@@ -1,10 +1,10 @@
 package com.aerospike.firefly.scan;
 
+import com.aerospike.firefly.util.exceptions.GraphError;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -57,7 +57,7 @@ public class TestScanDisabledDocker {
                 Assert.fail("Scan operation should have failed when disabled by default.");
             } catch (Exception e) {
                 Assert.assertTrue("Expected SCAN_NOT_ALLOWED error, got: " + e.getMessage(),
-                        e.getMessage().contains("Scans are not enabled for this query"));
+                        e.getMessage().contains(GraphError.getMessage(GraphError.SCAN_NOT_ALLOWED)));
             }
         }
     }

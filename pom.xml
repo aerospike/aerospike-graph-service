@@ -104,6 +104,19 @@
                 </directory>
             </testResource>
         </testResources>
+        <pluginManagement>
+            <plugins>
+                <!-- Default snyk config for all modules: skip by default -->
+                <plugin>
+                    <groupId>io.snyk</groupId>
+                    <artifactId>snyk-maven-plugin</artifactId>
+                    <version>2.3.0</version>
+                    <configuration>
+                        <skip>true</skip>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>io.github.git-commit-id</groupId>
@@ -136,9 +149,11 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <skip>false</skip>
                     <args>
                         <arg>--maven-aggregate-project</arg>
                         <arg>--severity-threshold=high</arg>
+                        <arg>--policy-path=${maven.multiModuleProjectDirectory}/.snyk</arg>
                     </args>
                 </configuration>
             </plugin>

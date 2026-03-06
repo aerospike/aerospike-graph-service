@@ -75,6 +75,7 @@
         <build-helper.version>3.3.0</build-helper.version>
         <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
         <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+        <snyk-maven-plugin.version>2.3.0</snyk-maven-plugin.version>
         <!-- SOURCE ENCODINGS -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -110,7 +111,7 @@
                 <plugin>
                     <groupId>io.snyk</groupId>
                     <artifactId>snyk-maven-plugin</artifactId>
-                    <version>2.3.0</version>
+                    <version>${snyk-maven-plugin.version}</version>
                     <configuration>
                         <skip>true</skip>
                     </configuration>
@@ -141,7 +142,7 @@
             <plugin>
                 <groupId>io.snyk</groupId>
                 <artifactId>snyk-maven-plugin</artifactId>
-                <version>2.3.0</version>
+                <version>${snyk-maven-plugin.version}</version>
                 <inherited>false</inherited>
                 <executions>
                     <execution>

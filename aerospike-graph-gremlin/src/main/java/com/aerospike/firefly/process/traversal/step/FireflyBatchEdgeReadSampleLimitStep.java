@@ -161,7 +161,10 @@ public class FireflyBatchEdgeReadSampleLimitStep extends CollectingBarrierStep<E
             for (int j = 0; j < orderedOutputEdgeIds.get(i).size(); j++) {
                 if (randomIndicesList.get(indexId) == index) {
                     indexId++;
-                    output.add(orderedInputTraversers.get(i).split(edgeMap.get(orderedOutputEdgeIds.get(i).get(j)), this));
+                    final FireflyEdge edge = edgeMap.get(orderedOutputEdgeIds.get(i).get(j));
+                    if (edge != null) {
+                        output.add(orderedInputTraversers.get(i).split(edge, this));
+                    }
                     if (indexId == randomIndicesList.size()) {
                         // We have reached the end of the random indices so we can exit the loops.
                         exit = true;

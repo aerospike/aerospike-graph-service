@@ -367,7 +367,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8a.2xlarge
+          ec2-instance-type: m8a.xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-movielens:
@@ -619,7 +619,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8a.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-benchmark-internal dataset:
@@ -647,7 +647,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8a.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-benchmark-identifies:
@@ -675,7 +675,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8a.2xlarge
+          ec2-instance-type: m8i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-spark-bulk-loader:
@@ -837,8 +837,8 @@ jobs:
           bulk_loader_jar=$(echo aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar)
           java -cp "$graph_jar:$bulk_loader_jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
           
-          echo "Sleeping for 30 seconds while firefly-server starts"
-          sleep 30
+          echo "Sleeping for 10 seconds while firefly-server starts"
+          sleep 10
           
           echo "Running benchmark"
           mvn test -pl aerospike-graph-gremlin -Dtest=BenchmarkTestFlightsData --no-transfer-progress
@@ -1083,8 +1083,8 @@ jobs:
             -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -e aerospike.graph.tx.enabled=true firefly
 
-          echo "Sleeping for 30 seconds while docker image starts"
-          sleep 30
+          echo "Sleeping for 10 seconds while docker image starts"
+          sleep 10
           
           echo "Running Tinkerpop transactions test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTinkerpopTransactions --no-transfer-progress
@@ -1105,7 +1105,7 @@ jobs:
           docker run -d -p 8184:8182  \
             -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -e aerospike.graph.tx.enabled=true firefly
-          sleep 30
+          sleep 10
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestMultiNodeTransaction --no-transfer-progress
   test-firefly-process-1:
@@ -1921,8 +1921,8 @@ jobs:
           bulk_loader_jar=$(echo aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar)
           java -cp "$graph_jar:$bulk_loader_jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
           
-          echo "Sleeping for 30 seconds while firefly-server starts"
-          sleep 30
+          echo "Sleeping for 10 seconds while firefly-server starts"
+          sleep 10
 
           echo "Running benchmark"
           mvn test -pl aerospike-graph-gremlin -Dtest=BenchmarkTestSyntheticinternaldataset --no-transfer-progress
@@ -1980,8 +1980,8 @@ jobs:
           bulk_loader_jar=$(echo aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar)
           java -cp "$graph_jar:$bulk_loader_jar" com.aerospike.firefly.runtime.FireflyServer /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
           
-          echo "Sleeping for 30 seconds while firefly-server starts"
-          sleep 30
+          echo "Sleeping for 10 seconds while firefly-server starts"
+          sleep 10
 
           echo "Running benchmark"
           mvn test -pl aerospike-graph-gremlin -Dtest=BenchmarkTestIdentifiesTraversal --no-transfer-progress
@@ -2041,8 +2041,8 @@ jobs:
 
           echo "Running docker image with custom yaml file"
           docker run -d -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs-usage-stats/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
-          echo "Sleeping for 30 seconds while gremlin-server starts"
-          sleep 30
+          echo "Sleeping for 10 seconds while gremlin-server starts"
+          sleep 10
           
           echo "Running usage test"
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyUsageStatsCallMultiTest --no-transfer-progress
@@ -2054,8 +2054,8 @@ jobs:
         run: |
           echo "Running docker image with secrets"
           docker run --name firefly -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-secret-masking/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e JAVA_OPTIONS="-Djavax.net.ssl.trustStore=/root/aerospike/truststore.jks -Djavax.net.ssl.keyStore=/root/aerospike/keystore.jks -Djavax.net.ssl.trustStorePassword=simon123 -Djavax.net.ssl.keyStorePassword=simon123" firefly &
-          echo "Sleeping for 30 seconds while gremlin-server starts"
-          sleep 30
+          echo "Sleeping for 10 seconds while gremlin-server starts"
+          sleep 10
 
           echo "Showing docker image logging..."
           docker logs firefly
@@ -2065,8 +2065,8 @@ jobs:
         run: |
           echo "Running docker image with custom yaml file"
           docker run -d -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/custom firefly
-          echo "Sleeping for 30 seconds while gremlin-server starts"
-          sleep 30
+          echo "Sleeping for 10 seconds while gremlin-server starts"
+          sleep 10
           
           echo "Running connection test"
           mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest --no-transfer-progress
@@ -2078,8 +2078,8 @@ jobs:
           echo "Running docker image with custom properties file"
           docker run -d -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
 
-          echo "Sleeping for 30 seconds while gremlin-server starts"
-          sleep 30
+          echo "Sleeping for 10 seconds while gremlin-server starts"
+          sleep 10
 
           echo "Running connection test"
           mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest --no-transfer-progress
@@ -2088,8 +2088,8 @@ jobs:
         run: |
           echo "Running docker image with security enabled"
           docker run -d -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-security/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -e aerospike.graph.audit.log.enabled=true firefly
-          echo "Sleeping for 30 seconds while gremlin-server starts"
-          sleep 30
+          echo "Sleeping for 10 seconds while gremlin-server starts"
+          sleep 10
 
           echo "Running Security Test"
           mvn test -pl aerospike-graph-gremlin -Dtest=JwtAuthenticationDockerTest --no-transfer-progress
@@ -2098,8 +2098,8 @@ jobs:
         run: |
           echo "Running docker image with prometheus"
           docker run -d -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly
-          echo "Sleeping for 30 seconds while gremlin-server starts"
-          sleep 30
+          echo "Sleeping for 10 seconds while gremlin-server starts"
+          sleep 10
 
           echo "Running Prometheus Test"
           mvn test -pl aerospike-graph-gremlin -Dtest=PrometheusExporterTest --no-transfer-progress
@@ -2117,8 +2117,8 @@ jobs:
             -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
             firefly
           
-          echo "Sleeping for 30 seconds while docker image starts"
-          sleep 30
+          echo "Sleeping for 10 seconds while docker image starts"
+          sleep 10
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
@@ -2128,8 +2128,8 @@ jobs:
             -v /home/runner/work/firefly/firefly/conf/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             firefly
           
-          echo "Sleeping for 30 seconds while docker image starts"
-          sleep 30
+          echo "Sleeping for 10 seconds while docker image starts"
+          sleep 10
           
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyMergeEdgeStepRemoteTest --no-transfer-progress
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTxDisabled --no-transfer-progress
@@ -2140,8 +2140,8 @@ jobs:
             -v /home/runner/work/firefly/firefly/conf/aerospike-graph-scan-disabled.properties:/opt/aerospike-graph/aerospike-graph.properties \
             firefly
           
-          echo "Sleeping for 30 seconds while docker image starts"
-          sleep 30
+          echo "Sleeping for 10 seconds while docker image starts"
+          sleep 10
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestScanDisabledDocker --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
@@ -2194,8 +2194,8 @@ jobs:
 
           echo "Running docker image with SSL enabled on GLV<->Gremlin Server and TLS enabled on AGS<->Aerospike DB"
           docker run -d -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-tls/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/aerospike-client-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.crt:/opt/aerospike-graph/gremlin-server-tls/aerospike.crt -v /home/runner/work/firefly/firefly/.github/aerospike/tls/aerospike.key:/opt/aerospike-graph/gremlin-server-tls/aerospike.key firefly
-          echo "Sleeping for 30 seconds while gremlin-server starts"
-          sleep 30
+          echo "Sleeping for 10 seconds while gremlin-server starts"
+          sleep 10
 
           echo "Running TLS test"
           mvn test -pl aerospike-graph-gremlin -Dtest=TestTLSIntegration --no-transfer-progress

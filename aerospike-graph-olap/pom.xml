@@ -96,7 +96,7 @@
         <dependency>
             <groupId>org.apache.zookeeper</groupId>
             <artifactId>zookeeper</artifactId>
-            <version>3.8.5</version>
+            <version>3.8.6</version>
         </dependency>
         <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEIVY-5847858 in spark-core_2.12@3.4.4 -->
         <dependency>

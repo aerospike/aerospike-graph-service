@@ -237,13 +237,16 @@ public class DockerUtil {
 
     public Queue<String> getLogs(final String containerId) throws InterruptedException {
         final Queue<String> log = new ConcurrentLinkedQueue<>();
-        final ResultCallback.Adapter<Frame> callback = dockerClient.logContainerCmd(containerId).withStdOut(true).withStdErr(true).exec(new ResultCallback.Adapter<Frame>() {
-            @Override
-            public void onNext(Frame frame) {
-                log.add(new String(frame.getPayload()).trim());
-            }
-        });
-        dockerClient.logContainerCmd(containerId).withStdOut(true).withStdErr(true).exec(callback).awaitCompletion();
+        dockerClient.logContainerCmd(containerId)
+                .withStdOut(true)
+                .withStdErr(true)
+                .exec(new ResultCallback.Adapter<Frame>() {
+                    @Override
+                    public void onNext(Frame frame) {
+                        log.add(new String(frame.getPayload()).trim());
+                    }
+                })
+                .awaitCompletion();
         return log;
     }
 

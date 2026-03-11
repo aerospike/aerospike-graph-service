@@ -30,6 +30,7 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.aerospike.AerospikeLogger;
 import com.aerospike.firefly.io.aerospike.AerospikeOperations;
 import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
+import com.aerospike.firefly.io.aerospike.query.FireflyExpressionIndex;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
@@ -244,6 +245,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private final FireflyFeatures features;
     private final Configuration configuration;
     public static String VP_INDEX_PREFIX = "VP";
+    public static String VP_EXPRESSION_INDEX_PREFIX = "VE";
     public static String EP_INDEX_PREFIX = "EP";
     private final FireflyGraphVariables variables;
     protected final AerospikeConnection db;
@@ -342,6 +344,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 combinedNumericVpIndexes.addAll(vertexPropertyNumericIndexes);
                 createVertexPropertyIndexes(FireflyVertex.class, db.getConfig().vertexPropertyDataBin, db.getVpIndexPrefix(),
                         combinedStringVpIndexes, combinedNumericVpIndexes);
+
+                final String expressionIndexesString = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.VERTEX_PROPERTY_EXPRESSION_INDEXES, configuration);
+                createExpressionIndexes(expressionIndexesString);
 
                 // Grab user defined edge property indexes from the configuration and create them.
                 final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
@@ -1429,6 +1434,30 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
                     formattedIndex + "_" + indexType, binName, indexType, IndexCollectionType.MAPKEYS, errorOnDuplicate,
                     CTX.mapKey(Value.get(indexSchema)));
+        }
+
+        // Manually force metadata to update.
+        fireflyIndexMetadata.updateMetadata();
+    }
+
+    public void createExpressionIndexes(final String expressionIndexesString) {
+        if (expressionIndexesString == null || expressionIndexesString.isBlank()) {
+            return;
+        }
+
+        db.validateExpressionIndexSupport();
+
+        final List<String> existingIndexes =
+                AerospikeConnection.InfoOps.listExistingIndexes(db).stream()
+                        .map(Map.Entry::getKey).collect(Collectors.toList());
+
+        final String[] expressionIndexes = expressionIndexesString.split(";");
+        for (final String expressionIndex : expressionIndexes) {
+            if (expressionIndex.isBlank()) {
+                continue;
+            }
+            final FireflyExpressionIndex index = FireflyExpressionIndex.fromConfigString(db, expressionIndex.strip());
+            db.createExpIndex(existingIndexes, index);
         }
 
         // Manually force metadata to update.

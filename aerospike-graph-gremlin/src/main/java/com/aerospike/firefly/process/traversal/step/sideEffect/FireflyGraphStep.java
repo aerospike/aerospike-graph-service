@@ -158,6 +158,15 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             return iterator;
         }
 
+        final Optional<FireflyIndexMetadata.ExpressionIndexInfo> expressionIndexInfo =
+                graph.fireflyIndexMetadata.getMatchingExpressionIndex(aerospikeSideHasContainers);
+        if (expressionIndexInfo.isPresent()) {
+            iterator = graph.graphQuery.queryVertexExpressionIndex(expressionIndexInfo.get(), graph::vertexFromRecord,
+                    evaluationTimeout);
+            iterator = hasContainerCheckedIterator(iterator, fireflySideHasContainers);
+            return iterator;
+        }
+
         // If there are HasContainers that can be pushed to Aerospike, grab the first item (this is the highest cardinality based on sorting).
         final HasContainer topContainer = aerospikeSideHasContainers.isEmpty() ? null : aerospikeSideHasContainers.get(0);
 

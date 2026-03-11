@@ -94,6 +94,7 @@ public final class ConfigurationHelper {
         public static final String VERTEX_PROPERTY_INDEXES = "aerospike.graph.index.vertex.properties";
         public static final String VERTEX_PROPERTY_STRING_INDEXES = "aerospike.graph.index.vertex.properties.string";
         public static final String VERTEX_PROPERTY_NUMERIC_INDEXES = "aerospike.graph.index.vertex.properties.numeric";
+        public static final String VERTEX_PROPERTY_EXPRESSION_INDEXES = "aerospike.graph.index.vertex.compound";
         public static final String EDGE_PROPERTY_INDEXES = "aerospike.graph.index.edge.properties";
         public static final String GRAPH_ID = "aerospike.graph.id";
         public static final String TRAVERSAL_NAME = "aerospike.graph.traversal";
@@ -433,6 +434,7 @@ public final class ConfigurationHelper {
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
         put(Keys.VERTEX_PROPERTY_STRING_INDEXES, "");
         put(Keys.VERTEX_PROPERTY_NUMERIC_INDEXES, "");
+        put(Keys.VERTEX_PROPERTY_EXPRESSION_INDEXES, "");
         put(Keys.EDGE_PROPERTY_INDEXES, "");
         put(Keys.PHAT_EDGE_SIZE, "10");
         put(Keys.MOVEMENT_BARRIER_SIZE, "1000");

@@ -2,15 +2,19 @@ package com.aerospike.firefly.io;
 
 import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.query.FireflyExpressionIndex;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
@@ -22,6 +26,7 @@ import static com.aerospike.client.query.IndexType.STRING;
 public class FireflyIndexMetadata implements FireflyMetadata {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyIndexMetadata.class);
     private final List<IndexInfo> indexInfos = new ArrayList<>();
+    private Map<String, FireflyExpressionIndex> expressionIndexMap = new HashMap<>();
     private final AerospikeConnection db;
 
     /**
@@ -40,6 +45,7 @@ public class FireflyIndexMetadata implements FireflyMetadata {
     public void updateMetadata() {
         // Read the index metadata.
         final List<String> indexes = AerospikeConnection.InfoOps.listUsableIndexes(db, db.getNamespace());
+        final List<String> expressionIndexes = AerospikeConnection.InfoOps.listUsableExpressionIndexes(db, db.getNamespace());
 
         // Update the index metadata.
         synchronized (FireflyIndexMetadata.class) {
@@ -79,6 +85,16 @@ public class FireflyIndexMetadata implements FireflyMetadata {
                     LOG.warn("Unknown index type for index: {}.", indexName);
                 }
             }
+
+            final Map<String, FireflyExpressionIndex> newExpressionIndexMap = new HashMap<>();
+            for (final String expressionIndex : expressionIndexes) {
+                if (this.expressionIndexMap.containsKey(expressionIndex)) {
+                    newExpressionIndexMap.put(expressionIndex, this.expressionIndexMap.get(expressionIndex));
+                } else {
+                    newExpressionIndexMap.put(expressionIndex, FireflyExpressionIndex.fromIndexName(db, expressionIndex));
+                }
+            }
+            this.expressionIndexMap = newExpressionIndexMap;
         }
     }
 
@@ -139,6 +155,31 @@ public class FireflyIndexMetadata implements FireflyMetadata {
         return Optional.empty();
     }
 
+    public Optional<ExpressionIndexInfo> getMatchingExpressionIndex(final List<HasContainer> hasContainers) {
+        if (hasContainers == null || hasContainers.size() < 2) {
+            return Optional.empty();
+        }
+        final Map<String, FireflyExpressionIndex> expressionIndexes;
+        synchronized (FireflyIndexMetadata.class) {
+            expressionIndexes = new HashMap<>(this.expressionIndexMap);
+        }
+        ExpressionIndexInfo bestMatch = null;
+        int bestWeight = -1;
+        synchronized (FireflyIndexMetadata.class) {
+            for (final Map.Entry<String, FireflyExpressionIndex> expressionIndexPair : expressionIndexes.entrySet()) {
+                final FireflyExpressionIndex expressionIndex = expressionIndexPair.getValue();
+                final Optional<ExpressionIndexInfo> indexInfo = expressionIndex.getMatchingIndexInfo(hasContainers);
+                if (indexInfo.isPresent()) {
+                    final int weight = expressionIndex.getWeight();
+                    if (weight > bestWeight) {
+                        bestWeight = weight;
+                        bestMatch = indexInfo.get();
+                    }
+                }
+            }
+        }
+        return Optional.ofNullable(bestMatch);
+    }
 
     /**
      * Class to hold all relevant information about indexes.
@@ -174,6 +215,36 @@ public class FireflyIndexMetadata implements FireflyMetadata {
                     ", propertyKey='" + key + '\'' +
                     ", indexType=" + indexType +
                     ", setName='" + setName + '\'' +
+                    '}';
+        }
+    }
+
+    public static class ExpressionIndexInfo implements Serializable {
+        public final String indexName;
+        public final String searchValueString;
+        public final Long searchValueNumeric;
+        public final List<HasContainer> hasContainers;
+
+        /**
+         * Default constructor, simply populates the info class.
+         *
+         * @param indexName             Name of the index.
+         * @param searchValueString     String value to match index search on.
+         * @param searchValueNumeric    Long value to match index search on.
+         * @param hasContainers         Additional HasContainer to be added as filters on the index.
+         */
+        public ExpressionIndexInfo(final String indexName, final String searchValueString,
+                                   final Long searchValueNumeric, final List<HasContainer> hasContainers) {
+            this.indexName = indexName;
+            this.searchValueString = searchValueString;
+            this.searchValueNumeric = searchValueNumeric;
+            this.hasContainers = hasContainers;
+        }
+
+        @Override
+        public String toString() {
+            return "ExpressionIndexInfo{" +
+                    "indexName='" + indexName + '\'' +
                     '}';
         }
     }

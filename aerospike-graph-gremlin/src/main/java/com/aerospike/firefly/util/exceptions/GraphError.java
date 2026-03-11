@@ -78,6 +78,7 @@ public enum GraphError {
     SCAN_NOT_ALLOWED(1124),
     SINDEX_ALREADY_EXISTS(1125),
     WRITE_VERTEX_DOUBLE_FAILURE(1126),
+    EXPRESSION_INDEX_NOT_SUPPORTED(1127),
 
     ELEMENT_NOT_FOUND(ResultCode.KEY_NOT_FOUND_ERROR),
     RECORD_SIZE_EXCEEDED(ResultCode.RECORD_TOO_BIG),
@@ -133,6 +134,7 @@ public enum GraphError {
                 "Please raise the query-threads-limit setting or reduce concurrent queries and try again.");
         ERROR_MESSAGES.put(SET_CARDINALITY_TYPE_CONFLICT.code, "A value type conflict has occurred when using Cardinality.set. This is likely caused by mixing numeric and date values under the same key.");
         ERROR_MESSAGES.put(MRT_NOT_SUPPORTED.code, "Transactions require Aerospike database version 8 or newer with strong consistency mode enabled. Please verify that all nodes in the cluster are running a compatible version of Aerospike.");
+        ERROR_MESSAGES.put(EXPRESSION_INDEX_NOT_SUPPORTED.code, "Compound indexes require Aerospike database version 8.1.0 or newer. Please verify that all nodes in the cluster are running a compatible version of Aerospike.");
         ERROR_MESSAGES.put(QUERY_IN_TRANSACTION.code, "Aerospike Graph Service does not support query traversals within a Transaction. If applicable, execute a traversal outside of the Transaction to grab the required Element IDs and apply a traversal directly to the IDs within the Transaction.");
         ERROR_MESSAGES.put(TX_NOT_ENABLED.code, "Transactions are not enabled for the '%s' graph. To use transactions, configure the '" + TRANSACTION_ENABLED_FLAG + "' setting.");
         ERROR_MESSAGES.put(PARALLELIZE_IN_TX.code, "The '" + ConfigurationHelper.TraversalOptions.PARALLELIZE + "' parameter is not allowed for traversals within a transaction.");

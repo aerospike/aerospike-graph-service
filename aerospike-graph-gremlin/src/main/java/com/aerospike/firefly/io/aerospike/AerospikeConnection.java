@@ -30,6 +30,7 @@ import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
+import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.policy.AuthMode;
 import com.aerospike.client.policy.BatchPolicy;
@@ -51,6 +52,7 @@ import com.aerospike.client.query.Statement;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.aerospike.query.FireflyExpressionIndex;
 import com.aerospike.firefly.io.aerospike.query.ReadInfo;
 import com.aerospike.firefly.io.aerospike.schema.SchemaManager;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -74,6 +76,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Property;
@@ -113,7 +116,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.aerospike.query.paged.VertexQueryHelper.predicateToExpression;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
+import static com.aerospike.firefly.structure.FireflyGraph.VP_EXPRESSION_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.util.FireflyTtlHandler.TTL_TIME_KEY;
 import static com.aerospike.firefly.util.Tokens.EDGE_PACKING_ID_COUNTER;
@@ -164,6 +169,9 @@ public class AerospikeConnection implements AutoCloseable {
 
     // Tinkerpop transactions
     private FireflyTransaction transaction = null;
+
+    // Cached cluster version for feature support checks
+    private final FireflyAerospikeVersionCheck clusterVersion;
 
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
@@ -240,7 +248,6 @@ public class AerospikeConnection implements AutoCloseable {
             throw e;
         }
 
-        FireflyAerospikeVersionCheck.validateVersion(aerospikeClient, false);
         FireflyAerospikeGraphServiceCheck.checkFeatureKey(aerospikeClient);
 
         if (ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.CLIENT_FAILURE_TEST, conf)) {
@@ -297,6 +304,9 @@ public class AerospikeConnection implements AutoCloseable {
         this.eventLoops = eventLoops;
         this.client = client;
         this.threadedReadExecutor = threadedReadExecutor;
+
+        // Validate cluster version and cache it for feature support checks
+        this.clusterVersion = FireflyAerospikeVersionCheck.validateAndGetClusterVersion(client);
 
         this.config = new AerospikeConnectionConfig(conf, client);
         this.config.validate(this);
@@ -758,6 +768,46 @@ public class AerospikeConnection implements AutoCloseable {
                                             db.getConfig().vLabelIndexName.equals(s) ||
                                             db.getConfig().eLabelIndexName.equals(s)).
                             collect(Collectors.toSet()));
+                }
+
+                final List<String> indexList = new ArrayList<>();
+                for (final Set<String> set : indexSets) {
+                    if (indexList.isEmpty()) {
+                        indexList.addAll(set);
+                    } else {
+                        indexList.retainAll(set);
+                    }
+                }
+                return indexList;
+            } catch (final AerospikeException e) {
+                throw fromAerospikeException(e);
+            }
+        }
+
+        /**
+         * Return list of usable expression indexes that are ready (state=RW) on all nodes.
+         *
+         * @param db        AerospikeConnection
+         * @param namespace Namespace.
+         * @return List of expression index names that are ready on all nodes.
+         */
+        public static List<String> listUsableExpressionIndexes(final AerospikeConnection db, final String namespace) {
+            final List<Set<String>> indexSets = new ArrayList<>();
+            try {
+                final InfoPolicy infoPolicy = new InfoPolicy();
+                db.setInfoPolicy(infoPolicy);
+                for (final Node node : db.client.getNodes()) {
+                    LOG.debug("Info.request: {}", Keys.SINDEX);
+                    final String infoResponse = Info.request(infoPolicy, node, Keys.SINDEX);
+                    final List<Map.Entry<String, String>> raw = parseRaw(infoResponse).stream()
+                            .filter(m -> m.get(Keys.NS).equals(namespace))
+                            .filter(m -> m.get("state").equals("RW"))
+                            .map(m -> (Map.Entry<String, String>)
+                                    new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET)))
+                            .collect(Collectors.toList());
+                    indexSets.add(raw.stream().map(Map.Entry::getKey)
+                            .filter(s -> s.startsWith(db.getVpExpressionIndexPrefix()))
+                            .collect(Collectors.toSet()));
                 }
 
                 final List<String> indexList = new ArrayList<>();
@@ -2220,8 +2270,69 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
+    public void createExpIndex(final List<String> existingIndexes, final FireflyExpressionIndex index) {
+        final boolean warmup_mode = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf);
+        if (warmup_mode || config.vertexAeroSet.contains(WarmupUtil.getWarmupArenaName())) {
+            return;
+        }
+
+        final String indexName = index.getName();
+        if (existingIndexes.contains(indexName)) {
+            LOG.debug("Compound index {} already exists", indexName);
+            return;
+        }
+
+        final WritePolicy policy = new WritePolicy();
+        configureWritePolicy(policy);
+        policy.socketTimeout = 0; // Do not timeout on index create.
+        final List<Exp> exps = new ArrayList<>();
+        exps.add(Exp.val(true));
+        final List<Map.Entry<String, P<?>>> predicates = index.getPredicates();
+        for (final Map.Entry<String, P<?>> predicate : predicates) {
+            final String propertyKey = predicate.getKey();
+            final P<?> propertyValue = predicate.getValue();
+            // index.getName() call above already writes to the schema manager
+            final String bin = FireflyExpressionIndex.LABEL_TOKEN.equals(propertyKey) ? config.labelBin : config.vertexPropertyDataBin;
+            exps.add(predicateToExpression(this, bin, propertyKey, propertyValue));
+        }
+
+        final Expression indexExpression;
+        final String searchKey = index.getSearchKey();
+        final IndexType indexType = index.getIndexType();
+        if (searchKey == null) {
+            // No wildcard search
+            indexExpression = Exp.build(
+                    Exp.cond(
+                            Exp.and(exps.toArray(new Exp[0])),
+                            Exp.val(1),
+                            Exp.unknown()
+                    )
+            );
+            client.createIndex(policy, config.namespace, config.vertexAeroSet, indexName, indexType,
+                    IndexCollectionType.DEFAULT, indexExpression);
+        } else {
+            indexExpression = Exp.build(
+                    Exp.cond(
+                            Exp.and(exps.toArray(new Exp[0])),
+                            MapExp.getByKey(
+                                    MapReturnType.VALUE,
+                                    Exp.Type.MAP,
+                                    Exp.val(schemaManager.getVertexPropertyRead(searchKey)),
+                                    Exp.mapBin(config.vertexPropertyDataBin)),
+                            Exp.unknown()
+                    )
+            );
+            client.createIndex(policy, config.namespace, config.vertexAeroSet, indexName, indexType,
+                    IndexCollectionType.MAPKEYS, indexExpression);
+        }
+    }
+
     public String getVpIndexPrefix() {
         return String.format("%s_%s", config.graphId, VP_INDEX_PREFIX);
+    }
+
+    public String getVpExpressionIndexPrefix() {
+        return String.format("%s_%s", config.graphId, VP_EXPRESSION_INDEX_PREFIX);
     }
 
     public String getEpIndexPrefix() {
@@ -2532,7 +2643,7 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public void validateMrtSupport() {
-        FireflyAerospikeVersionCheck.validateVersion(this.client, true);
+        this.clusterVersion.requireMRTSupport();
 
         try {
             final FireflyId id = this.getIdFactory().getTestId(UUID.randomUUID().toString());
@@ -2549,6 +2660,10 @@ public class AerospikeConnection implements AutoCloseable {
         } catch (final AerospikeGraphException e) {
             throw new AerospikeMrtNotSupportedException();
         }
+    }
+
+    public void validateExpressionIndexSupport() {
+        this.clusterVersion.requireExpressionIndexSupport();
     }
 
     public AuthMode getAuthMode() {

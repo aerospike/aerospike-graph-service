@@ -163,6 +163,15 @@ public final class FireflyHelper {
             return graph.getVertexCount(new ArrayList<>(), evaluationTimeout);
         }
 
+        // Check for matching expression index first
+        final Optional<FireflyIndexMetadata.ExpressionIndexInfo> expressionIndexInfo =
+                graph.fireflyIndexMetadata.getMatchingExpressionIndex(hasContainers);
+        if (expressionIndexInfo.isPresent()) {
+            final Iterator<?> iterator = graph.graphQuery.queryVertexExpressionIndex(
+                    expressionIndexInfo.get(), (keyRecord) -> keyRecord, evaluationTimeout);
+            return FireflyCloseableIteratorUtils.count(iterator);
+        }
+
         final Optional<FireflyIndexMetadata.IndexInfo> info = graph.fireflyIndexMetadata.getPropertyIndexInfo(
                 FireflyVertex.class, hasContainers.get(0).getKey(), hasContainers.get(0).getValue());
         if (info.isPresent()) {

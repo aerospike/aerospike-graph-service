@@ -333,6 +333,27 @@ public class TestAdminCallHttpJwt {
         }
     }
 
+    public String adminMetadataSetConfig(final String userCredentials) {
+        final Cluster cluster = Cluster.build()
+                .addContactPoint("localhost")
+                .port(8182)
+                .credentials("lyndon_username", userCredentials)
+                .create();
+        final DriverRemoteConnection connection = DriverRemoteConnection.using(cluster);
+        final GraphTraversalSource g = traversal().withRemote(connection);
+
+        final Map<String, Map<String, Object>> config = (Map<String, Map<String, Object>>) g
+                .call("aerospike.graph.admin.metadata.config")
+                .with("mode", "full")
+                .next();
+        final Object socketTimeout = config.get("Graph Properties")
+                .get("aerospike.client.policy.write.socketTimeout");
+
+        return (String) g.call("aerospike.graph.admin.metadata.set-config")
+                .with("aerospike.client.policy.write.socketTimeout", socketTimeout)
+                .next();
+    }
+
     @Test
     public void testNoRole() {
         try {
@@ -450,6 +471,11 @@ public class TestAdminCallHttpJwt {
     @Test
     public void testMetadataUsage() {
         checkPermissions(UserContext.ROLE.READ, this::adminMetadataUsage);
+    }
+
+    @Test
+    public void testMetadataSetConfig() {
+        checkPermissions(UserContext.ROLE.ADMIN, this::adminMetadataSetConfig);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.call.metadata;
 
+import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.util.Map;
@@ -13,6 +14,11 @@ public class MetadataServiceSetConfig<I, R> extends MetadataServiceBase<I, R> {
     @Override
     protected String getAdminServiceName() {
         return "set-config";
+    }
+
+    @Override
+    protected UserContext.ROLE getRequiredRole() {
+        return UserContext.ROLE.ADMIN;
     }
 
     @Override

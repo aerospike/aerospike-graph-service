@@ -1,7 +1,7 @@
 name: Build and Test Firefly
 
 on:
-  push:
+  pull_request:
     branches: [main,3.x-dev]
 
 jobs:

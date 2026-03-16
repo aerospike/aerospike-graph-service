@@ -116,6 +116,12 @@
             <artifactId>jettison</artifactId>
             <version>1.5.4</version>
         </dependency>
+        <!-- Fixes [https://security.snyk.io/vuln/SNYK-JAVA-ORGLZ4-14151788 in spark-core_2.12@3.5.8 -->
+        <dependency>
+            <groupId>at.yawk.lz4</groupId>
+            <artifactId>lz4-java</artifactId>
+            <version>1.10.4</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.12</artifactId>
@@ -128,10 +134,6 @@
                 <exclusion>
                     <groupId>org.apache.commons</groupId>
                     <artifactId>commons-configuration2</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.lz4</groupId>
-                    <artifactId>lz4-java</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>

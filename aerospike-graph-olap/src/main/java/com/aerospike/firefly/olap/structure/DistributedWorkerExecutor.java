@@ -27,7 +27,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.catalyst.encoders.RowEncoder;
+import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.computer.GraphFilter;
@@ -383,7 +383,7 @@ public class DistributedWorkerExecutor {
                     }
                 }
             }
-        }, RowEncoder.apply(schema));
+        }, Encoders.row(schema));
     }
 
     public static Pair<Boolean, Dataset<Row>> executeNative(final Traversal<?, ?> traversal,

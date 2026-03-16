@@ -30,8 +30,8 @@ import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
-import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
-import org.apache.spark.sql.catalyst.encoders.RowEncoder;
+import org.apache.spark.sql.Encoder;
+import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
@@ -719,7 +719,7 @@ public class EdgeOperations implements Serializable {
                 add(DataTypes.createStructField(STORAGE_ID_COLUMN, DataTypes.LongType, false)).
                 add(DataTypes.createStructField(BUCKET_ID_COLUMN, DataTypes.IntegerType, false));
         edgeDataset.sparkSession().sparkContext().setJobGroup(taskName, "Edges ID write task", true);
-        final ExpressionEncoder<Row> edgeIdEncoder = RowEncoder.apply(writeSchema);
+        final Encoder<Row> edgeIdEncoder = Encoders.row(writeSchema);
         final Dataset<Row> edgeIdDataset = edgeDataset.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema, edgeDataset.rdd().getPartitions().length), edgeIdEncoder);
         edgeIdDataset.write().option("header", true).mode(SaveMode.Overwrite).option("compression", "snappy").parquet(writeLocation);
         edgeIdDataset.persist(StorageLevel.DISK_ONLY());

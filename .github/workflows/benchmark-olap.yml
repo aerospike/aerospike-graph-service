@@ -286,7 +286,7 @@ jobs:
             --worker-machine-type "${{ env.spark_instance_type }}" \
             --worker-boot-disk-type pd-ssd \
             --worker-boot-disk-size ${{ env.spark_disk_size }} \
-            --image-version 2.1-debian11 \
+            --image-version 2.2-debian12 \
             --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE \
             --project ${{ env.project }}
 

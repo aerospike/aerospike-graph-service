@@ -51,7 +51,7 @@ gcloud dataproc clusters create "$dataproc_name" \
     --worker-machine-type "$instance_type" \
     --worker-boot-disk-type pd-ssd \
     --worker-boot-disk-size 500 \
-    --image-version 2.1-debian11 \
+    --image-version 2.2-debian12 \
     --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE \
     --project $project
 

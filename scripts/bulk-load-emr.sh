@@ -4,7 +4,7 @@
 #This means there is a default profile which have permission to create EC2 resources.
 
 CLUSTER_NAME="Aerospike AWS Graph Cluster"
-EMR_RELEASE="emr-6.15.0"
+EMR_RELEASE="emr-7.12.0"
 
 #Application logs will be generated here
 LOG_URI="s3://l3-load/logs/"

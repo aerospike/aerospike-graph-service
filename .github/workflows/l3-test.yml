@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main,3.x-dev]
+    branches: [main,3.x-snyk]
 
 jobs:
   start-runner-l3-bulk-loader-pe:

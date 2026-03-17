@@ -318,7 +318,6 @@
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
                     <argLine>
-                        -Xmx8g
                         --add-exports java.base/sun.security.action=ALL-UNNAMED
                         --add-exports java.base/sun.nio.ch=ALL-UNNAMED
                         --add-opens java.base/java.lang=ALL-UNNAMED
@@ -328,6 +327,7 @@
                         --add-opens java.base/java.util.concurrent=ALL-UNNAMED
                         --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED
                         --add-opens java.base/java.net=ALL-UNNAMED
+                        ${olap.test.jvm.args}
                     </argLine>
                 </configuration>
             </plugin>
@@ -425,6 +425,8 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Default JVM args for OLAP tests; CI overrides with -Dolap.test.jvm.args="-Xmx48g" -->
+        <olap.test.jvm.args></olap.test.jvm.args>
     </properties>
     <dependencyManagement>
         <dependencies>

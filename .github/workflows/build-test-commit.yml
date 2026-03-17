@@ -231,7 +231,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: r8a.2xlarge
+          ec2-instance-type: m7i.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-local-computer-process-2:
@@ -868,7 +868,7 @@ jobs:
           bash -x scripts/start_aerospike.sh
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn clean install -DskipTests --no-transfer-progress
-          mvn test -pl aerospike-graph-olap -Dolap.test.jvm.args="-Xmx32g" --no-transfer-progress
+          mvn test -pl aerospike-graph-olap -Dolap.test.jvm.args="-Xmx20g" --no-transfer-progress
   test-local-computer-process-2:
     name: Test Local Computer Process Tests 2 (map)
     timeout-minutes: 120

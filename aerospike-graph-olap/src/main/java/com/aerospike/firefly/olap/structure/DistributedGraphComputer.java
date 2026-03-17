@@ -176,7 +176,9 @@ public class DistributedGraphComputer implements GraphComputer {
                 .set("spark.dynamicAllocation.initialExecutors", String.valueOf(workers))
                 .set("spark.scheduler.minRegisteredResourcesRatio", "1.0")
                 .set("mapreduce.fileoutputcommitter.algorithm.version", "2")
-                .set("spark.executor.extraJavaOptions", "-Dlog4j.logger.org.apache.spark.serializer=DEBUG -Dlog4j.logger.org.apache.spark.util.ClosureCleaner=DEBUG");
+                .set("spark.executor.extraJavaOptions", "-Dlog4j.logger.org.apache.spark.serializer=DEBUG -Dlog4j.logger.org.apache.spark.util.ClosureCleaner=DEBUG")
+                // Disable AQE due to SPARK-50992: OOM from plan string generation in Spark 3.5
+                .set("spark.sql.adaptive.enabled", "false");
 
         final SparkSession.Builder builder = SparkSession.builder().config(conf);
         builder.config("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")

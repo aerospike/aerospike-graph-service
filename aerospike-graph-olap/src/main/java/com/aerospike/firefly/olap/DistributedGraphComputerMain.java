@@ -282,7 +282,9 @@ public class DistributedGraphComputerMain {
         conf.setAppName("aerospike-graph-olap")
                 .set("spark.driver.allowMultipleContexts", "false")
                 .set("spark.ui.enabled", "true")
-                .set("mapreduce.fileoutputcommitter.algorithm.version", "2");
+                .set("mapreduce.fileoutputcommitter.algorithm.version", "2")
+                // Disable AQE due to SPARK-50992: OOM from plan string generation in Spark 3.5
+                .set("spark.sql.adaptive.enabled", "false");
 
         final SparkSession.Builder builder = SparkSession.builder().config(conf);
         builder.config("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")

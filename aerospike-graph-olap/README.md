@@ -51,7 +51,7 @@ gcloud dataproc clusters create "$dataproc_name" \
     --worker-machine-type "$instance_type" \
     --worker-boot-disk-type pd-ssd \
     --worker-boot-disk-size 500 \
-    --image-version 2.1-debian11 \
+    --image-version 2.2-debian12 \
     --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE \
     --project $project
 
@@ -106,7 +106,7 @@ security_group="sg-028ccc8c880bd48cd"
 
 #Switch from java8 to java 11, the minimum java version needed for Aerospike Firefly Graph.
 CONFIGURATIONS='[{"Classification":"hadoop-env","Configurations":[{"Classification":"export","Configurations":[],"Properties":{"JAVA_HOME":"/usr/lib/jvm/java-11-amazon-corretto.x86_64"}}],"Properties":{}},{"Classification":"spark-env","Configurations":[{"Classification":"export","Configurations":[],"Properties":{"JAVA_HOME":"/usr/lib/jvm/java-11-amazon-corretto.x86_64"}}],"Properties":{}},{"Classification":"spark-defaults","Properties":{"spark.executorEnv.JAVA_HOME":"/usr/lib/jvm/java-11-amazon-corretto.x86_64"}}]'
-EMR_RELEASE="emr-6.15.0"
+EMR_RELEASE="emr-7.12.0"
 
 # Create EMR Cluster
 echo "Creating EMR Cluster..."

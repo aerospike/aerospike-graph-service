@@ -41,7 +41,10 @@ ENV HEALTHCHECK_FILE="/tmp/firefly-ready"
 COPY --from=build /opt /opt
 
 RUN apk upgrade --no-cache && \
-    apk add --no-cache bash openjdk17-jdk python3 py3-pip openssl
+    apk add --no-cache bash openjdk17-jdk python3 py3-pip openssl gcompat
+
+# Enable glibc compatibility for netty-tcnative on ARM64
+ENV LD_PRELOAD=/lib/libgcompat.so.0
 RUN pip install pyyaml --break-system-packages
 
 WORKDIR /opt

@@ -12,6 +12,7 @@ import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.config.FireflyConfiguration;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.MapConfiguration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -225,6 +226,7 @@ public class SparkBulkLoaderStateMachine {
 
         final SparkSession.Builder builder = SparkSession.builder().config(conf);
         builder.config("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+                .config("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
                 .config("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
                 .config("google.cloud.auth.service.account.enable", true);
 
@@ -296,23 +298,30 @@ public class SparkBulkLoaderStateMachine {
         } else if (fileSystem.equals(LOCAL) && fileSystemMutable) {
             LOGGER.info("Remote file system detected. Changing to '" + uriFileSystem + "' mode.");
             fileSystem = uriFileSystem;
+            try {
+                FileSystem.closeAll();
+            } catch (final IOException e) {
+                LOGGER.warn("Failed to clear Hadoop FileSystem cache", e);
+            }
             if (fileSystem.equals(S3)) {
+                final org.apache.hadoop.conf.Configuration hadoopConf = spark.sparkContext().hadoopConfiguration();
                 if (cmd.hasOption("u")) {
-                    spark.conf().set("fs.s3a.access.key", cmd.getOptionValue("u").trim());
+                    hadoopConf.set("fs.s3a.access.key", cmd.getOptionValue("u").trim());
                 }
                 if (cmd.hasOption("p")) {
-                    spark.conf().set("fs.s3a.secret.key", cmd.getOptionValue("p").trim());
+                    hadoopConf.set("fs.s3a.secret.key", cmd.getOptionValue("p").trim());
                 }
             } else if (uriFileSystem.equals(GCS)) {
+                final org.apache.hadoop.conf.Configuration hadoopConf = spark.sparkContext().hadoopConfiguration();
                 if (cmd.hasOption("gck")) {
                     final String keyFilePath = cmd.getOptionValue("gck");
                     LOGGER.info("Google Cloud Service Account key file specified: " + keyFilePath);
-                    spark.conf().set("google.cloud.auth.service.account.json.keyfile", keyFilePath);
+                    hadoopConf.set("google.cloud.auth.service.account.json.keyfile", keyFilePath);
                 } else if (cmd.hasOption("u") && cmd.hasOption("p") && cmd.hasOption("gem")) {
                     LOGGER.info("Google Cloud Service credentials passed in directly.");
-                    spark.conf().set("fs.gs.auth.service.account.private.key.id", cmd.getOptionValue("u").trim());
-                    spark.conf().set("fs.gs.auth.service.account.private.key", cmd.getOptionValue("p").trim());
-                    spark.conf().set("fs.gs.auth.service.account.email", cmd.getOptionValue("gem").trim());
+                    hadoopConf.set("fs.gs.auth.service.account.private.key.id", cmd.getOptionValue("u").trim());
+                    hadoopConf.set("fs.gs.auth.service.account.private.key", cmd.getOptionValue("p").trim());
+                    hadoopConf.set("fs.gs.auth.service.account.email", cmd.getOptionValue("gem").trim());
                 } else {
                     // Credentials are only necessary in JVM/Local mode.
                     if (cmd.hasOption(LOCAL_MODE)) {

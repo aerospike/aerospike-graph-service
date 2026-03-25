@@ -31,42 +31,49 @@ public class FireflyEdgeRecord {
     private final Record edgeRecord;
     private final AerospikeConnection db;
 
-    // Supernode-attached Edge data
-    private final Map<Long, Long> labels;
-    private final Map<Long, FireflyId> inVs;
-    private final Map<Long, FireflyId> outVs;
-    private final Map<Long, Map<Long, Object>> properties;
-    private final Map<Long, Map<Long, Object>> typeHints;
-    private final Map<Long, Boolean> isOutSupernodes;
-    private final Map<Long, Boolean> isInSupernodes;
-
-    // Edge unique ID - List of Edge data
+    // Edge unique ID - List of Edge data (always used)
     private final Map<Long, List<Object>> edgeData;
 
-    // Edge unique ID - Attached Supernode Vertex Hash ID
-    private final Map<Long, String> edgeIdToInVHashIdKey;
-    private final Map<Long, String> edgeIdToOutVHashIdKey;
-
-    // For keeping track of Vertex Hash IDs we blind scanned for attached Edges
-    private final Set<String> scannedInVHashIds;
-    private final Set<String> scannedOutVHashIds;
+    // Supernode-attached Edge data (lazy-initialized, only allocated for supernode edges)
+    private Map<Long, Long> labels;
+    private Map<Long, FireflyId> inVs;
+    private Map<Long, FireflyId> outVs;
+    private Map<Long, Map<Long, Object>> properties;
+    private Map<Long, Map<Long, Object>> typeHints;
+    private Map<Long, Boolean> isOutSupernodes;
+    private Map<Long, Boolean> isInSupernodes;
+    private Map<Long, String> edgeIdToInVHashIdKey;
+    private Map<Long, String> edgeIdToOutVHashIdKey;
+    private Set<String> scannedInVHashIds;
+    private Set<String> scannedOutVHashIds;
 
     public FireflyEdgeRecord(final Record phatEdgeRecord, final AerospikeConnection db) {
         this.edgeRecord = phatEdgeRecord;
         this.db = db;
-        // todo: GRAPH-1730
-        this.labels = new HashMap<>(db.getConfig().phatEdgeSize);
-        this.inVs = new HashMap<>(db.getConfig().phatEdgeSize);
-        this.outVs = new HashMap<>(db.getConfig().phatEdgeSize);
-        this.properties = new HashMap<>(db.getConfig().phatEdgeSize);
-        this.typeHints = new HashMap<>(db.getConfig().phatEdgeSize);
-        this.isOutSupernodes = new HashMap<>(db.getConfig().phatEdgeSize);
-        this.isInSupernodes = new HashMap<>(db.getConfig().phatEdgeSize);
         this.edgeData = new HashMap<>(db.getConfig().phatEdgeSize);
-        this.edgeIdToInVHashIdKey = new HashMap<>(db.getConfig().phatEdgeSize);
-        this.edgeIdToOutVHashIdKey = new HashMap<>(db.getConfig().phatEdgeSize);
-        this.scannedInVHashIds = new HashSet<>(db.getConfig().phatEdgeSize);
-        this.scannedOutVHashIds = new HashSet<>(db.getConfig().phatEdgeSize);
+    }
+
+    /**
+     * Allocate supernode-specific maps on first use. For non-supernode edges
+     * (the common case) these maps are never needed, avoiding 10 unnecessary
+     * HashMap/HashSet allocations per phat edge record.
+     */
+    private void ensureSupernodeMapsInitialized() {
+        if (this.labels != null) {
+            return;
+        }
+        final int size = db.getConfig().phatEdgeSize;
+        this.labels = new HashMap<>(size);
+        this.inVs = new HashMap<>(size);
+        this.outVs = new HashMap<>(size);
+        this.properties = new HashMap<>(size);
+        this.typeHints = new HashMap<>(size);
+        this.isOutSupernodes = new HashMap<>(size);
+        this.isInSupernodes = new HashMap<>(size);
+        this.edgeIdToInVHashIdKey = new HashMap<>(size);
+        this.edgeIdToOutVHashIdKey = new HashMap<>(size);
+        this.scannedInVHashIds = new HashSet<>(size);
+        this.scannedOutVHashIds = new HashSet<>(size);
     }
 
     public synchronized List<Object> getEdgeData(final FireflyEdgeId edgeId) {
@@ -94,6 +101,7 @@ public class FireflyEdgeRecord {
                 return edgeDataList;
             } else if (edgeDataValue instanceof Map) {
                 // Edge is attached to a supernode,
+                ensureSupernodeMapsInitialized();
                 this.typeHints.put(uniqueEdgeId, (Map<Long, Object>) edgeDataValue);
                 flattenSupernodeEdgeData(edgeId);
                 final List<Object> edgeDataList = new ArrayList<>(EDGE_DATA_SIZE + 2);
@@ -123,6 +131,7 @@ public class FireflyEdgeRecord {
                                                                                     final Direction direction,
                                                                                     final FireflyId adjacentVertexId,
                                                                                     final List<HasContainer> adjustedIdContainers) {
+        ensureSupernodeMapsInitialized();
         final int adjacentPosition;
         final String supernodeDataMapBinName;
         final Map<Long, String> edgeUniqueIdToVHashIdKey;

@@ -95,11 +95,12 @@ public class FireflyBatchElementMapStep extends CollectingBarrierStep<Element> i
     protected Map<Object, Object> getVertexStructure(final FireflyId vertexId, final Map<FireflyId, Pair<Object, String>> vertexCache) {
         final Map<Object, Object> m = new LinkedHashMap<>();
 
-        if (vertexCache.containsKey(vertexId)) {
-            m.put(T.id, vertexCache.get(vertexId).getValue0());
-            m.put(T.label, vertexCache.get(vertexId).getValue1());
+        final Pair<Object, String> cached = vertexCache.get(vertexId);
+        if (cached != null) {
+            m.put(T.id, cached.getValue0());
+            m.put(T.label, cached.getValue1());
         } else {
-            // Vertex was remoted or Edge is stray
+            // Vertex was removed or Edge is stray
             m.put(T.id, vertexId.getUserId());
         }
 

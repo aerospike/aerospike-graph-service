@@ -82,7 +82,7 @@ public final class FireflyGraphFilterStrategy extends AbstractTraversalStrategy<
                         hasTraversal = hasTraversal.has("", "").asAdmin();
                     } else {
                         for (final HasContainer hasContainer : ((HasContainerHolder) currentStep).getHasContainers().stream()
-                                .filter(h -> h.getKey().equals(T.id.getAccessor()) || h.getValue() instanceof Number || h.getValue() instanceof Number ||
+                                .filter(h -> h.getKey().equals(T.id.getAccessor()) || h.getValue() instanceof Number || h.getValue() instanceof String ||
                                         (h.getPredicate().getPredicateName().equals(P.eq(1).getPredicateName()))).collect(Collectors.toList())) {
 
                             hasTraversal = hasTraversal.has(hasContainer.getKey(), hasContainer.getPredicate()).asAdmin();

@@ -158,8 +158,17 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             }
             return null;
         }
-        final List<FireflyId> edgeIdsOfLabel = edgeCache.get(edgeLabel).stream().map(LazyIdTransform::transform).collect(Collectors.toList());
-        final int indexOfEdgeToRemove = edgeIdsOfLabel.indexOf(edgeId);
+        final List<LazyIdTransform> originalList = edgeCache.get(edgeLabel);
+        int indexOfEdgeToRemove = -1;
+        FireflyId compositeIdToRemove = null;
+        for (int i = 0; i < originalList.size(); i++) {
+            final FireflyId transformed = originalList.get(i).transform();
+            if (transformed.equals(edgeId)) {
+                indexOfEdgeToRemove = i;
+                compositeIdToRemove = transformed;
+                break;
+            }
+        }
         if (indexOfEdgeToRemove == -1) {
             if (!this.isEdgeCacheOverflowed) {
                 LOG.error("Could not find edge id {} in vertex {}. Vertex edge cache under label {} did not contain edge id {}.",
@@ -168,11 +177,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             return null;
         }
 
-        // Remove item from vertex property Map.
-        final FireflyId compositeIdToRemove = edgeIdsOfLabel.remove(indexOfEdgeToRemove);
+        // Remove item from vertex edge cache.
+        originalList.remove(indexOfEdgeToRemove);
 
         // Remove key if IDs are empty.
-        if (edgeIdsOfLabel.isEmpty()) {
+        if (originalList.isEmpty()) {
             edgeCache.remove(edgeLabel);
         }
 
@@ -543,16 +552,20 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Transform and cache the IDs
         final List<FireflyId> cachedIds = new ArrayList<>();
         if (direction == Direction.OUT || direction == Direction.BOTH) {
-            for (final String key : outEdgeIds.keySet()) {
-                if (labels.isEmpty() || labels.contains(key)) {
-                    cachedIds.addAll(outEdgeIds.get(key).stream().map(LazyIdTransform::transform).collect(Collectors.toList()));
+            for (final Map.Entry<String, List<LazyIdTransform>> entry : outEdgeIds.entrySet()) {
+                if (labels.isEmpty() || labels.contains(entry.getKey())) {
+                    for (final LazyIdTransform lazyId : entry.getValue()) {
+                        cachedIds.add(lazyId.transform());
+                    }
                 }
             }
         }
         if (direction == Direction.IN || direction == Direction.BOTH) {
-            for (final String key : inEdgeIds.keySet()) {
-                if (labels.isEmpty() || labels.contains(key)) {
-                    cachedIds.addAll(inEdgeIds.get(key).stream().map(LazyIdTransform::transform).collect(Collectors.toList()));
+            for (final Map.Entry<String, List<LazyIdTransform>> entry : inEdgeIds.entrySet()) {
+                if (labels.isEmpty() || labels.contains(entry.getKey())) {
+                    for (final LazyIdTransform lazyId : entry.getValue()) {
+                        cachedIds.add(lazyId.transform());
+                    }
                 }
             }
         }

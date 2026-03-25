@@ -348,10 +348,24 @@ public class FireflyBatchVertexReadStep extends CollectingBarrierStep<Vertex> im
     private List<FireflyId> getFilteredIds(final FireflyVertex vertex) {
         final List<FireflyId> ids = new ArrayList<>();
         final Iterator<FireflyId> fireflyIdIterator = vertex.getVertexIdsFromVertex(direction, edgeLabels);
-        while (fireflyIdIterator.hasNext()) {
-            final FireflyId id = fireflyIdIterator.next();
-            if (idContainers.isEmpty() || idContainers.stream().allMatch(c -> c.test(new ReferenceVertex(id.getUserId())))) {
-                ids.add(id);
+        if (idContainers.isEmpty()) {
+            while (fireflyIdIterator.hasNext()) {
+                ids.add(fireflyIdIterator.next());
+            }
+        } else {
+            while (fireflyIdIterator.hasNext()) {
+                final FireflyId id = fireflyIdIterator.next();
+                final ReferenceVertex ref = new ReferenceVertex(id.getUserId());
+                boolean accepted = true;
+                for (final HasContainer c : idContainers) {
+                    if (!c.test(ref)) {
+                        accepted = false;
+                        break;
+                    }
+                }
+                if (accepted) {
+                    ids.add(id);
+                }
             }
         }
         return ids;

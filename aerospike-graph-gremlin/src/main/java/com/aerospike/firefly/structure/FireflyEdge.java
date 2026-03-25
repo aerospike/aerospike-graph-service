@@ -146,8 +146,9 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public <V> Property<V> property(final String key) {
-        if (properties.containsKey(key)) {
-            final V casted = (V) this.db.convertValueToTypeUsingHint(properties.get(key), typeHints.get(key));
+        final Object value = properties.get(key);
+        if (value != null) {
+            final V casted = (V) this.db.convertValueToTypeUsingHint(value, typeHints.get(key));
             return new FireflyEdgeProperty<>(graph, this, key, casted);
         } else {
             return Property.empty();
@@ -211,10 +212,11 @@ public class FireflyEdge extends FireflyElement implements Edge {
             }
 
             // Otherwise if there is only 1 key and it is not null, return the property if we have it, otherwise empty iterator.
-            if (properties.containsKey(propertyKeys[0])) {
+            final Object singleValue = properties.get(propertyKeys[0]);
+            if (singleValue != null) {
                 return FireflyCloseableIteratorUtils.of(new FireflyEdgeProperty<>(graph, this, propertyKeys[0],
                         (V) this.db.convertValueToTypeUsingHint(
-                                properties.get(propertyKeys[0]), typeHints.get(propertyKeys[0]))));
+                                singleValue, typeHints.get(propertyKeys[0]))));
             } else {
                 return Collections.emptyIterator();
             }

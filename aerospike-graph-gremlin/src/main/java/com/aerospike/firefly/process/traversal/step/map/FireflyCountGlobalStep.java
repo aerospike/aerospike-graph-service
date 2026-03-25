@@ -15,7 +15,6 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -26,13 +25,20 @@ public class FireflyCountGlobalStep<S extends Element> extends AbstractStep<S, L
 
     private final Class<S> elementClass;
     private final List<HasContainer> aerospikeHasContainers;
+    private final String edgeLabel;
     private boolean done = false;
 
     public FireflyCountGlobalStep(final Traversal.Admin traversal, final Class<S> elementClass,
                                   final List<HasContainer> aerospikeHasContainers) {
+        this(traversal, elementClass, aerospikeHasContainers, null);
+    }
+
+    public FireflyCountGlobalStep(final Traversal.Admin traversal, final Class<S> elementClass,
+                                  final List<HasContainer> aerospikeHasContainers, final String edgeLabel) {
         super(traversal);
         this.elementClass = elementClass;
         this.aerospikeHasContainers = aerospikeHasContainers;
+        this.edgeLabel = edgeLabel;
     }
 
     @Override
@@ -41,10 +47,15 @@ public class FireflyCountGlobalStep<S extends Element> extends AbstractStep<S, L
             this.done = true;
             final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
             final long evaluationTimeout = TimeoutHelper.calculate(traversal);
-            return this.getTraversal().getTraverserGenerator().generate(Vertex.class.isAssignableFrom(this.elementClass) ?
-                            FireflyHelper.countVertices(graph, aerospikeHasContainers, evaluationTimeout) :
-                            FireflyHelper.countEdges(graph, evaluationTimeout),
-                    (Step) this, 1L);
+            final long count;
+            if (Vertex.class.isAssignableFrom(this.elementClass)) {
+                count = FireflyHelper.countVertices(graph, aerospikeHasContainers, evaluationTimeout);
+            } else if (edgeLabel != null) {
+                count = graph.getEdgeCountByLabel(edgeLabel, evaluationTimeout);
+            } else {
+                count = FireflyHelper.countEdges(graph, evaluationTimeout);
+            }
+            return this.getTraversal().getTraverserGenerator().generate(count, (Step) this, 1L);
         } else
             throw FastNoSuchElementException.instance();
     }

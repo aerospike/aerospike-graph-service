@@ -13,14 +13,14 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import org.jspecify.annotations.NullMarked;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -128,19 +128,16 @@ public class ReadThroughRecordCache extends FireflyCache {
     private Record[] readBatchInternal(final Key[] keys, final BatchPolicy policy, final Operation... operations) {
         final List<Key> allKeys = List.of(keys);
         final Map<Key, Record> results = new HashMap<>(cache.getAllPresent(new HashSet<>(allKeys)));
-        final List<Key> missingKeys = allKeys.stream()
-                .filter(key -> !results.containsKey(key))
-                .collect(Collectors.toList());
+        final List<Key> missingKeys = new ArrayList<>();
+        for (final Key key : allKeys) {
+            if (!results.containsKey(key)) {
+                missingKeys.add(key);
+            }
+        }
 
-        final Set<Key> missingKeySet = new HashSet<>(missingKeys);
-
-        // Batch reading in Aerospike is capped based on settings in the server.
-        for (int i = 0; i < missingKeySet.size(); i += db.getConfig().aerospikeBatchReadSize) {
-            // Generate sub list using current index and batch size.
-            final List<Key> subList = missingKeySet.stream()
-                    .skip(i)
-                    .limit(db.getConfig().aerospikeBatchReadSize)
-                    .collect(Collectors.toList());
+        final int batchSize = db.getConfig().aerospikeBatchReadSize;
+        for (int i = 0; i < missingKeys.size(); i += batchSize) {
+            final List<Key> subList = missingKeys.subList(i, Math.min(i + batchSize, missingKeys.size()));
 
             // Execute batch read. subList ids are read from the database.
             final Record[] fetchedRecords = db.skipCacheRead(subList.toArray(new Key[0]), policy, operations);

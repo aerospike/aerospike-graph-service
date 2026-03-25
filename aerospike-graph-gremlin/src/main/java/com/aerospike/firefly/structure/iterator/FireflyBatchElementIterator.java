@@ -37,22 +37,22 @@ public class FireflyBatchElementIterator<E extends Element, F extends E> impleme
 
     @Override
     public boolean hasNext() {
-        if (elementIterator == null || !elementIterator.hasNext()) {
-            if (!idIterator.hasNext()) {
-                return false;
+        while (true) {
+            if (elementIterator == null || !elementIterator.hasNext()) {
+                if (!idIterator.hasNext()) {
+                    return false;
+                }
+                final List<FireflyId> fireflyIdList = new ArrayList<>(graph.getBaseGraph().getConfig().aerospikeBatchReadSize);
+                while (idIterator.hasNext() && fireflyIdList.size() < graph.getBaseGraph().getConfig().aerospikeBatchReadSize) {
+                    fireflyIdList.add(idIterator.next());
+                }
+                elementIterator = readElements.readElements(hasContainers, fireflyIdList, requiredProperties).iterator();
+            } else {
+                // We still have data to return.
+                return true;
             }
-            final List<FireflyId> fireflyIdList = new ArrayList<>();
-            while (idIterator.hasNext() && fireflyIdList.size() < graph.getBaseGraph().getConfig().aerospikeBatchReadSize) {
-                fireflyIdList.add(idIterator.next());
-            }
-            elementIterator = readElements.readElements(hasContainers, fireflyIdList, requiredProperties).iterator();
-
-            // Just in case the ids we go to read have been removed we should not straight up return true.
-            return elementIterator.hasNext();
+            // If the batch returned empty (all elements deleted), loop to try the next batch.
         }
-
-        // We still have data to return.
-        return true;
     }
 
     @Override

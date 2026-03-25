@@ -56,7 +56,14 @@ public class FireflyHasIdVertexFilterStep<S> extends AbstractStep<S, S> {
                 final FireflyId neighborId = neighborIds.next();
                 final ReferenceVertex ref = new ReferenceVertex(neighborId.getUserId());
 
-                if (hasContainers.stream().allMatch(hc -> hc.test(ref))) {
+                boolean allMatch = true;
+                for (final HasContainer hc : hasContainers) {
+                    if (!hc.test(ref)) {
+                        allMatch = false;
+                        break;
+                    }
+                }
+                if (allMatch) {
                     return traverser;
                 }
             }

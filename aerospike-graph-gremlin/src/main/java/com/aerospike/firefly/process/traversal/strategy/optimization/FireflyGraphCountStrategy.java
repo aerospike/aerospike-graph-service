@@ -5,6 +5,7 @@ import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
@@ -19,6 +20,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -77,21 +79,29 @@ public final class FireflyGraphCountStrategy extends FireflyStrategyBase {
                 hasStepCount++;
             } else if (
                     !(step instanceof IdentityStep ||
-                      step instanceof NoOpBarrierStep) ||
-                     (step instanceof TraversalParent &&
-                            TraversalHelper.anyStepRecursively(s -> (
-                                    s instanceof SideEffectStep ||
-                                    s instanceof AggregateGlobalStep),
-                                    (TraversalParent) step)))
+                            step instanceof NoOpBarrierStep) ||
+                            (step instanceof TraversalParent &&
+                                    TraversalHelper.anyStepRecursively(s -> (
+                                                    s instanceof SideEffectStep ||
+                                                            s instanceof AggregateGlobalStep),
+                                            (TraversalParent) step)))
                 return;
         }
 
         Class<? extends Element> returnClass = graphStep.getReturnClass();
 
-        // If there is more than 1 HasStep or if there is any has step and
-        // were returning an edge then we cannot use this strategy.
-        if (hasStepCount > 1 ||
-                (hasStep != null && Edge.class.isAssignableFrom(returnClass))) {
+        if (hasStepCount > 1) {
+            return;
+        }
+
+        // Edge count with a single label-only HasStep: g.E().hasLabel("knows").count()
+        if (hasStep != null && Edge.class.isAssignableFrom(returnClass)) {
+            final String edgeLabel = extractSingleLabelFilter(hasStep);
+            if (edgeLabel == null) {
+                return;
+            }
+            TraversalHelper.removeAllSteps(traversal);
+            traversal.addStep(new FireflyCountGlobalStep<>(traversal, returnClass, List.of(), edgeLabel));
             return;
         }
 
@@ -108,6 +118,26 @@ public final class FireflyGraphCountStrategy extends FireflyStrategyBase {
 
         TraversalHelper.removeAllSteps(traversal);
         traversal.addStep(new FireflyCountGlobalStep<>(traversal, returnClass, aerospikeHasContainers));
+    }
+
+    /**
+     * If the HasStep contains exactly one label equality filter (e.g. hasLabel("knows")),
+     * returns that label string. Returns null otherwise.
+     */
+    private static String extractSingleLabelFilter(final HasStep<?> hasStep) {
+        final List<HasContainer> containers = hasStep.getHasContainers();
+        if (containers.size() != 1) {
+            return null;
+        }
+        final HasContainer container = containers.get(0);
+        if (!T.label.getAccessor().equals(container.getKey())) {
+            return null;
+        }
+        if (!(container.getPredicate().getBiPredicate() == Compare.eq)) {
+            return null;
+        }
+        final Object value = container.getPredicate().getValue();
+        return (value instanceof String) ? (String) value : null;
     }
 
     @Override

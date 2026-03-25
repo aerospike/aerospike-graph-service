@@ -1073,6 +1073,76 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return FireflyCloseableIteratorUtils.count(this.graphQuery.scanEdgeIds(evaluationTimeout));
     }
 
+    /**
+     * Count edges matching a specific label without materializing full FireflyEdge objects.
+     * Scans phat edge records and checks the on-disk label value directly.
+     */
+    public long getEdgeCountByLabel(final String label, final Long evaluationTimeout) {
+        final Long targetLabel = db.schemaManager.getEdgeLabelRead(label);
+        if (targetLabel == null) {
+            return 0;
+        }
+        final Long schemaLabelKey = db.schemaManager.getEdgePropertyRead(FireflyEdge.EDGE_SUPERNODE_LABEL_KEY);
+        final Iterator<KeyRecord> records = this.graphQuery.scanEdgeRecords(evaluationTimeout);
+
+        long count = 0;
+        try {
+            while (records.hasNext()) {
+                count += countEdgesInRecordByLabel(records.next(), targetLabel, schemaLabelKey);
+            }
+        } finally {
+            CloseableIterator.closeIterator(records);
+        }
+        return count;
+    }
+
+    private long countEdgesInRecordByLabel(final KeyRecord keyRecord, final Long targetLabel,
+                                           final Long schemaLabelKey) {
+        final Map<?, ?> edgeDataMap = (Map<?, ?>) keyRecord.record.getMap(db.getConfig().edgeDataBin);
+        long count = 0;
+        boolean hasSupernodeEdges = false;
+
+        for (final Object value : edgeDataMap.values()) {
+            if (value instanceof List) {
+                if (targetLabel.equals(((List<?>) value).get(FireflyEdge.LABEL_POSITION))) {
+                    count++;
+                }
+            } else {
+                hasSupernodeEdges = true;
+            }
+        }
+
+        if (hasSupernodeEdges) {
+            count += countSupernodeEdgesByLabel(keyRecord, targetLabel, schemaLabelKey);
+        }
+        return count;
+    }
+
+    @SuppressWarnings("unchecked")
+    private long countSupernodeEdgesByLabel(final KeyRecord keyRecord, final Long targetLabel,
+                                            final Long schemaLabelKey) {
+        final Set<Long> counted = new HashSet<>();
+        for (final String binName : new String[]{db.getConfig().supernodesOutBin, db.getConfig().supernodesInBin}) {
+            final Map<String, Object> bin = (Map<String, Object>) keyRecord.record.getMap(binName);
+            if (bin == null) {
+                continue;
+            }
+            for (final Object vertexData : bin.values()) {
+                final Map<Long, Object> propMap = (Map<Long, Object>) vertexData;
+                final Map<Long, Long> labelMap = (Map<Long, Long>) propMap.get(schemaLabelKey);
+                if (labelMap == null) {
+                    continue;
+                }
+                for (final Map.Entry<Long, Long> entry : labelMap.entrySet()) {
+                    if (targetLabel.equals(entry.getValue()) && counted.add(entry.getKey())) {
+                        // counted.add returns true if the element was new (not a duplicate)
+                    }
+                }
+            }
+        }
+        return counted.size();
+    }
+
     @Override
     public AerospikeConnection getBaseGraph() {
         return db;
@@ -1322,10 +1392,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             iterator = new FireflyPhatEdgeScanIterator(
                     this.graphQuery.scanEdgeRecords(settings().evaluationTimeout), this);
         } else {
-            final List<FireflyId> idList = getIds(Arrays.asList(edgeIds)).stream()
-                    .filter(Objects::nonNull)
-                    .map(id -> getIdFactory().createEdgeId(id))
-                    .collect(Collectors.toList());
+            final List<FireflyId> idList = new ArrayList<>(edgeIds.length);
+            for (final Object edgeId : edgeIds) {
+                final Object rawId = (edgeId instanceof Element) ? ((Element) edgeId).id() : edgeId;
+                if (rawId != null) {
+                    idList.add(getIdFactory().createEdgeId(rawId));
+                }
+            }
             iterator = (Iterator<Edge>) (Iterator<?>) aerospikeOperations.readEdges(idList).iterator();
         }
         // TODO: GRAPH COMPUTER INTERCEPTION

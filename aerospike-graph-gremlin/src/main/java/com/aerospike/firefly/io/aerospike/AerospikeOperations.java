@@ -1708,7 +1708,7 @@ public class AerospikeOperations {
      * @return Edge.
      */
     public List<FireflyEdge> readEdges(final List<FireflyId> edgeIds) {
-        final List<FireflyEdge> edges = new ArrayList<>();
+        final List<FireflyEdge> edges = new ArrayList<>(edgeIds.size());
         final Map<FireflyId, FireflyEdgeRecord> edgeRecords = FireflyRecord.batchReadPhatEdges(db, edgeIds);
         if (edgeRecords.isEmpty()) {
             return edges;

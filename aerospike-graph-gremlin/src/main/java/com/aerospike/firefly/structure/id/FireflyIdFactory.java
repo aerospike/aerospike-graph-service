@@ -227,16 +227,14 @@ public class FireflyIdFactory {
         fireflyObjectIdsMap.forEach((key, value) -> {
             if (value instanceof List<?>) {
                 final List<Object> list = (List<Object>) value;
-                fireflyObjectIdsMap.replace(key,
-                        list.stream().map(id -> {
-                            if (id instanceof FireflyId) {
-                                return new LazyIdTransform((FireflyId) id);
-                            } else if (id instanceof LazyIdTransform) {
-                                return id;
-                            } else {
-                                return LazyIdTransform.create(id, graph, type);
-                            }
-                        }).collect(Collectors.toList()));
+                for (int i = 0; i < list.size(); i++) {
+                    final Object id = list.get(i);
+                    if (id instanceof FireflyId) {
+                        list.set(i, new LazyIdTransform((FireflyId) id));
+                    } else if (!(id instanceof LazyIdTransform)) {
+                        list.set(i, LazyIdTransform.create(id, graph, type));
+                    }
+                }
             } else {
                 if (value instanceof FireflyId) {
                     fireflyObjectIdsMap.replace(key, new LazyIdTransform((FireflyId) value));

@@ -16,12 +16,10 @@ import org.apache.commons.lang3.ArrayUtils;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -43,21 +41,23 @@ public class FireflyRecord {
         put(Double.class, 3L);
         put(String.class, 5L);
     }};
+    private static final Map<Long, Class<? extends Serializable>> IdHintToType = new HashMap<>();
+
+    static {
+        SupportedIdTypes.forEach((clazz, hint) -> IdHintToType.put(hint, clazz));
+    }
+
     private final Key key;
     private final Record record;
-    private final AerospikeConnection ac;
 
     /**
      * Wrapper for AerospikeRecord
      *
-     * @param ac     AerospikeConnection instance
      * @param key    Aerospike Key to wrap
      * @param record Aerospike Record to wrap
      */
-    private FireflyRecord(final AerospikeConnection ac,
-                          final Key key,
+    private FireflyRecord(final Key key,
                           final Record record) {
-        this.ac = ac;
         this.key = key;
         this.record = record;
     }
@@ -77,16 +77,12 @@ public class FireflyRecord {
         throw new UnsupportedOperationException(storedId.getClass() + " is not a supported id type");
     }
 
-
-    //cast an ID read from disk back to its original type when it was provided by the user
-    public static Object idStorageTypeToOriginalType(final Object storedId, final long originalTypeHint) {
-        return FireflyRecord.idStorageTypeToOriginalType(storedId, idTypeFromHint(originalTypeHint));
-    }
-
-
-    //Convert a numeric type-hint stored on disk to the class it represents
     private static Class<? extends Serializable> idTypeFromHint(final long hint) {
-        return SupportedIdTypes.entrySet().stream().filter(e -> e.getValue() == hint).collect(Collectors.toList()).get(0).getKey();
+        final Class<? extends Serializable> type = IdHintToType.get(hint);
+        if (type == null) {
+            throw new IllegalArgumentException("Unknown id type hint: " + hint);
+        }
+        return type;
     }
 
     public Record record() {
@@ -114,30 +110,31 @@ public class FireflyRecord {
         final Record record = db.read(key, policy, db.cacheManager.getTransactionCache());
         if (record == null)
             return null;
-        return new FireflyRecord(db, key, record);
+        return new FireflyRecord(key, record);
     }
 
     public static List<FireflyRecord> batchRead(final AerospikeConnection db, final ReadInfo readInfo) {
-        // Check if empty and return empty if it is.
         if (readInfo.ids.isEmpty()) {
             return new ArrayList<>();
         }
 
-        // Batch reading in Aerospike is capped based on settings in the server.
         final Map<FireflyId, FireflyRecord> idToRecord = new HashMap<>();
-        final Set<FireflyId> uniqueIds = new HashSet<>(readInfo.ids);
+        final List<FireflyId> uniqueIds = new ArrayList<>(new HashSet<>(readInfo.ids));
 
-        // Batch reading in Aerospike is capped based on settings in the server.
-        for (int i = 0; i < uniqueIds.size(); i += db.getConfig().aerospikeBatchReadSize) {
-            // Generate sub list using current index and batch size.
-            final List<FireflyId> subList = uniqueIds.stream().skip(i).limit(db.getConfig().aerospikeBatchReadSize).collect(Collectors.toList());
-
-            // Execute batch read. subList ids are read from the database.
-            executeBatchRead(db, readInfo, idToRecord, subList);
+        final int batchSize = db.getConfig().aerospikeBatchReadSize;
+        for (int i = 0; i < uniqueIds.size(); i += batchSize) {
+            executeBatchRead(db, readInfo, idToRecord,
+                    uniqueIds.subList(i, Math.min(i + batchSize, uniqueIds.size())));
         }
 
-        // Return the records in the same order as the ids, removing any null items.
-        return readInfo.ids.stream().filter(idToRecord::containsKey).map(idToRecord::get).collect(Collectors.toList());
+        final List<FireflyRecord> result = new ArrayList<>(readInfo.ids.size());
+        for (final FireflyId id : readInfo.ids) {
+            final FireflyRecord record = idToRecord.get(id);
+            if (record != null) {
+                result.add(record);
+            }
+        }
+        return result;
     }
 
     private static void executeBatchRead(final AerospikeConnection db,
@@ -183,7 +180,7 @@ public class FireflyRecord {
             if (records[i] != null) {
                 // Add id/record pair to the map.
                 final FireflyId id = idsToRead.get(i);
-                final FireflyRecord fireflyRecord = new FireflyRecord(db, getKey(db, readInfo.set, id), records[i]);
+                final FireflyRecord fireflyRecord = new FireflyRecord(getKey(db, readInfo.set, id), records[i]);
                 idToRecord.put(id, fireflyRecord);
             }
         }
@@ -199,40 +196,31 @@ public class FireflyRecord {
      */
     public static Map<FireflyId, FireflyEdgeRecord> batchReadPhatEdges(final AerospikeConnection db,
                                                                        final List<FireflyId> ids) {
-
-        // Requested IDs to their respective FireflyRecord.
-        final Map<FireflyId, FireflyEdgeRecord> records = new HashMap<>();
-        // Check if empty and return empty if it is.
         if (ids.isEmpty()) {
-            return records;
+            return new HashMap<>();
         }
 
-        // Map of phat Edge IDs (long) to their respective Key to keep track of whether we've added it.
+        // Deduplicate by storage ID directly — no intermediate HashSet of edge IDs needed.
         final Map<Long, Key> edgeStorageIdToKey = new HashMap<>();
-
-        // Deduplicate the ids.
-        final Set<FireflyId> uniqueIds = new HashSet<>(ids);
-        // Deduplicate the phat edge ids.
-        for (final FireflyId edgeId : uniqueIds) {
-            if (!edgeStorageIdToKey.containsKey(edgeId.getStorageId())) {
-                edgeStorageIdToKey.put((long) edgeId.getStorageId(), getKey(db, db.getConfig().edgeAeroSet, edgeId));
-            }
-        }
-        final Collection<Key> keys = edgeStorageIdToKey.values();
-
-        // Map of phat Edge IDs to their respective FireflyRecord.
-        final Map<Long, FireflyEdgeRecord> phatEdgeStorageIdToRecord = new HashMap<>();
-
-        for (int i = 0; i < keys.size(); i += db.getConfig().aerospikeBatchReadSize) {
-            // Generate sub list using current index and batch size.
-            final List<Key> subKeys = keys.stream().skip(i).limit(db.getConfig().aerospikeBatchReadSize).collect(Collectors.toList());
-
-            // Execute batch read. subList ids are read from the database.
-            executeBatchReadPhatEdges(db, phatEdgeStorageIdToRecord, subKeys);
+        for (final FireflyId edgeId : ids) {
+            edgeStorageIdToKey.putIfAbsent(
+                    (long) edgeId.getStorageId(),
+                    getKey(db, db.getConfig().edgeAeroSet, edgeId));
         }
 
+        // Use List + subList instead of stream skip/limit (avoids O(n^2) iteration).
+        final List<Key> keyList = new ArrayList<>(edgeStorageIdToKey.values());
+        final Map<Long, FireflyEdgeRecord> storageIdToRecord = new HashMap<>();
+        final int batchSize = db.getConfig().aerospikeBatchReadSize;
+        for (int i = 0; i < keyList.size(); i += batchSize) {
+            executeBatchReadPhatEdges(db, storageIdToRecord,
+                    keyList.subList(i, Math.min(i + batchSize, keyList.size())));
+        }
+
+        // Map each requested edge ID to its phat record.
+        final Map<FireflyId, FireflyEdgeRecord> records = new HashMap<>(ids.size());
         for (final FireflyId id : ids) {
-            records.put(id, phatEdgeStorageIdToRecord.get(id.getStorageId()));
+            records.put(id, storageIdToRecord.get(id.getStorageId()));
         }
         return records;
     }
@@ -255,15 +243,14 @@ public class FireflyRecord {
     /**
      * Construct a FireflyRecord from an Aerospike KeyRecord
      *
-     * @param db        AerospikeConnection instance
      * @param keyRecord Aerospike KeyRecord
      * @return FireflyRecord
      */
-    public static FireflyRecord fromRecord(final AerospikeConnection db, final KeyRecord keyRecord) {
+    public static FireflyRecord fromRecord(final KeyRecord keyRecord) {
         if (keyRecord.record == null)
             return null;
 
-        return new FireflyRecord(db, keyRecord.key, keyRecord.record);
+        return new FireflyRecord(keyRecord.key, keyRecord.record);
     }
 
     @Override

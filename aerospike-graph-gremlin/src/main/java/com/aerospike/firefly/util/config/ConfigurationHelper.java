@@ -208,6 +208,9 @@ public final class ConfigurationHelper {
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
         public static final String PROMETHEUS_RENAME = "aerospike.graph.prometheus.rename.enabled";
         public static final String VALIDATE_CLUSTER_NAME = "aerospike.client.validate.cluster.name";
+        public static final String RACK_AWARE = "aerospike.client.rack.aware";
+        public static final String RACK_ID = "aerospike.client.rack.id";
+        public static final String RACK_IDS = "aerospike.client.rack.ids";
         public static final String QUERY_IMPL = "aerospike.graph.query.impl";
         public static final String QUERY_PAGED = "paged";
         public static final String QUERY_LEGACY = "legacy";
@@ -475,6 +478,9 @@ public final class ConfigurationHelper {
         put(Keys.CLIENT_SERVICES_ALTERNATE, "false");
         put(Keys.CLUSTER_NAME, "");
         put(Keys.VALIDATE_CLUSTER_NAME, "true");
+        put(Keys.RACK_AWARE, "false");
+        put(Keys.RACK_ID, "0");
+        put(Keys.RACK_IDS, "");
         put(Keys.QUERY_IMPL, Keys.QUERY_PAGED);
         put(Keys.JWT_ALGORITHM, "HMAC256");
         put(Keys.AUTHENTICATION_ENABLED, "false");
@@ -564,6 +570,7 @@ public final class ConfigurationHelper {
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.EVENT_LOOP_COUNT, 0);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.DELAY_QUEUE_SIZE, 0);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_PER_NODE_THRESHOLD, 0);
+        INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.RACK_ID, 0);
         INTEGER_CONFIG_VALIDATOR.addConfig(Keys.MRT_TIMEOUT, 0, 120);
         INTEGER_CONFIG_VALIDATOR.addConfig(Keys.TRANSACTION_TIMEOUT, 0, 120);
         INTEGER_CONFIG_VALIDATOR.addConfigMin(Keys.QUERY_TRACING_LOG_THRESHOLD, -1);

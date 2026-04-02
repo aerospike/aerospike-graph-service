@@ -180,6 +180,10 @@ public class AerospikeConnectionConfig {
     private final boolean scanQueryAllowed;
     private final ThreadLocal<Boolean> allowScanTraversalOption = ThreadLocal.withInitial(() -> null);
 
+    public final boolean rackAware;
+    public final int rackId;
+    public final List<Integer> rackIds;
+
     public final boolean compress;
     public final int aerospikeMaxRetries;
     public final int writeSleepBetweenRetry;
@@ -368,6 +372,20 @@ public class AerospikeConnectionConfig {
         scanQueryAllowed = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SCAN_QUERY_ENABLED, conf);
 
         compress = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AEROSPIKE_COMPRESS, conf);
+
+        rackAware = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.RACK_AWARE, conf);
+        rackId = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.RACK_ID, conf);
+        final String rackIdsStr = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.RACK_IDS, conf);
+        if (rackIdsStr != null && !rackIdsStr.isBlank()) {
+            rackIds = java.util.Arrays.stream(rackIdsStr.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(Integer::parseInt)
+                    .collect(java.util.stream.Collectors.toList());
+        } else {
+            rackIds = new ArrayList<>();
+        }
+
         aerospikeMaxRetries = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_MAX_RETRIES, conf);
         writeSleepBetweenRetry = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.WRITE_SLEEP_BETWEEN_RETRY, conf);
         readSleepBetweenRetry = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.READ_SLEEP_BETWEEN_RETRY, conf);

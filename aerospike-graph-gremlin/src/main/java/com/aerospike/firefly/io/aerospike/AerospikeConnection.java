@@ -38,6 +38,7 @@ import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
+import com.aerospike.client.policy.Replica;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.TlsPolicy;
 import com.aerospike.client.policy.WritePolicy;
@@ -201,6 +202,22 @@ public class AerospikeConnection implements AutoCloseable {
         }
         // This setting should only be disabled for internal testing use.
         clientPolicy.validateClusterName = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.VALIDATE_CLUSTER_NAME, conf);
+
+        final boolean rackAware = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.RACK_AWARE, conf);
+        if (rackAware) {
+            clientPolicy.rackAware = true;
+            clientPolicy.rackId = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.RACK_ID, conf);
+            final String rackIdsStr = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.RACK_IDS, conf);
+            if (rackIdsStr != null && !rackIdsStr.isBlank()) {
+                clientPolicy.rackIds = Arrays.stream(rackIdsStr.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .map(Integer::parseInt)
+                        .collect(Collectors.toList());
+            }
+            LOG.info("Rack-aware enabled with rackId={}, rackIds={}", clientPolicy.rackId, clientPolicy.rackIds);
+        }
+
         return clientPolicy;
     }
 
@@ -2373,6 +2390,9 @@ public class AerospikeConnection implements AutoCloseable {
             policy.totalTimeout = config.readTotalTimeout;
             policy.socketTimeout = config.readSocketTimeout;
         }
+        if (config.rackAware) {
+            policy.replica = Replica.PREFER_RACK;
+        }
         if (policy.txn == null) {
             // If Txn already exists this mean that it was set by a parent thread and this is called from within a
             // parallelized function
@@ -2407,6 +2427,9 @@ public class AerospikeConnection implements AutoCloseable {
         policy.connectTimeout = config.scanConnectTimeout;
         policy.timeoutDelay = config.scanTimeoutDelay;
         policy.compress = config.compress;
+        if (config.rackAware) {
+            policy.replica = Replica.PREFER_RACK;
+        }
     }
 
     public void configureQueryPolicy(final QueryPolicy policy) {
@@ -2422,6 +2445,9 @@ public class AerospikeConnection implements AutoCloseable {
         policy.connectTimeout = config.queryConnectTimeout;
         policy.timeoutDelay = config.queryTimeoutDelay;
         policy.compress = config.compress;
+        if (config.rackAware) {
+            policy.replica = Replica.PREFER_RACK;
+        }
     }
 
     /**

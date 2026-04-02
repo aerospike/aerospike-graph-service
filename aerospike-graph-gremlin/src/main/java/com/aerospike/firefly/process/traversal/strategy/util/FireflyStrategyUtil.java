@@ -4,6 +4,7 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAdja
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAuthenticationStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyBatchEdgeReadLocalStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyBatchEdgeReadStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyBatchTraversalFilterStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyBatchVertexReadLocalStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyBatchVertexReadStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyComputerStrategy;
@@ -69,6 +70,10 @@ public class FireflyStrategyUtil {
         FIREFLY_STRATEGIES.add(new FireflyOtherVBatchReadStrategy());
         FIREFLY_STRATEGIES.add(new FireflyBatchEdgeReadLocalStrategy());
         FIREFLY_STRATEGIES.add(new FireflyEdgeToVertexBatchReadStrategy());
+        // Must run after all batch read strategies so that LocalBarrier steps
+        // (FireflyBatchEdgeReadStep, FireflyBatchVertexReadStep, etc.) are already
+        // present inside TraversalFilterStep child traversals when this strategy inspects them.
+        FIREFLY_STRATEGIES.add(new FireflyBatchTraversalFilterStrategy());
         FIREFLY_STRATEGIES.add(new FireflyElementMapStrategy());
 
         // Steps that collect metrics.

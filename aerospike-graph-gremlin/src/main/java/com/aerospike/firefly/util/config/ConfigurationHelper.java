@@ -58,6 +58,7 @@ public final class ConfigurationHelper {
     public static class TraversalOptions {
         public static final String PARALLELIZE = "aerospike.graph.parallelize";
         public static final String SCAN_QUERY_ENABLED = SCAN_QUERY_ENABLED_TOKEN;
+        public static final String FILTER_OPTIMIZATION_ENABLED = "aerospike.graph.filter.optimization.enabled";
     }
 
     public static class Keys {

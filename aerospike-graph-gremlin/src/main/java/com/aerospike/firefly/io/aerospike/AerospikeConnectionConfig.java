@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.config.ConfigurationHelper.Keys.BULK_LOADER_INITIALIZER_FLAG;
@@ -528,7 +527,7 @@ public class AerospikeConnectionConfig {
         return false;
     }
 
-    public AerospikeConnectionConfig update(final MapConfiguration conf, final IAerospikeClient client, final int version) {
+    public AerospikeConnectionConfig update(final MapConfiguration conf, final AerospikeConnection connection, final int version) {
         final Map<String, Object> current = this.conf.getMap();
         final Map<String, Object> updated = conf.getMap();
 
@@ -541,6 +540,11 @@ public class AerospikeConnectionConfig {
 
         this.version = version;
 
-        return new AerospikeConnectionConfig(this.conf, client);
+        if (connection == null) {
+            throw new IllegalArgumentException("connection is required");
+        }
+        final AerospikeConnectionConfig next = new AerospikeConnectionConfig(this.conf, connection.getClient(), version);
+        next.validate(connection);
+        return next;
     }
 }

@@ -365,7 +365,7 @@ public class AerospikeConnection implements AutoCloseable {
                             Map.Entry::getValue));
 
             // try to apply configuration for validation
-            this.config.update(new MapConfiguration(normalizedProperties), this.client, this.config.version + 1);
+            this.config.update(new MapConfiguration(normalizedProperties), this, this.config.version + 1);
 
             final Map<Value, Value> asMap = normalizedProperties.entrySet()
                     .stream()
@@ -383,7 +383,7 @@ public class AerospikeConnection implements AutoCloseable {
             final Record updatedRecord = this.writeOperate(null, key, Collections.emptySet(), true, incrementVersion, updateConfig, readVersion, readConfig);
             // version might be changed by other AGS instance
             final Map<String, Object> newConfig = (Map<String, Object>) updatedRecord.getList(CONFIG_MAP_BIN).get(1);
-            this.config = this.config.update(new MapConfiguration(newConfig), this.client, ((Long) updatedRecord.getList(CONFIG_VERSION_BIN).get(1)).intValue());
+            this.config = this.config.update(new MapConfiguration(newConfig), this, ((Long) updatedRecord.getList(CONFIG_VERSION_BIN).get(1)).intValue());
 
             // Apply cache mode changes if any
             initializeCacheMode();
@@ -401,7 +401,7 @@ public class AerospikeConnection implements AutoCloseable {
             }
 
             final Map<String, Object> newConfig = (Map<String, Object>) record.getMap(CONFIG_MAP_BIN);
-            this.config = this.config.update(new MapConfiguration(newConfig), this.client, record.getInt(CONFIG_VERSION_BIN));
+            this.config = this.config.update(new MapConfiguration(newConfig), this, record.getInt(CONFIG_VERSION_BIN));
 
             // Initialize cache mode from config
             initializeCacheMode();
@@ -2575,6 +2575,10 @@ public class AerospikeConnection implements AutoCloseable {
         return config;
     }
 
+    public IAerospikeClient getClient() {
+        return client;
+    }
+
     @Override
     public final String toString() {
         return String.format("Aerospike Graph on namespace %s", config.namespace);
@@ -2691,7 +2695,7 @@ public class AerospikeConnection implements AutoCloseable {
                         EVENT_LOOPS.close();
                         if (CLIENT != null) {
                             CLIENT.close();
-                        };
+                        }
                         if (THREADED_EXECUTOR_SERVICE != null) {
                             THREADED_EXECUTOR_SERVICE.shutdownNow();
                         }

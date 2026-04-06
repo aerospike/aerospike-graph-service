@@ -179,7 +179,10 @@ public class AerospikeConnectionConfigTest {
         final FireflyConfiguration newConfig = FireflyConfiguration.fromConfiguration(CLEAR_CONFIG);
         newConfig.setProperty(ConfigurationHelper.Keys.QUERY_IMPL, "123");
 
-        assertThrows("", IllegalArgumentException.class, () -> config.update(newConfig, null, 2));
+        final AerospikeConnection mockConn = mock(AerospikeConnection.class);
+        when(mockConn.getClient()).thenReturn(client);
+
+        assertThrows("", IllegalArgumentException.class, () -> config.update(newConfig, mockConn, 2));
         assertEquals(0, config.version);
     }
 

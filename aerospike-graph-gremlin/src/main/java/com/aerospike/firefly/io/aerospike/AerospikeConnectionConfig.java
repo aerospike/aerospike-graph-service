@@ -528,6 +528,10 @@ public class AerospikeConnectionConfig {
     }
 
     public AerospikeConnectionConfig update(final MapConfiguration conf, final AerospikeConnection connection, final int version) {
+        if (connection == null) {
+            throw new IllegalArgumentException("connection is required");
+        }
+
         final Map<String, Object> current = this.conf.getMap();
         final Map<String, Object> updated = conf.getMap();
 
@@ -540,11 +544,8 @@ public class AerospikeConnectionConfig {
 
         this.version = version;
 
-        if (connection == null) {
-            throw new IllegalArgumentException("connection is required");
-        }
-        final AerospikeConnectionConfig next = new AerospikeConnectionConfig(this.conf, connection.getClient(), version);
-        next.validate(connection);
-        return next;
+        final AerospikeConnectionConfig connectionConfig = new AerospikeConnectionConfig(this.conf, connection.getClient(), version);
+        connectionConfig.validate(connection);
+        return connectionConfig;
     }
 }

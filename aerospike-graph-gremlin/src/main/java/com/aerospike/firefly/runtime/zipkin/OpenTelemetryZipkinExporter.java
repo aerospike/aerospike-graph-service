@@ -12,7 +12,7 @@ import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
-import io.opentelemetry.semconv.resource.attributes.ResourceAttributes;
+import io.opentelemetry.semconv.ServiceAttributes;
 import org.apache.tinkerpop.gremlin.process.traversal.util.DefaultTraversalMetrics;
 import org.apache.tinkerpop.gremlin.process.traversal.util.Metrics;
 import org.slf4j.Logger;
@@ -73,7 +73,7 @@ public class OpenTelemetryZipkinExporter implements Closeable {
             final ZipkinSpanExporter zipkinExporter = ZipkinSpanExporter.builder().setEndpoint(endpoint).build();
 
             final Resource serviceNameResource =
-                    Resource.create(Attributes.of(ResourceAttributes.SERVICE_NAME, SERVICE_NAME + " - " + graphId));
+                    Resource.create(Attributes.of(ServiceAttributes.SERVICE_NAME, SERVICE_NAME + " - " + graphId));
 
             // Set to process the spans by the Zipkin Exporter
             final SdkTracerProvider tracerProvider = SdkTracerProvider.builder()

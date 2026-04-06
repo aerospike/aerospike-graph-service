@@ -21,6 +21,23 @@ def test_generate_java_options_with_heaps(tmp_path):
     assert "-Xms1024m" in content
 
 
+def test_generate_java_options_default_uses_max_ram_percentage(tmp_path):
+    """Test that when no heap is specified, MaxRAMPercentage is used instead of a fixed -Xmx"""
+    output_file = tmp_path / "java_options.txt"
+    
+    generate_java_options(
+        java_options_file_path=str(output_file),
+        max_heap=None,
+        min_heap=None,
+        tls_out_dir=str(tmp_path / "tls")
+    )
+    
+    assert output_file.exists()
+    content = output_file.read_text()
+    assert "-XX:MaxRAMPercentage=80.0" in content
+    assert "-Xmx" not in content
+
+
 def test_generate_java_options_with_java_options_env(tmp_path, monkeypatch):
     """Test that JAVA_OPTIONS environment variable is appended"""
     output_file = tmp_path / "java_options.txt"

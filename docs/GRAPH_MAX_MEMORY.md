@@ -1,11 +1,14 @@
 # Setting the max memory of the docker container
 
 The max memory of the docker container and the max memory of the JVM are not the same. Giving the docker container
-more memory will not allow the JVM to access more. Gremlin server defaults the max memory of a system to 4 GB unless
-it is explicitly overridden.
+more memory will not allow the JVM to access more.
 
-To explicitly override the max memory of the JVM, you can set the `JAVA_OPTIONS` environment variable in the
-docker container to "-Xmx<value_in_mb>m"
+By default, Aerospike Graph uses `-XX:MaxRAMPercentage=80.0`, which tells the JVM to use up to 80% of the
+container's available memory for its heap. The JVM automatically detects container memory limits (via cgroup),
+so this works correctly in Docker, Fargate, Kubernetes, and other containerized environments.
+
+To explicitly override the max memory of the JVM, you can set the `aerospike.graph-service.heap.max` property
+or the `JAVA_OPTIONS` environment variable in the docker container to "-Xmx<value_in_mb>m".
 
 For example, if deploying the docker container with default memory looks like this:
 ```

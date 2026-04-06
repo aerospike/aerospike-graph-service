@@ -14,7 +14,7 @@ fi
 
 # Set Java options
 if [[ "$JAVA_OPTIONS" = "" ]] ; then
-    JAVA_OPTIONS="-Xms512m -Xmx4096m"
+    JAVA_OPTIONS="-Xms512m -XX:MaxRAMPercentage=80.0"
 fi
 
 FIREFLY_SERVER_CMD=com.aerospike.firefly.runtime.FireflyServer

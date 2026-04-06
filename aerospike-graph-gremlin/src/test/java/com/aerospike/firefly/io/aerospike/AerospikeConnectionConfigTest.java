@@ -6,6 +6,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.config.FireflyConfiguration;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.MapConfiguration;
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -33,26 +34,54 @@ public class AerospikeConnectionConfigTest {
 
     @Test
     public void updateConfigTest() {
-        final IAerospikeClient client = mock(IAerospikeClient.class);
-        when(client.getNodes()).thenReturn(new Node[3]);
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
 
-        final AerospikeConnectionConfig config = new AerospikeConnectionConfig(FIREFLY_CONFIG, client);
-        System.out.println(config);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.getBaseGraph().resetConfiguration();
+            final AerospikeConnection conn = graph.getBaseGraph();
+            final AerospikeConnectionConfig initialConfig = conn.getConfig();
 
-        assertEquals(4, config.vertexMiscBins.size());
-        assertEquals("paged", config.queryImpl);
-        assertEquals(500, config.writeSocketTimeout);
+            assertEquals(4, initialConfig.vertexMiscBins.size());
+            assertEquals("paged", initialConfig.queryImpl);
+            assertEquals(500, initialConfig.writeSocketTimeout);
 
-        // update mutable property
-        final FireflyConfiguration newConfig = FireflyConfiguration.fromConfiguration(CLEAR_CONFIG);
-        newConfig.setProperty(ConfigurationHelper.Keys.WRITE_SOCKET_TIMEOUT.toLowerCase(), "123");
+            // Only pass keys being updated — a full CLEAR_CONFIG map differs from INTEGRATION_TEST_PROPERTIES on
+            // immutable keys such as gremlin.graph.
+            final AerospikeConnectionConfig updatedConfig = initialConfig.update(
+                    new MapConfiguration(Map.of(ConfigurationHelper.Keys.WRITE_SOCKET_TIMEOUT.toLowerCase(), "123")),
+                    conn,
+                    1);
 
-        final AerospikeConnectionConfig updatedConfig = config.update(newConfig, client, 1);
+            assertEquals(4, updatedConfig.vertexMiscBins.size());
+            assertEquals("paged", updatedConfig.queryImpl);
+            assertEquals(123, updatedConfig.writeSocketTimeout);
+            assertEquals(1, initialConfig.version);
+            assertEquals(1, updatedConfig.version);
+        }
+    }
 
-        assertEquals(4, updatedConfig.vertexMiscBins.size());
-        assertEquals("paged", updatedConfig.queryImpl);
-        assertEquals(123, updatedConfig.writeSocketTimeout);
-        assertEquals(1, config.version);
+    @Test
+    public void updateConfigPreservesValidateDerivedStateTest() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.HTTP_ENABLED.toLowerCase(), "false");
+
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            graph.getBaseGraph().resetConfiguration();
+            final AerospikeConnection conn = graph.getBaseGraph();
+            final AerospikeConnectionConfig initialConfig = conn.getConfig();
+
+            final boolean expirationBefore = initialConfig.expirationEnabled;
+            final long onRecordIdLimitBefore = initialConfig.onRecordIdLimit;
+
+            final AerospikeConnectionConfig updatedConfig = initialConfig.update(
+                    new MapConfiguration(Map.of(ConfigurationHelper.Keys.WRITE_SOCKET_TIMEOUT.toLowerCase(), "456")),
+                    conn,
+                    1);
+
+            assertEquals(expirationBefore, updatedConfig.expirationEnabled);
+            assertEquals(onRecordIdLimitBefore, updatedConfig.onRecordIdLimit);
+        }
     }
 
     @Test
@@ -150,7 +179,10 @@ public class AerospikeConnectionConfigTest {
         final FireflyConfiguration newConfig = FireflyConfiguration.fromConfiguration(CLEAR_CONFIG);
         newConfig.setProperty(ConfigurationHelper.Keys.QUERY_IMPL, "123");
 
-        assertThrows("", IllegalArgumentException.class, () -> config.update(newConfig, client, 2));
+        final AerospikeConnection mockConn = mock(AerospikeConnection.class);
+        when(mockConn.getClient()).thenReturn(client);
+
+        assertThrows("", IllegalArgumentException.class, () -> config.update(newConfig, mockConn, 2));
         assertEquals(0, config.version);
     }
 
@@ -267,7 +299,7 @@ public class AerospikeConnectionConfigTest {
             assertEquals(500, graph2.getBaseGraph().getConfig().writeSocketTimeout);
 
             // first graph change config
-            final String response = (String)graph.traversal().call("aerospike.graph.admin.metadata.set-config")
+            final String response = (String) graph.traversal().call("aerospike.graph.admin.metadata.set-config")
                     .with(ConfigurationHelper.Keys.WRITE_SOCKET_TIMEOUT, "111")
                     .with(ConfigurationHelper.Keys.WRITE_TOTAL_TIMEOUT.toLowerCase(), "3000").next();
 
@@ -292,5 +324,4 @@ public class AerospikeConnectionConfigTest {
             assertEquals(999, graph.getBaseGraph().getConfig().readSocketTimeout);
         }
     }
-
 }

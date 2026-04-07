@@ -506,13 +506,7 @@ def generate_java_options(java_options_file_path, max_heap, min_heap, tls_out_di
         print("aerospike.graph-service.heap.max was set to " + max_heap + ". Using this value for -Xmx.")
         java_options += f" -Xmx{max_heap.split('=')[1]} "
     else:
-        try:
-            mem_mib = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / (1024. ** 2)
-        except Exception as e:
-            # to run script on windows
-            mem_mib = 1024.
-        max_memory = int(mem_mib * 0.8)  # 80% of system memory
-        java_options += f" -Xmx{max_memory}m "
+        java_options += " -XX:MaxRAMPercentage=80.0 "
     if min_heap is not None:
         print("aerospike.graph-service.heap.min was set to " + min_heap + ". Using this value for -Xms.")
         java_options += f" -Xms{min_heap.split('=')[1]} "

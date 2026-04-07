@@ -469,6 +469,35 @@ def generate_properties(properties, output_properties_file, auth_jwt_secret, aut
             prop.write("aerospike.graph-service.auth.enabled=true\n")
 
 
+def _find_system_cacerts():
+    """Locate the JVM's default CA truststore (cacerts).
+
+    Checks Alpine paths first, then JAVA_HOME, then walks common JVM
+    directories so this works on Debian/Ubuntu, RHEL/Amazon Linux, etc.
+    """
+    java_home = os.environ.get("JAVA_HOME", "")
+    candidates = [
+        # Alpine (primary target)
+        "/etc/ssl/certs/java/cacerts",
+        "/usr/lib/jvm/java-17-openjdk/lib/security/cacerts",
+        # JAVA_HOME-based (works when the env var is set)
+        os.path.join(java_home, "lib", "security", "cacerts"),
+        os.path.join(java_home, "jre", "lib", "security", "cacerts"),
+    ]
+    for path in candidates:
+        if path and os.path.isfile(path):
+            return path
+    # Fallback: walk common JVM/cert directories
+    for root in ["/usr/lib/jvm", "/etc/pki/java", "/etc/ssl/certs/java"]:
+        if os.path.isdir(root):
+            for dirpath, _, filenames in os.walk(root):
+                if "cacerts" in filenames:
+                    path = os.path.join(dirpath, "cacerts")
+                    if os.path.isfile(path):
+                        return path
+    return None
+
+
 def generate_java_options(java_options_file_path, max_heap, min_heap, tls_out_dir):
     java_options = ""
 
@@ -512,6 +541,9 @@ def generate_java_options(java_options_file_path, max_heap, min_heap, tls_out_di
         java_options += user_java_options
 
     # Set up TLS for AGS<->Aerospike DB
+    # The truststore is seeded from the system CA bundle (cacerts) so that public
+    # CAs remain trusted alongside the Aerospike CA. Without this, any outbound
+    # HTTPS (e.g. S3 bulk load) fails with PKIX path building errors.
     cert_dir = "/opt/aerospike-graph/aerospike-client-tls"
     cert_found = False
     if os.path.isdir(cert_dir):
@@ -521,6 +553,25 @@ def generate_java_options(java_options_file_path, max_heap, min_heap, tls_out_di
         os.makedirs(tls_out_dir, exist_ok=True)
         keystore = tls_out_dir + "/truststore.jks"
         storepass = "aerospike"
+
+        system_cacerts = _find_system_cacerts()
+        if system_cacerts:
+            result = subprocess.run([
+                "keytool", "-importkeystore",
+                "-srckeystore", system_cacerts,
+                "-destkeystore", keystore,
+                "-srcstorepass", "changeit",
+                "-deststorepass", storepass,
+                "-noprompt"
+            ], check=False)
+            if result.returncode == 0:
+                print(f"Seeded truststore from system CAs: {system_cacerts}")
+            else:
+                print(f"WARNING: Failed to seed truststore from system CAs (unexpected cacerts password?). "
+                      f"Truststore will only contain Aerospike CA.")
+        else:
+            print("WARNING: System cacerts not found. Truststore will only contain Aerospike CA.")
+
         for file in os.listdir(directory):
             file_name = os.fsdecode(file)
             print("Found file to use for Aerospike Database TLS: " + file_name)

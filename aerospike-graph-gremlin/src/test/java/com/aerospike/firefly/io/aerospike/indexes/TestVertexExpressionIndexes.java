@@ -1033,4 +1033,287 @@ public class TestVertexExpressionIndexes {
             Assert.assertTrue(e.getMessage().contains("Unknown predicate operator"));
         }
     }
+
+    // ==================== g.call() Service Tests ====================
+
+    @Test
+    public void testCompoundIndexServiceList() {
+        final String indexConfig = "~label:person,status:active;~label:order,priority:~gte(1)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            // Call the list service
+            final Object result = g.call("aerospike.graph.admin.compound-index.list").next();
+
+            Assert.assertNotNull(result);
+            Assert.assertTrue(result instanceof List);
+            final List<String> indexList = (List<String>) result;
+            Assert.assertEquals(2, indexList.size());
+        }
+    }
+
+    @Test
+    public void testCompoundIndexServiceListEmpty() {
+        // No indexes configured
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+
+            final Object result = g.call("aerospike.graph.admin.compound-index.list").next();
+
+            Assert.assertNotNull(result);
+            Assert.assertTrue(result instanceof List);
+            final List<String> indexList = (List<String>) result;
+            Assert.assertEquals(0, indexList.size());
+        }
+    }
+
+    @Test
+    public void testCompoundIndexServiceCreate() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+
+            // Create index using the service
+            final Object result = g.call("aerospike.graph.admin.compound-index.create")
+                    .with("predicates", List.of("~label:customer", "tier:premium"))
+                    .next();
+
+            Assert.assertNotNull(result);
+            Assert.assertTrue(result instanceof String);
+            final String message = (String) result;
+            Assert.assertTrue(message.contains("creation in progress"));
+
+            // Wait for the index to be created
+            waitForExpressionIndex(graph, "~label:customer,tier:premium");
+
+            // Verify the index is in the list
+            final List<String> indexList = (List<String>) g.call("aerospike.graph.admin.compound-index.list").next();
+            Assert.assertEquals(1, indexList.size());
+
+            // Verify we can query using the index
+            g.addV("customer").property("tier", "premium").property("name", "Alice").iterate();
+            g.addV("customer").property("tier", "premium").property("name", "Bob").iterate();
+            g.addV("customer").property("tier", "basic").property("name", "Charlie").iterate();
+
+            List<Vertex> results = g.V().hasLabel("customer").has("tier", "premium").toList();
+            Assert.assertEquals(2, results.size());
+        }
+    }
+
+    @Test
+    public void testCompoundIndexServiceCreateWithNumericPredicate() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+
+            // Create index with numeric predicate
+            final Object result = g.call("aerospike.graph.admin.compound-index.create")
+                    .with("predicates", List.of("~label:product", "category:electronics", "price:~gte(100)"))
+                    .next();
+
+            Assert.assertNotNull(result);
+            Assert.assertTrue(((String) result).contains("creation in progress"));
+
+            waitForExpressionIndex(graph, "~label:product,category:electronics,price:~gte(100)");
+
+            // Verify index works
+            g.addV("product").property("category", "electronics").property("price", 150).iterate();
+            g.addV("product").property("category", "electronics").property("price", 50).iterate();
+
+            List<Vertex> results = g.V().hasLabel("product")
+                    .has("category", "electronics")
+                    .has("price", P.gte(100))
+                    .toList();
+            Assert.assertEquals(1, results.size());
+        }
+    }
+
+    @Test
+    public void testCompoundIndexServiceCreateWithSearchKey() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+
+            // Create index with search key
+            final Object result = g.call("aerospike.graph.admin.compound-index.create")
+                    .with("predicates", List.of("~label:employee", "department:engineering", "employeeId:~n*"))
+                    .next();
+
+            Assert.assertNotNull(result);
+            Assert.assertTrue(((String) result).contains("creation in progress"));
+
+            waitForExpressionIndex(graph, "~label:employee,department:engineering,employeeId:~n*");
+
+            // Verify index works with search key equality
+            g.addV("employee").property("department", "engineering").property("employeeId", 1001).iterate();
+            g.addV("employee").property("department", "engineering").property("employeeId", 1002).iterate();
+            g.addV("employee").property("department", "engineering").property("employeeId", 1001).iterate();
+
+            List<Vertex> results = g.V().hasLabel("employee")
+                    .has("department", "engineering")
+                    .has("employeeId", 1001)
+                    .toList();
+            Assert.assertEquals(2, results.size());
+        }
+    }
+
+    @Test
+    public void testCompoundIndexServiceStatus() {
+        final String indexConfig = "~label:event,type:conference";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            // Get the index name
+            final List<String> indexList = (List<String>) g.call("aerospike.graph.admin.compound-index.list").next();
+            Assert.assertEquals(1, indexList.size());
+            final String indexName = indexList.get(0);
+
+            // Get the status
+            final Object result = g.call("aerospike.graph.admin.compound-index.status")
+                    .with("index_name", indexName)
+                    .next();
+
+            Assert.assertNotNull(result);
+            Assert.assertTrue(result instanceof Map);
+            final Map<String, Long> status = (Map<String, Long>) result;
+            Assert.assertEquals(Long.valueOf(100L), status.get("percent_complete"));
+            Assert.assertTrue(status.containsKey("total_entries"));
+            Assert.assertTrue(status.containsKey("total_used_bytes"));
+            Assert.assertTrue(status.containsKey("load_time"));
+        }
+    }
+
+    @Test
+    public void testCompoundIndexServiceStatusNotFound() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+
+            try {
+                g.call("aerospike.graph.admin.compound-index.status")
+                        .with("index_name", "nonexistent_index")
+                        .next();
+                Assert.fail("Expected IllegalStateException");
+            } catch (final Exception e) {
+                Assert.assertTrue(e.getMessage().contains("not found") || e.getCause().getMessage().contains("not found"));
+            }
+        }
+    }
+
+    @Test
+    public void testCompoundIndexServiceDrop() {
+        final String indexConfig = "~label:temp,status:pending";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            // Verify index exists
+            List<String> indexList = (List<String>) g.call("aerospike.graph.admin.compound-index.list").next();
+            Assert.assertEquals(1, indexList.size());
+            final String indexName = indexList.get(0);
+
+            // Drop the index
+            final Object result = g.call("aerospike.graph.admin.compound-index.drop")
+                    .with("index_name", indexName)
+                    .next();
+
+            Assert.assertNotNull(result);
+            Assert.assertTrue(result instanceof String);
+            Assert.assertTrue(((String) result).contains("dropped"));
+
+            // Wait for index to be removed
+            waitForExpressionIndexesCleared(graph);
+
+            // Verify index is gone
+            indexList = (List<String>) g.call("aerospike.graph.admin.compound-index.list").next();
+            Assert.assertEquals(0, indexList.size());
+        }
+    }
+
+    @Test
+    public void testCompoundIndexServiceCreateAndDropCycle() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+
+            // Initially no indexes
+            List<String> indexList = (List<String>) g.call("aerospike.graph.admin.compound-index.list").next();
+            Assert.assertEquals(0, indexList.size());
+
+            // Create an index
+            g.call("aerospike.graph.admin.compound-index.create")
+                    .with("predicates", List.of("~label:session", "active:true"))
+                    .next();
+
+            waitForExpressionIndex(graph, "~label:session,active:true");
+
+            // Verify it exists
+            indexList = (List<String>) g.call("aerospike.graph.admin.compound-index.list").next();
+            Assert.assertEquals(1, indexList.size());
+            final String indexName = indexList.get(0);
+
+            // Check status
+            final Map<String, Long> status = (Map<String, Long>) g.call("aerospike.graph.admin.compound-index.status")
+                    .with("index_name", indexName)
+                    .next();
+            Assert.assertEquals(Long.valueOf(100L), status.get("percent_complete"));
+
+            // Add some data and query
+            g.addV("session").property("active", "true").property("user", "alice").iterate();
+            g.addV("session").property("active", "true").property("user", "bob").iterate();
+            g.addV("session").property("active", "false").property("user", "charlie").iterate();
+
+            List<Vertex> results = g.V().hasLabel("session").has("active", "true").toList();
+            Assert.assertEquals(2, results.size());
+
+            // Drop the index
+            g.call("aerospike.graph.admin.compound-index.drop")
+                    .with("index_name", indexName)
+                    .next();
+
+            waitForExpressionIndexesCleared(graph);
+
+            // Verify it's gone
+            indexList = (List<String>) g.call("aerospike.graph.admin.compound-index.list").next();
+            Assert.assertEquals(0, indexList.size());
+        }
+    }
+
+    @Test
+    public void testCompoundIndexServiceCreateInvalidPredicates() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+
+            // Try to create with only one predicate (should fail)
+            try {
+                g.call("aerospike.graph.admin.compound-index.create")
+                        .with("predicates", List.of("~label:single"))
+                        .next();
+                Assert.fail("Expected exception for single predicate");
+            } catch (final Exception e) {
+                // Expected - sanitize should reject this
+            }
+        }
+    }
+
+    private static void waitForExpressionIndexesCleared(final FireflyGraph graph) {
+        final long startTime = System.currentTimeMillis();
+        List<String> indexes = graph.fireflyIndexMetadata.getExpressionIndexNames();
+        while (!indexes.isEmpty()) {
+            if (System.currentTimeMillis() > startTime + 30000) {
+                Assert.fail("Timed out waiting for expression indexes to be cleared");
+            }
+            try {
+                Thread.sleep(100);
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+            graph.fireflyIndexMetadata.updateMetadata();
+            indexes = graph.fireflyIndexMetadata.getExpressionIndexNames();
+        }
+    }
 }

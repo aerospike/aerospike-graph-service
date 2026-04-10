@@ -69,6 +69,29 @@ public class Admin {
             return (I) validVertexPropertyIndexes;
         }
 
+        public I getExpressionIndexList(final FireflyGraph firefly) {
+            try {
+                firefly.fireflyIndexMetadata.updateMetadata();
+            } catch (final Exception e) {
+                throw new IllegalStateException("Failed to update index information. " + e.getMessage());
+            }
+            return (I) firefly.fireflyIndexMetadata.getExpressionIndexNames();
+        }
+
+        public I dropExpressionIndex(final FireflyGraph firefly, final String indexName) {
+            final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
+            firefly.getBaseGraph().dropIndexBackground(set, indexName);
+            return (I) ("Compound index '" + indexName + "' dropped.");
+        }
+
+        public I getExpressionIndexStatus(final FireflyGraph firefly, final String indexName) {
+            try {
+                return (I) getIndexStatus(firefly, indexName);
+            } catch (final IllegalStateException e) {
+                throw new IllegalStateException("Compound index not found: " + indexName);
+            }
+        }
+
         public I getIndexCardinality(final FireflyGraph firefly) {
             try {
                 // Manually force an update.

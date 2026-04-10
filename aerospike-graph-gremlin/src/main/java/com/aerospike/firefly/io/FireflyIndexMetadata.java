@@ -111,6 +111,17 @@ public class FireflyIndexMetadata implements FireflyMetadata {
     }
 
     /**
+     * Get the names of all expression indexes.
+     *
+     * @return A list of expression index names.
+     */
+    public List<String> getExpressionIndexNames() {
+        synchronized (FireflyIndexMetadata.class) {
+            return new ArrayList<>(expressionIndexMap.keySet());
+        }
+    }
+
+    /**
      * This function finds the PropertyIndexInfo if it exists for the given key and value.
      *
      * @param key   Key of the property.

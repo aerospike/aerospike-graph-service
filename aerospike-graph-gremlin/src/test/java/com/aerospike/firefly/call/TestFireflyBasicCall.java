@@ -34,6 +34,10 @@ public class TestFireflyBasicCall {
                     "aerospike.graph.admin.index.list",
                     "aerospike.graph.admin.index.status",
                     "aerospike.graph.admin.index.cardinality",
+                    "aerospike.graph.admin.compound-index.create",
+                    "aerospike.graph.admin.compound-index.drop",
+                    "aerospike.graph.admin.compound-index.list",
+                    "aerospike.graph.admin.compound-index.status",
                     "aerospike.graph.admin.reserved.info",
                     "aerospike.graph.admin.metadata.version",
                     "aerospike.graph.admin.metadata.config",
@@ -77,6 +81,7 @@ public class TestFireflyBasicCall {
                     case "{\"name\":\"aerospike.graph.admin.reserved.info\"":
                     case "{\"name\":\"aerospike.graph.admin.index.list\"":
                     case "{\"name\":\"aerospike.graph.admin.index.cardinality\"":
+                    case "{\"name\":\"aerospike.graph.admin.compound-index.list\"":
                     case "{\"name\":\"aerospike.graph.admin.query.abort\"":
                     case "{\"name\":\"aerospike.graph.admin.cache.reset\"":
                     case "{\"name\":\"aerospike.graph.admin.cache.status\"":
@@ -109,6 +114,15 @@ public class TestFireflyBasicCall {
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{\"property_key\":\"The property key to get the index status of. '~label' can be used to get the status of an index on labels.\"");
                         Assert.assertEquals(infoPieces.get(3), "\"element_type\":\"The type of element to get the index status of. Only 'vertex' is currently supported.\"}}");
+                        break;
+                    case "{\"name\":\"aerospike.graph.admin.compound-index.create\"":
+                        Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
+                        Assert.assertTrue(infoPieces.get(2).contains("\"params\":{"));
+                        break;
+                    case "{\"name\":\"aerospike.graph.admin.compound-index.drop\"":
+                    case "{\"name\":\"aerospike.graph.admin.compound-index.status\"":
+                        Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
+                        Assert.assertTrue(infoPieces.get(2).contains("\"params\":{"));
                         break;
                     case "{\"name\":\"aerospike.graph.admin.rbac-jwt.issue-token\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");

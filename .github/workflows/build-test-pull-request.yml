@@ -50,10 +50,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
-      - name: Random Delay
+      - name: Staggered Delay
         run: |
-          echo "Sleeping for a random time between 0 and 60 seconds"
-          sleep $((RANDOM % 60))
+          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
+          DELAY=$((16#$HASH % 120))
+          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
+          sleep $DELAY
       - name: Start EC2 runner
         id: start-ec2-runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
@@ -61,7 +63,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8i.large
+          ec2-instance-type: m8a.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-structure:
@@ -84,10 +86,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
-      - name: Random Delay
+      - name: Staggered Delay
         run: |
-          echo "Sleeping for a random time between 0 and 60 seconds"
-          sleep $((RANDOM % 60))
+          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
+          DELAY=$((16#$HASH % 120))
+          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
+          sleep $DELAY
       - name: Start EC2 runner
         id: start-ec2-runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
@@ -95,7 +99,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8i.xlarge
+          ec2-instance-type: r8a.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-process-1:
@@ -118,10 +122,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
-      - name: Random Delay
+      - name: Staggered Delay
         run: |
-          echo "Sleeping for a random time between 0 and 60 seconds"
-          sleep $((RANDOM % 60))
+          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
+          DELAY=$((16#$HASH % 120))
+          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
+          sleep $DELAY
       - name: Start EC2 runner
         id: start-ec2-runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
@@ -129,7 +135,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8i.large
+          ec2-instance-type: m8a.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-process-2:
@@ -152,10 +158,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
-      - name: Random Delay
+      - name: Staggered Delay
         run: |
-          echo "Sleeping for a random time between 0 and 60 seconds"
-          sleep $((RANDOM % 60))
+          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
+          DELAY=$((16#$HASH % 120))
+          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
+          sleep $DELAY
       - name: Start EC2 runner
         id: start-ec2-runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
@@ -163,7 +171,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8i.large
+          ec2-instance-type: m8a.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-process-3:
@@ -186,10 +194,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
-      - name: Random Delay
+      - name: Staggered Delay
         run: |
-          echo "Sleeping for a random time between 0 and 60 seconds"
-          sleep $((RANDOM % 60))
+          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
+          DELAY=$((16#$HASH % 120))
+          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
+          sleep $DELAY
       - name: Start EC2 runner
         id: start-ec2-runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
@@ -197,7 +207,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8i.large
+          ec2-instance-type: m8a.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-local-computer-process-1:
@@ -220,10 +230,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
-      - name: Random Delay
+      - name: Staggered Delay
         run: |
-          echo "Sleeping for a random time between 0 and 60 seconds"
-          sleep $((RANDOM % 60))
+          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
+          DELAY=$((16#$HASH % 120))
+          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
+          sleep $DELAY
       - name: Start EC2 runner
         id: start-ec2-runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
@@ -231,7 +243,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m7i.2xlarge
+          ec2-instance-type: m8a.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-local-computer-process-2:
@@ -254,10 +266,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
-      - name: Random Delay
+      - name: Staggered Delay
         run: |
-          echo "Sleeping for a random time between 0 and 60 seconds"
-          sleep $((RANDOM % 60))
+          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
+          DELAY=$((16#$HASH % 120))
+          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
+          sleep $DELAY
       - name: Start EC2 runner
         id: start-ec2-runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
@@ -265,7 +279,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m7i.2xlarge
+          ec2-instance-type: r8a.xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-local-computer-process-3:
@@ -288,10 +302,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
-      - name: Random Delay
+      - name: Staggered Delay
         run: |
-          echo "Sleeping for a random time between 0 and 60 seconds"
-          sleep $((RANDOM % 60))
+          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
+          DELAY=$((16#$HASH % 120))
+          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
+          sleep $DELAY
       - name: Start EC2 runner
         id: start-ec2-runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
@@ -299,7 +315,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m7i.2xlarge
+          ec2-instance-type: r8a.xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-local-computer-process-4:
@@ -322,10 +338,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
-      - name: Random Delay
+      - name: Staggered Delay
         run: |
-          echo "Sleeping for a random time between 0 and 60 seconds"
-          sleep $((RANDOM % 60))
+          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
+          DELAY=$((16#$HASH % 120))
+          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
+          sleep $DELAY
       - name: Start EC2 runner
         id: start-ec2-runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
@@ -333,7 +351,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m7i.2xlarge
+          ec2-instance-type: r8a.xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly:
@@ -356,10 +374,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
-      - name: Random Delay
+      - name: Staggered Delay
         run: |
-          echo "Sleeping for a random time between 0 and 60 seconds"
-          sleep $((RANDOM % 60))
+          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
+          DELAY=$((16#$HASH % 120))
+          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
+          sleep $DELAY
       - name: Start EC2 runner
         id: start-ec2-runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
@@ -388,6 +408,12 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+      - name: Staggered Delay
+        run: |
+          HASH=$(echo "${{ github.job }}" | md5sum | cut -c1-4)
+          DELAY=$((16#$HASH % 120))
+          echo "Waiting $DELAY seconds (deterministic based on job: ${{ github.job }})"
+          sleep $DELAY
       - name: Start EC2 runner
         id: start-ec2-runner
         uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.3.6
@@ -395,7 +421,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: m8i.large
+          ec2-instance-type: m8a.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   negative-test-bulk-loader-call-docker:
@@ -868,7 +894,7 @@ jobs:
           bash -x scripts/start_aerospike.sh
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn clean install -DskipTests --no-transfer-progress
-          mvn test -pl aerospike-graph-olap -Dolap.test.jvm.args="-Xmx20g" --no-transfer-progress
+          mvn test -pl aerospike-graph-olap -Dolap.test.jvm.args="-XX:MaxRAMPercentage=80.0" --no-transfer-progress
   test-local-computer-process-2:
     name: Test Local Computer Process Tests 2 (map)
     timeout-minutes: 120
@@ -1018,8 +1044,7 @@ jobs:
         run: |
           bash -x scripts/start_aerospike.sh
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          # We can re-enable once the movie lens certificate is updated.
-          # mvn test -pl aerospike-graph-gremlin -Dtest=TestMovielens1M  -Dintegration.test.properties=packed --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestMovielens1M  -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-aerospike-version-minimum:
     name: Test Aerospike Version Minimum
     timeout-minutes: 120

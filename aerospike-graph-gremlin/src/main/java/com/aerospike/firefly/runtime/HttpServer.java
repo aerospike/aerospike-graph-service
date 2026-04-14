@@ -147,7 +147,8 @@ public class HttpServer {
 
             final JsonObject statusObject = new JsonObject()
                     .put("status", isHealthy ? "true" : "false")
-                    .put("uptime", uptimeFormatted);
+                    .put("uptime", uptimeFormatted)
+                    .put("version", FireflyGraph.FIREFLY_VERSION);
             final int statusCode = isHealthy ? HEALTHCHECK_SUCCESS_CODE : HEALTHCHECK_ERROR_CODE;
 
             routingContext.response()

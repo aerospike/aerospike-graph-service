@@ -399,6 +399,16 @@ public class FailingAerospikeClient implements IAerospikeClient {
     }
 
     @Override
+    public com.aerospike.client.configuration.ConfigurationProvider getConfigProvider() {
+        return delegate.getConfigProvider();
+    }
+
+    @Override
+    public String getVersion() {
+        return delegate.getVersion();
+    }
+
+    @Override
     public CommitStatus commit(final Txn txn) throws AerospikeException.Commit {
         return null;
     }
@@ -695,6 +705,11 @@ public class FailingAerospikeClient implements IAerospikeClient {
         delegate.createUser(policy, user, password, roles);
     }
 
+    @Override
+    public void createPkiUser(AdminPolicy policy, String user, List<String> roles) throws AerospikeException {
+        delegate.createPkiUser(policy, user, roles);
+    }
+
     public void dropUser(AdminPolicy policy, String user) throws AerospikeException {
         delegate.dropUser(policy, user);
     }
@@ -984,6 +999,20 @@ public class FailingAerospikeClient implements IAerospikeClient {
             IndexCollectionType indexCollectionType, CTX... ctx) throws AerospikeException {
         delegate.createIndex(eventLoop, listener, policy, namespace, setName, indexName, binName, indexType,
                 indexCollectionType, ctx);
+    }
+
+    @Override
+    public IndexTask createIndex(Policy policy, String namespace, String setName, String indexName, IndexType indexType,
+            IndexCollectionType indexCollectionType, Expression expression) throws AerospikeException {
+        return delegate.createIndex(policy, namespace, setName, indexName, indexType, indexCollectionType, expression);
+    }
+
+    @Override
+    public void createIndex(EventLoop eventLoop, IndexListener listener, Policy policy, String namespace,
+            String setName, String indexName, IndexType indexType, IndexCollectionType indexCollectionType,
+            Expression expression) throws AerospikeException {
+        delegate.createIndex(eventLoop, listener, policy, namespace, setName, indexName, indexType, indexCollectionType,
+                expression);
     }
 
     @Override

@@ -13,7 +13,7 @@ from docker.client import DockerClient
 
 def parse_cluster_cli():
     parser = argparse.ArgumentParser(description="run aerospike cluster")
-    parser.add_argument('--aerospike_version', type=str, default="8.0", help="version of aerospike")
+    parser.add_argument('--aerospike_version', type=str, default="8.1", help="version of aerospike")
     parser.add_argument('--config_template', type=str, default="aerospike_base.conf.j2",
                         help="jinja config template name")
     parser.add_argument('--features_file', type=str, help="base64 encoded features file")

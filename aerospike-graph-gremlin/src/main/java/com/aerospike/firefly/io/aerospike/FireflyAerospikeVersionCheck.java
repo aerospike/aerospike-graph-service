@@ -4,6 +4,7 @@ import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.cluster.Node;
 import com.aerospike.client.policy.InfoPolicy;
+import com.aerospike.firefly.util.exceptions.AerospikeCompoundIndexNotSupportedException;
 import com.aerospike.firefly.util.exceptions.AerospikeMrtNotSupportedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +63,15 @@ public class FireflyAerospikeVersionCheck {
         return Integer.parseInt(builder.toString());
     }
 
-    public static void validateVersion(final IAerospikeClient client, final boolean requireMRTSupport) {
+    /**
+     * Validates the Aerospike cluster version and returns the minimum version found across all nodes.
+     * This version object can be stored and used later for feature support checks.
+     *
+     * @param client The Aerospike client
+     * @return The minimum version found across all nodes in the cluster
+     */
+    public static FireflyAerospikeVersionCheck validateAndGetClusterVersion(final IAerospikeClient client) {
+        FireflyAerospikeVersionCheck minVersion = null;
         for (final Node node : client.getNodes()) {
             LOG.debug("Info.request: build");
             // Cannot set up InfoPolicy here because AerospikeConnection does not exist yet, so use default.
@@ -74,11 +83,42 @@ public class FireflyAerospikeVersionCheck {
                         version.major, version.minor, version.revision, version.extension,
                         MAJOR_MINIMUM, MINOR_MINIMUM, REVISION_MINIMUM, EXTENSION_MINIMUM));
             }
-
-            if (requireMRTSupport && version.major < 8) {
-                throw new AerospikeMrtNotSupportedException();
+            if (minVersion == null || version.compareTo(minVersion) < 0) {
+                minVersion = version;
             }
         }
+        return minVersion;
+    }
+
+    public boolean supportsMRT() {
+        return this.major >= 8;
+    }
+
+    public boolean supportsExpressionIndexes() {
+        return this.major > 8 || (this.major == 8 && this.minor >= 1);
+    }
+
+    public void requireMRTSupport() {
+        if (!supportsMRT()) {
+            throw new AerospikeMrtNotSupportedException();
+        }
+    }
+
+    public void requireExpressionIndexSupport() {
+        if (!supportsExpressionIndexes()) {
+            throw new AerospikeCompoundIndexNotSupportedException();
+        }
+    }
+
+    /**
+     * Compare versions. Returns negative if this version is less than other,
+     * positive if greater, 0 if equal.
+     */
+    public int compareTo(final FireflyAerospikeVersionCheck other) {
+        if (this.major != other.major) return Integer.compare(this.major, other.major);
+        if (this.minor != other.minor) return Integer.compare(this.minor, other.minor);
+        if (this.revision != other.revision) return Integer.compare(this.revision, other.revision);
+        return Integer.compare(this.extension, other.extension);
     }
 
     public static boolean validateVersion(final FireflyAerospikeVersionCheck version) {

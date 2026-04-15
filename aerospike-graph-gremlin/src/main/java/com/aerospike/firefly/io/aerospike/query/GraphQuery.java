@@ -7,6 +7,7 @@ import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
+import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
@@ -202,6 +203,34 @@ public class GraphQuery {
         // Query index.
         return querySIndex(indexInfo.setName, indexInfo.indexName,
                 VertexQueryHelper.predicateToFilter(graph.getBaseGraph(), predicate, indexInfo), queryPolicy, transform);
+    }
+
+    public <E> Iterator<E> queryVertexExpressionIndex(final FireflyIndexMetadata.ExpressionIndexInfo indexInfo,
+                                                      final FireflyGraph.TransformKeyRecord<E> transform,
+                                                      final Long evaluationTimeout) {
+        final QueryPolicy queryPolicy = new QueryPolicy();
+        queryPolicy.filterExp = VertexQueryHelper.hasContainerListToExpression(graph.getBaseGraph(), indexInfo.hasContainers);
+
+        if (evaluationTimeout != null) {
+            if (evaluationTimeout < queryPolicy.totalTimeout) {
+                queryPolicy.totalTimeout = evaluationTimeout.intValue();
+            }
+            if (evaluationTimeout < queryPolicy.socketTimeout) {
+                queryPolicy.socketTimeout = evaluationTimeout.intValue();
+            }
+        }
+
+        final Filter indexFilter;
+        if (indexInfo.searchValueString != null) {
+            indexFilter = Filter.containsByIndex(indexInfo.indexName, IndexCollectionType.MAPKEYS,
+                    indexInfo.searchValueString);
+        } else if (indexInfo.searchValueNumeric != null) {
+            indexFilter = Filter.containsByIndex(indexInfo.indexName, IndexCollectionType.MAPKEYS,
+                    indexInfo.searchValueNumeric);
+        } else {
+            indexFilter = Filter.equalByIndex(indexInfo.indexName, 1);
+        }
+        return querySIndex(this.db.getConfig().vertexAeroSet, indexInfo.indexName, indexFilter, queryPolicy, transform);
     }
 
     public <E> Iterator<E> querySIndex(final String setName,

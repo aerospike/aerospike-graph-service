@@ -6,12 +6,10 @@ import com.aerospike.firefly.util.config.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
 import com.aerospike.firefly.util.Movielens;
 import com.aerospike.firefly.util.Unzip;
-import io.cucumber.java.sl.In;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -29,7 +27,6 @@ import static org.junit.Assert.assertEquals;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-@Ignore("SSL certificate of hosting site of movie lens is expired")
 public class TestMovielens10M extends AbstractFireflySuite {
 
     @Override

@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.aerospike</groupId>
         <artifactId>firefly</artifactId>
-        <version>3.2.0-SNAPSHOT</version>
+        <version>3.3.0-SNAPSHOT</version>
     </parent>
     <artifactId>aerospike-graph-gremlin</artifactId>
     <name>Aerospike :: Graph</name>
@@ -362,7 +362,7 @@
                         --add-opens java.base/java.net=ALL-UNNAMED
                         -Dbuild.dir=${project.build.directory}
                         -Dis.testing=true -Djava.net.preferIPv4Stack=true
-                        -Xmx20g
+                        -XX:MaxRAMPercentage=67.0
                         -Xms1000m
                     </argLine>
                 </configuration>

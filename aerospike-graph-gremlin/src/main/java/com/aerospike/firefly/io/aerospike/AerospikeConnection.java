@@ -2271,8 +2271,8 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public void createExpIndex(final List<String> existingIndexes, final FireflyExpressionIndex index) {
-        final boolean warmup_mode = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf);
-        if (warmup_mode || config.vertexAeroSet.contains(WarmupUtil.getWarmupArenaName())) {
+        final boolean isWarmupMode = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf);
+        if (isWarmupMode || config.vertexAeroSet.contains(WarmupUtil.getWarmupArenaName())) {
             return;
         }
 

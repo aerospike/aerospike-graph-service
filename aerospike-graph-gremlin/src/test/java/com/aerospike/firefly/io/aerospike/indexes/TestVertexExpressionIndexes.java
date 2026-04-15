@@ -1299,6 +1299,389 @@ public class TestVertexExpressionIndexes {
         }
     }
 
+    // ==================== Combined Range Predicate Tests (gt/gte + lt/lte on same key) ====================
+
+    @Test
+    public void testExpressionIndexWithGtAndLtOnSameKey() {
+        // Index with gt(1) and lt(5) on the same key creates a range (1, 5) exclusive
+        // gt(1) becomes gte(2), lt(5) becomes lte(4), so range is [2, 4]
+        final String indexConfig = "~label:range,value:~gt(1),value:~lt(5)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("range").property("value", 0).property("name", "below").iterate();
+            g.addV("range").property("value", 1).property("name", "lower-bound").iterate();
+            g.addV("range").property("value", 2).property("name", "in-range-low").iterate();
+            g.addV("range").property("value", 3).property("name", "in-range-mid").iterate();
+            g.addV("range").property("value", 4).property("name", "in-range-high").iterate();
+            g.addV("range").property("value", 5).property("name", "upper-bound").iterate();
+            g.addV("range").property("value", 6).property("name", "above").iterate();
+
+            // Query with gt(1) and lt(5) should match values 2, 3, 4
+            List<Vertex> results = g.V().hasLabel("range").has("value", P.gt(1)).has("value", P.lt(5)).toList();
+            Assert.assertEquals(3, results.size());
+        }
+    }
+
+    @Test
+    public void testExpressionIndexWithGteAndLteOnSameKey() {
+        // Index with gte(2) and lte(4) creates an inclusive range [2, 4]
+        final String indexConfig = "~label:range,value:~gte(2),value:~lte(4)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("range").property("value", 1).property("name", "below").iterate();
+            g.addV("range").property("value", 2).property("name", "lower-bound").iterate();
+            g.addV("range").property("value", 3).property("name", "middle").iterate();
+            g.addV("range").property("value", 4).property("name", "upper-bound").iterate();
+            g.addV("range").property("value", 5).property("name", "above").iterate();
+
+            // Query with gte(2) and lte(4) should match values 2, 3, 4
+            List<Vertex> results = g.V().hasLabel("range").has("value", P.gte(2)).has("value", P.lte(4)).toList();
+            Assert.assertEquals(3, results.size());
+        }
+    }
+
+    @Test
+    public void testExpressionIndexWithGtAndLteOnSameKey() {
+        // Index with gt(1) and lte(4) creates a half-open range (1, 4]
+        // gt(1) becomes gte(2), lte(4) stays lte(4), so range is [2, 4]
+        final String indexConfig = "~label:range,value:~gt(1),value:~lte(4)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("range").property("value", 1).property("name", "lower-bound-exclusive").iterate();
+            g.addV("range").property("value", 2).property("name", "in-range-low").iterate();
+            g.addV("range").property("value", 3).property("name", "in-range-mid").iterate();
+            g.addV("range").property("value", 4).property("name", "upper-bound-inclusive").iterate();
+            g.addV("range").property("value", 5).property("name", "above").iterate();
+
+            // Query with gt(1) and lte(4) should match values 2, 3, 4
+            List<Vertex> results = g.V().hasLabel("range").has("value", P.gt(1)).has("value", P.lte(4)).toList();
+            Assert.assertEquals(3, results.size());
+        }
+    }
+
+    @Test
+    public void testExpressionIndexWithGteAndLtOnSameKey() {
+        // Index with gte(2) and lt(5) creates a half-open range [2, 5)
+        // gte(2) stays gte(2), lt(5) becomes lte(4), so range is [2, 4]
+        final String indexConfig = "~label:range,value:~gte(2),value:~lt(5)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("range").property("value", 1).property("name", "below").iterate();
+            g.addV("range").property("value", 2).property("name", "lower-bound-inclusive").iterate();
+            g.addV("range").property("value", 3).property("name", "in-range-mid").iterate();
+            g.addV("range").property("value", 4).property("name", "in-range-high").iterate();
+            g.addV("range").property("value", 5).property("name", "upper-bound-exclusive").iterate();
+
+            // Query with gte(2) and lt(5) should match values 2, 3, 4
+            List<Vertex> results = g.V().hasLabel("range").has("value", P.gte(2)).has("value", P.lt(5)).toList();
+            Assert.assertEquals(3, results.size());
+        }
+    }
+
+    @Test
+    public void testExpressionIndexRangeWithAdditionalPredicates() {
+        // Combined range with additional equality predicates
+        final String indexConfig = "~label:product,category:electronics,price:~gte(100),price:~lte(500)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("product").property("category", "electronics").property("price", 50).property("name", "Cheap").iterate();
+            g.addV("product").property("category", "electronics").property("price", 100).property("name", "Budget").iterate();
+            g.addV("product").property("category", "electronics").property("price", 250).property("name", "Mid").iterate();
+            g.addV("product").property("category", "electronics").property("price", 500).property("name", "Premium").iterate();
+            g.addV("product").property("category", "electronics").property("price", 1000).property("name", "Luxury").iterate();
+            g.addV("product").property("category", "furniture").property("price", 250).property("name", "Table").iterate();
+
+            // Query should match electronics with price in [100, 500]
+            List<Vertex> results = g.V().hasLabel("product")
+                    .has("category", "electronics")
+                    .has("price", P.gte(100))
+                    .has("price", P.lte(500))
+                    .toList();
+            Assert.assertEquals(3, results.size());
+        }
+    }
+
+    @Test
+    public void testExpressionIndexNarrowRange() {
+        // Test a very narrow range where gt and lt are adjacent
+        // gt(3) and lt(5) should match only value 4
+        final String indexConfig = "~label:narrow,value:~gt(3),value:~lt(5)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("narrow").property("value", 2).property("name", "below").iterate();
+            g.addV("narrow").property("value", 3).property("name", "lower-bound").iterate();
+            g.addV("narrow").property("value", 4).property("name", "only-match").iterate();
+            g.addV("narrow").property("value", 5).property("name", "upper-bound").iterate();
+            g.addV("narrow").property("value", 6).property("name", "above").iterate();
+
+            // Query should match only value 4
+            List<Vertex> results = g.V().hasLabel("narrow").has("value", P.gt(3)).has("value", P.lt(5)).toList();
+            Assert.assertEquals(1, results.size());
+            Assert.assertEquals(4, results.get(0).property("value").value());
+        }
+    }
+
+    @Test
+    public void testExpressionIndexSingleValueRange() {
+        // Test a range that matches exactly one value: gte(5) and lte(5) matches only 5
+        final String indexConfig = "~label:single,value:~gte(5),value:~lte(5)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("single").property("value", 4).property("name", "below").iterate();
+            g.addV("single").property("value", 5).property("name", "exact").iterate();
+            g.addV("single").property("value", 6).property("name", "above").iterate();
+
+            // Query should match only value 5
+            List<Vertex> results = g.V().hasLabel("single").has("value", P.gte(5)).has("value", P.lte(5)).toList();
+            Assert.assertEquals(1, results.size());
+            Assert.assertEquals(5, results.get(0).property("value").value());
+        }
+    }
+
+    // ==================== Off-by-one Matching Tests (Index/Query gt/gte and lt/lte combinations) ====================
+
+    @Test
+    public void testRangeIndexGtLtQueryGteAdjustedLteAdjusted() {
+        // Index: gt(1), lt(5) stored as gte(2), lte(4)
+        // Query: gte(2), lte(4) - should match exactly
+        final String indexConfig = "~label:item,value:~gt(1),value:~lt(5)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("item").property("value", 2).property("name", "A").iterate();
+            g.addV("item").property("value", 3).property("name", "B").iterate();
+            g.addV("item").property("value", 4).property("name", "C").iterate();
+
+            // Query with equivalent gte/lte should use the index
+            List<Vertex> results = g.V().hasLabel("item").has("value", P.gte(2)).has("value", P.lte(4)).toList();
+            Assert.assertEquals(3, results.size());
+        }
+    }
+
+    @Test
+    public void testRangeIndexGteLteQueryGtAdjustedLtAdjusted() {
+        // Index: gte(2), lte(4) stored as is
+        // Query: gt(1), lt(5) converts to gte(2), lte(4) - should match
+        final String indexConfig = "~label:item,value:~gte(2),value:~lte(4)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("item").property("value", 2).property("name", "A").iterate();
+            g.addV("item").property("value", 3).property("name", "B").iterate();
+            g.addV("item").property("value", 4).property("name", "C").iterate();
+
+            // Query with gt/lt that converts to equivalent gte/lte should use the index
+            List<Vertex> results = g.V().hasLabel("item").has("value", P.gt(1)).has("value", P.lt(5)).toList();
+            Assert.assertEquals(3, results.size());
+        }
+    }
+
+    @Test
+    public void testRangeIndexGtLteQueryGteAdjustedLte() {
+        // Index: gt(1), lte(4) stored as gte(2), lte(4)
+        // Query: gte(2), lte(4) - should match exactly
+        final String indexConfig = "~label:item,value:~gt(1),value:~lte(4)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("item").property("value", 2).property("name", "A").iterate();
+            g.addV("item").property("value", 3).property("name", "B").iterate();
+            g.addV("item").property("value", 4).property("name", "C").iterate();
+
+            List<Vertex> results = g.V().hasLabel("item").has("value", P.gte(2)).has("value", P.lte(4)).toList();
+            Assert.assertEquals(3, results.size());
+        }
+    }
+
+    @Test
+    public void testRangeIndexGteLtQueryGteLtAdjusted() {
+        // Index: gte(2), lt(5) stored as gte(2), lte(4)
+        // Query: gte(2), lte(4) - should match exactly
+        final String indexConfig = "~label:item,value:~gte(2),value:~lt(5)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("item").property("value", 2).property("name", "A").iterate();
+            g.addV("item").property("value", 3).property("name", "B").iterate();
+            g.addV("item").property("value", 4).property("name", "C").iterate();
+
+            List<Vertex> results = g.V().hasLabel("item").has("value", P.gte(2)).has("value", P.lte(4)).toList();
+            Assert.assertEquals(3, results.size());
+        }
+    }
+
+    @Test
+    public void testRangeIndexMixedQueryMixed() {
+        // Index: gt(0), lte(10) stored as gte(1), lte(10)
+        // Query: gte(1), lt(11) converts to gte(1), lte(10) - should match
+        final String indexConfig = "~label:item,value:~gt(0),value:~lte(10)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("item").property("value", 1).property("name", "A").iterate();
+            g.addV("item").property("value", 5).property("name", "B").iterate();
+            g.addV("item").property("value", 10).property("name", "C").iterate();
+
+            // Query: gte(1), lt(11) converts to gte(1), lte(10)
+            List<Vertex> results = g.V().hasLabel("item").has("value", P.gte(1)).has("value", P.lt(11)).toList();
+            Assert.assertEquals(3, results.size());
+        }
+    }
+
+    @Test
+    public void testRangeIndexBoundaryValues() {
+        // Test boundary value behavior with gt(10) and lt(20)
+        // Internally stored as gte(11) and lte(19)
+        final String indexConfig = "~label:boundary,value:~gt(10),value:~lt(20)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("boundary").property("value", 10).property("name", "at-lower").iterate();
+            g.addV("boundary").property("value", 11).property("name", "just-above-lower").iterate();
+            g.addV("boundary").property("value", 15).property("name", "middle").iterate();
+            g.addV("boundary").property("value", 19).property("name", "just-below-upper").iterate();
+            g.addV("boundary").property("value", 20).property("name", "at-upper").iterate();
+
+            // Query with gt(10) and lt(20) - should NOT include 10 or 20
+            List<Vertex> results = g.V().hasLabel("boundary").has("value", P.gt(10)).has("value", P.lt(20)).toList();
+            Assert.assertEquals(3, results.size());
+
+            // Verify boundary values are excluded
+            for (Vertex v : results) {
+                int value = (int) v.property("value").value();
+                Assert.assertTrue("Value should be > 10", value > 10);
+                Assert.assertTrue("Value should be < 20", value < 20);
+            }
+        }
+    }
+
+    @Test
+    public void testRangeIndexQueryWithDifferentBounds() {
+        // Index: gte(10), lte(100)
+        // Query: gte(10), lte(50) - should work but only return values in [10, 50]
+        // Note: The index will be used but post-filter will apply
+        final String indexConfig = "~label:item,value:~gte(10),value:~lte(100)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("item").property("value", 10).property("name", "A").iterate();
+            g.addV("item").property("value", 25).property("name", "B").iterate();
+            g.addV("item").property("value", 50).property("name", "C").iterate();
+            g.addV("item").property("value", 75).property("name", "D").iterate();
+            g.addV("item").property("value", 100).property("name", "E").iterate();
+
+            // Query for the full index range
+            List<Vertex> allResults = g.V().hasLabel("item").has("value", P.gte(10)).has("value", P.lte(100)).toList();
+            Assert.assertEquals(5, allResults.size());
+        }
+    }
+
+    @Test
+    public void testRangeIndexWithNegativeValues() {
+        // Test range with negative values: gt(-5) and lt(5)
+        // Stored as gte(-4) and lte(4)
+        final String indexConfig = "~label:neg,value:~gt(-5),value:~lt(5)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("neg").property("value", -6).property("name", "below").iterate();
+            g.addV("neg").property("value", -5).property("name", "lower-bound").iterate();
+            g.addV("neg").property("value", -4).property("name", "in-range-low").iterate();
+            g.addV("neg").property("value", 0).property("name", "zero").iterate();
+            g.addV("neg").property("value", 4).property("name", "in-range-high").iterate();
+            g.addV("neg").property("value", 5).property("name", "upper-bound").iterate();
+            g.addV("neg").property("value", 6).property("name", "above").iterate();
+
+            // Query should match values -4, 0, 4
+            List<Vertex> results = g.V().hasLabel("neg").has("value", P.gt(-5)).has("value", P.lt(5)).toList();
+            Assert.assertEquals(3, results.size());
+        }
+    }
+
+    @Test
+    public void testRangeIndexCrossingZero() {
+        // Test range crossing zero: gte(-2) and lte(2)
+        final String indexConfig = "~label:zero,value:~gte(-2),value:~lte(2)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("zero").property("value", -3).property("name", "below").iterate();
+            g.addV("zero").property("value", -2).property("name", "lower").iterate();
+            g.addV("zero").property("value", -1).property("name", "neg").iterate();
+            g.addV("zero").property("value", 0).property("name", "zero").iterate();
+            g.addV("zero").property("value", 1).property("name", "pos").iterate();
+            g.addV("zero").property("value", 2).property("name", "upper").iterate();
+            g.addV("zero").property("value", 3).property("name", "above").iterate();
+
+            // Query should match values -2, -1, 0, 1, 2
+            List<Vertex> results = g.V().hasLabel("zero").has("value", P.gte(-2)).has("value", P.lte(2)).toList();
+            Assert.assertEquals(5, results.size());
+        }
+    }
+
+    @Test
+    public void testRangeIndexWithLongValues() {
+        // Test range with Long values
+        final String indexConfig = "~label:longrange,value:~gte(1000000000),value:~lte(5000000000)";
+        config.setProperty(EXPRESSION_INDEX_KEY, indexConfig);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            waitForExpressionIndex(graph, indexConfig);
+            final GraphTraversalSource g = graph.traversal();
+
+            g.addV("longrange").property("value", 500000000L).property("name", "below").iterate();
+            g.addV("longrange").property("value", 1000000000L).property("name", "lower").iterate();
+            g.addV("longrange").property("value", 2500000000L).property("name", "middle").iterate();
+            g.addV("longrange").property("value", 5000000000L).property("name", "upper").iterate();
+            g.addV("longrange").property("value", 6000000000L).property("name", "above").iterate();
+
+            // Query should match 3 values
+            List<Vertex> results = g.V().hasLabel("longrange")
+                    .has("value", P.gte(1000000000L))
+                    .has("value", P.lte(5000000000L))
+                    .toList();
+            Assert.assertEquals(3, results.size());
+        }
+    }
+
     private static void waitForExpressionIndexesCleared(final FireflyGraph graph) {
         final long startTime = System.currentTimeMillis();
         List<String> indexes = graph.fireflyIndexMetadata.getExpressionIndexNames();

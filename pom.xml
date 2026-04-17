@@ -83,7 +83,7 @@
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <aerospike-client.version>9.0.5</aerospike-client.version>
+        <aerospike-client.version>9.3.0</aerospike-client.version>
         <tinkerpop.version>3.7.3</tinkerpop.version>
         <junit.version>4.13.2</junit.version>
         <hamcrest.version>2.2</hamcrest.version>

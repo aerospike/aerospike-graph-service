@@ -37,4 +37,4 @@ jobs:
         run: |
           gh pr create -B 3.x-snyk -H 3.x-dev --title 'Weekly ${{ env.WEEKLY }}: Snyk vulnerability check 3.x-dev' --body 'Created by Github action'
         env:
-          GITHUB_TOKEN: ${{ secrets.SNYK_WEEKLY_PAT }}
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
